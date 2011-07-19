@@ -209,7 +209,7 @@ public class TPCEClient extends BenchmarkComponent {
             // We first need to collect table statistics...
             //
             StatsCallback statsCallback = new StatsCallback();
-            m_voltClient.callProcedure(statsCallback, "@Statistics", SysProcSelector.TABLE.name());
+            this.getClientHandle().callProcedure(statsCallback, "@Statistics", SysProcSelector.TABLE.name());
             statsCallback.latch.await();
             assert(!TableStatistics.getTables().isEmpty());
             //LOG.info(TableStatistics.debug());
@@ -219,8 +219,8 @@ public class TPCEClient extends BenchmarkComponent {
                 final Transaction target = TPCEClient.selectTransaction();
                 System.err.println("Trying to execute " + target);
                 this.thread_xact_xref.put(thread_id, target.ordinal());
-                m_voltClient.backpressureBarrier();
-                m_voltClient.callProcedure(callback, target.callName, this.generateClientArgs(target));
+                this.getClientHandle().backpressureBarrier();
+                this.getClientHandle().callProcedure(callback, target.callName, this.generateClientArgs(target));
                 callback.latch.await();
             } // WHILE
         } catch (NoConnectionsException e) {

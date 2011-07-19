@@ -1647,7 +1647,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         // Load up this dirty mess...
         try {
-            this.m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, table);
+            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tableName, table);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);

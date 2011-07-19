@@ -1481,10 +1481,10 @@ BENCHMARKS
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
 
         <!-- Global Parameters -->
-        <arg value="scalefactor=${client.scalefactor}" />
-        <arg value="skewfactor=${client.skewfactor}" />
-        <arg value="temporalwindow=${client.temporalwindow}" />
-        <arg value="temporaltotal=${client.temporaltotal}" />
+        <arg value="client.scalefactor=${client.scalefactor}" />
+        <arg value="client.skewfactor=${client.skewfactor}" />
+        <arg value="client.temporalwindow=${client.temporalwindow}" />
+        <arg value="client.temporaltotal=${client.temporaltotal}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />

@@ -122,7 +122,7 @@ public abstract class AbstractLoader extends BenchmarkComponent
     {
         try
         {
-            m_voltClient.callProcedure("@LoadMultipartitionTable", tablename, table);
+            getClientHandle().callProcedure("@LoadMultipartitionTable", tablename, table);
         }
         catch (Exception e)
         {

@@ -239,7 +239,7 @@ public class TM1Client extends TM1BaseClient {
         try {
             while (true) {
                 this.runOnce();
-                m_voltClient.backpressureBarrier();
+                this.getClientHandle().backpressureBarrier();
             } // WHILE
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -249,7 +249,7 @@ public class TM1Client extends TM1BaseClient {
     @Override
     protected boolean runOnce() throws IOException {
         final Transaction target = this.selectTransaction();
-        boolean ret = m_voltClient.callProcedure(
+        boolean ret = this.getClientHandle().callProcedure(
                                    this.callbacks[target.ordinal()],
                                    target.callName,
                                    target.ag.genArgs(subscriberSize));

@@ -158,12 +158,12 @@ public class BingoClient extends BenchmarkComponent {
     protected boolean cleanupLastRun() {
         try {
             for (Tourney t : tournaments) {
-                m_voltClient.callProcedure(
+                this.getClientHandle().callProcedure(
                         new NullCallback(),
                         "DeleteTournament",
                         (long)t.tid);
             }
-            m_voltClient.drain();
+            this.getClientHandle().drain();
         } catch (IOException e) {
             return false;
         }
@@ -211,7 +211,7 @@ public class BingoClient extends BenchmarkComponent {
         try {
             while (true) {
                 invokeBingo();
-                m_voltClient.backpressureBarrier();
+                this.getClientHandle().backpressureBarrier();
             }
         } catch (IOException e) {
             /*
@@ -265,7 +265,7 @@ public class BingoClient extends BenchmarkComponent {
                 }
             };
 
-            queued = m_voltClient.callProcedure(
+            queued = this.getClientHandle().callProcedure(
                     callback,
                     "CreateTournament",
                     (long)t.tid,
@@ -287,7 +287,7 @@ public class BingoClient extends BenchmarkComponent {
                 }
             };
 
-            queued = m_voltClient.callProcedure(
+            queued = this.getClientHandle().callProcedure(
                     callback,
                     "DeleteTournament",
                     (long)t.tid);
@@ -342,7 +342,7 @@ public class BingoClient extends BenchmarkComponent {
                     }
                 };
 
-                queued = m_voltClient.callProcedure(
+                queued = this.getClientHandle().callProcedure(
                         callback,
                         "GetAvgPot", tourneyIds);
             } else {
@@ -360,7 +360,7 @@ public class BingoClient extends BenchmarkComponent {
                     }
                 };
 
-                queued = m_voltClient.callProcedure(
+                queued = this.getClientHandle().callProcedure(
                         callback,
                         "PlayRound", (long)t.tid,
                         (long)t.round,

@@ -226,8 +226,8 @@ public class AirlineLoader extends AirlineBaseClient {
         try {
             String target_proc = "@LoadMultipartitionTable";
             LOG.debug("Loading VoltTable for " + tablename + " using " + target_proc);
-            m_voltClient.callProcedure(target_proc, tablename, table); 
-            //m_voltClient.callProcedure(cb, target_proc, tablename, table);
+            this.getClientHandle().callProcedure(target_proc, tablename, table); 
+            //this.getClientHandle().callProcedure(cb, target_proc, tablename, table);
             //cb.waitForResponse();
         } catch (Exception e) {
             e.printStackTrace();

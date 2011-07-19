@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -43,12 +44,14 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.mit.hstore.HStoreConf;
 
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
     final TPCCSimulation m_tpccSim;
     final TPCCSimulation m_tpccSim2;
-    private final ScaleParameters m_scaleParams;
+    final ScaleParameters m_scaleParams;
+    final TPCCConfig m_tpccConfig;
 
     private final boolean crash_on_error = false;
     
@@ -213,81 +216,36 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             Clock clock,
             ScaleParameters params)
     {
-        this(client, generator, clock, params, 0.0d, false, false, false, false, false);
-    }
-
-    public TPCCClient(
-            Client client,
-            RandomGenerator generator,
-            Clock clock,
-            ScaleParameters params,
-            double skewFactor,
-            boolean noop,
-            boolean neworder_only,
-            boolean neworder_abort,
-            boolean neworder_multip,
-            boolean neworder_all_multip
-    ) {
         super(client);
+        m_tpccConfig = TPCCConfig.defaultConfig();
         m_scaleParams = params;
-        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
-        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, false, skewFactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
+        m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
+        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
     }
 
     /** Complies with our benchmark client remote controller scheme */
     public TPCCClient(String args[]) {
         super(args);
-        /*
-         * Input parameters:
-         *   warehouses=#
-         *   scalefactor=#
-         *   skewfactor=#
-         */
 
         // default values
         int warehouses = 1;
-        double scalefactor = 1.0;
-        double skewfactor = 0.0;
-        boolean noop = false;
-        boolean neworder_only = false;
-        boolean neworder_abort = false;
-        boolean neworder_multip = false;
-        boolean neworder_all_multip = false;
+        int firstWarehouse = Constants.STARTING_WAREHOUSE;
 
-        // scan the inputs once to read everything but host names
-        for (String arg : args) {
-            String[] parts = arg.split("=",2);
-            if (parts.length == 1) {
-                continue;
+        for (Entry<String, String> e : m_extraParams.entrySet()) {
+            String key = e.getKey();
+            String val = e.getValue();
+            
+            // WAREHOUSES
+            if (key.equalsIgnoreCase("warehouses")) {
+                warehouses = Integer.parseInt(val);
             }
-            else if (parts[1].startsWith("${")) {
-                continue;
-            }
-            else if (parts[0].equalsIgnoreCase("warehouses")) {
-                warehouses = Integer.parseInt(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("scalefactor")) {
-                scalefactor = Double.parseDouble(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("skewfactor") && !parts[1].isEmpty()) {
-                skewfactor = Double.parseDouble(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("noop") && !parts[1].isEmpty()) {
-                noop = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("neworder_only") && !parts[1].isEmpty()) {
-                neworder_only = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("neworder_abort") && !parts[1].isEmpty()) {
-                neworder_abort = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("neworder_multip") && !parts[1].isEmpty()) {
-                neworder_multip = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("neworder_all_multip") && !parts[1].isEmpty()) {
-                neworder_all_multip = Boolean.parseBoolean(parts[1]);
+            // FIRST WAREHOUSE ID
+            else if (key.equalsIgnoreCase("first_warehouse")) {
+                firstWarehouse = Integer.parseInt(val);
             }
         }
+        m_tpccConfig = TPCCConfig.createConfig(m_extraParams);
+        if (LOG.isDebugEnabled()) LOG.debug("TPC-C Client Configuration:\n" + m_tpccConfig);
 
         // makeForRun requires the value cLast from the load generator in
         // order to produce a valid generator for the run. Thus the sort
@@ -304,12 +262,10 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         RandomGenerator rng2 = new RandomGenerator.Implementation(0);
         rng.setC(base_runC2);
 
-        m_scaleParams =
-            ScaleParameters.makeWithScaleFactor(warehouses, scalefactor);
-        m_tpccSim =
-            new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
-        m_tpccSim2 =
-            new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, false, skewfactor, noop, neworder_only, neworder_abort, neworder_multip, neworder_all_multip);
+        HStoreConf hstore_conf = this.getHStoreConf();
+        m_scaleParams = ScaleParameters.makeWithScaleFactor(warehouses, firstWarehouse, hstore_conf.client.scalefactor);
+        m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
+        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 
         // Set up checking
         buildConstraints();
@@ -619,17 +575,17 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callDelivery(short w_id, int carrier, TimestampType date) throws IOException {
         if (m_blockOnBackpressure) {
             final DeliveryCallback cb = new DeliveryCallback();
-            while (!m_voltClient.callProcedure(cb,
+            while (!this.getClientHandle().callProcedure(cb,
                 Constants.DELIVERY, w_id, carrier, date)) {
                 try {
-                    m_voltClient.backpressureBarrier();
+                    this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
             }
         } else {
-            m_queuedMessage = m_voltClient.callProcedure(new DeliveryCallback(),
+            m_queuedMessage = this.getClientHandle().callProcedure(new DeliveryCallback(),
                     Constants.DELIVERY, w_id, carrier, date);
         }
     }
@@ -665,16 +621,16 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         final NewOrderCallback cb = new NewOrderCallback(rollback);
         
         if (m_blockOnBackpressure) {
-            while (!m_voltClient.callProcedure(cb, proc_name, paramlist)) {
+            while (!this.getClientHandle().callProcedure(cb, proc_name, paramlist)) {
                 try {
-                    m_voltClient.backpressureBarrier();
+                    this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
             }
         } else {
-            m_queuedMessage = m_voltClient.callProcedure(cb, proc_name, paramlist);
+            m_queuedMessage = this.getClientHandle().callProcedure(cb, proc_name, paramlist);
         }
     }
 
@@ -723,17 +679,17 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         if (m_blockOnBackpressure) {
             final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.ORDER_STATUS,
                     proc);
-            while (!m_voltClient.callProcedure( cb,
+            while (!this.getClientHandle().callProcedure( cb,
                                                                              proc, paramlist)) {
                 try {
-                    m_voltClient.backpressureBarrier();
+                    this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
             }
         } else {
-            m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.ORDER_STATUS,
+            m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.ORDER_STATUS,
                                                                              proc),
                 proc, paramlist);
         }
@@ -747,27 +703,27 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callPaymentById(short w_id, byte d_id, double h_amount,
                                 short c_w_id, byte c_d_id, int c_id, TimestampType now) throws IOException {
         
-        m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID),
+        m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID),
                                                      Constants.PAYMENT_BY_ID,
                                                      w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
 //        
 //        if (m_blockOnBackpressure) {
 //            if (m_scaleParams.warehouses > 1) {
 //                final VerifyBasicCallback cb = new VerifyBasicCallback();
-//                while (!m_voltClient.callProcedure(cb, Constants.PAYMENT_BY_ID_W,
+//                while (!this.getClientHandle().callProcedure(cb, Constants.PAYMENT_BY_ID_W,
 //                                                   w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
 //                    try {
-//                        m_voltClient.backpressureBarrier();
+//                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
 //                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
 //                final VerifyBasicCallback cb2 = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID_C);
-//                while (!m_voltClient.callProcedure(cb2, Constants.PAYMENT_BY_ID_C, 
+//                while (!this.getClientHandle().callProcedure(cb2, Constants.PAYMENT_BY_ID_C, 
 //                                                   w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
 //                    try {
-//                        m_voltClient.backpressureBarrier();
+//                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
 //                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
@@ -775,10 +731,10 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                }
 //            } else {
 //                final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID);
-//                while (!m_voltClient.callProcedure(cb, Constants.PAYMENT_BY_ID,
+//                while (!this.getClientHandle().callProcedure(cb, Constants.PAYMENT_BY_ID,
 //                                                   w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now)) {
 //                    try {
-//                        m_voltClient.backpressureBarrier();
+//                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
 //                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
@@ -787,11 +743,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //            }
 //        } else {
 //            if (m_scaleParams.warehouses > 1) {
-//                m_voltClient.callProcedure(new VerifyBasicCallback(), Constants.PAYMENT_BY_ID_W, w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
-//                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID_C), Constants.PAYMENT_BY_ID_C,
+//                this.getClientHandle().callProcedure(new VerifyBasicCallback(), Constants.PAYMENT_BY_ID_W, w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
+//                m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID_C), Constants.PAYMENT_BY_ID_C,
 //                                                                                     w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
 //           } else {
-//               m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID), Constants.PAYMENT_BY_ID,
+//               m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID), Constants.PAYMENT_BY_ID,
 //                                                                                    w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
 //           }
 //        }
@@ -801,7 +757,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callPaymentByName(short w_id, byte d_id, double h_amount,
             short c_w_id, byte c_d_id, String c_last, TimestampType now) throws IOException {
         
-        m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_NAME),
+        m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_NAME),
                                                      Constants.PAYMENT_BY_NAME,
                                                      w_id, d_id, h_amount, c_w_id, c_d_id, c_last, now);
 
@@ -809,11 +765,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //        if (m_blockOnBackpressure) {
 //            if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
 //                final VerifyBasicCallback cb = new VerifyBasicCallback();
-//                while(!m_voltClient.callProcedure(cb,
+//                while(!this.getClientHandle().callProcedure(cb,
 //                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
 //                        c_w_id, c_d_id, c_last, now)) {
 //                    try {
-//                        m_voltClient.backpressureBarrier();
+//                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
 //                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
@@ -821,11 +777,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                }
 //                final VerifyBasicCallback cb2 = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
 //                        Constants.PAYMENT_BY_NAME_C);
-//                while(!m_voltClient.callProcedure( cb2,
+//                while(!this.getClientHandle().callProcedure( cb2,
 //                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
 //                        c_w_id, c_d_id, c_last, now)) {
 //                    try {
-//                        m_voltClient.backpressureBarrier();
+//                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
 //                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
@@ -835,11 +791,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //            else {
 //                final VerifyBasicCallback cb = new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
 //                        Constants.PAYMENT_BY_ID);
-//                while(!m_voltClient.callProcedure( cb,
+//                while(!this.getClientHandle().callProcedure( cb,
 //                        Constants.PAYMENT_BY_ID, w_id,
 //                        d_id, h_amount, c_w_id, c_d_id, c_last, now)) {
 //                    try {
-//                        m_voltClient.backpressureBarrier();
+//                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
 //                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
@@ -848,16 +804,16 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //            }
 //        } else {
 //            if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
-//                m_voltClient.callProcedure(new VerifyBasicCallback(),
+//                this.getClientHandle().callProcedure(new VerifyBasicCallback(),
 //                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
 //                        c_w_id, c_d_id, c_last, now);
-//                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
+//                m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
 //                                                                                     Constants.PAYMENT_BY_NAME_C),
 //                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
 //                        c_w_id, c_d_id, c_last, now);
 //            }
 //            else {
-//                m_queuedMessage = m_voltClient.callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
+//                m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT,
 //                                                                                     Constants.PAYMENT_BY_ID),
 //                        Constants.PAYMENT_BY_ID, w_id,
 //                        d_id, h_amount, c_w_id, c_d_id, c_last, now);
@@ -884,10 +840,10 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     @Override
     public void callStockLevel(short w_id, byte d_id, int threshold) throws IOException {
         final StockLevelCallback cb = new StockLevelCallback();
-        while (!m_voltClient.callProcedure( cb, Constants.STOCK_LEVEL,
+        while (!this.getClientHandle().callProcedure( cb, Constants.STOCK_LEVEL,
                 w_id, d_id, threshold)) {
             try {
-                m_voltClient.backpressureBarrier();
+                this.getClientHandle().backpressureBarrier();
             } catch (InterruptedException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -905,7 +861,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     }
 
     public void dumpStatistics() throws IOException {
-        m_queuedMessage = m_voltClient.callProcedure(new DumpStatisticsCallback(),
+        m_queuedMessage = this.getClientHandle().callProcedure(new DumpStatisticsCallback(),
                 "@Statistics", "procedure");
     }
 
@@ -921,11 +877,18 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callResetWarehouse(long w_id, long districtsPerWarehouse,
             long customersPerDistrict, long newOrdersPerDistrict)
     throws IOException {
-        m_queuedMessage = m_voltClient.callProcedure(new ResetWarehouseCallback(),
+        m_queuedMessage = this.getClientHandle().callProcedure(new ResetWarehouseCallback(),
               Constants.RESET_WAREHOUSE, w_id, districtsPerWarehouse,
               customersPerDistrict, newOrdersPerDistrict);
     }
 
+    @Override
+    public void callbackStop() {
+        if (m_tpccConfig.neworder_skew_warehouse) {
+            LOG.info("WAREHOUSE DISTRIBUTION:\n" + m_tpccSim.getWarehouseZipf());
+        }
+    }
+    
     @Override
     public String[] getTransactionDisplayNames() {
         String countDisplayNames[] = new String[TPCCSimulation.Transaction.values().length];

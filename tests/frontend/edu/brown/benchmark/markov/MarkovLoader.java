@@ -482,7 +482,7 @@ public class MarkovLoader extends BenchmarkComponent {
     
         // Load up this dirty mess...
         try {
-            m_voltClient.callProcedure("@LoadMultipartitionTable", tablename, table);
+            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tablename, table);
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);

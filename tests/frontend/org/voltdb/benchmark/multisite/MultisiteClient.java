@@ -85,7 +85,7 @@ public class MultisiteClient extends BenchmarkComponent {
     public void runLoop() {
         try {
             while (true) {
-                m_voltClient.backpressureBarrier();
+                this.getClientHandle().backpressureBarrier();
                 executeTransaction();
             }
         } catch (IOException e) {
@@ -165,7 +165,7 @@ public class MultisiteClient extends BenchmarkComponent {
         int cid = (maxfid * (seat -1 ) + fid) % maxcid;
         if (cid == 0) cid = maxcid; // cids are 1-based
 
-        return m_voltClient.callProcedure(new RunChangeSeatCallback(),
+        return this.getClientHandle().callProcedure(new RunChangeSeatCallback(),
                                    ChangeSeat.class.getSimpleName(),
                                    fid, cid, seat);
     }
@@ -200,7 +200,7 @@ public class MultisiteClient extends BenchmarkComponent {
         int rid = m_loader.number(1, (int) (150 * 0.8 * maxfid));
         int value = m_loader.number(1, 1 << 20);
 
-        return m_voltClient.callProcedure(new RunUpdateReservationCallback(rid, maxfid),
+        return this.getClientHandle().callProcedure(new RunUpdateReservationCallback(rid, maxfid),
                                    UpdateReservation.class.getSimpleName(),
                                    rid, value);
     }
@@ -228,7 +228,7 @@ public class MultisiteClient extends BenchmarkComponent {
         int maxfid = Loader.kMaxFlights / m_scalefactor;
         int fid = m_loader.number(1, maxfid);
 
-        return m_voltClient.callProcedure(new RunFindOpenSeats(),
+        return this.getClientHandle().callProcedure(new RunFindOpenSeats(),
                                    FindOpenSeats.class.getSimpleName(),
                                    fid);
     }

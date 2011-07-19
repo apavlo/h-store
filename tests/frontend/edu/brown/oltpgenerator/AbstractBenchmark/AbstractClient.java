@@ -83,8 +83,8 @@ public abstract class AbstractClient extends BenchmarkComponent
             {
                 m_xactToInvoke = pickTransaction();
                 Object[] paras = AbstractRandomGenerator.genRandVals(m_xactToInvoke.getParaValGenerators());
-                m_voltClient.callProcedure(m_callBack, m_xactToInvoke.getClass().getSimpleName(), paras);
-                m_voltClient.backpressureBarrier();
+                getClientHandle().callProcedure(m_callBack, m_xactToInvoke.getClass().getSimpleName(), paras);
+                getClientHandle().backpressureBarrier();
             }
         }
         catch (Exception ex)

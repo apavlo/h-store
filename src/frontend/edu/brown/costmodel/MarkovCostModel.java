@@ -733,7 +733,7 @@ public class MarkovCostModel extends AbstractCostModel {
             ArgumentsParser.PARAM_MAPPINGS,
             ArgumentsParser.PARAM_MARKOV_THRESHOLDS
         );
-        HStoreConf.init(args, null);
+        HStoreConf.initArgumentsParser(args, null);
         final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
         final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.getFirst(args.workload_base_partitions) : null);
         final int num_threads = ThreadUtil.getMaxGlobalThreads();

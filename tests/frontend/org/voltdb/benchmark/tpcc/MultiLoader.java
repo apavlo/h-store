@@ -43,18 +43,22 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.client.Client;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.BenchmarkConfig;
 import edu.brown.catalog.CatalogUtil;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * TPC-C database loader. Note: The methods order id parameters from "top level"
@@ -72,6 +76,7 @@ public class MultiLoader extends BenchmarkComponent {
      */
     private final LoadThread m_loadThreads[];
     private final int m_warehouses;
+    private final int m_firstWarehouse;
 
     private int MAX_BATCH_SIZE = 10000;
     
@@ -87,34 +92,34 @@ public class MultiLoader extends BenchmarkComponent {
         super(args);
 
         initTableNames();
-        double scaleFactor = 1.0;
         int warehouses = 4;
+        int firstWarehouse = 1;
         int loadThreads = 8;
 
-        for (String arg : args) {
-            String[] parts = arg.split("=", 2);
-            if (parts.length == 1) {
-                continue;
-            } else if (parts[1].startsWith("${")) {
-                continue;
-            } else if (parts[0].equalsIgnoreCase("scalefactor")) {
-                scaleFactor = Double.parseDouble(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("warehouses")) {
-                warehouses = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("loadthreads")) {
-                loadThreads = Integer.parseInt(parts[1]);
+        for (Entry<String, String> e : m_extraParams.entrySet()) {
+            // WAREHOUSES
+            if (e.getKey().equalsIgnoreCase("warehouses")) {
+                warehouses = Integer.parseInt(e.getValue());
+            // FIRST WAREHOUSE ID
+            } else if (e.getKey().equalsIgnoreCase("first_warehouse")) {
+                firstWarehouse = Integer.parseInt(e.getValue());
+            // LOAD THREADS
+            } else if (e.getValue().equalsIgnoreCase("loadthreads")) {
+                loadThreads = Integer.parseInt(e.getValue());
             }
-        }
+        } // FOR
 
         m_warehouses = warehouses;
+        m_firstWarehouse = firstWarehouse;
         loadThreads = Math.min(warehouses, loadThreads);
         m_loadThreads = new LoadThread[loadThreads];
         
         // HACK
         MAX_BATCH_SIZE *= Math.max(100, (10 / m_warehouses));
 
+        HStoreConf hstore_conf = this.getHStoreConf();
         for (int ii = 0; ii < loadThreads; ii++) {
-            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, scaleFactor);
+            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, hstore_conf.client.scalefactor);
             assert parameters != null;
 
             RandomGenerator generator = new RandomGenerator.Implementation();
@@ -166,7 +171,7 @@ public class MultiLoader extends BenchmarkComponent {
 
     private void rethrowExceptionLoad(String procedureName, Object... parameters) {
         try {
-            VoltTable ret[] = m_voltClient.callProcedure(procedureName, parameters).getResults();
+            VoltTable ret[] = this.getClientHandle().callProcedure(procedureName, parameters).getResults();
             assert ret.length == 0;
         } catch (ProcCallException e) {
             e.printStackTrace();
@@ -232,7 +237,7 @@ public class MultiLoader extends BenchmarkComponent {
 
 //            VoltTable results[] = null;
 //            try {
-//                results = m_voltClient.callProcedure(GetTableCounts.class.getSimpleName()).getResults();
+//                results = this.getClientHandle().callProcedure(GetTableCounts.class.getSimpleName()).getResults();
 //            } catch (Exception e) {
 //                e.printStackTrace();
 //                System.exit(1);
@@ -598,6 +603,8 @@ public class MultiLoader extends BenchmarkComponent {
 
         /** generate replicated tables, ITEM and CUSTOMER_NAME. */
         public void makeReplicated() {
+            final Client client = getClientHandle();
+            
             // create ITEMS here to reduce memory consumption
             VoltTable items = new VoltTable(new VoltTable.ColumnInfo("I_ID", VoltType.INTEGER),
                                             new VoltTable.ColumnInfo("I_IM_ID", VoltType.INTEGER),
@@ -625,7 +632,7 @@ public class MultiLoader extends BenchmarkComponent {
                 if (items.getRowCount() == replicated_batch_size) {
                     try {
                         LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
-                        m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
+                        client.callProcedure("@LoadMultipartitionTable", "ITEM", items);
                         items.clearRowData();
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -638,14 +645,14 @@ public class MultiLoader extends BenchmarkComponent {
                     String extra = "";
                     if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
                     LOG.info("Loading replicated ITEM table" + extra);
-                    m_voltClient.callProcedure("@LoadMultipartitionTable", "ITEM", items);
+                    client.callProcedure("@LoadMultipartitionTable", "ITEM", items);
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.exit(1);
                 }
             }
 
-            if (m_voltClient != null) {
+//            if (m_voltClient != null) {
 //                // XXX
 //                final int numPermits = 48;
 //                final Semaphore maxOutstandingInvocations = new Semaphore(numPermits);
@@ -697,12 +704,12 @@ public class MultiLoader extends BenchmarkComponent {
                             batch.add(table.fetchRow(i2));
                             if (batch.getRowCount() == replicated_batch_size) {
                                 LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
-                                m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
+                                client.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
                                 batch.clearRowData();
                             }
                         } // FOR
                         if (batch.getRowCount() > 0) {
-                            m_voltClient.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
+                            client.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -723,9 +730,9 @@ public class MultiLoader extends BenchmarkComponent {
 //                            VoltTable table = p.getSecond().pop();
 //                            boolean queued = false;
 //                            while (!queued) {
-//                                queued = m_voltClient.callProcedure(callback, Constants.LOAD_WAREHOUSE_REPLICATED,
+//                                queued = this.getClientHandle().callProcedure(callback, Constants.LOAD_WAREHOUSE_REPLICATED,
 //                                        (short) p.getFirst().intValue(), null, table);
-//                                m_voltClient.backpressureBarrier();
+//                                this.getClientHandle().backpressureBarrier();
 //                            }
 //                        } catch (Exception e) {
 //                            e.printStackTrace();
@@ -741,15 +748,15 @@ public class MultiLoader extends BenchmarkComponent {
 //                    e.printStackTrace();
 //                    System.exit(-1);
 //                }
-            }
+//            }
 
             items = null;
         }
 
         /** Send to data to VoltDB and/or to the jdbc connection */
         private void commitDataTables(long w_id) {
-            assert(m_voltClient != null);
-            if (m_voltClient != null) {
+            assert(getClientHandle() != null);
+            if (getClientHandle() != null) {
                 commitDataTables_VoltDB(w_id);
             }
             for (int i = 0; i < data_tables.length; ++i) {
@@ -774,7 +781,7 @@ public class MultiLoader extends BenchmarkComponent {
                 if (data_tables[i] != null && data_tables[i].getRowCount() > 0) {
                     if (debug) LOG.debug(String.format("WAREHOUSE[%02d]: %s %d tuples", w_id, table_names[i], data_tables[i].getRowCount()));
                     try {
-                        m_voltClient.callProcedure("@LoadMultipartitionTable", table_names[i], data_tables[i]);
+                        getClientHandle().callProcedure("@LoadMultipartitionTable", table_names[i], data_tables[i]);
                     } catch (Exception e) {
                         e.printStackTrace();
                         System.exit(1);
@@ -876,8 +883,8 @@ public class MultiLoader extends BenchmarkComponent {
     @Override
     public void runLoop() throws NoConnectionsException {
         ArrayList<Integer> warehouseIds = new ArrayList<Integer>();
-        int count = (m_warehouses + ScaleParameters.STARTING_WAREHOUSE - 1);
-        for (int ii = ScaleParameters.STARTING_WAREHOUSE; ii <= count; ii++) {
+        int count = (m_warehouses + m_firstWarehouse - 1);
+        for (int ii = m_firstWarehouse; ii <= count; ii++) {
             warehouseIds.add(ii);
         }
         // Shuffling spreads the loading out across physical hosts better
@@ -901,6 +908,6 @@ public class MultiLoader extends BenchmarkComponent {
             }
         }
         LOG.info("Finished loading all warehouses");
-        m_voltClient.drain();
+        this.getClientHandle().drain();
     }
 }

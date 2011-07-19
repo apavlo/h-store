@@ -29,64 +29,6 @@ public final class HStoreConf {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
-    /**
-     * Base Configuration Class
-     */
-    private abstract class Conf {
-        
-        final Map<Field, ConfigProperty> properties;
-        final String prefix;
-        
-        {
-            Class<?> confClass = this.getClass();
-            this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
-            HStoreConf.this.confHandles.put(this.prefix, this);
-            
-            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
-            this.setDefaultValues();
-        }
-        
-        private void setDefaultValues() {
-            // Set the default values for the parameters based on their annotations
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
-                Field f = e.getKey();
-                ConfigProperty cp = e.getValue();
-                Object value = getDefaultValue(f, cp);
-                
-                try {
-                    if (value != null) f.set(this, value);
-                } catch (Exception ex) {
-                    throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
-                }
-//                System.err.println(String.format("%-20s = %s", f.getName(), value));
-            } // FOR   
-        }
-
-        @Override
-        public String toString() {
-            return (this.toString(false, false));
-        }
-        
-        public String toString(boolean advanced, boolean experimental) {
-            final Map<String, Object> m = new TreeMap<String, Object>();
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
-                ConfigProperty cp = e.getValue();
-                if (advanced == false && cp.advanced()) continue;
-                if (experimental == false && cp.experimental()) continue;
-                
-                Field f = e.getKey();
-                String key = f.getName().toUpperCase();
-                try {
-                    m.put(key, f.get(this));
-                } catch (IllegalAccessException ex) {
-                    m.put(key, ex.getMessage());
-                }
-            }
-            return (StringUtil.formatMaps(m));
-        }
-        
-    }
     
     // ============================================================================
     // GLOBAL
@@ -748,6 +690,63 @@ public final class HStoreConf {
         public String dump_database_dir = HStoreConf.this.global.temp_dir + "/dumps";
     }
     
+    /**
+     * Base Configuration Class
+     */
+    private abstract class Conf {
+        
+        final Map<Field, ConfigProperty> properties;
+        final String prefix;
+        
+        {
+            Class<?> confClass = this.getClass();
+            this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
+            HStoreConf.this.confHandles.put(this.prefix, this);
+            
+            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
+            this.setDefaultValues();
+        }
+        
+        private void setDefaultValues() {
+            // Set the default values for the parameters based on their annotations
+            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                Object value = getDefaultValue(f, cp);
+                
+                try {
+                    if (value != null) f.set(this, value);
+                } catch (Exception ex) {
+                    throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
+                }
+//                System.err.println(String.format("%-20s = %s", f.getName(), value));
+            } // FOR   
+        }
+
+        @Override
+        public String toString() {
+            return (this.toString(false, false));
+        }
+        
+        public String toString(boolean advanced, boolean experimental) {
+            final Map<String, Object> m = new TreeMap<String, Object>();
+            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+                ConfigProperty cp = e.getValue();
+                if (advanced == false && cp.advanced()) continue;
+                if (experimental == false && cp.experimental()) continue;
+                
+                Field f = e.getKey();
+                String key = f.getName().toUpperCase();
+                try {
+                    m.put(key, f.get(this));
+                } catch (IllegalAccessException ex) {
+                    m.put(key, ex.getMessage());
+                }
+            }
+            return (StringUtil.formatMaps(m));
+        }
+    }
+    
     // ----------------------------------------------------------------------------
     // INTERNAL 
     // ----------------------------------------------------------------------------
@@ -776,8 +775,8 @@ public final class HStoreConf {
     // METHODS
     // ----------------------------------------------------------------------------
 
-    private HStoreConf(File f) {
-        this.loadFromFile(f);
+    private HStoreConf() {
+        // Empty configuration...
     }
     
     /**
@@ -902,18 +901,22 @@ public final class HStoreConf {
         return (value);
     }
     
+    private Pattern makePattern() {
+        return Pattern.compile(String.format("(%s)\\.(.*)", StringUtil.join("|", this.confHandles.keySet())));
+    }
+    
     /**
      * 
      */
     @SuppressWarnings("unchecked")
-    protected void loadFromFile(File path) {
+    public void loadFromFile(File path) {
         try {
             this.config = new PropertiesConfiguration(path);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to load configuration file " + path);
         }
 
-        Pattern p = Pattern.compile("(global|site|coordinator|client)\\.(.*)");
+        Pattern p = this.makePattern();
         for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
             String k = obj_k.toString();
             Matcher m = p.matcher(k);
@@ -932,11 +935,11 @@ public final class HStoreConf {
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
-                LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
-//                throw new RuntimeException("Failed to retrieve field handle for '" + f_name + "'", ex);
             }
             ConfigProperty cp = handle.properties.get(f);
+            assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object defaultValue = (cp != null ? this.getDefaultValue(f, cp) : null);
             Object value = null;
@@ -964,6 +967,84 @@ public final class HStoreConf {
             }
         } // FOR
     }
+    
+    public void loadFromArgs(String args[]) {
+        final Pattern split_p = Pattern.compile("=");
+        
+        final Map<String, String> argsMap = new ListOrderedMap<String, String>();
+        for (int i = 0, cnt = args.length; i < cnt; i++) {
+            final String arg = args[i];
+            final String[] parts = split_p.split(arg, 2);
+            String k = parts[0];
+            String v = parts[1];
+            if (k.startsWith("-")) k = k.substring(1);
+            
+            if (parts.length == 1) {
+                continue;
+            } else if (k.equalsIgnoreCase("tag")) {
+                continue;
+            } else if (v.startsWith("${") || k.startsWith("#")) {
+                continue;
+            } else {
+                argsMap.put(k, v);
+            }
+        } // FOR
+        this.loadFromArgs(argsMap);
+    }
+    
+    public void loadFromArgs(Map<String, String> args) {
+        Pattern p = this.makePattern();
+        for (Entry<String, String> e : args.entrySet()) {
+            String k = e.getKey();
+            String v = e.getValue();
+            
+            Matcher m = p.matcher(k);
+            boolean found = m.matches();
+            if (m == null || found == false) {
+                if (debug.get()) LOG.warn("Invalid key '" + k + "'");
+                continue;
+            }
+            assert(m != null);
+
+            Conf handle = confHandles.get(m.group(1));
+            Class<?> confClass = handle.getClass();
+            assert(confClass != null);
+            Field f = null;
+            String f_name = m.group(2);
+            try {
+                f = confClass.getField(f_name);
+            } catch (Exception ex) {
+                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                continue;
+            }
+            ConfigProperty cp = handle.properties.get(f);
+            assert(cp != null) : "Missing ConfigProperty for " + f;
+            Class<?> f_class = f.getType();
+            Object value = null;
+            
+            if (f_class.equals(int.class)) {
+                value = Integer.parseInt(v);
+            } else if (f_class.equals(long.class)) {
+                value = Long.parseLong(v);
+            } else if (f_class.equals(double.class)) {
+                value = Double.parseDouble(v);
+            } else if (f_class.equals(boolean.class)) {
+                value = Boolean.parseBoolean(v);
+            } else if (f_class.equals(String.class)) {
+                value = v;
+            } else {
+                LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+                continue;
+            }
+            try {
+                f.set(handle, value);
+                if (debug.get()) LOG.debug(String.format("PARAM SET %s = %s", k, value));
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+            }
+        } // FOR
+    }
+    
     
     public String makeHTML(String group) {
         StringBuilder inner = new StringBuilder();
@@ -1119,13 +1200,19 @@ public final class HStoreConf {
     // STATIC ACCESS METHODS
     // ----------------------------------------------------------------------------
 
-    public synchronized static HStoreConf init(File f) {
+    public synchronized static HStoreConf init(File f, String args[]) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
-        conf = new HStoreConf(f);
+        conf = new HStoreConf();
+        if (f != null) conf.loadFromFile(f);
+        if (args != null) conf.loadFromArgs(args);
         return (conf);
     }
     
-    public synchronized static HStoreConf init(ArgumentsParser args, Site catalog_site) {
+    public synchronized static HStoreConf init(File f) {
+        return HStoreConf.init(f, null);
+    }
+    
+    public synchronized static HStoreConf initArgumentsParser(ArgumentsParser args, Site catalog_site) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
         conf = new HStoreConf(args, catalog_site);
         return (conf);

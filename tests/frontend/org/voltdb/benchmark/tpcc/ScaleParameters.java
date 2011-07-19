@@ -53,15 +53,13 @@ package org.voltdb.benchmark.tpcc;
 /** Stores the scaling parameters for loading and running. */
 public class ScaleParameters {
     
-    public static int STARTING_WAREHOUSE = 1;
-    
-    public ScaleParameters(int items, int warehouses, int districtsPerWarehouse,
+    public ScaleParameters(int items, int warehouses, int firstWarehouse, int districtsPerWarehouse,
             int customersPerDistrict, int newOrdersPerDistrict) {
         assert 1 <= items && items <= Constants.NUM_ITEMS;
         this.items = items;
         assert warehouses > 0;
         this.warehouses = warehouses;
-        this.starting_warehouse = STARTING_WAREHOUSE;
+        this.starting_warehouse = firstWarehouse;
         assert 1 <= districtsPerWarehouse &&
                 districtsPerWarehouse <= Constants.DISTRICTS_PER_WAREHOUSE;
         this.districtsPerWarehouse = districtsPerWarehouse;
@@ -75,12 +73,16 @@ public class ScaleParameters {
     }
 
     public static ScaleParameters makeDefault(int warehouses) {
-        return new ScaleParameters(Constants.NUM_ITEMS, warehouses,
+        return new ScaleParameters(Constants.NUM_ITEMS, warehouses, Constants.STARTING_WAREHOUSE,
                 Constants.DISTRICTS_PER_WAREHOUSE, Constants.CUSTOMERS_PER_DISTRICT,
                 Constants.INITIAL_NEW_ORDERS_PER_DISTRICT);
     }
 
     public static ScaleParameters makeWithScaleFactor(int warehouses, double scaleFactor) {
+        return makeWithScaleFactor(warehouses, Constants.STARTING_WAREHOUSE, scaleFactor);
+    }
+    
+    public static ScaleParameters makeWithScaleFactor(int warehouses, int firstWarehouse, double scaleFactor) {
         assert scaleFactor >= 1.0;
 
         int items = (int) (Constants.NUM_ITEMS/scaleFactor);
@@ -93,7 +95,7 @@ public class ScaleParameters {
         int newOrders = (int) (Constants.INITIAL_NEW_ORDERS_PER_DISTRICT/scaleFactor);
         if (newOrders < 0) newOrders = 0;
 
-        return new ScaleParameters(items, warehouses, districts, customers, newOrders);
+        return new ScaleParameters(items, warehouses, firstWarehouse, districts, customers, newOrders);
     }
 
     public String toString() {
