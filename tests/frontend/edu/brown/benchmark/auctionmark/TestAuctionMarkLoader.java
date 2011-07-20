@@ -8,11 +8,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Catalog;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * @author pavlo
@@ -22,12 +26,12 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     protected static final Logger LOG = Logger.getLogger(TestAuctionMarkLoader.class);
     
 //    protected static final int SCALE_FACTOR = 20000;
-	protected static final int SCALE_FACTOR = 1000;
+	protected static final double SCALE_FACTOR = 1000;
     protected static final String LOADER_ARGS[] = {
-        "SCALEFACTOR=" + SCALE_FACTOR, 
+        "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, 
         "HOST=localhost",
         "NUMCLIENTS=1",
-        "CATALOG=" + BaseTestCase.getCatalogJarPath(ProjectType.AUCTIONMARK).getAbsolutePath(),
+//        "CATALOG=" + BaseTestCase.getCatalogJarPath(ProjectType.AUCTIONMARK).getAbsolutePath(),
     };
     
     /**
@@ -40,60 +44,69 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     } // STATIC
     
     private static final Map<String, Long> EXPECTED_TABLESIZES = new HashMap<String, Long>();
-    private static final Map<String, Long> EXPECTED_BATCHSIZES = new HashMap<String, Long>();
-    private static final Map<String, Long> TOTAL_ROWS = new HashMap<String, Long>();
+    private static final Map<String, Integer> EXPECTED_BATCHSIZES = new HashMap<String, Integer>();
 
     
     /**
      * We have to use a single loader in order to ensure that locks are properly released
      */
-    protected static class MockAuctionMarkLoader extends AuctionMarkLoader {
+    protected class MockAuctionMarkLoader extends AuctionMarkLoader {
         
         public MockAuctionMarkLoader(String args[]) {
             super(args);
         }
         
         @Override
-        protected void loadTable(String tablename, VoltTable table, Long expectedTotal) {
-            boolean debug = DEBUG_TABLES.contains(tablename);
-            if (debug) LOG.debug("loadTable() called for " + tablename);
-            long current_tablesize = TestAuctionMarkLoader.EXPECTED_TABLESIZES.get(tablename);
-            long current_batchsize = TestAuctionMarkLoader.EXPECTED_BATCHSIZES.get(tablename);
-            long total_rows = TestAuctionMarkLoader.TOTAL_ROWS.get(tablename);
+        public Catalog getCatalog() {
+            return (BaseTestCase.catalog);
+        }
+        
+        @Override
+        protected void loadTable(String tableName, VoltTable table, Long expectedTotal) {
+            assertEquals(SCALE_FACTOR, HStoreConf.singleton().client.scalefactor, 0.01);
+            
+            boolean debug = DEBUG_TABLES.contains(tableName);
+            if (debug) LOG.debug("loadTable() called for " + tableName);
+            long expected_tableSize = TestAuctionMarkLoader.EXPECTED_TABLESIZES.get(tableName);
+            int expected_batchSize = TestAuctionMarkLoader.EXPECTED_BATCHSIZES.get(tableName);
+            
+            // Make sure that we do this here because AuctionMarkLoader.generateTableData() doesn't do this anymore
+            int current_batchSize = table.getRowCount();
+            long current_tableSize = MockAuctionMarkLoader.this.profile.addToTableSize(tableName, current_batchSize);
             
             if (debug) {
-                LOG.debug("LOAD TABLE: " + tablename + " [" +
-                          "tablesize="  + current_tablesize + "," +
-                          "batchsize="  + current_batchsize + "," +
-                          "num_rows="   + table.getRowCount() + "," + 
-                          "total_rows=" + total_rows + "]");
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Expected TableSize", expected_tableSize);
+                m.put("Expected BatchSize", expected_batchSize);
+                m.put("Current TableSize", current_tableSize);
+                m.put("Current BatchSize", current_batchSize);
+                LOG.debug("LOAD TABLE: " + tableName + "\n" + StringUtil.formatMaps(m));
             }
-            assertNotNull("Got null VoltTable object for table '" + tablename + "'", table);
+            assertNotNull("Got null VoltTable object for table '" + tableName + "'", table);
             
             // Simple checks
-            int num_rows = table.getRowCount();
-            total_rows += num_rows;
-            assert(num_rows > 0) : "The number of tuples to be inserted is zero for table '" + tablename + "'";
-            assert(num_rows <= current_batchsize);
-            assert(total_rows <= current_tablesize);
+            assert(current_batchSize > 0) : "The number of tuples to be inserted is zero for table '" + tableName + "'";
+            assert(current_batchSize <= expected_batchSize) : String.format("%s: %d <= %d", tableName, current_batchSize, expected_batchSize);
+            assert(current_tableSize <= expected_tableSize) : String.format("%s: %d <= %d", tableName, current_tableSize, expected_tableSize);
 
             // Debug Output
             if (debug) LOG.debug(table);
-            
-            // Make sure that we do this here because AuctionMarkLoader.generateTableData() doesn't do this anymore
-            MockAuctionMarkLoader.this.profile.addToTableSize(tablename, num_rows);
-            
-            TestAuctionMarkLoader.TOTAL_ROWS.put(tablename, total_rows);
         }
     };
     
-    protected static final MockAuctionMarkLoader loader = new MockAuctionMarkLoader(LOADER_ARGS);
+    protected static MockAuctionMarkLoader loader;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
         
+        if (loader == null) {
+            this.addPartitions(10);
+            loader = new MockAuctionMarkLoader(LOADER_ARGS);
+        }
+        
         if (EXPECTED_BATCHSIZES.isEmpty()) {
+            loader.setCatalog(catalog);
             for (String tableName : AuctionMarkConstants.TABLENAMES) {
                 initTable(tableName);
             } // FOR
@@ -114,7 +127,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
 	        field_handle = AuctionMarkConstants.class.getField(field_name);
 	        assertNotNull(field_handle);
 	        tablesize = (Long)field_handle.get(null);
-	        if (!AuctionMarkConstants.FIXED_TABLES.contains(tablename)) tablesize /= SCALE_FACTOR;
+	        if (!AuctionMarkConstants.FIXED_TABLES.contains(tablename)) tablesize = Math.round(tablesize / SCALE_FACTOR);
     	}
     	
     	// But all tables should have a batch size
@@ -125,8 +138,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
 
         // Make sure we reset the total number of rows we have loaded so far
         EXPECTED_TABLESIZES.put(tablename, tablesize);
-        EXPECTED_BATCHSIZES.put(tablename, batchsize);
-        TOTAL_ROWS.put(tablename, 0l);
+        EXPECTED_BATCHSIZES.put(tablename, batchsize.intValue());
     }
     
     /**

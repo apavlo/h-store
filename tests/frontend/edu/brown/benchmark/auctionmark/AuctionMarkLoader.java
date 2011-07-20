@@ -83,9 +83,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     // Temporary storage of the max bids generated from bid generator
     private final List<Bid> max_bids = new ArrayList<Bid>();
     
-    // Counter used to determine when to print debug messages
-    private final transient Map<String, AtomicLong> load_table_count = new ConcurrentHashMap<String, AtomicLong>();
-    
     private final transient AtomicInteger finished_loaders = new AtomicInteger(0);
     
     private static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
@@ -261,7 +258,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         this.dependencyCondition.signalAll();
         this.dependencyLock.unlock();
         LOG.info(String.format("Finished loading %d tuples for %s [%d / %d]",
-                               this.load_table_count.get(tableName).get(), tableName, this.finished_loaders.incrementAndGet(), this.generators.size()));
+                               this.profile.getTableSize(tableName), tableName, this.finished_loaders.incrementAndGet(), this.generators.size()));
     }
 
     // ----------------------------------------------------------------
@@ -293,8 +290,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
          */
         public AbstractTableGenerator(Table catalog_tbl) {
             this.catalog_tbl = catalog_tbl;
-            AuctionMarkLoader.this.load_table_count.put(catalog_tbl.getName(), new AtomicLong(0));
-        
             this.finish = false;
             
             boolean fixed_size = AuctionMarkConstants.FIXED_TABLES.contains(catalog_tbl.getName());
@@ -1640,7 +1635,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      */
     protected void loadTable(String tableName, VoltTable table, Long expectedTotal) {
         long count = table.getRowCount();
-        long current = this.load_table_count.get(tableName).addAndGet(count);
+        long current = this.profile.getTableSize(tableName);
         
         LOG.debug(String.format(tableName + ": Loading %d rows - %d / %s [bytes=%d]",
                  count, current, (expectedTotal != null ? expectedTotal.toString() : "-----"), table.getUnderlyingBufferSize()));
