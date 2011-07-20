@@ -49,7 +49,6 @@ import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 
 /**
@@ -287,12 +286,12 @@ public abstract class StatementCompiler {
         // HACK
         AbstractPlanNode root = null;
         try {
-            root = QueryPlanUtil.deserializeStatement(catalogStmt, true);
+            root = PlanNodeUtil.getPlanNodeTreeForStatement(catalogStmt, true);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
         assert(root != null);
-        Set<Table> tables_accessed = CatalogUtil.getReferencedTables(db, root);
+        Set<Table> tables_accessed = CatalogUtil.getReferencedTablesForTree(db, root);
         assert(tables_accessed.isEmpty() == false) : "Failed to find accessed tables for " + catalogStmt + "-- Plan:\n" + PlanNodeUtil.debug(plan.fullWinnerPlan);
         boolean all_replicated = true;
         for (Table catalog_tbl : tables_accessed) {

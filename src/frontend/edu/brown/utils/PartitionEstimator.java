@@ -19,7 +19,6 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
@@ -379,8 +378,8 @@ public class PartitionEstimator {
                     frag_cache.setValid();
                 }
                 
-                AbstractPlanNode root = QueryPlanUtil.deserializePlanFragment(catalog_frag);
-                Set<Table> frag_tables = CatalogUtil.getReferencedTables(catalog_db, root);
+                AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
+                Set<Table> frag_tables = CatalogUtil.getReferencedTablesForTree(catalog_db, root);
                 Table tables_arr[] = new Table[frag_tables.size()];
                 tables_arr = frag_tables.toArray(tables_arr);
                 assert(tables_arr.length == frag_tables.size());
@@ -550,7 +549,7 @@ public class PartitionEstimator {
                     ColumnSet update_cset = new ColumnSet();
                     List<Table> tables = new ArrayList<Table>();
                     tables.add(catalog_tbl);
-                    AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+                    AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
                     DesignerUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, update_cset, root_node, true, tables);
 
                     boolean found = false;

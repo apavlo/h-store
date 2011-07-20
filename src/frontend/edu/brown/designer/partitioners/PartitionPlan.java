@@ -594,7 +594,7 @@ public class PartitionPlan implements JSONSerializable {
         } // FOR
         // Procedure Partitioning
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) {
+            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
                 continue;
             } else if (catalog_proc.getPartitionparameter() == NullProcParameter.PARAM_IDX) {
                 pplan_map.put(catalog_proc, NullProcParameter.getNullProcParameter(catalog_proc));

@@ -4,7 +4,17 @@
 package edu.brown.designer.partitioners;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -13,7 +23,12 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
@@ -25,12 +40,10 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
-import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.rand.RandomDistribution;
@@ -58,6 +71,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     private static final String DEBUG_COST_FORMAT = "%.04f";
     
+    /**
+     * Checkpoint Values
+     */
     enum Members {
         INITIAL_SOLUTION,
         INITIAL_COST,
@@ -80,8 +96,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final Random rng = new Random();
     protected final AbstractCostModel costmodel;
     protected final ParameterMappingsSet correlations;
-//    protected AccessGraph agraph;
-    protected AccessGraph single_agraph;
+    protected AccessGraph agraph;
 
     // ----------------------------------------------------------------------------
     // STATE INFORMATION
@@ -152,7 +167,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      */
     protected void init(DesignerHints hints) throws Exception {
         this.init_called = true;
-        this.single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
+        this.agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
         
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
@@ -172,12 +187,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        System.err.println("SINGLE GRAPH:" + gv.writeToTempFile());
         
         // Gather all the information we need about each table
-        for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateTableOrder(info, this.single_agraph, hints), Table.class)) {
+        for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, PartitionerUtil.generateTableOrder(info, this.agraph, hints), Table.class)) {
             
             // Ignore this table if it's not used in the AcessGraph
             DesignerVertex v = null;
             try {
-                v = this.single_agraph.getVertex(catalog_tbl);
+                v = this.agraph.getVertex(catalog_tbl);
             } catch (IllegalArgumentException ex) {
                 // IGNORE
             }
@@ -187,7 +202,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             
             // Potential Partitioning Attributes
-            Collection<Column> columns = CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateColumnOrder(info, this.single_agraph, catalog_tbl, hints, false, true), Column.class);
+            Collection<Column> columns = CatalogKey.getFromKeys(info.catalog_db, PartitionerUtil.generateColumnOrder(info, this.agraph, catalog_tbl, hints, false, true), Column.class);
             assert(!columns.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
             this.orig_table_attributes.put(catalog_tbl, (ListOrderedSet<Column>)CollectionUtil.addAll(new ListOrderedSet<Column>(), columns));
             
@@ -201,7 +216,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // We also need to know some things about the Procedures and their ProcParameters
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
             
             Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
@@ -216,20 +231,20 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //            if (catalog_proc.getName().equals("GetAccessData")) {
 //                GraphVisualizationPanel.createFrame(proc_agraph).setVisible(true);
 //            }
-            this.proc_column_histogram.put(catalog_proc, AbstractPartitioner.generateProcedureColumnAccessHistogram(info, hints, proc_agraph, catalog_proc));
+            this.proc_column_histogram.put(catalog_proc, PartitionerUtil.generateProcedureColumnAccessHistogram(info, hints, proc_agraph, catalog_proc));
             
             // Gather the list ProcParameters we should even consider for partitioning each procedure
             // TODO: For now we'll just put all the parameters in there plus the null one
             HashMap<ProcParameter, Set<MultiProcParameter>> multiparams = new HashMap<ProcParameter, Set<MultiProcParameter>>();
             if (hints.enable_multi_partitioning) {
-                multiparams.putAll(AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc));
+                multiparams.putAll(PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc));
                 if (trace.get()) LOG.trace(catalog_proc + " MultiProcParameters:\n" + multiparams);
             }
             this.proc_multipoc_map.put(catalog_proc, multiparams);
             
             ListOrderedSet<ProcParameter> params = new ListOrderedSet<ProcParameter>();
             CollectionUtil.addAll(params, CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index"));
-            if (hints.allow_array_procparameter_candidates == false) {
+            if (hints.enable_array_procparameter_candidates == false) {
                 params.removeAll(CatalogUtil.getArrayProcParameters(catalog_proc));
             }
             params.add(NullProcParameter.getNullProcParameter(catalog_proc));
@@ -237,7 +252,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             
             // Add multi-column partitioning parameters for each table
             if (hints.enable_multi_partitioning) {
-                Map<Table, Set<MultiColumn>> multicolumns = AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc);
+                Map<Table, Set<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
                 for (Entry<Table, Set<MultiColumn>> e : multicolumns.entrySet()) {
                     if (trace.get()) LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
                     this.orig_table_attributes.get(e.getKey()).addAll(e.getValue());
@@ -674,7 +689,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
-        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.single_agraph, table_attributes, proc_attributes);
+        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.agraph, table_attributes, proc_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
@@ -809,7 +824,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // Now loop through the ProcParameters and figure out which ones are correlated to the Column
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
                 // Skip if this is an array
-                if (hints.allow_array_procparameter_candidates == false && catalog_proc_param.getIsarray()) continue;
+                if (hints.enable_array_procparameter_candidates == false && catalog_proc_param.getIsarray()) continue;
                 
                 if (!param_weights.containsKey(catalog_proc_param)) {
                     param_weights.put(catalog_proc_param, new ArrayList<Double>());

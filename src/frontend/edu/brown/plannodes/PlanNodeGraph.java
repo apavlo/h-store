@@ -4,7 +4,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.plannodes.AbstractPlanNode;
 
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.utils.ArgumentsParser;
 import edu.uci.ics.jung.graph.DelegateForest;
@@ -56,7 +55,7 @@ public class PlanNodeGraph extends DelegateForest<AbstractPlanNode, PlanNodeGrap
         Statement catalog_stmt = catalog_proc.getStatements().getIgnoreCase(stmt_name);
         assert(catalog_stmt != null) : "Invalid Statement Name: " + proc_name + "." + stmt_name;
         
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         PlanNodeGraph graph = new PlanNodeGraph(root);
         
         GraphVisualizationPanel.createFrame(graph).setVisible(true);

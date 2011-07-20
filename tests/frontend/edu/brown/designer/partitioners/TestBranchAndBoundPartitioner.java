@@ -47,7 +47,7 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
      * testHaltReason
      */
     public void testHaltReason() throws Exception {
-        List<Table> table_visit_order = (List<Table>)CatalogKey.getFromKeys(catalog_db, BranchAndBoundPartitioner.generateTableOrder(info, agraph, hints), Table.class);
+        List<Table> table_visit_order = (List<Table>)CatalogKey.getFromKeys(catalog_db, PartitionerUtil.generateTableOrder(info, agraph, hints), Table.class);
         assertFalse(table_visit_order.isEmpty());
         List<Procedure> proc_visit_order = (List<Procedure>)CollectionUtil.addAll(new ArrayList<Procedure>(), catalog_db.getProcedures());
         assertFalse(proc_visit_order.isEmpty());

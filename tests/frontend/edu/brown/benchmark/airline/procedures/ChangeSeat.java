@@ -34,21 +34,21 @@ import org.voltdb.VoltTable;
 )
 public class ChangeSeat extends VoltProcedure {
 
-    public final SQLStmt CHECK_SEAT = new SQLStmt(
+    public final SQLStmt CheckSeat = new SQLStmt(
             "SELECT R_ID FROM RESERVATION WHERE R_F_ID = ? and R_SEAT = ?");
     
-    public final SQLStmt CHECK_CID = new SQLStmt(
+    public final SQLStmt CheckCID = new SQLStmt(
             "SELECT R_ID FROM RESERVATION WHERE R_ID = ? and R_C_ID = ?");
     
-    public final SQLStmt RESERVE_SEAT = new SQLStmt(
+    public final SQLStmt ReserveSeat = new SQLStmt(
             "UPDATE RESERVATION SET R_SEAT = ? WHERE R_F_ID = ? and R_C_ID = ?");
     
-    public VoltTable[] run(long fid, long cid, long seatnum) throws VoltAbortException {
+    public VoltTable[] run(long f_id, long c_id, long seatnum) throws VoltAbortException {
         
         // check if the seat is occupied
         // check if the customer has multiple seats on this flight
-        voltQueueSQL(CHECK_SEAT, fid, seatnum);
-        voltQueueSQL(CHECK_CID, fid, cid);
+        voltQueueSQL(CheckSeat, f_id, seatnum);
+        voltQueueSQL(CheckCID, f_id, c_id);
         final VoltTable[] results = voltExecuteSQL();
         
         assert(results.length == 2);
@@ -60,7 +60,7 @@ public class ChangeSeat extends VoltProcedure {
         }
        
         // update the seat reservation for the customer
-        voltQueueSQL(RESERVE_SEAT, seatnum, fid, cid);
+        voltQueueSQL(ReserveSeat, seatnum, f_id, c_id);
         VoltTable[] updates = voltExecuteSQL();
         assert(updates.length == 1);
         

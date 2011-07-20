@@ -3,6 +3,7 @@ package edu.brown.designer.partitioners;
 import java.util.Collection;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -16,20 +17,26 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class PrimaryKeyPartitioner extends AbstractPartitioner {
-
+    private static final Logger LOG = Logger.getLogger(PrimaryKeyPartitioner.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     public PrimaryKeyPartitioner(Designer designer, DesignerInfo info) {
         super(designer, info);
     }
 
     @Override
     public PartitionPlan generate(DesignerHints hints) throws Exception {
-        final boolean debug = LOG.isDebugEnabled();
-
         PartitionPlan pplan = new PartitionPlan();
         
-        if (debug) LOG.debug("Selecting partitioning Column for " + this.info.catalog_db.getTables().size() + " Tables");
+        if (debug.get()) LOG.debug("Selecting partitioning Column for " + this.info.catalog_db.getTables().size() + " Tables");
         double total_memory_used = 0.0;
         boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
         for (Table catalog_tbl : info.catalog_db.getTables()) {
@@ -46,7 +53,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
                 (calculate_memory && ts.readonly && size_ratio <= hints.force_replication_size_limit) ||
                 pkey_columns.isEmpty()) {
                 total_memory_used += size_ratio;
-                if (debug) LOG.debug("Choosing " + catalog_tbl.getName() + " for replication");
+                if (debug.get()) LOG.debug("Choosing " + catalog_tbl.getName() + " for replication");
                 pentry = new PartitionEntry(PartitionMethodType.REPLICATION);
                 
             // Hash Primary Key
@@ -63,11 +70,11 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
         assert(total_memory_used <= 100) : "Too much memory per partition: " + total_memory_used;
         
         if (hints.enable_procparameter_search) {
-            if (debug) LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
+            if (debug.get()) LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
             pplan.apply(info.catalog_db);
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
                 if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) continue;
-                Set<String> param_order = BranchAndBoundPartitioner.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
+                Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
                 PartitionEntry pentry = new PartitionEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class));
                 pplan.getProcedureEntries().put(catalog_proc, pentry);
             } // FOR

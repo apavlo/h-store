@@ -13,7 +13,7 @@ import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
@@ -271,7 +271,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         
         Double last_cost = null;
         while (tries-- > 0) {
-            final Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+            final Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
             // final TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, NUM_INTERVALS);
 //            AbstractCostModel cm = new SingleSitedCostModel(catalog_db, p_estimator);
             AbstractCostModel cm = this.cost_model;

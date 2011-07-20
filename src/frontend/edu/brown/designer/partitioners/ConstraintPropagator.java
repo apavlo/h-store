@@ -76,7 +76,7 @@ public class ConstraintPropagator {
         } // FOR
         
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (AbstractPartitioner.shouldIgnoreProcedure(this.hints, catalog_proc) == false) {
+            if (PartitionerUtil.shouldIgnoreProcedure(this.hints, catalog_proc) == false) {
                 this.attributes.put(catalog_proc, new HashSet<ProcParameter>());
             }
         } // FOR
@@ -84,16 +84,16 @@ public class ConstraintPropagator {
         // Generate the multi-attribute partitioning candidates
         if (hints.enable_multi_partitioning) {
             for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 
                 // MultiProcParameters
                 multiparams.put(catalog_proc, new HashSet<ProcParameter>());
-                for (Set<MultiProcParameter> mpps : AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc).values()) {
+                for (Set<MultiProcParameter> mpps : PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc).values()) {
                     multiparams.get(catalog_proc).addAll(mpps);
                 } // FOR 
                 
                 // MultiColumns
-                for (Entry<Table, Set<MultiColumn>> e : AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc).entrySet()) {
+                for (Entry<Table, Set<MultiColumn>> e : PartitionerUtil.generateMultiColumns(info, hints, catalog_proc).entrySet()) {
                     Table catalog_tbl = e.getKey();
                     Set<Column> s = this.multicolumns.get(catalog_tbl);
                     if (s == null) {
@@ -256,7 +256,7 @@ public class ConstraintPropagator {
             Procedure catalog_proc = (Procedure)catalog_obj;
             Set<String> proc_attributes = null;
             try {
-                proc_attributes = AbstractPartitioner.generateProcParameterOrder(this.info, this.catalog_db, catalog_proc, this.hints);
+                proc_attributes = PartitionerUtil.generateProcParameterOrder(this.info, this.catalog_db, catalog_proc, this.hints);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }

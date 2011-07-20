@@ -47,7 +47,6 @@ import org.voltdb.utils.Pair;
 import org.voltdb.*;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.gui.catalog.*;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.*;
@@ -613,7 +612,7 @@ public class CatalogViewer extends AbstractViewer {
         } else if (catalog_obj instanceof PlanFragment) {
             PlanFragment catalog_frgmt = (PlanFragment)catalog_obj;
             try {
-                AbstractPlanNode node = QueryPlanUtil.deserializePlanFragment(catalog_frgmt);
+                AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frgmt);
                 buffer.append(StringUtil.SINGLE_LINE);
                 buffer.append(PlanNodeUtil.debug(node));
             } catch (Exception e) {

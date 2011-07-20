@@ -233,7 +233,10 @@ public abstract class ThreadUtil {
             LOG.fatal("ThreadUtil.run() was interuptted!", ex);
             throw new RuntimeException(ex);
         } finally {
-            if (last_error[0] != null) throw new RuntimeException(last_error[0]);
+            if (last_error[0] != null) {
+                if (LOG.isDebugEnabled()) LOG.error("Failed to execute threads", last_error[0]);
+                throw new RuntimeException(last_error[0]);
+            }
         }
         if (d) {
             final long stop = System.currentTimeMillis();

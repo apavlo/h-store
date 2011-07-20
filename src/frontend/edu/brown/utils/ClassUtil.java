@@ -1,8 +1,17 @@
 package edu.brown.utils;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.lang.ClassUtils;
@@ -25,6 +34,23 @@ public abstract class ClassUtil {
      */
     public static boolean isArray(final Object obj) {
         return (obj != null ? obj.getClass().isArray() : false);
+    }
+    
+    /**
+     * Convert a Enum array to a Field array
+     * This assumes that the name of each Enum element corresponds to a data member in the clas
+     * @param <E>
+     * @param clazz
+     * @param members
+     * @return
+     * @throws NoSuchFieldException
+     */
+    public static <E extends Enum<?>> Field[] getFieldsFromMembersEnum(Class<?> clazz, E members[]) throws NoSuchFieldException {
+        Field fields[] = new Field[members.length];
+        for (int i = 0; i < members.length; i++) {
+            fields[i] = clazz.getDeclaredField(members[i].name().toLowerCase());
+        } // FOR
+        return (fields);
     }
 
     /**

@@ -78,7 +78,7 @@ public class RandomPartitioner extends AbstractPartitioner {
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             List<Column> columns = new ArrayList<Column>();
             if (this.limit_columns) {
-                List<String> column_keys = AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints, true, false);
+                List<String> column_keys = PartitionerUtil.generateColumnOrder(info, agraph, catalog_tbl, hints, true, false);
                 assert(!column_keys.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
                 columns.addAll(CatalogKey.getFromKeys(info.catalog_db, column_keys, Column.class));
             } else {

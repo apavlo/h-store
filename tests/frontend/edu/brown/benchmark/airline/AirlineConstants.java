@@ -7,6 +7,7 @@ public abstract class AirlineConstants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
+    public static final int FREQUENCY_DELETE_RESERVATION            = 10;
     public static final int FREQUENCY_CHANGE_SEAT                   = 10;
     public static final int FREQUENCY_FIND_FLIGHT_BY_AIRPORT        = 10;
     public static final int FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT = 10;

@@ -17,7 +17,6 @@ import org.voltdb.expressions.*;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.graphs.*;
@@ -183,11 +182,11 @@ public abstract class DesignerUtil {
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
             cset = new ColumnSet();
-            AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         
             // WHERE Clause
             if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
-                AbstractExpression root_exp = QueryPlanUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
+                AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
                 DesignerUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
             }
             // INSERT
@@ -226,7 +225,7 @@ public abstract class DesignerUtil {
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
             cset = new ColumnSet();
-            AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
             DesignerUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
             CACHE_extractColumnSet.put(key, cset);
         }
@@ -260,7 +259,7 @@ public abstract class DesignerUtil {
         Pair<String, Set<String>> key = Pair.of(CatalogKey.createKey(catalog_frag), table_keys);
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
-            AbstractPlanNode root_node = QueryPlanUtil.deserializePlanFragment(catalog_frag);
+            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
             // LOG.debug("PlanFragment Node:\n" + PlanNodeUtil.debug(root_node));
             
             cset = new ColumnSet();

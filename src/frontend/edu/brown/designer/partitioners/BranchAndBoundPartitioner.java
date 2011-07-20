@@ -291,9 +291,9 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     protected void init(final DesignerHints hints) throws Exception {
         if (this.agraph == null) {
             this.agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
-            this.table_visit_order.addAll(CatalogKey.getFromKeys(info.catalog_db, BranchAndBoundPartitioner.generateTableOrder(info, agraph, hints), Table.class));
+            this.table_visit_order.addAll(CatalogKey.getFromKeys(info.catalog_db, PartitionerUtil.generateTableOrder(info, agraph, hints), Table.class));
             for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc) == false) {
+                if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc) == false) {
                     this.proc_visit_order.add(catalog_proc);
                 }
             } // FOR
@@ -489,14 +489,14 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             if (hints.enable_procparameter_search) {
                 for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-                    if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                    if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                     String proc_key = CatalogKey.createKey(catalog_proc);
                     String param_key = best_catalogkey_map.get(proc_key);
                     if (param_key != null) {
                         ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, param_key, ProcParameter.class);
                         pplan_map.put(catalog_proc, catalog_proc_param);
                     } else {
-                        pplan_map.put(catalog_proc, CatalogUtil.getProcParameter(catalog_proc));
+                        pplan_map.put(catalog_proc, CatalogUtil.getPartitioningProcParameter(catalog_proc));
                     }
                 } // FOR
             }
@@ -599,7 +599,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             int proc_ctr = 0;
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
-                if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+                if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
                 proc_ctr++;
                 
                 // Unset all Procedure partitioning parameters

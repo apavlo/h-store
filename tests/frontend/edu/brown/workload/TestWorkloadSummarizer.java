@@ -14,8 +14,8 @@ import org.voltdb.catalog.StmtParameter;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -67,7 +67,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
     public void testBuildTargetParameters() throws Exception {
         StmtParameter catalog_param = catalog_stmt.getParameters().get(1);
         assertNotNull(catalog_param);
-        Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_param);
+        Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_param);
         assertNotNull(catalog_col);
         Collection<Column> columns = CollectionUtil.addAll(new HashSet<Column>(), catalog_col);
         summarizer = new WorkloadSummarizer(catalog_db, p_estimator, mappings, catalog_db.getProcedures(), columns);
@@ -167,7 +167,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
         // parameter. All of the queries should then be collapsed into a single weighted query
         StmtParameter catalog_param = catalog_stmt.getParameters().get(1);
         assertNotNull(catalog_param);
-        Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_param);
+        Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_param);
         assertNotNull(catalog_col);
         Collection<Column> columns = CollectionUtil.addAll(new HashSet<Column>(), catalog_col);
         summarizer = new WorkloadSummarizer(catalog_db, p_estimator, mappings, catalog_db.getProcedures(), columns);
@@ -225,7 +225,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
         // parameter. All of the queries should then be collapsed into a single weighted query
         StmtParameter catalog_param = catalog_stmt.getParameters().get(1);
         assertNotNull(catalog_param);
-        Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_param);
+        Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_param);
         assertNotNull(catalog_col);
         Collection<Column> columns = CollectionUtil.addAll(new HashSet<Column>(), catalog_col);
         summarizer = new WorkloadSummarizer(catalog_db, p_estimator, mappings, catalog_db.getProcedures(), columns);
@@ -285,7 +285,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
         // with a single weight query
         StmtParameter catalog_param = catalog_stmt.getParameters().get(1);
         assertNotNull(catalog_param);
-        Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_param);
+        Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_param);
         assertNotNull(catalog_col);
         Collection<Column> columns = CollectionUtil.addAll(new HashSet<Column>(), catalog_col);
         summarizer = new WorkloadSummarizer(catalog_db, p_estimator, mappings, catalog_db.getProcedures(), columns);

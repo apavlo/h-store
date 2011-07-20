@@ -27,8 +27,8 @@ import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.Filter.FilterResult;
 
 public abstract class WorkloadUtil {
-    static final Logger LOG = Logger.getLogger(WorkloadUtil.class);
-    static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final Logger LOG = Logger.getLogger(WorkloadUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -56,9 +56,6 @@ public abstract class WorkloadUtil {
         
         @Override
         public void run() {
-            final boolean trace = LOG.isTraceEnabled();
-            final boolean debug = LOG.isDebugEnabled();
-    
             AtomicInteger xact_ctr = this.counters[0];
             AtomicInteger query_ctr = this.counters[1];
             AtomicInteger element_ctr = this.counters[2];
@@ -71,16 +68,19 @@ public abstract class WorkloadUtil {
                 
                 try {
                     p = this.reader.lines.poll(100, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException ex) {
+                    // IGNORE
+                    break;
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
     
                 if (p == null) {
                     if (this.stop) {
-                        if (trace) LOG.trace("Queue is empty and we were told to stop!");
+                        if (trace.get()) LOG.trace("Queue is empty and we were told to stop!");
                         break;
                     }
-                    if (trace) LOG.trace("Queue is empty but we haven't been told to stop yet");
+                    if (trace.get()) LOG.trace("Queue is empty but we haven't been told to stop yet");
                     continue;
                 }
                 
@@ -91,7 +91,7 @@ public abstract class WorkloadUtil {
                         jsonObject = new JSONObject(line);
                     } catch (JSONException ex) {
                         String msg = String.format("Ignoring invalid TransactionTrace on line %d of '%s'", (line_ctr+1), input_path);
-                        if (debug) {
+                        if (debug.get()) {
                             LOG.warn(msg, ex);
                         } else {
                             LOG.warn(msg); 
@@ -117,18 +117,18 @@ public abstract class WorkloadUtil {
                             FilterResult result = filter.apply(xact);
                             if (result == FilterResult.HALT) {
                                 // We have to tell the ReadThread to stop too!
-                                if (trace) LOG.trace("Got HALT response from filter! Telling ReadThread to stop!");
+                                if (trace.get()) LOG.trace("Got HALT response from filter! Telling ReadThread to stop!");
                                 this.reader.stop();
                                 break;
                             }
                             else if (result == FilterResult.SKIP) continue;
-                            if (trace) LOG.trace(result + ": " + xact);
+                            if (trace.get()) LOG.trace(result + ": " + xact);
                         }
     
                         // Keep track of how many trace elements we've loaded so that we can make sure
                         // that our element trace list is complete
                         int x = xact_ctr.incrementAndGet();
-                        if (trace && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
+                        if (trace.get() && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
                         query_ctr.addAndGet(xact.getQueryCount());
                         element_ctr.addAndGet(1 + xact.getQueries().size());
                         

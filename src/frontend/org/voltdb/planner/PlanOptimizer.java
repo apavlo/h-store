@@ -333,7 +333,7 @@ public class PlanOptimizer {
         // Now go through our expressions and extract out the columns that are
         // referenced
         for (AbstractExpression exp : exps) {
-            for (Column catalog_col : CatalogUtil.getReferencedColumns(m_catalogDb, exp)) {
+            for (Column catalog_col : ExpressionUtil.getReferencedColumns(m_catalogDb, exp)) {
                 if (trace)
                     LOG.trace(node + " => " + CatalogUtil.getDisplayName(catalog_col));
                 this.addTableColumn(catalog_col);
@@ -346,7 +346,7 @@ public class PlanOptimizer {
             PlanColumn col = m_context.get(col_guid);
             assert (col != null) : "Invalid PlanColumn #" + col_guid;
             if (col.getExpression() != null) {
-                Set<Column> catalog_cols = CatalogUtil.getReferencedColumns(m_catalogDb, col.getExpression());
+                Set<Column> catalog_cols = ExpressionUtil.getReferencedColumns(m_catalogDb, col.getExpression());
                 // If there is more than one column, then it's some sort of
                 // compound expression
                 // So we don't want to include in our mapping
@@ -366,7 +366,7 @@ public class PlanOptimizer {
         final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
 
-        Set<Table> tables = CatalogUtil.getReferencedTablesNonRecursive(m_catalogDb, scan_node);
+        Set<Table> tables = CatalogUtil.getReferencedTablesForPlanNode(m_catalogDb, scan_node);
         if (tables.size() != 1) {
             LOG.error(PlanNodeUtil.debugNode(scan_node));
         }
@@ -963,7 +963,7 @@ public class PlanOptimizer {
 
             Table catalog_tbl = null;
             try {
-                catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTablesNonRecursive(m_catalogDb, idx_node));
+                catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTablesForPlanNode(m_catalogDb, idx_node));
             } catch (Exception ex) {
                 LOG.fatal(ex);
                 System.exit(1);

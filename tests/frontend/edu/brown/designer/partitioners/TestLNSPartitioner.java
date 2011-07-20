@@ -133,7 +133,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         
         // Just make sure that each Histogram isn't empty
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (!AbstractPartitioner.isPartitionable(catalog_proc)) continue;
+            if (!PartitionerUtil.isPartitionable(catalog_proc)) continue;
             String proc_key = CatalogKey.createKey(catalog_proc);
             if (catalog_proc.getSystemproc() || !proc_histogram.contains(proc_key)) continue;
             Histogram<Column> h = this.partitioner.proc_column_histogram.get(catalog_proc);
@@ -210,7 +210,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         Procedure catalog_proc = this.getProcedure(UpdateSubscriberData.class);
         Collection<ProcParameter> orig_params = CollectionUtil.addAll(new ArrayList<ProcParameter>(), catalog_proc.getParameters());
         int orig_size = orig_params.size();
-        Map<ProcParameter, Set<MultiProcParameter>> param_multip_map = AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc);
+        Map<ProcParameter, Set<MultiProcParameter>> param_multip_map = PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc);
         assertNotNull(param_multip_map);
         assertEquals(orig_size, param_multip_map.size());
 
@@ -232,7 +232,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
             this.getColumn(catalog_tbl, "AI_TYPE"),
         };
         
-        Map<Table, Set<MultiColumn>> multicolumns = AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc);
+        Map<Table, Set<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
         assertNotNull(multicolumns);
         assertEquals(1, multicolumns.size());
         assert(multicolumns.containsKey(catalog_tbl));
@@ -276,7 +276,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         
         List<Procedure> proc_attributes = new ArrayList<Procedure>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            if (AbstractPartitioner.isPartitionable(catalog_proc)) proc_attributes.add(catalog_proc);
+            if (PartitionerUtil.isPartitionable(catalog_proc)) proc_attributes.add(catalog_proc);
         } // FOR
 
         // Now throw everything at the local search procedure. This should stop right away because the 

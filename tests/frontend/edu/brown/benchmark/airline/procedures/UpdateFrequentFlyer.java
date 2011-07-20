@@ -32,7 +32,7 @@ import edu.brown.benchmark.airline.AirlineConstants;
 )
 public class UpdateFrequentFlyer extends VoltProcedure {
     
-    public final SQLStmt UPDATE = new SQLStmt(
+    public final SQLStmt UpdateFF = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
             "   SET FF_IATTR00 = ?, " +
             "       FF_IATTR01 = FF_IATTR01 + ? " +
@@ -40,7 +40,7 @@ public class UpdateFrequentFlyer extends VoltProcedure {
             "   AND FF_AL_ID = ? ");
     
     public VoltTable[] run(long c_id, long al_id, long attr0, long attr1) {
-        voltQueueSQL(UPDATE, attr0, attr1, c_id, al_id);
+        voltQueueSQL(UpdateFF, attr0, attr1, c_id, al_id);
         final VoltTable[] results = voltExecuteSQL();
         assert (results.length == 1);
         return (results);

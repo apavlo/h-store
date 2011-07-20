@@ -1,17 +1,34 @@
 package edu.brown.designer;
 
-import java.util.*;
-import org.apache.log4j.Logger;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.Table;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.MaterializePlanNode;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.hashing.*;
-import edu.brown.statistics.*;
-import edu.brown.utils.*;
+import edu.brown.hashing.AbstractHasher;
+import edu.brown.hashing.DefaultHasher;
+import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.statistics.ColumnStatistics;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.TableStatistics;
+import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 public class MemoryEstimator {
     private static final Logger LOG = Logger.getLogger(MemoryEstimator.class);
@@ -19,6 +36,11 @@ public class MemoryEstimator {
 //    private static final boolean t = LOG.isTraceEnabled();
 
     private static final Map<String, Long> CACHE_TABLE_ESTIMATE = new HashMap<String, Long>();
+    
+    /**
+     * Table -> Tuple Size (bytes)
+     */
+    public static final Map<Table, Long> TABLE_TUPLE_SIZE = new HashMap<Table, Long>();
     
     private final WorkloadStatistics stats;
     private final AbstractHasher hasher;
@@ -150,6 +172,84 @@ public class MemoryEstimator {
     }
     
     /**
+     * Returns the estimate size of a tuple in bytes
+     * @param catalog_tbl
+     * @return
+     */
+    public static Long estimateTupleSize(Table catalog_tbl, Statement catalog_stmt, Object params[]) throws Exception {
+        Long bytes = null;
+    
+        // If the table contains nothing but numeral values, then we don't need
+        // to loop through and calculate the estimated tuple size each time around,
+        // since it's always going to be the same
+        bytes = TABLE_TUPLE_SIZE.get(catalog_tbl);
+        if (bytes != null) return (bytes);
+    
+        // Otherwise, we have to calculate things.
+        // Then pluck out all the MaterializePlanNodes so that we inspect the tuples
+        AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        Set<MaterializePlanNode> matched_nodes = PlanNodeUtil.getPlanNodes(node, MaterializePlanNode.class);
+        if (matched_nodes.isEmpty()) {
+            LOG.fatal("Failed to retrieve any MaterializePlanNodes from " + catalog_stmt);
+            return 0l;
+        } else if (matched_nodes.size() > 1) {
+            LOG.fatal("Unexpectadly found more than one MaterializePlanNode in " + catalog_stmt);
+            return 0l;
+        }
+        // MaterializePlanNode mat_node =
+        // (MaterializePlanNode)CollectionUtil.getFirst(matched_nodes);
+    
+        // This obviously isn't going to be exact because they may be inserting
+        // from a SELECT statement or the columns might complex
+        // AbstractExpressions
+        // That's ok really, because all we really need to do is look at size of
+        // the strings
+        bytes = 0l;
+        boolean numerals_only = true;
+        for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
+            VoltType type = VoltType.get((byte) catalog_col.getType());
+            switch (type) {
+            case TINYINT:
+                bytes += 1;
+                break;
+            case SMALLINT:
+                bytes += 2;
+                break;
+            case INTEGER:
+                bytes += 4;
+                break;
+            case BIGINT:
+            case FLOAT:
+            case TIMESTAMP:
+                bytes += 8;
+                break;
+            case STRING: {
+                numerals_only = false;
+                if (params[catalog_col.getIndex()] != null) {
+                    bytes += 8 * ((String) params[catalog_col.getIndex()]).length();
+                }
+                /*
+                 * AbstractExpression root_exp =
+                 * mat_node.getOutputColumnExpressions
+                 * ().get(catalog_col.getIndex()); for (ParameterValueExpression
+                 * value_exp : ExpressionUtil.getExpressions(root_exp,
+                 * ParameterValueExpression.class)) { int param_idx =
+                 * value_exp.getParameterId(); bytes += 8 *
+                 * ((String)params[param_idx]).length(); } // FOR
+                 */
+                break;
+            }
+            default:
+                LOG.warn("Unsupported VoltType: " + type);
+            } // SWITCH
+        } // FOR
+        // If the table only has numerals, then we can store it in our cache
+        if (numerals_only) TABLE_TUPLE_SIZE.put(catalog_tbl, bytes);
+    
+        return (bytes);
+    }
+
+    /**
      * 
      * @param catalog_tbl
      * @return
@@ -158,7 +258,6 @@ public class MemoryEstimator {
         long bytes = 0;
         final String table_key = CatalogKey.createKey(catalog_tbl);
         
-        //
         // If the table contains nothing but numeral values, then we don't need to loop
         // through and calculate the estimated tuple size each time around, since it's always
         // going to be the same
@@ -167,11 +266,9 @@ public class MemoryEstimator {
             return (CACHE_TABLE_ESTIMATE.get(table_key));
         }
         
-        //
         // This obviously isn't going to be exact because they may be inserting
         // from a SELECT statement or the columns might complex AbstractExpressions
         // That's ok really, because all we really need to do is look at size of the strings
-        //
         boolean numerals_only = true;
         for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
             VoltType type = VoltType.get((byte)catalog_col.getType()); 

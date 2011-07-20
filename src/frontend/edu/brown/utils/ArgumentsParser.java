@@ -654,10 +654,14 @@ public class ArgumentsParser {
             if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
             
             if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
-                String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toUpperCase();
-                DesignerHints.Members m = EnumUtil.get(DesignerHints.Members.values(), param);
-                if (m == null) throw new Exception("Unknown DesignerHints parameter: " + param);
-                this.hints_params.put(m.name(), parts[1]);
+                String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toLowerCase();
+                try {
+                    Field f = DesignerHints.class.getField(param);
+                    this.hints_params.put(f.getName(), parts[1]);
+                } catch (NoSuchFieldException ex) {
+                    throw new Exception("Unknown DesignerHints parameter: " + param, ex);
+                }
+                
             } else if (PARAMS.contains(parts[0].toLowerCase())) {
                 this.params.put(parts[0].toLowerCase(), parts[1]);
             } else {

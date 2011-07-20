@@ -19,8 +19,8 @@ import org.voltdb.regressionsuites.matviewprocs.AddThing;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 
 /**
@@ -133,7 +133,7 @@ public class TestPlanOptimizer extends BaseTestCase {
        Procedure catalog_proc = this.getProcedure("SingleProjection");
        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
        // Grab the root node of the multi-partition query plan tree for this Statement 
-       AbstractPlanNode rootNode = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+       AbstractPlanNode rootNode = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
        final PlanOptimizer plan_opt = new PlanOptimizer(m_context, catalog_db);
        plan_opt.populateTableNodeInfo(rootNode);
        // check two hashmaps contain what we expect

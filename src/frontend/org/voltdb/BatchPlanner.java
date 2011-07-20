@@ -28,11 +28,11 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.PartitionEstimator;
@@ -649,12 +649,12 @@ public class BatchPlanner {
             // Get a sorted list of the PlanFragments that we need to execute for this query
             if (is_singlepartition) {
                 if (this.sorted_singlep_fragments[stmt_index] == null) {
-                    this.sorted_singlep_fragments[stmt_index] = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, true); 
+                    this.sorted_singlep_fragments[stmt_index] = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, true); 
                 }
                 plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
             } else {
                 if (this.sorted_multip_fragments[stmt_index] == null) {
-                    this.sorted_multip_fragments[stmt_index] = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, false); 
+                    this.sorted_multip_fragments[stmt_index] = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, false); 
                 }
                 plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
             }

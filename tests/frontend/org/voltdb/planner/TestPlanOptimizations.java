@@ -14,7 +14,6 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.BaseTestCase;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -39,7 +38,7 @@ public class TestPlanOptimizations extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "getCustomer");
         
         // Grab the root node of the multi-partition query plan tree for this Statement 
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root);
         
         // First check that our single scan node has an inline Projection
@@ -63,7 +62,7 @@ public class TestPlanOptimizations extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
 
         // Grab the root node of the multi-partition query plan tree for this Statement 
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root);
         
         // Check that our single scan node has a COUNT AggregatePlanNode above it.

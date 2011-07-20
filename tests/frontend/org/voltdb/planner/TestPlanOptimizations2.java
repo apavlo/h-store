@@ -28,7 +28,6 @@ import org.voltdb.types.PlanNodeType;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -362,7 +361,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         //validateNodeColumnOffsets(root);
         //System.err.println(PlanNodeUtil.debug(root));
     }    
@@ -374,7 +373,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
         //System.err.println(PlanNodeUtil.debug(root));
@@ -388,7 +387,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -401,7 +400,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -414,7 +413,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -427,7 +426,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -442,7 +441,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         //validateNodeColumnOffsets(root);
         assertNotNull(root);
 
@@ -473,7 +472,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         //validateNodeColumnOffsets(root);
         assertNotNull(root);
 
@@ -504,7 +503,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
 
         // System.err.println(PlanNodeUtil.debug(root));
         //validateNodeColumnOffsets(root);
@@ -518,7 +517,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root);
         // //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
@@ -555,7 +554,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
 
@@ -615,7 +614,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         } // FOR
 
         Set<Column> proj_columns = null;
-        proj_columns = PlanNodeUtil.getOutputColumns(catalog_db, inline_proj);
+        proj_columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, inline_proj);
         assertFalse(proj_columns.isEmpty());
 
         // Now find the join and get all of the columns from the first scanned
@@ -627,7 +626,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         assertNotNull(join_node);
 
         // Remove the columns from the second table
-        Set<Column> join_columns = CatalogUtil.getReferencedColumns(catalog_db, join_node);
+        Set<Column> join_columns = CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, join_node);
         assertNotNull(join_columns);
         assertFalse(join_columns.isEmpty());
         // System.err.println(CatalogUtil.debug(join_columns));
@@ -653,7 +652,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Lastly, we need to look at the root SEND node and get its output
         // columns, and make sure that they
         // are also included in the bottom projection
-        Set<Column> send_columns = PlanNodeUtil.getOutputColumns(catalog_db, root);
+        Set<Column> send_columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root);
         assertFalse(send_columns.isEmpty());
         for (Column catalog_col : send_columns) {
             assert (proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);
@@ -667,7 +666,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
@@ -680,7 +679,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         //System.err.println(PlanNodeUtil.debug(root));
         //validateNodeColumnOffsets(root);
@@ -693,7 +692,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));

@@ -34,6 +34,7 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.MemoryEstimator;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
 
@@ -229,7 +230,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         try {
             Table catalog_tbl = CollectionUtil.getFirst(catalog_tbls);
             String table_key = CatalogKey.createKey(catalog_tbl);
-            Integer bytes = CatalogUtil.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
+            Integer bytes = MemoryEstimator.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
             this.table_total_sizes.put(table_key, this.table_total_sizes.get(table_key) + bytes);
             this.table_tuple_counts.put(table_key, this.table_tuple_counts.get(table_key) + 1);
         } catch (ArrayIndexOutOfBoundsException ex) {

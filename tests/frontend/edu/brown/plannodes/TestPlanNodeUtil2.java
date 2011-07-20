@@ -1,4 +1,4 @@
-package edu.brown.catalog;
+package edu.brown.plannodes;
 
 import java.util.*;
 
@@ -7,6 +7,7 @@ import org.voltdb.plannodes.*;
 
 import edu.brown.BaseTestCase;
 import edu.brown.plannodes.PlanNodeTreeWalker;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -15,7 +16,7 @@ import edu.brown.utils.ProjectType;
  * @author pavlo
  *
  */
-public class TestQueryPlanUtil extends BaseTestCase {
+public class TestPlanNodeUtil2 extends BaseTestCase {
 
     protected static final Set<String> CHECK_FIELDS_EXCLUDE = new HashSet<String>();
     static {
@@ -40,13 +41,13 @@ public class TestQueryPlanUtil extends BaseTestCase {
         assertEquals(catalog_stmt.getMs_fragments().size(), unsorted.size());
         Collections.shuffle(unsorted);
         
-        List<PlanFragment> sorted = QueryPlanUtil.getSortedPlanFragments(catalog_stmt, false);
+        List<PlanFragment> sorted = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, false);
         assertNotNull(sorted);
         assertEquals(catalog_stmt.getMs_fragments().size(), sorted.size());
         
         Integer last_id = null;
         for (PlanFragment catalog_frag : sorted) {
-            AbstractPlanNode root = QueryPlanUtil.deserializePlanFragment(catalog_frag);
+            AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
             assertNotNull(root);
             int id = root.getPlanNodeId();
             if (last_id != null) assert(last_id > id) : "Unexpected execution order [" + last_id + " < " + id + "]";
@@ -63,13 +64,13 @@ public class TestQueryPlanUtil extends BaseTestCase {
         StmtParameter catalog_stmt_param = catalog_stmt.getParameters().get(0);
         assertNotNull(catalog_stmt_param);
         
-        Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_stmt_param);
+        Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_stmt_param);
         assertNotNull(catalog_col);
         Column expected = this.getTable("WAREHOUSE").getColumns().get("W_ID");
         assertEquals(expected, catalog_col);
         
         // Make sure the cache works
-        catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_stmt_param);
+        catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_stmt_param);
         assertEquals(expected, catalog_col);
     }
 
@@ -82,7 +83,7 @@ public class TestQueryPlanUtil extends BaseTestCase {
         StmtParameter catalog_stmt_param = catalog_stmt.getParameters().get(0);
         assertNotNull(catalog_stmt_param);
         
-        Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_stmt_param);
+        Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_stmt_param);
         assertNotNull(catalog_col);
         Column expected = this.getTable("DISTRICT").getColumns().get("D_NEXT_O_ID");
         assertEquals(expected, catalog_col);
@@ -98,7 +99,7 @@ public class TestQueryPlanUtil extends BaseTestCase {
         
         // Pass the Statement off to get deserialized
         // We will inspect it to make sure that it has at least one scan node and a result
-        AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root_node);
         List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
         expected.add(SendPlanNode.class);
@@ -133,7 +134,7 @@ public class TestQueryPlanUtil extends BaseTestCase {
         
         // Pass the Statement off to get deserialized
         // We will inspect it to make sure that it has at least one scan node and a result
-        AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
         expected.add(SendPlanNode.class);
@@ -166,7 +167,7 @@ public class TestQueryPlanUtil extends BaseTestCase {
         
         // Pass the Fragment off to get deserialized
         for (int i = 0; i < 4; i++) {
-            AbstractPlanNode root_node = QueryPlanUtil.deserializePlanFragment(catalog_frag);
+            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
             assertNotNull(root_node);
         
             List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
