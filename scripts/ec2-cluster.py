@@ -45,8 +45,8 @@ OPT_MOUNT_NFS = False
 OPT_TYPE = "large"
 OPT_LIMIT = -1
 
-AWS_ACCESS_KEY_ID = None # TODO
-AWS_SECRET_ACCESS_KEY = None # TODO
+AWS_ACCESS_KEY_ID = '0PT6V63GYW2WVBMPHAG2'
+AWS_SECRET_ACCESS_KEY = '8mXmiSInhSMtPF6CCTFlvTYefvV5gs2bxUG6KzMd'
 
 ## ==============================================
 ## getInstanceIP
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     ## FOR
     
     ## Update the H-Store on the NFS node
-    nfs_node_ip = None # TODO
+    nfs_node_ip = "50.16.240.220"
     remoteExec(nfs_node_ip, args['directory'], "svn up")
     
     ## Build the source code on the first worker node
