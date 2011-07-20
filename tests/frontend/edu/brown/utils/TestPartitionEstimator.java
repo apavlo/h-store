@@ -15,6 +15,7 @@ import org.voltdb.catalog.*;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
@@ -47,7 +48,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testMultiAttributePartitioning() throws Exception {
         // This checks that the ProcParameters and the StmtParameters get mapped to
         // the same partition for a multi-attribute partitioned Procedure+Table
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
         // Procedure
@@ -103,7 +104,7 @@ public class TestPartitionEstimator extends BaseTestCase {
      */
     public void testMultiProcParameter() throws Exception {
         //  Try to partition TPC-C's neworder on W_ID and D_ID parameters
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         Procedure catalog_proc = this.getProcedure(clone_db, neworder.class);
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
@@ -160,7 +161,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testMultiColumn() throws Exception {
         // Try to use multi-column partitioning on DISTRICT and see whether we can
         // actually get the right answer for neworder.getDistrict
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         Table catalog_tbl = this.getTable(clone_db, "DISTRICT");
         String table_key = CatalogKey.createKey(catalog_tbl);
         

@@ -20,6 +20,7 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
@@ -162,7 +163,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      * testMultiColumnPartitioning
      */
     public void testMultiColumnPartitioning() throws Exception {
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
         Procedure catalog_proc = this.getProcedure(clone_db, GetNewDestination.class);
@@ -236,7 +237,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
      * testMultiColumnPartitioningIncomplete
      */
     public void testMultiColumnPartitioningIncomplete() throws Exception {
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
         Procedure catalog_proc = this.getProcedure(clone_db, GetAccessData.class);

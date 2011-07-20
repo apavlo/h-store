@@ -1,22 +1,66 @@
 package edu.brown.plannodes;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-
-import org.voltdb.expressions.*;
+import org.json.JSONObject;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
+import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.plannodes.*;
+import org.voltdb.plannodes.AbstractJoinPlanNode;
+import org.voltdb.plannodes.AbstractOperationPlanNode;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.AggregatePlanNode;
+import org.voltdb.plannodes.DeletePlanNode;
+import org.voltdb.plannodes.DistinctPlanNode;
+import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.plannodes.LimitPlanNode;
+import org.voltdb.plannodes.MaterializePlanNode;
+import org.voltdb.plannodes.NestLoopIndexPlanNode;
+import org.voltdb.plannodes.NestLoopPlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
+import org.voltdb.plannodes.PlanNodeList;
+import org.voltdb.plannodes.PlanNodeTree;
+import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.plannodes.ReceivePlanNode;
+import org.voltdb.plannodes.SendPlanNode;
+import org.voltdb.plannodes.SeqScanPlanNode;
+import org.voltdb.plannodes.UnionPlanNode;
+import org.voltdb.plannodes.UpdatePlanNode;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
-import org.voltdb.catalog.*;
+import org.voltdb.types.QueryType;
+import org.voltdb.utils.Encoder;
 
+import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.ColumnSet;
+import edu.brown.designer.DesignerUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Utility methods for extracting information from AbstractPlanNode trees/nodes
@@ -24,6 +68,11 @@ import edu.brown.utils.ClassUtil;
  */
 public abstract class PlanNodeUtil {
     private static final Logger LOG = Logger.getLogger(PlanNodeUtil.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private static final String INLINE_SPACER_PREFIX = "\u2502";
     private static final String INLINE_INNER_PREFIX = "\u251C";
@@ -32,6 +81,36 @@ public abstract class PlanNodeUtil {
     private static final String SPACER_PREFIX = "\u2503";
     private static final String INNER_PREFIX = "\u2523";    
 
+    // ------------------------------------------------------------
+    // CACHES
+    // ------------------------------------------------------------
+    
+    /**
+     * PlanFragmentId -> AbstractPlanNode
+     */
+    public static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<String, AbstractPlanNode>();
+    /**
+     * Procedure.Statement -> AbstractPlanNode
+     */
+    public static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_SS_STATEMENT = new HashMap<String, AbstractPlanNode>();
+    public static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_MS_STATEMENT = new HashMap<String, AbstractPlanNode>();
+    /**
+     * Statement -> Sorted List of PlanFragments
+     */
+    public static final Map<Statement, List<PlanFragment>> CACHE_SORTED_SS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    public static final Map<Statement, List<PlanFragment>> CACHE_SORTED_MS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    
+    public static final Map<Statement, Set<Column>> CACHE_OUTPUT_COLUMNS = new HashMap<Statement, Set<Column>>();
+    
+    /**
+     * 
+     */
+    public static final Map<String, String> CACHE_STMTPARAMETER_COLUMN = new HashMap<String, String>();
+    
+    // ------------------------------------------------------------
+    // UTILITY METHODS
+    // ------------------------------------------------------------
+    
     /**
      * Returns the root node in the tree for the given node
      * @param node
@@ -171,12 +250,78 @@ public abstract class PlanNodeUtil {
     }
     
     /**
+     * Get the columns referenced in the output portion of a SELECT query
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    public static Set<Column> getOutputColumnsForStatement(Statement catalog_stmt) throws Exception {
+        Set<Column> ret = CACHE_OUTPUT_COLUMNS.get(catalog_stmt);
+        if (ret == null && catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
+            // It's easier to figure things out if we use the single-partition query plan
+            final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
+            final AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+            assert(root != null);
+            assert(root instanceof SendPlanNode) : "Unexpected PlanNode root " + root + " for " + catalog_stmt.fullName();
+            
+            // We need to examine down the tree to figure out what this thing shoving out to the outside world
+            assert(root.getChildCount() == 1) : "Unexpected one child for " + root + " for " + catalog_stmt.fullName() + " but it has " + root.getChildCount();
+            ret = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0));
+            CACHE_OUTPUT_COLUMNS.put(catalog_stmt, ret);
+        }
+        return (ret);
+    }
+    
+    /**
      * Get the set of columns 
      * @param catalog_db
      * @param node
      * @return
      */
-    public static Set<Column> getOutputColumns(final Database catalog_db, AbstractPlanNode node) {
+    public static Set<Column> getOutputColumnsForPlanNode(final Database catalog_db, AbstractPlanNode node) {
+        final PlannerContext pcontext = PlannerContext.singleton();
+        final Set<Integer> planColumnIds = new HashSet<Integer>();
+
+        // 2011-07-20: Using the AbstractExpressions is the more accurate way of getting the
+        //             Columns referenced in the output
+        // If this is Scan that has an inline Projection, grab those too
+        if ((node instanceof AbstractScanPlanNode) && node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
+            ProjectionPlanNode prj_node = node.getInlinePlanNode(PlanNodeType.PROJECTION);
+            planColumnIds.addAll(prj_node.getOutputColumnGUIDs());
+            if (debug.get()) LOG.debug(prj_node.getPlanNodeType() + ": " + planColumnIds);
+        } else {
+            planColumnIds.addAll(node.getOutputColumnGUIDs());
+            if (debug.get()) LOG.debug(node.getPlanNodeType() + ": " + planColumnIds);
+        }
+        
+        // If this is an AggregatePlanNode, then we also need to include columns computed in the aggregates
+        if (node instanceof AggregatePlanNode) {
+            AggregatePlanNode agg_node = (AggregatePlanNode)node;
+            planColumnIds.addAll(agg_node.getAggregateColumnGuids());
+            if (debug.get()) LOG.debug(node.getPlanNodeType() + ": " + agg_node.getAggregateColumnGuids());
+        }
+        
+        final Set<Column> columns = new ListOrderedSet<Column>();
+        for (Integer column_guid : planColumnIds) {
+            PlanColumn planColumn = pcontext.get(column_guid);
+            assert(planColumn != null);
+            AbstractExpression exp = planColumn.getExpression();
+            assert(exp != null);
+            Set<Column> exp_cols = ExpressionUtil.getReferencedColumns(catalog_db, exp);
+            if (debug.get()) LOG.debug(planColumn.toString() + " => " + exp_cols);
+            columns.addAll(exp_cols);
+        } // FOR
+        
+        return (columns);
+    }
+    
+    /**
+     * Get the set of columns 
+     * @param catalog_db
+     * @param node
+     * @return
+     */
+    public static Set<Column> getUpdatedColumns(final Database catalog_db, AbstractPlanNode node) {
         Set<Column> columns = new ListOrderedSet<Column>();
         for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
             int column_guid = node.m_outputColumns.get(ctr);
@@ -200,8 +345,7 @@ public abstract class PlanNodeUtil {
             try {
                 catalog_tbl = catalog_db.getTables().get(table_name);
             } catch (Exception ex) {
-                ex.printStackTrace();
-                LOG.fatal("table_name: " + table_name);
+                LOG.fatal("Failed to retrieve table '" + table_name + "'", ex);
                 LOG.fatal(CatalogUtil.debug(catalog_db.getTables()));
                 System.exit(1);
             }
@@ -214,6 +358,7 @@ public abstract class PlanNodeUtil {
         } // FOR
         return (columns);
     }
+
     
     /**
      * Returns all the PlanNodes in the given tree that of a specific type
@@ -274,7 +419,7 @@ public abstract class PlanNodeUtil {
      * @param catalog_tbl
      * @return
      */
-    public static Set<AbstractPlanNode> getNodesReferencingTable(AbstractPlanNode root, final Table catalog_tbl) {
+    public static Set<AbstractPlanNode> getPlanNodesReferencingTable(AbstractPlanNode root, final Table catalog_tbl) {
         final Set<AbstractPlanNode> found = new HashSet<AbstractPlanNode>();
         new PlanNodeTreeWalker() {
             /**
@@ -507,4 +652,275 @@ public abstract class PlanNodeUtil {
         }
         return (sb.toString());
     }
+
+
+
+    /**
+     * For the given StmtParameter object, return the column that it is used against in the Statement
+     * @param catalog_stmt_param
+     * @return
+     * @throws Exception
+     */
+    public static Column getColumnForStmtParameter(StmtParameter catalog_stmt_param) {
+        String param_key = CatalogKey.createKey(catalog_stmt_param);
+        String col_key = PlanNodeUtil.CACHE_STMTPARAMETER_COLUMN.get(param_key);
+    
+        if (col_key == null) {
+            Statement catalog_stmt = catalog_stmt_param.getParent();
+            ColumnSet cset = null;
+            try {
+                cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false);
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt_param.fullName(), ex);
+            }
+            assert(cset != null);
+            // System.err.println(cset.debug());
+            Set<Column> matches = cset.findAllForOther(Column.class, catalog_stmt_param);
+            // System.err.println("MATCHES: " + matches);
+            if (matches.isEmpty()) {
+                LOG.warn("Unable to find any column with param #" + catalog_stmt_param.getIndex() + " in " + catalog_stmt);
+            } else {
+                col_key = CatalogKey.createKey(CollectionUtil.getFirst(matches));
+            }
+            PlanNodeUtil.CACHE_STMTPARAMETER_COLUMN.put(param_key, col_key);
+        }
+        return (col_key != null ? CatalogKey.getFromKey(CatalogUtil.getDatabase(catalog_stmt_param), col_key, Column.class) : null);
+    }
+
+    /**
+     * For a given list of PlanFragments, return them in a sorted list based on how they
+     * must be executed. The first element in the list will be the first PlanFragment that must be
+     * executed (i.e., the one at the bottom of the PlanNode tree).
+     *
+     * @param catalog_frags
+     * @return
+     * @throws Exception
+     */
+    public static List<PlanFragment> sortPlanFragments(List<PlanFragment> catalog_frags) {
+        Collections.sort(catalog_frags, PlanNodeUtil.PLANFRAGMENT_EXECUTION_ORDER);
+        return (catalog_frags);
+    }
+
+    /**
+     * 
+     * @param catalog_stmt
+     * @param singlepartition
+     * @return
+     */
+    public static List<PlanFragment> getSortedPlanFragments(Statement catalog_stmt, boolean singlepartition) {
+        Map<Statement, List<PlanFragment>> cache = (singlepartition ? PlanNodeUtil.CACHE_SORTED_SS_FRAGMENTS : PlanNodeUtil.CACHE_SORTED_MS_FRAGMENTS); 
+        List<PlanFragment> ret = cache.get(catalog_stmt);
+        if (ret == null) {
+            CatalogMap<PlanFragment> catalog_frags = null;
+            if (singlepartition && catalog_stmt.getHas_singlesited()) {
+                catalog_frags = catalog_stmt.getFragments();
+            } else if (catalog_stmt.getHas_multisited()) {
+                catalog_frags = catalog_stmt.getMs_fragments();
+            }
+            
+            if (catalog_frags != null) {
+                List<PlanFragment> fragments = (List<PlanFragment>)CollectionUtil.addAll(new ArrayList<PlanFragment>(), catalog_frags); 
+                sortPlanFragments(fragments);
+                ret = Collections.unmodifiableList(fragments);
+                cache.put(catalog_stmt, ret);
+            }
+        }
+        return (ret);
+    }
+
+    /**
+     * 
+     * @param nodes
+     * @param singlesited TODO
+     * @return
+     */
+    public static AbstractPlanNode reconstructPlanNodeTree(Statement catalog_stmt, List<AbstractPlanNode> nodes, boolean singlesited) throws Exception {
+        if (debug.get()) LOG.debug("reconstructPlanNodeTree(" + catalog_stmt + ", " + nodes + ", true)");
+        
+        // HACK: We should have all SendPlanNodes here, so we just need to order them 
+        // by their Node ids from lowest to highest (where the root has id = 1)
+        TreeSet<AbstractPlanNode> sorted_nodes = new TreeSet<AbstractPlanNode>(new Comparator<AbstractPlanNode>() {
+            @Override
+            public int compare(AbstractPlanNode o1, AbstractPlanNode o2) {
+                // o1 < o2
+                return o1.getPlanNodeId() - o2.getPlanNodeId();
+            }
+        });
+        sorted_nodes.addAll(nodes);
+        if (debug.get()) LOG.debug("SORTED NODES: " + sorted_nodes);
+        AbstractPlanNode last_node = null;
+        for (AbstractPlanNode node : sorted_nodes) {
+            final AbstractPlanNode walker_last_node = last_node;
+            final List<AbstractPlanNode> next_last_node = new ArrayList<AbstractPlanNode>();
+            new PlanNodeTreeWalker() {
+                @Override
+                protected void callback(AbstractPlanNode element) {
+                    if (element instanceof SendPlanNode && walker_last_node != null) {
+                        walker_last_node.addAndLinkChild(element);
+                    } else if (element instanceof ReceivePlanNode) {
+                        assert(next_last_node.isEmpty());
+                        next_last_node.add(element);
+                    }
+                }
+            }.traverse(node);
+            
+            if (!next_last_node.isEmpty()) last_node = next_last_node.remove(0);
+        } // FOR
+        return (CollectionUtil.getFirst(sorted_nodes));
+    }
+
+    /**
+     * 
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    public static AbstractPlanNode getPlanNodeTreeForStatement(Statement catalog_stmt, boolean singlesited) throws Exception {
+        if (singlesited && !catalog_stmt.getHas_singlesited()) {
+            String msg = "No single-sited plan is available for " + catalog_stmt + ". ";
+            if (catalog_stmt.getHas_multisited()) {
+                LOG.debug(msg + "Going to try to use multi-site plan");
+                return (getPlanNodeTreeForStatement(catalog_stmt, false));
+            } else {
+                LOG.fatal(msg + "No other plan is available");
+                return (null);
+            }
+        } else if (!singlesited && !catalog_stmt.getHas_multisited()) {
+            String msg = "No multi-sited plan is available for " + catalog_stmt + ". ";
+            if (catalog_stmt.getHas_singlesited()) {
+                if (LOG.isDebugEnabled()) LOG.warn(msg + "Going to try to use single-site plan");
+                return (getPlanNodeTreeForStatement(catalog_stmt, true));
+            } else {
+                LOG.fatal(msg + "No other plan is available");
+                return (null);
+            }
+        }
+        
+        // Check whether we have this cached already
+        // This is probably not thread-safe because the AbstractPlanNode tree has pointers to
+        // specific table catalog objects
+        String cache_key = CatalogKey.createKey(catalog_stmt);
+        Map<String, AbstractPlanNode> cache = (singlesited ? PlanNodeUtil.CACHE_DESERIALIZE_SS_STATEMENT : PlanNodeUtil.CACHE_DESERIALIZE_MS_STATEMENT);
+        AbstractPlanNode ret = cache.get(cache_key);
+        if (ret != null) return (ret);
+        
+        // Otherwise construct the AbstractPlanNode tree
+        Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
+        String fullPlan = (singlesited ? catalog_stmt.getFullplan() : catalog_stmt.getMs_fullplan());
+        if (fullPlan == null || fullPlan.isEmpty()) {
+            throw new Exception("Unable to deserialize full query plan tree for " + catalog_stmt + ": The plan attribute is empty");
+        }
+    
+        if (true) { 
+            String jsonString = Encoder.hexDecodeToString(fullPlan);
+            JSONObject jsonObject = new JSONObject(jsonString);
+            PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+            ret = list.getRootPlanNode();
+        } else {
+            //
+            // FIXME: If it's an INSERT query, then we have to use the plan fragments instead of
+            // the full query plan tree because the full plan is missing the MaterializePlanNode
+            // part for some reason.
+            // NEVER TRUST THE FULL PLAN!
+            //
+            JSONObject jsonObject = null;
+            List<AbstractPlanNode> nodes = new ArrayList<AbstractPlanNode>();
+            CatalogMap<PlanFragment> fragments = (singlesited ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
+            for (PlanFragment catalog_frag : fragments) {
+                String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
+                jsonObject = new JSONObject(jsonString);
+                PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+                nodes.add(list.getRootPlanNode());
+            } // FOR
+            if (nodes.isEmpty()) {
+                throw new Exception("Failed to retrieve query plan nodes from catalog for " + catalog_stmt + " in " + catalog_stmt.getParent());
+            }
+            try {
+                ret = reconstructPlanNodeTree(catalog_stmt, nodes, true);
+            } catch (Exception ex) {
+                System.out.println("ORIGINAL NODES: " + nodes);
+                throw ex;
+            }
+        }
+        
+        if (ret == null) {
+            throw new Exception("Unable to deserialize full query plan tree for " + catalog_stmt + ": The deserializer returned a null root node");
+            //System.err.println(CatalogUtil.debugJSON(catalog_stmt));
+            //System.exit(1);
+        }
+        
+        cache.put(cache_key, ret);
+        return (ret);
+    }
+
+    /**
+         * Returns the PlanNode for the given PlanFragment
+         * @param catalog_frgmt
+         * @return
+         * @throws Exception
+         */
+        public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frgmt) throws Exception {
+            String id = catalog_frgmt.getName();
+            AbstractPlanNode ret = PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
+            if (ret == null) {
+                if (debug.get()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
+                Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
+                String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
+                JSONObject jsonObject = new JSONObject(jsonString);
+    //            System.err.println(jsonObject.toString(2));
+                PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+                ret = list.getRootPlanNode();
+                PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);
+            }
+            return (ret);
+        }
+
+    /**
+     * Pre-load the cache for all of the PlanFragments
+     * @param catalog_db
+     * @throws Exception
+     */
+    public static void preload(Database catalog_db) throws Exception {
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc() || catalog_proc.getHasjava() == false) continue; 
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                if (catalog_stmt.getHas_singlesited()) {
+                    getPlanNodeTreeForStatement(catalog_stmt, true);
+                    getSortedPlanFragments(catalog_stmt, true);
+                }
+                if (catalog_stmt.getHas_multisited()) {
+                    getPlanNodeTreeForStatement(catalog_stmt, false);
+                    getSortedPlanFragments(catalog_stmt, false);
+                }
+                
+                for (PlanFragment catalog_frag : catalog_stmt.getFragments()) {
+                    getPlanNodeTreeForPlanFragment(catalog_frag);
+                } // FOR
+                for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments()) {
+                    getPlanNodeTreeForPlanFragment(catalog_frag);
+                } // FOR
+            } // FOR
+        } // FOR
+    }
+
+    /**
+     * Using this Comparator will sort a list of PlanFragments by their execution order
+     */
+    public static final Comparator<PlanFragment> PLANFRAGMENT_EXECUTION_ORDER = new Comparator<PlanFragment>() {
+        @Override
+        public int compare(PlanFragment o1, PlanFragment o2) {
+            AbstractPlanNode node1 = null;
+            AbstractPlanNode node2 = null;
+            try {
+                node1 = getPlanNodeTreeForPlanFragment(o1);
+                node2 = getPlanNodeTreeForPlanFragment(o2);
+            } catch (Exception ex) {
+                LOG.fatal(ex);
+                System.exit(1);
+            }
+            // o1 > o2
+            return (node2.getPlanNodeId() - node1.getPlanNodeId());
+        }
+    };
+
 }

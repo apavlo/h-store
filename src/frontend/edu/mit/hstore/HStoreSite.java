@@ -81,7 +81,6 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.markov.MarkovEdge;
@@ -93,6 +92,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -593,7 +593,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug("Preloading cached objects");
         try {
             // Load up everything the QueryPlanUtil
-            QueryPlanUtil.preload(this.catalog_db);
+            PlanNodeUtil.preload(this.catalog_db);
             
             // Then load up everything in the PartitionEstimator
             this.p_estimator.preload();

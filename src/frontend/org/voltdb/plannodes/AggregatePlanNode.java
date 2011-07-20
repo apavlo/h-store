@@ -146,7 +146,7 @@ public class AggregatePlanNode extends AbstractPlanNode {
     /**
      * @return Names of the input column that maps to the output column.
      */
-    public List<String> getoutputColumnInputAliasNames() {
+    public List<String> getOutputColumnInputAliasNames() {
         return m_aggregateColumnNames;
     }
 

@@ -33,8 +33,15 @@ import edu.brown.benchmark.airline.AirlineConstants;
 )
 public class FindOpenSeats extends VoltProcedure {
  
-    public final SQLStmt GET_SEATS = new SQLStmt(
-            "SELECT R_F_ID, R_ID, R_SEAT FROM " + AirlineConstants.TABLENAME_RESERVATION + " WHERE R_F_ID = ?");
+    private final VoltTable.ColumnInfo outputColumns[] = {
+        new VoltTable.ColumnInfo("FID", VoltType.INTEGER),
+        new VoltTable.ColumnInfo("SEAT", VoltType.INTEGER)
+    };
+    
+    public final SQLStmt GetSeats = new SQLStmt(
+            "SELECT R_F_ID, R_ID, R_SEAT " + 
+            "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
+            " WHERE R_F_ID = ?");
      
     public VoltTable[] run(long fid) {
         
@@ -51,14 +58,8 @@ public class FindOpenSeats extends VoltProcedure {
            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
         
-        final VoltTable retarray[] = new VoltTable[1];
-        retarray[0] = new VoltTable(
-                new VoltTable.ColumnInfo("FID", VoltType.INTEGER),
-                new VoltTable.ColumnInfo("SEAT", VoltType.INTEGER)
-        );
-        //retarray[0].ensureRowCapacity(150);
         
-        voltQueueSQL(GET_SEATS, fid);
+        voltQueueSQL(GetSeats, fid);
         final VoltTable[] results = voltExecuteSQL();
         assert (results.length == 1);
         
@@ -66,7 +67,8 @@ public class FindOpenSeats extends VoltProcedure {
             // System.out.printf("row fid %d rid %d seat %d\n", row.getLong(0), row.getLong(1), row.getLong(2));
             seatmap[(int) (results[0].getLong(2)-1)] = results[0].getLong(1);
         }
-        
+
+        final VoltTable retarray[] = new VoltTable[]{ new VoltTable(outputColumns) };
         for (int i=0; i < 150; ++i) {
             if (seatmap[i] != -1) {
                 Object[] row = new Object[] {fid, new Long(i+1)};

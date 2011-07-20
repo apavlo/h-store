@@ -14,6 +14,7 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = AirlineLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
+        DeleteReservation.class,
         ChangeSeat.class,
         FindFlightByAirport.class,
         FindFlightByNearbyAirport.class,

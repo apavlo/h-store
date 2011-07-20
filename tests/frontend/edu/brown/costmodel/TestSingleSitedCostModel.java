@@ -18,6 +18,7 @@ import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
@@ -389,7 +390,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertNotNull(xact_trace);
 
         // Change the catalog so that the data from the tables are in different partitions
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         assertNotNull(clone_db);
         Table catalog_tbl = clone_db.getTables().get(TM1Constants.TABLENAME_CALL_FORWARDING);
         assertNotNull(catalog_tbl);
@@ -642,7 +643,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // So here we want to throw a txn at the cost model first without a partitioning ProcParameter
         // and then with one. We should see that the TransactionCacheEntry gets updated properly
         // and that the txn becomes multi-sited
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         assertNotNull(clone_db);
         
         Procedure catalog_proc = this.getProcedure(clone_db, GetAccessData.class);
@@ -693,7 +694,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
      * testMultiColumnPartitioning
      */
     public void testMultiColumnPartitioning() throws Exception {
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         Procedure catalog_proc = this.getProcedure(clone_db, GetAccessData.class);
         TransactionTrace target_txn = null;
         for (TransactionTrace txn : workload.getTransactions()) {

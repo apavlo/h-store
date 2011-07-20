@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -24,49 +25,44 @@ import edu.brown.utils.StringUtil;
 
 public class DesignerHints implements Cloneable, JSONSerializable {
     private static final Logger LOG = Logger.getLogger(DesignerHints.class);
+
+    public static final Field[] MEMBERS;
+    static {
+        List<Field> fields = new ArrayList<Field>();
+        Class<?> clazz = DesignerHints.class;
+        for (Field f : clazz.getDeclaredFields()) {
+            int modifiers = f.getModifiers();
+            if (Modifier.isTransient(modifiers) == false &&
+                Modifier.isPublic(modifiers) == true &&
+                Modifier.isStatic(modifiers) == false) {
+                fields.add(f);
+            }
+        } // FOR
+        MEMBERS = fields.toArray(new Field[0]);
+    } // STATIC
     
-    public enum Members {
-        START_RANDOM,
-        EXHAUSTIVE_SEARCH,
-        GREEDY_SEARCH,
-        LIMIT_TOTAL_TIME,
-        LIMIT_LOCAL_TIME,
-        LOCAL_TIME_MULTIPLIER,
-        LIMIT_BACK_TRACKS,
-        BACK_TRACKS_MULTIPLIER,
-        MAX_MEMORY_PER_PARTITION,
-        PROC_INCLUDE,
-        PROC_EXCLUDE,
-        ALLOW_REPLICATION_READONLY,
-        ALLOW_REPLICATION_READMOSTLY,
-        ALLOW_ARRAY_PROCPARAMETER_CANDIDATES,
-        ENABLE_MULTI_PARTITIONING,
-        ENABLE_COSTMODEL_CACHING,
-        ENABLE_COSTMODEL_SKEW,
-        ENABLE_COSTMODEL_EXECUTION,
-        ENABLE_COSTMODEL_JAVA_EXECUTION,
-        ENABLE_COSTMODEL_MULTIPARTITION_PENALTY,
-        ENABLE_COSTMODEL_IDLEPARTITION_PENALTY,
-        ENABLE_PROCPARAMETER_SEARCH,
-        ENABLE_LOCAL_SEARCH_INCREASE,
-        ENABLE_CHECKPOINTS,
-        WEIGHT_COSTMODEL_EXECUTION,
-        WEIGHT_COSTMODEL_SKEW,
-        WEIGHT_COSTMODEL_JAVA_EXECUTION,
-        WEIGHT_COSTMODEL_MULTIPARTITION_PENALTY,
-        FORCE_REPLICATION,
-        FORCE_REPLICATION_SIZE_LIMIT,
-        // FIXME FORCE_TABLE_PARTITION,
-        FORCE_DEBUGGING,
-        FORCE_DEPENDENCY,
-        IGNORE_PROCEDURES,
-        LOG_SOLUTIONS_COSTS,
-        RELAXATION_FACTOR_MIN,
-        RELAXATION_FACTOR_MAX,
-        RELAXATION_MIN_SIZE,
-    };
+    // ----------------------------------------------------------------------------
+    // INTERNAL DATA MEMBERS
+    // ----------------------------------------------------------------------------
     
+    /**
+     * The location of the file that we loaded for this DesignerHints
+     */
     private transient String source_file;
+    
+    /**
+     * When we started keeping track of time
+     */
+    private transient final long start_time;
+    
+    /**
+     * The FileWriter handle where we dump out new solutions
+     */
+    private transient FileWriter log_solutions_costs_writer = null;
+    
+    // ----------------------------------------------------------------------------
+    // DATA MEMBERS
+    // ----------------------------------------------------------------------------
     
     /**
      * Whether the catalog should be forced into a random partitioning configuration before
@@ -111,13 +107,13 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     /**
      * Replication Candidate Control
      */
-    public boolean allow_replication_readonly = true;
-    public boolean allow_replication_readmostly = true;
+    public boolean enable_replication_readonly = true;
+    public boolean enable_replication_readmostly = true;
     
     /**
      * Allow array ProcParameters to be used as partitioning candidates
      */
-    public boolean allow_array_procparameter_candidates = false;
+    public boolean enable_array_procparameter_candidates = false;
     
     /**
      * Mark tables as read-only/mostly
@@ -208,13 +204,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public double weight_costmodel_multipartition_penalty = 1.0;
     public int weight_costmodel_java_execution = 1;
 
-    private final transient long start_time;
-
     /**
      * Keep track of the cost of the solutions as we find them
      */
     public String log_solutions_costs = null;
-    private transient FileWriter log_solutions_costs_writer = null;
+    
     
     /**
      * A list of procedure names we should ignore when doing any calculations
@@ -227,6 +221,10 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public double relaxation_factor_min = 0.25;
     public double relaxation_factor_max = 0.5;
     public int relaxation_min_size = 5;
+    
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // ----------------------------------------------------------------------------
     
     /**
      * Empty Constructor
@@ -242,6 +240,24 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     private DesignerHints(DesignerHints orig) {
         this.start_time = orig.start_time;
         this.source_file = orig.source_file;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Clone
+     */
+    public DesignerHints clone() {
+        DesignerHints clone = new DesignerHints(this);
+        try {
+            clone.fromJSON(new JSONObject(this.toJSONString()), null);
+        } catch (Exception ex) {
+            LOG.fatal("Failed to clone DesignerHints", ex);
+            System.exit(1);
+        }
+        return (clone);
     }
     
     @Override
@@ -274,6 +290,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public boolean shouldLogSolutionCosts() {
         return (this.log_solutions_costs != null);
     }
+    
     /**
      * Write a solution cost out to a file. Each entry will also include the time at which
      * the new cost was discovered 
@@ -338,20 +355,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         }
         return (now + stop);
     }
-    
-    /**
-     * Clone
-     */
-    public DesignerHints clone() {
-        DesignerHints clone = new DesignerHints(this);
-        try {
-            clone.fromJSON(new JSONObject(this.toJSONString()), null);
-        } catch (Exception ex) {
-            LOG.fatal("Failed to clone DesignerHints", ex);
-            System.exit(1);
-        }
-        return (clone);
-    }
+
     
     public void addTablePartitionCandidate(Database catalog_db, String table_name, String column_name) {
         Table catalog_tbl = catalog_db.getTables().get(table_name);
@@ -455,12 +459,12 @@ public class DesignerHints implements Cloneable, JSONSerializable {
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        JSONUtil.fieldsToJSON(stringer, this, DesignerHints.class, DesignerHints.Members.values());
+        JSONUtil.fieldsToJSON(stringer, this, DesignerHints.class, DesignerHints.MEMBERS);
     }
     
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, DesignerHints.class, true, DesignerHints.Members.values());
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, DesignerHints.class, true, DesignerHints.MEMBERS);
         
         // HACK: Process wildcards
         if (this.ignore_procedures.size() > 0) {
@@ -486,9 +490,12 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      */
     public static void main(String[] vargs) throws Exception {
         LoggerUtil.setupLogging();
+
+        
+        
         // Make an empty DesignerHints and print it out
-        DesignerHints hints = new DesignerHints();
-        System.out.println(JSONUtil.format(hints.toJSONString()));
+//        DesignerHints hints = new DesignerHints();
+//        System.out.println(JSONUtil.format(hints.toJSONString()));
     }
 
 }

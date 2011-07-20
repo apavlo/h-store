@@ -1,4 +1,4 @@
-package edu.brown.utils;
+package edu.brown.plannodes;
 
 import java.util.*;
 
@@ -13,8 +13,9 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ProjectType;
 
 public class TestPlanNodeUtil extends BaseTestCase {
 
@@ -48,7 +49,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "update");
 
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         Set<ExpressionType> result = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
         assertNotNull(result);
@@ -63,6 +64,32 @@ public class TestPlanNodeUtil extends BaseTestCase {
      */
     @Test
     public void testGetOutputColumns() throws Exception {
+        Procedure catalog_proc = this.getProcedure(GetTableCounts.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "CallForwardingCount");
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING);
+        Column expected[] = { 
+            this.getColumn(catalog_tbl, "S_ID")
+        };
+        
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        
+        Set<Column> columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0));
+        assertNotNull(columns);
+//        System.err.print(catalog_stmt.fullName() + ": " + CatalogUtil.debug(columns));
+//        System.err.println(PlanNodeUtil.debug(root));
+        assertEquals(catalog_stmt.fullName(), expected.length, columns.size());
+        for (int i = 0; i < expected.length; i++) {
+            assert(columns.contains(expected[i])) : "Missing column " + CatalogUtil.getDisplayName(expected[i]);
+        } // FOR
+
+    }
+    
+    /**
+     * testGetOutputColumns
+     */
+    @Test
+    public void testGetUpdatedColumns() throws Exception {
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "update");
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
@@ -70,15 +97,16 @@ public class TestPlanNodeUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "VLR_LOCATION")
         };
         
-        AbstractPlanNode root = QueryPlanUtil.deserializeStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root);
         IndexScanPlanNode idx_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
         assertNotNull(idx_node);
         
-        Set<Column> columns = PlanNodeUtil.getOutputColumns(catalog_db, idx_node);
+        Set<Column> columns = PlanNodeUtil.getUpdatedColumns(catalog_db, idx_node);
         assertNotNull(columns);
+//        System.err.print(catalog_stmt.fullName() + ": " + CatalogUtil.debug(columns));
 //        System.err.println(PlanNodeUtil.debug(root));
-        assertEquals(PlanNodeUtil.debugNode(idx_node), expected.length, columns.size());
+        assertEquals(catalog_stmt.fullName(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
             assert(columns.contains(expected[i])) : "Missing column " + CatalogUtil.getDisplayName(expected[i]);
         } // FOR
@@ -103,10 +131,10 @@ public class TestPlanNodeUtil extends BaseTestCase {
      * testGetTableReferences
      */
     public void testGetTableReferences() throws Exception {
-        AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         
-        Set<AbstractPlanNode> found = PlanNodeUtil.getNodesReferencingTable(root_node, catalog_tbl);
+        Set<AbstractPlanNode> found = PlanNodeUtil.getPlanNodesReferencingTable(root_node, catalog_tbl);
         assertEquals(1, found.size());
         AbstractPlanNode node = CollectionUtil.getFirst(found);
         assertNotNull(node);

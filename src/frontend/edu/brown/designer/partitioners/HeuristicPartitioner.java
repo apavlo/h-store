@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.types.PartitionMethodType;
 
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
@@ -323,11 +324,11 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             for (Set<Table> replication_set : candidate_sets) {
                 cost_model.invalidateCache(candidates);
                 
-                Catalog new_catalog = CatalogUtil.cloneBaseCatalog(info.catalog_db.getCatalog());
+                Catalog new_catalog = CatalogCloner.cloneBaseCatalog(info.catalog_db.getCatalog());
                 for (Table catalog_tbl : proc_tables) {
                     DesignerVertex vertex = ptree.getVertex(catalog_tbl);
                     assert(vertex != null) : "PartitionTree is missing a vertex for " + catalog_tbl + " " + ptree.getVertices();
-                    Table new_catalog_tbl = CatalogUtil.clone(catalog_tbl, new_catalog);
+                    Table new_catalog_tbl = CatalogCloner.clone(catalog_tbl, new_catalog);
                     
                     //
                     // Mark the table as replicated if it's in the current set
@@ -348,7 +349,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     }
                 } // FOR
                 Database new_catalog_db = CatalogUtil.getDatabase(new_catalog);
-                CatalogUtil.cloneConstraints(info.catalog_db, new_catalog_db);
+                CatalogCloner.cloneConstraints(info.catalog_db, new_catalog_db);
                 
                 double cost = 0d;
                 try {

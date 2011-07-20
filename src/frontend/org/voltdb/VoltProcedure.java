@@ -171,6 +171,7 @@ public abstract class VoltProcedure implements Poolable {
     private LocalTransactionState m_localTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
+    private int last_batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
     private int batchQueryArgsIndex = 0;
     private VoltTable[] results = EMPTY_RESULT;
@@ -542,6 +543,7 @@ public abstract class VoltProcedure implements Poolable {
         // in case someone queues sql but never calls execute, clear the queue here.
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
+        last_batchQueryStmtIndex = -1;
 
         // Select a local_partition to use if we're on the coordinator, otherwise
         // just use the real partition. We shouldn't have to do this once Evan gets it
@@ -987,12 +989,25 @@ public abstract class VoltProcedure implements Poolable {
             m_workloadQueryHandles.clear();
         }
 
+        last_batchQueryStmtIndex = batchQueryStmtIndex;
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
         return retval;
     }
 
+    /**
+     * Return the SQLStmt handles for the last batch of executed queries
+     * @return
+     */
+    public SQLStmt[] voltLastQueriesExecuted() {
+        if (last_batchQueryStmtIndex != -1) {
+            return Arrays.copyOf(batchQueryStmts, last_batchQueryStmtIndex);
+        }
+        return new SQLStmt[0];
+    }
+    
+    
     /**
      * 
      * @param batchSize

@@ -34,7 +34,7 @@ public abstract class FixCatalog {
      */
     @SuppressWarnings("unchecked")
     public static Catalog addHostInfo(Catalog orig_catalog, ClusterConfiguration cc) {
-        Catalog catalog = CatalogUtil.cloneBaseCatalog(orig_catalog, Site.class, Host.class, Partition.class);
+        Catalog catalog = CatalogCloner.cloneBaseCatalog(orig_catalog, Site.class, Host.class, Partition.class);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         
         // Add a bunch of hosts and partitions to this mofo

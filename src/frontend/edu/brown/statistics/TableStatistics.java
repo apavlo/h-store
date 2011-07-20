@@ -34,6 +34,7 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.MemoryEstimator;
 import edu.brown.workload.*;
 
 /**
@@ -166,7 +167,7 @@ public class TableStatistics extends AbstractStatistics<Table> {
                     this.tuple_count_total += 1;
                     Long bytes = 0l;
                     try {
-                        bytes = (long)CatalogUtil.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
+                        bytes = (long)MemoryEstimator.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
                     } catch (ArrayIndexOutOfBoundsException ex) {
                         // Silently let these pass...
                         LOG.debug("Failed to calculate estimated tuple size for " + query, ex);

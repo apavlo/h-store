@@ -12,9 +12,9 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerUtil;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
@@ -133,7 +133,7 @@ public class TestDesignerUtil extends BaseTestCase {
         assertNotNull(catalog_proc);
         Statement catalog_stmt = catalog_proc.getStatements().get("GetStockCount");
         
-        AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         // System.out.println(PlanNodeUtil.debug(root_node));
         

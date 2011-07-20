@@ -23,10 +23,10 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -142,7 +142,7 @@ public class WorkloadSummarizer {
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 List<StmtParameter> stmt_params = new ArrayList<StmtParameter>();
                 for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
-                    Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_param);
+                    Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_param);
                     assert(catalog_col != null);
                     if (this.candidate_columns.contains(catalog_col)) {
                         stmt_params.add(catalog_param);
