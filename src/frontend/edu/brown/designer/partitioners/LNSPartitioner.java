@@ -80,7 +80,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final Random rng = new Random();
     protected final AbstractCostModel costmodel;
     protected final ParameterMappingsSet correlations;
-    protected AccessGraph agraph;
+//    protected AccessGraph agraph;
     protected AccessGraph single_agraph;
 
     // ----------------------------------------------------------------------------
@@ -152,8 +152,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      */
     protected void init(DesignerHints hints) throws Exception {
         this.init_called = true;
-        this.agraph = this.generateAccessGraph();
-        this.single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.agraph);
+        this.single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
         
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
@@ -173,7 +172,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        System.err.println("SINGLE GRAPH:" + gv.writeToTempFile());
         
         // Gather all the information we need about each table
-        for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateTableOrder(info, this.agraph, hints), Table.class)) {
+        for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateTableOrder(info, this.single_agraph, hints), Table.class)) {
             
             // Ignore this table if it's not used in the AcessGraph
             DesignerVertex v = null;
@@ -188,7 +187,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             
             // Potential Partitioning Attributes
-            Collection<Column> columns = CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints, false, true), Column.class);
+            Collection<Column> columns = CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateColumnOrder(info, this.single_agraph, catalog_tbl, hints, false, true), Column.class);
             assert(!columns.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
             this.orig_table_attributes.put(catalog_tbl, (ListOrderedSet<Column>)CollectionUtil.addAll(new ListOrderedSet<Column>(), columns));
             

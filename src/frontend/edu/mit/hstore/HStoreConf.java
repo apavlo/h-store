@@ -975,7 +975,7 @@ public final class HStoreConf {
         for (int i = 0, cnt = args.length; i < cnt; i++) {
             final String arg = args[i];
             final String[] parts = split_p.split(arg, 2);
-            String k = parts[0];
+            String k = parts[0].toLowerCase();
             String v = parts[1];
             if (k.startsWith("-")) k = k.substring(1);
             
@@ -1203,7 +1203,7 @@ public final class HStoreConf {
     public synchronized static HStoreConf init(File f, String args[]) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
         conf = new HStoreConf();
-        if (f != null) conf.loadFromFile(f);
+        if (f != null && f.exists()) conf.loadFromFile(f);
         if (args != null) conf.loadFromArgs(args);
         return (conf);
     }

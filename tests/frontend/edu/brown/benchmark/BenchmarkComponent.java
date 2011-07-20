@@ -744,6 +744,8 @@ public abstract class BenchmarkComponent {
         if (HStoreConf.isInitialized() == false) {
             assert(hstore_conf_path != null) : "Missing HStoreConf file";
             HStoreConf.init(new File(hstore_conf_path), args);
+        } else {
+            HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
         
