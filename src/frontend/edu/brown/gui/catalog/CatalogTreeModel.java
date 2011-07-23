@@ -120,6 +120,8 @@ public class CatalogTreeModel extends DefaultTreeModel {
      * 
      */
     protected void buildModel() {
+        Map<Table, MaterializedViewInfo> vertical_partitions = CatalogUtil.getVerticallyPartitionedTables(catalog);
+        
         // Clusters
         DefaultMutableTreeNode root_node = (DefaultMutableTreeNode)this.getRoot();
         int cluster_ctr = 0;
@@ -167,9 +169,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             buildSearchIndex(index_cat, index_node);
                         } // FOR (indexes)
                     }
-                    //
                     // Constraints
-                    //
                     if (!table_cat.getConstraints().isEmpty()) {
                         DefaultMutableTreeNode constraints_node = new CatalogMapTreeNode("Constraints", table_cat.getConstraints());
                         table_node.add(constraints_node);
@@ -178,6 +178,24 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             constraints_node.add(constraint_node);
                             buildSearchIndex(constraint_cat, constraint_node);
                         } // FOR (constraints)
+                    }
+                    // Vertical Partitions
+                    MaterializedViewInfo catalog_vp = vertical_partitions.get(table_cat); 
+                    if (catalog_vp != null) {
+                        DefaultMutableTreeNode vp_node = new CatalogMapTreeNode("Vertical Partition", catalog_vp.getGroupbycols());
+                        table_node.add(vp_node);
+                        for (Column column_cat : CatalogUtil.getSortedCatalogItems(CatalogUtil.getColumns(catalog_vp.getGroupbycols()), "index")) {
+                            DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
+                                @Override
+                                public String toString() {
+                                    Column column_cat = (Column)this.getCatalogType();
+                                    String type = VoltType.get((byte)column_cat.getType()).toSQLString();
+                                    return (super.toString() + " (" + type + ")");
+                                }
+                            });
+                            columns_node.add(column_node);
+                            buildSearchIndex(column_cat, column_node);
+                        } // FOR
                     }
                 } // FOR (tables)
             

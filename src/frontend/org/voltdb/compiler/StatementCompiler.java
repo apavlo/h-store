@@ -18,8 +18,8 @@
 package org.voltdb.compiler;
 
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.hsqldb.HSQLInterface;
@@ -291,7 +291,7 @@ public abstract class StatementCompiler {
             throw new RuntimeException(ex);
         }
         assert(root != null);
-        Set<Table> tables_accessed = CatalogUtil.getReferencedTablesForTree(db, root);
+        Collection<Table> tables_accessed = CatalogUtil.getReferencedTablesForTree(db, root);
         assert(tables_accessed.isEmpty() == false) : "Failed to find accessed tables for " + catalogStmt + "-- Plan:\n" + PlanNodeUtil.debug(plan.fullWinnerPlan);
         boolean all_replicated = true;
         for (Table catalog_tbl : tables_accessed) {

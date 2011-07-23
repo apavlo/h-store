@@ -46,12 +46,12 @@ public class TestPlanOptimizations extends BaseTestCase {
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
-        // FIXME assertEquals(1, scan_node.getInlinePlanNodes().size());
-        // FIXME assertNotNull(scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION));
+        assertEquals(1, scan_node.getInlinePlanNodes().size());
+        assertNotNull(scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION));
         
         // Now check to make sure there are no other Projections in the tree
-        Set<ProjectionPlanNode> proj_nodes = PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
-        // FIXME assertEquals(0, proj_nodes.size());
+//        Set<ProjectionPlanNode> proj_nodes = PlanNodeUtil.getPlanNodes(root, ProjectionPlanNode.class);
+//        assertEquals(0, proj_nodes.size());
     }
     
     /**

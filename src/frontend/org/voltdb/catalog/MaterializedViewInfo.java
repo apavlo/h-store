@@ -28,6 +28,7 @@ public class MaterializedViewInfo extends CatalogType {
 
     CatalogMap<ColumnRef> m_groupbycols;
     String m_predicate = new String();
+    boolean m_verticalpartition;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -35,10 +36,12 @@ public class MaterializedViewInfo extends CatalogType {
         m_groupbycols = new CatalogMap<ColumnRef>(catalog, this, path + "/" + "groupbycols", ColumnRef.class);
         m_childCollections.put("groupbycols", m_groupbycols);
         this.addField("predicate", m_predicate);
+        this.addField("verticalpartition", m_verticalpartition);
     }
 
     void update() {
         m_predicate = (String) m_fields.get("predicate");
+        m_verticalpartition = (Boolean) m_fields.get("verticalpartition");
     }
 
     /** GETTER: The table which will be updated when the source table is updated */
@@ -64,6 +67,11 @@ public class MaterializedViewInfo extends CatalogType {
         return m_predicate;
     }
 
+    /** GETTER: Is this materialized view a vertical partition? */
+    public boolean getVerticalpartition() {
+        return m_verticalpartition;
+    }
+
     /** SETTER: The table which will be updated when the source table is updated */
     public void setDest(Table value) {
         m_fields.put("dest", value);
@@ -72,6 +80,11 @@ public class MaterializedViewInfo extends CatalogType {
     /** SETTER: A filtering predicate */
     public void setPredicate(String value) {
         m_predicate = value; m_fields.put("predicate", value);
+    }
+
+    /** SETTER: Is this materialized view a vertical partition? */
+    public void setVerticalpartition(boolean value) {
+        m_verticalpartition = value; m_fields.put("verticalpartition", value);
     }
 
 }

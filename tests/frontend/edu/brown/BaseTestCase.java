@@ -108,6 +108,8 @@ public abstract class BaseTestCase extends TestCase {
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
 
+    private static final Map<ProjectType, AbstractProjectBuilder> project_builders = new HashMap<ProjectType, AbstractProjectBuilder>();
+    
     /**
      * Setup the test case for the given project type
      * By default we don't include foreign keys in the catalog (I forget why we did this)
@@ -228,32 +230,42 @@ public abstract class BaseTestCase extends TestCase {
         project_p_estimators.put(type, p_estimator);
     }
 
-    public static File getCatalogJarPath(ProjectType type) {
-        AbstractProjectBuilder projectBuilder = null;
-        switch (type) {
-            case TPCC:
-                projectBuilder = new TPCCProjectBuilder();
-                break;
-            case TPCE:
-                projectBuilder = new TPCEProjectBuilder();
-                break;
-            case TM1:
-                projectBuilder = new TM1ProjectBuilder();
-                break;
-            case AIRLINE:
-                projectBuilder = new AirlineProjectBuilder();
-                break;
-            case AUCTIONMARK:
-                projectBuilder = new AuctionMarkProjectBuilder();
-                break;
-            case MARKOV:
-                projectBuilder = new MarkovProjectBuilder();
-                break;
-            default:
-                assert(false) : "Invalid project type - " + type;
-        } // SWITCH
+    public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
+        AbstractProjectBuilder projectBuilder = project_builders.get(type);
+        if (projectBuilder == null) {
+            switch (type) {
+                case TPCC:
+                    projectBuilder = new TPCCProjectBuilder();
+                    break;
+                case TPCE:
+                    projectBuilder = new TPCEProjectBuilder();
+                    break;
+                case TM1:
+                    projectBuilder = new TM1ProjectBuilder();
+                    break;
+                case AIRLINE:
+                    projectBuilder = new AirlineProjectBuilder();
+                    break;
+                case AUCTIONMARK:
+                    projectBuilder = new AuctionMarkProjectBuilder();
+                    break;
+                case MARKOV:
+                    projectBuilder = new MarkovProjectBuilder();
+                    break;
+                default:
+                    assert(false) : "Invalid project type - " + type;
+            } // SWITCH
+            project_builders.put(type, projectBuilder);
+        }
         assert(projectBuilder != null);
-        return (projectBuilder.getJarPath(true));
+        return (projectBuilder);
+    }
+    
+    public static File getCatalogJarPath(ProjectType type) {
+        return (getProjectBuilder(type).getJarPath(true));
+    }
+    public static File getDDLPath(ProjectType type) {
+        return (new File(getProjectBuilder(type).getDDLURL(true).getFile()));
     }
     
     /**
@@ -424,7 +436,7 @@ public abstract class BaseTestCase extends TestCase {
     // --------------------------------------------------------------------------------------
     // FILE LOADING METHODS
     // --------------------------------------------------------------------------------------
-
+    
     /**
      * Find a trace file for a given project type
      * @param current

@@ -128,7 +128,7 @@ public abstract class CatalogUtil {
      * @param sortFieldName The name of the field to sort on.
      * @return A list of catalog items, sorted on the specified field.
      */
-    public static <T extends CatalogType> List<T> getSortedCatalogItems(CatalogMap<T> items, String sortFieldName) {
+    public static <T extends CatalogType> List<T> getSortedCatalogItems(Collection<T> items, String sortFieldName) {
         assert(items != null);
         assert(sortFieldName != null);
 

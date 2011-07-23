@@ -74,7 +74,7 @@ public class Table extends CatalogType {
         return m_isreplicated;
     }
 
-    /** GETTER: On which column is the table partitioned */
+    /** GETTER: On which column is the table horizontally partitioned */
     public Column getPartitioncolumn() {
         Object o = getField("partitioncolumn");
         if (o instanceof UnresolvedInfo) {
@@ -115,7 +115,7 @@ public class Table extends CatalogType {
         m_isreplicated = value; m_fields.put("isreplicated", value);
     }
 
-    /** SETTER: On which column is the table partitioned */
+    /** SETTER: On which column is the table horizontally partitioned */
     public void setPartitioncolumn(Column value) {
         m_fields.put("partitioncolumn", value);
     }

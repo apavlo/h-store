@@ -246,6 +246,8 @@ public abstract class PartitionerUtil {
      * @throws Exception
      */
     public static Collection<VerticalPartitionCandidate> generateVerticalPartitioningCandidates(final DesignerInfo info, final AccessGraph agraph, final Column catalog_col, final DesignerHints hints) throws Exception {
+        if (debug.get()) LOG.debug(String.format("Generating Vertical Partitioning candidates based on using %s as the partitioning attribute",
+                                                 catalog_col.fullName()));
         final Table catalog_tbl = catalog_col.getParent();
         Map<Set<Column>, VerticalPartitionCandidate> candidates = new HashMap<Set<Column>, VerticalPartitionCandidate>();
         
@@ -259,7 +261,7 @@ public abstract class PartitionerUtil {
                 // We can only look at SELECT statements because we have know way to know the correspondence
                 // between the candidate partitioning column and our target column
                 if (catalog_stmt.getQuerytype() != QueryType.SELECT.getValue()) continue;
-                Set<Column> target_cols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
+                Collection<Column> target_cols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
                 if (target_cols.contains(catalog_col) == false) continue;
                 
                 // The referenced columns are the columns that are used in the predicate
@@ -275,9 +277,8 @@ public abstract class PartitionerUtil {
                     candidates.put(ref_cols, vpc);
                 }
                 vpc.getStatements().add(catalog_stmt);
-                LOG.info(String.format("%s: Output%s All%s\nCandidate: %s\n", catalog_stmt.fullName(), target_cols, ref_cols, vpc));
+                if (debug.get()) LOG.debug(String.format("%s: Output%s All%s\nCandidate: %s\n", catalog_stmt.fullName(), target_cols, ref_cols, vpc));
             } // FOR (stmt)
-            
         } // FOR (proc)
         
         return (candidates.values());
@@ -588,7 +589,7 @@ public abstract class PartitionerUtil {
            // Skip inserts for now...
            if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) continue;
            
-           Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+           Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
            // For now we only bother with two-column pairs
            for (Column catalog_col0 : columns) {
                Table catalog_tbl = catalog_col0.getParent();

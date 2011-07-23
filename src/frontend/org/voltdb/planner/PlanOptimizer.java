@@ -1,17 +1,6 @@
 package org.voltdb.planner;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
@@ -21,19 +10,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanColumn.Storage;
-import org.voltdb.plannodes.AbstractJoinPlanNode;
-import org.voltdb.plannodes.AbstractPlanNode;
-import org.voltdb.plannodes.AbstractScanPlanNode;
-import org.voltdb.plannodes.AggregatePlanNode;
-import org.voltdb.plannodes.DistinctPlanNode;
-import org.voltdb.plannodes.IndexScanPlanNode;
-import org.voltdb.plannodes.LimitPlanNode;
-import org.voltdb.plannodes.NestLoopIndexPlanNode;
-import org.voltdb.plannodes.NestLoopPlanNode;
-import org.voltdb.plannodes.OrderByPlanNode;
-import org.voltdb.plannodes.ProjectionPlanNode;
-import org.voltdb.plannodes.ReceivePlanNode;
-import org.voltdb.plannodes.SendPlanNode;
+import org.voltdb.plannodes.*;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -42,6 +19,7 @@ import edu.brown.expressions.ExpressionUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
@@ -49,6 +27,8 @@ import edu.brown.utils.CollectionUtil;
  */
 public class PlanOptimizer {
     private static final Logger LOG = Logger.getLogger(PlanOptimizer.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
     protected static final PlanNodeType TO_IGNORE[] = { PlanNodeType.AGGREGATE, PlanNodeType.NESTLOOP, };
 
@@ -125,7 +105,7 @@ public class PlanOptimizer {
             if (this.isDirty(child_node))
                 ctr++;
         }
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug(String.format("%s has %d dirty children", node, ctr));
         return (ctr > 0);
     }
@@ -208,23 +188,22 @@ public class PlanOptimizer {
      * Main entry point for the PlanOptimizer
      */
     public void optimize(String sql, AbstractPlanNode root) {
-        final boolean trace = LOG.isTraceEnabled();
         this.sql = sql;
-        // if (debug) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(root));
+        // if (debug.get()) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(root));
 
         // Check if our tree contains anything that we want to ignore
         Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
-        if (trace)
+        if (trace.get())
             LOG.trace("PlanNodeTypes: " + types);
         for (PlanNodeType t : TO_IGNORE) {
             if (types.contains(t)) {
-                if (trace)
+                if (trace.get())
                     LOG.trace(String.format("Tree rooted at %s contains %s. Skipping optimization...", root, t));
                 return;
             }
         } // FOR
 
-        if (trace)
+        if (trace.get())
             LOG.trace("Attempting to optimize: " + sql);
 
         this.populateTableNodeInfo(root);
@@ -236,8 +215,7 @@ public class PlanOptimizer {
      * Tables and their referenced columns
      */
     protected void populateTableNodeInfo(final AbstractPlanNode rootNode) {
-        final boolean trace = LOG.isTraceEnabled();
-        if (trace)
+        if (trace.get())
             LOG.trace("Populating Table Information"); // \n" +
         // PlanNodeUtil.debug(rootNode));
 
@@ -274,9 +252,6 @@ public class PlanOptimizer {
     protected void extractColumnInfo(AbstractPlanNode node, boolean is_root) throws Exception {
         //System.out.println("current node type: " + node.getPlanNodeType() + " id: " + node.getPlanNodeId());
         
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-
         // Store the original output column information per node
         this.orig_node_output.put(node, new ArrayList<Integer>(node.m_outputColumns));
 
@@ -327,14 +302,14 @@ public class PlanOptimizer {
             } // FOR
         }
 
-        if (trace)
+        if (trace.get())
             LOG.trace("Extracted " + exps.size() + " expressions for " + node);
 
         // Now go through our expressions and extract out the columns that are
         // referenced
         for (AbstractExpression exp : exps) {
             for (Column catalog_col : ExpressionUtil.getReferencedColumns(m_catalogDb, exp)) {
-                if (trace)
+                if (trace.get())
                     LOG.trace(node + " => " + CatalogUtil.getDisplayName(catalog_col));
                 this.addTableColumn(catalog_col);
                 this.addPlanNodeColumn(node, catalog_col);
@@ -363,10 +338,7 @@ public class PlanOptimizer {
      * @return
      */
     protected boolean addInlineProjection(final AbstractScanPlanNode scan_node) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-
-        Set<Table> tables = CatalogUtil.getReferencedTablesForPlanNode(m_catalogDb, scan_node);
+        Collection<Table> tables = CatalogUtil.getReferencedTablesForPlanNode(m_catalogDb, scan_node);
         if (tables.size() != 1) {
             LOG.error(PlanNodeUtil.debugNode(scan_node));
         }
@@ -378,14 +350,14 @@ public class PlanOptimizer {
         // Stop if there is no column information.
         // XXX: Is this a bad thing?
         if (output_columns == null) {
-            if (trace)
+            if (trace.get())
                 LOG.warn("No column information for " + catalog_tbl);
             return (false);
             // Only create the projection if the number of columns we need to
             // output is less
             // then the total number of columns for the table
         } else if (output_columns.size() == catalog_tbl.getColumns().size()) {
-            if (trace)
+            if (trace.get())
                 LOG.warn("All columns needed in query. No need for inline projection on " + catalog_tbl);
             return (false);
         }
@@ -393,7 +365,7 @@ public class PlanOptimizer {
         // Create new projection and add in all of the columns that our table
         // will ever need
         ProjectionPlanNode proj_node = new ProjectionPlanNode(m_context, PlanAssembler.getNextPlanNodeId());
-        if (debug)
+        if (debug.get())
             LOG.debug(String.format("Adding inline Projection for %s with %d columns. Original table has %d columns", catalog_tbl.getName(), output_columns.size(), catalog_tbl.getColumns().size()));
         int idx = 0;
         for (Column catalog_col : output_columns) {
@@ -426,7 +398,7 @@ public class PlanOptimizer {
             this.addColumnMapping(catalog_col, orig_col.guid());
             idx++;
         } // FOR
-        if (trace)
+        if (trace.get())
             LOG.trace("New Projection Output Columns:\n" + PlanNodeUtil.debugNode(proj_node));
 
         // Add projection inline to scan node
@@ -440,7 +412,7 @@ public class PlanOptimizer {
 
         // add element to the "dirty" list
         this.markDirty(scan_node);
-        if (trace)
+        if (trace.get())
             LOG.trace(String.format("Added inline %s with %d columns to leaf node %s", proj_node, proj_node.getOutputColumnCount(), scan_node));
         return (true);
     }
@@ -450,8 +422,6 @@ public class PlanOptimizer {
      * @return
      */
     protected boolean updateDistinctColumns(DistinctPlanNode node) {
-        final boolean trace = LOG.isTraceEnabled();
-
         // We really have one child here
         assert (node.getChildCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
@@ -471,7 +441,7 @@ public class PlanOptimizer {
 //            PlanColumn pc = m_context.get(guid);
 //            assert (pc != null);
 //            if (pc.equals(orig_pc, true, true)) {
-//                if (trace)
+//                if (trace.get())
 //                    LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
 //                new_pc = pc;
 //                break;
@@ -491,7 +461,7 @@ public class PlanOptimizer {
         } // FOR
 
         markDirty(node);
-//        if (LOG.isDebugEnabled())
+//        if (debug.get())
 //            LOG.debug(String.format("Updated %s with proper distinct column guid: ORIG[%d] => NEW[%d]", node, orig_guid, new_pc.guid()));
 
         return (true);
@@ -504,8 +474,6 @@ public class PlanOptimizer {
      * @return
      */
     protected boolean updateOrderByColumns(OrderByPlanNode node) {
-        final boolean trace = LOG.isTraceEnabled();
-
         // We really have one child here
         assert (node.getChildCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
@@ -525,7 +493,7 @@ public class PlanOptimizer {
                 PlanColumn pc = m_context.get(guid);
                 assert (pc != null);
                 if (pc.equals(orig_pc, true, true)) {
-                    if (trace)
+                    if (trace.get())
                         LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
                     new_pc = pc;
                     break;
@@ -541,7 +509,7 @@ public class PlanOptimizer {
         } // FOR
 
         this.markDirty(node);
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug(String.format("Updated %s with proper orderby column guid", node));
 
         return (true);
@@ -554,8 +522,6 @@ public class PlanOptimizer {
      * @return
      */
     protected boolean updateAggregateColumns(AggregatePlanNode node) {
-        final boolean trace = LOG.isTraceEnabled();
-
         // We really have one child here
         assert (node.getChildCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
@@ -576,7 +542,7 @@ public class PlanOptimizer {
                 } else {
                     assert (pc != null);
                     if (pc.equals(orig_pc, true, true)) {
-                        if (trace)
+                        if (trace.get())
                             LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
                         new_pc = pc;
                         break;
@@ -608,7 +574,7 @@ public class PlanOptimizer {
                 } else {
                     assert (pc != null);
                     if (pc.equals(orig_pc, true, true)) {
-                        if (trace)
+                        if (trace.get())
                             LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
                         new_pc = pc;
                         break;
@@ -635,7 +601,7 @@ public class PlanOptimizer {
         // System.err.println(PlanNodeUtil.debug(PlanNodeUtil.getRoot(agg_node)));
 
         markDirty(node);
-        if (LOG.isDebugEnabled())
+        if (debug.get())
             LOG.debug(String.format("Updated %s with %d proper aggregate column guids", node, node.getAggregateColumnGuids().size()));
         return (true);
     }
@@ -646,8 +612,6 @@ public class PlanOptimizer {
      * @throws Exception
      */
     protected boolean updateProjectionColumns(ProjectionPlanNode node) {
-        final boolean debug = LOG.isDebugEnabled();
-
         assert (node.getChildCount() == 1) : node;
         final AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
@@ -704,7 +668,7 @@ public class PlanOptimizer {
             node.m_outputColumns.set(i, new_col.guid());
         } // FOR
         this.markDirty(node);
-        if (debug)
+        if (debug.get())
             LOG.debug(String.format("Updated %s with %d output columns offsets", node, node.getOutputColumnCount()));
         return (true);
     }
@@ -715,8 +679,6 @@ public class PlanOptimizer {
      * @throws Exception
      */
     protected boolean updateOutputOffsets(AbstractPlanNode node) {
-        final boolean debug = LOG.isDebugEnabled();
-
         for (int i = 0, cnt = node.getOutputColumnCount(); i < cnt; i++) {
             // Check to make sure that the offset in the tuple value expression
             // matches
@@ -758,7 +720,7 @@ public class PlanOptimizer {
             } // FOR                
             }
         this.markDirty(node);
-        if (debug)
+        if (debug.get())
             LOG.debug(String.format("Updated %s with %d output columns offsets", node, node.getOutputColumnCount()));
         return (true);
     }
@@ -768,8 +730,6 @@ public class PlanOptimizer {
      * @return
      */
     protected boolean updateJoinsColumns(AbstractJoinPlanNode node) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
 
         // There's always going to be two input tables. One is always going to
         // come
@@ -782,7 +742,7 @@ public class PlanOptimizer {
         AbstractPlanNode outer_node = node.getChild(0);
         assert (outer_node != null);
         List<Integer> outer_new_input_guids = outer_node.m_outputColumns;
-        if (debug)
+        if (debug.get())
             LOG.debug("Calculating OUTER offsets from child node: " + outer_node);
 
         // List of PlanColumn GUIDs for the new output list
@@ -812,7 +772,7 @@ public class PlanOptimizer {
                 new_pc = m_context.get(orig_col_guid);
                 //new_output_guids.add(orig_col_guid);
                 sorted_new_output_guids.put(new_idx, orig_col_guid);
-                if (debug)
+                if (debug.get())
                     LOG.debug(String.format("OUTER OFFSET %d => %d", orig_idx, new_idx));
 
                 // Check whether we even have this column. We'll compare
@@ -823,7 +783,7 @@ public class PlanOptimizer {
                     PlanColumn pc = m_context.get(guid);
                     assert (pc != null);
                     if (pc.equals(orig_pc, true, true)) {
-                        if (trace)
+                        if (trace.get())
                             LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", orig_idx, orig_pc, pc));
                         new_pc = pc;
                         break;
@@ -843,7 +803,7 @@ public class PlanOptimizer {
                     outer_new_input_guids.set(new_idx, new_col.guid());
                     //new_output_guids.add(new_col.guid());
                     sorted_new_output_guids.put(new_idx, new_col.guid());
-                    if (debug)
+                    if (debug.get())
                         LOG.debug(String.format("OUTER OFFSET %d => %d [new_guid=%d]", orig_idx, new_idx, new_col.guid()));
                 } else {
                     new_idx = null;
@@ -856,13 +816,13 @@ public class PlanOptimizer {
             } else {
                 String msg = String.format("[%02d] Failed to find new offset for OUTER %s", orig_idx, orig_pc);
                 sb.append(msg).append("\n");
-                if (debug)
+                if (debug.get())
                     LOG.warn(msg);
             }
         } // FOR
-        if (trace)
+        if (trace.get())
             LOG.trace("Original Outer Input GUIDs: " + outer_orig_input_guids);
-        if (trace)
+        if (trace.get())
             LOG.trace("New Outer Input GUIDs:      " + outer_new_input_guids);
         if (outer_new_input_guids.size() != offset_xref.size()) {
             LOG.info("Outer Node: " + outer_node);
@@ -891,9 +851,8 @@ public class PlanOptimizer {
         assert (outer_new_input_guids.size() == offset_xref.size()) : sql + " outer_new_input_guids size: " + outer_new_input_guids.size() + " offset_xref size: " + offset_xref.size();
 
         // add the sorted columns into new_columns list
-        Iterator iterator = sorted_new_output_guids.keySet().iterator();
-        while (iterator.hasNext()) {
-            new_output_guids.add(sorted_new_output_guids.get((Integer)iterator.next()));
+        for (Integer i : sorted_new_output_guids.values()) {
+            new_output_guids.add(i);
         }        
         
         // For the inner table, we always have to offset ourselves based on the
@@ -901,9 +860,6 @@ public class PlanOptimizer {
         // of the new outer table
         int offset = outer_new_input_guids.size();
         
-        // Whether we are in a NestLoop join or not
-        boolean is_nestloop = false;
-
         AbstractPlanNode inner_node = null;
 
         // These are the set of expressions for the join clause that we need to
@@ -915,10 +871,8 @@ public class PlanOptimizer {
         // --------------------------------------------
         if (node.getChildCount() > 1) {
             assert (node instanceof NestLoopPlanNode);
-            is_nestloop = true;
-
             inner_node = node.getChild(1);
-            if (debug)
+            if (debug.get())
                 LOG.debug("Calculating INNER offsets from child node: " + inner_node);
 
             List<Integer> inner_orig_input_guids = PlanOptimizer.this.orig_node_output.get(inner_node);
@@ -933,7 +887,7 @@ public class PlanOptimizer {
                 if (new_idx != -1) {
                     int offset_orig_idx = outer_orig_input_guids.size() + orig_idx;
                     int offset_new_idx = offset + new_idx;
-                    if (trace)
+                    if (trace.get())
                         LOG.trace(String.format("INNER NODE OFFSET %d => %d", offset_orig_idx, offset_new_idx));
                     assert (offset_xref.containsKey(offset_orig_idx) == false) : orig_idx + " ==> " + offset_xref;
                     offset_xref.put(offset_orig_idx, offset_new_idx);
@@ -944,14 +898,14 @@ public class PlanOptimizer {
                     LOG.warn("Failed to find new offset for INNER " + pc);
                 }
             } // FOR
-            if (trace)
+            if (trace.get())
                 LOG.trace("Original Inner Input GUIDs: " + inner_orig_input_guids);
-            if (trace)
+            if (trace.get())
                 LOG.trace("New Inner Input GUIDs:      " + inner_new_input_guids);
 
-            // ---------------------------------------------------
-            // NEST LOOP INDEX
-            // ---------------------------------------------------
+        // ---------------------------------------------------
+        // NEST LOOP INDEX
+        // ---------------------------------------------------
         } else {
             // Otherwise, just grab all of the columns for the target table in
             // the inline scan
@@ -969,14 +923,14 @@ public class PlanOptimizer {
                 System.exit(1);
             }
             assert (catalog_tbl != null);
-            if (debug)
+            if (debug.get())
                 LOG.debug("Calculating INNER offsets from INLINE Scan: " + catalog_tbl);
 
             for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
                 int i = catalog_col.getIndex();
                 int offset_orig_idx = outer_orig_input_guids.size() + i;
                 int offset_new_idx = offset + i;
-                if (trace)
+                if (trace.get())
                     LOG.trace(String.format("INNER INLINE OFFSET %d => %d", offset_orig_idx, offset_new_idx));
                 offset_xref.put(offset_orig_idx, offset_new_idx);
 
@@ -999,7 +953,7 @@ public class PlanOptimizer {
 //                    PlanColumn pc = m_context.get(guid);
 //                    assert (pc != null);
 //                    if (pc.equals(orig_pc, true, true)) {
-//                        if (trace)
+//                        if (trace.get())
 //                            LOG.trace(String.format("[%02d] Found inline output PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
 //                        new_pc = pc;
 //                        break;
@@ -1027,10 +981,10 @@ public class PlanOptimizer {
             expressions_to_fix.addAll(PlanNodeUtil.getExpressions(idx_node));
             //System.out.println("expressions_to_fix: " + expressions_to_fix);
         }
-        if (trace)
+        if (trace.get()) {
             LOG.trace("Output Xref Offsets:      " + offset_xref);
-        if (trace)
             LOG.trace("New Output Columns GUIDS: " + sorted_new_output_guids);
+        }
 
         // Get all of the AbstractExpression roots for this node
         // Now fix the offsets for everyone
@@ -1051,7 +1005,7 @@ public class PlanOptimizer {
                         if (new_idx == null)
                             LOG.debug(m_context.debug());
                         assert (new_idx != null) : "Missing Offset: " + ExpressionUtil.debug(tv_exp);
-                        if (debug)
+                        if (debug.get())
                             LOG.debug(String.format("Changing %s.%s [%d ==> %d]", tv_exp.getTableName(), tv_exp.getColumnName(), orig_idx, new_idx));
                         if (orig_idx != new_idx) {
                             tv_exp.setColumnIndex(new_idx);
@@ -1103,7 +1057,7 @@ public class PlanOptimizer {
                 assert (new_pc != null);
                 node.m_outputColumns.set(new_idx, new_pc.guid());
             }
-            if (trace)
+            if (trace.get())
                 LOG.trace(String.format("OUTPUT[%d] => %s", new_idx, m_context.get(node.m_outputColumns.get(new_idx))));
         } // FOR
 
@@ -1116,11 +1070,11 @@ public class PlanOptimizer {
         if (inner_node.isInline()) {
             assert (inner_node instanceof IndexScanPlanNode);
             inner_node.setOutputColumns(node.m_outputColumns);
-            if (trace)
+            if (trace.get())
                 LOG.trace("Updated INNER inline " + inner_node + " output columns");
         }
 
-        // if (debug) LOG.debug("PlanNodeTree:\n" +
+        // if (debug.get()) LOG.debug("PlanNodeTree:\n" +
         // PlanNodeUtil.debug(rootNode));
         // LOG.debug(PlanNodeUtil.debugNode(element));
 
@@ -1137,14 +1091,11 @@ public class PlanOptimizer {
      * @param rootNode
      */
     protected void process(final AbstractPlanNode rootNode) {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-
         final int total_depth = PlanNodeUtil.getDepth(rootNode);
 
-        if (debug)
+        if (debug.get())
             LOG.debug("Optimizing PlanNode Tree [total_depth=" + total_depth + "]");
-        // if (debug) LOG.debug("PlanNodeTree:\n" +
+        // if (debug.get()) LOG.debug("PlanNodeTree:\n" +
         // PlanNodeUtil.debug(rootNode));
 
         // walk the tree a second time to add inline projection to the
@@ -1152,7 +1103,7 @@ public class PlanOptimizer {
         new PlanNodeTreeWalker(false) {
             @Override
             protected void callback(AbstractPlanNode element) {
-                if (trace) {
+                if (trace.get()) {
                     LOG.trace("Current Node: " + element);
                     LOG.trace("Current Depth: " + this.getDepth());
                 }
@@ -1263,7 +1214,7 @@ public class PlanOptimizer {
                     AbstractScanPlanNode inline_scan_node = (AbstractScanPlanNode) CollectionUtil.getFirst(element.getInlinePlanNodes().values());
                     ref_join_tbls.add(inline_scan_node.getTargetTableName());
                     /** need temp set to put into hashmap! **/
-                    HashSet<String> temp_set = (HashSet<String>) ((HashSet<String>) ref_join_tbls).clone();
+                    HashSet<String> temp_set = new HashSet<String>(ref_join_tbls);
                     join_tbl_mapping.put(element.getPlanNodeId(), temp_set);
                     // add to join index map which depth is the index
                     join_node_index.put(this.getDepth(), element);
@@ -1300,7 +1251,7 @@ public class PlanOptimizer {
                         final Set<PlanColumn> join_columns = new HashSet<PlanColumn>();
                         // traverse the tree from bottom up from the current nestloop index
                         final int outer_depth = this.getDepth();
-                        final SortedMap<Integer, PlanColumn> proj_column_order = new TreeMap<Integer, PlanColumn>();
+//                        final SortedMap<Integer, PlanColumn> proj_column_order = new TreeMap<Integer, PlanColumn>();
                         /**
                          * Adds a projection column as a parent of the the
                          * current join node. (Sticks it between the send and
@@ -1364,13 +1315,12 @@ public class PlanOptimizer {
 //                        } else {
                             AbstractExpression orig_col_exp = null;
                             int orig_guid = -1;
-                            PlanColumn orig_plan_col = null;
                             for (PlanColumn plan_col : join_columns) {
                                 boolean exists = false;
                                 for (Integer guid : element.m_outputColumns) {
                                     PlanColumn output_plan_column = m_context.get(guid);
                                     if (plan_col.equals(output_plan_column, true, true)) {
-                                        orig_plan_col = plan_col;
+//                                        PlanColumn orig_plan_col = plan_col;
                                         orig_col_exp = output_plan_column.getExpression();
                                         orig_guid = guid;
                                         exists = true;
@@ -1460,17 +1410,16 @@ public class PlanOptimizer {
                         } catch (Exception ex) {
                             LOG.fatal("Failed to update join columns in " + element, ex);
                             System.exit(1);
-                            // ---------------------------------------------------
-                            // ORDER BY
-                            // ---------------------------------------------------
                         }
+                    // ---------------------------------------------------
+                    // ORDER BY
+                    // ---------------------------------------------------
                     } else if (element instanceof OrderByPlanNode) {
                         if (areChildrenDirty(element) && updateOrderByColumns((OrderByPlanNode) element) == false) {
                             this.stop();
                             return;
                         }
                     } 
-                    
                     // ---------------------------------------------------
                     // AGGREGATE
                     // ---------------------------------------------------
@@ -1479,9 +1428,7 @@ public class PlanOptimizer {
                             this.stop();
                             return;
                         }
-
                     } 
-                    
                     // ---------------------------------------------------
                     // DISTINCT
                     // ---------------------------------------------------
@@ -1490,9 +1437,9 @@ public class PlanOptimizer {
                             this.stop();
                             return;
                         }
-                        // ---------------------------------------------------
-                        // PROJECTION
-                        // ---------------------------------------------------
+                    // ---------------------------------------------------
+                    // PROJECTION
+                    // ---------------------------------------------------
                     }
                     else if (element instanceof ProjectionPlanNode) {
                         if (areChildrenDirty(element) && updateProjectionColumns((ProjectionPlanNode) element) == false) {
@@ -1524,9 +1471,9 @@ public class PlanOptimizer {
             }
         /** END OF ADDING PROJECTION TO JOINS OPTIMIZATION **/
 
-        if (debug)
+        if (debug.get())
             LOG.trace("Finished Optimizations!");
-        // if (debug) LOG.debug("Optimized PlanNodeTree:\n" +
+        // if (debug.get()) LOG.debug("Optimized PlanNodeTree:\n" +
         // PlanNodeUtil.debug(rootNode));
     }
 

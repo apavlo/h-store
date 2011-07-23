@@ -737,6 +737,45 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
+     * Return a mapping from Tables to their vertical partitions
+     * @param catalog_obj
+     * @return
+     */
+    public static Map<Table, MaterializedViewInfo> getVerticallyPartitionedTables(CatalogType catalog_obj) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        Map<Table, MaterializedViewInfo> ret = new HashMap<Table, MaterializedViewInfo>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            for (MaterializedViewInfo view : catalog_tbl.getViews()) {
+                if (view.getVerticalpartition()) {
+                    ret.put(catalog_tbl, view);
+                    break;
+                }
+            } // FOR
+        } // FOR
+        return (ret);
+    }
+
+    /**
+     * Add a new vertical partition for the given table
+     * @param catalog_tbl
+     * @param catalog_cols
+     * @return
+     */
+    public static MaterializedViewInfo addVerticalPartition(Table catalog_tbl, Collection<Column> catalog_cols) {
+        String name = "SYS_VP_" + catalog_tbl.getName();
+        MaterializedViewInfo vp = catalog_tbl.getViews().add(name);
+        vp.setVerticalpartition(true);
+        vp.setDest(catalog_tbl);
+        int i = 0;
+        for (Column catalog_col : catalog_cols) {
+            ColumnRef catalog_ref = vp.getGroupbycols().add(catalog_col.getName());
+            catalog_ref.setColumn(catalog_col);
+            catalog_ref.setIndex(i++);
+        } // FOR
+        return (vp);
+    }
+    
+    /**
      * Return the set of read-only Columns for the given table
      * If exclude_inserts is true, then only UPDATES will be counted against columns 
      * @param catalog_tbl
@@ -838,6 +877,24 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (ret);
     }
 
+    
+    /**
+     * Return the real Column objects for the ColumnRefs
+     * @param map
+     * @return
+     */
+    public static Collection<Column> getColumns(Iterable<ColumnRef> map) {
+        Set<Column> ret = new HashSet<Column>();
+        if (map != null) {
+            for (ColumnRef ref : map) {
+                Column catalog_item = ref.getColumn();
+                assert (catalog_item != null);
+                ret.add(catalog_item);
+            }
+        }
+        return (ret);
+    }
+    
     /**
      * 
      * @param catalog_db
@@ -861,7 +918,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Table> getReferencedTables(Procedure catalog_proc) throws Exception {
+    public static Collection<Table> getReferencedTables(Procedure catalog_proc) throws Exception {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_proc);
         Set<Table> ret = cache.PROCEDURE_TABLES.get(catalog_proc);
         if (ret == null) {
@@ -881,7 +938,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(Procedure catalog_proc) throws Exception {
+    public static Collection<Column> getReferencedColumns(Procedure catalog_proc) throws Exception {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_proc);
         Set<Column> ret = cache.PROCEDURE_COLUMNS.get(catalog_proc);
         if (ret == null) {
@@ -901,7 +958,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Procedure> getReferencingProcedures(Table catalog_tbl) throws Exception {
+    public static Collection<Procedure> getReferencingProcedures(Table catalog_tbl) throws Exception {
         Set<Procedure> ret = new HashSet<Procedure>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_tbl);
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -919,7 +976,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Procedure> getReferencingProcedures(Column catalog_col) throws Exception {
+    public static Collection<Procedure> getReferencingProcedures(Column catalog_col) throws Exception {
         Set<Procedure> ret = new HashSet<Procedure>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_col.getParent());
 
@@ -951,7 +1008,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
+    public static Collection<Table> getReferencedTables(Statement catalog_stmt) throws Exception {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
@@ -971,7 +1028,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Table> getAllTables(Statement catalog_stmt) throws Exception {
+    public static Collection<Table> getAllTables(Statement catalog_stmt) throws Exception {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
         AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         return (CatalogUtil.getReferencedTablesForTree(catalog_db, node));
@@ -979,12 +1036,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
     /**
      * Returns all the columns access/modified in the given Statement's query
-     * 
+     * This does not include the columns that are output by SELECT queries 
      * @param catalog_stmt
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(Statement catalog_stmt) {
+    public static Collection<Column> getReferencedColumns(Statement catalog_stmt) {
         if (debug.get()) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
@@ -1023,7 +1080,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumnsForTree(final Database catalog_db, AbstractPlanNode node) throws Exception {
+    public static Collection<Column> getReferencedColumnsForTree(final Database catalog_db, AbstractPlanNode node) throws Exception {
         return (getReferencedColumnsForTree(catalog_db, node, new TreeSet<Column>(), null));
     }
     
@@ -1051,7 +1108,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
+    public static Collection<Column> getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
         final Set<Column> ret = new HashSet<Column>();
         CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, ret, null);
         return (ret);
@@ -1157,7 +1214,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Table> getReferencedTablesForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
+    public static Collection<Table> getReferencedTablesForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
         final Set<Table> ret = new HashSet<Table>();
         CatalogUtil.getReferencedTablesForPlanNode(catalog_db, node, ret);
         return (ret);
@@ -1170,7 +1227,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param root
      * @return
      */
-    public static Set<Table> getReferencedTablesForTree(final Database catalog_db, final AbstractPlanNode root) {
+    public static Collection<Table> getReferencedTablesForTree(final Database catalog_db, final AbstractPlanNode root) {
         final Set<Table> found = new HashSet<Table>();
         new PlanNodeTreeWalker(true) {
             @Override

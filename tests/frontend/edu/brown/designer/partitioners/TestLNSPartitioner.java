@@ -115,7 +115,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
             this.getColumn(catalog_tbl1, "SF_TYPE")
         };
         
-        Set<Column> columns = this.partitioner.proc_columns.get(catalog_proc);
+        Collection<Column> columns = this.partitioner.proc_columns.get(catalog_proc);
         assertNotNull(columns);
         assertEquals(expected.length, columns.size());
         for (Column col : expected) {

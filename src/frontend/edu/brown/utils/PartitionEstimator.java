@@ -343,7 +343,7 @@ public class PartitionEstimator {
             // assert(stmt_cache.isValid()) : "Unexpected invalid cache entry for " + CatalogUtil.getDisplayName(catalog_stmt);
             stmt_cache.setValid();
         }
-        Set<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
+        Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
         if (d) LOG.debug("Generating partitioning cache for " + catalog_stmt);
         
         // Important: Work through the fragments in reverse so that we go from the bottom of the tree up.
@@ -379,7 +379,7 @@ public class PartitionEstimator {
                 }
                 
                 AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
-                Set<Table> frag_tables = CatalogUtil.getReferencedTablesForTree(catalog_db, root);
+                Collection<Table> frag_tables = CatalogUtil.getReferencedTablesForTree(catalog_db, root);
                 Table tables_arr[] = new Table[frag_tables.size()];
                 tables_arr = frag_tables.toArray(tables_arr);
                 assert(tables_arr.length == frag_tables.size());

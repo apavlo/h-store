@@ -1,15 +1,20 @@
 package edu.brown.designer.partitioners;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetNewDestination;
+import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.SingleSitedCostModel;
@@ -19,6 +24,7 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.designer.partitioners.PartitionerUtil.VerticalPartitionCandidate;
 import edu.brown.designer.partitioners.TestAbstractPartitioner.MockPartitioner;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -49,10 +55,29 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testGenerateVerticalPartitioningCandidates() throws Exception {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        Column catalog_col = this.getColumn(catalog_tbl, "S_ID");
+        Column target_col = this.getColumn(catalog_tbl, "S_ID");
         
-        PartitionerUtil.generateVerticalPartitioningCandidates(info, agraph, catalog_col, hints);
+        Collection<VerticalPartitionCandidate> candidates = PartitionerUtil.generateVerticalPartitioningCandidates(info, agraph, target_col, hints);
+        assertNotNull(candidates);
+        assertFalse(candidates.isEmpty());
+        VerticalPartitionCandidate vpc = CollectionUtil.getFirst(candidates);
+        assertNotNull(vpc);
+
+        Collection<Column> expected_cols = new HashSet<Column>();
+        expected_cols.add(this.getColumn(catalog_tbl, "SUB_NBR"));
+        assertEquals(expected_cols.size(), vpc.getColumns().size());
+        assert(expected_cols.containsAll(vpc.getColumns()));
         
+        Collection<Statement> expected_stmts = new HashSet<Statement>();
+        expected_stmts.add(this.getStatement(this.getProcedure(DeleteCallForwarding.class), "query"));
+        expected_stmts.add(this.getStatement(this.getProcedure(InsertCallForwarding.class), "query1"));
+        assertEquals(expected_stmts.size(), vpc.getStatements().size());
+        assert(expected_stmts.containsAll(vpc.getStatements()));
+        
+        System.err.println("-------------------------------");
+        for (Column catalog_col : catalog_tbl.getColumns()) {
+            PartitionerUtil.generateVerticalPartitioningCandidates(info, agraph, catalog_col, hints);
+        }
     }
     
     /**
