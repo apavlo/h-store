@@ -2,15 +2,10 @@ package edu.brown.designer.partitioners;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections15.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
@@ -25,7 +20,6 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -172,7 +166,7 @@ public abstract class AbstractPartitioner {
             Database catalog_db = (Database)CollectionUtil.getFirst(tables).getParent();
             for (Procedure catalog_proc : catalog_db.getProcedures()) {
                 for (Statement catalog_stmt : catalog_proc.getStatements()) {
-                    Set<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
+                    Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
                     if (tables.containsAll(stmt_tables)) {
                         this.stmt_cache.add(CatalogKey.createKey(catalog_stmt));
                     }

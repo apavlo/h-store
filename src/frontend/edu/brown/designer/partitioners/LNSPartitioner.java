@@ -133,16 +133,16 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final Map<Table, Long> table_replicated_size = new HashMap<Table, Long>();
     
     /** Mapping from Table to the set of Procedures that has a Statement that references that Table */
-    protected final Map<Table, Set<Procedure>> table_procedures = new HashMap<Table, Set<Procedure>>();
+    protected final Map<Table, Collection<Procedure>> table_procedures = new HashMap<Table, Collection<Procedure>>();
     
     /** Mapping from Column to the set of Procedures that has a Statement that references that Column */
-    protected final Map<Column, Set<Procedure>> column_procedures = new HashMap<Column, Set<Procedure>>();
+    protected final Map<Column, Collection<Procedure>> column_procedures = new HashMap<Column, Collection<Procedure>>();
     
     
     protected final Map<Column, Map<Column, Set<Procedure>>> columnswap_procedures = new HashMap<Column, Map<Column,Set<Procedure>>>();
 
     protected final ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>> orig_proc_attributes = new ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>>();
-    protected final Map<Procedure, Set<Column>> proc_columns = new HashMap<Procedure, Set<Column>>();
+    protected final Map<Procedure, Collection<Column>> proc_columns = new HashMap<Procedure, Collection<Column>>();
     protected final Map<Procedure, Histogram<Column>> proc_column_histogram = new HashMap<Procedure, Histogram<Column>>();
     protected final Map<Procedure, Map<ProcParameter, Set<MultiProcParameter>>> proc_multipoc_map = new HashMap<Procedure, Map<ProcParameter,Set<MultiProcParameter>>>();
 
@@ -218,7 +218,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
             
-            Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
+            Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
                 if (debug.get()) LOG.warn("No columns for " + catalog_proc + ". Ignoring...");
                 continue;
@@ -272,7 +272,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // We actually can be a bit more fine-grained in our costmodel cache invalidation if we know 
             // which columns are actually referenced in each of the procedures
             for (Column catalog_col : this.orig_table_attributes.get(catalog_tbl)) {
-                Set<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
+                Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
                 procedures.retainAll(this.orig_proc_attributes.keySet());
                 this.column_procedures.put(catalog_col, procedures);
             } // FOR
@@ -280,11 +280,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // And also pre-compute the intersection of the procedure sets for each Column pair 
             for (Column catalog_col0 : this.orig_table_attributes.get(catalog_tbl)) {
                 Map<Column, Set<Procedure>> intersections = new HashMap<Column, Set<Procedure>>();
-                Set<Procedure> procs0 = this.column_procedures.get(catalog_col0);
+                Collection<Procedure> procs0 = this.column_procedures.get(catalog_col0);
                 
                 for (Column catalog_col1 : this.orig_table_attributes.get(catalog_tbl)) {
                     if (catalog_col0.equals(catalog_col1)) continue;
-                    Set<Procedure> procs1 = this.column_procedures.get(catalog_col1);
+                    Collection<Procedure> procs1 = this.column_procedures.get(catalog_col1);
                     intersections.put(catalog_col1, new HashSet<Procedure>(procs0));
                     intersections.get(catalog_col1).retainAll(procs1);
                 } // FOR

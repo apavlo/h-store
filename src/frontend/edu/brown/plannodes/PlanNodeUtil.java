@@ -1,14 +1,6 @@
 package edu.brown.plannodes;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -100,7 +92,7 @@ public abstract class PlanNodeUtil {
     public static final Map<Statement, List<PlanFragment>> CACHE_SORTED_SS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
     public static final Map<Statement, List<PlanFragment>> CACHE_SORTED_MS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
     
-    public static final Map<Statement, Set<Column>> CACHE_OUTPUT_COLUMNS = new HashMap<Statement, Set<Column>>();
+    public static final Map<Statement, Collection<Column>> CACHE_OUTPUT_COLUMNS = new HashMap<Statement, Collection<Column>>();
     
     /**
      * 
@@ -255,8 +247,8 @@ public abstract class PlanNodeUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getOutputColumnsForStatement(Statement catalog_stmt) throws Exception {
-        Set<Column> ret = CACHE_OUTPUT_COLUMNS.get(catalog_stmt);
+    public static Collection<Column> getOutputColumnsForStatement(Statement catalog_stmt) throws Exception {
+        Collection<Column> ret = CACHE_OUTPUT_COLUMNS.get(catalog_stmt);
         if (ret == null && catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
             // It's easier to figure things out if we use the single-partition query plan
             final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
@@ -266,7 +258,7 @@ public abstract class PlanNodeUtil {
             
             // We need to examine down the tree to figure out what this thing shoving out to the outside world
             assert(root.getChildCount() == 1) : "Unexpected one child for " + root + " for " + catalog_stmt.fullName() + " but it has " + root.getChildCount();
-            ret = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0));
+            ret = Collections.unmodifiableCollection(PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0)));
             CACHE_OUTPUT_COLUMNS.put(catalog_stmt, ret);
         }
         return (ret);
@@ -278,7 +270,7 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Set<Column> getOutputColumnsForPlanNode(final Database catalog_db, AbstractPlanNode node) {
+    public static Collection<Column> getOutputColumnsForPlanNode(final Database catalog_db, AbstractPlanNode node) {
         final PlannerContext pcontext = PlannerContext.singleton();
         final Set<Integer> planColumnIds = new HashSet<Integer>();
 

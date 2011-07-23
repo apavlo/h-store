@@ -173,6 +173,7 @@ public class VoltProjectBuilder {
     final LinkedHashSet<ProcedureInfo> m_procedures = new LinkedHashSet<ProcedureInfo>();
     final LinkedHashSet<Class<?>> m_supplementals = new LinkedHashSet<Class<?>>();
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
+    final LinkedHashMap<String, Collection<String>> m_verticalpartitionInfos = new LinkedHashMap<String, Collection<String>>();
 
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
@@ -312,6 +313,11 @@ public class VoltProjectBuilder {
     public void addPartitionInfo(final String tableName, final String partitionColumnName) {
         assert(m_partitionInfos.containsKey(tableName) == false);
         m_partitionInfos.put(tableName, partitionColumnName);
+    }
+    
+    public void addVerticalPartitionInfo(final String tableName, final Collection<String> partitionColumnNames) {
+        assert(m_verticalpartitionInfos.containsKey(tableName) == false);
+        m_verticalpartitionInfos.put(tableName, partitionColumnNames);
     }
 
     public void setSecurityEnabled(final boolean enabled) {

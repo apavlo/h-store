@@ -43,6 +43,7 @@ protected:
     CatalogType* m_dest;
     CatalogMap<ColumnRef> m_groupbycols;
     std::string m_predicate;
+    bool m_verticalpartition;
 
     virtual void update();
 
@@ -57,6 +58,8 @@ public:
     const CatalogMap<ColumnRef> & groupbycols() const;
     /** GETTER: A filtering predicate */
     const std::string & predicate() const;
+    /** GETTER: Is this materialized view a vertical partition? */
+    bool verticalpartition() const;
 };
 
 } // namespace catalog

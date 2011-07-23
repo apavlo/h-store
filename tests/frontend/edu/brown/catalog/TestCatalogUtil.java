@@ -91,7 +91,7 @@ public class TestCatalogUtil extends BaseTestCase {
         String expected[] = { "DISTRICT", "ORDER_LINE", "STOCK" };
         Procedure catalog_proc = this.getProcedure(slev.class);
         
-        Set<Table> tables = CatalogUtil.getReferencedTables(catalog_proc);
+        Collection<Table> tables = CatalogUtil.getReferencedTables(catalog_proc);
         assertEquals(expected.length, tables.size());
         for (String table_name : expected) {
             Table catalog_tbl = catalog_db.getTables().get(table_name);
@@ -113,7 +113,7 @@ public class TestCatalogUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "D_W_ID")
         };
         
-        Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+        Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
@@ -131,7 +131,7 @@ public class TestCatalogUtil extends BaseTestCase {
         Column expected[] = new Column[catalog_tbl.getColumns().size()];
         catalog_tbl.getColumns().toArray(expected);
         
-        Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+        Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
@@ -152,7 +152,7 @@ public class TestCatalogUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "NO_O_ID")
         };
         
-        Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+        Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
@@ -173,7 +173,7 @@ public class TestCatalogUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "D_W_ID")
         };
         
-        Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+        Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
 //        AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
 //        System.err.println(PlanNodeUtil.debug(node));
         assertNotNull(columns);
@@ -193,7 +193,7 @@ public class TestCatalogUtil extends BaseTestCase {
             this.getProcedure(ResetWarehouse.class),
         };
         Table catalog_tbl = this.getTable("NEW_ORDER");
-        Set<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_tbl);
+        Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_tbl);
         assertNotNull(procedures);
         assertEquals(procedures.toString(), expected.length, procedures.size());
         for (int i = 0; i < expected.length; i++) {
@@ -213,7 +213,7 @@ public class TestCatalogUtil extends BaseTestCase {
         Table catalog_tbl = this.getTable("NEW_ORDER");
         Column catalog_col = ReplicatedColumn.get(catalog_tbl);
         
-        Set<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
+        Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
         assertNotNull(procedures);
         assertEquals(procedures.toString(), expected.length, procedures.size());
         for (int i = 0; i < expected.length; i++) {

@@ -3,21 +3,44 @@
  */
 package edu.brown.designer.generators;
 
-import java.util.*;
-
-import javax.management.Query;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
-import org.voltdb.types.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
+import org.voltdb.types.ConstraintType;
+import org.voltdb.types.ExpressionType;
+import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.designer.*;
-import edu.brown.designer.AccessGraph.*;
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerUtil;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.AccessGraph.AccessType;
+import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.utils.*;
-import edu.brown.workload.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
+import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**
@@ -167,7 +190,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         //if (true) return;
         
         // Get the list of tables used in the procedure
-        Set<Table> proc_tables = CatalogUtil.getReferencedTables(this.catalog_proc);
+        Collection<Table> proc_tables = CatalogUtil.getReferencedTables(this.catalog_proc);
 
         // Loop through each query and create edges for the explicitly defined relationships:
         // (1) Add an edge from each table in the query table to all other tables in the same query
@@ -186,7 +209,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
         Statement catalog_stmts[] = this.catalog_proc.getStatements().values();
         for (int stmt_ctr0 = 0, stmt_cnt = catalog_stmts.length; stmt_ctr0 < stmt_cnt; stmt_ctr0++) {
             Statement catalog_stmt0 = catalog_stmts[stmt_ctr0];
-            Set<Table> stmt0_tables = CatalogUtil.getReferencedTables(catalog_stmt0);
+            Collection<Table> stmt0_tables = CatalogUtil.getReferencedTables(catalog_stmt0);
             this.setDebug(stmt0_tables.containsAll(debug_tables));
 
             // --------------------------------------------------------------
@@ -443,7 +466,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
      * @param catalog_tbl
      * @throws Exception
      */
-    protected void createImplicitEdges(AccessGraph agraph, Set<Table> proc_tables, Statement catalog_stmt0, Table catalog_tbl) throws Exception {
+    protected void createImplicitEdges(AccessGraph agraph, Collection<Table> proc_tables, Statement catalog_stmt0, Table catalog_tbl) throws Exception {
         // For each SCAN edge for this vertex, check whether the column has a foreign key
         DesignerVertex vertex = agraph.getVertex(catalog_tbl);
         if (d) LOG.debug("Creating Implicit Edges for " + catalog_tbl);

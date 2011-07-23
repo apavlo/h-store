@@ -1,6 +1,7 @@
 package org.voltdb.planner;
 
 import java.io.File;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -613,7 +614,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
             assertNotNull(table_name + "." + column_name, catalog_tbl.getColumns().get(column_name));
         } // FOR
 
-        Set<Column> proj_columns = null;
+        Collection<Column> proj_columns = null;
         proj_columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, inline_proj);
         assertFalse(proj_columns.isEmpty());
 
@@ -626,7 +627,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         assertNotNull(join_node);
 
         // Remove the columns from the second table
-        Set<Column> join_columns = CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, join_node);
+        Collection<Column> join_columns = CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, join_node);
         assertNotNull(join_columns);
         assertFalse(join_columns.isEmpty());
         // System.err.println(CatalogUtil.debug(join_columns));
@@ -652,7 +653,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // Lastly, we need to look at the root SEND node and get its output
         // columns, and make sure that they
         // are also included in the bottom projection
-        Set<Column> send_columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root);
+        Collection<Column> send_columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root);
         assertFalse(send_columns.isEmpty());
         for (Column catalog_col : send_columns) {
             assert (proj_columns.contains(catalog_col)) : "Missing: " + CatalogUtil.getDisplayName(catalog_col);

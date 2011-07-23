@@ -66,7 +66,7 @@ public:
     const CatalogMap<Constraint> & constraints() const;
     /** GETTER: Is the table replicated? */
     bool isreplicated() const;
-    /** GETTER: On which column is the table partitioned */
+    /** GETTER: On which column is the table horizontally partitioned */
     const Column * partitioncolumn() const;
     /** GETTER: A rough estimate of the number of tuples in the table; used for planning */
     int32_t estimatedtuplecount() const;

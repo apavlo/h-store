@@ -74,7 +74,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         
-        Set<Column> columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0));
+        Collection<Column> columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0));
         assertNotNull(columns);
 //        System.err.print(catalog_stmt.fullName() + ": " + CatalogUtil.debug(columns));
 //        System.err.println(PlanNodeUtil.debug(root));

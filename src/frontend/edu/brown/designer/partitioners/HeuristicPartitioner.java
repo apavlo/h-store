@@ -156,7 +156,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
     protected PartitionTree generatePartitionTree(Procedure catalog_proc, AccessGraph agraph, DesignerHints hints) throws Exception {
         LOG.debug("Creating PartitionTree for " + catalog_proc);
         WorkloadFilter filter = null;
-        Set<Table> proc_tables = null;
+        Collection<Table> proc_tables = null;
         try {
             filter = new WorkloadFilter(CatalogUtil.getDatabase(catalog_proc), catalog_proc);
             proc_tables = CatalogUtil.getReferencedTables(catalog_proc);
