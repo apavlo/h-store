@@ -355,7 +355,7 @@ public abstract class StatementCompiler {
             return true;
 
         // recursively check out children
-        for (int i = 0; i < node.getChildCount(); i++) {
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
             AbstractPlanNode child = node.getChild(i);
             if (fragmentReferencesPersistentTable(child))
                 return true;
@@ -380,7 +380,7 @@ public abstract class StatementCompiler {
             return false;
 
         // recursively check out children
-        for (int i = 0; i < node.getChildCount(); i++) {
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
             if (fragmentReadOnly(node.getChild(i)) == false) return (false);
         }
 

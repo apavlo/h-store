@@ -1166,7 +1166,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 
                 AbstractScanPlanNode scan_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
                 assert (scan_node != null) : "Failed to find underlying scan node for " + up_node;
-                ref_columns.addAll(PlanNodeUtil.getUpdatedColumns(catalog_db, scan_node));
+                ref_columns.addAll(PlanNodeUtil.getUpdatedColumnsForPlanNode(catalog_db, scan_node));
                 if (scan_node.getInlinePlanNodeCount() > 0) {
                     ProjectionPlanNode proj_node = scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
                     assert(proj_node != null);

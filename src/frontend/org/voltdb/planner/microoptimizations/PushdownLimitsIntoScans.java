@@ -46,7 +46,7 @@ public class PushdownLimitsIntoScans implements MicroOptimization {
         //     and inline the LimitPlanNode in to the AbstractScanPlanNode
 
         ArrayList<AbstractPlanNode> children = new ArrayList<AbstractPlanNode>();
-        for (int i = 0; i < plan.getChildCount(); i++)
+        for (int i = 0; i < plan.getChildPlanNodeCount(); i++)
             children.add(plan.getChild(i));
         plan.clearChildren();
 
@@ -60,7 +60,7 @@ public class PushdownLimitsIntoScans implements MicroOptimization {
         if ((plan instanceof LimitPlanNode) == false)
             return plan;
 
-        if (plan.getChildCount() != 1)
+        if (plan.getChildPlanNodeCount() != 1)
             return plan;
 
         AbstractPlanNode child = plan.getChild(0);

@@ -117,7 +117,7 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Set<PlanNodeType> getPlanNodeTypes(AbstractPlanNode node) {
+    public static Collection<PlanNodeType> getPlanNodeTypes(AbstractPlanNode node) {
         final Set<PlanNodeType> types = new HashSet<PlanNodeType>();
         new PlanNodeTreeWalker(true) {
             @Override
@@ -134,7 +134,7 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Set<AbstractExpression> getExpressions(AbstractPlanNode node) {
+    public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node) {
         final Set<AbstractExpression> exps = new HashSet<AbstractExpression>();
 
         // ---------------------------------------------------
@@ -181,6 +181,7 @@ public abstract class PlanNodeUtil {
                 assert(col != null) : "Invalid PlanColumn #" + col_guid;
                 if (col.getExpression() != null) exps.add(col.getExpression());
             } // FOR
+        
         // ---------------------------------------------------
         // ORDER BY
         // ---------------------------------------------------
@@ -202,7 +203,7 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Set<ExpressionType> getScanExpressionTypes(final Database catalog_db, AbstractPlanNode root) {
+    public static Collection<ExpressionType> getScanExpressionTypes(final Database catalog_db, AbstractPlanNode root) {
         final Set<ExpressionType> found = new HashSet<ExpressionType>();
         new PlanNodeTreeWalker(true) {
             @Override
@@ -257,7 +258,7 @@ public abstract class PlanNodeUtil {
             assert(root instanceof SendPlanNode) : "Unexpected PlanNode root " + root + " for " + catalog_stmt.fullName();
             
             // We need to examine down the tree to figure out what this thing shoving out to the outside world
-            assert(root.getChildCount() == 1) : "Unexpected one child for " + root + " for " + catalog_stmt.fullName() + " but it has " + root.getChildCount();
+            assert(root.getChildPlanNodeCount() == 1) : "Unexpected one child for " + root + " for " + catalog_stmt.fullName() + " but it has " + root.getChildPlanNodeCount();
             ret = Collections.unmodifiableCollection(PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0)));
             CACHE_OUTPUT_COLUMNS.put(catalog_stmt, ret);
         }
@@ -299,7 +300,7 @@ public abstract class PlanNodeUtil {
             assert(planColumn != null);
             AbstractExpression exp = planColumn.getExpression();
             assert(exp != null);
-            Set<Column> exp_cols = ExpressionUtil.getReferencedColumns(catalog_db, exp);
+            Collection<Column> exp_cols = ExpressionUtil.getReferencedColumns(catalog_db, exp);
             if (debug.get()) LOG.debug(planColumn.toString() + " => " + exp_cols);
             columns.addAll(exp_cols);
         } // FOR
@@ -313,7 +314,7 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Set<Column> getUpdatedColumns(final Database catalog_db, AbstractPlanNode node) {
+    public static Collection<Column> getUpdatedColumnsForPlanNode(final Database catalog_db, AbstractPlanNode node) {
         Set<Column> columns = new ListOrderedSet<Column>();
         for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
             int column_guid = node.m_outputColumns.get(ctr);
@@ -358,7 +359,7 @@ public abstract class PlanNodeUtil {
      * @param search_class
      * @return
      */
-    public static <T extends AbstractPlanNode> Set<T> getPlanNodes(AbstractPlanNode root, final Class<? extends T> search_class) {
+    public static <T extends AbstractPlanNode> Collection<T> getPlanNodes(AbstractPlanNode root, final Class<? extends T> search_class) {
         final Set<T> found = new HashSet<T>();
         new PlanNodeTreeWalker() {
             @SuppressWarnings("unchecked")
@@ -375,9 +376,9 @@ public abstract class PlanNodeUtil {
     }
     
     @SuppressWarnings("unchecked")
-    public static <T extends AbstractPlanNode> Set<T> getChildren(AbstractPlanNode node, Class<T> search_class) {
+    public static <T extends AbstractPlanNode> Collection<T> getChildren(AbstractPlanNode node, Class<T> search_class) {
         final Set<T> found = new HashSet<T>();
-        for (int i = 0, cnt = node.getChildCount(); i < cnt; i++) {
+        for (int i = 0, cnt = node.getChildPlanNodeCount(); i < cnt; i++) {
             AbstractPlanNode child = node.getChild(i);
             Class<? extends AbstractPlanNode> child_class = child.getClass();
             if (ClassUtil.getSuperClasses(child_class).contains(search_class)) {
@@ -411,32 +412,16 @@ public abstract class PlanNodeUtil {
      * @param catalog_tbl
      * @return
      */
-    public static Set<AbstractPlanNode> getPlanNodesReferencingTable(AbstractPlanNode root, final Table catalog_tbl) {
+    public static Collection<AbstractPlanNode> getPlanNodesReferencingTable(AbstractPlanNode root, final Table catalog_tbl) {
         final Set<AbstractPlanNode> found = new HashSet<AbstractPlanNode>();
-        new PlanNodeTreeWalker() {
-            /**
-             * Visit the inline nodes after the parent
-             */
-            @Override
-            protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
-                super.populate_children(children, node);
-                for (AbstractPlanNode inline_node : node.getInlinePlanNodes().values()) {
-                    children.addAfter(inline_node);
-                }
-                return;
-            }
-            
+        new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(AbstractPlanNode element) {
-                //
                 // AbstractScanNode
-                //
                 if (element instanceof AbstractScanPlanNode) {
                     AbstractScanPlanNode cast_node = (AbstractScanPlanNode)element;
                     if (cast_node.getTargetTableName().equals(catalog_tbl.getName())) found.add(cast_node);
-                //
                 // AbstractOperationPlanNode
-                //
                 } else if (element instanceof AbstractOperationPlanNode) {
                     AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode)element;
                     if (cast_node.getTargetTableName().equals(catalog_tbl.getName())) found.add(cast_node);
@@ -452,7 +437,7 @@ public abstract class PlanNodeUtil {
      * @param root
      * @return
      */
-    public static Set<Integer> getAllPlanColumnGuids(AbstractPlanNode root) {
+    public static Collection<Integer> getAllPlanColumnGuids(AbstractPlanNode root) {
         final Set<Integer> guids = new HashSet<Integer>();
         new PlanNodeTreeWalker(true) {
             @Override
@@ -506,7 +491,7 @@ public abstract class PlanNodeUtil {
         
         // Print out all of our children
         spacer += "  ";
-        for (int ctr = 0, cnt = node.getChildCount(); ctr < cnt; ctr++) {
+        for (int ctr = 0, cnt = node.getChildPlanNodeCount(); ctr < cnt; ctr++) {
             ret += PlanNodeUtil.debug(node.getChild(ctr), spacer);
         } 
 
@@ -846,26 +831,26 @@ public abstract class PlanNodeUtil {
     }
 
     /**
-         * Returns the PlanNode for the given PlanFragment
-         * @param catalog_frgmt
-         * @return
-         * @throws Exception
-         */
-        public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frgmt) throws Exception {
-            String id = catalog_frgmt.getName();
-            AbstractPlanNode ret = PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
-            if (ret == null) {
-                if (debug.get()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
-                Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
-                String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
-                JSONObject jsonObject = new JSONObject(jsonString);
-    //            System.err.println(jsonObject.toString(2));
-                PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
-                ret = list.getRootPlanNode();
-                PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);
-            }
-            return (ret);
+     * Returns the PlanNode for the given PlanFragment
+     * @param catalog_frgmt
+     * @return
+     * @throws Exception
+     */
+    public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frgmt) throws Exception {
+        String id = catalog_frgmt.getName();
+        AbstractPlanNode ret = PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
+        if (ret == null) {
+            if (debug.get()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
+            Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
+            String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
+            JSONObject jsonObject = new JSONObject(jsonString);
+//            System.err.println(jsonObject.toString(2));
+            PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+            ret = list.getRootPlanNode();
+            PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);
         }
+        return (ret);
+    }
 
     /**
      * Pre-load the cache for all of the PlanFragments

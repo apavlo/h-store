@@ -33,9 +33,7 @@ public class ConjunctionExpression extends AbstractExpression {
         setValueType(VoltType.BIGINT);
     }
     public ConjunctionExpression() {
-        //
         // This is needed for serialization
-        //
         super();
     }
 

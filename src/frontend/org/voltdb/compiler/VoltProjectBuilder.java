@@ -42,6 +42,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
+import org.voltdb.utils.Pair;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
@@ -173,7 +174,7 @@ public class VoltProjectBuilder {
     final LinkedHashSet<ProcedureInfo> m_procedures = new LinkedHashSet<ProcedureInfo>();
     final LinkedHashSet<Class<?>> m_supplementals = new LinkedHashSet<Class<?>>();
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
-    final LinkedHashMap<String, Collection<String>> m_verticalpartitionInfos = new LinkedHashMap<String, Collection<String>>();
+    final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
@@ -316,16 +317,20 @@ public class VoltProjectBuilder {
     }
     
     public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
+        this.addVerticalPartitionInfo(tableName, true, partitionColumnNames);
+    }
+    
+    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
         ArrayList<String> columns = new ArrayList<String>();
         for (String col : partitionColumnNames) {
             columns.add(col);
         }
-        this.addVerticalPartitionInfo(tableName, columns);
+        this.addVerticalPartitionInfo(tableName, createIndex, columns);
     }
     
-    public void addVerticalPartitionInfo(final String tableName, final Collection<String> partitionColumnNames) {
+    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
         assert(m_verticalpartitionInfos.containsKey(tableName) == false);
-        m_verticalpartitionInfos.put(tableName, partitionColumnNames);
+        m_verticalpartitionInfos.put(tableName, Pair.of(createIndex, partitionColumnNames));
     }
 
     public void setSecurityEnabled(final boolean enabled) {
@@ -638,11 +643,15 @@ public class VoltProjectBuilder {
             database.appendChild(verticalpartitions);
 
             // partitions/table
-            for (final Entry<String, Collection<String>> partitionInfo : m_verticalpartitionInfos.entrySet()) {
-                final String tableName = partitionInfo.getKey();
+            for (String tableName : m_verticalpartitionInfos.keySet()) {
+                Pair<Boolean, Collection<String>> p = m_verticalpartitionInfos.get(tableName);
+                Boolean createIndex = p.getFirst();
+                Collection<String> columnNames = p.getSecond(); 
+                
                 final Element vp = doc.createElement("verticalpartition");
                 vp.setAttribute("table", tableName);
-                for (final String columnName : partitionInfo.getValue()) {
+                vp.setAttribute("indexed", createIndex.toString());
+                for (final String columnName : columnNames) {
                     final Element column = doc.createElement("column");
                     column.setTextContent(columnName);
                     vp.appendChild(column);

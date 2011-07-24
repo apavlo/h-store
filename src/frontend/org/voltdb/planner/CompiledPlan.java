@@ -135,7 +135,7 @@ public class CompiledPlan {
             inNode.overrideId(nextId++);
         }
 
-        for (int i = 0; i < node.getChildCount(); i++) {
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
             AbstractPlanNode child = node.getChild(i);
             assert(child != null);
             nextId = resetPlanNodeIds(child, nextId);

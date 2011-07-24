@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.CatalogMap;
@@ -117,7 +116,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
     protected void checkExpressionOffsets(AbstractPlanNode node, final Map<String, Integer> tbl_map) {
         // check all tuplevalueexpression offsets in the scannode
         // System.out.println("map: " + tbl_map);
-        for (AbstractExpression exp : PlanNodeUtil.getExpressions(node)) {
+        for (AbstractExpression exp : PlanNodeUtil.getExpressionsForPlanNode(node)) {
             new ExpressionTreeWalker() {
                 @Override
                 protected void callback(AbstractExpression exp_element) {
@@ -447,7 +446,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         assertNotNull(root);
 
         // First check that our single scan node has an limit node
-        Set<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
+        Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
         assertEquals(1, limit_nodes.size());
 
         // Get the Limit nodes output columns and make sure their valid
@@ -478,7 +477,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         assertNotNull(root);
 
         // First check that our single scan node has an limit node
-        Set<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
+        Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
         assertEquals(1, limit_nodes.size());
 
         // Get the Limit nodes output columns and make sure their valid
@@ -523,7 +522,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
         // First check that our single scan node has an inline Projection
-        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
@@ -589,7 +588,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
         // we need to join are included. Note that we don't care which table is
         // scanned first, as we can
         // dynamically figure things out for ourselves
-        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
@@ -620,7 +619,7 @@ public class TestPlanOptimizations2 extends BaseTestCase {
 
         // Now find the join and get all of the columns from the first scanned
         // table in the join operation
-        Set<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
+        Collection<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
         assertNotNull(join_nodes);
         assertEquals(1, join_nodes.size());
         AbstractJoinPlanNode join_node = CollectionUtil.getFirst(join_nodes);

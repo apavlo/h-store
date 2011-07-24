@@ -42,10 +42,8 @@ public class AggregatePlanNode extends AbstractPlanNode {
         GROUPBY_COLUMNS;
     }
 
-    //
     // NOTE: I'm not really keen on how this is all laid out, but it's just
     //     good enough for what we need in TPC-C for now...
-    //
     protected List<ExpressionType> m_aggregateTypes = new ArrayList<ExpressionType>();
 
     // a list of column offsets/indexes not plan column guids.

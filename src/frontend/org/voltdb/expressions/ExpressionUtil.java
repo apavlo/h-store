@@ -293,12 +293,12 @@ public abstract class ExpressionUtil {
      */
     public static AbstractExpression clone(AbstractExpression exp) throws Exception {
         AbstractExpression ret = (AbstractExpression)exp.clone();
-        if (exp.getLeft() != null) {
-            ret.setLeft(ExpressionUtil.clone(exp.getLeft()));
-        }
-        if (exp.getRight() != null) {
-            ret.setRight(ExpressionUtil.clone(exp.getRight()));
-        }
+//        if (exp.getLeft() != null) {
+//            ret.setLeft(ExpressionUtil.clone(exp.getLeft()));
+//        }
+//        if (exp.getRight() != null) {
+//            ret.setRight(ExpressionUtil.clone(exp.getRight()));
+//        }
         return ret;
     }
 

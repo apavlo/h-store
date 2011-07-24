@@ -4,12 +4,15 @@ import java.util.*;
 
 import org.junit.Test;
 import org.voltdb.catalog.*;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.ExpressionUtil;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.*;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
@@ -36,6 +39,54 @@ public class TestPlanNodeUtil extends BaseTestCase {
     }
     
     /**
+     * testClone
+     */
+    @Test
+    public void testClone() throws Exception {
+        Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "GetData");
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        
+        AbstractPlanNode clone = (AbstractPlanNode)root.clone();
+        assertNotNull(clone);
+//        assertEquals(root, clone);
+        assertFalse(root == clone);
+        
+        List<AbstractPlanNode> list0 = new PlanNodeList(root).getExecutionList();
+        List<AbstractPlanNode> list1 = new PlanNodeList(clone).getExecutionList();
+        assertEquals(list0.size(), list1.size());
+        
+        for (int i = 0, cnt = list0.size(); i < cnt; i++) {
+            AbstractPlanNode node0 = list0.get(i);
+            assertNotNull(node0);
+            AbstractPlanNode node1 = list1.get(i);
+            assertNotNull(node1);
+            
+            // Compare!
+            assertFalse(node0 == node1);
+            assertEquals(node0.getChildPlanNodeCount(), node1.getChildPlanNodeCount());
+            assertEquals(node0.getInlinePlanNodeCount(), node1.getInlinePlanNodeCount());
+            assertEquals(node0.getOutputColumnCount(), node1.getOutputColumnCount());
+            
+            List<AbstractExpression> exps0 = new ArrayList<AbstractExpression>(PlanNodeUtil.getExpressionsForPlanNode(node0));
+            List<AbstractExpression> exps1 = new ArrayList<AbstractExpression>(PlanNodeUtil.getExpressionsForPlanNode(node1));
+            assertEquals(exps0.size(), exps1.size());
+            for (int j = 0; j < exps0.size(); j++) {
+                AbstractExpression exp0 = exps0.get(j);
+                assertNotNull(exp0);
+                AbstractExpression exp1 = exps1.get(j);
+                assertNotNull(exp1);
+                assertFalse(exp0 == exp1);
+                assertEquals(exp0, exp1);
+            } // FOR (exps)
+            
+        } // FOR (nodes)
+        
+        
+    }
+    
+    /**
      * testGetScanExpressionTypes
      */
     @Test
@@ -51,7 +102,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
 
         AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
-        Set<ExpressionType> result = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
+        Collection<ExpressionType> result = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
         assertNotNull(result);
         assertFalse(result.isEmpty());
         for (ExpressionType e : expected) {
@@ -102,7 +153,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         IndexScanPlanNode idx_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
         assertNotNull(idx_node);
         
-        Set<Column> columns = PlanNodeUtil.getUpdatedColumns(catalog_db, idx_node);
+        Collection<Column> columns = PlanNodeUtil.getUpdatedColumnsForPlanNode(catalog_db, idx_node);
         assertNotNull(columns);
 //        System.err.print(catalog_stmt.fullName() + ": " + CatalogUtil.debug(columns));
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -120,10 +171,10 @@ public class TestPlanNodeUtil extends BaseTestCase {
         AbstractPlanNode root_node = new ProjectionPlanNode(cntxt, 1);
         root_node.addAndLinkChild(new SeqScanPlanNode(cntxt, 2));
         
-        Set<SeqScanPlanNode> found0 = PlanNodeUtil.getPlanNodes(root_node, SeqScanPlanNode.class);
+        Collection<SeqScanPlanNode> found0 = PlanNodeUtil.getPlanNodes(root_node, SeqScanPlanNode.class);
         assertFalse(found0.isEmpty());
         
-        Set<AbstractScanPlanNode> found1 = PlanNodeUtil.getPlanNodes(root_node, AbstractScanPlanNode.class);
+        Collection<AbstractScanPlanNode> found1 = PlanNodeUtil.getPlanNodes(root_node, AbstractScanPlanNode.class);
         assertFalse(found1.isEmpty());
     }
     
@@ -134,7 +185,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         
-        Set<AbstractPlanNode> found = PlanNodeUtil.getPlanNodesReferencingTable(root_node, catalog_tbl);
+        Collection<AbstractPlanNode> found = PlanNodeUtil.getPlanNodesReferencingTable(root_node, catalog_tbl);
         assertEquals(1, found.size());
         AbstractPlanNode node = CollectionUtil.getFirst(found);
         assertNotNull(node);

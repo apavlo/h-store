@@ -52,20 +52,23 @@ public abstract class AbstractScanPlanNode extends AbstractPlanNode {
     protected AbstractScanPlanNode(PlannerContext context, Integer id) {
         super(context, id);
     }
+    
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        AbstractScanPlanNode clone = (AbstractScanPlanNode)super.clone();
+        clone.m_predicate = (AbstractExpression)this.m_predicate.clone();
+        return (clone);
+    }
 
     @Override
     public void validate() throws Exception {
         super.validate();
-        //
         // TargetTableId
-        //
         if (m_targetTableName == null) {
             throw new Exception("ERROR: TargetTableName is null for PlanNode '" + toString() + "'");
         }
-        //
         // Filter Expression
         // It is allowed to be null, but we need to check that it's valid
-        //
         if (m_predicate != null) {
             m_predicate.validate();
         }
@@ -118,7 +121,6 @@ public abstract class AbstractScanPlanNode extends AbstractPlanNode {
      * @param db
      */
     @SuppressWarnings("unchecked")
-
     @Override
     protected ArrayList<Integer> createOutputColumns(Database db, ArrayList<Integer> input) {
         assert(m_children.isEmpty());

@@ -76,7 +76,7 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
 
     // Vertical Partitions
     {
-        addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
+//        addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
     }
     
     public static final String PARTITIONING[][] = 
