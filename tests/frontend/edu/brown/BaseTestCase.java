@@ -110,6 +110,8 @@ public abstract class BaseTestCase extends TestCase {
 
     private static final Map<ProjectType, AbstractProjectBuilder> project_builders = new HashMap<ProjectType, AbstractProjectBuilder>();
     
+    private static Boolean is_first = null;
+    
     /**
      * Setup the test case for the given project type
      * By default we don't include foreign keys in the catalog (I forget why we did this)
@@ -132,6 +134,7 @@ public abstract class BaseTestCase extends TestCase {
     
     protected void setUp(AbstractProjectBuilder projectBuilder) throws Exception {
         super.setUp();
+        is_first = (is_first == null ? true : false);
         this.last_type = ProjectType.TEST;
         catalog = project_catalogs.get(this.last_type);
         catalog_db = project_databases.get(this.last_type);
@@ -171,6 +174,7 @@ public abstract class BaseTestCase extends TestCase {
      */
     protected void setUp(ProjectType type, boolean fkeys, boolean full_catalog) throws Exception {
         super.setUp();
+        is_first = (is_first == null ? true : false);
         this.last_type = type;
         catalog = project_catalogs.get(type);
         catalog_db = project_databases.get(type);
@@ -266,6 +270,14 @@ public abstract class BaseTestCase extends TestCase {
     }
     public static File getDDLPath(ProjectType type) {
         return (new File(getProjectBuilder(type).getDDLURL(true).getFile()));
+    }
+    /**
+     * Returns true if this is the first time setup() has been called
+     * Useful for updating the catalog
+     * @return
+     */
+    public static Boolean isFirstSetup() {
+        return (is_first);
     }
     
     /**

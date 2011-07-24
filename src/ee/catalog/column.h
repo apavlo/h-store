@@ -44,7 +44,6 @@ protected:
     int32_t m_type;
     int32_t m_size;
     bool m_nullable;
-    std::string m_name;
     std::string m_defaultvalue;
     int32_t m_defaulttype;
     CatalogMap<ConstraintRef> m_constraints;
@@ -67,8 +66,6 @@ public:
     int32_t size() const;
     /** GETTER: Is the column nullable? */
     bool nullable() const;
-    /** GETTER: Name of column */
-    const std::string & name() const;
     /** GETTER: Default value of the column */
     const std::string & defaultvalue() const;
     /** GETTER: Type of the default value of the column */

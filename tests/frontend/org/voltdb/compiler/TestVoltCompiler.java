@@ -32,8 +32,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import junit.framework.TestCase;
-
 import org.voltdb.ProcInfoData;
 import org.voltdb.benchmark.tpcc.TPCCClient;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
@@ -52,10 +50,11 @@ import org.voltdb.regressionsuites.TestSQLTypesSuite;
 import org.voltdb.types.ConstraintType;
 import org.voltdb.utils.JarReader;
 
+import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 
-public class TestVoltCompiler extends TestCase {
-
+public class TestVoltCompiler extends BaseTestCase {
+    
     public void testSnapshotSettings() throws IOException {
         String schemaPath = "";
         try {

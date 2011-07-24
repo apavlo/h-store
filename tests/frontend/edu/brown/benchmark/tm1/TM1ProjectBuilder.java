@@ -73,6 +73,11 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(UpdateLocation.class, TM1Constants.FREQUENCY_UPDATE_LOCATION);
         addTransactionFrequency(UpdateSubscriberData.class, TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA);
     }
+
+    // Vertical Partitions
+    {
+        addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
+    }
     
     public static final String PARTITIONING[][] = 
         new String[][] {

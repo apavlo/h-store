@@ -383,7 +383,7 @@ public class DDLCompiler {
 
         Column column = table.getColumns().add(name);
         // need to set other column data here (default, nullable, etc)
-        column.setName(name);
+        // column.setName(name);
         column.setIndex(index);
 
         column.setType(type.getValue());

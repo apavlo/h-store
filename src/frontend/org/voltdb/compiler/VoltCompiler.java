@@ -31,6 +31,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -50,6 +51,7 @@ import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Group;
 import org.voltdb.catalog.GroupRef;
@@ -204,6 +206,11 @@ public class VoltCompiler {
         VoltCompilerException(final String message) {
             addErr(message);
             this.message = message;
+        }
+        
+        VoltCompilerException(final String message, Exception e) {
+            super(message, e);
+            addErr(message);
         }
 
         @Override
@@ -676,6 +683,17 @@ public class VoltCompiler {
         }
         ddlcompiler.compileToCatalog(m_catalog, db);
 
+        // add vertical partitions
+        if (database.getVerticalpartitions() != null) {
+            for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {
+                try {
+                    addVerticalPartition(db, vp.getTable(), vp.getColumn());
+                } catch (Exception ex) {
+                    throw new VoltCompilerException("Failed to create vertical partition for " + vp.getTable(), ex);
+                }
+            }
+        }
+        
         // Actually parse and handle all the partitions
         // this needs to happen before procedures are compiled
         msg = "In database \"" + databaseName + "\", ";
@@ -718,13 +736,6 @@ public class VoltCompiler {
         m_catalog = new Catalog();
         m_catalog.execute(catData);
         db = m_catalog.getClusters().get("cluster").getDatabases().get(databaseName);
-
-        // add vertical partitions
-        if (database.getVerticalpartitions() != null) {
-            for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {
-                addVerticalPartition(vp, db);
-            }
-        }
         
         // add database estimates info
         addDatabaseEstimatesInfo(m_estimates, db);
@@ -760,24 +771,54 @@ public class VoltCompiler {
         m_hsql.close();
     }
 
-    void addVerticalPartition(final Verticalpartition vp, final Database db) throws VoltCompilerException {
-        String tableName = vp.getTable();
-        Table catalog_tbl = db.getTables().get(tableName);
+    public static void addVerticalPartition(final Database catalog_db, String tableName, List<String> columnNames) throws Exception {
+        Table catalog_tbl = catalog_db.getTables().get(tableName);
         if (catalog_tbl == null) {
-            throw new VoltCompilerException("Invalid vertical partition table '" + tableName + "'");
+            throw new Exception("Invalid vertical partition table '" + tableName + "'");
         }
         ArrayList<Column> catalog_cols = new ArrayList<Column>();
-        for (String columnName : vp.getColumn()) {
+        for (String columnName : columnNames) {
             Column catalog_col = catalog_tbl.getColumns().get(columnName);
             if (catalog_tbl == null) {
-                throw new VoltCompilerException("Invalid vertical partition column '" + columnName + "' for table '" + tableName + "'");
+                throw new Exception("Invalid vertical partition column '" + columnName + "' for table '" + tableName + "'");
             } else if (catalog_cols.contains(catalog_col)) {
-                throw new VoltCompilerException("Duplicate vertical partition column '" + columnName + "' for table '" + tableName + "'");
+                throw new Exception("Duplicate vertical partition column '" + columnName + "' for table '" + tableName + "'");
             }
             catalog_cols.add(catalog_col);
         } // FOR
-        compilerLog.info(String.format("Adding Vertical Partition for %s: %s", catalog_tbl, catalog_cols));
-        CatalogUtil.addVerticalPartition(catalog_tbl, catalog_cols);
+        
+        
+        String viewName = "SYS_VP_" + catalog_tbl.getName();
+        compilerLog.info(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
+        
+        // Create a new virtual table
+        Table virtual_tbl = catalog_db.getTables().add(viewName);
+        virtual_tbl.setIsreplicated(true);
+        virtual_tbl.setMaterializer(catalog_tbl);
+        
+        // Create MaterializedView and link it to the virtual table
+        MaterializedViewInfo catalog_view = catalog_tbl.getViews().add(viewName);
+        catalog_view.setVerticalpartition(true);
+        catalog_view.setDest(virtual_tbl);
+        
+        int i = 0;
+        for (Column catalog_col : catalog_cols) {
+            // MaterializedView ColumnRef
+            ColumnRef catalog_ref = catalog_view.getGroupbycols().add(catalog_col.getName());
+            catalog_ref.setColumn(catalog_col);
+            catalog_ref.setIndex(i++);
+            
+            // VirtualTable Column
+            Column virtual_col = virtual_tbl.getColumns().add(catalog_col.getName());
+//            virtual_col.setName(catalog_col.getName());
+            virtual_col.setDefaulttype(catalog_col.getDefaulttype());
+            virtual_col.setDefaultvalue(catalog_col.getDefaultvalue());
+            virtual_col.setIndex(catalog_col.getIndex());
+            virtual_col.setNullable(catalog_col.getNullable());
+            virtual_col.setSize(catalog_col.getSize());
+            virtual_col.setType(catalog_col.getType());
+            compilerLog.debug(String.format("Added VerticalPartition column %s", virtual_col.fullName()));
+        } // FOR
     }
 
     static void addDatabaseEstimatesInfo(final DatabaseEstimates estimates, final Database db) {

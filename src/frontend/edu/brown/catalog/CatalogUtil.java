@@ -745,36 +745,26 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
         Map<Table, MaterializedViewInfo> ret = new HashMap<Table, MaterializedViewInfo>();
         for (Table catalog_tbl : catalog_db.getTables()) {
-            for (MaterializedViewInfo view : catalog_tbl.getViews()) {
-                if (view.getVerticalpartition()) {
-                    ret.put(catalog_tbl, view);
-                    break;
-                }
-            } // FOR
+            MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
+            if (catalog_view != null) ret.put(catalog_tbl, catalog_view);
         } // FOR
         return (ret);
     }
-
+    
     /**
-     * Add a new vertical partition for the given table
+     * Return the VerticalPartition for the given Table
      * @param catalog_tbl
-     * @param catalog_cols
      * @return
      */
-    public static MaterializedViewInfo addVerticalPartition(Table catalog_tbl, Collection<Column> catalog_cols) {
-        String name = "SYS_VP_" + catalog_tbl.getName();
-        MaterializedViewInfo vp = catalog_tbl.getViews().add(name);
-        vp.setVerticalpartition(true);
-        vp.setDest(catalog_tbl);
-        int i = 0;
-        for (Column catalog_col : catalog_cols) {
-            ColumnRef catalog_ref = vp.getGroupbycols().add(catalog_col.getName());
-            catalog_ref.setColumn(catalog_col);
-            catalog_ref.setIndex(i++);
+    public static MaterializedViewInfo getVerticalPartition(Table catalog_tbl) {
+        for (MaterializedViewInfo catalog_view : catalog_tbl.getViews()) {
+            if (catalog_view.getVerticalpartition()) {
+                return catalog_view;
+            }
         } // FOR
-        return (vp);
+        return (null);
     }
-    
+
     /**
      * Return the set of read-only Columns for the given table
      * If exclude_inserts is true, then only UPDATES will be counted against columns 

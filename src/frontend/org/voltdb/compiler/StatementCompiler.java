@@ -315,10 +315,10 @@ public abstract class StatementCompiler {
         int index = 0;
         for (Integer colguid : plan.columns) {
             PlanColumn planColumn = planner.getPlannerContext().get(colguid);
-            Column catColumn = catalogStmt.getOutput_columns().add(String.valueOf(index));
+            Column catColumn = catalogStmt.getOutput_columns().add(planColumn.displayName()); // String.valueOf(index));
             catColumn.setNullable(false);
             catColumn.setIndex(index);
-            catColumn.setName(planColumn.displayName());
+//            catColumn.setName(planColumn.displayName());
             catColumn.setType(planColumn.type().getValue());
             catColumn.setSize(planColumn.width());
             index++;

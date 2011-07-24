@@ -38,7 +38,6 @@ Column::Column(Catalog *catalog, CatalogType *parent, const string &path, const 
     m_fields["type"] = value;
     m_fields["size"] = value;
     m_fields["nullable"] = value;
-    m_fields["name"] = value;
     m_fields["defaultvalue"] = value;
     m_fields["defaulttype"] = value;
     m_childCollections["constraints"] = &m_constraints;
@@ -52,7 +51,6 @@ void Column::update() {
     m_type = m_fields["type"].intValue;
     m_size = m_fields["size"].intValue;
     m_nullable = m_fields["nullable"].intValue;
-    m_name = m_fields["name"].strValue.c_str();
     m_defaultvalue = m_fields["defaultvalue"].strValue.c_str();
     m_defaulttype = m_fields["defaulttype"].intValue;
     m_matview = m_fields["matview"].typeValue;
@@ -96,10 +94,6 @@ int32_t Column::size() const {
 
 bool Column::nullable() const {
     return m_nullable;
-}
-
-const string & Column::name() const {
-    return m_name;
 }
 
 const string & Column::defaultvalue() const {
