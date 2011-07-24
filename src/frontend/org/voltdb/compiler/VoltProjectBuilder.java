@@ -315,6 +315,14 @@ public class VoltProjectBuilder {
         m_partitionInfos.put(tableName, partitionColumnName);
     }
     
+    public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
+        ArrayList<String> columns = new ArrayList<String>();
+        for (String col : partitionColumnNames) {
+            columns.add(col);
+        }
+        this.addVerticalPartitionInfo(tableName, columns);
+    }
+    
     public void addVerticalPartitionInfo(final String tableName, final Collection<String> partitionColumnNames) {
         assert(m_verticalpartitionInfos.containsKey(tableName) == false);
         m_verticalpartitionInfos.put(tableName, partitionColumnNames);
@@ -447,11 +455,10 @@ public class VoltProjectBuilder {
             return false;
         }
 
-        //String xml = result.getWriter().toString();
-        //System.out.println(xml);
+//        String xml = result.getWriter().toString();
+//        System.out.println(xml);
 
-        final File projectFile =
-            writeStringToTempFile(result.getWriter().toString());
+        final File projectFile = writeStringToTempFile(result.getWriter().toString());
         final String projectPath = projectFile.getPath();
         final ClusterConfig cluster_config =
             new ClusterConfig(hostCount, sitesPerHost, replication,
@@ -622,6 +629,26 @@ public class VoltProjectBuilder {
                 table.setAttribute("column", partitionInfo.getValue());
                 partitions.appendChild(table);
             }
+        }
+
+        // Vertical Partitions
+        if (m_verticalpartitionInfos.size() > 0) {
+            // /project/database/partitions
+            final Element verticalpartitions = doc.createElement("verticalpartitions");
+            database.appendChild(verticalpartitions);
+
+            // partitions/table
+            for (final Entry<String, Collection<String>> partitionInfo : m_verticalpartitionInfos.entrySet()) {
+                final String tableName = partitionInfo.getKey();
+                final Element vp = doc.createElement("verticalpartition");
+                vp.setAttribute("table", tableName);
+                for (final String columnName : partitionInfo.getValue()) {
+                    final Element column = doc.createElement("column");
+                    column.setTextContent(columnName);
+                    vp.appendChild(column);
+                } // FOR (cols)
+                verticalpartitions.appendChild(vp);
+            } // FOR (tables)
         }
 
         // /project/database/classdependencies

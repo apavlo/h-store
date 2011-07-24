@@ -47,7 +47,18 @@ import org.hsqldb.HSQLInterface;
 import org.voltdb.ProcInfo;
 import org.voltdb.ProcInfoData;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Group;
+import org.voltdb.catalog.GroupRef;
+import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.SnapshotSchedule;
+import org.voltdb.catalog.Table;
+import org.voltdb.catalog.User;
+import org.voltdb.catalog.UserRef;
 import org.voltdb.compiler.projectfile.DatabaseType;
 import org.voltdb.compiler.projectfile.GroupsType;
 import org.voltdb.compiler.projectfile.ProceduresType;
@@ -59,6 +70,7 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.ClassdependenciesType.Classdependency;
 import org.voltdb.compiler.projectfile.ExportsType.Connector;
 import org.voltdb.compiler.projectfile.ExportsType.Connector.Tables;
+import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.RecomputeMarkovs;
@@ -72,7 +84,9 @@ import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.HStoreDtxnConf;
+import edu.brown.utils.StringUtil;
 
 /**
  * Compiles a project XML file and some metadata into a Jarfile
@@ -92,7 +106,7 @@ public class VoltCompiler {
 
     // set of annotations by procedure name
     Map<String, ProcInfoData> m_procInfoOverrides;
-
+    
     String m_projectFileURL = null;
     String m_jarOutputPath = null;
     PrintStream m_outputStream = null;
@@ -106,7 +120,7 @@ public class VoltCompiler {
 
     DatabaseEstimates m_estimates = new DatabaseEstimates();
 
-    private static final Logger compilerLog = Logger.getLogger("COMPILER", VoltLoggerFactory.instance());
+    private static final Logger compilerLog = Logger.getLogger(VoltCompiler.class); // Logger.getLogger("COMPILER", VoltLoggerFactory.instance());
     @SuppressWarnings("unused")
     private static final Logger Log = Logger.getLogger("org.voltdb.compiler.VoltCompiler", VoltLoggerFactory.instance());
 
@@ -166,6 +180,11 @@ public class VoltCompiler {
 
         public String getMessage() {
             return message;
+        }
+        
+        @Override
+        public String toString() {
+            return this.getStandardFeedbackLine();
         }
     }
 
@@ -292,8 +311,7 @@ public class VoltCompiler {
     public boolean compile(final String projectFileURL,
                            final ClusterConfig clusterConfig,
                            final String jarOutputPath, final PrintStream output,
-                           final Map<String, ProcInfoData> procInfoOverrides)
-    {
+                           final Map<String, ProcInfoData> procInfoOverrides) {
         m_hsql = null;
         m_projectFileURL = projectFileURL;
         m_jarOutputPath = jarOutputPath;
@@ -308,8 +326,10 @@ public class VoltCompiler {
 
         // do all the work to get the catalog
         final Catalog catalog = compileCatalog(projectFileURL, clusterConfig);
-        if (catalog == null)
-            return false;
+        if (catalog == null) {
+            compilerLog.error("VoltCompiler had " + m_errors.size() + " errors\n" + StringUtil.join("\n", m_errors));
+            return (false);
+        }
 
         // WRITE CATALOG TO JAR HERE
         final String catalogCommands = catalog.serialize();
@@ -699,6 +719,13 @@ public class VoltCompiler {
         m_catalog.execute(catData);
         db = m_catalog.getClusters().get("cluster").getDatabases().get(databaseName);
 
+        // add vertical partitions
+        if (database.getVerticalpartitions() != null) {
+            for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {
+                addVerticalPartition(vp, db);
+            }
+        }
+        
         // add database estimates info
         addDatabaseEstimatesInfo(m_estimates, db);
         try {
@@ -733,6 +760,25 @@ public class VoltCompiler {
         m_hsql.close();
     }
 
+    void addVerticalPartition(final Verticalpartition vp, final Database db) throws VoltCompilerException {
+        String tableName = vp.getTable();
+        Table catalog_tbl = db.getTables().get(tableName);
+        if (catalog_tbl == null) {
+            throw new VoltCompilerException("Invalid vertical partition table '" + tableName + "'");
+        }
+        ArrayList<Column> catalog_cols = new ArrayList<Column>();
+        for (String columnName : vp.getColumn()) {
+            Column catalog_col = catalog_tbl.getColumns().get(columnName);
+            if (catalog_tbl == null) {
+                throw new VoltCompilerException("Invalid vertical partition column '" + columnName + "' for table '" + tableName + "'");
+            } else if (catalog_cols.contains(catalog_col)) {
+                throw new VoltCompilerException("Duplicate vertical partition column '" + columnName + "' for table '" + tableName + "'");
+            }
+            catalog_cols.add(catalog_col);
+        } // FOR
+        compilerLog.info(String.format("Adding Vertical Partition for %s: %s", catalog_tbl, catalog_cols));
+        CatalogUtil.addVerticalPartition(catalog_tbl, catalog_cols);
+    }
 
     static void addDatabaseEstimatesInfo(final DatabaseEstimates estimates, final Database db) {
         /*for (Table table : db.getTables()) {

@@ -18,21 +18,23 @@ import javax.xml.bind.annotation.XmlType;
 
 
 /**
- * <p>Java class for partitionsType complex type.
+ * <p>Java class for verticalpartitionsType complex type.
  * 
  * <p>The following schema fragment specifies the expected content contained within this class.
  * 
  * <pre>
- * &lt;complexType name="partitionsType">
+ * &lt;complexType name="verticalpartitionsType">
  *   &lt;complexContent>
  *     &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
  *       &lt;sequence>
- *         &lt;element name="partition" maxOccurs="unbounded">
+ *         &lt;element name="verticalpartition" maxOccurs="unbounded">
  *           &lt;complexType>
  *             &lt;complexContent>
  *               &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
+ *                 &lt;sequence>
+ *                   &lt;element name="column" type="{http://www.w3.org/2001/XMLSchema}string" maxOccurs="unbounded"/>
+ *                 &lt;/sequence>
  *                 &lt;attribute name="table" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
- *                 &lt;attribute name="column" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
  *               &lt;/restriction>
  *             &lt;/complexContent>
  *           &lt;/complexType>
@@ -46,41 +48,41 @@ import javax.xml.bind.annotation.XmlType;
  * 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(name = "partitionsType", propOrder = {
-    "partition"
+@XmlType(name = "verticalpartitionsType", propOrder = {
+    "verticalpartition"
 })
-public class PartitionsType {
+public class VerticalpartitionsType {
 
     @XmlElement(required = true)
-    protected List<PartitionsType.Partition> partition;
+    protected List<VerticalpartitionsType.Verticalpartition> verticalpartition;
 
     /**
-     * Gets the value of the partition property.
+     * Gets the value of the verticalpartition property.
      * 
      * <p>
      * This accessor method returns a reference to the live list,
      * not a snapshot. Therefore any modification you make to the
      * returned list will be present inside the JAXB object.
-     * This is why there is not a <CODE>set</CODE> method for the partition property.
+     * This is why there is not a <CODE>set</CODE> method for the verticalpartition property.
      * 
      * <p>
      * For example, to add a new item, do as follows:
      * <pre>
-     *    getPartition().add(newItem);
+     *    getVerticalpartition().add(newItem);
      * </pre>
      * 
      * 
      * <p>
      * Objects of the following type(s) are allowed in the list
-     * {@link PartitionsType.Partition }
+     * {@link VerticalpartitionsType.Verticalpartition }
      * 
      * 
      */
-    public List<PartitionsType.Partition> getPartition() {
-        if (partition == null) {
-            partition = new ArrayList<PartitionsType.Partition>();
+    public List<VerticalpartitionsType.Verticalpartition> getVerticalpartition() {
+        if (verticalpartition == null) {
+            verticalpartition = new ArrayList<VerticalpartitionsType.Verticalpartition>();
         }
-        return this.partition;
+        return this.verticalpartition;
     }
 
 
@@ -93,8 +95,10 @@ public class PartitionsType {
      * &lt;complexType>
      *   &lt;complexContent>
      *     &lt;restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
+     *       &lt;sequence>
+     *         &lt;element name="column" type="{http://www.w3.org/2001/XMLSchema}string" maxOccurs="unbounded"/>
+     *       &lt;/sequence>
      *       &lt;attribute name="table" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
-     *       &lt;attribute name="column" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
      *     &lt;/restriction>
      *   &lt;/complexContent>
      * &lt;/complexType>
@@ -103,13 +107,44 @@ public class PartitionsType {
      * 
      */
     @XmlAccessorType(XmlAccessType.FIELD)
-    @XmlType(name = "")
-    public static class Partition {
+    @XmlType(name = "", propOrder = {
+        "column"
+    })
+    public static class Verticalpartition {
 
+        @XmlElement(required = true)
+        protected List<String> column;
         @XmlAttribute(required = true)
         protected String table;
-        @XmlAttribute(required = true)
-        protected String column;
+
+        /**
+         * Gets the value of the column property.
+         * 
+         * <p>
+         * This accessor method returns a reference to the live list,
+         * not a snapshot. Therefore any modification you make to the
+         * returned list will be present inside the JAXB object.
+         * This is why there is not a <CODE>set</CODE> method for the column property.
+         * 
+         * <p>
+         * For example, to add a new item, do as follows:
+         * <pre>
+         *    getColumn().add(newItem);
+         * </pre>
+         * 
+         * 
+         * <p>
+         * Objects of the following type(s) are allowed in the list
+         * {@link String }
+         * 
+         * 
+         */
+        public List<String> getColumn() {
+            if (column == null) {
+                column = new ArrayList<String>();
+            }
+            return this.column;
+        }
 
         /**
          * Gets the value of the table property.
@@ -133,30 +168,6 @@ public class PartitionsType {
          */
         public void setTable(String value) {
             this.table = value;
-        }
-
-        /**
-         * Gets the value of the column property.
-         * 
-         * @return
-         *     possible object is
-         *     {@link String }
-         *     
-         */
-        public String getColumn() {
-            return column;
-        }
-
-        /**
-         * Sets the value of the column property.
-         * 
-         * @param value
-         *     allowed object is
-         *     {@link String }
-         *     
-         */
-        public void setColumn(String value) {
-            this.column = value;
         }
 
     }
