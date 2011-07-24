@@ -17,10 +17,12 @@ import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
+import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.special.MultiColumn;
@@ -28,7 +30,7 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 
-public class TestCatalogClonger extends BaseTestCase {
+public class TestCatalogCloner extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 6;
     
@@ -48,10 +50,22 @@ public class TestCatalogClonger extends BaseTestCase {
         // CHECK_FIELDS_EXCLUDE.add("PlanFragment.plannodetree");
     };
     
+    protected final String VERTICAL_PARTITION_TABLE = "CUSTOMER";
+    protected final List<String> VERTICAL_PARTITION_COLUMNS = new ArrayList<String>();
+    {
+        VERTICAL_PARTITION_COLUMNS.add("C_ID");
+        VERTICAL_PARTITION_COLUMNS.add("C_FIRST");
+        VERTICAL_PARTITION_COLUMNS.add("C_LAST");
+    }
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
-        this.addPartitions(NUM_PARTITIONS);
+        
+        if (isFirstSetup()) {
+            this.addPartitions(NUM_PARTITIONS);
+            VoltCompiler.addVerticalPartition(catalog_db, VERTICAL_PARTITION_TABLE, VERTICAL_PARTITION_COLUMNS);
+        }
     }
     
     /**
@@ -182,12 +196,20 @@ public class TestCatalogClonger extends BaseTestCase {
         for (Table catalog_tbl : catalog_db.getTables()) {
             Table clone_tbl = clone_db.getTables().get(catalog_tbl.getName());
             assertNotNull(catalog_tbl.toString(), clone_tbl);
+            checkFields(Table.class, catalog_tbl, clone_tbl);
+            
             for (Column catalog_col : catalog_tbl.getColumns()) {
                 Column clone_col = clone_tbl.getColumns().get(catalog_col.getName());
                 assertNotNull(CatalogUtil.getDisplayName(catalog_col), clone_col);
                 assertEquals(CatalogUtil.getDisplayName(clone_col), clone_tbl, (Table)clone_col.getParent());
                 assertEquals(CatalogUtil.getDisplayName(clone_col), clone_tbl.hashCode(), clone_col.getParent().hashCode());
             } // FOR
+            for (MaterializedViewInfo catalog_view : catalog_tbl.getViews()) {
+                assert(catalog_view.getGroupbycols().size() > 0);
+                MaterializedViewInfo clone_view = clone_tbl.getViews().get(catalog_view.getName());
+                checkFields(MaterializedViewInfo.class, catalog_view, clone_view);
+            } // FOR
+            
         } // FOR
         
         for (Procedure catalog_proc : catalog_db.getProcedures()) {

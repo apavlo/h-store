@@ -997,6 +997,12 @@ bool VoltDBEngine::initMaterializedViews() {
         std::map<std::string, catalog::MaterializedViewInfo*>::const_iterator matviewIterator;
         for (matviewIterator = srcCatalogTable->views().begin(); matviewIterator != srcCatalogTable->views().end(); matviewIterator++) {
             catalog::MaterializedViewInfo *catalogView = matviewIterator->second;
+            
+            // Skip Vertical Partitions
+            if (catalogView->verticalpartition()) {
+                VOLT_DEBUG("Skipping MaterializedViewInfo %s because it is a vertical partition", catalogView->name().c_str());
+                continue;
+            }
 
             const catalog::Table *destCatalogTable = catalogView->dest();
             PersistentTable *destTable = dynamic_cast<PersistentTable*>(m_tables[destCatalogTable->relativeIndex()]);
