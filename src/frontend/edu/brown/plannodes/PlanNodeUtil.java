@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
@@ -843,7 +844,13 @@ public abstract class PlanNodeUtil {
             if (debug.get()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
             Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
             String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
-            JSONObject jsonObject = new JSONObject(jsonString);
+            JSONObject jsonObject = null;
+            try {
+                jsonObject = new JSONObject(jsonString);
+            } catch (JSONException ex) {
+                LOG.error("Invalid PlanNodeTree for " + catalog_frgmt.fullName() + "\n" + jsonString);
+                throw ex;
+            }
 //            System.err.println(jsonObject.toString(2));
             PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
             ret = list.getRootPlanNode();

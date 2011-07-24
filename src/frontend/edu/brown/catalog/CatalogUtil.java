@@ -288,7 +288,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog
      * @param file_path
      */
-    public static void saveCatalog(Catalog catalog, String file_path) {
+    public static File saveCatalog(Catalog catalog, String file_path) {
         File file = new File(file_path);
         try {
             FileUtil.writeStringToFile(file, catalog.serialize());
@@ -297,6 +297,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             System.exit(1);
         }
         LOG.info("Wrote catalog contents to '" + file.getAbsolutePath() + "'");
+        return (file);
     }
     
 

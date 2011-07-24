@@ -55,12 +55,12 @@ public class PartitionEstimator {
     /**
      * PlanFragment Key -> CacheEntry(Column Key -> StmtParameter Indexes)
      */
-    private final Map<String, CacheEntry> frag_cache_entries = new HashMap<String, CacheEntry>();
+    private final Map<String, CacheEntry> cache_planFragments = new HashMap<String, CacheEntry>();
     
     /**
      * Statement Key -> CacheEntry(Column Key -> StmtParam Indexes)
      */
-    private final Map<String, CacheEntry> stmt_cache_entries = new HashMap<String, CacheEntry>();
+    private final Map<String, CacheEntry> cache_statements = new HashMap<String, CacheEntry>();
     
     /**
      * Table Key -> All cache entries for Statements that reference Table
@@ -282,10 +282,9 @@ public class PartitionEstimator {
             } // FOR
         } */
         this.catalog_db = new_catalog_db;
-        
         this.hasher.init(new_catalog_db);
+        this.clear();
 
-        this.cache_procparam.clear();
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
                 int param_idx = catalog_proc.getPartitionparameter();
@@ -296,15 +295,13 @@ public class PartitionEstimator {
             }
         } // FOR
         
-        this.cache_tblpartitioncol.clear();
         for (Table catalog_tbl : this.catalog_db.getTables()) {
             this.cache_tblpartitioncol.put(catalog_tbl, catalog_tbl.getPartitioncolumn());
         } // FOR
-        
-        for (CacheEntry entry : this.frag_cache_entries.values()) {
+        for (CacheEntry entry : this.cache_planFragments.values()) {
             entry.cache_valid = false;
         }
-        for (CacheEntry entry : this.stmt_cache_entries.values()) {
+        for (CacheEntry entry : this.cache_statements.values()) {
             entry.cache_valid = false;
         }
         
@@ -319,6 +316,17 @@ public class PartitionEstimator {
             LOG.debug("Initialized PartitionEstimator with " + this.hasher.getNumPartitions() + " partitions " +
                       "using the " + this.hasher.getClass().getSimpleName() + " hasher");
         }
+    }
+    
+    /**
+     * Completely clear the PartitionEstimator's internal cache
+     * This should only really be used for testing
+     */
+    public void clear() {
+        this.cache_procparam.clear();
+        this.cache_tblpartitioncol.clear();
+        this.cache_planFragments.clear();
+        this.cache_statements.clear();
     }
     
     // ----------------------------------------------------------------------------
@@ -336,7 +344,7 @@ public class PartitionEstimator {
         // Check whether we already have a CacheEntry for the Statement that we can reuse
         String stmt_key = CatalogKey.createKey(catalog_stmt);
         QueryType stmt_type = QueryType.get(catalog_stmt.getQuerytype());
-        PartitionEstimator.CacheEntry stmt_cache = this.stmt_cache_entries.get(stmt_key);
+        PartitionEstimator.CacheEntry stmt_cache = this.cache_statements.get(stmt_key);
         if (stmt_cache == null) {
             stmt_cache = new PartitionEstimator.CacheEntry(stmt_type);
         } else {
@@ -369,7 +377,7 @@ public class PartitionEstimator {
             for (PlanFragment catalog_frag : fragments) {
                 // Again, always check whether we already have a CacheEntry for the PlanFragment that we can reuse
                 String frag_key = CatalogKey.createKey(catalog_frag);
-                PartitionEstimator.CacheEntry frag_cache = this.frag_cache_entries.get(frag_key);
+                PartitionEstimator.CacheEntry frag_cache = this.cache_planFragments.get(frag_key);
                 if (frag_cache == null) {
                     frag_cache = new PartitionEstimator.CacheEntry(stmt_type);
                 } else if (frag_cache.isValid()) {
@@ -538,7 +546,7 @@ public class PartitionEstimator {
                 } // FOR
                 
                 // Store the Fragment cache and update the Table xref mapping
-                this.frag_cache_entries.put(frag_key, frag_cache);
+                this.cache_planFragments.put(frag_key, frag_cache);
                 this.addTableCacheXref(frag_cache, frag_tables);
             } // FOR (fragment)
             
@@ -579,7 +587,7 @@ public class PartitionEstimator {
         } // FOR (single-partition vs multi-partition)
         
         // Add the Statement cache entry and update the Table xref map
-        this.stmt_cache_entries.put(stmt_key, stmt_cache);
+        this.cache_statements.put(stmt_key, stmt_cache);
         this.addTableCacheXref(stmt_cache, stmt_tables);
     }
     
@@ -963,11 +971,11 @@ public class PartitionEstimator {
         // to figure out where we need to go for each table.
         PartitionEstimator.CacheEntry cache_entry = null;
         synchronized (this) {
-            cache_entry = this.frag_cache_entries.get(frag_key);
+            cache_entry = this.cache_planFragments.get(frag_key);
             if (cache_entry == null) {
                 Statement catalog_stmt = (Statement)catalog_frag.getParent();
                 this.generateCache(catalog_stmt);
-                cache_entry = this.frag_cache_entries.get(frag_key);
+                cache_entry = this.cache_planFragments.get(frag_key);
             }
         } // SYNCHRONIZED
         assert(cache_entry != null);
@@ -1199,14 +1207,14 @@ public class PartitionEstimator {
             sb.append(CatalogUtil.getDisplayName(catalog_proc)).append(":\n");
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 String stmt_key = CatalogKey.createKey(catalog_stmt);
-                CacheEntry stmt_cache = this.stmt_cache_entries.get(stmt_key);
+                CacheEntry stmt_cache = this.cache_statements.get(stmt_key);
                 if (stmt_cache == null) continue;
                 has_entries = true;
                 sb.append("  " + catalog_stmt.getName() + ": ").append(stmt_cache).append("\n");
                 
                 for (PlanFragment catalog_frag : CatalogUtil.getAllPlanFragments(catalog_stmt)) {
                     String frag_key = CatalogKey.createKey(catalog_frag);
-                    CacheEntry frag_cache = this.frag_cache_entries.get(frag_key);
+                    CacheEntry frag_cache = this.cache_planFragments.get(frag_key);
                     if (frag_cache == null) continue;
                     sb.append("    PlanFragment[" + catalog_frag.getName() + "]: ").append(frag_cache).append("\n");
                 }
@@ -1276,10 +1284,10 @@ public class PartitionEstimator {
             } // FOR
         } // FOR
         
-        for (CacheEntry entry : this.frag_cache_entries.values()) {
+        for (CacheEntry entry : this.cache_planFragments.values()) {
             entry.getTables();
         }
-        for (CacheEntry entry : this.stmt_cache_entries.values()) {
+        for (CacheEntry entry : this.cache_statements.values()) {
             entry.getTables();
         }
 

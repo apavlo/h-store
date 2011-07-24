@@ -259,10 +259,12 @@ public class VoltProjectBuilder {
     }
 
     public void addProcedures(final Class<?>... procedures) {
-        final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
-        for (final Class<?> procedure : procedures)
-            procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
-        addProcedures(procArray);
+        if (procedures != null && procedures.length > 0) {
+            final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
+            for (final Class<?> procedure : procedures)
+                procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
+            addProcedures(procArray);
+        }
     }
     
     /*
