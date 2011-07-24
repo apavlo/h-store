@@ -5,6 +5,7 @@ package edu.brown.benchmark;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -18,6 +19,7 @@ import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -32,8 +34,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     protected final Class<?> supplementals[];
     protected final String partitioning[][];
     
-    private final URL ddlURL;
-    private final URL ddlFkeysURL;
+    private URL ddlURL;
     
     protected final TransactionFrequencies txn_frequencies = new TransactionFrequencies();
 
@@ -77,13 +78,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         this.partitioning = partitioning;
         this.supplementals = supplementals;
         
-        this.ddlFkeysURL = this.base_class.getResource(this.getDDLName(true));
-        if (fkeys) {
-            this.ddlURL = this.ddlFkeysURL;
-        } else {
-            this.ddlURL = this.base_class.getResource(this.getDDLName(false));
-        }
-        
+        this.ddlURL = this.base_class.getResource(this.getDDLName(true));
     }
     
     public void addTransactionFrequency(Class<? extends VoltProcedure> procClass, int frequency) {
@@ -99,8 +94,18 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         return (sb.toString());
     }
     
+    public void setDDLContents(String ddl) {
+        File f = FileUtil.writeStringToTempFile(ddl, "sql", false);
+        try {
+            this.ddlURL = f.toURI().toURL();
+        } catch (MalformedURLException ex) {
+            throw new RuntimeException(ex);
+        }
+        LOG.info("Wrote DDL contents to '" + f.getAbsolutePath() + "'");
+    }
+    
     public final URL getDDLURL(boolean fkeys) {
-        return (fkeys ? this.ddlFkeysURL : this.ddlURL);
+        return (this.ddlURL);
     }
     public final String getDDLName(boolean fkeys) {
 //        return (this.project_name + "-ddl" + (fkeys ? "-fkeys" : "") + ".sql");
@@ -117,20 +122,26 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         return (this.project_name + (unitTest ? "-test" : "") + ".jar");
     }
     
+    public String getJarDirectory() {
+       return BuildDirectoryUtils.getBuildDirectoryPath(); 
+    }
+    
     /**
      * Get the full jar path for this project
      * @param unitTest
      * @return
      */
     public final File getJarPath(boolean unitTest) {
-        String testDir = BuildDirectoryUtils.getBuildDirectoryPath();
+        String testDir = this.getJarDirectory();
         return (new File(testDir + File.separator + this.getJarName(unitTest)));
     }
     
     public void addPartitions() {
-        for (String i[] : this.partitioning) {
-            addPartitionInfo(i[0], i[1]);
-        } // FOR
+        if (this.partitioning != null && this.partitioning.length > 0) {
+            for (String i[] : this.partitioning) {
+                addPartitionInfo(i[0], i[1]);
+            } // FOR
+        }
     }
     
     @Override
@@ -143,6 +154,17 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     /**
      * Get a pointer to a compiled catalog for the benchmark for all the procedures.
      */
+    public Catalog createCatalog() throws IOException {
+        return createCatalog(true, true);
+    }
+    
+    /**
+     * 
+     * @param fkeys
+     * @param full_catalog
+     * @return
+     * @throws IOException
+     */
     public Catalog createCatalog(boolean fkeys, boolean full_catalog) throws IOException {
         // compile a catalog
         if (full_catalog) {
@@ -152,7 +174,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
             // to just compile the schema and the first procedure to make things load faster
             this.addProcedures(this.procedures[0]);
         }
-        addSchema(fkeys ? this.ddlFkeysURL : this.ddlURL);
+        addSchema(this.ddlURL);
         addPartitions();
 
         String catalogJar = this.getJarPath(true).getAbsolutePath();

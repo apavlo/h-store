@@ -212,6 +212,7 @@ public class VoltCompiler {
         
         VoltCompilerException(final String message, Exception e) {
             super(message, e);
+            this.message = message;
             addErr(message);
         }
 
