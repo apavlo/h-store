@@ -9,6 +9,7 @@ import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -36,17 +37,16 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
             this.addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
             
             // Single Query Procedures
-            this.addStmtProcedure("Test1", "SELECT S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE SUB_NBR = ?");
-            this.addStmtProcedure("Test2", "SELECT S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE VLR_LOCATION = ?");
+            // this.addStmtProcedure("TestSingleTable", "SELECT S_ID FROM " + VoltCompiler.getVerticalPartitionName(TM1Constants.TABLENAME_SUBSCRIBER) + " WHERE SUB_NBR = ?");
+            this.addStmtProcedure("TestSingleTable", "SELECT S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE SUB_NBR = ?");
+            this.addStmtProcedure("TestInvalid", "SELECT S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE VLR_LOCATION = ?");
             
         }
     }
     
-    MockProjectBuilder pb;
-    
     @Override
     protected void setUp() throws Exception {
-        pb = new MockProjectBuilder();
+        MockProjectBuilder pb = new MockProjectBuilder();
         super.setUp(pb);
         assert(catalog_db.getProcedures().size() > 0);
     }
@@ -57,7 +57,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
     public void testInvalidQuery() throws Exception {
         // Check to make sure that we don't try to update a query when we don't have
         // any vertical partitions defined
-        Procedure catalog_proc = this.getProcedure("Test2");
+        Procedure catalog_proc = this.getProcedure("TestInvalid");
         Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
         VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(PlannerContext.singleton(), catalog_db);
         boolean ret = vp_planner.process(catalog_stmt);
@@ -77,7 +77,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
 //        MaterializedViewInfo vp = CatalogUtil.addVerticalPartition(catalog_tbl, vp_cols);
 //        assertNotNull(vp);
         
-        Procedure catalog_proc = this.getProcedure("Test1");
+        Procedure catalog_proc = this.getProcedure("TestSingleTable");
         Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
         VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(PlannerContext.singleton(), catalog_db);
         boolean ret = vp_planner.process(catalog_stmt);

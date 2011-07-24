@@ -438,7 +438,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         if (m_needsSubstitutePostExpression) {
             post_expression->substitute(params);
         }
-        VOLT_DEBUG("Post Expression:\n%s", post_expression->debug(true).c_str());    }
+        VOLT_DEBUG("Post Expression:\n%s", post_expression->debug(true).c_str());
+    }
 
     assert (m_index);
     assert (m_index == m_targetTable->index(m_node->getTargetIndexName()));

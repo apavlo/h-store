@@ -857,7 +857,8 @@ public class TestVoltCompiler extends BaseTestCase {
             "<database name='database'>" +
             "<schemas><schema path='" + schemaPath + "' /></schemas>" +
             "<procedures><procedure class='org.voltdb.compiler.procedures.TPCCTestProc' /></procedures>" +
-            "<verticalpartitions><verticalpartition table=\"" + targetTable + "\">" + columns + "</verticalpartition></verticalpartitions>" +
+            "<partitions><partition table='" + targetTable + "' column='" + targetColumns[0] + "' /></partitions>" +
+            "<verticalpartitions><verticalpartition table='" + targetTable + "'>" + columns + "</verticalpartition></verticalpartitions>" +
             "</database>" +
             "</project>";
 
@@ -893,6 +894,12 @@ public class TestVoltCompiler extends BaseTestCase {
                 assertNotNull(catalog_col);
                 assert(catalog_cols.contains(catalog_col)) : "Missing " + catalog_col.fullName();
             } // FOR (cols)
+            
+            // Make sure the sys table for this vertical partition has an index
+            Table view_tbl = catalog_view.getDest();
+            assertNotNull(view_tbl);
+            assert(view_tbl.getSystable());
+            assertEquals(1, view_tbl.getIndexes().size());
         } // FOR (views)
         assertTrue(found);
     }

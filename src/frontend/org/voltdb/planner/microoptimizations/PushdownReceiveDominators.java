@@ -35,7 +35,7 @@ public class PushdownReceiveDominators implements MicroOptimization {
         AbstractPlanNode planGraph = plan.fragments.get(0).planGraph;
         planGraph.calculateDominators();
 
-        ArrayList<AbstractPlanNode> receiveNodes =
+        List<AbstractPlanNode> receiveNodes =
             planGraph.findAllNodesOfType(PlanNodeType.RECEIVE);
 
         for (AbstractPlanNode pn : receiveNodes) {

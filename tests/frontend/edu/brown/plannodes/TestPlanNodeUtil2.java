@@ -18,13 +18,6 @@ import edu.brown.utils.ProjectType;
  */
 public class TestPlanNodeUtil2 extends BaseTestCase {
 
-    protected static final Set<String> CHECK_FIELDS_EXCLUDE = new HashSet<String>();
-    static {
-        CHECK_FIELDS_EXCLUDE.add("procparameter");
-        CHECK_FIELDS_EXCLUDE.add("partitioncolumn");
-    };
-    
-    
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
@@ -88,7 +81,6 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
         Column expected = this.getTable("DISTRICT").getColumns().get("D_NEXT_O_ID");
         assertEquals(expected, catalog_col);
     }
-
     
     /**
      * testDeserializeMultiSiteStatement

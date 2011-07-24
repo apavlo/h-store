@@ -192,7 +192,7 @@ public class PlanOptimizer {
         // if (debug.get()) LOG.debug("PlanNodeTree:\n" + PlanNodeUtil.debug(root));
 
         // Check if our tree contains anything that we want to ignore
-        Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
+        Collection<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
         if (trace.get())
             LOG.trace("PlanNodeTypes: " + types);
         for (PlanNodeType t : TO_IGNORE) {
@@ -256,7 +256,7 @@ public class PlanOptimizer {
         this.orig_node_output.put(node, new ArrayList<Integer>(node.m_outputColumns));
 
         // Get all of the AbstractExpression roots for this node
-        final Set<AbstractExpression> exps = PlanNodeUtil.getExpressions(node);
+        final Collection<AbstractExpression> exps = PlanNodeUtil.getExpressionsForPlanNode(node);
         // If this is the root node, then include the output columns + also include output columns if its a projection or limit node
         if (is_root || node instanceof ProjectionPlanNode | node instanceof LimitPlanNode) {
             for (Integer col_guid : node.m_outputColumns) {
@@ -321,7 +321,7 @@ public class PlanOptimizer {
             PlanColumn col = m_context.get(col_guid);
             assert (col != null) : "Invalid PlanColumn #" + col_guid;
             if (col.getExpression() != null) {
-                Set<Column> catalog_cols = ExpressionUtil.getReferencedColumns(m_catalogDb, col.getExpression());
+                Collection<Column> catalog_cols = ExpressionUtil.getReferencedColumns(m_catalogDb, col.getExpression());
                 // If there is more than one column, then it's some sort of
                 // compound expression
                 // So we don't want to include in our mapping
@@ -423,7 +423,7 @@ public class PlanOptimizer {
      */
     protected boolean updateDistinctColumns(DistinctPlanNode node) {
         // We really have one child here
-        assert (node.getChildCount() == 1) : node;
+        assert (node.getChildPlanNodeCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
 
@@ -475,7 +475,7 @@ public class PlanOptimizer {
      */
     protected boolean updateOrderByColumns(OrderByPlanNode node) {
         // We really have one child here
-        assert (node.getChildCount() == 1) : node;
+        assert (node.getChildPlanNodeCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
 
@@ -523,7 +523,7 @@ public class PlanOptimizer {
      */
     protected boolean updateAggregateColumns(AggregatePlanNode node) {
         // We really have one child here
-        assert (node.getChildCount() == 1) : node;
+        assert (node.getChildPlanNodeCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
 
@@ -612,7 +612,7 @@ public class PlanOptimizer {
      * @throws Exception
      */
     protected boolean updateProjectionColumns(ProjectionPlanNode node) {
-        assert (node.getChildCount() == 1) : node;
+        assert (node.getChildPlanNodeCount() == 1) : node;
         final AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
         final List<Integer> orig_child_guids = this.orig_node_output.get(child_node);
@@ -864,12 +864,12 @@ public class PlanOptimizer {
 
         // These are the set of expressions for the join clause that we need to
         // fix their offsets for
-        final Set<AbstractExpression> expressions_to_fix = PlanNodeUtil.getExpressions(node);
+        final Collection<AbstractExpression> expressions_to_fix = PlanNodeUtil.getExpressionsForPlanNode(node);
 
         // --------------------------------------------
         // NEST LOOP
         // --------------------------------------------
-        if (node.getChildCount() > 1) {
+        if (node.getChildPlanNodeCount() > 1) {
             assert (node instanceof NestLoopPlanNode);
             inner_node = node.getChild(1);
             if (debug.get())
@@ -978,7 +978,7 @@ public class PlanOptimizer {
             
             // We also need to fix all of the search key expressions used in the
             // inline scan
-            expressions_to_fix.addAll(PlanNodeUtil.getExpressions(idx_node));
+            expressions_to_fix.addAll(PlanNodeUtil.getExpressionsForPlanNode(idx_node));
             //System.out.println("expressions_to_fix: " + expressions_to_fix);
         }
         if (trace.get()) {
@@ -1046,7 +1046,7 @@ public class PlanOptimizer {
                 assert (clone_exp != null);
                 
                 // compare with child's output columns to see whether orig_idx or new_idx is correct
-                assert (node.getChildCount() == 1);
+                assert (node.getChildPlanNodeCount() == 1);
                 ArrayList<Integer> child_output = node.getChild(0).m_outputColumns;
                 if (orig_idx < child_output.size() && pc.guid() == child_output.get(orig_idx)) {
                     clone_exp.setColumnIndex(orig_idx);
@@ -1111,7 +1111,7 @@ public class PlanOptimizer {
                 // ---------------------------------------------------
                 // LEAF SCANS
                 // ---------------------------------------------------
-                if (element.getChildCount() == 0 && element instanceof AbstractScanPlanNode) {
+                if (element.getChildPlanNodeCount() == 0 && element instanceof AbstractScanPlanNode) {
                     AbstractScanPlanNode scan_node = (AbstractScanPlanNode) element;
                     try {
                         if (addInlineProjection(scan_node) == false) {
@@ -1183,7 +1183,7 @@ public class PlanOptimizer {
                     // AbstractPlanNode.updateOutputColumns() that messes
                     // everything up for us
                     if (element instanceof LimitPlanNode || areChildrenDirty(element)) {
-                        assert (element.getChildCount() == 1) : element;
+                        assert (element.getChildPlanNodeCount() == 1) : element;
                         AbstractPlanNode child_node = element.getChild(0);
                         assert (child_node != null);
                         element.setOutputColumns(child_node.m_outputColumns);
@@ -1369,7 +1369,7 @@ public class PlanOptimizer {
                          * Limit nodes will always be the top most node so we need to check for that. **/
                         if (element.getParentCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode && (PlanNodeUtil.getRoot(element) == element.getParent(0)) && !projection_plan_nodes.contains((ProjectionPlanNode) element.getParent(0))) {
                             ProjectionPlanNode proj_node = (ProjectionPlanNode) element.getParent(0);
-                            assert (proj_node.getChildCount() == 1) : "Projection element expected 1 child but has " + proj_node.getChildCount() + " children!!!!";
+                            assert (proj_node.getChildPlanNodeCount() == 1) : "Projection element expected 1 child but has " + proj_node.getChildPlanNodeCount() + " children!!!!";
                             // now currently at the child of the top most
                             // projection node
                             proj_node.removeFromGraph();
@@ -1456,7 +1456,7 @@ public class PlanOptimizer {
                         // AbstractPlanNode.updateOutputColumns() that messes
                         // everything up for us
                         if (element instanceof LimitPlanNode || areChildrenDirty(element)) {
-                            assert (element.getChildCount() == 1) : element;
+                            assert (element.getChildPlanNodeCount() == 1) : element;
                             AbstractPlanNode child_node = element.getChild(0);
                             assert (child_node != null);
                             element.setOutputColumns(child_node.m_outputColumns);

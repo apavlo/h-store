@@ -1,5 +1,6 @@
 package edu.brown.expressions;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -30,7 +31,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 /**
  * @author pavlo
  */
-public abstract class ExpressionUtil {
+public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUtil {
     private static final Logger LOG = Logger.getLogger(ExpressionUtil.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -92,7 +93,7 @@ public abstract class ExpressionUtil {
      * @return
      * @throws Exception
      */
-    public static Set<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) {
+    public static Collection<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) {
         final Set<Column> found_columns = new HashSet<Column>();
         new ExpressionTreeWalker() {
             @Override
@@ -131,7 +132,7 @@ public abstract class ExpressionUtil {
      * @param root
      * @return
      */
-    public static Set<ExpressionType> getExpressionTypes(AbstractExpression root) {
+    public static Collection<ExpressionType> getExpressionTypes(AbstractExpression root) {
         final Set<ExpressionType> found = new HashSet<ExpressionType>();
         new ExpressionTreeWalker() {
             @Override
@@ -149,7 +150,7 @@ public abstract class ExpressionUtil {
      * @param search_class
      * @return
      */
-    public static <T extends AbstractExpression> Set<T> getExpressions(AbstractExpression root, final Class<? extends T> search_class) {
+    public static <T extends AbstractExpression> Collection<T> getExpressions(AbstractExpression root, final Class<? extends T> search_class) {
         final Set<T> found = new HashSet<T>();
         new ExpressionTreeWalker() {
             @SuppressWarnings("unchecked")

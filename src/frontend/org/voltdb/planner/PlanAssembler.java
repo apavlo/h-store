@@ -18,6 +18,7 @@
 package org.voltdb.planner;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -564,11 +565,11 @@ public class PlanAssembler {
             // get the recv node
             ReceivePlanNode recvNode = (ReceivePlanNode) subSelectRoot;
             // get the send node
-            assert (recvNode.getChildCount() == 1);
+            assert (recvNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode sendNode = recvNode.getChild(0);
 
             // get the scan node and unlink
-            assert (sendNode.getChildCount() == 1);
+            assert (sendNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode scanNode = sendNode.getChild(0);
             sendNode.unlinkChild(scanNode);
 
@@ -676,11 +677,11 @@ public class PlanAssembler {
             // get the recv node
             ReceivePlanNode recvNode = (ReceivePlanNode) subSelectRoot;
             // get the send node
-            assert (recvNode.getChildCount() == 1);
+            assert (recvNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode sendNode = recvNode.getChild(0);
 
             // get the scan node and unlink
-            assert (sendNode.getChildCount() == 1);
+            assert (sendNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode scanNode = sendNode.getChild(0);
             sendNode.unlinkChild(scanNode);
 
@@ -1267,7 +1268,7 @@ public class PlanAssembler {
             }
             
             // Get the AbstractScanPlanNode that is directly below us
-            Set<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
+            Collection<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
             if (scans.size() != 1) {
                 if (debug) LOG.debug("SKIP => Multiple scans!");
                 break;

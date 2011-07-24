@@ -1,13 +1,19 @@
 package edu.brown.expressions;
 
-import java.util.Set;
+import java.util.Collection;
 
 import org.json.JSONObject;
 import org.junit.Test;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.AggregateExpression;
+import org.voltdb.expressions.ComparisonExpression;
 import org.voltdb.expressions.NullValueExpression;
-import org.voltdb.plannodes.*;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.types.ExpressionType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
@@ -32,6 +38,24 @@ public class TestExpressionUtil extends BaseTestCase {
     }
     
     /**
+     * testClone
+     */
+    @Test
+    public void testClone() throws Exception {
+        AggregateExpression exp = new AggregateExpression(ExpressionType.COMPARE_EQUAL);
+        exp.m_distinct = true;
+        AggregateExpression clone = (AggregateExpression)exp.clone();
+        assertNotNull(clone);
+        
+        assertEquals(exp.getId(), clone.getId());
+        assertEquals(exp.isJoiningClause(), clone.isJoiningClause());
+        assertEquals(exp.getExpressionType(), clone.getExpressionType());
+        assertEquals(exp.getValueType(), clone.getValueType());
+        assertEquals(exp.getValueSize(), clone.getValueSize());
+        assertEquals(exp.isDistinct(), clone.isDistinct());
+    }
+    
+    /**
      * testEquals
      */
     @Test
@@ -39,13 +63,13 @@ public class TestExpressionUtil extends BaseTestCase {
         AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         
-        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertNotNull(scan_nodes);
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
         
-        Set<AbstractExpression> exps = PlanNodeUtil.getExpressions(scan_node);
+        Collection<AbstractExpression> exps = PlanNodeUtil.getExpressionsForPlanNode(scan_node);
         assertNotNull(exps);
         assertFalse(exps.isEmpty());
         AbstractExpression exp = CollectionUtil.getFirst(exps);

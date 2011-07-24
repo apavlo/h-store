@@ -685,16 +685,12 @@ public abstract class DesignerUtil {
      * @throws Exception
      */
     public static void extractUpdateColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractPlanNode root_node, final boolean convert_params, final Collection<Table> tables) throws Exception {
-        //
         // Grab the columns that the plannode is going to update from the children feeding into us.
-        //
-        Set<UpdatePlanNode> update_nodes = PlanNodeUtil.getPlanNodes(root_node, UpdatePlanNode.class);
+        Collection<UpdatePlanNode> update_nodes = PlanNodeUtil.getPlanNodes(root_node, UpdatePlanNode.class);
         for (UpdatePlanNode update_node : update_nodes) {
             Table catalog_tbl = catalog_db.getTables().get(update_node.getTargetTableName());
-            //
             // Grab all the scan nodes that are feeding into us
-            //
-            Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root_node, AbstractScanPlanNode.class);
+            Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root_node, AbstractScanPlanNode.class);
             assert(!scan_nodes.isEmpty());
             for (AbstractScanPlanNode scan_node : scan_nodes) {
                 List<PlanColumn> output_cols = new ArrayList<PlanColumn>();

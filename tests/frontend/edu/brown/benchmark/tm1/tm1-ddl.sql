@@ -1,4 +1,4 @@
-CREATE TABLE Subscriber (
+CREATE TABLE SUBSCRIBER (
    s_id INTEGER NOT NULL PRIMARY KEY,
    sub_nbr VARCHAR(15) NOT NULL UNIQUE,
    bit_1 TINYINT,
@@ -35,7 +35,7 @@ CREATE TABLE Subscriber (
    vlr_location INTEGER
 );
 
-CREATE TABLE Access_Info (
+CREATE TABLE ACCESS_INFO (
    s_id INTEGER NOT NULL,
    ai_type TINYINT NOT NULL,
    data1 SMALLINT,
@@ -43,10 +43,10 @@ CREATE TABLE Access_Info (
    data3 VARCHAR(3),
    data4 VARCHAR(5),
    PRIMARY KEY(s_id, ai_type),
-   FOREIGN KEY (s_id) REFERENCES Subscriber (s_id)
+   FOREIGN KEY (s_id) REFERENCES SUBSCRIBER (s_id)
 );
 
-CREATE TABLE Special_Facility (
+CREATE TABLE SPECIAL_FACILITY (
    s_id INTEGER NOT NULL,
    sf_type TINYINT NOT NULL,
    is_active TINYINT NOT NULL,
@@ -54,16 +54,16 @@ CREATE TABLE Special_Facility (
    data_a SMALLINT,
    data_b VARCHAR(5),
    PRIMARY KEY (s_id, sf_type),
-   FOREIGN KEY (s_id) REFERENCES Subscriber (s_id)
+   FOREIGN KEY (s_id) REFERENCES SUBSCRIBER (s_id)
 );
 
-CREATE TABLE Call_Forwarding (
+CREATE TABLE CALL_FORWARDING (
    s_id INTEGER NOT NULL,
    sf_type TINYINT NOT NULL,
    start_time TINYINT NOT NULL,
    end_time TINYINT,
    numberx VARCHAR(15),
    PRIMARY KEY (s_id, sf_type, start_time),
-   FOREIGN KEY (s_id, sf_type) REFERENCES Special_Facility(s_id, sf_type)
+   FOREIGN KEY (s_id, sf_type) REFERENCES SPECIAL_FACILITY(s_id, sf_type)
 );
-CREATE INDEX IDX_CF ON Call_Forwarding (S_ID);
+CREATE INDEX IDX_CF ON CALL_FORWARDING (S_ID);

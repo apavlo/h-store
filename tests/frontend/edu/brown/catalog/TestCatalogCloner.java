@@ -64,7 +64,7 @@ public class TestCatalogCloner extends BaseTestCase {
         
         if (isFirstSetup()) {
             this.addPartitions(NUM_PARTITIONS);
-            VoltCompiler.addVerticalPartition(catalog_db, VERTICAL_PARTITION_TABLE, VERTICAL_PARTITION_COLUMNS);
+            VoltCompiler.addVerticalPartition(catalog_db, VERTICAL_PARTITION_TABLE, VERTICAL_PARTITION_COLUMNS, true);
         }
     }
     

@@ -50,6 +50,7 @@ protected:
     int32_t m_estimatedtuplecount;
     CatalogMap<MaterializedViewInfo> m_views;
     CatalogType* m_materializer;
+    bool m_systable;
 
     virtual void update();
 
@@ -74,6 +75,8 @@ public:
     const CatalogMap<MaterializedViewInfo> & views() const;
     /** GETTER: If this is a materialized view, this field stores the source table */
     const Table * materializer() const;
+    /** GETTER: Is this table an internal system table? */
+    bool systable() const;
 };
 
 } // namespace catalog

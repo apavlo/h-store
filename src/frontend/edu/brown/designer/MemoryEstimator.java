@@ -188,7 +188,7 @@ public class MemoryEstimator {
         // Otherwise, we have to calculate things.
         // Then pluck out all the MaterializePlanNodes so that we inspect the tuples
         AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
-        Set<MaterializePlanNode> matched_nodes = PlanNodeUtil.getPlanNodes(node, MaterializePlanNode.class);
+        Collection<MaterializePlanNode> matched_nodes = PlanNodeUtil.getPlanNodes(node, MaterializePlanNode.class);
         if (matched_nodes.isEmpty()) {
             LOG.fatal("Failed to retrieve any MaterializePlanNodes from " + catalog_stmt);
             return 0l;

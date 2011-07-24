@@ -1,6 +1,6 @@
 package org.voltdb.planner;
 
-import java.util.Set;
+import java.util.Collection;
 
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.slev;
@@ -8,9 +8,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
-import org.voltdb.plannodes.AggregatePlanNode;
-import org.voltdb.plannodes.ProjectionPlanNode;
-import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.BaseTestCase;
@@ -42,7 +39,7 @@ public class TestPlanOptimizations extends BaseTestCase {
         assertNotNull(root);
         
         // First check that our single scan node has an inline Projection
-        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
@@ -66,7 +63,7 @@ public class TestPlanOptimizations extends BaseTestCase {
         assertNotNull(root);
         
         // Check that our single scan node has a COUNT AggregatePlanNode above it.
-        Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
+        Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
@@ -78,7 +75,7 @@ public class TestPlanOptimizations extends BaseTestCase {
         
         // Now check that we have a SUM AggregatePlanNode right before the root
         // This will sum up the counts from the different partitions and give us the total count
-        assertEquals(1, root.getChildCount());
+        assertEquals(1, root.getChildPlanNodeCount());
         // FIXME assertEquals(PlanNodeType.AGGREGATE, root.getChild(0).getPlanNodeType());
         // FIXME AggregatePlanNode sum_node= (AggregatePlanNode)root.getChild(0);
         // FIXME assert(sum_node.getAggregateTypes().contains(ExpressionType.AGGREGATE_SUM));
