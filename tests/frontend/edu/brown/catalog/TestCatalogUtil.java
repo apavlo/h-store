@@ -17,6 +17,7 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
@@ -42,6 +43,28 @@ public class TestCatalogUtil extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
+    }
+    
+    /**
+     * testAddVerticalPartition
+     */
+    public void testAddVerticalPartition() throws Exception {
+        // Create a vertical partition for CUSTOMER that includes C_ID, C_FIRST, C_LAST
+        Table catalog_tbl = this.getTable("CUSTOMER");
+        Collection<Column> vp_cols = CollectionUtil.addAll(new ArrayList<Column>(),
+                                                           this.getColumn(catalog_tbl, "C_ID"),
+                                                           this.getColumn(catalog_tbl, "C_FIRST"),
+                                                           this.getColumn(catalog_tbl, "C_LAST"));
+        MaterializedViewInfo catalog_view = CatalogUtil.addVerticalPartition(catalog_tbl, vp_cols);
+        assertNotNull(catalog_view);
+        assert(catalog_view.getVerticalpartition());
+        
+        Collection<Column> catalog_cols = CatalogUtil.getColumns(catalog_view.getGroupbycols());
+        assertNotNull(catalog_cols);
+        assertEquals(vp_cols.size(), catalog_cols.size());
+        for (Column catalog_col : catalog_cols) {
+            assert(vp_cols.contains(catalog_col)) : "Missing " + catalog_col.fullName();
+        } // FOR
     }
 
     /**

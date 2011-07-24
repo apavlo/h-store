@@ -139,16 +139,16 @@ public class CatalogTreeModel extends DefaultTreeModel {
                 // Tables
                 tables_node = new CatalogMapTreeNode("Tables", database_cat.getTables());
                 database_node.add(tables_node);
-                for (Table table_cat : database_cat.getTables()) {  
-                    DefaultMutableTreeNode table_node = new DefaultMutableTreeNode(new WrapperNode(table_cat));
+                for (Table catalog_tbl : database_cat.getTables()) {  
+                    DefaultMutableTreeNode table_node = new DefaultMutableTreeNode(new WrapperNode(catalog_tbl));
                     tables_node.add(table_node);
-                    buildSearchIndex(table_cat, table_node);
+                    buildSearchIndex(catalog_tbl, table_node);
                     
                     // Columns
-                    DefaultMutableTreeNode columns_node = new CatalogMapTreeNode("Columns", table_cat.getColumns());
+                    DefaultMutableTreeNode columns_node = new CatalogMapTreeNode("Columns", catalog_tbl.getColumns());
                     table_node.add(columns_node);
-                    for (Column column_cat : CatalogUtil.getSortedCatalogItems(table_cat.getColumns(), "index")) {
-                        DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
+                    for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
+                        DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(catalog_col) {
                             @Override
                             public String toString() {
                                 Column column_cat = (Column)this.getCatalogType();
@@ -157,44 +157,44 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             }
                         });
                         columns_node.add(column_node);
-                        buildSearchIndex(column_cat, column_node);
+                        buildSearchIndex(catalog_col, column_node);
                     } // FOR (columns)
                     // Indexes
-                    if (!table_cat.getIndexes().isEmpty()) {
-                        DefaultMutableTreeNode indexes_node = new CatalogMapTreeNode("Indexes", table_cat.getIndexes());
+                    if (!catalog_tbl.getIndexes().isEmpty()) {
+                        DefaultMutableTreeNode indexes_node = new CatalogMapTreeNode("Indexes", catalog_tbl.getIndexes());
                         table_node.add(indexes_node);
-                        for (Index index_cat : table_cat.getIndexes()) {
-                            DefaultMutableTreeNode index_node = new DefaultMutableTreeNode(new WrapperNode(index_cat));
+                        for (Index catalog_idx : catalog_tbl.getIndexes()) {
+                            DefaultMutableTreeNode index_node = new DefaultMutableTreeNode(new WrapperNode(catalog_idx));
                             indexes_node.add(index_node);
-                            buildSearchIndex(index_cat, index_node);
+                            buildSearchIndex(catalog_idx, index_node);
                         } // FOR (indexes)
                     }
                     // Constraints
-                    if (!table_cat.getConstraints().isEmpty()) {
-                        DefaultMutableTreeNode constraints_node = new CatalogMapTreeNode("Constraints", table_cat.getConstraints());
+                    if (!catalog_tbl.getConstraints().isEmpty()) {
+                        DefaultMutableTreeNode constraints_node = new CatalogMapTreeNode("Constraints", catalog_tbl.getConstraints());
                         table_node.add(constraints_node);
-                        for (Constraint constraint_cat : table_cat.getConstraints()) {  
-                            DefaultMutableTreeNode constraint_node = new DefaultMutableTreeNode(new WrapperNode(constraint_cat));
+                        for (Constraint catalog_cnst : catalog_tbl.getConstraints()) {  
+                            DefaultMutableTreeNode constraint_node = new DefaultMutableTreeNode(new WrapperNode(catalog_cnst));
                             constraints_node.add(constraint_node);
-                            buildSearchIndex(constraint_cat, constraint_node);
+                            buildSearchIndex(catalog_cnst, constraint_node);
                         } // FOR (constraints)
                     }
                     // Vertical Partitions
-                    MaterializedViewInfo catalog_vp = vertical_partitions.get(table_cat); 
+                    final MaterializedViewInfo catalog_vp = vertical_partitions.get(catalog_tbl); 
                     if (catalog_vp != null) {
                         DefaultMutableTreeNode vp_node = new CatalogMapTreeNode("Vertical Partition", catalog_vp.getGroupbycols());
                         table_node.add(vp_node);
-                        for (Column column_cat : CatalogUtil.getSortedCatalogItems(CatalogUtil.getColumns(catalog_vp.getGroupbycols()), "index")) {
-                            DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(column_cat) {
+                        for (Column catalog_col : CatalogUtil.getSortedCatalogItems(CatalogUtil.getColumns(catalog_vp.getGroupbycols()), "index")) {
+                            DefaultMutableTreeNode column_node = new DefaultMutableTreeNode(new WrapperNode(catalog_col) {
                                 @Override
                                 public String toString() {
                                     Column column_cat = (Column)this.getCatalogType();
                                     String type = VoltType.get((byte)column_cat.getType()).toSQLString();
-                                    return (super.toString() + " (" + type + ")");
+                                    return (String.format("%s.%s (%s)", catalog_vp.getName(), super.toString(), type));
                                 }
                             });
-                            columns_node.add(column_node);
-                            buildSearchIndex(column_cat, column_node);
+                            vp_node.add(column_node);
+//                            buildSearchIndex(catalog_col, column_node);
                         } // FOR
                     }
                 } // FOR (tables)
