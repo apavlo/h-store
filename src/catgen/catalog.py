@@ -127,7 +127,7 @@ def genjava( classes, prepath, postpath, package ):
         write( '    }\n' )
 
         # update
-        write ( '    void update() {' )
+        write ( '    public void update() {' )
         for field in cls.fields:
             ftype = javatypify( field.type )
             fobjtype = javaobjectify( field.type )

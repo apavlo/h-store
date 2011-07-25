@@ -1,4 +1,4 @@
-package edu.brown.designer.partitioners;
+package edu.brown.designer.partitioners.plan;
 
 import java.io.IOException;
 import java.util.*;
@@ -14,6 +14,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.*;
+import edu.brown.designer.partitioners.PartitionerUtil;
 import edu.brown.utils.*;
 
 /**
@@ -30,13 +31,19 @@ public class PartitionPlan implements JSONSerializable {
     /**
      * Table Partition Entries
      */
-    public final Map<Table, PartitionEntry> table_entries = new TreeMap<Table, PartitionEntry>();
+    public final Map<Table, TableEntry> table_entries = new TreeMap<Table, TableEntry>();
 
+    /**
+     * Procedure Partition Entries
+     */
+    public final Map<Procedure, ProcedureEntry> proc_entries = new TreeMap<Procedure, ProcedureEntry>();
+
+    
     /**
      * For each table, we store an ordered list tables up to the root of the schema tree
      * Table -> Vector<Table>
      */
-    private transient final Map<Table, Vector<Table>> table_ancestors = new HashMap<Table, Vector<Table>>();
+    private transient final Map<Table, List<Table>> table_ancestors = new HashMap<Table, List<Table>>();
     private transient Map<Table, Table> table_roots = new HashMap<Table, Table>();
     
     /**
@@ -50,15 +57,6 @@ public class PartitionPlan implements JSONSerializable {
      */
     private transient final Map<Table, Set<Table>> table_descendants = new HashMap<Table, Set<Table>>();
 
-    /**
-     * Procedure Partition Entries
-     */
-    public final Map<Procedure, PartitionEntry> proc_entries = new TreeMap<Procedure, PartitionEntry>();
-    
-    /**
-     * 
-     */
-    // private transient PartitionTree ptree;
     
     /**
      * Constructor
@@ -76,43 +74,28 @@ public class PartitionPlan implements JSONSerializable {
         createFromMap(this, pplan.toMap());
     }
     
-    /**
-     * Constructor
-     */
-//    public PartitionPlan(PartitionTree ptree) {
-//        this();
-//        this.ptree = ptree;
-//    }
     
-    public void addTablePartitionEntry(Table catalog_tbl, PartitionEntry pentry) {
+    public void addTablePartitionEntry(Table catalog_tbl, TableEntry pentry) {
         this.table_entries.put(catalog_tbl, pentry);
     }
     
-    public void addProcedurePartitionEntry(Procedure catalog_proc, PartitionEntry pentry) {
+    public void addProcedurePartitionEntry(Procedure catalog_proc, ProcedureEntry pentry) {
         this.proc_entries.put(catalog_proc, pentry);
     }
     
     
-//    public void setPartitionTree(PartitionTree ptree) {
-//        this.ptree = ptree;
-//    }
-//    
-//    public PartitionTree getPartitionTree() {
-//        return (this.ptree);
-//    }
-    
-    public Map<Table, PartitionEntry> getTableEntries() {
+    public Map<Table, TableEntry> getTableEntries() {
         return (this.table_entries);
     }
-    public PartitionEntry getTableEntry(Table catalog_tbl) {
+    public TableEntry getTableEntry(Table catalog_tbl) {
         assert(catalog_tbl != null);
         return (this.table_entries.get(catalog_tbl));
     }
     
-    public Map<Procedure, PartitionEntry> getProcedureEntries() {
+    public Map<Procedure, ProcedureEntry> getProcedureEntries() {
         return (this.proc_entries);
     }
-    public PartitionEntry getProcedureEntry(Procedure catalog_proc) {
+    public ProcedureEntry getProcedureEntry(Procedure catalog_proc) {
         assert(catalog_proc != null);
         return (this.proc_entries.get(catalog_proc));
     }
@@ -128,16 +111,16 @@ public class PartitionPlan implements JSONSerializable {
     /**
      * 
      */
-    protected void initializeDependencies() {
+    public void initializeDependencies() {
         for (Table catalog_tbl : this.table_entries.keySet()) {
-            PartitionEntry entry = this.table_entries.get(catalog_tbl);
+            TableEntry entry = this.table_entries.get(catalog_tbl);
             this.table_descendants.put(catalog_tbl, new HashSet<Table>());
             this.table_children.put(catalog_tbl, new HashSet<Table>()); 
             
             // Children
             for (Table other_tbl : this.table_entries.keySet()) {
                 if (catalog_tbl.equals(other_tbl)) continue;
-                PartitionEntry other = this.table_entries.get(other_tbl);
+                TableEntry other = this.table_entries.get(other_tbl);
                 if (!entry.equals(other) && other.getParent() != null && other.getParent().equals(catalog_tbl)) {
                     this.table_children.get(catalog_tbl).add(other_tbl);
                 }
@@ -147,10 +130,10 @@ public class PartitionPlan implements JSONSerializable {
             final Vector<Table> ancestors = new Vector<Table>();
             new AbstractTreeWalker<Table>() {
                 protected void populate_children(AbstractTreeWalker.Children<Table> children, Table element) {
-                    PartitionEntry current_entry = table_entries.get(element);
+                    TableEntry current_entry = table_entries.get(element);
                     Table parent = current_entry.getParent();
                     if (parent != null) {
-                        PartitionEntry parent_entry = PartitionPlan.this.table_entries.get(parent);
+                        TableEntry parent_entry = PartitionPlan.this.table_entries.get(parent);
                         if (parent_entry == null) LOG.error("Failed to initialize dependencies:\n" + PartitionPlan.this);
                         assert(parent_entry != null) : "Missing parent entry " + parent + " for " + element;
                         if (!this.hasVisited(parent)) children.addAfter(parent);
@@ -176,15 +159,11 @@ public class PartitionPlan implements JSONSerializable {
                 this.table_descendants.get(ancestor_tbl).add(catalog_tbl);
             } // FOR
             
-            Table root = (this.table_ancestors.get(catalog_tbl).isEmpty() ? catalog_tbl : this.table_ancestors.get(catalog_tbl).lastElement());
+            Table root = (this.table_ancestors.get(catalog_tbl).isEmpty() ? catalog_tbl : CollectionUtil.getLast(this.table_ancestors.get(catalog_tbl)));
             this.table_roots.put(catalog_tbl, root);
             
 //            last_tbl = catalog_tbl;
         } // FOR
-        
-//        if (this.ptree == null && last_tbl != null) {
-//            this.setPartitionTree(PartitionPlanTreeGenerator.generate((Database)last_tbl.getParent(), this));
-//        }
     }
     
     /**
@@ -196,7 +175,7 @@ public class PartitionPlan implements JSONSerializable {
         if (debug) LOG.debug("Applying PartitionPlan to catalog");
         
         for (Table catalog_tbl : catalog_db.getTables()) {
-            PartitionEntry pentry = this.table_entries.get(catalog_tbl);
+            TableEntry pentry = this.table_entries.get(catalog_tbl);
             if (pentry != null) {
                 if (debug) LOG.debug("Applying PartitionEntry to " + catalog_tbl.getName() + ": " + pentry);
                 
@@ -214,7 +193,7 @@ public class PartitionPlan implements JSONSerializable {
         } // FOR
         
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
-            PartitionEntry pentry = this.proc_entries.get(catalog_proc);
+            ProcedureEntry pentry = this.proc_entries.get(catalog_proc);
             if (catalog_proc.getSystemproc() || pentry == null || catalog_proc.getParameters().size() == 0) continue;
             if (debug) LOG.debug("Applying PartitionEntry to " + catalog_proc.getName() + ": " + pentry);
             
@@ -243,35 +222,35 @@ public class PartitionPlan implements JSONSerializable {
      * @param other
      * @return
      */
-    public Set<CatalogType> getChangedEntries(PartitionPlan other) {
+    public Collection<CatalogType> getChangedEntries(PartitionPlan other) {
         Set<CatalogType> changed = new HashSet<CatalogType>();
         changed.addAll(this.getChangedTableEntries(other));
         changed.addAll(this.getChangedProcedureEntries(other));
         return (changed);
     }
     
-    public Set<Table> getChangedTableEntries(PartitionPlan other) {
+    public Collection<Table> getChangedTableEntries(PartitionPlan other) {
         Set<Table> changed = new HashSet<Table>();
-        for (Entry<Table,PartitionEntry> e : this.table_entries.entrySet()) {
+        for (Entry<Table,TableEntry> e : this.table_entries.entrySet()) {
             if (!other.table_entries.containsKey(e.getKey())) {
                 changed.add(e.getKey());
             } else {
-                PartitionEntry pe0 = e.getValue();
-                PartitionEntry pe1 = other.table_entries.get(e.getKey());
+                TableEntry pe0 = e.getValue();
+                TableEntry pe1 = other.table_entries.get(e.getKey());
                 if (!pe0.equals(pe1)) changed.add(e.getKey());
             }
         } // FOR
         return (changed);
     }
     
-    public Set<Procedure> getChangedProcedureEntries(PartitionPlan other) {
+    public Collection<Procedure> getChangedProcedureEntries(PartitionPlan other) {
         Set<Procedure> changed = new HashSet<Procedure>();
-        for (Entry<Procedure,PartitionEntry> e : this.proc_entries.entrySet()) {
+        for (Entry<Procedure,ProcedureEntry> e : this.proc_entries.entrySet()) {
             if (!other.proc_entries.containsKey(e.getKey())) {
                 changed.add(e.getKey());
             } else {
-                PartitionEntry pe0 = e.getValue();
-                PartitionEntry pe1 = other.proc_entries.get(e.getKey());
+                ProcedureEntry pe0 = e.getValue();
+                ProcedureEntry pe1 = other.proc_entries.get(e.getKey());
                 if (!pe0.equals(pe1)) changed.add(e.getKey());
             }
         } // FOR
@@ -283,10 +262,10 @@ public class PartitionPlan implements JSONSerializable {
      * Return the root tables of this PartitionPlan
      * @return
      */
-    public Set<Table> getRoots() {
+    public Collection<Table> getRoots() {
         Set<Table> roots = new HashSet<Table>();
         for (Table catalog_tbl : this.table_entries.keySet()) {
-            PartitionEntry entry = this.table_entries.get(catalog_tbl);
+            TableEntry entry = this.table_entries.get(catalog_tbl);
             if (entry.getParent() == null) roots.add(catalog_tbl);
         } // FOR
         return (roots);
@@ -305,10 +284,10 @@ public class PartitionPlan implements JSONSerializable {
      * Return the set of non-replicated roots for this PartitionPlan
      * @return
      */
-    public Set<Table> getNonReplicatedRoots() {
+    public Collection<Table> getNonReplicatedRoots() {
         Set<Table> roots = new HashSet<Table>();
         for (Table catalog_tbl : this.table_entries.keySet()) {
-            PartitionEntry entry = this.table_entries.get(catalog_tbl);
+            TableEntry entry = this.table_entries.get(catalog_tbl);
             if (entry.getParent() == null && entry.getMethod() != PartitionMethodType.REPLICATION) {
                 roots.add(catalog_tbl);
             }
@@ -316,11 +295,11 @@ public class PartitionPlan implements JSONSerializable {
         return (roots);
     }
     
-    public Vector<Table> getAncestors(Table catalog_tbl) {
+    public Collection<Table> getAncestors(Table catalog_tbl) {
         return (this.table_ancestors.get(catalog_tbl));
     }
     
-    public Set<Table> getDescendants(Table catalog_tbl) {
+    public Collection<Table> getDescendants(Table catalog_tbl) {
         return (this.table_descendants.get(catalog_tbl));
     }
     
@@ -337,7 +316,7 @@ public class PartitionPlan implements JSONSerializable {
     public Map<CatalogType, CatalogType> toMap() {
         HashMap<CatalogType, CatalogType> map = new HashMap<CatalogType, CatalogType>();
         // TABLES
-        for (Entry<Table, PartitionEntry> e : this.table_entries.entrySet()) {
+        for (Entry<Table, TableEntry> e : this.table_entries.entrySet()) {
             switch (e.getValue().getMethod()) {
                 case REPLICATION:
                     map.put(e.getKey(), ReplicatedColumn.get(e.getKey()));
@@ -352,7 +331,7 @@ public class PartitionPlan implements JSONSerializable {
             
         } // FOR
         // PROCEDURES
-        for (Entry<Procedure, PartitionEntry> e : this.proc_entries.entrySet()) {
+        for (Entry<Procedure, ProcedureEntry> e : this.proc_entries.entrySet()) {
             switch (e.getValue().getMethod()) {
                 case NONE:
                     map.put(e.getKey(), NullProcParameter.getNullProcParameter(e.getKey()));
@@ -395,7 +374,7 @@ public class PartitionPlan implements JSONSerializable {
         } // FOR
         sb.append("\n").append(single_line).append("\n");
         for (Table catalog_tbl : this.table_entries.keySet()) {
-            PartitionEntry entry = this.table_entries.get(catalog_tbl);
+            TableEntry entry = this.table_entries.get(catalog_tbl);
             assert(entry != null) : "Null PartitionEntry: " + catalog_tbl;
             String mapping = (entry.getParent() != null ? CatalogUtil.getDisplayName(entry.getParentAttribute()) : "<none>");
             sb.append(String.format(format, catalog_tbl.getName()))
@@ -412,7 +391,7 @@ public class PartitionPlan implements JSONSerializable {
         }
         sb.append("\n").append(single_line).append("\n");
         for (Procedure catalog_proc : this.proc_entries.keySet()) {
-            PartitionEntry entry = this.proc_entries.get(catalog_proc);
+            ProcedureEntry entry = this.proc_entries.get(catalog_proc);
             assert(entry != null) : "Null PartitionEntry: " + catalog_proc;
             sb.append(String.format(format, catalog_proc.getName()))
               .append(String.format(format, entry.getMethod()))
@@ -428,50 +407,6 @@ public class PartitionPlan implements JSONSerializable {
     // STATIC GENERATION METHODS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Construct a PartitionPlan from a PartitionTree
-     * @param ptree
-     * @return
-     */
-    public static PartitionPlan createFromTree(PartitionTree ptree) {
-        assert(false);
-        PartitionPlan pplan = new PartitionPlan(); // ptree);
-        //
-        // Create partition entries
-        //
-        for (DesignerVertex vertex : ptree.getVertices()) {
-            Table catalog_tbl = vertex.getCatalogItem();
-            PartitionEntry entry = new PartitionEntry();
-            
-            //
-            // Partition Method + Attribute
-            //
-            entry.setMethod((PartitionMethodType)vertex.getAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name()));
-            if (entry.getMethod() != PartitionMethodType.REPLICATION) {
-                Column partition_column = (Column)vertex.getAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name());
-                assert(partition_column != null) : "Null partition column for " + catalog_tbl;
-                entry.setAttribute(partition_column);
-            }
-            
-            //
-            // Parent Mapping
-            //
-            if (ptree.getParent(vertex) != null) {
-                DesignerEdge edge = ptree.getParentEdge(vertex);
-                assert(edge != null);
-                Table parent_table = ptree.getParent(vertex).getCatalogItem();
-                Column parent_column = (Column)vertex.getAttribute(ptree, PartitionTree.VertexAttributes.PARENT_ATTRIBUTE.name());
-                assert(parent_column != null);
-                
-                entry.setParent(parent_table);
-                entry.setParentAttribute(parent_column);
-            }
-            pplan.table_entries.put(catalog_tbl, entry);
-        } // FOR
-        pplan.initializeDependencies();
-        return (pplan);
-    }
-
     public static PartitionPlan createFromMap(Map<? extends CatalogType, ? extends CatalogType> pplan_map) {
         return (createFromMap(new PartitionPlan(), pplan_map));
     }
@@ -482,14 +417,13 @@ public class PartitionPlan implements JSONSerializable {
         
         for (Entry<? extends CatalogType, ? extends CatalogType> e : pplan_map.entrySet()) {
             PartitionMethodType method = null;
-            CatalogType attribute = null;
             if (e.getValue() != null) assert(e.getKey().equals(e.getValue().getParent())) : e;
-            PartitionEntry pentry = null;
             
             // Table Partitioning
             if (e.getKey() instanceof Table) {
                 Table catalog_tbl = (Table)e.getKey();
                 Column catalog_col = (Column)e.getValue();
+                Column attribute = null;
                 if (catalog_col instanceof ReplicatedColumn) {
                     method = PartitionMethodType.REPLICATION;
                 } else {
@@ -499,20 +433,20 @@ public class PartitionPlan implements JSONSerializable {
                     assert(catalog_col.getParent().equals(e.getKey())) :
                         "Parent mismatch: " + catalog_col.getParent() + " != " + e.getKey();
                 }
-                pentry = new PartitionEntry(method, attribute);
+                TableEntry pentry = new TableEntry(method, attribute, null, null);
                 try {
                     pplan.addTablePartitionEntry(catalog_tbl, pentry);
                 } catch (AssertionError ex) {
                     LOG.fatal("FAILED: " + e);
                     throw ex;
                 }
-                
 
             // Procedure Partitioning    
             } else if (e.getKey() instanceof Procedure) {
                 Procedure catalog_proc = (Procedure)e.getKey();
                 ProcParameter catalog_proc_param = (ProcParameter)e.getValue();
                 boolean single_partition = true;
+                ProcParameter attribute = null;
                 
                 if (catalog_proc.getSystemproc()) {
                     continue;
@@ -528,8 +462,7 @@ public class PartitionPlan implements JSONSerializable {
                     assert(catalog_proc_param.getParent().equals(e.getKey())) :
                         "Parent mismatch: " + catalog_proc_param.getParent() + " != " + e.getKey();
                 }
-                pentry = new PartitionEntry(method, attribute);
-                pentry.setSinglePartition(single_partition);
+                ProcedureEntry pentry = new ProcedureEntry(method, attribute, single_partition); 
                 try {
                     pplan.addProcedurePartitionEntry(catalog_proc, pentry);
                 } catch (AssertionError ex) {
@@ -544,7 +477,7 @@ public class PartitionPlan implements JSONSerializable {
             catalog_db = CatalogUtil.getDatabase(e.getKey());
         }
         // Then go back and try to resolve foreign key relations for tables
-        for (PartitionEntry pentry : pplan.getTableEntries().values()) {
+        for (TableEntry pentry : pplan.getTableEntries().values()) {
             if (pentry.isReplicated()) continue;
             assert(pentry != null);
             

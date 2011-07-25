@@ -32,7 +32,7 @@ public class ConstraintRef extends CatalogType {
         this.addField("constraint", null);
     }
 
-    void update() {
+    public void update() {
     }
 
     /** GETTER: The constraint that is referenced */

@@ -71,7 +71,6 @@ public abstract class CatalogCloner {
                                 mc.get(i).getName());
                     } // FOR
     
-                    // This will automatically add our guy into clone_tbl
                     MultiColumn clone_mc = MultiColumn.get(clone_cols);
                     assert (clone_mc != null);
                 }

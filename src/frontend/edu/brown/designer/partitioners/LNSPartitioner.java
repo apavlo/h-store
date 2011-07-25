@@ -44,6 +44,7 @@ import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.rand.RandomDistribution;

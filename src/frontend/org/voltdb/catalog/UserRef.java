@@ -29,7 +29,7 @@ public class UserRef extends CatalogType {
         this.addField("user", null);
     }
 
-    void update() {
+    public void update() {
     }
 
     public User getUser() {

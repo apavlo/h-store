@@ -1,5 +1,7 @@
 package edu.brown.catalog.special;
 
+import java.util.Collection;
+
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -27,13 +29,55 @@ public class TestMultiAttributeCatalogType extends BaseTestCase {
             this.getColumn(catalog_tbl, "S_ID"),
             this.getColumn(catalog_tbl, "SUB_NBR"),
         };
-        MultiColumn mc = MultiColumn.get(columns);
-        assertNotNull(mc);
         
+        MultiColumn item0 = MultiColumn.get(columns);
+        assertNotNull(item0);
+        assertEquals(catalog_tbl, item0.getParent());
         for (int i = 0; i < columns.length; i++) {
-            assertNotNull(columns[i].toString(), mc.get(i));
-            assertEquals(columns[i], mc.get(i));
+            assertNotNull(columns[i].toString(), item0.get(i));
+            assertEquals(columns[i], item0.get(i));
         } // FOR
+        
+        // Make another and make sure it's the same even if we
+        // change the ordering of the columns
+        columns = new Column[]{ columns[1], columns[0] };
+        MultiColumn item1 = MultiColumn.get(columns);
+        assertNotNull(item1);
+        assert(item0 == item1);
+        assertEquals(item0.hashCode(), item1.hashCode());
+        assertEquals(item0, item1);
+    }
+    
+    /**
+     * testVerticalPartitionColumn
+     */
+    @SuppressWarnings("unchecked")
+    public void testVerticalPartitionColumn() throws Exception {
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+        MultiColumn orig_hp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"));
+        MultiColumn orig_vp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"),
+                                                  this.getColumn(catalog_tbl, "SUB_NBR")); 
+        
+        VerticalPartitionColumn item0 = VerticalPartitionColumn.get(orig_hp_col, orig_vp_col);
+        assertNotNull(item0);
+        assertEquals(catalog_tbl, item0.getParent());
+        assertEquals(2, item0.size());
+        
+        Collection<Column> expected[] = new Collection[]{ orig_hp_col.getAttributes(), orig_vp_col.getAttributes() };
+        Collection<Column> actual[] = new Collection[]{ item0.getHorizontalPartitionColumns(), item0.getVerticalPartitionColumns() };
+        String labels[] = { "Horizontal", "Vertical" };
+        for (int i = 0; i < expected.length; i++) {
+            assertNotNull(labels[i], actual[i]);
+            assertEquals(labels[i], expected[i].size(), actual[i].size());
+            assertTrue(labels[i], actual[i].containsAll(expected[i]));
+        } // FOR
+        
+        // Make another and make sure it's the same
+        VerticalPartitionColumn item1 = VerticalPartitionColumn.get(orig_hp_col, orig_vp_col);
+        assertNotNull(item1);
+        assert(item0 == item1);
+        assertEquals(item0.hashCode(), item1.hashCode());
+        assertEquals(item0, item1);
     }
     
     /**
@@ -46,13 +90,22 @@ public class TestMultiAttributeCatalogType extends BaseTestCase {
             catalog_proc.getParameters().get(1),
         };
         int num_params = catalog_proc.getParameters().size(); 
-        MultiProcParameter mc = MultiProcParameter.get(params);
-        assertNotNull(mc);
-        assertEquals(num_params, mc.getIndex());
-        
+        MultiProcParameter item0 = MultiProcParameter.get(params);
+        assertNotNull(item0);
+        assertEquals(catalog_proc, item0.getParent());
+        assertEquals(num_params, item0.getIndex());
         for (int i = 0; i < params.length; i++) {
-            assertNotNull(params[i].toString(), mc.get(i));
-            assertEquals(params[i], mc.get(i));
+            assertNotNull(params[i].toString(), item0.get(i));
+            assertEquals(params[i], item0.get(i));
         } // FOR
+        
+        // Make another and make sure it's the same even if we
+        // change the ordering of the columns
+        params = new ProcParameter[]{ params[1], params[0] };
+        MultiProcParameter item1 = MultiProcParameter.get(params);
+        assertNotNull(item1);
+        assert(item0 == item1);
+        assertEquals(item0.hashCode(), item1.hashCode());
+        assertEquals(item0, item1);
     }
 }

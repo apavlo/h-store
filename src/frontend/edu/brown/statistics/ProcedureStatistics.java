@@ -33,6 +33,7 @@ import org.voltdb.catalog.*;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogKeyOldVersion;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.MemoryEstimator;
 import edu.brown.utils.*;
@@ -360,16 +361,26 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
      */
     @Override
     public void fromJSONObject(JSONObject object, Database catalog_db) throws JSONException {
-        LOG.debug("Populating workload statistics from JSON string");
+        if (LOG.isDebugEnabled()) LOG.debug("Populating workload statistics from JSON string");
         this.preprocess(catalog_db);
         
         JSONObject tblQueryObject = object.getJSONObject(Members.TABLE_QUERYTYPE_COUNTS.name());
         Map<String, String> name_xref = new HashMap<String, String>();
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (catalog_tbl.getSystable()) continue;
-            String table_key = CatalogKey.createKey(catalog_tbl);
-            this.readMap(this.table_querytype_counts.get(table_key), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
-            name_xref.put(table_key, table_key);
+            JSONException last_error = null;
+            String table_keys[] = new String[]{ CatalogKey.createKey(catalog_tbl), CatalogKeyOldVersion.createKey(catalog_tbl) };
+            for (String table_key : table_keys) { 
+                try {
+                    this.readMap(this.table_querytype_counts.get(table_keys[0]), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
+                    last_error = null;
+                } catch (JSONException ex) {
+                    last_error = ex;
+                    continue;
+                }
+                name_xref.put(table_keys[0], table_key);
+            } // FOR
+            if (last_error != null) throw last_error;
         } // FOR
         
         this.readMap(this.table_tuple_counts, Members.TABLE_TUPLE_COUNTS.name(), name_xref, Integer.class, object);

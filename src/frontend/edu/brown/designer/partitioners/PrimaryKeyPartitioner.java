@@ -15,6 +15,9 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.designer.partitioners.plan.ProcedureEntry;
+import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
@@ -41,7 +44,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
         boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             String table_key = CatalogKey.createKey(catalog_tbl);
-            PartitionEntry pentry = null;
+            TableEntry pentry = null;
             Collection<Column> pkey_columns = CatalogUtil.getPrimaryKeyColumns(catalog_tbl);
             
             TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
@@ -54,14 +57,14 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
                 pkey_columns.isEmpty()) {
                 total_memory_used += size_ratio;
                 if (debug.get()) LOG.debug("Choosing " + catalog_tbl.getName() + " for replication");
-                pentry = new PartitionEntry(PartitionMethodType.REPLICATION);
+                pentry = new TableEntry(PartitionMethodType.REPLICATION, null, null, null);
                 
             // Hash Primary Key
             // If the table has multiple primary keys, just pick the first one for now
             } else {
                 total_memory_used += (size_ratio / (double)info.getNumPartitions());
                 for (Column catalog_col : pkey_columns) {
-                    pentry = new PartitionEntry(PartitionMethodType.HASH, catalog_col);
+                    pentry = new TableEntry(PartitionMethodType.HASH, catalog_col, null, null);
                     break;
                 } // FOR
             }
@@ -75,7 +78,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
                 if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) continue;
                 Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
-                PartitionEntry pentry = new PartitionEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class));
+                ProcedureEntry pentry = new ProcedureEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class), null);
                 pplan.getProcedureEntries().put(catalog_proc, pentry);
             } // FOR
         }

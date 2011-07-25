@@ -62,7 +62,7 @@ public class Procedure extends CatalogType {
         m_childCollections.put("parameters", m_parameters);
     }
 
-    void update() {
+    public void update() {
         m_classname = (String) m_fields.get("classname");
         m_readonly = (Boolean) m_fields.get("readonly");
         m_singlepartition = (Boolean) m_fields.get("singlepartition");

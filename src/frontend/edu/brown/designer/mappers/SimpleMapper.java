@@ -7,7 +7,7 @@ package edu.brown.designer.mappers;
 import org.voltdb.catalog.*;
 
 import edu.brown.designer.*;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 /**
  * @author pavlo

@@ -29,7 +29,7 @@ public class GroupRef extends CatalogType {
         this.addField("group", null);
     }
 
-    void update() {
+    public void update() {
     }
 
     public Group getGroup() {

@@ -1,4 +1,4 @@
-package edu.brown.designer.partitioners;
+package edu.brown.designer.partitioners.plan;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,6 +13,7 @@ import edu.brown.benchmark.tm1.procedures.*;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.utils.ProjectType;
 
 public class TestPartitionPlanTM1 extends BaseTestCase {

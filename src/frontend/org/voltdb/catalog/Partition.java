@@ -37,7 +37,7 @@ public class Partition extends CatalogType {
         this.addField("engine_port", m_engine_port);
     }
 
-    void update() {
+    public void update() {
         m_id = (Integer) m_fields.get("id");
         m_dtxn_port = (Integer) m_fields.get("dtxn_port");
         m_engine_port = (Integer) m_fields.get("engine_port");

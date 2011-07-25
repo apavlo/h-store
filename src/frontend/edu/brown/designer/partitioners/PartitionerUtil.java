@@ -1,16 +1,6 @@
 package edu.brown.designer.partitioners;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -24,7 +14,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.QueryType;
-import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
@@ -51,8 +40,8 @@ import edu.brown.utils.MathUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class PartitionerUtil {
-    static final Logger LOG = Logger.getLogger(PartitionerUtil.class);
-    static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final Logger LOG = Logger.getLogger(PartitionerUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);

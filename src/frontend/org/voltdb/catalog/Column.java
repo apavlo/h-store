@@ -50,7 +50,7 @@ public class Column extends CatalogType {
         this.addField("matviewsource", null);
     }
 
-    void update() {
+    public void update() {
         m_index = (Integer) m_fields.get("index");
         m_type = (Integer) m_fields.get("type");
         m_size = (Integer) m_fields.get("size");

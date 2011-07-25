@@ -3,6 +3,7 @@ package edu.brown.utils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -28,6 +29,35 @@ public abstract class JSONUtil {
     }
     
     private static final String JSON_CLASS_SUFFIX = "_class";
+    private static final Map<Class<?>, Field[]> SERIALIZABLE_FIELDS = new HashMap<Class<?>, Field[]>();
+    
+    /**
+     * 
+     * @param clazz
+     * @return
+     */
+    public static Field[] getSerializableFields(Class<?> clazz) {
+        Field ret[] = SERIALIZABLE_FIELDS.get(clazz);
+        if (ret == null) {
+            synchronized (SERIALIZABLE_FIELDS) {
+                ret = SERIALIZABLE_FIELDS.get(clazz);
+                if (ret == null) {
+                    List<Field> fields = new ArrayList<Field>();
+                    for (Field f : clazz.getFields()) {
+                        int modifiers = f.getModifiers();
+                        if (Modifier.isTransient(modifiers) == false &&
+                            Modifier.isPublic(modifiers) == true &&
+                            Modifier.isStatic(modifiers) == false) {
+                            fields.add(f);
+                        }
+                    } // FOR
+                    ret = fields.toArray(new Field[0]);
+                    SERIALIZABLE_FIELDS.put(clazz, ret);
+                }
+            } // SYNCH
+        }
+        return (ret);
+    }
     
     /**
      * JSON Pretty Print

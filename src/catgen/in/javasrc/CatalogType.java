@@ -167,7 +167,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         catalog.registerGlobally(this);
     }
 
-    abstract void update();
+    public abstract void update();
     
     public Set<String> getChildFields() {
         return (m_childCollections.keySet());
@@ -191,7 +191,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         return (m_childCollections.get(collectionName));
     }
     
-    void set(String field, String value) {
+    public void set(String field, String value) {
         if ((field == null) || (value == null)) {
             throw new CatalogException("Null value where it shouldn't be.");
         }

@@ -18,7 +18,7 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;

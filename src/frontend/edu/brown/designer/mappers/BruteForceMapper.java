@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.voltdb.catalog.*;
 
 import edu.brown.designer.*;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hashing.MappedHasher;

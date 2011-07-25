@@ -51,7 +51,7 @@ public class Table extends CatalogType {
         this.addField("systable", m_systable);
     }
 
-    void update() {
+    public void update() {
         m_isreplicated = (Boolean) m_fields.get("isreplicated");
         m_estimatedtuplecount = (Integer) m_fields.get("estimatedtuplecount");
         m_systable = (Boolean) m_fields.get("systable");
