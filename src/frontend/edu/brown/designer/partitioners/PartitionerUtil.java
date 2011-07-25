@@ -43,7 +43,6 @@ import edu.brown.designer.DesignerVertex;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
-import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
@@ -52,8 +51,8 @@ import edu.brown.utils.MathUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class PartitionerUtil {
-    private static final Logger LOG = Logger.getLogger(PartitionerUtil.class);
-    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    static final Logger LOG = Logger.getLogger(PartitionerUtil.class);
+    static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -224,66 +223,6 @@ public abstract class PartitionerUtil {
         return (ret);
     }
     
-    public static class VerticalPartitionCandidate extends Pair<Set<Column>, Set<Statement>> {
-        public VerticalPartitionCandidate(Set<Column> cols) {
-            super(cols, new TreeSet<Statement>(), false);
-        }
-        public Set<Column> getColumns() {
-            return (this.getFirst());
-        }
-        public Set<Statement> getStatements() {
-            return (this.getSecond());
-        }
-    }
-    
-    /**
-     * 
-     * @param info
-     * @param agraph
-     * @param catalog_tbl
-     * @param hints
-     * @return
-     * @throws Exception
-     */
-    public static Collection<VerticalPartitionCandidate> generateVerticalPartitioningCandidates(final DesignerInfo info, final AccessGraph agraph, final Column catalog_col, final DesignerHints hints) throws Exception {
-        if (debug.get()) LOG.debug(String.format("Generating Vertical Partitioning candidates based on using %s as the partitioning attribute",
-                                                 catalog_col.fullName()));
-        final Table catalog_tbl = catalog_col.getParent();
-        Map<Set<Column>, VerticalPartitionCandidate> candidates = new HashMap<Set<Column>, VerticalPartitionCandidate>();
-        
-        // For the given Column object, figure out what are the potential vertical partitioning candidates
-        // if we assume that the Table is partitioned on that Column
-        for (Procedure catalog_proc : CatalogUtil.getReferencingProcedures(catalog_tbl)) {
-            
-            // Look for a query on this table that does not use the target column in the predicate
-            // But does return it in its output
-            for (Statement catalog_stmt : catalog_proc.getStatements()) {
-                // We can only look at SELECT statements because we have know way to know the correspondence
-                // between the candidate partitioning column and our target column
-                if (catalog_stmt.getQuerytype() != QueryType.SELECT.getValue()) continue;
-                Collection<Column> target_cols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
-                if (target_cols.contains(catalog_col) == false) continue;
-                
-                // The referenced columns are the columns that are used in the predicate
-                // We always want to remove the reference to our target Column
-                Set<Column> ref_cols = new TreeSet<Column>(CatalogUtil.getReferencedColumns(catalog_stmt));
-                ref_cols.remove(catalog_col);
-                if (ref_cols.isEmpty()) continue;
-                
-                // Check whether we already have a candidate with these columns
-                VerticalPartitionCandidate vpc = candidates.get(ref_cols);
-                if (vpc == null) {
-                    vpc = new VerticalPartitionCandidate(ref_cols);
-                    candidates.put(ref_cols, vpc);
-                }
-                vpc.getStatements().add(catalog_stmt);
-                if (debug.get()) LOG.debug(String.format("%s: Output%s All%s\nCandidate: %s\n", catalog_stmt.fullName(), target_cols, ref_cols, vpc));
-            } // FOR (stmt)
-        } // FOR (proc)
-        
-        return (candidates.values());
-        
-    }
     /**
      * Generate an ordered list of the tables that define how we should traverse the search tree
      * @param agraph

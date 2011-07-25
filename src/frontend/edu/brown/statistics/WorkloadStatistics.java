@@ -108,6 +108,7 @@ public class WorkloadStatistics implements JSONSerializable {
         
         // Table Stats
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             this.table_stats.put(CatalogKey.createKey(catalog_tbl), new TableStatistics(catalog_tbl));
         } // FOR
     }

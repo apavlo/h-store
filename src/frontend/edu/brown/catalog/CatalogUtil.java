@@ -710,6 +710,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // ------------------------------------------------------------
     
     /**
+     * Return all of the internal system tables for the database 
+     */
+    public static Collection<Table> getSysTables(Database catalog_db) {
+        Set<Table> systables = new HashSet<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) systables.add(catalog_tbl);
+        }
+        return (systables);
+    }
+    
+    /**
      * For a given VoltTable object, return the matching Table catalog object
      * based on the column names.
      * @param catalog_db

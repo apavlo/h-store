@@ -32,14 +32,12 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
-import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.planner.microoptimizations.MicroOptimizationRunner;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.BuildDirectoryUtils;
 
-import edu.brown.plannodes.PlanNodeUtil;
-import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
@@ -48,6 +46,8 @@ import edu.brown.utils.StringUtil;
  */
 public class QueryPlanner {
     private static final Logger LOG = Logger.getLogger(QueryPlanner.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     
     PlanAssembler m_assembler;
     HSQLInterface m_HSQL;
@@ -114,7 +114,7 @@ public class QueryPlanner {
         try {
             xmlSQL = m_HSQL.getXMLCompiledStatement(sql);
         } catch (HSQLParseException e) {
-            // XXXLOG probably want a real log message here
+            if (debug.get()) LOG.warn(String.format("Failed to retrieve compiled XML for %s.%s\n%s", procName, stmtName, sql));
             m_recentErrorMsg = e.getMessage();
             return null;
         }
@@ -200,7 +200,7 @@ public class QueryPlanner {
             // ---------------------------------------------------------------
             if (parsedStmt.sql.contains("TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY")) {
                 tpce_limit = 25000;
-                System.err.println("PAVLO: Enabled TPC-E BrokerVolumn limit: " + tpce_limit);
+                LOG.warn("PAVLO: Enabled TPC-E BrokerVolumn limit: " + tpce_limit);
             }
 
             // set up the plan assembler for this particular plan
@@ -228,7 +228,7 @@ public class QueryPlanner {
                 // iterate through the subset of plans
                 for (CompiledPlan plan : optimizedPlans) {
                     if (tpce_limit != null && tpce_limit-- <= 0) {
-                        System.err.println("PAVLO: The TPC-E BrokerVolume BREAKOUT! The legend lives on!!!");
+                        LOG.warn("PAVLO: The TPC-E BrokerVolume BREAKOUT! The legend lives on!!!");
                         break;
                     }
 
@@ -247,7 +247,7 @@ public class QueryPlanner {
                     // get the json serialized version of the plan
                     String json = "";
 //                    try {
-                        String crunchJson = nodeList.toJSONString();
+//                        String crunchJson = nodeList.toJSONString();
                         //System.out.println(crunchJson);
                         //System.out.flush();
                         /* FIXME
@@ -301,10 +301,12 @@ public class QueryPlanner {
         // Validate that everything is there
         Set<Integer> bestPlan_columns = bestPlan.getColumnGuids(); 
         for (Integer column_guid : bestPlan_columns) {
-            assert(m_context.hasColumn(column_guid)) : "Missing column guid " + column_guid;
+            if (m_context.hasColumn(column_guid) == false) {
+                m_recentErrorMsg = "Missing column guid " + column_guid;
+                return (null);
+            }
         } // FOR
-        LOG.debug("All columns are there: " + bestPlan_columns);
-        
+        if (debug.get()) LOG.debug(String.format("All columns are there for %s.%s: %s", procName, stmtName, bestPlan_columns));
 
         // reset all the plan node ids for a given plan
         bestPlan.resetPlanNodeIds();
@@ -354,14 +356,14 @@ public class QueryPlanner {
             JSONObject jobj = new JSONObject(new PlanNodeList(root).toJSONString());
             json = jobj.toString();
         } catch (JSONException e2) {
-            e2.printStackTrace();
-            System.exit(-1);
+            throw new RuntimeException(String.format("Failed to serialize JSON query plan for %s.%s", procName, stmtName), e2);
         }
         assert(json != null);
         
         // split up the plan everywhere we see send/recieve into multiple plan fragments
         bestPlan = Fragmentizer.fragmentize(bestPlan, m_db);
         bestPlan.fullplan_json = json;
+        if (debug.get()) LOG.debug(String.format("Stored serialized JSON query plan for %s.%s", procName, stmtName));
         
         // PAVLO:
 //        if (singlePartition == false && procName.equalsIgnoreCase("GetTableCounts") && stmtName.equalsIgnoreCase("HistoryCount")) {

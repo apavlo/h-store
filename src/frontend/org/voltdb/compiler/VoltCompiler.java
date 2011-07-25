@@ -74,6 +74,7 @@ import org.voltdb.compiler.projectfile.ClassdependenciesType.Classdependency;
 import org.voltdb.compiler.projectfile.ExportsType.Connector;
 import org.voltdb.compiler.projectfile.ExportsType.Connector.Tables;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
+import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.RecomputeMarkovs;
@@ -88,6 +89,7 @@ import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.HStoreDtxnConf;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.utils.StringUtil;
@@ -124,6 +126,9 @@ public class VoltCompiler {
 
     DatabaseEstimates m_estimates = new DatabaseEstimates();
 
+    boolean m_enableVerticalPartitionOptimizations = false;
+    VerticalPartitionPlanner m_verticalPartitionPlanner;
+    
     private static final Logger compilerLog = Logger.getLogger(VoltCompiler.class); // Logger.getLogger("COMPILER", VoltLoggerFactory.instance());
     @SuppressWarnings("unused")
     private static final Logger Log = Logger.getLogger("org.voltdb.compiler.VoltCompiler", VoltLoggerFactory.instance());
@@ -450,6 +455,19 @@ public class VoltCompiler {
             addErr(e.getMessage());
             return null;
         }
+        
+        // Optimization: Vertical Partitioning
+        if (m_enableVerticalPartitionOptimizations) {
+            if (m_verticalPartitionPlanner == null) {
+                m_verticalPartitionPlanner = new VerticalPartitionPlanner(CatalogUtil.getDatabase(m_catalog));
+            }
+            try {
+                m_verticalPartitionPlanner.optimizeDatabase();
+            } catch (Exception ex) {
+                compilerLog.warn("Unexpected error", ex);
+                addErr("Failed to apply vertical partition optimizations");
+            }
+        }
 
         // add epoch info to catalog
         final int epoch = (int)(TransactionIdManager.getEpoch() / 1000);
@@ -473,6 +491,10 @@ public class VoltCompiler {
 
     public Catalog getCatalog() {
         return m_catalog;
+    }
+    
+    public void enableVerticalPartitionOptimizations() {
+        m_enableVerticalPartitionOptimizations = true;
     }
 
     void compileXMLRootNode(ProjectType project) throws VoltCompilerException {
