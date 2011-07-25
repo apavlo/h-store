@@ -1,8 +1,8 @@
-package edu.brown.designer.partitioners;
+package edu.brown.designer.partitioners.plan;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.json.JSONObject;
 import org.junit.Test;
@@ -11,11 +11,7 @@ import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerName;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdC;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerName;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameC;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameW;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -27,6 +23,7 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 public class TestPartitionPlan extends BaseTestCase {
 
@@ -35,6 +32,10 @@ public class TestPartitionPlan extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
     }
     
+    /**
+     * testGetChangedEntries
+     */
+    @Test
     public void testGetChangedEntries() {
         Table catalog_tbl = this.getTable("WAREHOUSE");
         Column catalog_col = this.getColumn(catalog_tbl, "W_NAME");
@@ -44,12 +45,12 @@ public class TestPartitionPlan extends BaseTestCase {
         assertNotNull(pplan0);
         final PartitionPlan pplan1 = PartitionPlan.createFromCatalog(catalog_db);
         assertNotNull(pplan1);
-        Set<CatalogType> changed = pplan0.getChangedEntries(pplan1);
+        Collection<CatalogType> changed = pplan0.getChangedEntries(pplan1);
         assertNotNull(changed);
         assert(changed.isEmpty()) : changed;
         
         // Now change the table's partitioning column and check that it comes back as changed
-        PartitionEntry pentry = pplan1.getTableEntry(catalog_tbl);
+        TableEntry pentry = pplan1.getTableEntry(catalog_tbl);
         pentry.setAttribute(catalog_col);
         changed = pplan0.getChangedEntries(pplan1);
         assertNotNull(changed);
@@ -148,7 +149,10 @@ public class TestPartitionPlan extends BaseTestCase {
         
         PartitionPlan clone = new PartitionPlan();
         clone.fromJSON(json_object, catalog_db);
-        assertEquals(pplan, clone);
+        if (pplan.equals(clone) == false) {
+            System.err.println(StringUtil.columns("ORIGINAL:\n" + pplan, "CLONE:\n" + clone));
+        }
+        assertEquals("Clone failed", pplan, clone);
         // System.err.println(clone);
     }
 }

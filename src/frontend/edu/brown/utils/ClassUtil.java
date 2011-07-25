@@ -167,7 +167,7 @@ public abstract class ClassUtil {
         try {
             ret = constructor.newInstance(params);
         } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Failed to create new instance of " + target_class.getSimpleName(), ex);
         }
         return (ret);
     }
@@ -193,9 +193,11 @@ public abstract class ClassUtil {
             
             constructor = target_class.getConstructor(params); 
         } catch (Exception ex) {
-            System.err.println("Failed to retrieve constructor for " + target_class.getSimpleName());
-            ex.printStackTrace();
-            System.exit(1);
+            for (Constructor<?> c : target_class.getConstructors()) {
+                System.err.println(c);
+            }
+            
+            throw new RuntimeException("Failed to retrieve constructor for " + target_class.getSimpleName(), ex);
         }
         return (constructor);
     }
@@ -211,9 +213,7 @@ public abstract class ClassUtil {
             ClassLoader loader = ClassLoader.getSystemClassLoader();
             target_class = (Class<?>)loader.loadClass(class_name);
         } catch (Exception ex) {
-            System.err.println("Failed to retrieve class for " + class_name);
-            ex.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException("Failed to retrieve class for " + class_name, ex);
         }
         return (target_class);
  

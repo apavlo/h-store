@@ -34,7 +34,7 @@ public class HardwareThread extends CatalogType {
         m_childCollections.put("partitions", m_partitions);
     }
 
-    void update() {
+    public void update() {
     }
 
     /** GETTER: The partitions assigned to this hardware thread */

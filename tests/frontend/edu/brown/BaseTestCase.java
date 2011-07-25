@@ -495,16 +495,16 @@ public abstract class BaseTestCase extends TestCase {
         return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
     }
     
-    /**
-     * Find a Markov file for a given project type
-     * @param current
-     * @param type
-     * @return
-     * @throws IOException
-     */
-    public File getMarkovFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
-    }
+//    /**
+//     * Find a Markov file for a given project type
+//     * @param current
+//     * @param type
+//     * @return
+//     * @throws IOException
+//     */
+//    public File getMarkovFile(ProjectType type) throws IOException {
+//        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
+//    }
     
     /**
      * 

@@ -48,7 +48,7 @@ public class Cluster extends CatalogType {
         this.addField("securityEnabled", m_securityEnabled);
     }
 
-    void update() {
+    public void update() {
         m_num_partitions = (Integer) m_fields.get("num_partitions");
         m_leaderaddress = (String) m_fields.get("leaderaddress");
         m_localepoch = (Integer) m_fields.get("localepoch");

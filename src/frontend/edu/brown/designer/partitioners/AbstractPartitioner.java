@@ -20,6 +20,9 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.designer.partitioners.plan.PartitionEntry;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.designer.partitioners.plan.ProcedureEntry;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -89,7 +92,7 @@ public abstract class AbstractPartitioner {
         if (debug.get()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
             info.getCostModel().estimateCost(info.catalog_db, info.workload);
-            for (Entry<Procedure, PartitionEntry> e : pplan.getProcedureEntries().entrySet()) {
+            for (Entry<Procedure, ProcedureEntry> e : pplan.getProcedureEntries().entrySet()) {
                 Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
                 if (singlepartitioned != null) {
                     if (trace.get()) LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);

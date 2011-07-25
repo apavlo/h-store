@@ -31,7 +31,7 @@ public class AuthProgram extends CatalogType {
         super.setBaseValues(catalog, parent, path, name);
     }
 
-    void update() {
+    public void update() {
     }
 
 }

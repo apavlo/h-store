@@ -14,6 +14,9 @@ import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
 import edu.brown.designer.*;
 import edu.brown.designer.generators.*;
+import edu.brown.designer.partitioners.plan.PartitionEntry;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.graphs.*;
 import edu.brown.utils.*;
 
@@ -789,7 +792,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                             }
                         }
                         
-                        PartitionEntry entry = new PartitionEntry(method, attribute, parent_table, parent_attribute);
+                        TableEntry entry = new TableEntry(method, attribute, parent_table, parent_attribute);
                         partition_plan.getTableEntries().put((Table)element.getCatalogItem(), entry);
                         return;
                     }
@@ -810,7 +813,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // whether it references our table. If it does, then we need to increase our count
             // by one.
             //
-            Map<PartitionEntry, Double> counts = new HashMap<PartitionEntry, Double>();
+            Map<TableEntry, Double> counts = new HashMap<TableEntry, Double>();
             LOG.debug("Counting PartitionPlan entries for " + catalog_tbl);
             for (PartitionTree ptree : partition_plans.keySet()) {
                 PartitionPlan partition_plan = partition_plans.get(ptree);
@@ -825,7 +828,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     //
                     // Exclude HASH entries without attributes...
                     //
-                    PartitionEntry entry = partition_plan.getTableEntries().get(catalog_tbl);
+                    TableEntry entry = partition_plan.getTableEntries().get(catalog_tbl);
                     if (entry.getMethod() == PartitionMethodType.HASH && entry.getAttribute() == null) {
                         LOG.warn("Skipping entry for " + catalog_tbl + " because it does not have any partitioning attributes");
                     } else {
@@ -845,13 +848,13 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // If a table was either hashed or mapped on the same attributes, then
             // always go for map
             //
-            Iterator<PartitionEntry> it = counts.keySet().iterator();
+            Iterator<TableEntry> it = counts.keySet().iterator();
             while (it.hasNext()) {
-                PartitionEntry entry0 = it.next();
+                TableEntry entry0 = it.next();
                 if (entry0.getMethod() == PartitionMethodType.MAP) continue;
                 
                 boolean remove = false;
-                for (PartitionEntry entry1 : counts.keySet()) {
+                for (TableEntry entry1 : counts.keySet()) {
                     if (entry0 == entry1) continue;
                     if (entry0.getMethod() == PartitionMethodType.HASH &&
                         entry1.getMethod() == PartitionMethodType.MAP &&
@@ -871,16 +874,16 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             // the one with the greatest count
             // 
             if (!counts.isEmpty()) {
-                for (PartitionEntry entry : counts.keySet()) {
+                for (TableEntry entry : counts.keySet()) {
                     LOG.debug("[" + counts.get(entry) + "]: " + entry);
                 } // FOR
                 //
                 // Loop through and pick the entries with the greatest weight
                 // We use a set to warn about multiple entries that could be picked (which is another decision problem)
                 //
-                Set<PartitionEntry> picked_entries = new HashSet<PartitionEntry>();
+                Set<TableEntry> picked_entries = new HashSet<TableEntry>();
                 double max_cnt = 0;
-                for (PartitionEntry entry : counts.keySet()) {
+                for (TableEntry entry : counts.keySet()) {
                     double entry_cnt = counts.get(entry);
                     //
                     // If the entry's weight is the same or equal to the current max weight, then
@@ -898,9 +901,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     LOG.warn("Multiple entries found with the same count for " + catalog_tbl + ". Picking the first one that has a parent");
                     pplan.getTableEntries().put(catalog_tbl, CollectionUtil.getFirst(picked_entries));
                 } else {
-                    //
                     // Just grab the only one and stick it in the PartitionPlan
-                    //
                     pplan.getTableEntries().put(catalog_tbl, CollectionUtil.getFirst(picked_entries));
                 }
                 //System.out.println(catalog_tbl + " => " + final_mapping.get(catalog_tbl).toString());
@@ -917,7 +918,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
         //
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             if (pplan.getTableEntries().get(catalog_tbl) == null) {
-                pplan.getTableEntries().put(catalog_tbl, new PartitionEntry(PartitionMethodType.REPLICATION));
+                pplan.getTableEntries().put(catalog_tbl, new TableEntry(PartitionMethodType.REPLICATION, null, null, null));
             }
         } // FOR
         

@@ -34,7 +34,7 @@ public class ColumnRef extends CatalogType {
         this.addField("column", null);
     }
 
-    void update() {
+    public void update() {
         m_index = (Integer) m_fields.get("index");
     }
 

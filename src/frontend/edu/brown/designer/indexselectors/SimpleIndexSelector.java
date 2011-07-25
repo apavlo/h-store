@@ -13,6 +13,8 @@ import org.voltdb.utils.CatalogUtil;
 import edu.brown.designer.*;
 import edu.brown.designer.DesignerEdge.Members;
 import edu.brown.designer.partitioners.*;
+import edu.brown.designer.partitioners.plan.PartitionEntry;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.*;
 
 /**

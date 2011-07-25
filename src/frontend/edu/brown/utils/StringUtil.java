@@ -1,7 +1,6 @@
 package edu.brown.utils;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -368,7 +367,7 @@ public abstract class StringUtil {
      * @param items
      * @return
      */
-    public static String join(String delimiter, Collection<?> items) {
+    public static String join(String delimiter, Iterable<?> items) {
         return (join("", delimiter, items));
     }
     
@@ -379,15 +378,18 @@ public abstract class StringUtil {
      * @param items
      * @return
      */
-    public static String join(String prefix, String delimiter, Collection<?> items) {
-        if (items == null || items.isEmpty()) return ("");
+    public static String join(String prefix, String delimiter, Iterable<?> items) {
+        if (items == null) return ("");
         if (prefix == null) prefix = "";
         
         StringBuilder sb = new StringBuilder();
+        int i = 0;
         for (Object x : items) {
             if (prefix.isEmpty() == false) sb.append(prefix);
             sb.append(x != null ? x.toString() : x).append(delimiter);
+            i++;
         }
+        if (i == 0) return ("");
         sb.delete(sb.length() - delimiter.length(), sb.length());
      
         return sb.toString();

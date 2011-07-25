@@ -11,7 +11,7 @@ import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.LowerBoundsCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.workload.Workload;
 

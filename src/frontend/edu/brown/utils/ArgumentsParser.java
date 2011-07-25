@@ -49,6 +49,7 @@ import edu.brown.designer.*;
 import edu.brown.designer.indexselectors.*;
 import edu.brown.designer.mappers.*;
 import edu.brown.designer.partitioners.*;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hashing.*;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;

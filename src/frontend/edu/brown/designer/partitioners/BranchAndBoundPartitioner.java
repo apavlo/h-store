@@ -20,6 +20,7 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.*;
 import edu.brown.designer.*;
 import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;

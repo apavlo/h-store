@@ -23,6 +23,7 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 

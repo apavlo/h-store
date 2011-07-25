@@ -167,7 +167,7 @@ public abstract class CatalogType implements Comparable<CatalogType> {
         catalog.registerGlobally(this);
     }
 
-    abstract void update();
+    public abstract void update();
     
     public Set<String> getChildFields() {
         return (m_childCollections.keySet());

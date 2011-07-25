@@ -22,7 +22,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;

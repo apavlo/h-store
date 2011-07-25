@@ -19,6 +19,7 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner.StateVertex;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner.TraverseThread;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 

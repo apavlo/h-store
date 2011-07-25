@@ -44,7 +44,7 @@ public class Connector extends CatalogType {
         m_childCollections.put("tableInfo", m_tableInfo);
     }
 
-    void update() {
+    public void update() {
         m_loaderclass = (String) m_fields.get("loaderclass");
         m_enabled = (Boolean) m_fields.get("enabled");
     }

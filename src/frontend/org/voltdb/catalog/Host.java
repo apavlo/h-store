@@ -44,7 +44,7 @@ public class Host extends CatalogType {
         m_childCollections.put("cpus", m_cpus);
     }
 
-    void update() {
+    public void update() {
         m_ipaddr = (String) m_fields.get("ipaddr");
         m_num_cpus = (Integer) m_fields.get("num_cpus");
         m_corespercpu = (Integer) m_fields.get("corespercpu");

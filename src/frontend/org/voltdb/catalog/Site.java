@@ -45,7 +45,7 @@ public class Site extends CatalogType {
         this.addField("messenger_port", m_messenger_port);
     }
 
-    void update() {
+    public void update() {
         m_id = (Integer) m_fields.get("id");
         m_isUp = (Boolean) m_fields.get("isUp");
         m_proc_port = (Integer) m_fields.get("proc_port");

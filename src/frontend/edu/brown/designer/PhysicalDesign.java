@@ -7,8 +7,8 @@ import org.voltdb.catalog.*;
 import org.voltdb.types.IndexType;
 
 import edu.brown.catalog.CatalogKey;
-import edu.brown.designer.partitioners.PartitionEntry;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionEntry;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 public class PhysicalDesign {
     /** java.util.logging logger. */

@@ -54,7 +54,7 @@ public class Database extends CatalogType {
         m_childCollections.put("snapshotSchedule", m_snapshotSchedule);
     }
 
-    void update() {
+    public void update() {
         m_schema = (String) m_fields.get("schema");
     }
 

@@ -39,7 +39,7 @@ public class MaterializedViewInfo extends CatalogType {
         this.addField("verticalpartition", m_verticalpartition);
     }
 
-    void update() {
+    public void update() {
         m_predicate = (String) m_fields.get("predicate");
         m_verticalpartition = (Boolean) m_fields.get("verticalpartition");
     }

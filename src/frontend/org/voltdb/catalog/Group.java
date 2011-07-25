@@ -35,7 +35,7 @@ public class Group extends CatalogType {
         this.addField("adhoc", m_adhoc);
     }
 
-    void update() {
+    public void update() {
         m_sysproc = (Boolean) m_fields.get("sysproc");
         m_adhoc = (Boolean) m_fields.get("adhoc");
     }
