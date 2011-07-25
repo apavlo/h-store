@@ -92,12 +92,49 @@ public class VerticalPartitionPlanner {
         this.projectBuilder = new VPPlannerProjectBuilder();
     }
 
+    // ======================================================================================
+    // MAIN ENTRY POINTS
+    // ======================================================================================
+    
     /**
+     * Generate all the optimized query plans for all Statements in the database
+     * and apply them to the catalog immediately 
      * @throws Exception
      */
     public Collection<Statement> optimizeDatabase() throws Exception {
         Set<Statement> updated = new HashSet<Statement>();
+        Map<Statement, Statement> optimized = this.generateOptimizedStatements();
+        if (optimized != null) {
+            for (Entry<Statement, Statement> e : optimized.entrySet()) {
+                this.applyOptimizedStatement(e.getValue(), e.getKey());
+            } // FOR
+            updated.addAll(optimized.keySet());
+        }
+        return (updated);
+    }
 
+    /**
+     * Generat an optimized query plan for just one Statement and apply
+     * it to the catalog immediately
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    public boolean optimizeStatement(Statement catalog_stmt) throws Exception {
+        this.projectBuilder.clear();
+        if (this.process(catalog_stmt)) {
+            StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
+            this.projectBuilder.queueRewrittenStatement(catalog_stmt, rewrite.sql);
+            Map<Statement, Statement> optimized = this.projectBuilder.getRewrittenQueryPlans();
+            assert (optimized != null);
+            assert (optimized.size() == 1);
+            this.applyOptimizedStatement(CollectionUtil.getFirst(optimized.values()), catalog_stmt);
+            return (true);
+        }
+        return (false);
+    }
+    
+    public Map<Statement, Statement> generateOptimizedStatements() throws Exception {
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 if (this.process(catalog_stmt)) {
@@ -115,29 +152,14 @@ public class VerticalPartitionPlanner {
                 }
                 LOG.trace(String.format("Rewritten Queries [%d]\n%s", this.stmt_rewrites.size(), StringUtil.formatMaps(m)));
             }
-            Map<Statement, Statement> optimized = this.projectBuilder.getRewrittenQueryPlans();
-            assert (optimized != null);
-            for (Entry<Statement, Statement> e : optimized.entrySet()) {
-                this.applyOptimizedStatement(e.getValue(), e.getKey());
-            } // FOR
-            updated.addAll(optimized.keySet());
+            return (this.projectBuilder.getRewrittenQueryPlans());
         }
-        return (updated);
+        return (null);
     }
-
-    public boolean optimizeStatement(Statement catalog_stmt) throws Exception {
-        this.projectBuilder.clear();
-        if (this.process(catalog_stmt)) {
-            StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
-            this.projectBuilder.queueRewrittenStatement(catalog_stmt, rewrite.sql);
-            Map<Statement, Statement> optimized = this.projectBuilder.getRewrittenQueryPlans();
-            assert (optimized != null);
-            assert (optimized.size() == 1);
-            this.applyOptimizedStatement(CollectionUtil.getFirst(optimized.values()), catalog_stmt);
-            return (true);
-        }
-        return (false);
-    }
+    
+    // ======================================================================================
+    // INTERNAL UTILITY METHODS
+    // ======================================================================================
 
     private void applyOptimizedStatement(Statement copy_src, Statement copy_dest) {
         // Update both the single and multi-partition query plans
@@ -189,7 +211,7 @@ public class VerticalPartitionPlanner {
     protected boolean process(Statement catalog_stmt) throws Exception {
         // Always skip if there are no vertically partitioned tables
         if (this.vp_views.isEmpty()) {
-            if (debug.get())
+            if (trace.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": There are no vertically partitioned tables.");
             return (false);
         }
@@ -197,7 +219,7 @@ public class VerticalPartitionPlanner {
         // We can only work our magic on SELECTs
         QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
         if (qtype != QueryType.SELECT) {
-            if (debug.get())
+            if (trace.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": QueryType is " + qtype + ".");
             return (false);
         }
@@ -206,7 +228,7 @@ public class VerticalPartitionPlanner {
         // partition
         Collection<Table> tables = CollectionUtils.intersection(this.vp_views.keySet(), CatalogUtil.getReferencedTables(catalog_stmt));
         if (tables.isEmpty()) {
-            if (debug.get())
+            if (trace.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": It does not reference a vertical partitioning table.");
             return (false);
         }
@@ -216,7 +238,7 @@ public class VerticalPartitionPlanner {
         // but do include the columns that we have in our vertical partition
         Collection<Column> predicate_cols = CatalogUtil.getReferencedColumns(catalog_stmt);
         if (predicate_cols.isEmpty()) {
-            if (debug.get())
+            if (trace.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not reference any columns in its predicate.");
             return (false);
         }
@@ -259,7 +281,7 @@ public class VerticalPartitionPlanner {
         } // FOR
         StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
         if (rewrite == null) {
-            if (debug.get())
+            if (trace.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not have any valid vertical partitioning references.");
             return (false);
         }
@@ -341,6 +363,10 @@ public class VerticalPartitionPlanner {
                     continue;
                 this.addPartitionInfo(catalog_tbl.getName(), catalog_tbl.getPartitioncolumn().getName());
             } // FOR
+            
+            // Make sure that we disable VP optimizations otherwise we will get stuck
+            // in an infinite loop
+            this.setEnableVerticalPartitionOptimizations(false);
         }
 
         @Override
@@ -384,7 +410,7 @@ public class VerticalPartitionPlanner {
             this.addStmtProcedure(procName, sql);
             this.rewritten_queries.put(catalog_stmt, procName);
             if (debug.get())
-                LOG.debug(String.format("Queued %s to generate new query plan", catalog_stmt.fullName()));
+                LOG.debug(String.format("Queued %s to generate new query plan\n%s", catalog_stmt.fullName(), sql));
         }
     }
 

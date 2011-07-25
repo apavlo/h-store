@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,6 +39,7 @@ import org.voltdb.planner.ParameterInfo;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.QueryPlanner;
 import org.voltdb.planner.TrivialCostModel;
+import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
@@ -50,6 +52,7 @@ import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Compiles individual SQL statements and updates the given catalog.
@@ -57,6 +60,9 @@ import edu.brown.plannodes.PlanNodeUtil;
  *
  */
 public abstract class StatementCompiler {
+    private static final Logger LOG = Logger.getLogger(StatementCompiler.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
     private static AtomicInteger NEXT_FRAGMENT_ID = new AtomicInteger(10000);
     
@@ -118,7 +124,7 @@ public abstract class StatementCompiler {
         Exception first_exception = null;
         for (boolean _singleSited : new Boolean[] { true, false }) {
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
-            compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
+            compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited);
             // System.err.println("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
             catalogStmt.setSinglepartition(_singleSited);
 
@@ -132,28 +138,28 @@ public abstract class StatementCompiler {
                         catalogStmt.getSinglepartition(), null);
             } catch (Exception e) {
                 if (first_exception == null) {
-                    // System.err.println("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
+                    if (debug.get()) LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
                     first_exception = e;
                     continue;
                 }
                 e.printStackTrace();
-                throw compiler.new VoltCompilerException("Failed to plan for stmt: " + catalogStmt.getName());
+                throw compiler.new VoltCompilerException("Failed to plan for stmt: " + catalogStmt.fullName());
             }
 
             if (plan == null) {
-                String msg = "Failed to plan for stmt: " + catalogStmt.getName();
+                String msg = "Failed to plan for stmt: " + catalogStmt.fullName();
                 String plannerMsg = planner.getErrorMessage();
                 if (plannerMsg == null) plannerMsg = "PlannerMessage was empty!";
                 
                 // HACK: Ignore if they were trying to do a single-sited INSERT/UPDATE/DELETE
                 //       on a replicated table
                 if (plannerMsg.contains("replicated table") && _singleSited) {
-                    //System.err.println("Ignoring error: " + plannerMsg);
+                    if (debug.get()) LOG.warn("Ignoring error: " + plannerMsg);
                     continue;
                 // HACK: If we get an unknown error message on an multi-sited INSERT/UPDATE/DELETE, assume
                 //       that it's because we are trying to insert on a non-replicated table
                 } else if (!_singleSited && stmt_type == QueryType.INSERT && plannerMsg.contains("Error unknown")) {
-                    //System.err.println("Ignoring multi-sited " + stmt_type.name() + " on non-replicated table: " + plannerMsg);
+                    if (debug.get()) LOG.warn("Ignoring multi-sited " + stmt_type.name() + " on non-replicated table: " + plannerMsg);
                     continue;
                 // Otherwise, report the error
                 } else {

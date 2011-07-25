@@ -63,6 +63,8 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
             for (Entry<String, String> e : SQLS.entrySet()) {
                 this.addStmtProcedure(e.getKey(), e.getValue());
             } // FOR
+            
+            this.setEnableVerticalPartitionOptimizations(false);
         }
     }
     

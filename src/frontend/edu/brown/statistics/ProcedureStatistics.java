@@ -366,6 +366,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         JSONObject tblQueryObject = object.getJSONObject(Members.TABLE_QUERYTYPE_COUNTS.name());
         Map<String, String> name_xref = new HashMap<String, String>();
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             String table_key = CatalogKey.createKey(catalog_tbl);
             this.readMap(this.table_querytype_counts.get(table_key), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
             name_xref.put(table_key, table_key);

@@ -101,7 +101,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         } catch (MalformedURLException ex) {
             throw new RuntimeException(ex);
         }
-        LOG.info("Wrote DDL contents to '" + f.getAbsolutePath() + "'");
+        LOG.debug("Wrote DDL contents to '" + f.getAbsolutePath() + "'");
     }
     
     public final URL getDDLURL(boolean fkeys) {

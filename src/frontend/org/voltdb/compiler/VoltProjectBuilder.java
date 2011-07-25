@@ -180,6 +180,7 @@ public class VoltProjectBuilder {
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
     List<String> m_elAuthGroups;      // authorized groups
+    private boolean m_verticalPartitionOptimizations = true;
 
     BackendTarget m_target = BackendTarget.NATIVE_EE_JNI;
     PrintStream m_compilerDebugPrintStream = null;
@@ -334,6 +335,10 @@ public class VoltProjectBuilder {
         assert(m_verticalpartitionInfos.containsKey(tableName) == false);
         m_verticalpartitionInfos.put(tableName, Pair.of(createIndex, partitionColumnNames));
     }
+    
+    public void setEnableVerticalPartitionOptimizations(boolean val) { 
+        m_verticalPartitionOptimizations = val;
+    }
 
     public void setSecurityEnabled(final boolean enabled) {
         m_securityEnabled = enabled;
@@ -396,6 +401,7 @@ public class VoltProjectBuilder {
                            final int replication, final String leaderAddress)
     {
         VoltCompiler compiler = new VoltCompiler();
+        if (m_verticalPartitionOptimizations) compiler.enableVerticalPartitionOptimizations();
         return compile(compiler, jarPath, sitesPerHost, hostCount, replication,
                        leaderAddress);
     }
