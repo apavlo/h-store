@@ -233,7 +233,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
             this.getColumn(catalog_tbl, "AI_TYPE"),
         };
         
-        Map<Table, Set<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
+        Map<Table, Collection<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
         assertNotNull(multicolumns);
         assertEquals(1, multicolumns.size());
         assert(multicolumns.containsKey(catalog_tbl));
@@ -241,7 +241,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         MultiColumn mc = CollectionUtil.getFirst(multicolumns.get(catalog_tbl));
         assertNotNull(mc);
         
-//        System.err.println("COLUMNS: " + multicolumns);
+        System.err.println("COLUMNS: " + multicolumns);
         for (int i = 0; i < expected.length; i++) {
             assertEquals(expected[i], mc.get(i));
         } // FOR

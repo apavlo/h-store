@@ -56,7 +56,6 @@ public class TestPartitionEstimator extends BaseTestCase {
         ProcParameter catalog_params[] = new ProcParameter[] {
             this.getProcParameter(clone_db, catalog_proc, 1),   // D_ID
             this.getProcParameter(clone_db, catalog_proc, 0),   // W_ID
-            
         };
         MultiProcParameter mpp = MultiProcParameter.get(catalog_params);
         assertNotNull(mpp);
@@ -89,14 +88,15 @@ public class TestPartitionEstimator extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "getDistrict");
         Long stmt_params[] = new Long[] {
             new Long(proc_params[0].longValue()), // W_ID
-            new Long(proc_params[1].longValue()),   // D_ID
+            new Long(proc_params[1].longValue()), // D_ID
         };
         Map<String, Set<Integer>> stmt_partitions = p_estimator.getTablePartitions(catalog_stmt, stmt_params, proc_partition);
+        System.err.println(StringUtil.formatMaps(stmt_partitions));
         assertNotNull(stmt_partitions);
         assertEquals(1, stmt_partitions.size());
         assert(stmt_partitions.containsKey(table_key));
         assertEquals(1, stmt_partitions.get(table_key).size());
-        assertEquals(proc_partition, CollectionUtil.getFirst(stmt_partitions.get(table_key)));
+        assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.getFirst(stmt_partitions.get(table_key)));
     }
     
     /**

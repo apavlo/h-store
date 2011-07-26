@@ -59,7 +59,7 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
             comparator = new CatalogFieldComparator<T>("index");
             COMPARATORS.put((Class<? extends CatalogType>)clazz, (CatalogFieldComparator<CatalogType>)comparator);
         }
-        Collections.sort(attributes, comparator);
+        // Collections.sort(attributes, comparator);
      
         Database catalog_db = CatalogUtil.getDatabase(attrs[0]);
         if (!SINGLETONS.containsKey(catalog_db)) {

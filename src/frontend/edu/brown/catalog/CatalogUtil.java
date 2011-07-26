@@ -5,6 +5,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 
 import org.json.*;
@@ -666,7 +667,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Set<Integer> getLocalPartitionIds(Database catalog_db, int base_partition) {
-        Set<Integer> partition_ids = new HashSet<Integer>();
+        Set<Integer> partition_ids = new ListOrderedSet<Integer>();
         for (Partition catalog_proc : CatalogUtil.getLocalPartitions(catalog_db, base_partition)) {
             partition_ids.add(catalog_proc.getId());
         } // FOR
@@ -682,7 +683,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Set<Partition> getLocalPartitions(Database catalog_db, int base_partition) {
-        Set<Partition> partitions = new HashSet<Partition>();
+        Set<Partition> partitions = new ListOrderedSet<Partition>();
 
         // First figure out what partition we are in the catalog
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_db);
@@ -711,7 +712,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * Return all of the internal system tables for the database 
      */
     public static Collection<Table> getSysTables(Database catalog_db) {
-        Set<Table> systables = new HashSet<Table>();
+        Set<Table> systables = new ListOrderedSet<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (catalog_tbl.getSystable()) systables.add(catalog_tbl);
         }
@@ -843,7 +844,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Set<Column> getForeignKeyDependents(Table catalog_tbl) {
-        Set<Column> found = new HashSet<Column>();
+        Set<Column> found = new ListOrderedSet<Column>();
         for (Column catalog_col : catalog_tbl.getColumns()) {
             assert (catalog_col != null);
             if (!catalog_col.getConstraints().isEmpty()) {
@@ -866,7 +867,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Set<Constraint> getConstraints(Iterable<ConstraintRef> map) {
-        Set<Constraint> ret = new HashSet<Constraint>();
+        Set<Constraint> ret = new ListOrderedSet<Constraint>();
         if (map != null) {
             for (ConstraintRef ref : map) {
                 Constraint catalog_item = ref.getConstraint();
@@ -922,7 +923,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_proc);
         Set<Table> ret = cache.PROCEDURE_TABLES.get(catalog_proc);
         if (ret == null) {
-            Set<Table> tables = new HashSet<Table>();
+            Set<Table> tables = new ListOrderedSet<Table>();
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 tables.addAll(CatalogUtil.getReferencedTables(catalog_stmt));
             } // FOR
@@ -942,7 +943,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_proc);
         Set<Column> ret = cache.PROCEDURE_COLUMNS.get(catalog_proc);
         if (ret == null) {
-            Set<Column> columns = new HashSet<Column>();
+            Set<Column> columns = new ListOrderedSet<Column>();
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 columns.addAll(CatalogUtil.getReferencedColumns(catalog_stmt));
             } // FOR
@@ -959,7 +960,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Procedure> getReferencingProcedures(Table catalog_tbl) throws Exception {
-        Set<Procedure> ret = new HashSet<Procedure>();
+        Set<Procedure> ret = new ListOrderedSet<Procedure>();
         Database catalog_db = CatalogUtil.getDatabase(catalog_tbl);
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc()) continue;
@@ -1012,7 +1013,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Set<Table> ret = cache.STATEMENT_TABLES.get(catalog_stmt);
         if (ret == null) {
-            Set<Table> tables = new HashSet<Table>();
+            Set<Table> tables = new ListOrderedSet<Table>();
             for (Column catalog_col : CatalogUtil.getReferencedColumns(catalog_stmt)) {
                 tables.add((Table)catalog_col.getParent());
             } // FOR
@@ -1048,8 +1049,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         Set<Column> ret = cache.STATEMENT_ALL_COLUMNS.get(catalog_stmt);
         if (ret == null) {
             final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
-            ret = new TreeSet<Column>();
-            Set<Column> modified = new TreeSet<Column>();
+            ret = new ListOrderedSet<Column>();
+            Set<Column> modified = new ListOrderedSet<Column>();
 
             // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments to figure out
             // what columns the query touches. It's more accurate because we will pick apart plan nodes
@@ -1081,7 +1082,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getReferencedColumnsForTree(final Database catalog_db, AbstractPlanNode node) throws Exception {
-        return (getReferencedColumnsForTree(catalog_db, node, new TreeSet<Column>(), null));
+        return (getReferencedColumnsForTree(catalog_db, node, new ListOrderedSet<Column>(), null));
     }
     
     private static Set<Column> getReferencedColumnsForTree(final Database catalog_db, final AbstractPlanNode node, final Set<Column> columns, final Set<Column> modified) throws Exception {
@@ -1109,7 +1110,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
-        final Set<Column> ret = new HashSet<Column>();
+        final Set<Column> ret = new ListOrderedSet<Column>();
         CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, ret, null);
         return (ret);
     }
@@ -1215,7 +1216,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Table> getReferencedTablesForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
-        final Set<Table> ret = new HashSet<Table>();
+        final Set<Table> ret = new ListOrderedSet<Table>();
         CatalogUtil.getReferencedTablesForPlanNode(catalog_db, node, ret);
         return (ret);
     }
@@ -1228,7 +1229,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static Collection<Table> getReferencedTablesForTree(final Database catalog_db, final AbstractPlanNode root) {
-        final Set<Table> found = new HashSet<Table>();
+        final Set<Table> found = new ListOrderedSet<Table>();
         new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(AbstractPlanNode element) {
@@ -1277,7 +1278,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static <T extends CatalogType, U> Set<T> findAll(Iterable<T> items, String field, U value) {
-        Set<T> found = new HashSet<T>();
+        Set<T> found = new ListOrderedSet<T>();
         for (T catalog_item : items) {
             assert (catalog_item != null);
             try {

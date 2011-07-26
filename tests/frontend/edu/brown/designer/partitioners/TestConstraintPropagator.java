@@ -71,7 +71,6 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
     /**
      * testUpdateTable
      */
-    @SuppressWarnings("unchecked")
     public void testUpdateTable() throws Exception {
         Set<Table> targets = new HashSet<Table>();
         for (String table_name : new String[]{ "WAREHOUSE", "DISTRICT", "CUSTOMER" }) {
@@ -141,7 +140,6 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
     /**
      * testResetTable
      */
-    @SuppressWarnings("unchecked")
     public void testResetTable() throws Exception {
         // First update all of the tables
         for (Table catalog_tbl : catalog_db.getTables()) {

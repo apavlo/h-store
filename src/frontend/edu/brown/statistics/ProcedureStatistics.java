@@ -369,18 +369,23 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (catalog_tbl.getSystable()) continue;
             JSONException last_error = null;
-            String table_keys[] = new String[]{ CatalogKey.createKey(catalog_tbl), CatalogKeyOldVersion.createKey(catalog_tbl) };
-            for (String table_key : table_keys) { 
+            String table_keys[] = { CatalogKey.createKey(catalog_tbl),
+                                    CatalogKeyOldVersion.createKey(catalog_tbl) };
+            for (String table_key : table_keys) {
                 try {
                     this.readMap(this.table_querytype_counts.get(table_keys[0]), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
-                    last_error = null;
                 } catch (JSONException ex) {
                     last_error = ex;
                     continue;
                 }
+                last_error = null;
                 name_xref.put(table_keys[0], table_key);
+                break;
             } // FOR
-            if (last_error != null) throw last_error;
+            if (last_error != null) {
+                LOG.error("BUSTED: " + StringUtil.join(",", tblQueryObject.keys()));
+                throw last_error;
+            }
         } // FOR
         
         this.readMap(this.table_tuple_counts, Members.TABLE_TUPLE_COUNTS.name(), name_xref, Integer.class, object);
