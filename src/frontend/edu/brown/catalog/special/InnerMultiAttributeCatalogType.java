@@ -13,6 +13,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.NotImplementedException;
 
 import edu.brown.catalog.CatalogFieldComparator;
 import edu.brown.catalog.CatalogUtil;
@@ -81,35 +82,11 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
         
         return (obj);
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // CATALOG TYPE METHODS
+    // --------------------------------------------------------------------------------------------
 
-    @Override
-    public Collection<T> getAttributes() {
-        return Collections.unmodifiableCollection(this.attributes);
-    }
-    @Override
-    public void update() {
-        assert(false);
-    }
-    @Override
-    public Iterator<T> iterator() {
-        return this.attributes.iterator();
-    }
-    @Override
-    public String getPrefix() {
-        return ("*" + this.base_class.getSimpleName() + "*");
-    }
-    @Override
-    public int size() {
-        return (this.attributes.size());
-    }
-    @Override
-    public T get(int idx) {
-        return ((T)this.attributes.get(idx));
-    }
-    @Override
-    public boolean contains(T c) {
-        return (this.attributes.contains(c));
-    }
     @SuppressWarnings("unchecked")
     @Override
     public <U extends CatalogType> U getParent() {
@@ -141,5 +118,82 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
         if (!(obj instanceof InnerMultiAttributeCatalogType)) return (false);
         return (this.attributes.equals(((InnerMultiAttributeCatalogType)obj).attributes));
     }
-
+    @Override
+    public Collection<T> getAttributes() {
+        return Collections.unmodifiableCollection(this.attributes);
+    }
+    @Override
+    public void update() {
+        assert(false);
+    }
+    @Override
+    public String getPrefix() {
+        return ("*" + this.base_class.getSimpleName() + "*");
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // COLLECTION METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    @Override
+    public Iterator<T> iterator() {
+        return this.attributes.iterator();
+    }
+    @Override
+    public int size() {
+        return (this.attributes.size());
+    }
+    @Override
+    public T get(int idx) {
+        return ((T)this.attributes.get(idx));
+    }
+    @Override
+    public boolean contains(Object o) {
+        return (this.attributes.contains(o));
+    }
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        return (this.attributes.containsAll(c));
+    }
+    @Override
+    public boolean isEmpty() {
+        return (this.attributes.isEmpty());
+    }
+    @Override
+    public Object[] toArray() {
+        return this.attributes.toArray();
+    }
+    @Override
+    public <T> T[] toArray(T[] a) {
+        return this.attributes.toArray(a);
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // UNIMPLEMENTED
+    // --------------------------------------------------------------------------------------------
+    
+    @Override
+    public boolean add(T e) {
+        throw new NotImplementedException(this + " is a read-only Catalog object");
+    }
+    @Override
+    public boolean addAll(Collection<? extends T> c) {
+        throw new NotImplementedException(this + " is a read-only Catalog object");
+    }
+    @Override
+    public void clear() {
+        throw new NotImplementedException(this + " is a read-only Catalog object");
+    }
+    @Override
+    public boolean remove(Object o) {
+        throw new NotImplementedException(this + " is a read-only Catalog object");
+    }
+    @Override
+    public boolean removeAll(Collection<?> c) {
+        throw new NotImplementedException(this + " is a read-only Catalog object");
+    }
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        throw new NotImplementedException(this + " is a read-only Catalog object");
+    }
 }

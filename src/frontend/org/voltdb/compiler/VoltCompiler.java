@@ -29,6 +29,7 @@ import java.net.URLDecoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -804,7 +805,7 @@ public class VoltCompiler {
         return ("SYS_VP_" + tableName);
     }
 
-    public static void addVerticalPartition(final Database catalog_db, final String tableName, final List<String> columnNames, final boolean createIndex) throws Exception {
+    public static MaterializedViewInfo addVerticalPartition(final Database catalog_db, final String tableName, final List<String> columnNames, final boolean createIndex) throws Exception {
         Table catalog_tbl = catalog_db.getTables().get(tableName);
         if (catalog_tbl == null) {
             throw new Exception("Invalid vertical partition table '" + tableName + "'");
@@ -821,12 +822,16 @@ public class VoltCompiler {
             }
             catalog_cols.add(catalog_col);
         } // FOR
-        
+        return (addVerticalPartition(catalog_tbl, catalog_cols, createIndex));
+    }
+    
+    public static MaterializedViewInfo addVerticalPartition(final Table catalog_tbl, final Collection<Column> catalog_cols, final boolean createIndex) throws Exception {
+        String tableName = catalog_tbl.getName();
         String viewName = getVerticalPartitionName(tableName);
         compilerLog.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
         
         // Create a new virtual table
-        Table virtual_tbl = catalog_db.getTables().add(viewName);
+        Table virtual_tbl = ((Database)catalog_tbl.getParent()).getTables().add(viewName);
         virtual_tbl.setIsreplicated(true);
         virtual_tbl.setMaterializer(catalog_tbl);
         virtual_tbl.setSystable(true);
@@ -888,6 +893,7 @@ public class VoltCompiler {
             compilerLog.debug(String.format("Created %s index '%s' for vertical partition '%s'",
                                             idxType, idxName, viewName)); 
         }
+        return (catalog_view);
     }
 
     static void addDatabaseEstimatesInfo(final DatabaseEstimates estimates, final Database db) {

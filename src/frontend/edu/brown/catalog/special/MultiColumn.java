@@ -49,10 +49,6 @@ public class MultiColumn extends Column implements MultiAttributeCatalogType<Col
     public Column get(int idx) {
         return (Column)this.inner.get(idx);
     }
-    @Override
-    public boolean contains(Column c) {
-        return this.inner.contains(c);
-    }
     @SuppressWarnings("unchecked")
     @Override
     public <U extends CatalogType> U getParent() {
@@ -78,5 +74,49 @@ public class MultiColumn extends Column implements MultiAttributeCatalogType<Col
     public boolean equals(Object obj) {
         if (obj instanceof MultiColumn == false) return (false);
         return this.inner.equals(((MultiColumn)obj).inner);
+    }
+    @Override
+    public boolean add(Column e) {
+        return this.inner.add(e);
+    }
+    @Override
+    public boolean addAll(Collection<? extends Column> c) {
+        return this.inner.addAll(c);
+    }
+    @Override
+    public void clear() {
+        this.inner.clear();
+    }
+    @Override
+    public boolean contains(Object o) {
+        return this.inner.contains(o);
+    }
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        return this.inner.containsAll(c);
+    }
+    @Override
+    public boolean isEmpty() {
+        return this.inner.isEmpty();
+    }
+    @Override
+    public boolean remove(Object o) {
+        return this.inner.remove(o);
+    }
+    @Override
+    public boolean removeAll(Collection<?> c) {
+        return this.inner.removeAll(c);
+    }
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        return this.inner.retainAll(c);
+    }
+    @Override
+    public Object[] toArray() {
+        return this.inner.toArray();
+    }
+    @Override
+    public <T> T[] toArray(T[] a) {
+        return this.inner.toArray(a);
     }
 }

@@ -459,6 +459,51 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (found);
     }
     
+    /**
+     * Copy the query plans from Statement to another
+     * This will overwrite both the existing single-partition and multi-partition query plans 
+     * @param copy_src
+     * @param copy_dest
+     */
+    public static void copyQueryPlans(Statement copy_src, Statement copy_dest) {
+        // Update both the single and multi-partition query plans
+        assert(copy_src.getHas_multisited());
+        copy_dest.setMs_fullplan(copy_src.getMs_fullplan());
+        copy_dest.setMs_exptree(copy_src.getMs_exptree());
+        copy_dest.getMs_fragments().clear();
+        for (PlanFragment copy_src_frag : copy_src.getMs_fragments()) {
+            PlanFragment copy_dest_frag = copy_dest.getMs_fragments().add(copy_src_frag.getName());
+            for (String f : copy_src_frag.getFields()) {
+                Object val = copy_src_frag.getField(f);
+                if (val != null) {
+                    if (val instanceof String) val = "\"" + val + "\""; // HACK
+                    if (trace.get()) LOG.trace(String.format("Applied DTXN %s.%s => %s", copy_dest_frag.fullName(), f, val));
+                    copy_dest_frag.set(f, val.toString());
+                } else {
+                    if (debug.get()) LOG.warn(String.format("Missing DTXN %s.%s", copy_dest_frag.fullName(), f));
+                }
+            } // FOR
+        } // FOR
+
+        assert(copy_src.getHas_singlesited());
+        copy_dest.setFullplan(copy_src.getMs_fullplan());
+        copy_dest.setExptree(copy_src.getMs_exptree());
+        copy_dest.getFragments().clear();
+        for (PlanFragment copy_src_frag : copy_src.getFragments()) {
+            PlanFragment copy_dest_frag = copy_dest.getFragments().add(copy_src_frag.getName());
+            for (String f : copy_src_frag.getFields()) {
+                Object val = copy_src_frag.getField(f);
+                if (val != null) {
+                    if (val instanceof String) val = "\"" + val + "\""; // HACK
+                    if (trace.get()) LOG.trace(String.format("Applied SP %s.%s => %s", copy_dest_frag.fullName(), f, val));
+                    copy_dest_frag.set(f, val.toString());
+                } else {
+                    if (debug.get()) LOG.warn(String.format("Missing SP %s.%s", copy_dest_frag.fullName(), f));
+                }
+            } // FOR
+        } // FOR
+    }
+    
     // ------------------------------------------------------------
     // HOSTS + SITES + PARTITIONS
     // ------------------------------------------------------------ 

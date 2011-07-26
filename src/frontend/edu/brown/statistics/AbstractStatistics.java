@@ -47,7 +47,7 @@ import edu.brown.workload.*;
  * @param <T>
  */
 public abstract class AbstractStatistics<T extends CatalogType> implements JSONString {
-    protected static final Logger LOG = Logger.getLogger(AbstractStatistics.class.getName());
+    protected static final Logger LOG = Logger.getLogger(AbstractStatistics.class);
     protected static final String DEBUG_SPACER = "  ";
     
     protected final String catalog_key;
@@ -206,6 +206,7 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
         map.clear();
         JSONObject jsonObject = object.getJSONObject(name);
         Iterator<String> keys = jsonObject.keys();
+        boolean first = true;
         while (keys.hasNext()) {
             String key_name = keys.next();
             U key_object = null;
@@ -219,6 +220,10 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
             key_object = key_map.get(key_name);
             if (key_object == null) {
                 LOG.warn("Failed to retrieve key object '" + key_name + "' for " + name);
+                if (LOG.isDebugEnabled() && first) {
+                    LOG.warn(jsonObject.toString(2));
+                }
+                first = false;
                 continue;
             }
             map.put(key_object, value);

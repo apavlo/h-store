@@ -16,7 +16,6 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.MaterializedViewInfo;
-import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -106,7 +105,7 @@ public class VerticalPartitionPlanner {
         Map<Statement, Statement> optimized = this.generateOptimizedStatements();
         if (optimized != null) {
             for (Entry<Statement, Statement> e : optimized.entrySet()) {
-                this.applyOptimizedStatement(e.getValue(), e.getKey());
+                CatalogUtil.copyQueryPlans(e.getValue(), e.getKey());
             } // FOR
             updated.addAll(optimized.keySet());
         }
@@ -114,7 +113,7 @@ public class VerticalPartitionPlanner {
     }
 
     /**
-     * Generat an optimized query plan for just one Statement and apply
+     * Generate an optimized query plan for just one Statement and apply
      * it to the catalog immediately
      * @param catalog_stmt
      * @return
@@ -128,7 +127,7 @@ public class VerticalPartitionPlanner {
             Map<Statement, Statement> optimized = this.projectBuilder.getRewrittenQueryPlans();
             assert (optimized != null);
             assert (optimized.size() == 1);
-            this.applyOptimizedStatement(CollectionUtil.getFirst(optimized.values()), catalog_stmt);
+            CatalogUtil.copyQueryPlans(CollectionUtil.getFirst(optimized.values()), catalog_stmt);
             return (true);
         }
         return (false);
@@ -160,45 +159,6 @@ public class VerticalPartitionPlanner {
     // ======================================================================================
     // INTERNAL UTILITY METHODS
     // ======================================================================================
-
-    private void applyOptimizedStatement(Statement copy_src, Statement copy_dest) {
-        // Update both the single and multi-partition query plans
-        assert(copy_src.getHas_multisited());
-        copy_dest.setMs_fullplan(copy_src.getMs_fullplan());
-        copy_dest.setMs_exptree(copy_src.getMs_exptree());
-        copy_dest.getMs_fragments().clear();
-        for (PlanFragment copy_src_frag : copy_src.getMs_fragments()) {
-            PlanFragment copy_dest_frag = copy_dest.getMs_fragments().add(copy_src_frag.getName());
-            for (String f : copy_src_frag.getFields()) {
-                Object val = copy_src_frag.getField(f);
-                if (val != null) {
-                    if (val instanceof String) val = "\"" + val + "\""; // HACK
-                    if (trace.get()) LOG.trace(String.format("Applied DTXN %s.%s => %s", copy_dest_frag.fullName(), f, val));
-                    copy_dest_frag.set(f, val.toString());
-                } else {
-                    if (debug.get()) LOG.warn(String.format("Missing DTXN %s.%s", copy_dest_frag.fullName(), f));
-                }
-            } // FOR
-        } // FOR
-
-        assert(copy_src.getHas_singlesited());
-        copy_dest.setFullplan(copy_src.getMs_fullplan());
-        copy_dest.setExptree(copy_src.getMs_exptree());
-        copy_dest.getFragments().clear();
-        for (PlanFragment copy_src_frag : copy_src.getFragments()) {
-            PlanFragment copy_dest_frag = copy_dest.getFragments().add(copy_src_frag.getName());
-            for (String f : copy_src_frag.getFields()) {
-                Object val = copy_src_frag.getField(f);
-                if (val != null) {
-                    if (val instanceof String) val = "\"" + val + "\""; // HACK
-                    if (trace.get()) LOG.trace(String.format("Applied SP %s.%s => %s", copy_dest_frag.fullName(), f, val));
-                    copy_dest_frag.set(f, val.toString());
-                } else {
-                    if (debug.get()) LOG.warn(String.format("Missing SP %s.%s", copy_dest_frag.fullName(), f));
-                }
-            } // FOR
-        } // FOR
-    }
 
     /**
      * Process the given Statement and rewrite its query plan if it can take

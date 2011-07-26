@@ -19,6 +19,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
@@ -43,6 +44,7 @@ public class ConstraintPropagator {
     
     private final Map<Table, Set<Column>> multicolumns = new HashMap<Table, Set<Column>>();
     private final Map<Procedure, Set<ProcParameter>> multiparams = new HashMap<Procedure, Set<ProcParameter>>();
+    private final Map<Column, Collection<VerticalPartitionColumn>> vp_candidates = new HashMap<Column, Collection<VerticalPartitionColumn>>();
     
     private final transient Set<CatalogType> isset = new HashSet<CatalogType>();
     private transient int isset_tables = 0;
@@ -276,6 +278,20 @@ public class ConstraintPropagator {
         assert(ret != null);
         if (d) LOG.debug(String.format("%s Possible Values [%d]: %s", catalog_obj, ret.size(), CatalogUtil.debug(ret)));
         return (ret);
+    }
+    
+    public Collection<VerticalPartitionColumn> getVerticalPartitionCandidates(Column catalog_col) {
+        return (this.vp_candidates.get(catalog_col));
+    }
+    
+    public Collection<VerticalPartitionColumn> getVerticalPartitionCandidates(Table catalog_tbl) {
+        Set<VerticalPartitionColumn> candidates = new HashSet<VerticalPartitionColumn>();
+        for (Column catalog_col : catalog_tbl.getColumns()) {
+            if (this.vp_candidates.containsKey(catalog_col)) {
+                candidates.addAll(this.vp_candidates.get(catalog_col));
+            }
+        } // FOR
+        return (candidates);
     }
 
 }

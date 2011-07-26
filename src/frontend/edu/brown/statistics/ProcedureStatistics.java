@@ -379,7 +379,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
                     continue;
                 }
                 last_error = null;
-                name_xref.put(table_keys[0], table_key);
+                name_xref.put(table_key, table_key);
                 break;
             } // FOR
             if (last_error != null) {

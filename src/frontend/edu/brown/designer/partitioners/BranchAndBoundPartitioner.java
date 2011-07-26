@@ -3,28 +3,44 @@
  */
 package edu.brown.designer.partitioners;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
+import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
-import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
-import edu.brown.costmodel.*;
-import edu.brown.designer.*;
+import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.costmodel.AbstractCostModel;
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerHints;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.MemoryEstimator;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
-import edu.brown.graphs.VertexTreeWalker;
-import edu.brown.utils.*;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.MathUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.workload.*;
 import edu.brown.workload.filters.Filter;
 
 /**
@@ -39,6 +55,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    // --------------------------------------------------------------------------------------------
+    // STATIC DATA MEMBERS
+    // --------------------------------------------------------------------------------------------
+    
     /**
      * Debug Output Spacers
      */
@@ -51,6 +71,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             TRAVERSAL_SPACERS.put(i, spacer);
         } // FOR
     } // STATIC
+
+    // --------------------------------------------------------------------------------------------
+    // INTERNAL STATE
+    // --------------------------------------------------------------------------------------------
     
     /**
      * 
@@ -197,6 +221,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         }
     } // END CLASS
     
+    // --------------------------------------------------------------------------------------------
+    // DATA MEMBERS
+    // --------------------------------------------------------------------------------------------
+    
     protected StateVertex best_vertex = null;
     protected StateVertex upper_bounds_vertex = null;
     protected PartitionPlan upper_bounds_pplan = null;
@@ -207,12 +235,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     protected List<Procedure> proc_visit_order = new ArrayList<Procedure>();
     protected AccessGraph agraph = null;
 
-    /**
-     * The key of this map is the CatalogKey of the element that we are trying to plan
-     * The value is the list of partitioning attributes that can be set for the key 
-     */
-    // protected final ListOrderedMap<String, List<String>> base_traversal_attributes = new ListOrderedMap<String, List<String>>();
-//    protected int num_tables;
+    // --------------------------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // --------------------------------------------------------------------------------------------
+
 
     public BranchAndBoundPartitioner(Designer designer, DesignerInfo info) {
         super(designer, info);
@@ -226,6 +252,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         super(designer, info);
         this.setParameters(agraph, table_visit_order, proc_visit_order);
     }
+
+    // --------------------------------------------------------------------------------------------
+    // MEMBER UTILITY METHODS
+    // --------------------------------------------------------------------------------------------
     
     public AccessGraph getAcessGraph() {
         return this.agraph;
@@ -283,6 +313,19 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         if (this.thread != null) return (this.thread.backtrack_ctr);
         return (null);
     }
+    
+    
+    /**
+     * Return the best StateVertex selected during the search process
+     * @return
+     */
+    protected StateVertex getBestVertex() {
+        return (this.best_vertex);
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------------------------------------------------
     
     /**
      * 
@@ -398,39 +441,16 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         this.best_vertex = StateVertex.getStartVertex(this.upper_bounds_vertex.getCost(), this.upper_bounds_vertex.getMemory());
     }
     
+    
+    // --------------------------------------------------------------------------------------------
+    // SEARCH
+    // --------------------------------------------------------------------------------------------
+    
     /**
      * 
      */
     @Override
     public PartitionPlan generate(final DesignerHints hints) throws Exception {
-//        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER", "C_D_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "CUSTOMER_NAME", Designer.REPLICATED_COLUMN_NAME);
-//        hints.addTablePartitionCandidate(info.catalog_db, "DISTRICT", "D_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "HISTORY", "H_C_D_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "ITEM", "I_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "NEW_ORDER", "NO_D_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "ORDERS", "O_D_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "ORDER_LINE", "OL_D_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "STOCK", "S_I_ID");
-//        hints.addTablePartitionCandidate(info.catalog_db, "WAREHOUSE", "W_ID");
-        
-        /*
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
-            List<String> force_cols = new ArrayList<String>();
-            if (catalog_tbl.getName().equalsIgnoreCase("CUSTOMER_NAME")) {
-                force_cols.add("C_D_ID");
-            } else if (catalog_tbl.getName().equalsIgnoreCase("ITEM")) {
-                force_cols.add("I_ID");
-            } else if (catalog_tbl.getName().equalsIgnoreCase("HISTORY")) {
-                force_cols.add("H_C_W_ID");
-            }
-            for (String col_name : force_cols) {
-                Column catalog_col = catalog_tbl.getColumns().get(col_name);
-                hints.addTablePartitionCandidate(catalog_tbl, catalog_col);
-                //hints.enablePartitionCandidateDebugging(catalog_col);
-            } // FOR
-        }
-        */
         
         // Initialize our various data structures
         assert(this.info.getCostModel() != null);
@@ -512,14 +532,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         pplan.apply(info.catalog_db); // Why?
         return (pplan);
     }
-    
-    /**
-     * Return the best StateVertex selected during the search process
-     * @return
-     */
-    protected StateVertex getBestVertex() {
-        return (this.best_vertex);
-    }
+
     
     /**
      * 
@@ -576,17 +589,38 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             this.num_tables = this.search_tables.size();
             this.num_elements = this.all_search_elements.size();
+            this.previous_tables = (Set<Table>[])(new Set<?>[this.num_elements]);
             
             // Create a ConstraintPropagator that will keep track of which attributes we can use per database object
             this.agraph = agraph;
             this.cp = new ConstraintPropagator(this.info, this.hints, this.agraph);
             
+            // Memory Estimator
+            this.memory_estimator = info.getMemoryEstimator();
+            
+            // Cost Model
+            this.cost_model = info.getCostModel();
+            assert(this.cost_model != null);
+            this.cost_model.applyDesignerHints(hints);
+            
+            try {
+                this.initializeTables();
+                this.initializeProcedures();
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to initialize BranchAndBound traverser!", ex);
+            }
+        }
+        
+        /**
+         * Initialize internal data structures for tables
+         */
+        private void initializeTables() {
             // These tables aren't in our attributes but we still need to use them for estimating size
             final Set<Table> remaining_tables = new HashSet<Table>();
             
             // Mark all of our tables that we're not going to search against as updated in our ConstraintPropagator
             for (Table catalog_tbl : this.info.catalog_db.getTables()) {
-                if (this.search_tables.contains(catalog_tbl) == false) {
+                if (catalog_tbl.getSystable() == false && this.search_tables.contains(catalog_tbl) == false) {
                     if (debug.get()) LOG.debug("Updating ConstraintPropagator for fixed " + catalog_tbl);
                     try {
                         this.cp.update(catalog_tbl);
@@ -597,7 +631,32 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 }
             } // FOR
             if (debug.get()) LOG.debug(String.format("Tables: %d Searchable / %d Fixed", this.search_tables.size(), remaining_tables.size())); 
+
+            // For each level in the search tree, compute the sets of tables that have been bound
+            // This is needed for when we calculate the total size of a solution
+            for (int i = 0; i < this.num_elements; i++) {
+                this.previous_tables[i] = new HashSet<Table>(remaining_tables);
+                if (i < this.num_tables) this.previous_tables[i].add(this.search_tables.get(i)); 
+            } // FOR
             
+            // Pre-generate all of the vertical partitions that we will need
+            for (Table catalog_tbl : this.info.catalog_db.getTables()) {
+                if (catalog_tbl.getSystable()) continue;
+                Collection<VerticalPartitionColumn> candidates = this.cp.getVerticalPartitionCandidates(catalog_tbl);
+                for (VerticalPartitionColumn vpc : candidates) {
+                    MaterializedViewInfo catalog_view = vpc.updateCatalog();
+                    assert(catalog_view != null);
+                    
+                } // FOR
+                
+            } // FOR (tbl)
+            
+        }
+        
+        /**
+         * Initialize internal data structures for procedures
+         */
+        private void initializeProcedures() {
             int proc_ctr = 0;
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
                 if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
@@ -612,30 +671,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 }
             } // FOR
             if (debug.get()) LOG.debug(String.format("Procedures: %d Searchable / %d Fixed", this.search_procs.size(), (proc_ctr - this.search_procs.size())));
-            
-            // For each level in the search tree, compute the sets of tables that have been bound
-            // This is needed for when we calculate the total size of a solution
-            this.previous_tables = (Set<Table>[])(new Set<?>[this.num_elements]);
-            for (int i = 0; i < this.num_elements; i++) {
-                this.previous_tables[i] = new HashSet<Table>(remaining_tables);
-                if (i < this.num_tables) this.previous_tables[i].add(this.search_tables.get(i)); 
-            } // FOR
-            
-            // Memory Estimator
-            this.memory_estimator = info.getMemoryEstimator();
-            
-            // Cost Model
-            this.cost_model = info.getCostModel();
-            assert(this.cost_model != null);
-            this.cost_model.applyDesignerHints(hints);
+
         }
         
-        public Database getDatabase() {
-            return (this.search_db);
-        }
-        
-        public AbstractCostModel getCostModel() {
-            return this.cost_model;
+        private void applyVerticalPartition(Table catalog_tbl, Collection<Column> catalog_cols) throws Exception {
+            // First create the vertical partition in the catalog
+            VoltCompiler.addVerticalPartition(catalog_tbl, catalog_cols, true);
+            
+            // And then update
+            
         }
         
         @Override
@@ -778,35 +822,51 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 if (is_table) {
                     Table current_tbl = (Table)current;
                     Column search_col = (Column)attribute;
-                    Column current_col = null;
+                    Column horizontal_col = null;
+                    MultiColumn vertical_col = null;
                     
                     // Check whether this is our replication marker column
                     if (search_col instanceof ReplicatedColumn) {
                         current_tbl.setIsreplicated(true);
-                        current_col = ReplicatedColumn.get(current_tbl);
+                        horizontal_col = ReplicatedColumn.get(current_tbl);
+                    // VerticalPartitionColumn
+                    } else if (search_col instanceof VerticalPartitionColumn) {
+                        current_tbl.setIsreplicated(false);
+                        horizontal_col = ((VerticalPartitionColumn)search_col).getHorizontalMultiColumn();
+                        vertical_col = ((VerticalPartitionColumn)search_col).getVerticalMultiColumn();
+                        
                     // MultiColumn
                     } else if (search_col instanceof MultiColumn) {
                         // Nothing special?
                         current_tbl.setIsreplicated(false);
-                        current_col = search_col;
+                        horizontal_col = search_col;
                         
                     // Otherwise partition on this particular column
                     } else {
                         current_tbl.setIsreplicated(false);
-                        current_col = current_tbl.getColumns().get(search_col.getName());
+                        horizontal_col = current_tbl.getColumns().get(search_col.getName());
                     }
-                    assert(current_col != null);
-                    current_tbl.setPartitioncolumn(current_col);
-                    assert(current_col.getName().equals(current_tbl.getPartitioncolumn().getName())) :
-                        "Unexpected " + current_col.fullName() + " != " + current_tbl.getPartitioncolumn().fullName();
+                    
+                    // We should always have a horizontal partition column
+                    assert(horizontal_col != null);
+                    current_tbl.setPartitioncolumn(horizontal_col);
+                    assert(horizontal_col.getName().equals(current_tbl.getPartitioncolumn().getName())) :
+                        "Unexpected " + horizontal_col.fullName() + " != " + current_tbl.getPartitioncolumn().fullName();
+                    
+                    // If we have a vertical partition column, then we need to convert it to a 
+                    // materialized view and update the statements that can use them using the pre-compiled
+                    // query plans
+                    if (vertical_col != null) {
+                        
+                    }
                     
                     // Estimate memory size
-                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", current_col.fullName(), all_tables));                
+                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", horizontal_col.fullName(), all_tables));                
                     memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), all_tables);
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
-                    if (trace.get()) LOG.trace(String.format("%s Memory: %d [exceeded=%s]", current_col.fullName(), memory, memory_exceeded));
+                    if (trace.get()) LOG.trace(String.format("%s Memory: %d [exceeded=%s]", horizontal_col.fullName(), memory, memory_exceeded));
                     
-                    current_attribute = current_col;
+                    current_attribute = horizontal_col;
                     
                 // ----------------------------------------------
                 // PROCEDURE PARTITIONING PARAMETER
