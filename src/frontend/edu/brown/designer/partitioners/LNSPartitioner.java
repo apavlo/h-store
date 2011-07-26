@@ -253,8 +253,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             
             // Add multi-column partitioning parameters for each table
             if (hints.enable_multi_partitioning) {
-                Map<Table, Set<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
-                for (Entry<Table, Set<MultiColumn>> e : multicolumns.entrySet()) {
+                Map<Table, Collection<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
+                for (Entry<Table, Collection<MultiColumn>> e : multicolumns.entrySet()) {
                     if (trace.get()) LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
                     this.orig_table_attributes.get(e.getKey()).addAll(e.getValue());
                 } // FOR    

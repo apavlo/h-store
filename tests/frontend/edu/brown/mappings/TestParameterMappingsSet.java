@@ -68,7 +68,8 @@ public class TestParameterMappingsSet extends BaseTestCase {
 
         for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
             for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
-                assertTrue(json_string.contains(CatalogKey.createKey(catalog_stmt_param)));
+                String key = CatalogKey.createKey(catalog_stmt_param);
+                assertTrue(json_string, json_string.contains(key));
             } // FOR
         } // FOR
     }

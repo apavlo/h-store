@@ -509,8 +509,8 @@ public abstract class PartitionerUtil {
      * @param agraph
      * @return
      */
-    protected static Map<Table, Set<MultiColumn>> generateMultiColumns(final DesignerInfo info, final DesignerHints hints, final Procedure catalog_proc) {
-        Map<Table, Set<MultiColumn>> multicolumns = new HashMap<Table, Set<MultiColumn>>();
+    protected static Map<Table, Collection<MultiColumn>> generateMultiColumns(final DesignerInfo info, final DesignerHints hints, final Procedure catalog_proc) {
+        Map<Table, Collection<MultiColumn>> multicolumns = new HashMap<Table, Collection<MultiColumn>>();
     
        // For each Statement, find the columns that are accessed together
        for (Statement catalog_stmt : catalog_proc.getStatements()) {
@@ -522,7 +522,7 @@ public abstract class PartitionerUtil {
            for (Column catalog_col0 : columns) {
                Table catalog_tbl = catalog_col0.getParent();
                if (!multicolumns.containsKey(catalog_tbl)) {
-                   multicolumns.put(catalog_tbl, new HashSet<MultiColumn>());
+                   multicolumns.put(catalog_tbl, new ArrayList<MultiColumn>());
                }
                for (Column catalog_col1 : columns) {
                    if (catalog_col0.equals(catalog_col1) || !catalog_tbl.equals(catalog_col1.getParent())) continue;

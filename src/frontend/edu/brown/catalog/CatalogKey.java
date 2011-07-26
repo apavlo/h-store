@@ -38,6 +38,10 @@ public abstract class CatalogKey {
     private static final Map<Database, Map<String, CatalogType>> CACHE_GETFROMKEY = new HashMap<Database, Map<String,CatalogType>>();
     private static final Map<String, String> CACHE_NAMEFROMKEY = new HashMap<String, String>();
      
+//    public static <T extends CatalogType> String createEscapedKey(T catalog_item) {
+//        String key = createKey(catalog_item);
+//        return (key.replace("\"", "\\\""));
+//    }
     
     /**
      * Returns a String key representation of the column as "Parent.Child"
@@ -53,7 +57,7 @@ public abstract class CatalogKey {
         JSONStringer stringer = new JSONStringer();
         try {
             createKey(catalog_item, stringer);
-            ret = stringer.toString();
+            ret = stringer.toString().replace("\"", "'");
             CACHE_CREATEKEY.put(catalog_item, ret);
         } catch (JSONException ex) {
             throw new RuntimeException("Failed to create catalog key for " + catalog_item, ex);
@@ -172,7 +176,7 @@ public abstract class CatalogKey {
         
         T catalog_item = null;
         try {
-            JSONObject jsonObject = new JSONObject(key);
+            JSONObject jsonObject = new JSONObject(key.replace("'", "\""));
             catalog_item = getFromKey(catalog_db, jsonObject, catalog_class);
         } catch (JSONException ex) {
             // OLD VERSION

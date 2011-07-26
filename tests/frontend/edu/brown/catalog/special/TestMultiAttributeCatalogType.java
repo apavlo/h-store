@@ -38,9 +38,7 @@ public class TestMultiAttributeCatalogType extends BaseTestCase {
             assertEquals(columns[i], item0.get(i));
         } // FOR
         
-        // Make another and make sure it's the same even if we
-        // change the ordering of the columns
-        columns = new Column[]{ columns[1], columns[0] };
+        // Make another and make sure it's the same 
         MultiColumn item1 = MultiColumn.get(columns);
         assertNotNull(item1);
         assert(item0 == item1);
@@ -99,9 +97,7 @@ public class TestMultiAttributeCatalogType extends BaseTestCase {
             assertEquals(params[i], item0.get(i));
         } // FOR
         
-        // Make another and make sure it's the same even if we
-        // change the ordering of the columns
-        params = new ProcParameter[]{ params[1], params[0] };
+        // Make another and make sure it's the same
         MultiProcParameter item1 = MultiProcParameter.get(params);
         assertNotNull(item1);
         assert(item0 == item1);

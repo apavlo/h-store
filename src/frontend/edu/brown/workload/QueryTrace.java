@@ -132,7 +132,7 @@ public class QueryTrace extends AbstractTraceElement<Statement> {
         this.batch_id = object.getInt(Members.BATCH_ID.name());
         
         Statement catalog_stmt = null;
-        if (this.catalog_item_name.contains(".") == false) {
+        if (this.catalog_item_name.contains(":") == false) {
             catalog_stmt = catalog_proc.getStatements().get(this.catalog_item_name);
         } else {
             catalog_stmt = CatalogKey.getFromKey(CatalogUtil.getDatabase(catalog_proc), this.catalog_item_name, Statement.class);

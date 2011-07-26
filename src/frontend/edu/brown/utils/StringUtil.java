@@ -2,6 +2,7 @@ package edu.brown.utils;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
@@ -359,6 +360,15 @@ public abstract class StringUtil {
      */
     public static <T> String join(String delimiter, T...items) {
         return (join(delimiter, Arrays.asList(items)));
+    }
+    
+    public static <T> String join(String delimiter, final Iterator<T> items) {
+        return (join("", delimiter, new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return items;
+            }
+        }));
     }
     
     /**

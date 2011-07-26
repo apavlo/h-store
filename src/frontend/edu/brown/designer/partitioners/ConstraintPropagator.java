@@ -93,7 +93,7 @@ public class ConstraintPropagator {
                 } // FOR 
                 
                 // MultiColumns
-                for (Entry<Table, Set<MultiColumn>> e : PartitionerUtil.generateMultiColumns(info, hints, catalog_proc).entrySet()) {
+                for (Entry<Table, Collection<MultiColumn>> e : PartitionerUtil.generateMultiColumns(info, hints, catalog_proc).entrySet()) {
                     Table catalog_tbl = e.getKey();
                     Set<Column> s = this.multicolumns.get(catalog_tbl);
                     if (s == null) {
