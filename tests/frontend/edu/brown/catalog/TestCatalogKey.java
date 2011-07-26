@@ -43,6 +43,23 @@ public class TestCatalogKey extends BaseTestCase {
     }
     
     /**
+     * testCreateKeyFromStrings
+     */
+    public void testCreateKeyFromStrings() throws Exception {
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING);
+        Column catalog_col = this.getColumn(catalog_tbl, 0);
+        
+        String expected = CatalogKey.createKey(catalog_col);
+        assertNotNull(expected);
+        assertFalse(expected.isEmpty());
+        
+        String actual = CatalogKey.createKey(catalog_tbl.getName(), catalog_col.getName());
+        assertNotNull(actual);
+        assertFalse(actual.isEmpty());
+        assertEquals(expected, actual);
+    }
+    
+    /**
      * testCreateKey
      */
     public void testCreateKey() throws Exception {
@@ -180,7 +197,7 @@ public class TestCatalogKey extends BaseTestCase {
         String key = CatalogKey.createKey(item0);
         assertNotNull(key);
         assertFalse(key.isEmpty());
-        System.err.println(item0 + "\n" + key);
+//        System.err.println(item0 + "\n" + key);
         
         MultiColumn clone = (MultiColumn)CatalogKey.getFromKey(catalog_db, key, Column.class);
         assertNotNull(clone);

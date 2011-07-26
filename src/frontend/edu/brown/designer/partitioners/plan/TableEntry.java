@@ -1,20 +1,15 @@
 package edu.brown.designer.partitioners.plan;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.PartitionMethodType;
 
 public class TableEntry extends PartitionEntry<Column> {
-
     
     // Table Information
     public Column parent_attribute;
     public Table parent;
-    public final List<Column> vertical_partition = new ArrayList<Column>();
     
     public TableEntry() {
         // For serialization

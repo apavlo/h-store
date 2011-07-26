@@ -154,7 +154,7 @@ public abstract class JSONUtil {
         try {
             object.fromJSON(new JSONObject(contents), catalog_db);
         } catch (Exception ex) {
-            LOG.error("Failed to deserialize the " + object.getClass().getSimpleName() + " from file '" + input_path + "'", ex);
+            if (debug.get()) LOG.error("Failed to deserialize the " + object.getClass().getSimpleName() + " from file '" + input_path + "'", ex);
             throw new IOException(ex);
         }
         if (debug.get()) LOG.debug("The loading of the " + object.getClass().getSimpleName() + " is complete");
