@@ -818,7 +818,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     // VerticalPartitionColumn
                     } else if (search_col instanceof VerticalPartitionColumn) {
                         current_tbl.setIsreplicated(false);
-                        horizontal_col = ((VerticalPartitionColumn)search_col).getHorizontalMultiColumn();
+                        horizontal_col = ((VerticalPartitionColumn)search_col).getHorizontalColumn();
                         vertical_col = ((VerticalPartitionColumn)search_col).getVerticalMultiColumn();
                         
                     // MultiColumn

@@ -93,14 +93,11 @@ public class VerticalPartitionColumn extends MultiColumn {
     }
     
     /**
-     * Return the Horizontal Partitioning Columns
+     * Return the Horizontal Partitioning Column
      * @return
      */
-    public Collection<Column> getHorizontalPartitionColumns() {
-        return ((MultiColumn)this.get(0)).getAttributes();
-    }
-    public MultiColumn getHorizontalMultiColumn() {
-        return ((MultiColumn)this.get(0));
+    public Column getHorizontalColumn() {
+        return (this.get(0));
     }
 
     /**

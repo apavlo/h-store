@@ -82,7 +82,7 @@ public abstract class VerticalPartitionerUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<VerticalPartitionColumn> generateCandidates(final DesignerInfo info, final AccessGraph agraph, final MultiColumn hp_col, final DesignerHints hints) throws Exception {
+    public static Collection<VerticalPartitionColumn> generateCandidates(final DesignerInfo info, final AccessGraph agraph, final Column hp_col, final DesignerHints hints) throws Exception {
         if (trace.get()) LOG.trace(String.format("Generating Vertical Partitioning candidates based on using %s as the horizontal partitioning attribute",
                                                  hp_col.fullName()));
         final Table catalog_tbl = hp_col.getParent();
@@ -99,7 +99,10 @@ public abstract class VerticalPartitionerUtil {
                 // between the candidate partitioning column and our target column
                 if (catalog_stmt.getQuerytype() != QueryType.SELECT.getValue()) continue;
                 Collection<Column> output_cols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
-                if (output_cols.containsAll(hp_col) == false) continue;
+                if (hp_col instanceof MultiColumn) {
+                    if (output_cols.containsAll((MultiColumn)hp_col) == false) continue;
+                } else if (output_cols.contains(hp_col) == false) continue;
+                
                 // Skip if this thing is just dumping out all columns
                 if (output_cols.size() == catalog_tbl.getColumns().size()) continue;
                 
@@ -110,7 +113,12 @@ public abstract class VerticalPartitionerUtil {
                 // Vertical Partition Columns
                 Set<Column> all_cols = new TreeSet<Column>();
                 all_cols.addAll(predicate_cols);
-                all_cols.addAll(hp_col.getAttributes());
+                if (hp_col instanceof MultiColumn) {
+                    all_cols.addAll(((MultiColumn)hp_col).getAttributes());    
+                } else {
+                    all_cols.add(hp_col);
+                }
+                
                 MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
                 VerticalPartitionColumn vpc = VerticalPartitionColumn.get(hp_col, vp_col);
                 assert(vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", hp_col, vp_col);

@@ -168,7 +168,7 @@ public abstract class StringUtil {
                 Object v_obj = e.getValue();
                 String v = null;
                 if (recursive && v_obj instanceof Map) {
-                    v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, (Map<?,?>)v_obj);
+                    v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, (Map<?,?>)v_obj).trim();
                 } else if (v_obj == null) {
                     v = "null";
                 } else {

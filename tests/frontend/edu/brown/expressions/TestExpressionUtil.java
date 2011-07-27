@@ -8,7 +8,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.AggregateExpression;
-import org.voltdb.expressions.ComparisonExpression;
 import org.voltdb.expressions.NullValueExpression;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
@@ -109,7 +108,5 @@ public class TestExpressionUtil extends BaseTestCase {
         assertNotNull(debug);
         assertFalse(debug.isEmpty());
     }
-    
-    
     
 }
