@@ -17,7 +17,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
-import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
@@ -638,19 +637,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 this.previous_tables[i] = new HashSet<Table>(remaining_tables);
                 if (i < this.num_tables) this.previous_tables[i].add(this.search_tables.get(i)); 
             } // FOR
-            
-            // Pre-generate all of the vertical partitions that we will need
-            for (Table catalog_tbl : this.info.catalog_db.getTables()) {
-                if (catalog_tbl.getSystable()) continue;
-                Collection<VerticalPartitionColumn> candidates = this.cp.getVerticalPartitionCandidates(catalog_tbl);
-                for (VerticalPartitionColumn vpc : candidates) {
-                    MaterializedViewInfo catalog_view = vpc.updateCatalog();
-                    assert(catalog_view != null);
-                    
-                } // FOR
-                
-            } // FOR (tbl)
-            
         }
         
         /**

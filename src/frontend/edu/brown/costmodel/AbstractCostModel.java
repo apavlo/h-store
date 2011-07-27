@@ -80,11 +80,11 @@ public abstract class AbstractCostModel {
     protected boolean use_execution = true;
     
     /**
-     * Enable Entropy Calculations (if supported)
+     * Enable Skew Calculations (if supported)
      */
     protected boolean use_skew = true;
-    protected boolean use_entropy_txns = true;
-    protected boolean use_entropy_java = false;
+    protected boolean use_skew_txns = true;
+    protected boolean use_skew_java = false;
     
     /**
      * Enable Multipartition Txn Penalty (if supported)
@@ -98,7 +98,7 @@ public abstract class AbstractCostModel {
     protected double execution_weight = 1.0;
     protected double skew_weight = 1.0;
     protected double entropy_weight_txn = 1.0;
-    protected int entropy_weight_java = 1;
+    protected double java_exec_weight = 1.0;
     protected double multipartition_penalty = 1.0;
     
     /**
@@ -441,38 +441,38 @@ public abstract class AbstractCostModel {
     // ----------------------------------------------------------------------------
     
     public boolean isJavaExecutionWeightEnabled() {
-        return this.use_entropy_java;
+        return this.use_skew_java;
     }
     public void setJavaExecutionWeightEnabled(boolean enable) {
         LOG.debug("Cost Model Java Execution: " + (enable ? "ENABLED" : "DISABLED"));
-        this.use_entropy_java = enable;
+        this.use_skew_java = enable;
     }
-    public void setJavaExecutionWeight(int weight) {
+    public void setJavaExecutionWeight(double weight) {
         LOG.debug("Java Execution Weight: " + weight);
-        this.entropy_weight_java = weight;
+        this.java_exec_weight = weight;
     }
-    public int getJavaExecutionWeight() {
-        return (this.entropy_weight_java);
+    public double getJavaExecutionWeight() {
+        return (this.java_exec_weight);
     }
 
     // ----------------------------------------------------------------------------
     // PARTITION EXECUTION WEIGHT (SKEW)
     // ----------------------------------------------------------------------------
     
-    public boolean isEntropyTxnWeightEnabled() {
-        return this.use_entropy_java;
-    }
-    public void setEntropyTxnWeightEnabled(boolean enable) {
-        LOG.debug("Cost Model Entropy Txn: " + (enable ? "ENABLED" : "DISABLED"));
-        this.use_entropy_java = enable;
-    }
-    public void setEntropyTxnWeight(int weight) {
-        LOG.debug("Entropy Txn Weight: " + weight);
-        this.entropy_weight_java = weight;
-    }
-    public int getEntropyTxnWeight() {
-        return (this.entropy_weight_java);
-    }
+//    public boolean isEntropyTxnWeightEnabled() {
+//        return this.use_skew_java;
+//    }
+//    public void setEntropyTxnWeightEnabled(boolean enable) {
+//        LOG.debug("Cost Model Entropy Txn: " + (enable ? "ENABLED" : "DISABLED"));
+//        this.use_skew_java = enable;
+//    }
+//    public void setEntropyTxnWeight(int weight) {
+//        LOG.debug("Entropy Txn Weight: " + weight);
+//        this.java_exec_weight = weight;
+//    }
+//    public int getEntropyTxnWeight() {
+//        return (this.java_exec_weight);
+//    }
     
     
     public Histogram<String> getProcedureHistogram() {

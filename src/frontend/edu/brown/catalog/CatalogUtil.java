@@ -467,41 +467,49 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static void copyQueryPlans(Statement copy_src, Statement copy_dest) {
         // Update both the single and multi-partition query plans
-        assert(copy_src.getHas_multisited());
-        copy_dest.setMs_fullplan(copy_src.getMs_fullplan());
-        copy_dest.setMs_exptree(copy_src.getMs_exptree());
-        copy_dest.getMs_fragments().clear();
-        for (PlanFragment copy_src_frag : copy_src.getMs_fragments()) {
-            PlanFragment copy_dest_frag = copy_dest.getMs_fragments().add(copy_src_frag.getName());
-            for (String f : copy_src_frag.getFields()) {
-                Object val = copy_src_frag.getField(f);
-                if (val != null) {
-                    if (val instanceof String) val = "\"" + val + "\""; // HACK
-                    if (trace.get()) LOG.trace(String.format("Applied DTXN %s.%s => %s", copy_dest_frag.fullName(), f, val));
-                    copy_dest_frag.set(f, val.toString());
-                } else {
-                    if (debug.get()) LOG.warn(String.format("Missing DTXN %s.%s", copy_dest_frag.fullName(), f));
-                }
+        copy_dest.setHas_multisited(copy_src.getHas_multisited());
+        if (copy_src.getHas_multisited()) {
+            if (debug.get()) LOG.info(String.format("Copying single-partition query plan from %s to %s",
+                                                    copy_src.fullName(), copy_dest.fullName()));
+            copy_dest.setMs_fullplan(copy_src.getMs_fullplan());
+            copy_dest.setMs_exptree(copy_src.getMs_exptree());
+            copy_dest.getMs_fragments().clear();
+            for (PlanFragment copy_src_frag : copy_src.getMs_fragments()) {
+                PlanFragment copy_dest_frag = copy_dest.getMs_fragments().add(copy_src_frag.getName());
+                for (String f : copy_src_frag.getFields()) {
+                    Object val = copy_src_frag.getField(f);
+                    if (val != null) {
+                        if (val instanceof String) val = "\"" + val + "\""; // HACK
+                        if (trace.get()) LOG.trace(String.format("Applied DTXN %s.%s => %s", copy_dest_frag.fullName(), f, val));
+                        copy_dest_frag.set(f, val.toString());
+                    } else {
+                        if (debug.get()) LOG.warn(String.format("Missing DTXN %s.%s", copy_dest_frag.fullName(), f));
+                    }
+                } // FOR
             } // FOR
-        } // FOR
+        }
 
-        assert(copy_src.getHas_singlesited());
-        copy_dest.setFullplan(copy_src.getMs_fullplan());
-        copy_dest.setExptree(copy_src.getMs_exptree());
-        copy_dest.getFragments().clear();
-        for (PlanFragment copy_src_frag : copy_src.getFragments()) {
-            PlanFragment copy_dest_frag = copy_dest.getFragments().add(copy_src_frag.getName());
-            for (String f : copy_src_frag.getFields()) {
-                Object val = copy_src_frag.getField(f);
-                if (val != null) {
-                    if (val instanceof String) val = "\"" + val + "\""; // HACK
-                    if (trace.get()) LOG.trace(String.format("Applied SP %s.%s => %s", copy_dest_frag.fullName(), f, val));
-                    copy_dest_frag.set(f, val.toString());
-                } else {
-                    if (debug.get()) LOG.warn(String.format("Missing SP %s.%s", copy_dest_frag.fullName(), f));
-                }
+        copy_dest.setHas_singlesited(copy_src.getHas_singlesited());
+        if (copy_src.getHas_singlesited()) {
+            if (debug.get()) LOG.debug(String.format("Copying multi-partition query plan from %s to %s",
+                                                     copy_src.fullName(), copy_dest.fullName()));
+            copy_dest.setFullplan(copy_src.getFullplan());
+            copy_dest.setExptree(copy_src.getExptree());
+            copy_dest.getFragments().clear();
+            for (PlanFragment copy_src_frag : copy_src.getFragments()) {
+                PlanFragment copy_dest_frag = copy_dest.getFragments().add(copy_src_frag.getName());
+                for (String f : copy_src_frag.getFields()) {
+                    Object val = copy_src_frag.getField(f);
+                    if (val != null) {
+                        if (val instanceof String) val = "\"" + val + "\""; // HACK
+                        if (trace.get()) LOG.trace(String.format("Applied SP %s.%s => %s", copy_dest_frag.fullName(), f, val));
+                        copy_dest_frag.set(f, val.toString());
+                    } else {
+                        if (debug.get()) LOG.warn(String.format("Missing SP %s.%s", copy_dest_frag.fullName(), f));
+                    }
+                } // FOR
             } // FOR
-        } // FOR
+        }
     }
     
     // ------------------------------------------------------------
