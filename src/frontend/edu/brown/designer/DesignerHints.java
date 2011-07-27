@@ -115,60 +115,42 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      */
     public boolean enable_array_procparameter_candidates = false;
     
-    /**
-     * Mark tables as read-only/mostly
-     */
+    /** Mark tables as read-only */
     public final Set<String> readonly_tables = new HashSet<String>();
+    /** Mark tables as read-mostly */
     public final Set<String> readmostly_tables = new HashSet<String>();
 
-    /**
-     * Whether we can have multi-attribute partitioning attributes
-     */
+    /** Whether we can have multi-attribute partitioning attributes */
     public boolean enable_multi_partitioning = false;
     
-    /**
-     * Enable caching in cost models
-     */
+    /** Enable vertical partitioning search */
+    public boolean enable_vertical_partitioning = false;
+    
+    /** Enable caching in cost models */
     public boolean enable_costmodel_caching = true;
     
-    /**
-     * Enable skew calculations in cost models
-     */
+    /** Enable skew calculations in cost models */
     public boolean enable_costmodel_skew = true;
 
-    /**
-     * Enable execution calculations in cost models
-     */
+    /** Enable execution calculations in cost models */
     public boolean enable_costmodel_execution = true;
     
-    /**
-     * Enable the inclusion of Java execution partitions in cost models
-     */
+    /** Enable the inclusion of Java execution partitions in cost models */
     public boolean enable_costmodel_java_execution = false;
     
-    /**
-     * Enable Multipartition Penalty factoring
-     */
+    /** Enable Multipartition Penalty factoring */
     public boolean enable_costmodel_multipartition_penalty = true;
     
-    /**
-     * Enable Idle Partition Penalty factoring
-     */
+    /** Enable Idle Partition Penalty factoring */
     public boolean enable_costmodel_idlepartition_penalty = true;
     
-    /**
-     * Enable searching for the partitioning ProcParameter
-     */
+    /** Enable searching for the partitioning ProcParameter */
     public boolean enable_procparameter_search = true;
     
-    /**
-     * Enable increasing local search parameters after a restart
-     */
+    /** Enable increasing local search parameters after a restart */
     public boolean enable_local_search_increase = true;
     
-    /**
-     * Enable partitioner checkpoints
-     */
+    /** Enable partitioner checkpoints */
     public boolean enable_checkpoints = true;
     
     /**
@@ -187,6 +169,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     
     /**
      * Enable debugging on certain columns
+     * Set<ColumnKey>
      */
     public final Set<String> force_debugging = new HashSet<String>();
     

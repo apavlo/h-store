@@ -9,16 +9,27 @@ import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class VerticalPartitionColumn extends MultiColumn {
+    private static final Logger LOG = Logger.getLogger(VerticalPartitionColumn.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     public static final String PREFIX = "*VerticalPartitionColumn*"; 
     
     private transient final Collection<Statement> catalog_stmts = new TreeSet<Statement>();
@@ -32,7 +43,7 @@ public class VerticalPartitionColumn extends MultiColumn {
      * Use VerticalPartitionColumn.get()
      * @param attributes
      */
-    public VerticalPartitionColumn(Collection<MultiColumn> attributes) {
+    public VerticalPartitionColumn(Collection<Column> attributes) {
         super((Collection<? extends Column>)attributes);
         
         // There should only be two elements
@@ -41,8 +52,8 @@ public class VerticalPartitionColumn extends MultiColumn {
         assert(attributes.size() == 2) : "Total # of Attributes = " + this.getSize() + ": " + StringUtil.join(",", this);
     }
     
-    public static VerticalPartitionColumn get(MultiColumn hp_cols, MultiColumn vp_cols) {
-        return InnerMultiAttributeCatalogType.get(VerticalPartitionColumn.class, (Column)hp_cols, (Column)vp_cols);
+    public static VerticalPartitionColumn get(Column hp_cols, MultiColumn vp_cols) {
+        return InnerMultiAttributeCatalogType.get(VerticalPartitionColumn.class, hp_cols, (Column)vp_cols);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -136,7 +147,9 @@ public class VerticalPartitionColumn extends MultiColumn {
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to create vertical partition for " + this, ex);
             }
+            if (debug.get()) LOG.debug("Created vertical partition " + this.catalog_view + " for " + catalog_tbl);
         } else {
+            if (debug.get()) LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
             catalog_tbl.getViews().add(this.catalog_view);    
         }
             
@@ -145,8 +158,14 @@ public class VerticalPartitionColumn extends MultiColumn {
             // Make a back-up for each original Statement
             Statement backup = this.backups.get(e.getKey());
             if (backup == null) {
-                backup = new Statement();
+                Procedure catalog_proc = e.getKey().getParent();
+                backup = catalog_proc.getStatements().add("BACKUP__" + e.getKey().getName());
+                if (debug.get()) LOG.debug(String.format("Created temporary catalog object %s to back-up %s's query plans",
+                                                         backup.getName(), e.getKey().fullName()));
                 this.backups.put(e.getKey(), backup);
+                boolean ret = catalog_proc.getStatements().remove(backup);
+                assert(ret);
+                assert(catalog_proc.getStatements().contains(backup) == false);
             }
             CatalogUtil.copyQueryPlans(e.getKey(), backup);
             
@@ -162,7 +181,7 @@ public class VerticalPartitionColumn extends MultiColumn {
      */
     public void revertCatalog() {
         assert(this.catalog_view != null);
-        assert(this.applied == false) : "Trying to undo " + this + " before applying";
+        assert(this.applied) : "Trying to undo " + this + " before applying";
         
         Table catalog_tbl = this.getParent();
         assert(catalog_tbl.getViews().contains(this.catalog_view));
@@ -172,9 +191,11 @@ public class VerticalPartitionColumn extends MultiColumn {
         for (Statement catalog_stmt : this.optimized.keySet()) {
             Statement backup = this.backups.get(catalog_stmt);
             assert(backup != null) : "Missing backup for " + catalog_stmt.fullName();
+            if (debug.get()) LOG.debug(String.format("Restoring %s's original query plans from %s",
+                                       catalog_stmt.fullName(), backup.getName()));
             CatalogUtil.copyQueryPlans(backup, catalog_stmt);
         } // FOR
-        this.applied = true;
+        this.applied = false;
     }
     
 

@@ -831,10 +831,14 @@ public class VoltCompiler {
         compilerLog.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
         
         // Create a new virtual table
-        Table virtual_tbl = ((Database)catalog_tbl.getParent()).getTables().add(viewName);
+        Table virtual_tbl = ((Database)catalog_tbl.getParent()).getTables().get(viewName);
+        if (virtual_tbl == null) {
+            virtual_tbl = ((Database)catalog_tbl.getParent()).getTables().add(viewName);
+        }
         virtual_tbl.setIsreplicated(true);
         virtual_tbl.setMaterializer(catalog_tbl);
         virtual_tbl.setSystable(true);
+        virtual_tbl.getColumns().clear();
         
         // Create MaterializedView and link it to the virtual table
         MaterializedViewInfo catalog_view = catalog_tbl.getViews().add(viewName);
@@ -853,7 +857,6 @@ public class VoltCompiler {
             
             // VirtualTable Column
             Column virtual_col = virtual_tbl.getColumns().add(catalog_col.getName());
-//            virtual_col.setName(catalog_col.getName());
             virtual_col.setDefaulttype(catalog_col.getDefaulttype());
             virtual_col.setDefaultvalue(catalog_col.getDefaultvalue());
             virtual_col.setIndex(catalog_col.getIndex());
@@ -880,7 +883,12 @@ public class VoltCompiler {
                 throw new Exception("No columns selected for index on " + viewName);
             }
             String idxName = "SYS_IDX_" + viewName;
-            Index virtual_idx = virtual_tbl.getIndexes().add(idxName);
+            Index virtual_idx = virtual_tbl.getIndexes().get(idxName);
+            if (virtual_idx == null) {
+                virtual_idx = virtual_tbl.getIndexes().add(idxName);
+            }
+            virtual_idx.getColumns().clear();
+            
             IndexType idxType = (indexColumns.size() == 1 ? IndexType.HASH_TABLE : IndexType.BALANCED_TREE);
             virtual_idx.setType(idxType.getValue());
             i = 0;

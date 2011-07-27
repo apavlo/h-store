@@ -1,5 +1,8 @@
 package edu.brown.utils;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -27,6 +30,25 @@ public abstract class StringUtil {
 
     public static String[] splitLines(String str) {
         return (str != null ? LINE_SPLIT.split(str) : null);
+    }
+    
+    
+    /**
+     * Return the MD5 checksum of the given string
+     * @param input
+     * @return
+     */
+    public static String md5sum(String input) {
+        MessageDigest digest = null;
+        try {
+            digest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException("Unable to compute md5sum for string", ex);
+        }
+        assert(digest != null);
+        digest.update(input.getBytes());
+        BigInteger hash = new BigInteger(1, digest.digest());
+        return (hash.toString(16));
     }
     
     /**
@@ -71,7 +93,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(Map<?, ?>...maps) {
-        return (formatMaps(":", false, false, false, false, maps));
+        return (formatMaps(":", false, false, false, false, true, maps));
     }
     
     /**
@@ -82,7 +104,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(String delimiter, Map<?, ?>...maps) {
-        return (formatMaps(delimiter, false, false, false, false, maps));
+        return (formatMaps(delimiter, false, false, false, false, true, maps));
     }
 
     /**
@@ -101,10 +123,12 @@ public abstract class StringUtil {
      * @param box Box results
      * @param border_top TODO
      * @param border_bottom TODO
+     * @param recursive TODO
      * @param maps
      * @return
      */
-    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, Map<?, ?>...maps) {
+    @SuppressWarnings("unchecked")
+    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, boolean recursive, Map<?, ?>...maps) {
         boolean need_divider = (maps.length > 1 || border_bottom || border_top);
         
         // Figure out the largest key size so we can get spacing right
@@ -128,7 +152,7 @@ public abstract class StringUtil {
                          "%s\n";
         
         // Now make StringBuilder blocks for each map
-        // We do it in this way so that we can get the 
+        // We do it in this way so that we can get the max length of the values
         int max_value_size = 0;
         StringBuilder blocks[] = new StringBuilder[maps.length];
         for (int i = 0; i < maps.length; i++) {
@@ -140,7 +164,16 @@ public abstract class StringUtil {
             boolean first = true;
             for (Entry<?, ?> e : m.entrySet()) {
                 String k = keys.get(e.getKey()).toString();
-                String v = (e.getValue() != null ? e.getValue().toString() : "null");
+                
+                Object v_obj = e.getValue();
+                String v = null;
+                if (recursive && v_obj instanceof Map) {
+                    v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, (Map<?,?>)v_obj);
+                } else if (v_obj == null) {
+                    v = "null";
+                } else {
+                    v = v_obj.toString();
+                }
                 if (upper) k = k.toUpperCase();
                 if (first == false || (first && v.isEmpty() == false)) {
                     if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
@@ -181,7 +214,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMapsBoxed(Map<?, ?>...maps) {
-        return (formatMaps(":", false, true, false, false, maps));
+        return (formatMaps(":", false, true, false, false, true, maps));
     }
 
     /**
@@ -363,12 +396,7 @@ public abstract class StringUtil {
     }
     
     public static <T> String join(String delimiter, final Iterator<T> items) {
-        return (join("", delimiter, new Iterable<T>() {
-            @Override
-            public Iterator<T> iterator() {
-                return items;
-            }
-        }));
+        return (join("", delimiter, CollectionUtil.wrapIterator(items)));
     }
     
     /**

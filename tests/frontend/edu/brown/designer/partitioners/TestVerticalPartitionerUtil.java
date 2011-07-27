@@ -1,11 +1,15 @@
 package edu.brown.designer.partitioners;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertThat;
+
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Statement;
@@ -25,6 +29,7 @@ import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.TestAbstractPartitioner.MockPartitioner;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -51,6 +56,18 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         assertNotNull(this.agraph);
     }
     
+    private Map<String, Object> generateFieldMap(Statement catalog_stmt) {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        for (String f : catalog_stmt.getFields()) {
+            Object val = catalog_stmt.getField(f);
+            if (f.endsWith("exptree") || f.endsWith("fullplan")) {
+                val = StringUtil.md5sum(val.toString());
+            }
+            m.put(f, val);
+        } // FOR
+        return (m);
+    }
+    
     /**
      * testCatalogUpdates
      */
@@ -69,40 +86,57 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         // BEFORE!
         assertNull(CatalogUtil.getVerticalPartition(catalog_tbl));
-        Map<Statement, Map<String, Object>> stmt_fields = new HashMap<Statement, Map<String, Object>>();
+        Map<Statement, Map<String, Object>> fields_before = new ListOrderedMap<Statement, Map<String, Object>>();
         for (Statement catalog_stmt : vpc.getStatements()) {
-            Map<String, Object> m = new HashMap<String, Object>();
-            for (String f : catalog_stmt.getFields()) {
-                m.put(f, catalog_stmt.getField(f));
-            }
-            stmt_fields.put(catalog_stmt, m);
+            fields_before.put(catalog_stmt, this.generateFieldMap(catalog_stmt));
         } // FOR
+//        System.err.println("BEFORE:\n" + StringUtil.formatMaps(fields_before));
         
         // AFTER!
         MaterializedViewInfo catalog_view = vpc.updateCatalog();
         assertNotNull(catalog_view);
         assertEquals(CatalogUtil.getVerticalPartition(catalog_tbl), catalog_view);
         for (Statement catalog_stmt : vpc.getStatements()) {
-            Map<String, Object> m = stmt_fields.get(catalog_stmt);
-            assertNotNull(m);
+            Map<String, Object> before_m = fields_before.get(catalog_stmt);
+            assertNotNull(before_m);
+            Map<String, Object> after_m = this.generateFieldMap(catalog_stmt);
+            assertEquals(before_m.keySet(), after_m.keySet());
+            System.err.println(StringUtil.columns(StringUtil.formatMaps(before_m),
+                               StringUtil.formatMaps(after_m)));
             
-            assertFalse(m.get("exptree").equals(catalog_stmt.getExptree()));
-            assertFalse(m.get("fullplan").equals(catalog_stmt.getFullplan()));
-            assertFalse(m.get("ms_exptree").equals(catalog_stmt.getMs_exptree()));
-            assertFalse(m.get("ms_fullplan").equals(catalog_stmt.getMs_fullplan()));
+            for (String f : before_m.keySet()) {
+                // Use the MD5 checksum to make sure that these fields have changed
+                // Yes I could just compare the original strings but... well, uh... I forget why I did this...
+                if (f.endsWith("fullplan")) {
+                    assertThat(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), not(equalTo(after_m.get(f))));
+                // Sometimes the Expression tree will be different, sometimes it will be the same
+                // So just make sure it's not null/empty
+                } else if (f.endsWith("exptree")) {
+                    assertNotNull(after_m.get(f));
+                    assertFalse(catalog_stmt.fullName() +" ["+f+"]", after_m.get(f).toString().isEmpty());
+                // All the other fields should be the same
+                } else {
+                    assertEquals(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), after_m.get(f));
+                }
+            } // FOR
         } // FOR
+        System.err.println(StringUtil.SINGLE_LINE);
         
         // REVERT!
         vpc.revertCatalog();
         assertNull(CatalogUtil.getVerticalPartition(catalog_tbl));
         for (Statement catalog_stmt : vpc.getStatements()) {
-            Map<String, Object> m = stmt_fields.get(catalog_stmt);
-            assertNotNull(m);
+            Map<String, Object> before_m = fields_before.get(catalog_stmt);
+            assertNotNull(before_m);
+            Map<String, Object> revert_m = this.generateFieldMap(catalog_stmt);
+            assertEquals(before_m.keySet(), revert_m.keySet());
+            System.err.println(StringUtil.columns(StringUtil.formatMaps(before_m),
+                               StringUtil.formatMaps(revert_m)));
             
-            assertEquals(m.get("exptree"), catalog_stmt.getExptree());
-            assertEquals(m.get("fullplan"), catalog_stmt.getFullplan());
-            assertEquals(m.get("ms_exptree"), catalog_stmt.getMs_exptree());
-            assertEquals(m.get("ms_fullplan"), catalog_stmt.getMs_fullplan());
+            // Now everything should be the same again
+            for (String f : before_m.keySet()) {
+                assertEquals(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), revert_m.get(f));
+            } // FOR
         } // FOR
     }
     
@@ -111,6 +145,10 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      */
     public void testCompileOptimizedStatements() throws Exception {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+        if (CatalogUtil.getVerticalPartition(catalog_tbl) != null) {
+            catalog_tbl.getViews().clear();
+            assert(catalog_tbl.getViews().isEmpty());
+        }
         Column catalog_cols[] = {
             this.getColumn(catalog_tbl, "S_ID"),
 //            this.getColumn(catalog_tbl, "SUB_NBR"),
@@ -128,7 +166,6 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         for (VerticalPartitionColumn c : candidates) {
             // HACK: Clear out the query plans that could have been generated from other tests
             c.clear();
-            
             assertFalse(c.getStatements().isEmpty());
             for (Statement catalog_stmt : c.getStatements()) {
                 assertNull(catalog_stmt.fullName(), c.getOptimizedQuery(catalog_stmt));
