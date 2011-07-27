@@ -39,6 +39,8 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
      * testInitialize
      */
     public void testInitialize() throws Exception {
+        System.err.println(this.cp.toString());
+        
         for (DesignerVertex v : agraph.getVertices()) {
             assertNotNull(cp.getEdgeColumns(v));
             // System.err.println(v + " => " + cp.getEdgeColumns(v));

@@ -163,6 +163,7 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
     public Object[] toArray() {
         return this.attributes.toArray();
     }
+    @SuppressWarnings("hiding")
     @Override
     public <T> T[] toArray(T[] a) {
         return this.attributes.toArray(a);

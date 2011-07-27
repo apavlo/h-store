@@ -1,6 +1,7 @@
 package edu.brown.catalog.special;
 
 import java.util.Collection;
+import java.util.HashSet;
 
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ProcParameter;
@@ -10,6 +11,7 @@ import org.voltdb.catalog.Table;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestMultiAttributeCatalogType extends BaseTestCase {
@@ -52,7 +54,7 @@ public class TestMultiAttributeCatalogType extends BaseTestCase {
     @SuppressWarnings("unchecked")
     public void testVerticalPartitionColumn() throws Exception {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        MultiColumn orig_hp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"));
+        Column orig_hp_col = this.getColumn(catalog_tbl, "S_ID");
         MultiColumn orig_vp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"),
                                                   this.getColumn(catalog_tbl, "SUB_NBR")); 
         
@@ -61,8 +63,14 @@ public class TestMultiAttributeCatalogType extends BaseTestCase {
         assertEquals(catalog_tbl, item0.getParent());
         assertEquals(2, item0.size());
         
-        Collection<Column> expected[] = new Collection[]{ orig_hp_col.getAttributes(), orig_vp_col.getAttributes() };
-        Collection<Column> actual[] = new Collection[]{ item0.getHorizontalPartitionColumns(), item0.getVerticalPartitionColumns() };
+        Collection<Column> expected[] = new Collection[]{
+            CollectionUtil.addAll(new HashSet<Column>(), orig_hp_col),
+            orig_vp_col.getAttributes()
+        };
+        Collection<Column> actual[] = new Collection[]{
+            CollectionUtil.addAll(new HashSet<Column>(), item0.getHorizontalColumn()),
+            item0.getVerticalPartitionColumns()
+        };
         String labels[] = { "Horizontal", "Vertical" };
         for (int i = 0; i < expected.length; i++) {
             assertNotNull(labels[i], actual[i]);
