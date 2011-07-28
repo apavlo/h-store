@@ -17,22 +17,17 @@
 
 package org.voltdb.planner;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn.SortOrder;
 import org.voltdb.planner.PlanColumn.Storage;
 
-import edu.brown.utils.ThreadUtil;
-
 public class PlannerContext {
-    private static final Logger LOG = Logger.getLogger(PlannerContext.class);
 
     /**
      * Generator for PlanColumn.m_guid
@@ -62,12 +57,16 @@ public class PlannerContext {
         
         // We've never seen this one before, so we have to make a new one...
         if (retval == null) {
-            int guid = s_nextId.incrementAndGet();
+            int guid = -1;
+            while (true) {
+                int new_guid = s_nextId.incrementAndGet();
+                if (s_columnPool.get(new_guid) == null) {
+                    guid = new_guid; 
+                    break;
+                }
+            } // WHILE
+            assert(guid > 0);
             retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
-            if (s_columnPool.get(guid) != null) {
-                PlanColumn orig = s_columnPool.get(guid); 
-                LOG.warn(String.format("Trying to add PlanColumn GUID #%d more than once!\nORIG: %s\nNEW: %s", guid, orig, retval));
-            }
             assert(s_columnPool.get(guid) == null);
             s_columnPool.put(guid, retval);
         }
