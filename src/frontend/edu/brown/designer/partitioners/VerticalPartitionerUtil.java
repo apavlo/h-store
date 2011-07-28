@@ -1,13 +1,13 @@
 package edu.brown.designer.partitioners;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -86,7 +86,7 @@ public abstract class VerticalPartitionerUtil {
         if (trace.get()) LOG.trace(String.format("Generating Vertical Partitioning candidates based on using %s as the horizontal partitioning attribute",
                                                  hp_col.fullName()));
         final Table catalog_tbl = hp_col.getParent();
-        Set<VerticalPartitionColumn> candidates = new HashSet<VerticalPartitionColumn>();
+        Set<VerticalPartitionColumn> candidates = new ListOrderedSet<VerticalPartitionColumn>();
         
         // For the given Column object, figure out what are the potential vertical partitioning candidates
         // if we assume that the Table is partitioned on that Column
@@ -109,6 +109,10 @@ public abstract class VerticalPartitionerUtil {
                 // The referenced columns are the columns that are used in the predicate
                 Collection<Column> predicate_cols = CatalogUtil.getReferencedColumns(catalog_stmt);
                 if (predicate_cols.contains(hp_col)) continue;
+                
+                // We only support single-table queries now
+                Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
+                if (stmt_tables.size() > 1) continue;
                 
                 // Vertical Partition Columns
                 Set<Column> all_cols = new TreeSet<Column>();

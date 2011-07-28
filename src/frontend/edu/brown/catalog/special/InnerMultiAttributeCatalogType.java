@@ -38,7 +38,8 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
         
         CatalogType last_parent = null;
         for (T c : this.attributes) {
-            if (last_parent != null) assert(c.getParent().equals(last_parent));
+            if (last_parent != null) assert(c.getParent().equals(last_parent)) :
+                "Catalog items do not have the same parent: " + CatalogUtil.debug(this.attributes);
             last_parent = c.getParent();
         } // FOR
     }
