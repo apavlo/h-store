@@ -91,7 +91,7 @@ public abstract class AbstractPartitioner {
         pplan.apply(info.catalog_db);
         if (debug.get()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
-            info.getCostModel().estimateCost(info.catalog_db, info.workload);
+            info.getCostModel().estimateWorkloadCost(info.catalog_db, info.workload);
             for (Entry<Procedure, ProcedureEntry> e : pplan.getProcedureEntries().entrySet()) {
                 Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
                 if (singlepartitioned != null) {

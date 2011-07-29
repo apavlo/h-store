@@ -27,7 +27,6 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 public class MemoryEstimator {
@@ -61,9 +60,7 @@ public class MemoryEstimator {
     }
     
     public long estimate(Database catalog_db, int partitions) {
-        HashSet<Table> all_tables = new HashSet<Table>();
-        CollectionUtil.addAll(all_tables, catalog_db.getTables());
-        return (this.estimate(catalog_db, partitions, all_tables));
+        return (this.estimate(catalog_db, partitions, catalog_db.getTables()));
     }
     
     public long estimateTotalSize(Database catalog_db) {

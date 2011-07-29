@@ -79,7 +79,7 @@ public class AffinityMapper extends AbstractMapper {
         //
         SingleSitedCostModel cost_model = new SingleSitedCostModel(info.catalog_db);
         LOG.info("Generating cost model information for given PartitionPlan");
-        cost_model.estimateCost(info.catalog_db, this.info.workload);
+        cost_model.estimateWorkloadCost(info.catalog_db, this.info.workload);
         
         //
         // FIXME

@@ -46,7 +46,7 @@ public class LowerBoundsCalculator {
     public double calculate(final Workload workload) throws Exception {
         if (LOG.isDebugEnabled()) LOG.debug("Calculating lower bounds using " + workload.getTransactionCount() + " transactions" +
                                             " on " + CatalogUtil.getNumberOfPartitions(info.catalog_db) + " partitions");
-        return (this.costmodel.estimateCost(this.info.catalog_db, workload));
+        return (this.costmodel.estimateWorkloadCost(this.info.catalog_db, workload));
     }
     
     /**
@@ -79,7 +79,7 @@ public class LowerBoundsCalculator {
         // Calculate the actual cost too while we're at it...
         TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, args.num_intervals);
         cm.applyDesignerHints(args.designer_hints);
-        double actual_cost = cm.estimateCost(args.catalog_db, args.workload);
+        double actual_cost = cm.estimateWorkloadCost(args.catalog_db, args.workload);
         
         final long start = System.currentTimeMillis();
         LowerBoundsCalculator lb = new LowerBoundsCalculator(info, args.num_intervals);

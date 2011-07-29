@@ -10,7 +10,6 @@ import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.VoltTypeUtil;
 

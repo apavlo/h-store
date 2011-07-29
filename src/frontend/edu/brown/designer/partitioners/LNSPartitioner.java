@@ -4,6 +4,7 @@
 package edu.brown.designer.partitioners;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -348,25 +349,36 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // DEBUG HEADER ---------------------------------------------------------
         
-        StringBuilder sb = new StringBuilder();
-        sb.append("Starting Large-Neighborhood Search\n");
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("partitions",       CatalogUtil.getNumberOfPartitions(info.catalog_db));
-        m.put("intervals",        info.getArgs().num_intervals);
-        m.put("total_bytes",      info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
-        m.put("checkpoints",      hints.enable_checkpoints);
-        m.put("greedy",           hints.greedy_search);
-        m.put("relax_factor_min", hints.relaxation_factor_min);
-        m.put("relax_factor_max", hints.relaxation_factor_max);
-        m.put("relax_min",        hints.relaxation_factor_min);
-        m.put("backtrack_mp",     hints.back_tracks_multiplier);
-        m.put("localtime_mp",     hints.local_time_multiplier);
-        m.put("total_time",       hints.limit_total_time);
-        m.put("total_txns",       info.workload.getTransactionCount());
-        sb.append(StringUtil.formatMaps(m));
-        sb.append(StringUtil.repeat("-", 65)).append("\n");
-        sb.append(info.workload.getProcedureHistogram());
-        LOG.info("\n" + StringUtil.box(sb.toString(), "+"));
+        Map<String, Object> m[] = new Map[3];
+        m[0] = new ListOrderedMap<String, Object>();
+        m[0].put("# of Transactions",   info.workload.getTransactionCount());
+        m[0].put("Partitions",          CatalogUtil.getNumberOfPartitions(info.catalog_db));
+        m[0].put("Cost Model",          info.getCostModel().getClass().getSimpleName());
+        m[0].put("Intervals",           info.getArgs().num_intervals);
+        m[0].put("Database Total Size", info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
+        m[0].put("Cluster Total Size",  CatalogUtil.getNumberOfPartitions(info.catalog_db) * hints.max_memory_per_partition);
+        m[0].put("Checkpoints Enabled", hints.enable_checkpoints);
+        m[0].put("Greedy Search",       hints.greedy_search);
+        
+        m[1] = new ListOrderedMap<String, Object>();
+        String fields[] = {
+            "relaxation_factor_min",
+            "relaxation_factor_max",
+            "relaxation_factor_min",
+            "back_tracks_multiplier",
+            "local_time_multiplier",
+            "limit_total_time"
+        };     
+        for (String f_name : fields) {
+            Field f = DesignerHints.class.getField(f_name);
+            assert(f != null);
+            m[1].put("hints." + f_name, f.get(hints));
+        } // FOR
+        
+        m[2] = new ListOrderedMap<String, Object>();
+        m[2].put(info.workload.getProcedureHistogram().toString(), null);
+        
+        LOG.info("Starting Large-Neighborhood Search\n" + StringUtil.box(StringUtil.formatMaps(m), "+"));
 
         // DEBUG HEADER ---------------------------------------------------------
         
@@ -414,7 +426,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // Sanity Check!
             this.best_solution.apply(info.catalog_db);
             this.costmodel.clear(true);
-            double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
+            double cost = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
             
             boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.5);
             LOG.info(String.format("Checkpoint Cost [" + DEBUG_COST_FORMAT + "] <-> Reloaded Cost [" + DEBUG_COST_FORMAT + "] ==> %s",
@@ -426,6 +438,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // Relax and begin the new search!
         this.costmodel.clear(true);
+        this.costmodel.setDebuggingEnabled(true);
         if (this.restart_ctr == null) this.restart_ctr = 0;
         
         final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
@@ -447,10 +460,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (this.restart_ctr % 3 == 0) {
                 LOG.info("Running sanity check on best solution...");
                 this.costmodel.clear(true);
-                double cost2 = this.costmodel.estimateCost(info.catalog_db, info.workload);
+                double cost2 = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
                 LOG.info(String.format("Before[" + DEBUG_COST_FORMAT + "] <=> After[" + DEBUG_COST_FORMAT + "]", this.best_cost, cost2));
                 boolean valid = MathUtil.equals(this.best_cost, cost2, 2, 0.2);
-                assert(valid) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
+                assert(valid) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessage();
             }
             
             // Save checkpoint
@@ -487,15 +500,18 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         // Check whether we have enough memory for the initial solution
         if (hints.max_memory_per_partition > 0) {
-            this.initial_memory = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions) /
-                                  (double)hints.max_memory_per_partition;
+            long total_size = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions);
+            this.initial_memory =  total_size / (double)hints.max_memory_per_partition;
+            if (this.initial_memory > 1.0) {
+                LOG.error("Invalid initial solution. Total size = " + total_size + "\n" + this.initial_solution);
+            }
             assert(this.initial_memory <= 1.0) : "Not enough memory: " + this.initial_memory; // Never should happen!
         } else {
             hints.max_memory_per_partition = 0;
         }
         
         // Now calculate the cost. We do this after the memory estimation so that we don't waste our time if it won't fit
-        this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+        this.initial_cost = this.costmodel.estimateWorkloadCost(this.info.catalog_db, this.info.workload);
         
         // We need to examine whether the solution utilized all of the partitions. If it didn't, then
         // we need to increase the entropy weight in the costmodel. This will help steer us towards 
@@ -516,7 +532,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 
                 LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
                 this.costmodel.applyDesignerHints(hints);
-                this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+                this.initial_cost = this.costmodel.estimateWorkloadCost(this.info.catalog_db, this.info.workload);
             }
         }
         
@@ -699,9 +715,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Validation
         // -------------------------------
         for (Table catalog_tbl : info.catalog_db.getTables()) {
-            if (orig_solution.containsKey(catalog_tbl)) {
-                assert(catalog_tbl.getPartitioncolumn().equals(orig_solution.get(catalog_tbl))) :
-                    catalog_tbl + " got changed: " + orig_solution.get(catalog_tbl) + " => " + catalog_tbl.getPartitioncolumn();
+            if (catalog_tbl.getSystable() == false && orig_solution.containsKey(catalog_tbl)) {
+                assert(orig_solution.get(catalog_tbl).equals(catalog_tbl.getPartitioncolumn())) :
+                    String.format("%s got changed: %s => %s",
+                                  catalog_tbl, orig_solution.get(catalog_tbl), catalog_tbl.getPartitioncolumn());
             }
         } // FOR
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
@@ -769,7 +786,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected Pair<Double, Double> recalculateCost(final DesignerHints hints) throws Exception {
         long memory = info.getMemoryEstimator().estimate(info.catalog_db, this.num_partitions, this.orig_table_attributes.keySet());
         double memory_ratio = memory / (double)hints.max_memory_per_partition;
-        double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
+        double cost = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
         return (Pair.of(cost, memory_ratio));
     }
     

@@ -5,6 +5,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.*;
 
 import edu.brown.workload.*;
@@ -38,6 +39,13 @@ public class ProcedureNameFilter extends Filter {
     public ProcedureNameFilter include(String...names) {
         for (String name : names) {
             this.include(name, INCLUDE_UNLIMITED);
+        }
+        return (this);
+    }
+    
+    public ProcedureNameFilter include(Class<? extends VoltProcedure>...procClasses) {
+        for (Class<? extends VoltProcedure> procClass : procClasses) {
+            this.include(procClass.getSimpleName(), INCLUDE_UNLIMITED);
         }
         return (this);
     }

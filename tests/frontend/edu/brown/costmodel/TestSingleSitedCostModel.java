@@ -133,7 +133,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // We now want to calculate the cost of this new workload
         final SingleSitedCostModel orig_costModel = new SingleSitedCostModel(catalog_db);
-        final double orig_cost = orig_costModel.estimateCost(catalog_db, new_workload);
+        final double orig_cost = orig_costModel.estimateWorkloadCost(catalog_db, new_workload);
         assert(orig_cost > 0);
         if (orig_costModel.getMultiPartitionProcedureHistogram().isEmpty()) System.err.println(orig_costModel.getTransactionCacheEntry(0).debug());
         assertEquals(num_txns, orig_costModel.getMultiPartitionProcedureHistogram().getSampleCount());
@@ -160,7 +160,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         clone.setWeight(num_txns);
         new_workload.addTransaction(catalog_proc, clone);
         final SingleSitedCostModel new_costModel = new SingleSitedCostModel(catalog_db);
-        final double new_cost = new_costModel.estimateCost(catalog_db, new_workload);
+        final double new_cost = new_costModel.estimateWorkloadCost(catalog_db, new_workload);
         assert(new_cost > 0);
         assertEquals(orig_cost, new_cost, 0.001);
         
@@ -204,7 +204,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // We now want to calculate the cost of this new workload
         final SingleSitedCostModel orig_costModel = new SingleSitedCostModel(catalog_db);
-        final double orig_cost = orig_costModel.estimateCost(catalog_db, new_workload);
+        final double orig_cost = orig_costModel.estimateWorkloadCost(catalog_db, new_workload);
         assert(orig_cost > 0);
         TransactionCacheEntry orig_txnEntry = orig_costModel.getTransactionCacheEntry(orig_txn);
         assertNotNull(orig_txnEntry);
@@ -230,7 +230,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(multip_txn.getQueryCount() * num_dupes, new_txn.getWeightedQueryCount());
         
         final SingleSitedCostModel new_costModel = new SingleSitedCostModel(catalog_db);
-        final double new_cost = new_costModel.estimateCost(catalog_db, new_workload);
+        final double new_cost = new_costModel.estimateWorkloadCost(catalog_db, new_workload);
         assert(new_cost > 0);
         assertEquals(orig_cost, new_cost, 0.001);
         
@@ -277,7 +277,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(1, new_workload.getTransactionCount());
         
         SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        final double orig_cost = cost_model.estimateCost(catalog_db, new_workload);
+        final double orig_cost = cost_model.estimateWorkloadCost(catalog_db, new_workload);
         assert(orig_cost > 0);
         
         // Only the base partition should be touched (2 * num_txns). Everything else should
@@ -331,7 +331,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(multip_txn.getQueryCount(), new_workload.getQueryCount());
         
         SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        final double orig_cost = cost_model.estimateCost(catalog_db, new_workload);
+        final double orig_cost = cost_model.estimateWorkloadCost(catalog_db, new_workload);
         assert(orig_cost > 0);
         assertEquals(new_workload.getTransactionCount(), cost_model.getMultiPartitionProcedureHistogram().getSampleCount());
         assertEquals(0, cost_model.getSinglePartitionProcedureHistogram().getSampleCount());
@@ -366,7 +366,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         // Throw our workload at the costmodel and check that the procedures have the 
         // expected result for whether they are single sited or not
         SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        cost_model.estimateCost(catalog_db, workload);
+        cost_model.estimateWorkloadCost(catalog_db, workload);
         
         for (Entry<Procedure, Boolean> e : expected.entrySet()) {
             Boolean sp = cost_model.isAlwaysSinglePartition(e.getKey());

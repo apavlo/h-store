@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -18,7 +17,6 @@ import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestConstraintPropagator extends BasePartitionerTestCase {
@@ -207,6 +205,55 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
             } // FOR (Column)
         } // FOR
     }
+    
+  /**
+  * testUpdateTableVerticalPartitioning
+  */
+ public void testUpdateTableVerticalPartitioning() throws Exception {
+     hints.enable_vertical_partitioning = true;
+     cp = new ConstraintPropagator(info, hints, agraph);
+     
+     // We're going to mark SUBSCRIBER as partitioned on S_ID and get the candidates for ACCESS_INFO  
+     Table catalog_tbl0 = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+     Column catalog_col = this.getColumn(catalog_tbl0, "S_ID");
+     catalog_tbl0.setPartitioncolumn(catalog_col);
+     cp.update(catalog_tbl0);
+     Table catalog_tbl1 = this.getTable(TM1Constants.TABLENAME_ACCESS_INFO);
+     Collection<Column> expected_cols = cp.getCandidateValues(catalog_tbl1, Column.class); 
+     assertNotNull(expected_cols);
+     assertFalse(expected_cols.isEmpty());
+     
+     // Get the VerticalPartitionColumn that uses S_ID as the horizontal partitioning Column
+     // Make sure that the optimized query plans have not been applied yet
+     Collection<VerticalPartitionColumn> vp_columns = cp.getVerticalPartitionColumns(catalog_tbl0);
+     assertNotNull(vp_columns);
+     VerticalPartitionColumn vp_col = null;
+     for (VerticalPartitionColumn c : vp_columns) {
+         if (c.getHorizontalColumn().equals(catalog_col)) {
+             vp_col = c;
+             break;
+         }
+     } // FOR
+     assertNotNull(vp_col);
+     assertFalse(vp_col.isUpdateApplied());
+     
+     // Now partition SUBSCRIBER using its VerticalPartitionColumn
+     cp.reset(catalog_tbl0);
+     catalog_tbl0.setPartitioncolumn(vp_col);
+     cp.update(catalog_tbl0);
+     
+     // And make sure that we get back the Columns we expect and that the Statements
+     // have been updated
+     Collection<Column> actual_cols = cp.getCandidateValues(catalog_tbl1, Column.class); 
+     assertNotNull(actual_cols);
+     assertEquals(expected_cols.size(), actual_cols.size());
+     assertEquals(expected_cols, actual_cols);
+     assertTrue(vp_col.isUpdateApplied());
+     
+     // Revert
+     catalog_tbl0.setPartitioncolumn(catalog_col);
+     cp.reset(catalog_tbl0);
+ }
     
 //    /**
 //     * testUpdateTableMultiAttribute
