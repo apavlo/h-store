@@ -35,7 +35,7 @@ public class CatalogInfo {
         m.put("# of Hosts", num_hosts);
         m.put("# of Sites", num_sites);
         m.put("# of Partitions", num_partitions);
-        System.out.println(StringUtil.formatMaps(":", false, false, false, true, true, m));
+        System.out.println(StringUtil.formatMaps(":", false, false, false, true, true, true, m));
         System.out.println("Cluster Information:\n");
         
         Map<Host, Set<Site>> hosts = CatalogUtil.getSitesPerHost(args.catalog);

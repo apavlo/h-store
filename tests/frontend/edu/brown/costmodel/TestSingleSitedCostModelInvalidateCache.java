@@ -7,7 +7,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
@@ -45,7 +47,7 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
         // We should always get the same cost back
         for (CatalogType catalog_item : items) {
             cost_model.invalidateCache(catalog_item);
-            double cost = cost_model.estimateCost(catalog_db, workload);
+            double cost = cost_model.estimateWorkloadCost(catalog_db, workload);
             assertEquals(catalog_item.getName(), expected, cost, 0.00001);
         } // FOR
         
@@ -59,7 +61,7 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
                 if (catalog_item.equals(catalog_item2)) continue;
                 cost_model.invalidateCache(catalog_item2);
             } // FOR
-            double cost = cost_model.estimateCost(catalog_db, workload);
+            double cost = cost_model.estimateWorkloadCost(catalog_db, workload);
             assertEquals(catalog_item.getName(), expected, cost, 0.00001);
         } // FOR
     }
@@ -70,7 +72,7 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
     public void testInvalidateCacheTables() throws Exception {
         // Calculate the total cost of the workload once
         final SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        final double expected = cost_model.estimateCost(catalog_db, workload);
+        final double expected = cost_model.estimateWorkloadCost(catalog_db, workload);
         assert(expected > 0);
         
         List<Table> all_tables = new ArrayList<Table>(catalog_db.getTables());
@@ -86,7 +88,7 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
     public void testInvalidateCacheProcedures() throws Exception {
         // Calculate the total cost of the workload once
         final SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        final double expected = cost_model.estimateCost(catalog_db, workload);
+        final double expected = cost_model.estimateWorkloadCost(catalog_db, workload);
         assert(expected > 0);
         this.validateCosts(cost_model, expected, catalog_db.getProcedures());
     }
@@ -98,12 +100,26 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
     public void testInvalidateCacheMixed() throws Exception {
         // Calculate the total cost of the workload once
         final SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        final double expected = cost_model.estimateCost(catalog_db, workload);
+        final double expected = cost_model.estimateWorkloadCost(catalog_db, workload);
         assert(expected > 0);
         
         List<CatalogType> all_items = new ArrayList<CatalogType>();
         all_items.addAll(catalog_db.getTables());
         all_items.addAll(catalog_db.getProcedures());
+        this.validateCosts(cost_model, expected, all_items);
+    }
+    
+    /**
+     * testInvalidateCacheQueries
+     */
+    public void testInvalidateCacheQueries() throws Exception {
+        // Calculate the total cost of the workload once
+        final SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
+        final double expected = cost_model.estimateWorkloadCost(catalog_db, workload);
+        assert(expected > 0);
+        
+        Procedure catalog_proc = this.getProcedure(neworder.class);
+        List<CatalogType> all_items = new ArrayList<CatalogType>(catalog_proc.getStatements());
         this.validateCosts(cost_model, expected, all_items);
     }
 }

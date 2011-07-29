@@ -2,6 +2,8 @@ package edu.brown.designer.partitioners;
 
 import java.io.File;
 
+import org.voltdb.catalog.Database;
+
 import edu.brown.BaseTestCase;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
@@ -65,13 +67,17 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
         }
         
         // Setup everything else (that's just how we roll up in this ma)
-        this.info = new DesignerInfo(catalog_db, workload);
-        this.info.setStats(stats);
-        this.info.setCorrelations(correlations);
-        this.info.setCorrelationsFile(correlations_file.getAbsolutePath());
-        this.info.setNumThreads(NUM_THREADS);
-        this.info.setNumIntervals(NUM_INTERVALS);
-        
+        this.info = this.generateInfo(catalog_db); 
         this.hints = new DesignerHints();
+    }
+    
+    protected DesignerInfo generateInfo(Database catalog_db) {
+        DesignerInfo info = new DesignerInfo(catalog_db, workload);
+        info.setStats(stats);
+        info.setCorrelations(correlations);
+        info.setCorrelationsFile(correlations_file.getAbsolutePath());
+        info.setNumThreads(NUM_THREADS);
+        info.setNumIntervals(NUM_INTERVALS);
+        return (info);
     }
 }

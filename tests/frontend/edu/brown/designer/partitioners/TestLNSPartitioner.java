@@ -266,7 +266,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
 
         // First check whether the cost is the same simply right after the first go
         assertEquals(orig_solution, this.partitioner.best_solution);
-        double new_cost = info.getCostModel().estimateCost(catalog_db, workload);
+        double new_cost = info.getCostModel().estimateWorkloadCost(catalog_db, workload);
         assert(new_cost > 0);
         assertEquals(this.partitioner.initial_cost, new_cost);
         

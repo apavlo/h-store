@@ -24,8 +24,8 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class VerticalPartitionColumn extends MultiColumn {
     private static final Logger LOG = Logger.getLogger(VerticalPartitionColumn.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -132,6 +132,14 @@ public class VerticalPartitionColumn extends MultiColumn {
     // --------------------------------------------------------------------------------------------
     
     /**
+     * Returns true if updateCatalog() has been called and the Statements now have
+     * the optimized query plans applied
+     */
+    public boolean isUpdateApplied() {
+        return (this.applied);
+    }
+    
+    /**
      * Create the MaterializedView catalog object for this vertical partition candidate
      */
     public MaterializedViewInfo updateCatalog() {
@@ -144,7 +152,8 @@ public class VerticalPartitionColumn extends MultiColumn {
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to create vertical partition for " + this, ex);
             }
-            if (debug.get()) LOG.debug("Created vertical partition " + this.catalog_view + " for " + catalog_tbl);
+            if (debug.get()) LOG.debug(String.format("Created vertical partition %s.%s: %s",
+                                                     catalog_tbl.getName(), this.catalog_view.getName(), CatalogUtil.debug(this.catalog_view.getDest().getColumns())));
         } else {
             if (debug.get()) LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
             catalog_tbl.getViews().add(this.catalog_view);    

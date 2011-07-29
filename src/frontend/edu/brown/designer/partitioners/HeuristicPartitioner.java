@@ -356,7 +356,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 
                 double cost = 0d;
                 try {
-                    cost_model.estimateCost(new_catalog_db, info.workload, filter, null);
+                    cost_model.estimateWorkloadCost(new_catalog_db, info.workload, filter, null);
                 } catch (Exception ex) {
                     LOG.fatal(ex.getLocalizedMessage());
                     ex.printStackTrace();

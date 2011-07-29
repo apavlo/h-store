@@ -1322,6 +1322,21 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // ------------------------------------------------------------
     
     /**
+     * Return an ordered list of the parents for each of the catalog items
+     */
+    public static Collection<CatalogType> getParents(Iterable<? extends CatalogType> catalog_items) {
+        Collection<CatalogType> parents = new ArrayList<CatalogType>();
+        for (CatalogType item : catalog_items) {
+            if (item != null) {
+                parents.add(item.getParent());
+            } else {
+                parents.add(null);
+            }
+        } // FOR
+        return (parents);
+    }
+    
+    /**
      * 
      * @param <T>
      * @param <U>

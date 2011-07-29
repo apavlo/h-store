@@ -173,7 +173,7 @@ public class Histogram<X> implements JSONSerializable {
             this.max_count = count;
             this.max_count_values.add(value);
         }
-        assert(count >= 0) : "Invalid negative count for '" + value + "' [count=" + count + "]";
+        assert(count >= 0) : "Invalid negative count for key '" + value + "' [count=" + count + "]";
         // If the new count is zero, then completely remove it if we're not allowed to have zero entries
         if (count == 0 && !this.keep_zero_entries) {
             this.histogram.remove(value);

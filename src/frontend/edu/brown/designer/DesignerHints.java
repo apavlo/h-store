@@ -473,12 +473,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      */
     public static void main(String[] vargs) throws Exception {
         LoggerUtil.setupLogging();
-
-        
-        
         // Make an empty DesignerHints and print it out
-//        DesignerHints hints = new DesignerHints();
-//        System.out.println(JSONUtil.format(hints.toJSONString()));
+        DesignerHints hints = new DesignerHints();
+        System.out.println(JSONUtil.format(hints.toJSONString()));
     }
 
 }

@@ -93,7 +93,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(Map<?, ?>...maps) {
-        return (formatMaps(":", false, false, false, false, true, maps));
+        return (formatMaps(":", false, false, false, false, true, true, maps));
     }
     
     /**
@@ -104,7 +104,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(String delimiter, Map<?, ?>...maps) {
-        return (formatMaps(delimiter, false, false, false, false, true, maps));
+        return (formatMaps(delimiter, false, false, false, false, true, true, maps));
     }
 
     /**
@@ -124,24 +124,40 @@ public abstract class StringUtil {
      * @param border_top TODO
      * @param border_bottom TODO
      * @param recursive TODO
+     * @param first_element_title TODO
      * @param maps
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, boolean recursive, Map<?, ?>...maps) {
+    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, boolean recursive, boolean first_element_title, Map<?, ?>...maps) {
         boolean need_divider = (maps.length > 1 || border_bottom || border_top);
         
         // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
+        int max_title_size = 0;
         final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
+        final boolean map_titles[] = new boolean[maps.length];
         for (int i = 0; i < maps.length; i++) {
             Map<?, ?> m = maps[i];
             if (m == null) continue;
             Map<Object, String> keys = new HashMap<Object, String>();
+            boolean first = true;
             for (Object k : m.keySet()) {
                 String k_str = (k != null ? k.toString() : "");
                 keys.put(k, k_str);
-                max_key_size = Math.max(max_key_size, k_str.length());
+                
+                // If the first element has a null value, then we can let it be the title for this map
+                // It's length doesn't affect the other keys, but will affect the total size of the map
+                if (first && first_element_title && m.get(k) == null) {
+                    for (String line : LINE_SPLIT.split(k_str)) {
+                        max_title_size = Math.max(max_title_size, line.length());    
+                    } // FOR
+                    map_titles[i] = true;
+                } else {
+                    max_key_size = Math.max(max_key_size, k_str.length());
+                    if (first) map_titles[i] = false;
+                }
+                first = false;
             } // FOR
             map_keys[i] = keys;
         } // FOR
@@ -164,34 +180,40 @@ public abstract class StringUtil {
             boolean first = true;
             for (Entry<?, ?> e : m.entrySet()) {
                 String k = keys.get(e.getKey()).toString();
-                
-                Object v_obj = e.getValue();
-                String v = null;
-                if (recursive && v_obj instanceof Map) {
-                    v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, (Map<?,?>)v_obj).trim();
-                } else if (v_obj == null) {
-                    v = "null";
+                if (first && map_titles[i]) {
+                    blocks[i].append(k);
+                    if (k.endsWith("\n") == false) blocks[i].append("\n");
                 } else {
-                    v = v_obj.toString();
+                    Object v_obj = e.getValue();
+                    String v = null;
+                    if (recursive && v_obj instanceof Map) {
+                        v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, first_element_title, (Map<?,?>)v_obj).trim();
+                    } else if (v_obj == null) {
+                        v = "null";
+                    } else {
+                        v = v_obj.toString();
+                    }
+    
+                    if (upper) k = k.toUpperCase();
+                    if (first == false || (first && v.isEmpty() == false)) {
+                        if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
+                    }
+                    
+                    // If the value is multiple lines, format them nicely!
+                    String lines[] = LINE_SPLIT.split(v);
+                    for (int line_i = 0; line_i < lines.length; line_i++) {
+                        blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
+                        if (need_divider) max_value_size = Math.max(max_value_size, lines[line_i].length());
+                    } // FOR
+                    if (v.endsWith("\n")) blocks[i].append("\n");
                 }
-                if (upper) k = k.toUpperCase();
-                if (first == false || (first && v.isEmpty() == false)) {
-                    if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
-                }
-                
-                // If the value is multiple lines, format them nicely!
-                String lines[] = LINE_SPLIT.split(v);
-                for (int line_i = 0; line_i < lines.length; line_i++) {
-                    blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
-                    if (need_divider) max_value_size = Math.max(max_value_size, lines[line_i].length());
-                } // FOR
-                if (v.endsWith("\n")) blocks[i].append("\n");
                 first = false;
             }
         } // FOR
         
         // Put it all together!
-        int total_width = max_key_size + max_value_size + delimiter.length() + 1;
+//        System.err.println("max_title_size=" + max_title_size + ", max_key_size=" + max_key_size + ", max_value_size=" + max_value_size + ", delimiter=" + delimiter.length());
+        int total_width = Math.max(max_title_size, (max_key_size + max_value_size + delimiter.length())) + 1;
         String dividing_line = (need_divider ? repeat("-", total_width) : "");
         StringBuilder sb = null;
         if (maps.length == 1) {
@@ -214,7 +236,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMapsBoxed(Map<?, ?>...maps) {
-        return (formatMaps(":", false, true, false, false, true, maps));
+        return (formatMaps(":", false, true, false, false, true, true, maps));
     }
 
     /**

@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
@@ -204,10 +205,10 @@ public class ConstraintPropagator {
         
         // Initialized marked edge counters
         for (Collection<Column> cols : this.edge_cols_xref.values()) {
-            for (Column catlalog_col : cols) {
-                Counter ctr = this.column_edge_ctrs.get(catlalog_col);
+            for (Column catalog_col : cols) {
+                Counter ctr = this.column_edge_ctrs.get(catalog_col);
                 if (ctr == null) {
-                    this.column_edge_ctrs.put(catlalog_col, new Counter(1));
+                    this.column_edge_ctrs.put(catalog_col, new Counter(1));
                 } else {
                     ctr.incrementAndGet();
                 }
@@ -225,6 +226,17 @@ public class ConstraintPropagator {
             ret.put(e, this.edge_cols_xref.get(e));
         } // FOR
         return (ret);
+    }
+    protected Collection<VerticalPartitionColumn> getVerticalPartitionColumns(Table catalog_tbl) {
+        Collection<VerticalPartitionColumn> vp_cols = new ListOrderedSet<VerticalPartitionColumn>();
+        for (Collection<Column> cols : this.edge_cols_xref.values()) {
+            for (Column catalog_col : cols) {
+                if (catalog_col.getParent().equals(catalog_tbl) && catalog_col instanceof VerticalPartitionColumn) {
+                    vp_cols.add((VerticalPartitionColumn)catalog_col);
+                }
+            } // FOR
+        } // FOR
+        return (vp_cols);
     }
     
     protected boolean isMarked(DesignerEdge e) {
@@ -284,6 +296,11 @@ public class ConstraintPropagator {
             if (catalog_tbl.getSystable() == false && catalog_tbl.getIsreplicated() == false && catalog_tbl.getPartitioncolumn() != null) {
                 Column catalog_col = catalog_tbl.getPartitioncolumn();
                 assert(catalog_col != null);
+                if (catalog_col instanceof VerticalPartitionColumn) {
+                    VerticalPartitionColumn vp_col = (VerticalPartitionColumn)catalog_col;
+                    catalog_col = vp_col.getHorizontalColumn();
+                    assert(catalog_col != null);
+                }
                 
                 DesignerVertex v0 = this.agraph.getVertex(catalog_tbl);
                 if (v0 == null) throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
