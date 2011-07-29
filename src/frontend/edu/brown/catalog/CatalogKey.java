@@ -242,9 +242,9 @@ public abstract class CatalogKey {
                 // SPECIAL CASE: VerticalPartitionColumn
                 } else if (multiattribute_key != null && multiattribute_key.equalsIgnoreCase(VerticalPartitionColumn.PREFIX)) {
                     JSONArray jsonArray = jsonObject.getJSONArray(orig_parent_key);
-                    MultiColumn params[] = new MultiColumn[jsonArray.length()];
+                    Column params[] = new MultiColumn[jsonArray.length()];
                     for (int i = 0; i < params.length; i++) {
-                        params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), MultiColumn.class); 
+                        params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), Column.class); 
                     } // FOR
                     assert(params.length == 2) : "Invalid VerticalPartitionColumn Key: " + child_key;
                     catalog_child = (T)VerticalPartitionColumn.get(params[0], params[1]);

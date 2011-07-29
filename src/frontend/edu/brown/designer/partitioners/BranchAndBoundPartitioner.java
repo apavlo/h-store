@@ -767,7 +767,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             // Descendant tables used for memory calculations
             Set<Table> all_tables = this.previous_tables[idx];
-            assert(all_tables.isEmpty() == false) : "No previous tables at index " + idx + "?";
+            assert(all_tables.isEmpty() == false) : String.format("No previous tables at index %d? [num_tables=%d]", idx, num_tables);
             
             // The local best vertex is the best vertex for this level in the traversal
             StateVertex local_best_vertex = null;
@@ -972,7 +972,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 if ((last_attribute && is_table && this.hints.greedy_search) ||
                     this.hints.exhaustive_search || (
                     !complete_solution &&
-                    is_table &&
+                    is_table && (idx + 1 < this.num_tables) &&
                     cost < BranchAndBoundPartitioner.this.best_vertex.cost &&
                     cost < BranchAndBoundPartitioner.this.upper_bounds_vertex.cost)) {
                     
