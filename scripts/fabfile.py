@@ -1,6 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+# -----------------------------------------------------------------------
+# Copyright (C) 2011 by H-Store Project
+# Brown University
+# Massachusetts Institute of Technology
+# Yale University
+# 
+# http://hstore.cs.brown.edu/ 
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+# -----------------------------------------------------------------------
 from __future__ import with_statement
 
 import os
@@ -155,17 +181,13 @@ def start_cluster():
     for i in range(len(env.ec2__running_instances)):
         inst = env.ec2__running_instances[i]
         if 'Type' in inst.tags and inst.tags['Type'] == 'nfs-node':
-            print "BEFORE:", env.ec2__running_instances
+            logging.debug("BEFORE: %s" % env.ec2__running_instances)
             env.ec2__running_instances.pop(i)
             env.ec2__running_instances.insert(0, inst)
-            print "AFTER:", env.ec2__running_instances
+            logging.debug("AFTER: %s" % env.ec2__running_instances)
             break
     ## FOR
         
-        
-    client_inst = env.ec2__running_instances[env.site__count]
-    print "client_inst:", client_inst
-    
     first = True
     for inst in env.ec2__running_instances:
         with settings(host_string=inst.public_dns_name):
@@ -304,11 +326,12 @@ def exec_benchmark(project="tpcc"):
     site_id = 0
     for inst in env.ec2__running_instances:
         if host_id < env.site__count:
-            hosts.append("%s:%d:%d-%d" % (inst.private_dns_name, site_id, partition_id, (partition_id + env.site__partitions_per_site)))
+            last_partition = (partition_id + env.site__partitions_per_site - 1)
+            hosts.append("%s:%d:%d-%d" % (inst.private_dns_name, site_id, partition_id, last_partition))
             partition_id += env.site__partitions_per_site
             site_id += 1
-        #else:
-        clients.append(inst.private_dns_name)
+        else:
+            clients.append(inst.private_dns_name)
         host_id += 1
 
     hstore_options = {
