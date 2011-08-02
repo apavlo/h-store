@@ -336,7 +336,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
     protected void init(final DesignerHints hints) throws Exception {
         if (this.agraph == null) {
             this.agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
-            this.table_visit_order.addAll(CatalogKey.getFromKeys(info.catalog_db, PartitionerUtil.generateTableOrder(info, agraph, hints), Table.class));
+            this.table_visit_order.addAll(PartitionerUtil.generateTableOrder(info, agraph, hints));
             for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
                 if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc) == false) {
                     this.proc_visit_order.add(catalog_proc);
@@ -721,7 +721,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @param idx
          * @throws Exception
          */
-        protected void traverse(StateVertex parent, int idx) throws Exception {
+        protected void traverse(final StateVertex parent, final int idx) throws Exception {
             assert(idx < this.num_elements && idx >= 0);
             final CatalogType current = this.all_search_elements.get(idx);
             assert(current != null);
@@ -756,7 +756,16 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             }
             final int num_attributes = current_attributes.size();
             assert(current_attributes != null);
-            if (trace.get()) LOG.trace("Traverse [current=" + current.getName() + ", # of attributes=" + current_attributes.size() + "]");
+            if (debug.get()) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Traversal Level", traverse_ctr);
+                m.put("Item Index", idx);
+                m.put("Current", current);
+                m.put("Attributes", String.format("COUNT=%d\n%s",
+                                                  num_attributes,
+                                                  StringUtil.join("\n", CatalogUtil.getDisplayNames(current_attributes))));
+                LOG.debug(StringUtil.formatMaps(m));
+            }
     
             // Keep track of whether we have a VerticalPartitionColumn that needs to be
             // reset after each round
@@ -880,12 +889,13 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // DEBUG OUTPUT
                 // ----------------------------------------------
                 state.debug = this.cost_model.getLastDebugMessage();
-                if (debug.get()) LOG.debug(this.createLevelOutput(state, CatalogUtil.getDisplayName(current_attribute, false), spacer, memory_exceeded));
+                LOG.info(this.createLevelOutput(state, CatalogUtil.getDisplayName(current_attribute, false), spacer, memory_exceeded));
                 
                 // ----------------------------------------------
                 // ANALYSIS
                 // ----------------------------------------------
                 if (memory_exceeded) {
+                    if (debug.get()) LOG.debug("Memory exceeeded! Skipping solution!");
                     if (vp_col != null) {
                         // Reset the catalog and optimized queries in the cost model
                         vp_col.revertCatalog();
@@ -899,9 +909,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // The cost of our parent can never be greater than our cost
                 if (!parent.isStartVertex()) {
                     boolean is_valid = MathUtil.greaterThanEquals(cost.floatValue(), parent.cost.floatValue(), 0.0001f);
-//                    double fudge = 0.04;
-//                    double parent_cost = MathUtil.roundToDecimals(parent.cost, 2);
-//                    double current_cost = MathUtil.roundToDecimals(cost, 2) + fudge;
                     
                     if (!is_valid && debug.get()) {
                         LOG.error("CURRENT COST IS GREATER THAN CURRENT COST! THIS CANNOT HAPPEN!\n" + 
@@ -925,7 +932,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 //      (a) The current best solution is the start vertex
                 //      (b) Or the current solution has a cost less than the current best solution
                 if (complete_solution &&
-                    !memory_exceeded && 
+                    memory_exceeded == false && 
                     cost < BranchAndBoundPartitioner.this.upper_bounds_vertex.cost &&
                     (BranchAndBoundPartitioner.this.best_vertex.isStartVertex() || cost < BranchAndBoundPartitioner.this.best_vertex.cost)) {
                     assert(best_vertex.cost > state.cost) : "Best=" + best_vertex.cost + ", Current=" + state.cost;
@@ -971,8 +978,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // Or we can just say screw all that and keep going if the exhaustive flag is enabled
                 if ((last_attribute && is_table && this.hints.greedy_search) ||
                     this.hints.exhaustive_search || (
-                    !complete_solution &&
-                    is_table && (idx + 1 < this.num_tables) &&
+                    complete_solution == false &&
+                    is_table &&
                     cost < BranchAndBoundPartitioner.this.best_vertex.cost &&
                     cost < BranchAndBoundPartitioner.this.upper_bounds_vertex.cost)) {
                     

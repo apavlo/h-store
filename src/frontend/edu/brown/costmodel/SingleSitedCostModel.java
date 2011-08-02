@@ -979,10 +979,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 }
                 this.query_ctr.addAndGet(query_weight);
                 query_entry.invalid = false;
-                txn_query_entries.add(query_entry);
 
                 // QUERY XREF
                 if (this.use_caching) {
+                    txn_query_entries.add(query_entry);
+                    
                     String stmt_key = CatalogKey.createKey(catalog_stmt);
                     Set<QueryCacheEntry> cache = this.cache_stmtXref.get(stmt_key);
                     if (cache == null) {

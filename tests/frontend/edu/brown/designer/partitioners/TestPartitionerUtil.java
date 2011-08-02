@@ -3,6 +3,7 @@ package edu.brown.designer.partitioners;
 import java.util.List;
 import java.util.Set;
 
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
@@ -50,11 +51,11 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
     public void testGenerateTableOrder() throws Exception {
         // Insert an artificial edge between SUBSCRIBER and ACCESS_INFO with a
         // high weight so that we can anticipate the ordering
-        String expected[] = {
-            CatalogKey.createKey(this.getTable(TM1Constants.TABLENAME_SUBSCRIBER)),
-            CatalogKey.createKey(this.getTable(TM1Constants.TABLENAME_ACCESS_INFO)),
-            CatalogKey.createKey(this.getTable(TM1Constants.TABLENAME_SPECIAL_FACILITY)),
-            CatalogKey.createKey(this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING)),
+        Table expected[] = {
+            this.getTable(TM1Constants.TABLENAME_SUBSCRIBER),
+            this.getTable(TM1Constants.TABLENAME_ACCESS_INFO),
+            this.getTable(TM1Constants.TABLENAME_SPECIAL_FACILITY),
+            this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING),
         };
         DesignerVertex v0 = agraph.getVertex(expected[0]);
         assertNotNull("Missing vertex: " + expected[0], v0);
@@ -69,7 +70,7 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
 //        }
         
         // Fire away!!
-        List<String> ordered = PartitionerUtil.generateTableOrder(this.info, agraph, this.hints);
+        List<Table> ordered = PartitionerUtil.generateTableOrder(this.info, agraph, this.hints);
         assertNotNull(ordered);
         assertFalse(ordered.isEmpty());
         assertEquals(expected.length, ordered.size());
@@ -96,7 +97,7 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
 //        System.err.println("GRAPH: " + FileUtil.writeStringToTempFile(GraphvizExport.export(agraph, "tm1"), "dot"));
         
         // Fire away!!
-        List<String> ordered = PartitionerUtil.generateTableOrder(this.info, agraph, this.hints);
+        List<Table> ordered = PartitionerUtil.generateTableOrder(this.info, agraph, this.hints);
         assertNotNull(ordered);
         assertFalse(ordered.isEmpty());
         assertEquals(expected, ordered.size());
@@ -111,25 +112,25 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
         assertNotNull(agraph);
 
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        String expected[] = {
-            "S_ID",
-            "SUB_NBR",
-            "VLR_LOCATION",
-            "BIT_1",
-            ReplicatedColumn.COLUMN_NAME,
+        Column expected[] = {
+            this.getColumn(catalog_tbl, "S_ID"),
+            this.getColumn(catalog_tbl, "SUB_NBR"),
+            this.getColumn(catalog_tbl, "VLR_LOCATION"),
+            this.getColumn(catalog_tbl, "BIT_1"),
+            ReplicatedColumn.get(catalog_tbl),
         };
         for (int i = 0; i < expected.length; i++)
             assertNotNull("Null column [" + i + "]", expected[i]);
 
         // Bombs away!!!
-        List<String> ordered = PartitionerUtil.generateColumnOrder(this.info, agraph, catalog_tbl, this.hints);
+        List<Column> ordered = PartitionerUtil.generateColumnOrder(this.info, agraph, catalog_tbl, this.hints);
         assertNotNull(ordered);
         assertFalse(ordered.isEmpty());
         assertEquals(expected.length, ordered.size());
 
 //        System.err.println("Visit Order: " + ordered);
         for (int i = 0; i < expected.length; i++) {
-            assertEquals(expected[i], CatalogKey.getNameFromKey(ordered.get(i)));
+            assertEquals(expected[i], ordered.get(i));
         } // FOR
     }
     
