@@ -11,7 +11,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.catalog.CatalogKey;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
 import edu.brown.designer.AccessGraph;
@@ -48,7 +47,7 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
      * testHaltReason
      */
     public void testHaltReason() throws Exception {
-        List<Table> table_visit_order = (List<Table>)CatalogKey.getFromKeys(catalog_db, PartitionerUtil.generateTableOrder(info, agraph, hints), Table.class);
+        List<Table> table_visit_order = PartitionerUtil.generateTableOrder(info, agraph, hints);
         assertFalse(table_visit_order.isEmpty());
         List<Procedure> proc_visit_order = (List<Procedure>)CollectionUtil.addAll(new ArrayList<Procedure>(), catalog_db.getProcedures());
         assertFalse(proc_visit_order.isEmpty());

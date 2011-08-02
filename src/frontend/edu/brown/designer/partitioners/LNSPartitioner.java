@@ -189,7 +189,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        System.err.println("SINGLE GRAPH:" + gv.writeToTempFile());
         
         // Gather all the information we need about each table
-        for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, PartitionerUtil.generateTableOrder(info, this.agraph, hints), Table.class)) {
+        for (Table catalog_tbl : PartitionerUtil.generateTableOrder(info, this.agraph, hints)) {
             
             // Ignore this table if it's not used in the AcessGraph
             DesignerVertex v = null;
@@ -204,7 +204,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             
             // Potential Partitioning Attributes
-            Collection<Column> columns = CatalogKey.getFromKeys(info.catalog_db, PartitionerUtil.generateColumnOrder(info, this.agraph, catalog_tbl, hints, false, true), Column.class);
+            Collection<Column> columns = PartitionerUtil.generateColumnOrder(info, this.agraph, catalog_tbl, hints, false, true);
             assert(!columns.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
             this.orig_table_attributes.put(catalog_tbl, (ListOrderedSet<Column>)CollectionUtil.addAll(new ListOrderedSet<Column>(), columns));
             
@@ -613,10 +613,16 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         List<Table> nonrelaxed_tables = new ArrayList<Table>(this.orig_table_attributes.asList());
         List<Table> relaxed_tables = new ArrayList<Table>();
         SortedSet<Integer> rand_idxs = new TreeSet<Integer>(rand.getRandomIntSet(relax_size));
-        LOG.debug("Relaxed Table Identifiers: " + rand_idxs);
+        if (debug.get()) LOG.debug("Relaxed Table Identifiers: " + rand_idxs);
         for (int idx : rand_idxs) {
             assert(idx < this.orig_table_attributes.size()) : "Random Index is too large: " + idx + " " + this.orig_table_attributes.keySet();
-            Table catalog_tbl = this.orig_table_attributes.get(idx);
+            Table catalog_tbl = null; // XXX this.orig_table_attributes.get(idx);
+            for (Table t : orig_table_attributes.asList()) {
+                if (t.getName().equals("SUBSCRIBER")) {
+                    catalog_tbl = t;
+                    break;
+                }
+            }
             relaxed_tables.add(catalog_tbl);
             nonrelaxed_tables.remove(catalog_tbl);
             this.costmodel.invalidateCache(catalog_tbl);

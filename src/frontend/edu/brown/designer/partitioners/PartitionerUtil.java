@@ -219,8 +219,8 @@ public abstract class PartitionerUtil {
      * @return
      * @throws Exception
      */
-    public static List<String> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
-        final LinkedList<String> table_visit_order = new LinkedList<String>();
+    public static List<Table> generateTableOrder(final DesignerInfo info, final AccessGraph agraph, final DesignerHints hints) throws Exception {
+        final List<Table> table_visit_order = new ArrayList<Table>();
 
         // Put small read-only tables at the top of the list so that we can try everything with
         // replicating them first
@@ -238,7 +238,7 @@ public abstract class PartitionerUtil {
                 }
             } // FOR
             for (Table catalog_tbl : temp_list) {
-                table_visit_order.addLast(CatalogKey.createKey(catalog_tbl));
+                table_visit_order.add(catalog_tbl);
             }
             Collections.reverse(table_visit_order);
             if (debug.get()) LOG.debug("Forced Replication: " + table_visit_order);
@@ -288,9 +288,8 @@ public abstract class PartitionerUtil {
                 @Override
                 protected void callback(DesignerVertex element) {
                     Table catalog_tbl = element.getCatalogItem();
-                    String table_key = CatalogKey.createKey(catalog_tbl);
-                    if (!table_visit_order.contains(table_key)) {
-                        table_visit_order.addLast(table_key);
+                    if (!table_visit_order.contains(catalog_tbl)) {
+                        table_visit_order.add(catalog_tbl);
                     }
                 }
             }.traverse(root);
@@ -326,7 +325,7 @@ public abstract class PartitionerUtil {
      * @return
      * @throws Exception
      */
-    public static LinkedList<String> generateColumnOrder(final DesignerInfo info, final AccessGraph agraph, final Table catalog_tbl, final DesignerHints hints) throws Exception {
+    public static List<Column> generateColumnOrder(final DesignerInfo info, final AccessGraph agraph, final Table catalog_tbl, final DesignerHints hints) throws Exception {
         return (PartitionerUtil.generateColumnOrder(info, agraph, catalog_tbl, hints, false, false));
     }
     
@@ -341,9 +340,9 @@ public abstract class PartitionerUtil {
      * @return
      * @throws Exception
      */
-    public static LinkedList<String> generateColumnOrder(final DesignerInfo info, final AccessGraph agraph, final Table catalog_tbl, final DesignerHints hints, boolean no_replication, boolean force_replication_last) throws Exception {
+    public static List<Column> generateColumnOrder(final DesignerInfo info, final AccessGraph agraph, final Table catalog_tbl, final DesignerHints hints, boolean no_replication, boolean force_replication_last) throws Exception {
         assert(agraph != null);
-        final LinkedList<String> ret = new LinkedList<String>();
+        final List<Column> ret = new ArrayList<Column>();
         final String table_key = CatalogKey.createKey(catalog_tbl);
         
         // Force columns in hints
@@ -351,7 +350,7 @@ public abstract class PartitionerUtil {
         if (!force_columns.isEmpty()) {
             if (debug.get()) LOG.debug("Force " + catalog_tbl + " candidates: " + force_columns);
             for (Column catalog_col : force_columns) {
-                ret.add(CatalogKey.createKey(catalog_col));
+                ret.add(catalog_col);
             }
             return (ret);
         }
@@ -404,7 +403,7 @@ public abstract class PartitionerUtil {
         // TODO: Do we want to consider ancestory paths? Like what if there is a foreign key that is
         // used down in a bunch of children tables? Well, then if they are really important relationships,
         // they will show up with greater weights in the 
-        LinkedList<Column> sorted = new LinkedList<Column>(column_weights.keySet());
+        List<Column> sorted = new ArrayList<Column>(column_weights.keySet());
         Collections.sort(sorted, new PartitionerUtil.CatalogWeightComparator<Column>(column_weights));
         
         if (debug.get()) {
@@ -426,9 +425,7 @@ public abstract class PartitionerUtil {
             }
         }
     
-        // Convert to CatalogKeys
-        for (Column catalog_col : sorted) ret.add(CatalogKey.createKey(catalog_col));
-        return (ret);
+        return (sorted);
     }
     
     /**

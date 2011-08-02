@@ -16,7 +16,6 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
-import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.AccessGraph;
@@ -79,9 +78,9 @@ public class RandomPartitioner extends AbstractPartitioner {
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             List<Column> columns = new ArrayList<Column>();
             if (this.limit_columns) {
-                List<String> column_keys = PartitionerUtil.generateColumnOrder(info, agraph, catalog_tbl, hints, true, false);
+                List<Column> column_keys = PartitionerUtil.generateColumnOrder(info, agraph, catalog_tbl, hints, true, false);
                 assert(!column_keys.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
-                columns.addAll(CatalogKey.getFromKeys(info.catalog_db, column_keys, Column.class));
+                columns.addAll(column_keys);
             } else {
                 CollectionUtil.addAll(columns, catalog_tbl.getColumns());
             }
