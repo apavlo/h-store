@@ -4,19 +4,25 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.catalog.CatalogCloner;
+import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
+import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.designer.generators.AccessGraphGenerator;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestConstraintPropagator extends BasePartitionerTestCase {
@@ -93,6 +99,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
             if (vp_col.getVerticalMultiColumn().contains(expected_vp) &&
                 vp_col.getHorizontalColumn().equals(expected_hp)) {
                 assert(vp_col.getVerticalMultiColumn().contains(expected_hp));
+                assert(vp_col.hasOptimizedQueries());
                 found = true;
             }
 //            System.err.println(vp_col.toString() + "\n");
@@ -248,7 +255,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
      assertNotNull(actual_cols);
      assertEquals(expected_cols.size(), actual_cols.size());
      assertEquals(expected_cols, actual_cols);
-     assertTrue(vp_col.isUpdateApplied());
+     assertFalse(vp_col.isUpdateApplied());
      
      // Revert
      catalog_tbl0.setPartitioncolumn(catalog_col);
@@ -259,13 +266,26 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
 //     * testUpdateTableMultiAttribute
 //     */
 //    public void testUpdateTableMultiAttribute() throws Exception {
+//        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+//        info = this.generateInfo(clone_db);
 //        hints.enable_multi_partitioning = true;
+//        
+//        designer = new Designer(info, hints, info.getArgs());
+//        RandomPartitioner partitioner = new RandomPartitioner(designer, info);
+//        AccessGraph agraph = AccessGraphGenerator.convertToSingleColumnEdges(clone_db, partitioner.generateAccessGraph());
 //        cp = new ConstraintPropagator(info, hints, agraph);
 //        
-//        Table catalog_tbl0 = this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING);
+//        Table catalog_tbl0 = this.getTable(clone_db, TM1Constants.TABLENAME_CALL_FORWARDING);
 //        Collection<MultiColumn> multi_columns = new HashSet<MultiColumn>();
-//        for (Collection<Column> catalog_cols : cp.getEdgeColumns(agraph.getVertex(catalog_tbl0)).values()) {
+//        DesignerVertex v = agraph.getVertex(catalog_tbl0);
+//        assertNotNull(catalog_tbl0.fullName(), v);
+//        for (Collection<Column> catalog_cols : cp.getEdgeColumns(v).values()) {
 //            for (Column catalog_col : catalog_cols) {
+//                String catalog_key = CatalogKey.createKey(catalog_col);
+//                assertNotNull(catalog_key);
+//                catalog_col = CatalogKey.getFromKey(clone_db, catalog_key, Column.class);
+//                assertNotNull(catalog_col);
+//                
 //                if (catalog_col instanceof MultiColumn) {
 //                    multi_columns.add((MultiColumn)catalog_col);
 //                }
@@ -275,7 +295,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
 //        
 //        // We're going to mark SPECIAL_FACILITY as updated using a particular Column that 
 //        // should cause all the MultiColumns for CALL_FORWADING to get invalidated
-//        Table catalog_tbl1 = this.getTable(TM1Constants.TABLENAME_SPECIAL_FACILITY);
+//        Table catalog_tbl1 = this.getTable(clone_db, TM1Constants.TABLENAME_SPECIAL_FACILITY);
 //        catalog_tbl0.setPartitioncolumn(this.getColumn(catalog_tbl1, 2));
 //        cp.update(catalog_tbl1);
 //        

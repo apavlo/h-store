@@ -13,6 +13,7 @@ import org.voltdb.types.*;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.*;
 import edu.brown.designer.partitioners.PartitionerUtil;
 import edu.brown.utils.*;
@@ -186,6 +187,10 @@ public class PartitionPlan implements JSONSerializable {
                     catalog_tbl.setIsreplicated(false);
                     catalog_tbl.setPartitioncolumn((Column)pentry.getAttribute());
                     assert(catalog_tbl.getPartitioncolumn() != null);
+                }
+                if (catalog_tbl.getPartitioncolumn() instanceof VerticalPartitionColumn) {
+                    VerticalPartitionColumn vp_col = (VerticalPartitionColumn)catalog_tbl.getPartitioncolumn();
+                    if (vp_col.isUpdateApplied() == false) vp_col.applyUpdate();
                 }
             } else {
                 if (debug) LOG.warn("Missing PartitionEntry for " + catalog_tbl);
@@ -518,6 +523,7 @@ public class PartitionPlan implements JSONSerializable {
 
         // Table Partitioning
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             if (catalog_tbl.getIsreplicated()) {
                 pplan_map.put(catalog_tbl, ReplicatedColumn.get(catalog_tbl));
             } else {

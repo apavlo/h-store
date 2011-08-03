@@ -644,7 +644,7 @@ public abstract class DesignerUtil {
                         int param_idx = ((ParameterValueExpression)exp).getParameterId();
                         element = catalog_stmt.getParameters().get(param_idx);
                         if (element == null) {
-                            LOG.warn("ERROR: Unable to find Parameter object in catalog [" + ((ParameterValueExpression)exp).getParameterId() + "]");
+                            LOG.warn("ERROR: Unable to find Parameter object in " + catalog_stmt.fullName() + " [" + ((ParameterValueExpression)exp).getParameterId() + "]");
                             this.stop();
                         }
                         // We want to use the ProcParameter instead of the StmtParameter

@@ -580,6 +580,10 @@ public abstract class AbstractCostModel {
         this.last_debug.add(sb);
     }
     
+    public boolean hasDebugMessages() {
+        return (this.last_debug.size() > 0);
+    }
+    
     public String getLastDebugMessage() {
         StringBuilder sb = new StringBuilder();
         for (StringBuilder inner : this.last_debug) {

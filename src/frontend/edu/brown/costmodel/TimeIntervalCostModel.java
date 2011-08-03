@@ -16,6 +16,8 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
@@ -23,6 +25,7 @@ import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
@@ -334,11 +337,20 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     exec_histogram[i].putAll(all_partitions);
                 }
                 if (debug.get() && txn_trace.getCatalogItemName().equalsIgnoreCase("DeleteCallForwarding")) {
+                    Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+                    Map<String, Object> inner = new ListOrderedMap<String, Object>();
+                    for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                        inner.put(catalog_stmt.fullName(), CatalogUtil.getReferencedTables(catalog_stmt));
+                    }
+                    
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
                     m.put(txn_trace.toString(), null);
                     m.put("Single-Partition", txn_entry.isSingleSited());
                     m.put("Base Partition", base_partition);
                     m.put("Touched Partitions", partitions);
+                    m.put(catalog_proc.fullName(), inner);
+                    
+                    
                     LOG.debug(StringUtil.formatMaps(m));
                     
 //                    LOG.debug(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
@@ -480,7 +492,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 Histogram<Integer> check = new Histogram<Integer>();
                 for (TransactionCacheEntry tce : inner_costModel.getTransactionCacheEntries()) {
                     check.putAll(tce.getTouchedPartitions());
-                    LOG.error(tce.debug() + "\n");
+//                    LOG.error(tce.debug() + "\n");
                 }
                 LOG.error("Check Touched Partitions: sample=" + check.getSampleCount() + ", value=" + check.getValueCount());
                 LOG.error("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", value=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());

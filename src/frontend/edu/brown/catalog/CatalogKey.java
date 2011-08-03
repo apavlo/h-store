@@ -242,7 +242,7 @@ public abstract class CatalogKey {
                 // SPECIAL CASE: VerticalPartitionColumn
                 } else if (multiattribute_key != null && multiattribute_key.equalsIgnoreCase(VerticalPartitionColumn.PREFIX)) {
                     JSONArray jsonArray = jsonObject.getJSONArray(orig_parent_key);
-                    Column params[] = new MultiColumn[jsonArray.length()];
+                    Column params[] = new Column[jsonArray.length()];
                     for (int i = 0; i < params.length; i++) {
                         params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), Column.class); 
                     } // FOR

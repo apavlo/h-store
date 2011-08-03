@@ -20,7 +20,6 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.designer.partitioners.plan.PartitionEntry;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.designer.partitioners.plan.ProcedureEntry;
 import edu.brown.utils.CollectionUtil;

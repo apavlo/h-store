@@ -833,25 +833,25 @@ public abstract class PlanNodeUtil {
 
     /**
      * Returns the PlanNode for the given PlanFragment
-     * @param catalog_frgmt
+     * @param catalog_frag
      * @return
      * @throws Exception
      */
-    public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frgmt) throws Exception {
-        String id = catalog_frgmt.getName();
+    public static AbstractPlanNode getPlanNodeTreeForPlanFragment(PlanFragment catalog_frag) throws Exception {
+        String id = catalog_frag.getName();
         AbstractPlanNode ret = PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.get(id);
         if (ret == null) {
-            if (debug.get()) LOG.warn("No cached object for " + catalog_frgmt.fullName());
-            Database catalog_db = CatalogUtil.getDatabase(catalog_frgmt);
-            String jsonString = Encoder.hexDecodeToString(catalog_frgmt.getPlannodetree());
+            if (debug.get()) LOG.warn("No cached object for " + catalog_frag.fullName());
+            Database catalog_db = CatalogUtil.getDatabase(catalog_frag);
+            String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
             JSONObject jsonObject = null;
             try {
                 jsonObject = new JSONObject(jsonString);
             } catch (JSONException ex) {
-                LOG.error("Invalid PlanNodeTree for " + catalog_frgmt.fullName() + "\n" + jsonString);
-                throw ex;
+                String msg = String.format("Invalid PlanNodeTree for %s [plantreeLength=%d, jsonLength=%d]",
+                                           catalog_frag.fullName(), catalog_frag.getPlannodetree().length(), jsonString.length());
+                throw new Exception(msg, ex);
             }
-//            System.err.println(jsonObject.toString(2));
             PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
             ret = list.getRootPlanNode();
             PlanNodeUtil.CACHE_DESERIALIZE_FRAGMENT.put(id, ret);

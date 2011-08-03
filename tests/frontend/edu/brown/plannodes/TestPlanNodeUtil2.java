@@ -2,6 +2,7 @@ package edu.brown.plannodes;
 
 import java.util.*;
 
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.*;
 import org.voltdb.plannodes.*;
 
@@ -21,6 +22,23 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
+    }
+    
+    /**
+     * testGetPlanNodeTreeForPlanFragment
+     */
+    public void testGetPlanNodeTreeForPlanFragment() throws Exception {
+        Procedure catalog_proc = this.getProcedure(neworder.class);
+        for (Statement catalog_stmt : catalog_proc.getStatements()) {
+            assertNotNull(catalog_stmt);
+            Set<PlanFragment> fragments = new HashSet<PlanFragment>();
+            fragments.addAll(catalog_stmt.getFragments());
+            fragments.addAll(catalog_stmt.getMs_fragments());
+            for (PlanFragment catalog_frag : fragments) {
+                AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
+                assertNotNull(root);
+            } // FOR
+        } // FOR
     }
     
     /**

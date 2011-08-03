@@ -19,6 +19,7 @@ import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.compiler.StatementCompiler;
 import org.voltdb.types.QueryType;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -171,7 +172,7 @@ public class VerticalPartitionPlanner {
     protected boolean process(Statement catalog_stmt) throws Exception {
         // Always skip if there are no vertically partitioned tables
         if (this.vp_views.isEmpty()) {
-            if (trace.get())
+            if (debug.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": There are no vertically partitioned tables.");
             return (false);
         }
@@ -179,16 +180,15 @@ public class VerticalPartitionPlanner {
         // We can only work our magic on SELECTs
         QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
         if (qtype != QueryType.SELECT) {
-            if (trace.get())
+            if (debug.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": QueryType is " + qtype + ".");
             return (false);
         }
 
-        // Check whether this query references a table that has a vertical
-        // partition
+        // Check whether this query references a table that has a vertical partition
         Collection<Table> tables = CollectionUtils.intersection(this.vp_views.keySet(), CatalogUtil.getReferencedTables(catalog_stmt));
         if (tables.isEmpty()) {
-            if (trace.get())
+            if (debug.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": It does not reference a vertical partitioning table.");
             return (false);
         }
@@ -198,7 +198,7 @@ public class VerticalPartitionPlanner {
         // but do include the columns that we have in our vertical partition
         Collection<Column> predicate_cols = CatalogUtil.getReferencedColumns(catalog_stmt);
         if (predicate_cols.isEmpty()) {
-            if (trace.get())
+            if (debug.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not reference any columns in its predicate.");
             return (false);
         }
@@ -206,11 +206,11 @@ public class VerticalPartitionPlanner {
         assert (output_cols.isEmpty() == false);
         for (Table catalog_tbl : tables) {
             MaterializedViewInfo catalog_view = this.vp_views.get(catalog_tbl);
-            assert (catalog_view != null);
+            assert(catalog_view != null);
             Collection<Column> view_cols = CatalogUtil.getColumns(catalog_view.getGroupbycols());
-            assert (view_cols.isEmpty() == false);
+            assert(view_cols.isEmpty() == false) : "Missing vertical partitioning columns in " + catalog_view.fullName() + " when trying to process " + catalog_stmt.fullName();
             Column partitioning_col = catalog_tbl.getPartitioncolumn();
-            assert (partitioning_col != null);
+            assert(partitioning_col != null);
 
             // The current vertical partition is valid for this query if all the
             // following are true:
@@ -218,18 +218,18 @@ public class VerticalPartitionPlanner {
             // (2) The partitioning_col is *not* in the predicate_cols
             // (3) At least one of the vertical partition's columns is in
             // predicate_cols
-            if (trace.get()) {
+            if (debug.get()) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("VerticalP", catalog_view.getName());
                 m.put("Partitioning Col", partitioning_col.fullName());
                 m.put("Output Cols", output_cols);
                 m.put("Predicate Cols", predicate_cols);
                 m.put("VerticalP Cols", view_cols);
-                LOG.trace(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
+                LOG.debug(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
             }
             if (output_cols.contains(partitioning_col) && predicate_cols.contains(partitioning_col) == false && CollectionUtils.intersection(view_cols, predicate_cols).isEmpty() == false) {
-                if (trace.get())
-                    LOG.trace("Valid VP Candidate: " + catalog_tbl);
+                if (debug.get())
+                    LOG.debug("Valid VP Candidate: " + catalog_tbl);
 
                 StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
                 if (rewrite == null) {
@@ -239,9 +239,11 @@ public class VerticalPartitionPlanner {
                 rewrite.put(catalog_tbl, catalog_view.getDest());
             }
         } // FOR
+        
+        // Check to make sure that we were able to generate a StatementRewrite candidate for this one
         StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
         if (rewrite == null) {
-            if (trace.get())
+            if (debug.get())
                 LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not have any valid vertical partitioning references.");
             return (false);
         }
@@ -327,6 +329,10 @@ public class VerticalPartitionPlanner {
             // Make sure that we disable VP optimizations otherwise we will get stuck
             // in an infinite loop
             this.setEnableVerticalPartitionOptimizations(false);
+            
+            // Make sure we initialize the StatementCompiler's PlanFragment counter
+            // so that we don't get overlapping PlanFragment ids
+            StatementCompiler.getNextFragmentId(catalog_db);
         }
 
         @Override
