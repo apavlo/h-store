@@ -420,8 +420,12 @@ public class PartitionEstimator {
                 // We'll add an entry in the cache using our special "no tables" flag. This means that
                 // the fragment needs to be executed locally.
                 if (frag_tables.isEmpty()) {
-                    String msg = "The fragment " + catalog_frag + " in " + CatalogUtil.getDisplayName(catalog_stmt) + " does not reference any tables";
+                    String msg = catalog_frag + " in " + catalog_stmt.fullName() + " does not reference any tables";
                     if (!catalog_frag.getNontransactional()) {
+                        LOG.warn(catalog_stmt.fullName() + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false)));
+                        for (PlanFragment f : fragments) {
+                            LOG.warn("singlePartiton=" + singlesited + " - " + f.fullName() + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getPlanNodeTreeForPlanFragment(f)));
+                        }
                         throw new Exception(msg + " but the non-transactional flag is not set");
                     }
                     if (trace.get()) LOG.trace(msg);
@@ -859,9 +863,8 @@ public class PartitionEstimator {
                         all_partitions.get(table_key).addAll(frag_partitions.get(table_key));
                     }
                 } // FOR
-            } catch (AssertionError ex) {
-                LOG.fatal("Failed to calculate table partitions for " + CatalogUtil.getDisplayName(catalog_frag));
-                throw new RuntimeException(ex);
+            } catch (Throwable ex) {
+                throw new Exception("Failed to calculate table partitions for " + catalog_frag.fullName(), ex);
             }
         } // FOR
         return (all_partitions);

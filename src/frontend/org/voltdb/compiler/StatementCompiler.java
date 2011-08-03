@@ -39,7 +39,6 @@ import org.voltdb.planner.ParameterInfo;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.QueryPlanner;
 import org.voltdb.planner.TrivialCostModel;
-import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.DeletePlanNode;
@@ -64,7 +63,23 @@ public abstract class StatementCompiler {
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
-    private static AtomicInteger NEXT_FRAGMENT_ID = new AtomicInteger(10000);
+    private static AtomicInteger NEXT_FRAGMENT_ID = null;
+    
+    public synchronized static int getNextFragmentId(Database catalog_db) {
+        // If this is the first time we are being called, figure out
+        // where our ids should start at
+        if (NEXT_FRAGMENT_ID == null) {
+            int max_id = 10000;
+            for (Statement catalog_stmt : CatalogUtil.getAllStatements(catalog_db)) {
+                for (PlanFragment catalog_frag : CatalogUtil.getAllPlanFragments(catalog_stmt)) {
+                    max_id = Math.max(max_id, catalog_frag.getId());
+                } // FOR
+            } // FOR
+            NEXT_FRAGMENT_ID = new AtomicInteger(max_id);
+            if (trace.get()) LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
+        }
+        return (NEXT_FRAGMENT_ID.incrementAndGet()); 
+    }
     
     public static void compile(VoltCompiler compiler, HSQLInterface hsql,
             Catalog catalog, Database db, DatabaseEstimates estimates,
@@ -224,7 +239,7 @@ public abstract class StatementCompiler {
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
                 // Now update our catalog information
-                int id = NEXT_FRAGMENT_ID.getAndIncrement();
+                int id = getNextFragmentId(db);
                 String planFragmentName = Integer.toString(id);
                 PlanFragment planFragment = null;
                     

@@ -149,7 +149,7 @@ public class MemoryEstimator {
         // For now we'll just estimate the table to be based on the maximum number of
         // tuples for all possible partitions
         TableStatistics table_stats = this.stats.getTableStatistics(catalog_tbl);
-        assert(table_stats != null);
+        assert(table_stats != null) : "Missing statistics for " + catalog_tbl;
         if (table_stats.tuple_size_total == 0) {
             LOG.warn(this.stats.debug(CatalogUtil.getDatabase(catalog_tbl)));
         }
@@ -247,18 +247,18 @@ public class MemoryEstimator {
     }
 
     /**
-     * 
+     * Returns the estimate size of a tuple for the given table in bytes
+     * Calculations are based on the Table's Columns specification
      * @param catalog_tbl
      * @return
      */
-    public static long estimateFromCatalog(Table catalog_tbl) {
+    public static long estimateTupleSize(Table catalog_tbl) {
         long bytes = 0;
         final String table_key = CatalogKey.createKey(catalog_tbl);
         
         // If the table contains nothing but numeral values, then we don't need to loop
         // through and calculate the estimated tuple size each time around, since it's always
         // going to be the same
-        //
         if (CACHE_TABLE_ESTIMATE.containsKey(table_key)) {
             return (CACHE_TABLE_ESTIMATE.get(table_key));
         }

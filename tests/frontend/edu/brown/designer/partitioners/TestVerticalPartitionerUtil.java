@@ -103,7 +103,6 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionerUtil.compileOptimizedStatements(clone_db, candidates);
         VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
         assertNotNull(vpc);
         assertFalse(vpc.isUpdateApplied());
@@ -120,7 +119,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         // Now apply the update and get the new cost. It should be lower
         // We have to clear the cache for these queries first though
-        vpc.updateCatalog();
+        vpc.applyUpdate();
         costModel.invalidateCache(vpc.getStatements());
         double new_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
         System.err.println("NEW COST: " + new_cost);
@@ -141,7 +140,6 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionerUtil.compileOptimizedStatements(clone_db, candidates);
         VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
         assertNotNull(vpc);
         assertFalse(vpc.isUpdateApplied());
@@ -178,7 +176,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         // is because SingleSitedCostModel only looks to see whether a txn is single-partition
         // and not how many partition it actually touches 
         // We have to clear the cache for these queries first though
-        vpc.updateCatalog();
+        vpc.applyUpdate();
         costModel.invalidateCache(vpc.getStatements());
         double new_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
         System.err.println("NEW COST: " + new_cost);
@@ -221,8 +219,6 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-
-        VerticalPartitionerUtil.compileOptimizedStatements(clone_db, candidates);
         VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
         assertNotNull(vpc);
         assertFalse(vpc.isUpdateApplied());
@@ -248,7 +244,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         // Now apply the optimized queries
         // The number of partitions that our Statements touch should be reduced to one
-        vpc.updateCatalog();
+        vpc.applyUpdate();
         assert(vpc.isUpdateApplied());
         for (Statement catalog_stmt : vpc.getStatements()) {
             Object params[] = stmt_params.get(catalog_stmt);
@@ -264,20 +260,18 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
      * testCatalogUpdates
      */
     public void testCatalogUpdates() throws Exception {
-        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        info = this.generateInfo(clone_db);
+        
+        Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        // HACK: Clear out the query plans that could have been generated from other tests
-        for (VerticalPartitionColumn c : candidates) c.clear();
-        
-        VerticalPartitionerUtil.compileOptimizedStatements(catalog_db, candidates);
         VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
         assertNotNull(vpc);
         
         // BEFORE!
-        assertNull(CatalogUtil.getVerticalPartition(catalog_tbl));
         Map<Statement, Map<String, Object>> fields_before = new ListOrderedMap<Statement, Map<String, Object>>();
         for (Statement catalog_stmt : vpc.getStatements()) {
             fields_before.put(catalog_stmt, this.generateFieldMap(catalog_stmt));
@@ -285,7 +279,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
 //        System.err.println("BEFORE:\n" + StringUtil.formatMaps(fields_before));
         
         // AFTER!
-        MaterializedViewInfo catalog_view = vpc.updateCatalog();
+        MaterializedViewInfo catalog_view = vpc.applyUpdate();
         assertNotNull(catalog_view);
         assertEquals(CatalogUtil.getVerticalPartition(catalog_tbl), catalog_view);
         for (Statement catalog_stmt : vpc.getStatements()) {
@@ -315,7 +309,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         System.err.println(StringUtil.SINGLE_LINE);
         
         // REVERT!
-        vpc.revertCatalog();
+        vpc.revertUpdate();
         assertNull(CatalogUtil.getVerticalPartition(catalog_tbl));
         for (Statement catalog_stmt : vpc.getStatements()) {
             Map<String, Object> before_m = fields_before.get(catalog_stmt);
@@ -364,17 +358,17 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             } // FOR
         } // FOR
         
-        VerticalPartitionerUtil.compileOptimizedStatements(catalog_db, candidates);
-        for (VerticalPartitionColumn c : candidates) {
-            System.err.println(c);
-            assertFalse(c.getStatements().isEmpty());
-            for (Statement catalog_stmt : c.getStatements()) {
-                assertNotNull(c.getOptimizedQuery(catalog_stmt));
-            } // FOR
-        } // FOR
+//        Collection<VerticalPartitionColumn> new_candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, hp_col, hints);
+//        for (VerticalPartitionColumn c : new_candidates) {
+//            System.err.println(c);
+//            assertFalse(c.getStatements().isEmpty());
+//            for (Statement catalog_stmt : c.getStatements()) {
+//                assertNotNull(c.getOptimizedQuery(catalog_stmt));
+//            } // FOR
+//        } // FOR
         
         // Lastly, our table should not still have a vertical partition
-        assert(CatalogUtil.getVerticalPartition(catalog_tbl) == null);
+//        assert(CatalogUtil.getVerticalPartition(catalog_tbl) == null);
     }
     
     /**

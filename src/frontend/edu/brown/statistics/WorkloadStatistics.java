@@ -85,6 +85,10 @@ public class WorkloadStatistics implements JSONSerializable {
     public TableStatistics getTableStatistics(String table_key) {
         return (this.table_stats.get(table_key));
     }
+    public void addTableStatistics(Table catalog_tbl, TableStatistics stats) {
+        TableStatistics orig = this.table_stats.put(CatalogKey.createKey(catalog_tbl), stats);
+        assert(orig == null) : "Duplicate TableStatistics for " + catalog_tbl;
+    }
     
     public Collection<ProcedureStatistics> getProcedureStatistics() {
         return (this.proc_stats.values());

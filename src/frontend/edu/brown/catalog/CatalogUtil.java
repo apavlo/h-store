@@ -467,49 +467,51 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static void copyQueryPlans(Statement copy_src, Statement copy_dest) {
         // Update both the single and multi-partition query plans
-        copy_dest.setHas_multisited(copy_src.getHas_multisited());
-        if (copy_src.getHas_multisited()) {
-            if (debug.get()) LOG.info(String.format("Copying single-partition query plan from %s to %s",
-                                                    copy_src.fullName(), copy_dest.fullName()));
-            copy_dest.setMs_fullplan(copy_src.getMs_fullplan());
-            copy_dest.setMs_exptree(copy_src.getMs_exptree());
-            copy_dest.getMs_fragments().clear();
-            for (PlanFragment copy_src_frag : copy_src.getMs_fragments()) {
-                PlanFragment copy_dest_frag = copy_dest.getMs_fragments().add(copy_src_frag.getName());
-                for (String f : copy_src_frag.getFields()) {
-                    Object val = copy_src_frag.getField(f);
-                    if (val != null) {
-                        if (val instanceof String) val = "\"" + val + "\""; // HACK
-                        if (trace.get()) LOG.trace(String.format("Applied DTXN %s.%s => %s", copy_dest_frag.fullName(), f, val));
-                        copy_dest_frag.set(f, val.toString());
-                    } else {
-                        if (debug.get()) LOG.warn(String.format("Missing DTXN %s.%s", copy_dest_frag.fullName(), f));
-                    }
-                } // FOR
+        for (boolean sp : new boolean[] { true, false }) {
+            if (debug.get())
+                LOG.debug(String.format("Copying %s-partition query plan from %s to %s",
+                                       (sp ? "single" : "multi"), copy_src.fullName(), copy_dest.fullName()));
+            String fields[] = {
+                (sp ? "" : "ms_") + "exptree",
+                (sp ? "" : "ms_") + "fullplan",
+                "has_" + (sp ? "single" : "multi") + "sited",
+            };
+            copyFields(copy_src, copy_dest, fields);
+            
+            CatalogMap<PlanFragment> copy_src_fragments = null;
+            CatalogMap<PlanFragment> copy_dest_fragments = null;
+            if (sp) {
+                copy_src_fragments = copy_src.getFragments();
+                copy_dest_fragments = copy_dest.getFragments();
+            } else {
+                copy_src_fragments = copy_src.getMs_fragments();
+                copy_dest_fragments = copy_dest.getMs_fragments();
+            }
+            assert(copy_src_fragments != null);
+            assert(copy_dest_fragments != null);
+            
+            copy_dest_fragments.clear();
+            for (PlanFragment copy_src_frag : copy_src_fragments) {
+                PlanFragment copy_dest_frag = copy_dest_fragments.add(copy_src_frag.getName());
+                if (trace.get()) LOG.trace(String.format("Copying %s to %s", copy_src_frag.fullName(), copy_dest_frag.fullName()));
+                copyFields(copy_src_frag, copy_dest_frag, copy_src_frag.getFields().toArray(new String[0]));
             } // FOR
         }
-
-        copy_dest.setHas_singlesited(copy_src.getHas_singlesited());
-        if (copy_src.getHas_singlesited()) {
-            if (debug.get()) LOG.debug(String.format("Copying multi-partition query plan from %s to %s",
-                                                     copy_src.fullName(), copy_dest.fullName()));
-            copy_dest.setFullplan(copy_src.getFullplan());
-            copy_dest.setExptree(copy_src.getExptree());
-            copy_dest.getFragments().clear();
-            for (PlanFragment copy_src_frag : copy_src.getFragments()) {
-                PlanFragment copy_dest_frag = copy_dest.getFragments().add(copy_src_frag.getName());
-                for (String f : copy_src_frag.getFields()) {
-                    Object val = copy_src_frag.getField(f);
-                    if (val != null) {
-                        if (val instanceof String) val = "\"" + val + "\""; // HACK
-                        if (trace.get()) LOG.trace(String.format("Applied SP %s.%s => %s", copy_dest_frag.fullName(), f, val));
-                        copy_dest_frag.set(f, val.toString());
-                    } else {
-                        if (debug.get()) LOG.warn(String.format("Missing SP %s.%s", copy_dest_frag.fullName(), f));
-                    }
-                } // FOR
-            } // FOR
-        }
+    }
+    
+    private static <T extends CatalogType> void copyFields(T copy_src, T copy_dest, String...fields) {
+        for (String f : fields) {
+            Object src_val = copy_src.getField(f);
+            if (src_val != null) {
+                if (src_val instanceof String) src_val = "\"" + src_val + "\""; // HACK
+                if (trace.get()) LOG.trace(String.format("Copied value '%s' for field '%s': %s => %s",
+                                                         src_val, f, copy_dest.fullName(), copy_src.fullName()));
+                copy_dest.set(f, src_val.toString());
+            } else if (debug.get()) {
+                LOG.warn(String.format("Missing value for field '%s': %s => %s",
+                                       f, copy_dest.fullName(), copy_src.fullName()));
+            }
+        } // FOR
     }
     
     // ------------------------------------------------------------
@@ -1311,8 +1313,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
 
         if (table_name != null) {
             Table catalog_tbl = catalog_db.getTables().get(table_name);
-            assert (catalog_tbl != null) : "Invalid table '"
-                    + table_name + "' extracted from " + node;
+            assert (catalog_tbl != null) : String.format("Invalid table '%s' extracted from %s. Valid tables: %s", table_name, node, CatalogUtil.getDisplayNames(catalog_db.getTables()));
             found.add(catalog_tbl);
         }
     }

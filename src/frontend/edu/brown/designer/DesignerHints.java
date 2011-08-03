@@ -53,7 +53,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     /**
      * When we started keeping track of time
      */
-    private transient final long start_time;
+    private transient Long start_time = null;
     
     /**
      * The FileWriter handle where we dump out new solutions
@@ -213,7 +213,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Empty Constructor
      */
     public DesignerHints() {
-        this.start_time = System.currentTimeMillis();
+        
     }
     
     /**
@@ -309,7 +309,15 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         this.limit_total_time -= delta;
     }
     
-    public long getStartTime() {
+    
+    /**
+     * Start the timer used to keep track of how long we are searching for solutions
+     */
+    public void startTimer() {
+        this.start_time = System.currentTimeMillis();
+    }
+    
+    public Long getStartTime() {
         return (this.start_time);
     }
     

@@ -5,6 +5,7 @@ package edu.brown.designer.partitioners;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +19,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -123,6 +125,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public HaltReason last_halt_reason = HaltReason.NULL;
     public Double last_entropy_weight = null;
     public Integer restart_ctr = null;
+    
+    /**
+     * Keep track of our sets of relaxed tables
+     * When we've processed all combinations for the current relaxation size, we can
+     * then automatically jump to the next size without waiting for the timeout
+     */
+    protected final Set<Collection<Table>> relaxed_sets = new HashSet<Collection<Table>>();
+    protected transient BigInteger relaxed_sets_max = null;
     
     // ----------------------------------------------------------------------------
     // PRE-COMPUTED CATALOG INFORMATION
@@ -444,6 +454,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
         final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
         
+        hints.startTimer();
         while (true) {
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
             // at the beginning of a restart (or the start of the search). We do *not* want to 
@@ -573,11 +584,29 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Figure out what how far along we are in the search and use that to determine how many to relax
         int relax_min = (int)Math.round(hints.relaxation_factor_min * num_tables);
         int relax_max = (int)Math.max(hints.relaxation_min_size, (int)Math.round(hints.relaxation_factor_max * num_tables));
-        
+
         // We should probably try to do something smart here, but for now we can just be random
 //        int relax_size = (int)Math.round(RELAXATION_FACTOR_MIN * num_tables) + (restart_ctr / 2);
         double elapsed_ratio = hints.getElapsedGlobalPercent();
         int relax_size = (int)Math.max(this.last_relax_size, (int)Math.round(((relax_max - relax_min) * elapsed_ratio) + relax_min));
+   
+        // Check whether we've already examined all combinations of the tables at this relaxation size
+        // That means we should automatically increase our size
+        if (restart_ctr > 0 && ((relax_size != this.last_relax_size) || (this.relaxed_sets_max != null && this.relaxed_sets_max.intValue() == this.relaxed_sets.size()))) {
+            LOG.info(String.format("Already processed all %s relaxation sets of size %d. Increasing relaxation set size",
+                                   this.relaxed_sets_max, relax_size));
+            this.relaxed_sets_max = null;
+            relax_size++;
+            if (relax_size > num_tables) return (false);
+        }
+        if (this.relaxed_sets_max == null) {
+            // n! / k!(n - k)!
+            BigInteger nFact = MathUtil.factorial(num_tables);
+            BigInteger kFact = MathUtil.factorial(relax_size);
+            BigInteger nminuskFact = MathUtil.factorial(num_tables - relax_size);
+            this.relaxed_sets_max = nFact.divide(kFact.multiply(nminuskFact));
+            this.relaxed_sets.clear();
+        }
         
         // If we exhausted our last search, then we want to make sure we increase our
         // relaxation size... 
@@ -592,10 +621,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         assert(relax_size <= num_tables) : "Invalid Relax Size: " + relax_size;
         
         if (LOG.isInfoEnabled()) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size));
-            
             Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put(" - relaxed_sets", this.relaxed_sets.size());
+            m.put(" - relaxed_sets_max", this.relaxed_sets_max);
             m.put(" - last_relax_size", this.last_relax_size);
             m.put(" - last_halt_reason", this.last_halt_reason);
             m.put(" - last_elapsed_time", this.last_elapsed_time);
@@ -605,33 +633,43 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             m.put(" - limit_back_track", String.format("%.02f", this.last_backtrack_limit));
             m.put(" - best_cost", String.format(DEBUG_COST_FORMAT, this.best_cost));
             m.put(" - best_memory", this.best_memory);
-            sb.append(StringUtil.formatMaps(m));
-            LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
+            LOG.info("\n" + StringUtil.box(String.format("LNS RESTART #%03d  [relax_size=%d]\n%s", restart_ctr, relax_size, StringUtil.formatMaps(m)), "+", 125));
         }
 
         // Select which tables we want to relax on this restart
-        List<Table> nonrelaxed_tables = new ArrayList<Table>(this.orig_table_attributes.asList());
-        List<Table> relaxed_tables = new ArrayList<Table>();
-        SortedSet<Integer> rand_idxs = new TreeSet<Integer>(rand.getRandomIntSet(relax_size));
-        if (debug.get()) LOG.debug("Relaxed Table Identifiers: " + rand_idxs);
-        for (int idx : rand_idxs) {
-            assert(idx < this.orig_table_attributes.size()) : "Random Index is too large: " + idx + " " + this.orig_table_attributes.keySet();
-            Table catalog_tbl = null; // XXX this.orig_table_attributes.get(idx);
-            for (Table t : orig_table_attributes.asList()) {
-                if (t.getName().equals("SUBSCRIBER")) {
-                    catalog_tbl = t;
-                    break;
-                }
+        // We will keep looking until we find one that we haven't processed before
+        Collection<Table> relaxed_tables = new HashSet<Table>();
+        while (true) {
+            relaxed_tables.clear();
+            Collection<Integer> rand_idxs = rand.getRandomIntSet(relax_size);
+            if (trace.get()) LOG.trace("Relaxed Table Identifiers: " + rand_idxs);
+            for (int idx : rand_idxs) {
+                assert(idx < this.orig_table_attributes.size()) : "Random Index is too large: " + idx + " " + this.orig_table_attributes.keySet();
+                Table catalog_tbl = this.orig_table_attributes.get(idx);
+                relaxed_tables.add(catalog_tbl);    
+            } // FOR (table)
+            if (this.relaxed_sets.contains(relaxed_tables) == false) {
+                break;
             }
-            relaxed_tables.add(catalog_tbl);
-            nonrelaxed_tables.remove(catalog_tbl);
-            this.costmodel.invalidateCache(catalog_tbl);
-        } // FOR
+        } // WHILE
         assert(relaxed_tables.size() == relax_size) : relax_size + " => " + relaxed_tables;
         LOG.info("Relaxed Tables: " + relaxed_tables);
+        this.relaxed_sets.add(relaxed_tables);
         
-        // Shuffle the list
-        Collections.shuffle(relaxed_tables, this.rng);
+        // Now for each of the relaxed tables, figure out what columns we want to consider for swaps
+        table_attributes.clear();
+        proc_attributes.clear();
+        Collection<Table> nonrelaxed_tables = new ArrayList<Table>(this.orig_table_attributes.asList());
+        for (Table catalog_tbl : relaxed_tables) {
+            this.costmodel.invalidateCache(catalog_tbl);
+            
+            nonrelaxed_tables.remove(catalog_tbl);
+            table_attributes.add(catalog_tbl);
+            for (Procedure catalog_proc : this.table_procedures.get(catalog_tbl)) {
+                proc_attributes.add(catalog_proc);
+            } // FOR
+
+        } // FOR
         
         // Now estimate the size of a partition for the non-relaxed tables
         double nonrelaxed_memory = this.info.getMemoryEstimator().estimate(info.catalog_db, this.num_partitions, nonrelaxed_tables) /
@@ -643,17 +681,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // (0) We think we actually need to relax very first time too...
         // (1) Make it less likely that we are going to relax a small/read-only table
         //
-        
-        // Now for each of the relaxed tables, figure out what columns we want to consider for swaps
-        table_attributes.clear();
-        proc_attributes.clear();
-        Collections.shuffle(relaxed_tables);
-        for (Table catalog_tbl : relaxed_tables) {
-            table_attributes.add(catalog_tbl);
-            for (Procedure catalog_proc : this.table_procedures.get(catalog_tbl)) {
-                proc_attributes.add(catalog_proc);
-            } // FOR
-        } // FOR
         
         this.last_relax_size = relax_size;
         return (true);

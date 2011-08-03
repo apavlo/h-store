@@ -549,11 +549,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         
         // DEBUG!
         if (txn_entry.singlesite_queries < 0 || txn_entry.multisite_queries < 0) {
-            LOG.warn("!!! NEGATIVE QUERY COUNTS - TRACE #" + txn_entry.getTransactionId() + " !!!");
-            LOG.warn(txn_entry.debug());
-            LOG.warn("-----------------------------");
+            LOG.error("!!! NEGATIVE QUERY COUNTS - TRACE #" + txn_entry.getTransactionId() + " !!!");
+            LOG.error(txn_entry.debug());
+            LOG.error("-----------------------------");
             for (QueryCacheEntry q : this.getQueryCacheEntries(txn_entry.getTransactionId())) {
-                LOG.warn(q + "\n");
+                LOG.error(q + "\n");
             }
         }
         assert(txn_entry.examined_queries >= 0) : txn_entry + " has negative examined queries!\n" +  txn_entry.debug();

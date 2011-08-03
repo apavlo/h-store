@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -91,6 +92,9 @@ public class VerticalPartitionColumn extends MultiColumn {
     public void addOptimizedQueries(Map<Statement, Statement> queries) {
         this.optimized.putAll(queries);
     }
+    public boolean hasOptimizedQueries() {
+        return (this.optimized.size() > 0);
+    }
     
     /**
      * Return the Horizontal Partitioning Column
@@ -139,27 +143,40 @@ public class VerticalPartitionColumn extends MultiColumn {
         return (this.applied);
     }
     
-    /**
-     * Create the MaterializedView catalog object for this vertical partition candidate
-     */
-    public MaterializedViewInfo updateCatalog() {
+    public MaterializedViewInfo createMaterializedView() {
         Table catalog_tbl = this.getParent();
-        assert(this.applied == false) : "Trying to apply " + this + " more than once";
-        if (this.catalog_view == null) {
+        MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
+        if (catalog_view == null) {
             try {
-                this.catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, this.getVerticalPartitionColumns(), true);
+                catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, this.getVerticalPartitionColumns(), true);
                 assert(catalog_view != null);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to create vertical partition for " + this, ex);
             }
-            if (debug.get()) LOG.debug(String.format("Created vertical partition %s.%s: %s",
-                                                     catalog_tbl.getName(), this.catalog_view.getName(), CatalogUtil.debug(this.catalog_view.getDest().getColumns())));
-        } else {
-            if (debug.get()) LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
-            catalog_tbl.getViews().add(this.catalog_view);    
         }
+        if (debug.get()) LOG.debug(String.format("Created vertical partition %s.%s: %s",
+                                                 catalog_tbl.getName(), catalog_view.getName(), CatalogUtil.debug(catalog_view.getDest().getColumns())));            
+        return (catalog_view);
+    }
+    
+    /**
+     * Create the MaterializedView catalog object for this vertical partition candidate
+     */
+    public MaterializedViewInfo applyUpdate() {
+        assert(this.applied == false) : "Trying to apply " + this + " more than once";
+        if (this.catalog_view == null) {
+            this.catalog_view = this.createMaterializedView();    
+        } else {
+            Table catalog_tbl = this.getParent();
+            if (debug.get()) LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
+            catalog_tbl.getViews().add(this.catalog_view);
+        }
+        assert(this.catalog_view != null);
             
         // Apply the new Statement query plans
+        if (this.optimized.isEmpty() && debug.get()) {
+            LOG.warn("There are no optimized query plans for " + this.fullName());
+        }
         for (Entry<Statement, Statement> e : this.optimized.entrySet()) {
             // Make a back-up for each original Statement
             Statement backup = this.backups.get(e.getKey());
@@ -176,6 +193,8 @@ public class VerticalPartitionColumn extends MultiColumn {
             CatalogUtil.copyQueryPlans(e.getKey(), backup);
             
             // Then copy the optimized query plans
+            if (debug.get()) LOG.debug(String.format("Copying optimized query plans from %s to %s",
+                                                     e.getValue().fullName(), e.getKey().fullName()));
             CatalogUtil.copyQueryPlans(e.getValue(), e.getKey());
         } // FOR
         this.applied = true;
@@ -185,7 +204,7 @@ public class VerticalPartitionColumn extends MultiColumn {
     /**
      * 
      */
-    public void revertCatalog() {
+    public void revertUpdate() {
         assert(this.catalog_view != null);
         assert(this.applied) : "Trying to undo " + this + " before applying";
         

@@ -8,25 +8,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.benchmark.tpcc.procedures.ResetWarehouse;
 import org.voltdb.benchmark.tpcc.procedures.delivery;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.slev;
-import org.voltdb.catalog.CatalogMap;
-import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
-import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.Table;
+import org.voltdb.catalog.*;
+import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -42,6 +37,105 @@ public class TestCatalogUtil extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
+    }
+    
+    /**
+     * testCopyQueryPlans
+     */
+    public void testCopyQueryPlans() throws Exception {
+        Procedure catalog_proc = this.getProcedure(neworder.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "getWarehouseTaxRate");
+        assertNotNull(catalog_stmt);
+        
+        Map<String, Object> orig_values = new HashMap<String, Object>();
+        for (String f : catalog_stmt.getFields()) {
+            orig_values.put(f, catalog_stmt.getField(f));
+        } // FOR
+        Map<String, Map<String, Object>> orig_frag_values = new HashMap<String, Map<String,Object>>();
+        for (PlanFragment catalog_frag : CollectionUtils.union(catalog_stmt.getFragments(), catalog_stmt.getMs_fragments())) {
+            Map<String, Object> m = new HashMap<String, Object>();
+            for (String f : catalog_frag.getFields()) {
+                Object val = catalog_frag.getField(f);
+                if (val instanceof String) val = StringUtil.md5sum(val.toString());
+                m.put(f, val);
+            } // FOR
+            orig_frag_values.put(catalog_frag.fullName(), m);
+        } // FOR
+//        System.err.println(StringUtil.formatMaps(orig_frag_values));
+//        System.err.println(StringUtil.SINGLE_LINE);
+        
+        Statement copy = catalog_proc.getStatements().add("TestStatement");
+        assertNotNull(copy);
+        assertFalse(copy.getHas_singlesited());
+        assertEquals(0, copy.getFragments().size());
+        assertTrue(copy.getFullplan().isEmpty());
+        assertTrue(copy.getExptree().isEmpty());
+        assertFalse(copy.getHas_multisited());
+        assertEquals(0, copy.getMs_fragments().size());
+        assertTrue(copy.getMs_fullplan().isEmpty());
+        assertTrue(copy.getMs_exptree().isEmpty());
+
+        CatalogUtil.copyQueryPlans(catalog_stmt, copy);
+        
+        // Make sure we didn't change the original
+        for (String f : orig_values.keySet()) {
+            assertEquals(f, orig_values.get(f), catalog_stmt.getField(f));
+        } // FOR
+        for (PlanFragment catalog_frag : CollectionUtils.union(catalog_stmt.getFragments(), catalog_stmt.getMs_fragments())) {
+            Map<String, Object> m = orig_frag_values.get(catalog_frag.fullName());
+//            System.err.println(catalog_frag.fullName());
+            for (String f : m.keySet()) {
+                Object orig_val = m.get(f);
+                Object new_val = catalog_frag.getField(f);
+                if (new_val instanceof String) new_val = StringUtil.md5sum(new_val.toString());
+//                System.err.println(String.format("\t%s = %s", f, new_val));
+                assertEquals(catalog_frag.fullName() + " - " + f, orig_val, new_val);
+            } // FOR
+//            System.err.println(StringUtil.SINGLE_LINE);
+        } // FOR
+        
+        // And then check that the destination was updated
+        assertEquals(catalog_stmt.getHas_singlesited(), copy.getHas_singlesited());
+        assertEquals(catalog_stmt.getFragments().size(), copy.getFragments().size());
+        assertEquals(catalog_stmt.getFullplan(), copy.getFullplan());
+        assertEquals(catalog_stmt.getExptree(), copy.getExptree());
+        assertEquals(catalog_stmt.getHas_multisited(), copy.getHas_multisited());
+        assertEquals(catalog_stmt.getMs_fragments().size(), copy.getMs_fragments().size());
+        assertEquals(catalog_stmt.getMs_fullplan(), copy.getMs_fullplan());
+        assertEquals(catalog_stmt.getMs_exptree(), copy.getMs_exptree());
+        
+        // Make sure the PlanFragments are the same
+        for (boolean sp : new boolean[] { true, false }) {
+            CatalogMap<PlanFragment> copy_src_fragments = null;
+            CatalogMap<PlanFragment> copy_dest_fragments = null;
+            if (sp) {
+                copy_src_fragments = catalog_stmt.getFragments();
+                copy_dest_fragments = copy.getFragments();
+            } else {
+                copy_src_fragments = catalog_stmt.getMs_fragments();
+                copy_dest_fragments = copy.getMs_fragments();
+            }
+            assert(copy_src_fragments != null);
+            assert(copy_dest_fragments != null);
+            
+            for (PlanFragment copy_src_frag : copy_src_fragments) {
+                assertNotNull(copy_src_frag);
+                PlanFragment copy_dest_frag = copy_dest_fragments.get(copy_src_frag.getName());
+                assertNotNull(copy_dest_frag);
+                
+                for (String f : copy_src_frag.getFields()) {
+                    assertEquals(f, copy_src_frag.getField(f), copy_dest_frag.getField(f));
+                } // FOR
+                
+                AbstractPlanNode src_root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(copy_src_frag);
+                assertNotNull(copy_src_frag.fullName(), src_root);
+                AbstractPlanNode dest_root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(copy_dest_frag);
+                assertNotNull(copy_src_frag.fullName(), dest_root);
+//                
+//                System.err.println(StringUtil.columns(PlanNodeUtil.debug(src_root),
+//                                                      PlanNodeUtil.debug(dest_root)));
+            }
+        } // FOR
     }
     
     /**

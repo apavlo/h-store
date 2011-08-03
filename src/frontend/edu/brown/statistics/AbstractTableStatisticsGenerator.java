@@ -229,7 +229,7 @@ public abstract class AbstractTableStatisticsGenerator {
             // If the table is not fixed, then modify the number of tuples by the scale factor
             TableStatistics ts = new TableStatistics(catalog_tbl);
             ts.tuple_count_total = Math.round(profile.tuple_count / (profile.is_fixed ? 1.0 : this.scale_factor));
-            ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateFromCatalog(catalog_tbl);
+            ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateTupleSize(catalog_tbl);
             ts.tuple_size_total = ts.tuple_size_avg * ts.tuple_count_total;
             stats.put(catalog_tbl, ts);
             LOG.info(String.format(f, catalog_tbl.getName(), ts.tuple_count_total, ts.tuple_size_total));
@@ -274,7 +274,7 @@ public abstract class AbstractTableStatisticsGenerator {
                     
                     // Final calculations
                     ts.tuple_count_total = Math.round(ts.tuple_count_total / (profile.is_fixed ? 1.0 : scale_factor));
-                    ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateFromCatalog(catalog_tbl);
+                    ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateTupleSize(catalog_tbl);
                     ts.tuple_size_total = ts.tuple_size_avg * ts.tuple_count_total;
                     stats.put(catalog_tbl, ts);
                     LOG.info(String.format(f, catalog_tbl.getName(), ts.tuple_count_total, ts.tuple_size_total));
