@@ -849,6 +849,8 @@ public class VoltCompiler {
         compilerLog.debug(catalog_tbl.getName() + " Partition Column: " + partition_col);
         
         int i = 0;
+        assert(catalog_cols != null);
+        assert(catalog_cols.isEmpty() == false) : "No vertical partitioning columns for " + catalog_view.fullName();
         for (Column catalog_col : catalog_cols) {
             // MaterializedView ColumnRef
             ColumnRef catalog_ref = catalog_view.getGroupbycols().add(catalog_col.getName());

@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
@@ -18,6 +19,7 @@ import org.voltdb.catalog.Table;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
@@ -51,6 +53,33 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
     }
     
     /**
+     * testGenerate
+     */
+    public void testVerticalPartitioning() throws Exception {
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        int num_intervals = info.getNumIntervals();
+        info = this.generateInfo(clone_db);
+        info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, num_intervals));
+        info.setPartitionerClass(LNSPartitioner.class);
+        
+        hints.enable_vertical_partitioning = true;
+        hints.max_memory_per_partition = Long.MAX_VALUE;
+        hints.enable_costmodel_multipartition_penalty = true;
+        hints.weight_costmodel_multipartition_penalty = 100.0d;
+        hints.relaxation_min_size = clone_db.getTables().size();
+        hints.limit_local_time = 30;
+        hints.limit_total_time = 30;
+        
+        designer = new Designer(info, hints, info.getArgs());
+        AbstractPartitioner partitioner = (LNSPartitioner)designer.getPartitioner();
+
+        PartitionPlan pplan = partitioner.generate(hints);
+        assertNotNull(pplan);
+        
+        System.err.println(pplan);
+    }
+    
+    /**
      * testInit
      */
     @Test
@@ -58,19 +87,21 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         this.partitioner.init(this.hints);
         
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
+            
             // Table Attributes
-            assert(this.partitioner.orig_table_attributes.containsKey(catalog_tbl));
-            assertFalse(this.partitioner.orig_table_attributes.get(catalog_tbl).isEmpty());
+            assertTrue(catalog_tbl.toString(), this.partitioner.orig_table_attributes.containsKey(catalog_tbl));
+            assertFalse(catalog_tbl.toString(), this.partitioner.orig_table_attributes.get(catalog_tbl).isEmpty());
             
             // Table Procedures
-            assert(this.partitioner.table_procedures.containsKey(catalog_tbl));
-            assertFalse(this.partitioner.table_procedures.get(catalog_tbl).isEmpty());
+            assertTrue(catalog_tbl.toString(), this.partitioner.table_procedures.containsKey(catalog_tbl));
+            assertFalse(catalog_tbl.toString(), this.partitioner.table_procedures.get(catalog_tbl).isEmpty());
             
             // Table Sizes
-            assert(this.partitioner.table_replicated_size.containsKey(catalog_tbl));
-            assert(this.partitioner.table_replicated_size.get(catalog_tbl) > 0);
-            assert(this.partitioner.table_nonreplicated_size.containsKey(catalog_tbl));
-            assert(this.partitioner.table_nonreplicated_size.get(catalog_tbl) > 0);
+            assertTrue(catalog_tbl.toString(), this.partitioner.table_replicated_size.containsKey(catalog_tbl));
+            assertTrue(catalog_tbl.toString(), this.partitioner.table_replicated_size.get(catalog_tbl) > 0);
+            assertTrue(catalog_tbl.toString(), this.partitioner.table_nonreplicated_size.containsKey(catalog_tbl));
+            assertTrue(catalog_tbl.toString(), this.partitioner.table_nonreplicated_size.get(catalog_tbl) > 0);
 
             for (Column catalog_col : this.partitioner.orig_table_attributes.get(catalog_tbl)) {
                 assertNotNull(catalog_col);
@@ -297,7 +328,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         }
 // FIXME
 //        info.getCostModel().clear();
-//        new_cost = info.getCostModel().estimateCost(catalog_db, workload);
+//        new_cost = info.getCostModel().estimateWorkloadCost(catalog_db, workload);
 //        assert(new_cost > 0);
 //        assertEquals(this.partitioner.initial_cost, new_cost);
         

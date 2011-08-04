@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.*;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -27,6 +28,7 @@ import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
@@ -1490,24 +1492,22 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static String debug(CatalogType catalog_item) {
-        StringBuilder buffer = new StringBuilder();
-        buffer.append(catalog_item.toString()).append("\n");
-        Set<String> fields = new HashSet<String>();
-        fields.addAll(catalog_item.getFields());
-        fields.addAll(catalog_item.getChildFields());
-
-        for (String field : fields) {
-            String value = null;
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        for (String field : CollectionUtils.union(catalog_item.getFields(), catalog_item.getChildFields())) {
+            String val_str = null;
             if (catalog_item.getChildFields().contains(field)) {
-                value = CatalogUtil.debug(catalog_item.getChildren(field));
+                val_str = CatalogUtil.debug(catalog_item.getChildren(field));
             } else {
-                value = catalog_item.getField(field).toString();
+                Object val = catalog_item.getField(field);
+                if (val != null) {
+                    val_str = val.toString();
+                } else {
+                    val_str = "null";
+                }
             }
-
-            buffer.append("  ").append(String.format("%-20s", field + ":"))
-                    .append(value).append("\n");
+            m.put(field, val_str);
         } // FOR
-        return (buffer.toString());
+        return (catalog_item.fullName() + "\n" + StringUtil.formatMaps(m));
     }
     
     public static String debug(CatalogMap<? extends CatalogType> map) {
