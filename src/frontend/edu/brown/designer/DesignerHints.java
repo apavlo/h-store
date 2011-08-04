@@ -220,7 +220,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Copy Constructor
      * @param orig
      */
-    private DesignerHints(DesignerHints orig) {
+    public DesignerHints(DesignerHints orig) {
         this.start_time = orig.start_time;
         this.source_file = orig.source_file;
     }

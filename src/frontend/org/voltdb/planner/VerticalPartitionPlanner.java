@@ -82,6 +82,7 @@ public class VerticalPartitionPlanner {
         this.vp_views.putAll(CatalogUtil.getVerticallyPartitionedTables(catalogDb));
         for (Table catalog_tbl : this.vp_views.keySet()) {
             Collection<Column> columns = CatalogUtil.getColumns(this.vp_views.get(catalog_tbl).getGroupbycols());
+            assert(columns.isEmpty() == false) : "No vertical partition columns for " + catalog_tbl;
             this.vp_columns.put(catalog_tbl, columns);
         } // FOR
 
@@ -207,6 +208,9 @@ public class VerticalPartitionPlanner {
         for (Table catalog_tbl : tables) {
             MaterializedViewInfo catalog_view = this.vp_views.get(catalog_tbl);
             assert(catalog_view != null);
+            assert(catalog_view.getGroupbycols().isEmpty() == false) :
+                String.format("Missing vertical partitioning columns in %s when trying to process %s\n%s\nCACHED: %s",
+                              catalog_view.fullName(), catalog_stmt.fullName(), CatalogUtil.debug(catalog_view), CatalogUtil.debug(this.vp_columns.get(catalog_tbl)));
             Collection<Column> view_cols = CatalogUtil.getColumns(catalog_view.getGroupbycols());
             assert(view_cols.isEmpty() == false) : "Missing vertical partitioning columns in " + catalog_view.fullName() + " when trying to process " + catalog_stmt.fullName();
             Column partitioning_col = catalog_tbl.getPartitioncolumn();

@@ -324,7 +324,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                         exec_mismatch_ctrs[i]++;
                         partitions_touched[i]++;
                     } else {
-                        assert(partitions.size() > 1) : txn_entry.debug();
+                        assert(partitions.size() > 1) : String.format("%s is not marked as single-partition but it only touches one partition\n%s", txn_trace, txn_entry.debug());
                     }
                     partitions_touched[i] += partitions.size(); // Txns
                     multipartition_ctrs[i]++;
@@ -447,7 +447,6 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 inner.put("Missing Txns", (total_txns_in_interval - num_txns));
                 inner.put("Cost", String.format("%.05f", execution_costs[i]));
                 inner.put("Exec Txns", exec_histogram[i].getSampleCount());
-
                 debug_m.put("Interval #" + i, inner);
             }
         } // FOR
@@ -494,23 +493,23 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     check.putAll(tce.getTouchedPartitions());
 //                    LOG.error(tce.debug() + "\n");
                 }
-                LOG.error("Check Touched Partitions: sample=" + check.getSampleCount() + ", value=" + check.getValueCount());
-                LOG.error("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", value=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());
+                LOG.error("Check Touched Partitions: sample=" + check.getSampleCount() + ", values=" + check.getValueCount());
+                LOG.error("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", values=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());
                 
                 int qtotal = inner_costModel.getAllQueryCacheEntries().size();
                 int ctr = 0;
                 int multip = 0;
                 for (QueryCacheEntry qce : inner_costModel.getAllQueryCacheEntries()) {
                     ctr += (qce.getAllPartitions().isEmpty() ? 0 : 1);
-                    multip += qce.getAllPartitions().size() > 1 ? 1 : 0;
+                    multip += (qce.getAllPartitions().size() > 1 ? 1 : 0);
                 }
                 LOG.error("# of QueryCacheEntries with Touched Partitions: " + ctr + " / " + qtotal);
                 LOG.error("# of MultiP QueryCacheEntries: " +  multip);
             }
             assert(is_valid) :
                 String.format("Partitions Touched by Txns Mismatch in Interval #%d\n" +
-                              "  (partitions_touched[%d] + singlepartition_with_partitions_ctrs[%d]) != " +
-                              "  (histogram_txn[%d] + exec_mismatch_ctrs[%d])",
+                              "(partitions_touched[%d] + singlepartition_with_partitions_ctrs[%d]) != " +
+                              "(histogram_txn[%d] + exec_mismatch_ctrs[%d])",
                               i, partitions_touched[i], singlepartition_with_partitions_ctrs[i],
                               this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount(), exec_mismatch_ctrs[i]);
             

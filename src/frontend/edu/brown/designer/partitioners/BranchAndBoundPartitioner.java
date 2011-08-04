@@ -626,7 +626,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             final Set<Table> remaining_tables = new HashSet<Table>();
             
             // Mark all of our tables that we're not going to search against as updated in our ConstraintPropagator
-            if (debug.get()) LOG.debug("All Tables: " + CatalogUtil.getDisplayNames(info.catalog_db.getTables()));
+            if (trace.get()) LOG.trace("All Tables: " + CatalogUtil.getDisplayNames(info.catalog_db.getTables()));
             for (Table catalog_tbl : this.info.catalog_db.getTables()) {
                 if (catalog_tbl.getSystable() == false && this.search_tables.contains(catalog_tbl) == false) {
                     if (trace.get()) LOG.trace("Updating ConstraintPropagator for fixed " + catalog_tbl);
@@ -642,7 +642,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             // HACK: If we are searching against all possible tables, then just
             // completely clear out the cost model
-            if (remaining_tables.isEmpty()) {
+            if ((true || remaining_tables.isEmpty()) && hints.enable_costmodel_caching) {
+                if (debug.get()) LOG.debug("Searching against all tables. Completely resetting cost model.");
                 this.cost_model.clear(true);
             }
 
@@ -931,15 +932,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 
                 // The cost of our parent can never be greater than our cost
                 if (!parent.isStartVertex()) {
-                    boolean is_valid = MathUtil.greaterThanEquals(cost.floatValue(), parent.cost.floatValue(), 0.0001f);
+                    boolean is_valid = MathUtil.greaterThanEquals(cost.floatValue(), parent.cost.floatValue(), 0.001f);
                     
                     if (!is_valid && debug.get()) {
                         LOG.error("CURRENT COST IS GREATER THAN CURRENT COST! THIS CANNOT HAPPEN!\n" + 
                                   "Parent:\n" + parent.toString() +
                                   StringUtil.DOUBLE_LINE +
                                   "Current:\n" + state.toString() + "\n" +
-                                  "Last Cost Model:\n" + state.debug);
-                        LOG.debug(PartitionPlan.createFromCatalog(search_db, hints));
+                                  "Last Cost Model:\n" + state.debug + "\n" +
+                                  PartitionPlan.createFromCatalog(search_db, hints));
                     }
                     assert(is_valid) :
                         attribute_key + ": Parent[" + parent.cost + "] <= Current[" + cost + "]" + "\n" +

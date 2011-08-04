@@ -76,10 +76,6 @@ public class SingleSitedCostModel extends AbstractCostModel {
      */
     private final Map<Long, TransactionCacheEntry> txn_entries = new LinkedHashMap<Long, TransactionCacheEntry>();
     /**
-     * TransactionId -> List<QueryCacheEntry>
-     */
-    private final Map<Long, List<QueryCacheEntry>> query_entries = new LinkedHashMap<Long, List<QueryCacheEntry>>();
-    /**
      * TableKeys that were replicated when we calculated them
      * It means that have to switch the partitions to be the base partition (if we have one)
      */
@@ -102,11 +98,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
      */
     private final Map<String, Set<QueryCacheEntry>> cache_stmtXref = new HashMap<String, Set<QueryCacheEntry>>();
     
+    private final Set<Long> last_invalidateTxns = new HashSet<Long>();
+    
     /**
      * Cost Estimate Explanation
      */
     public class TransactionCacheEntry implements Cloneable {
         private final String proc_key;
+        private final QueryCacheEntry query_entries[];
         private final long txn_id;
         private final int weight;
         private final int total_queries;
@@ -123,12 +122,17 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.txn_id = txn_trace_id;
             this.weight = weight;
             this.total_queries = total_queries;
+            this.query_entries = new QueryCacheEntry[this.total_queries];
         }
         
         public TransactionCacheEntry(String proc_key, TransactionTrace txn_trace) {
             this(proc_key, txn_trace.getTransactionId(), txn_trace.getWeight(), txn_trace.getWeightedQueryCount());
         }
 
+        public QueryCacheEntry[] getQueryCacheEntries() {
+            return (this.query_entries);
+        }
+        
         public long getTransactionId() {
             return (this.txn_id);
         }
@@ -426,8 +430,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
     public void clear(boolean force) {
         super.clear(force);
 
-        this.query_entries.clear();
         this.txn_entries.clear();
+        this.last_invalidateTxns.clear();
         
         for (Collection<QueryCacheEntry> c : this.cache_tableXref.values()) {
             c.clear();
@@ -458,28 +462,30 @@ public class SingleSitedCostModel extends AbstractCostModel {
     }
     public Collection<QueryCacheEntry> getAllQueryCacheEntries() {
         Set<QueryCacheEntry> all = new HashSet<QueryCacheEntry>();
-        for (List<QueryCacheEntry> q : this.query_entries.values()) {
-            if (q != null) all.addAll(q);
-        } // FOR
+        for (TransactionCacheEntry t : this.txn_entries.values()) {
+            for (QueryCacheEntry q : t.query_entries) {
+                if (q != null) all.add(q);
+            } // FOR (queries)
+        } // FOR (txns)
         return (all);
     }
 
-    protected TransactionCacheEntry getTransactionCacheEntry(TransactionTrace xact) {
-        return (this.txn_entries.get(xact.getTransactionId()));
+    protected TransactionCacheEntry getTransactionCacheEntry(TransactionTrace txn_trace) {
+        return (this.txn_entries.get(txn_trace.getTransactionId()));
     }
-    
     protected TransactionCacheEntry getTransactionCacheEntry(long txn_id) {
         return (this.txn_entries.get(txn_id));
     }
-    
-    public Collection<QueryCacheEntry> getQueryCacheEntries(TransactionTrace xact) {
-        return (this.query_entries.get(xact.getTransactionId()));
+    public Collection<QueryCacheEntry> getQueryCacheEntries(TransactionTrace txn_trace) {
+        return (this.getQueryCacheEntries(txn_trace.getTransactionId()));
     }
-    
     public Collection<QueryCacheEntry> getQueryCacheEntries(long txn_id) {
-        return (this.query_entries.get(txn_id));
+        TransactionCacheEntry txn_entry = this.txn_entries.get(txn_id);
+        if (txn_entry != null) {
+            return (CollectionUtil.addAll(new ArrayList<QueryCacheEntry>(), txn_entry.query_entries));
+        }
+        return (null);
     }
-    
     public Collection<QueryCacheEntry> getQueryCacheEntries(Statement catalog_stmt) {
         String stmt_key = CatalogKey.createKey(catalog_stmt);
         return (this.cache_stmtXref.get(stmt_key));
@@ -500,30 +506,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
         } // FOR
     }
 
-    /**
-     * 
-     */
-    @Override
-    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
-        // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
-        if (this.txn_entries.size() == 0) {
-            assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
-            assert(this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
-        }
-        
-        TransactionCacheEntry est = this.processTransaction(catalog_db, txn_trace, filter);
-        assert (est != null);
-        if (debug.get()) LOG.debug(txn_trace + ": " + (est.singlesited ? "Single" : "Multi") + "-Partition");
-
-        if (!est.singlesited) {
-            return (COST_MULTISITE_QUERY * txn_trace.getWeight());
-        }
-        if (est.unknown_queries > 0) {
-            return (COST_UNKNOWN_QUERY * txn_trace.getWeight());
-        }
-        return (COST_SINGLESITE_QUERY * txn_trace.getWeight());
+    // --------------------------------------------------------------------------------------------
+    // INVALIDATION METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    protected Collection<Long> getLastInvalidateTransactionIds() {
+        return (this.last_invalidateTxns);
     }
-
+    
     /**
      * Invalidate a single QueryCacheEntry
      * Returns true if the query's TransactionCacheEntry parent needs to be invalidated as well
@@ -551,9 +541,9 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (txn_entry.singlesite_queries < 0 || txn_entry.multisite_queries < 0) {
             LOG.error("!!! NEGATIVE QUERY COUNTS - TRACE #" + txn_entry.getTransactionId() + " !!!");
             LOG.error(txn_entry.debug());
-            LOG.error("-----------------------------");
-            for (QueryCacheEntry q : this.getQueryCacheEntries(txn_entry.getTransactionId())) {
-                LOG.error(q + "\n");
+            LOG.error(StringUtil.SINGLE_LINE);
+            for (QueryCacheEntry q : txn_entry.query_entries) {
+                LOG.error(q);
             }
         }
         assert(txn_entry.examined_queries >= 0) : txn_entry + " has negative examined queries!\n" +  txn_entry.debug();
@@ -615,6 +605,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         this.txn_ctr.addAndGet(-1 * txn_entry.weight);
         this.cache_procXref.get(txn_entry.proc_key).remove(txn_entry);
         this.txn_entries.remove(txn_entry.getTransactionId());
+        this.last_invalidateTxns.add(txn_entry.getTransactionId());
     }
     
     /**
@@ -657,11 +648,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // This will ensure that we know which partitions to remove from the costmodel's 
                 // global txn touched partitions histogram 
                 TransactionCacheEntry txn_entry = this.txn_entries.get(query_entry.getTransactionId());
-                if (txn_entry == null) {
-                    LOG.warn("Missing Txn #Id: " + query_entry.getTransactionId());
-                    LOG.warn("Query Entries: " + this.query_entries.get(query_entry.getTransactionId()));
-                }
-                assert(txn_entry != null);
+                assert(txn_entry != null) : "Missing Txn #Id: " + query_entry.getTransactionId(); 
                 txn_entry.touched_partitions.setKeepZeroEntries(true);
                 
                 boolean invalidate_txn = this.invalidateQueryCacheEntry(txn_entry, query_entry, invalidate_removedTouchedPartitions);
@@ -776,6 +763,36 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // ESTIMATION METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    
+    private final Map<String, Set<Integer>> temp_stmtPartitions = new HashMap<String, Set<Integer>>();
+    private final Set<Integer> temp_txnOrigPartitions = new HashSet<Integer>();
+    private final Set<Integer> temp_txnNewPartitions = new HashSet<Integer>();
+    
+    @Override
+    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
+        // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
+        if (this.txn_entries.size() == 0) {
+            assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
+            assert(this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
+        }
+        
+        TransactionCacheEntry est = this.processTransaction(catalog_db, txn_trace, filter);
+        assert (est != null);
+        if (debug.get()) LOG.debug(txn_trace + ": " + (est.singlesited ? "Single" : "Multi") + "-Partition");
+
+        if (!est.singlesited) {
+            return (COST_MULTISITE_QUERY * txn_trace.getWeight());
+        }
+        if (est.unknown_queries > 0) {
+            return (COST_UNKNOWN_QUERY * txn_trace.getWeight());
+        }
+        return (COST_SINGLESITE_QUERY * txn_trace.getWeight());
+    }
+    
     /**
      * Create a new TransactionCacheEntry and update our histograms appropriately
      * @param txn_trace
@@ -829,20 +846,15 @@ public class SingleSitedCostModel extends AbstractCostModel {
         this.histogram_java_partitions.put(txn_entry.base_partition, txn_entry.weight);
     }
     
-    private final Map<String, Set<Integer>> temp_stmtPartitions = new HashMap<String, Set<Integer>>();
-    private final Set<Integer> temp_txnOrigPartitions = new HashSet<Integer>();
-    private final Set<Integer> temp_txnNewPartitions = new HashSet<Integer>();
-    
     /**
      * Returns whether a transaction is single-sited for the given catalog, and
-     * the number of queries that were examined.
-     * 
+     * the number of queries that were examined. This is where all the magic happens
      * @param txn_trace
      * @param filter
      * @return
      * @throws Exception
      */
-    public TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
+    protected TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
         final long txn_id = txn_trace.getTransactionId(); 
         final int txn_weight = txn_trace.getWeight();
         final boolean debug_txn = DEBUG_TRACE_IDS.contains(txn_id);
@@ -850,7 +862,6 @@ public class SingleSitedCostModel extends AbstractCostModel {
         
         // Check whether we have a completed entry for this transaction already
         TransactionCacheEntry txn_entry = null;
-        List<QueryCacheEntry> txn_query_entries = null;
         if (this.isCachingEnabled()) {
             txn_entry = this.txn_entries.get(txn_id);
             
@@ -862,11 +873,6 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 txn_entry.examined_queries == txn_trace.getQueries().size()) { 
                 if (trace.get()) LOG.trace("Using complete cached entry " + txn_entry);
                 return (txn_entry);
-            }
-            txn_query_entries = this.query_entries.get(txn_id);
-            if (txn_query_entries == null) {
-                txn_query_entries = new ArrayList<QueryCacheEntry>();
-                this.query_entries.put(txn_id, txn_query_entries);
             }
         }
 
@@ -941,7 +947,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             query_idx++;
             if (debug.get()) LOG.debug("Examining " + query_trace + " from " + txn_trace);
             final Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
-            assert (catalog_stmt != null);
+            assert(catalog_stmt != null);
 
             // If we have a filter and that filter doesn't want us to look at
             // this query, then we will just skip it and check the other ones
@@ -952,10 +958,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             }
 
             // Check whether we have a cache entry for this QueryTrace
-            QueryCacheEntry query_entry = null;
-            if (txn_query_entries != null && txn_query_entries.size() > query_idx) {
-                query_entry = txn_query_entries.get(query_idx);
-            }
+            QueryCacheEntry query_entry = txn_entry.query_entries[query_idx];
             if (this.use_caching && query_entry != null && !query_entry.isInvalid()) {
                 if (trace.get()) LOG.trace("Got cached " + query_entry + " for " + query_trace);
 
@@ -982,8 +985,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
                 // QUERY XREF
                 if (this.use_caching) {
-                    txn_query_entries.add(query_entry);
-                    
+                    txn_entry.query_entries[query_idx] = query_entry;
                     String stmt_key = CatalogKey.createKey(catalog_stmt);
                     Set<QueryCacheEntry> cache = this.cache_stmtXref.get(stmt_key);
                     if (cache == null) {

@@ -473,8 +473,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 this.costmodel.clear(true);
                 double cost2 = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
                 LOG.info(String.format("Before[" + DEBUG_COST_FORMAT + "] <=> After[" + DEBUG_COST_FORMAT + "]", this.best_cost, cost2));
-                boolean valid = MathUtil.equals(this.best_cost, cost2, 2, 0.2);
-                assert(valid) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessage();
+                assert(MathUtil.equals(this.best_cost, cost2, 2, 0.2)) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessage();
             }
             
             // Save checkpoint
@@ -583,13 +582,17 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // Figure out what how far along we are in the search and use that to determine how many to relax
         int relax_min = (int)Math.round(hints.relaxation_factor_min * num_tables);
-        int relax_max = (int)Math.max(hints.relaxation_min_size, (int)Math.round(hints.relaxation_factor_max * num_tables));
+        int relax_max = (int)Math.round(hints.relaxation_factor_max * num_tables);
 
         // We should probably try to do something smart here, but for now we can just be random
 //        int relax_size = (int)Math.round(RELAXATION_FACTOR_MIN * num_tables) + (restart_ctr / 2);
         double elapsed_ratio = hints.getElapsedGlobalPercent();
-        int relax_size = (int)Math.max(this.last_relax_size, (int)Math.round(((relax_max - relax_min) * elapsed_ratio) + relax_min));
-   
+        int relax_size = Math.max(hints.relaxation_min_size, (int)Math.max(this.last_relax_size, (int)Math.round(((relax_max - relax_min) * elapsed_ratio) + relax_min)));
+
+        if (relax_size > num_tables) relax_size = num_tables;
+//        if (relax_size > relax_max) relax_size = relax_max;
+
+        
         // Check whether we've already examined all combinations of the tables at this relaxation size
         // That means we should automatically increase our size
         if (restart_ctr > 0 && ((relax_size != this.last_relax_size) || (this.relaxed_sets_max != null && this.relaxed_sets_max.intValue() == this.relaxed_sets.size()))) {
@@ -599,6 +602,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             relax_size++;
             if (relax_size > num_tables) return (false);
         }
+        
         if (this.relaxed_sets_max == null) {
             // n! / k!(n - k)!
             BigInteger nFact = MathUtil.factorial(num_tables);
@@ -612,11 +616,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // relaxation size... 
 //        if (this.last_halt_reason == HaltReason.EXHAUSTED_SEARCH && relax_size < relax_max) relax_size = this.last_relax_size + 1;
 
-        if (relax_size > num_tables) relax_size = num_tables;
-        if (relax_size > relax_max) relax_size = relax_max;
         
         assert(relax_size >= relax_min)  : "Invalid Relax Size: " + relax_size;
-        assert(relax_size <= relax_max)  : "Invalid Relax Size: " + relax_size;
+        // assert(relax_size <= relax_max)  : "Invalid Relax Size: " + relax_size;
         assert(relax_size > 0)           : "Invalid Relax Size: " + relax_size;
         assert(relax_size <= num_tables) : "Invalid Relax Size: " + relax_size;
         
