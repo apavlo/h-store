@@ -1,9 +1,49 @@
 package edu.brown.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 import junit.framework.TestCase;
 
 public class TestStringUtil extends TestCase {
 
+    /**
+     * testColumns
+     */
+    @SuppressWarnings("unchecked")
+    public void testColumns() throws Exception {
+        Random rand = new Random();
+        List<Integer> lists[] = new List[3];
+        int max_length = 0;
+        String strs[] = new String[3];
+        for (int i = 0; i < strs.length; i++) {
+            lists[i] = new ArrayList<Integer>();
+            int size = rand.nextInt(30);
+            for (int j = 0; j < size; j++) {
+                int value = rand.nextInt();
+                lists[i].add(value);
+            }
+            strs[i] = StringUtil.join("\n", lists[i]);
+            max_length = Math.max(max_length, lists[i].size());
+        } // FOR
+        
+        String columns = StringUtil.columns(strs);
+        assertNotNull(columns);
+        assertFalse(columns.isEmpty());
+        System.err.println(columns);
+        
+        String lines[] = StringUtil.splitLines(columns);
+        assertEquals(max_length, lines.length);
+        for (int i = 0; i < strs.length; i++) {
+            for (Integer value : lists[i]) {
+                assert(columns.contains(value.toString())) : "Missing " + value;
+            }
+        }
+        
+        
+    }
+    
     /**
      * testMD5sum
      */
