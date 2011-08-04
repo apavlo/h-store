@@ -220,9 +220,7 @@ public abstract class CatalogKeyOldVersion {
                 LOG.fatal("Invalid child class '" + catalog_class + "' for catalog key " + key);
                 assert (false);
             }
-            // if (catalog_child == null) LOG.warn("The child catalog item is null for '" + key + "'");
-            assert (catalog_child != null) : "The child catalog item is null for '" + key + "'\n" + superclasses;
-            cache.put(key, catalog_child);
+            if (catalog_child != null) cache.put(key, catalog_child);
             return (catalog_child);
         }
         return (null);

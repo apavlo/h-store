@@ -300,7 +300,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 SingleSitedCostModel singlesited_cost_model = (SingleSitedCostModel)this.cost_models[i]; 
                 TransactionCacheEntry txn_entry = singlesited_cost_model.getTransactionCacheEntry(txn_trace);
                 assert(txn_entry != null) : "No txn entry for " + txn_trace;
-                Set<Integer> partitions = txn_entry.getTouchedPartitions();
+                Collection<Integer> partitions = txn_entry.getTouchedPartitions();
                 
                 // If the txn runs on only one partition, then the cost is nothing
                 if (txn_entry.isSingleSited()) {

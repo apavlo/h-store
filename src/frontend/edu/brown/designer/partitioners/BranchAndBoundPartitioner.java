@@ -1091,7 +1091,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             } else {
                 debug.append("[----] ");
             }
-            int spacing = 60 - spacer.length();
+            int spacing = 50 - spacer.length();
             final String f = "%s %s%-" + spacing + "s %-7s (memory=%d, traverse=%d, backtracks=%d)";
             debug.append(String.format(f,
                     (memory_exceeded ? "E" : " "),

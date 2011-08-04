@@ -231,7 +231,8 @@ public class VerticalPartitionPlanner {
                 m.put("VerticalP Cols", view_cols);
                 LOG.debug(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
             }
-            if (output_cols.contains(partitioning_col) && predicate_cols.contains(partitioning_col) == false && CollectionUtils.intersection(view_cols, predicate_cols).isEmpty() == false) {
+            if (output_cols.contains(partitioning_col) && view_cols.containsAll(output_cols) &&
+                predicate_cols.contains(partitioning_col) == false && CollectionUtils.intersection(view_cols, predicate_cols).isEmpty() == false) {
                 if (debug.get())
                     LOG.debug("Valid VP Candidate: " + catalog_tbl);
 
@@ -349,11 +350,22 @@ public class VerticalPartitionPlanner {
         }
 
         protected Map<Statement, Statement> getRewrittenQueryPlans() throws Exception {
-            if (debug.get())
-                LOG.debug(String.format("Generating new query plans for %d rewritten Statements", this.rewritten_queries.size()));
+            if (debug.get()) {
+                String temp = "";
+                for (String procName : this.rewritten_queries.values())
+                    temp += String.format("\n%s: %s", procName, this.getStmtProcedureSQL(procName));
+                LOG.debug(String.format("Generating new query plans for %d rewritten Statements%s", this.rewritten_queries.size(), temp));
+            }
 
             // Build the catalog
-            Catalog catalog = this.createCatalog();
+            Catalog catalog = null;
+            try {
+                catalog = this.createCatalog();
+            } catch (Throwable ex) {
+                LOG.error("Failed to build compile vertical partitioning catalog");
+                LOG.error("Busted DDL:\n" + VerticalPartitionPlanner.this.ddl);
+                throw new Exception(ex);
+            }
             assert (catalog != null);
             Database catalog_db = CatalogUtil.getDatabase(catalog);
 

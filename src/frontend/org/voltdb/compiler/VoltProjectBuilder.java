@@ -245,6 +245,15 @@ public class VoltProjectBuilder {
         m_schemas.add(schemaPath);
     }
 
+    protected String getStmtProcedureSQL(String name) {
+        for (ProcedureInfo pi : m_procedures) {
+            if (pi.name.equals(name)) {
+                return (pi.sql);
+            }
+        }
+        return (null);
+    }
+    
     public void addStmtProcedure(String name, String sql) {
         addStmtProcedure(name, sql, null);
     }

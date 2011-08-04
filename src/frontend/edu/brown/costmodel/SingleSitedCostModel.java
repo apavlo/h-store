@@ -152,8 +152,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.touched_partitions.put(partition);
         }
         
-        public Set<Integer> getAllTouchedPartitions() {
-            Set<Integer> partitions = this.touched_partitions.values();
+        public Collection<Integer> getAllTouchedPartitions() {
+            Collection<Integer> partitions = this.touched_partitions.values();
             if (this.base_partition != null && !partitions.contains(this.base_partition)) {
                 partitions = new HashSet<Integer>();
                 for (Object o : this.touched_partitions.values())
@@ -224,7 +224,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.unknown_queries = unknown_queries;
         }
 
-        public Set<Integer> getTouchedPartitions() {
+        public Collection<Integer> getTouchedPartitions() {
             return (this.touched_partitions.values());
         }
 

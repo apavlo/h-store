@@ -20,7 +20,7 @@ public class TestHistogram extends BaseTestCase {
     public static final int RANGE = 20;
     public static final double SKEW_FACTOR = 4.0;
     
-    private Histogram h = new Histogram();
+    private Histogram<Long> h = new Histogram<Long>();
     private Random rand = new Random(1);
     
     protected void setUp() throws Exception {
@@ -38,7 +38,7 @@ public class TestHistogram extends BaseTestCase {
      * testMinCountValues
      */
     public void testMinCountValues() throws Exception {
-        Histogram h = new Histogram();
+        Histogram<Long> h = new Histogram<Long>();
         long expected = -1981;
         h.put(expected);
         for (int i = 0; i < 1000; i++) {
@@ -102,7 +102,7 @@ public class TestHistogram extends BaseTestCase {
         int rounds = 8;
         int min = 1000;
         while (rounds-- > 0) {
-            Histogram h = new Histogram();
+            Histogram<Long> h = new Histogram<Long>();
             for (int i = 0; i < size; i++) {
                 h.put((long)(rand.nextInt(min) + min));
             }    
@@ -112,9 +112,8 @@ public class TestHistogram extends BaseTestCase {
             assertEquals(h.getValueCount(), n.size());
 //            System.err.println(size + " => " + n);
             
-            Set<Long> keys = h.values();
             Set<Double> normalized_values = new HashSet<Double>();
-            for (Long k : keys) {
+            for (Long k : h.values()) {
                 assert(n.containsKey(k)) : "[" + rounds +"] Missing " + k;
                 Double normalized = n.get(k);
                 assertNotNull(normalized);
@@ -206,7 +205,7 @@ public class TestHistogram extends BaseTestCase {
      */
     @Test
     public void testPutValues() {
-        Histogram hist = new Histogram();
+        Histogram<Integer> hist = new Histogram<Integer>();
         hist.put(49);
         hist.put(50);
         
@@ -254,9 +253,9 @@ public class TestHistogram extends BaseTestCase {
         assertNotNull(json);
         JSONObject jsonObject = new JSONObject(json);
         
-        Histogram copy = new Histogram();
+        Histogram<Long> copy = new Histogram<Long>();
         copy.fromJSON(jsonObject, null);
-        assertEquals(h.histogram.size(), copy.histogram.size());
+        assertEquals(h.getValueCount(), copy.getValueCount());
         for (Histogram.Members element : Histogram.Members.values()) {
             String field_name = element.toString().toLowerCase();
             Field field = Histogram.class.getDeclaredField(field_name);
@@ -266,7 +265,7 @@ public class TestHistogram extends BaseTestCase {
             Object copy_value = field.get(copy);
             
             if (element == Histogram.Members.HISTOGRAM) {
-                for (Object value : h.histogram.keySet()) {
+                for (Long value : h.values()) {
                     assertNotNull(value);
                     assertEquals(h.get(value), copy.get(value));
                 } // FOR

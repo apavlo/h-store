@@ -44,7 +44,7 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     protected VoltType value_type = VoltType.INVALID;
-    protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
+    private final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
     protected long num_samples = 0;
     
     /**
@@ -316,8 +316,8 @@ public class Histogram<X> implements JSONSerializable {
      * Return all the values stored in the histogram
      * @return
      */
-    public Set<X> values() {
-        return (Collections.unmodifiableSet(this.histogram.keySet()));
+    public Collection<X> values() {
+        return (Collections.unmodifiableCollection(this.histogram.keySet()));
     }
     
     /**
