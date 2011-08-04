@@ -21,10 +21,12 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
+import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
 import edu.brown.workload.filters.Filter;
+import edu.brown.workload.filters.NoAbortFilter;
 import edu.brown.workload.filters.ProcParameterArraySizeFilter;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -68,6 +70,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             List<ProcParameter> array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
             Filter filter = new ProcedureNameFilter()
                   .include(TARGET_PROCEDURE.getSimpleName())
+                  .attach(new NoAbortFilter())
                   .attach(new ProcParameterArraySizeFilter(array_params.get(0), 10, ExpressionType.COMPARE_EQUAL))
                   .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                   .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
@@ -143,9 +146,17 @@ public class TestMarkovPathEstimator extends BaseTestCase {
         
         MarkovEstimate estimate = estimator.getEstimate();
         assertNotNull(estimate);
-//        System.err.println(StringUtil.columns(StringUtil.join("\n", estimator.getVisitPath()), estimate.toString()));
+        List<MarkovVertex> visitPath = estimator.getVisitPath();
+        System.err.println(StringUtil.columns(StringUtil.join("\n", visitPath), estimate.toString()));
         
-//        System.err.println(estimate);
+        assertFalse(singlep_trace.isAborted());
+        assertFalse(visitPath.contains(this.graph.getAbortVertex()));
+        
+//        System.err.println(singlep_trace.debug(catalog_db));
+        System.err.println("Base Partition = " + p_estimator.getBasePartition(singlep_trace));
+//        for (QueryTrace qtrace : singlep_trace.getQueries()) {
+//            System.err.println(qtrace.debug(catalog_db) + " => " + p_estimator.getAllPartitions(qtrace, BASE_PARTITION));
+//        }
         
         for (int p : CatalogUtil.getAllPartitionIds(catalog_proc)) {
             assert(estimate.isReadOnlyProbabilitySet(p));
@@ -155,7 +166,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             if (estimate.getDoneProbability(p) < 0.9f) {
                 assert(estimate.getTouchedCounter(p) > 0) : String.format("TOUCHED[%d]: %d", p, estimate.getTouchedCounter(p)); 
                 assert(MathUtil.greaterThan(estimate.getWriteProbability(p), 0.0f, 0.01f)) : String.format("WRITE[%d]: %f", p, estimate.getWriteProbability(p));
-            } else if (MathUtil.equals(estimate.getDoneProbability(p), 0.01f, 0.01f)) {
+            } else if (MathUtil.equals(estimate.getDoneProbability(p), 0.01f, 0.03f)) {
                 assertEquals(0, estimate.getTouchedCounter(p));
                 assertEquals(0.0f, estimate.getWriteProbability(p), MarkovGraph.PROBABILITY_EPSILON);
             }

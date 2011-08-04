@@ -69,8 +69,8 @@ public abstract class StringUtil {
                 for (String line : lines[i]) {
                     max_length = Math.max(max_length, line.length());
                 } // FOR
-                max_lines = Math.max(max_lines, lines[i].length);
             }
+            max_lines = Math.max(max_lines, lines[i].length);
         } // FOR
         
         String f = "%-" + max_length + "s";

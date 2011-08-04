@@ -57,7 +57,6 @@ if not os.path.exists(realpath):
    if os.path.exists(os.path.join(cwd, basename)):
       basedir = cwd
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
-
 import boto
 
 ## Fabric Options
@@ -92,9 +91,9 @@ ENV_DEFAULT = {
     "client__blocking":             False,
     
     ## H-Store SVN Options
-    "hstore_svn":                   "https://database.cs.brown.edu/svn/hstore/branches/partitioning-branch",
-    "hstore_svn_options":           "--trust-server-cert --non-interactive --ignore-externals",
-    "hstore_clean":                 False,
+    "hstore__svn":                   "https://database.cs.brown.edu/svn/hstore/branches/partitioning-branch",
+    "hstore__svn_options":           "--trust-server-cert --non-interactive --ignore-externals",
+    "hstore__clean":                 False,
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -299,14 +298,14 @@ def setup_nfsclient():
 ## ----------------------------------------------
 @task
 def deploy_hstore():
-    code_dir = os.path.basename(env.hstore_svn)
+    code_dir = os.path.basename(env.hstore__svn)
     with cd("hstore"):
         with settings(warn_only=True):
             if run("test -d %s" % code_dir).failed:
-                run("svn checkout %s %s %s" % (env.hstore_svn_options, env.hstore_svn, code_dir))
+                run("svn checkout %s %s %s" % (env.hstore__svn_options, env.hstore__svn, code_dir))
         with cd(code_dir):
-            run("svn update %s" % env.hstore_svn_options)
-            if env.hstore_clean:
+            run("svn update %s" % env.hstore__svn_options)
+            if env.hstore__clean:
                 run("ant clean-all")
             run("ant build")
 ## DEF
@@ -316,8 +315,8 @@ def deploy_hstore():
 ## ----------------------------------------------
 @task
 def exec_benchmark(project="tpcc"):
-    #__getInstances__()
-    code_dir = os.path.join("hstore", os.path.basename(env.hstore_svn))
+    __getInstances__()
+    code_dir = os.path.join("hstore", os.path.basename(env.hstore__svn))
     
     hosts = [ ]
     clients = [ ]
@@ -334,7 +333,7 @@ def exec_benchmark(project="tpcc"):
             clients.append(inst.private_dns_name)
         host_id += 1
 
-    hstore_options = {
+    hstore__options = {
         "coordinator.host":             env.ec2__running_instances[0].private_dns_name,
         "coordinator.delay":            10000,
         "client.host":                  ",".join(clients),
@@ -347,10 +346,10 @@ def exec_benchmark(project="tpcc"):
         "project":                      project,
         "hosts":                        ",".join(hosts),
     }
-    logging.info("H-Store Config:\n" + pformat(hstore_options))
-    hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
+    logging.info("H-Store Config:\n" + pformat(hstore__options))
+    hstore__opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore__options[x]), hstore__options.keys()))
     with cd(code_dir):
-        run("ant hstore-prepare hstore-benchmark %s" % (hstore_opts_cmd))
+        run("ant hstore-prepare hstore-benchmark %s" % (hstore__opts_cmd))
 ## DEF
 
 ## ----------------------------------------------

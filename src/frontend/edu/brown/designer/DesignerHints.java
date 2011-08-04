@@ -314,7 +314,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * Start the timer used to keep track of how long we are searching for solutions
      */
     public void startTimer() {
-        this.start_time = System.currentTimeMillis();
+        if (this.start_time == null) {
+            this.start_time = System.currentTimeMillis();
+        }
     }
     
     public Long getStartTime() {
