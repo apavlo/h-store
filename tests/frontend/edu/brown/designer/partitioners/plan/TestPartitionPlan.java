@@ -82,7 +82,6 @@ public class TestPartitionPlan extends BaseTestCase {
         // Replication!
         m.put(this.getTable("WAREHOUSE"), ReplicatedColumn.get(this.getTable("WAREHOUSE")));
         m.put(this.getTable("ITEM"), ReplicatedColumn.get(this.getTable("ITEM")));
-        m.put(this.getTable("CUSTOMER_NAME"), ReplicatedColumn.get(this.getTable("CUSTOMER_NAME")));
         
         // Straight-up!
         m.put(this.getTable("STOCK"), this.getColumn("STOCK", "S_W_ID"));
