@@ -1118,7 +1118,7 @@ public class FeatureClusterer {
 //            System.err.println(h);
 //            System.exit(1);
 //            
-            Set<Integer> partitions = h.values();
+            Collection<Integer> partitions = h.values();
             fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_mappings, partitions, num_threads);
         } else {
             fclusterer = new FeatureClusterer(catalog_proc, args.workload, args.param_mappings, num_threads);    

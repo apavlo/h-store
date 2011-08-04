@@ -655,7 +655,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
         } // WHILE
         assert(relaxed_tables.size() == relax_size) : relax_size + " => " + relaxed_tables;
-        LOG.info("Relaxed Tables: " + relaxed_tables);
+        LOG.info("Relaxed Tables: " + CatalogUtil.getDisplayNames(relaxed_tables));
         this.relaxed_sets.add(relaxed_tables);
         
         // Now for each of the relaxed tables, figure out what columns we want to consider for swaps

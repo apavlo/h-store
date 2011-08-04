@@ -346,7 +346,7 @@ public abstract class PartitionerUtil {
         final String table_key = CatalogKey.createKey(catalog_tbl);
         
         // Force columns in hints
-        Set<Column> force_columns = hints.getTablePartitionCandidates(catalog_tbl);
+        Collection<Column> force_columns = hints.getForcedTablePartitionCandidates(catalog_tbl);
         if (!force_columns.isEmpty()) {
             if (debug.get()) LOG.debug("Force " + catalog_tbl + " candidates: " + force_columns);
             for (Column catalog_col : force_columns) {
@@ -452,8 +452,7 @@ public abstract class PartitionerUtil {
                 double edge_weight = e.getTotalWeight();
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                 Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
-                Set<Column> columns = cset_histogram.values();
-                for (Column catalog_col : columns) {
+                for (Column catalog_col : cset_histogram.values()) {
                     if (!catalog_col.getParent().equals(catalog_tbl)) continue;
                     long cnt = cset_histogram.get(catalog_col);
                     column_histogram.put(catalog_col, Math.round(cnt * edge_weight));    

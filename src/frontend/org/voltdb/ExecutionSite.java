@@ -1719,7 +1719,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // Make sure that we only tell partitions that we actually touched, otherwise they will
             // be stuck waiting for a finish request that will never come!
-            Set<Integer> ts_touched = ts.getTouchedPartitions().values();
+            Collection<Integer> ts_touched = ts.getTouchedPartitions().values();
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             this.done_partitions.clear();

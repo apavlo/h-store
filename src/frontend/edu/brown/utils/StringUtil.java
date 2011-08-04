@@ -65,11 +65,9 @@ public abstract class StringUtil {
         for (int i = 0; i < strs.length; i++) {
             lines[i] = LINE_SPLIT.split(strs[i]);
             prefixes[i] = (i == 0 ? "" : " \u2503 ");
-            if (i+1 < strs.length) {
-                for (String line : lines[i]) {
-                    max_length = Math.max(max_length, line.length());
-                } // FOR
-            }
+            for (String line : lines[i]) {
+                max_length = Math.max(max_length, line.length());
+            } // FOR
             max_lines = Math.max(max_lines, lines[i].length);
         } // FOR
         

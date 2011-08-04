@@ -2,6 +2,7 @@ package edu.brown.benchmark.airline.util;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -42,7 +43,7 @@ public abstract class HistogramUtil {
         
         Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
         Pattern pattern = Pattern.compile("-");
-        Set<String> values = h.values();
+        Collection<String> values = h.values();
         for (String value : values) {
             String split[] = pattern.split(value);
             Histogram<String> src_h = m.get(split[0]);

@@ -498,9 +498,8 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @return
      */
     public Set<Procedure> getProcedures(final Database catalog_db) {
-        Set<String> proc_keys = this.proc_histogram.values();
         Set<Procedure> procedures = new HashSet<Procedure>();
-        for (String proc_key : proc_keys) {
+        for (String proc_key : this.proc_histogram.values()) {
             procedures.add(CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class));
         } // FOR
         return (procedures);

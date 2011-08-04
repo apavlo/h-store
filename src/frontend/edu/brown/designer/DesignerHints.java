@@ -374,7 +374,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         this.force_table_partition.get(table_key).add(column_key);
     }
     
-    public Set<Column> getTablePartitionCandidates(Table catalog_tbl) {
+    public Collection<Column> getForcedTablePartitionCandidates(Table catalog_tbl) {
         final Database catalog_db = CatalogUtil.getDatabase(catalog_tbl);
         final String table_key = CatalogKey.createKey(catalog_tbl);
         ListOrderedSet<Column> ret = new ListOrderedSet<Column>();

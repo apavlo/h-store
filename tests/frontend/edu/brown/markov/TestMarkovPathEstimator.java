@@ -21,7 +21,6 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.BasePartitionTxnFilter;
@@ -230,7 +229,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
 //        System.err.println("INITIAL PATH:\n" + StringUtil.join("\n", path));
         
         assertEquals(start, path.firstElement());
-//        assertEquals(commit, path.lastElement());
+        assertEquals(commit, path.lastElement());
         assertFalse(path.contains(abort));
         
         // All of the vertices should only have the base partition in their partition set

@@ -505,7 +505,7 @@ public class AirlineLoader extends AirlineBaseClient {
         private int customer_idx = 0;
         private CustomerId last_customer_id = null;
         private Set<Object> customer_airlines = new HashSet<Object>();
-        private Set<String> all_airlines = new HashSet<String>();
+        private final Collection<String> all_airlines;
         
         public FrequentFlyerIterable(Table catalog_tbl, long total, int max_per_customer) {
             super(catalog_tbl, total, new int[]{ 0, 1 });

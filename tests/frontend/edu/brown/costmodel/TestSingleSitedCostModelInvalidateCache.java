@@ -19,7 +19,7 @@ import edu.brown.workload.filters.ProcedureLimitFilter;
 
 public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
 
-    private static final int WORKLOAD_LIMIT = 1000;
+    private static final int WORKLOAD_LIMIT = 500;
     private static final int NUM_PARTITIONS = 32;
     
     // Reading the workload takes a long time, so we only want to do it once
@@ -67,22 +67,6 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
     }
     
     /**
-     * testInvalidateCacheTables
-     */
-    public void testInvalidateCacheTables() throws Exception {
-        // Calculate the total cost of the workload once
-        final SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
-        final double expected = cost_model.estimateWorkloadCost(catalog_db, workload);
-        assert(expected > 0);
-        
-        List<Table> all_tables = new ArrayList<Table>(catalog_db.getTables());
-        for (int i = 0; i < 10; i++) {
-            Collections.shuffle(all_tables, rand);
-            this.validateCosts(cost_model, expected, all_tables);    
-        } // FOR
-    }
-    
-    /**
      * testInvalidateCacheProcedures
      */
     public void testInvalidateCacheProcedures() throws Exception {
@@ -92,7 +76,22 @@ public class TestSingleSitedCostModelInvalidateCache extends BaseTestCase {
         assert(expected > 0);
         this.validateCosts(cost_model, expected, catalog_db.getProcedures());
     }
-    
+
+    /**
+     * testInvalidateCacheTables
+     */
+    public void testInvalidateCacheTables() throws Exception {
+        // Calculate the total cost of the workload once
+        final SingleSitedCostModel cost_model = new SingleSitedCostModel(catalog_db);
+        final double expected = cost_model.estimateWorkloadCost(catalog_db, workload);
+        assert(expected > 0);
+        
+        List<Table> all_tables = new ArrayList<Table>(catalog_db.getTables());
+        for (int i = 0; i < 4; i++) {
+            Collections.shuffle(all_tables, rand);
+            this.validateCosts(cost_model, expected, all_tables);    
+        } // FOR
+    }
     
     /**
      * testInvalidateCacheMixed

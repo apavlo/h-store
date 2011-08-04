@@ -38,6 +38,25 @@ public abstract class CatalogKey {
     private static final Map<Database, Map<String, CatalogType>> CACHE_GETFROMKEY = new HashMap<Database, Map<String,CatalogType>>();
     private static final Map<String, String> CACHE_NAMEFROMKEY = new HashMap<String, String>();
     
+    public static class InvalidCatalogKey extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        
+        private final Class<? extends CatalogType> type;
+        private final String key;
+        
+        public InvalidCatalogKey(String key, Class<? extends CatalogType> type) {
+            super("Invalid catalog key '" + key + "' for type '" + type.getSimpleName() + "'");
+            this.key = key;
+            this.type = type;
+        }
+        public Class<? extends CatalogType> getType() {
+            return (this.type);
+        }
+        public String getCatalogKey() {
+            return (this.key);
+        }
+    }
+    
     // --------------------------------------------------------------------------------------------
     // KEY SERIALIZERS
     // --------------------------------------------------------------------------------------------
@@ -145,7 +164,7 @@ public abstract class CatalogKey {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static <T extends CatalogType> T getFromKey(Database catalog_db, String key, Class<T> catalog_class) {
+    public static <T extends CatalogType> T getFromKey(Database catalog_db, String key, Class<T> catalog_class) throws InvalidCatalogKey {
         if (debug.get()) LOG.debug("Grabbing " + catalog_class + " object for '" + key + "'");
         assert(catalog_db != null);
         assert(catalog_class != null);
@@ -167,7 +186,7 @@ public abstract class CatalogKey {
             // OLD VERSION
             catalog_item = CatalogKeyOldVersion.getFromKey(catalog_db, key, catalog_class);
             if (catalog_item == null) {
-                throw new RuntimeException("Failed to retrieve " + catalog_class.getSimpleName() + " object for key '" + key + "'", ex);
+                throw new InvalidCatalogKey(key, catalog_class);
             }
         }
         cache.put(key, catalog_item);
@@ -312,8 +331,6 @@ public abstract class CatalogKey {
                 LOG.fatal("Invalid child class '" + catalog_class + "' for catalog key " + child_key);
                 assert (false);
             }
-            // if (catalog_child == null) LOG.warn("The child catalog item is null for '" + key + "'");
-            assert (catalog_child != null) : "The child catalog item is null for '" + child_key + "'\n" + superclasses;
             return (catalog_child);
         }
         return (null);
