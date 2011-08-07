@@ -1484,7 +1484,7 @@ public class BenchmarkController {
         HStoreConf.init(new File(hstore_conf_path), vargs);
         
         if (duration < 1000) {
-            System.err.println("Duration is specified in milliseconds");
+            LOG.error("Duration is specified in milliseconds");
             System.exit(-1);
         }
 

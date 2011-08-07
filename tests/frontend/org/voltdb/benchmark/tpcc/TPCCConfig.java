@@ -18,6 +18,9 @@ public final class TPCCConfig {
     public boolean neworder_all_multip = false;
     public boolean neworder_skew_warehouse = false;
     
+    /** Percentage of neworder txns that are forced to be multi-partitioned */
+    public int neworder_multip_mix = 0;
+    
     private TPCCConfig() {
         // Nothing
     }
@@ -53,6 +56,10 @@ public final class TPCCConfig {
             // SKEW NEWORDERS W_IDS
             else if (key.equalsIgnoreCase("neworder_skew_warehouse") && !val.isEmpty()) {
                 neworder_skew_warehouse = Boolean.parseBoolean(val);
+            }
+            // % OF MULTI-PARTITION NEWORDERS
+            else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
+                neworder_multip_mix = Integer.parseInt(val);
             }
         }
     }
