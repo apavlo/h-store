@@ -1620,13 +1620,16 @@ public class BenchmarkController {
         
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalog);
+        boolean failed = false;
         try {
             controller.setupBenchmark();
             controller.runBenchmark();
         } catch (Throwable ex) {
             LOG.fatal("Failed to complete benchmark", ex);
+            failed = true;
         } finally {
             controller.cleanUpBenchmark();
         }
+        if (failed) System.exit(1);
     }
 }
