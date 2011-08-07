@@ -302,6 +302,9 @@ public class TPCCSimulation {
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
 
+        // Whether to force all transactions to be multi-partitioned
+        boolean force_multip = config.neworder_all_multip || (generator.number(1, 100) == config.neworder_multip_mix);
+        
         // 1% of transactions roll back
         boolean rollback = (allow_rollback && generator.number(1, 100) == 1);
         int local_warehouses = 0;
@@ -320,7 +323,7 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = (config.neworder_all_multip) || (config.neworder_multip && generator.number(1, 100) == 1);
+            boolean remote = (force_multip) || (config.neworder_multip && generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
