@@ -630,6 +630,15 @@ public final class HStoreConf {
             advanced=false
         )
         public boolean blocking;
+        
+        @ConfigProperty(
+            description="When the BlockingClient is enabled with ${client.blocking}, this defines the number " +
+                        "of concurrent transactions that each client instance can submit to the H-Store cluster " +
+                        "before it will block.",
+            defaultInt=1,
+            advanced=false
+        )
+        public int blocking_concurrent;
 
         @ConfigProperty(
             description="The scaling factor determines how large to make the target benchmark's data set. " +

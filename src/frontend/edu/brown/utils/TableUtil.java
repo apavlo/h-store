@@ -151,6 +151,15 @@ public abstract class TableUtil {
     }
     
     /**
+     * Format the rows into a neat little table
+     * @param rows
+     * @return
+     */
+    public static String table(Object[]...rows) {
+        return (table(defaultTableFormat(), null, rows));
+    }
+    
+    /**
      * 
      * @param header
      * @param rows
@@ -243,7 +252,7 @@ public abstract class TableUtil {
      * @param rows
      * @return
      */
-    public static String table(Format format, String header[], Object[]...rows) {
+    public static String table(final Format format, final String header[], final Object[]...rows) {
         final boolean debug = LOG.isDebugEnabled();
         
         String replace_null_str = (format.replace_null_cells != null ? format.replace_null_cells.toString() : null);
@@ -253,26 +262,35 @@ public abstract class TableUtil {
         }
         
         // First we need to figure out the size for each column
-        final int num_cols = header.length;
+        int num_cols = 0;
+        if (header != null) {
+            num_cols = header.length;
+        } else {
+            for (int row_idx = 0; row_idx < rows.length; row_idx++) {
+                if (rows[row_idx] != null) num_cols = Math.max(num_cols, rows[row_idx].length);
+            } // FOR
+        }
+        
+        // Internal data structures about the table
         String col_formats[] = new String[num_cols];
         String header_formats[] = new String[num_cols];        
         Integer max_width = 0;
         int total_width = 0;
         Integer widths[] = new Integer[num_cols];
-        
         String row_strs[][] = new String[rows.length][num_cols];
         
         for (int col_idx = 0; col_idx < num_cols; col_idx++) {
-            Integer width = (header[col_idx] != null ? header[col_idx].length() : 0);
+            Integer width = (header != null && header[col_idx] != null ? header[col_idx].length() : 0);
             for (int row_idx = 0; row_idx < rows.length; row_idx++) {
                 if (rows[row_idx] == null) continue;
                 if (col_idx == 0) row_strs[row_idx] = new String[num_cols];
-                
-                String val = (rows[row_idx][col_idx] != null ? rows[row_idx][col_idx].toString() :
-                                                               replace_null_str);
-                if (val != null) {
-                    if (format.trim_all) val = val.trim();
-                    width = Math.max(width, val.length());
+                String val = replace_null_str;
+                if (col_idx < rows[row_idx].length) {
+                    val = (rows[row_idx][col_idx] != null ? rows[row_idx][col_idx].toString() : replace_null_str);
+                    if (val != null) {
+                        if (format.trim_all) val = val.trim();
+                        width = Math.max(width, val.length());
+                    }
                 }
                 row_strs[row_idx][col_idx] = val;
                 if (debug) LOG.debug(String.format("[%d, %d] = %s", row_idx, col_idx, row_strs[row_idx][col_idx])); 
@@ -303,24 +321,28 @@ public abstract class TableUtil {
             col_formats[col_idx] = d + col_f;
             
             // HEADER
-            String header_f = f;
-            if (format.quote_header) header_f = '"' + header_f + '"';
-            header_formats[col_idx] = d + header_f;
+            if (header != null) {
+                String header_f = f;
+                if (format.quote_header) header_f = '"' + header_f + '"';
+                header_formats[col_idx] = d + header_f;
+            }
         } // FOR
         
         // Create header row
         StringBuilder sb = new StringBuilder();
-        for (int col_idx = 0; col_idx < header_formats.length; col_idx++) {
-            String cell = header[col_idx];
-            if (format.capitalize_header && cell != null) cell = cell.toUpperCase();
-            sb.append(String.format(header_formats[col_idx], cell));
-        } // FOR
+        if (header != null) {
+            for (int col_idx = 0; col_idx < header_formats.length; col_idx++) {
+                String cell = header[col_idx];
+                if (format.capitalize_header && cell != null) cell = cell.toUpperCase();
+                sb.append(String.format(header_formats[col_idx], cell));
+            } // FOR
+        }
         
         // Now dump out the table
         for (int row_idx = 0; row_idx < rows.length; row_idx++) {
             Object row[] = rows[row_idx];
             if (format.prune_null_rows && row == null) continue;
-            sb.append("\n");
+            if (row_idx > 0 || (row_idx == 0 && header != null)) sb.append("\n");
             
             // Add row delimiter if necessary
             if (format.delimiter_rows != null && format.delimiter_rows[row_idx] != null) {

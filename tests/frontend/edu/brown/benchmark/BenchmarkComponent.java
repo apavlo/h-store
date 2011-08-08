@@ -798,7 +798,7 @@ public abstract class BenchmarkComponent {
 
         if (m_blocking) {
             LOG.debug("Using BlockingClient!");
-            m_voltClient = new BlockingClient(new_client);
+            m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
         } else {
             m_voltClient = new_client;
         }

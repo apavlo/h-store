@@ -64,10 +64,11 @@ public class BlockingClient extends Semaphore implements Client {
     /**
      * 
      */
-    public BlockingClient(Client inner) {
-        super(1);
+    public BlockingClient(Client inner, int max_concurrent) {
+        super(max_concurrent);
         this.inner = inner;
         LoggerUtil.setupLogging();
+        LOG.debug("Created new BlockingClient [max_concurrent=" + max_concurrent + "]");
     }
 
     /* (non-Javadoc)

@@ -96,6 +96,8 @@ public class BenchmarkConfig {
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
     
+    public boolean jsonOutput;
+    
     public final Map<String, String> clientParameters = new HashMap<String, String>();
     public final Map<String, String> siteParameters = new HashMap<String, String>();
 
@@ -206,7 +208,8 @@ public class BenchmarkConfig {
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
             boolean dumpDatabase,
-            String dumpDatabaseDir
+            String dumpDatabaseDir,
+            boolean jsonOutput
         ) {
 
         this.projectBuilderClass = benchmarkClient;
@@ -260,6 +263,8 @@ public class BenchmarkConfig {
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
+        
+        this.jsonOutput = jsonOutput;
         
         this.hstore_conf_path = hstore_conf_path;
         this.benchmark_conf_path = benchmark_conf_path;
