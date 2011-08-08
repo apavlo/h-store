@@ -124,6 +124,7 @@ public class BenchmarkController {
                 if (BenchmarkController.this.stop == false) {
                     LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
                     BenchmarkController.this.stop = true;
+                    BenchmarkController.this.failed = true;
                     if (self != null) {
                         BenchmarkController.this.self.interrupt();
                     }
@@ -150,6 +151,7 @@ public class BenchmarkController {
     long m_pollCount = 0;
     Thread self = null;
     boolean stop = false;
+    boolean failed = false;
     boolean cleaned = false;
     HStoreConf hstore_conf;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
@@ -783,7 +785,8 @@ public class BenchmarkController {
         }
         m_clientsNotReady.set(m_clientPSM.size());
 
-        registerInterest(new ResultsPrinter());
+        ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter() : new ResultsPrinter());
+        registerInterest(rp);
     }
 
     protected Client getClientConnection() {
@@ -1168,6 +1171,7 @@ public class BenchmarkController {
     }
 
     public static void main(final String[] vargs) throws Exception {
+        boolean jsonOutput = false;
         long interval = 10000;
         long duration = 60000;
         long warmup = 0;
@@ -1263,6 +1267,10 @@ public class BenchmarkController {
                 
             } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
+
+            /* Whether to enable JSON output formatting of the final result */
+            } else if (parts[0].equalsIgnoreCase("JSONOUTPUT")) {
+                jsonOutput = Boolean.parseBoolean(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 /*
@@ -1369,6 +1377,8 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("TXNRATE")) {
                 clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equalsIgnoreCase("BLOCKING")) {
+                clientParams.put(parts[0], parts[1]);
+            } else if (parts[0].equalsIgnoreCase("BLOCKING_CONCURRENT")) {
                 clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equalsIgnoreCase("THROTTLING")) {
                 clientParams.put(parts[0], parts[1]);
@@ -1601,7 +1611,8 @@ public class BenchmarkController {
                 markov_recomputeAfterEnd,
                 markov_recomputeAfterWarmup,
                 dumpDatabase,
-                dumpDatabaseDir
+                dumpDatabaseDir,
+                jsonOutput
         );
         
         // Always pass these parameters
@@ -1630,6 +1641,6 @@ public class BenchmarkController {
         } finally {
             controller.cleanUpBenchmark();
         }
-        if (failed) System.exit(1);
+        if (failed || controller.failed) System.exit(1);
     }
 }

@@ -571,7 +571,7 @@ public abstract class JSONUtil {
             value = CatalogKey.createKey((CatalogType)field_value);
         // Everything else
         } else {
-            value = field_value.toString();
+            value = field_value; // .toString();
         }
         return (value);
     }

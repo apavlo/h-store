@@ -43,10 +43,13 @@ from fabric.api import *
 from fabric.contrib.files import *
 from pprint import pformat
 
-logging.basicConfig(level = logging.INFO,
-                    format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
-                    datefmt="%m-%d-%Y %H:%M:%S",
-                    stream = sys.stderr)
+LOG = logging.getLogger(__name__)
+LOG_handler = logging.StreamHandler()
+LOG_formatter = logging.Formatter(fmt='%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s',
+                                  datefmt='%m-%d-%Y %H:%M:%S')
+LOG_handler.setFormatter(LOG_formatter)
+LOG.addHandler(LOG_handler)
+LOG.setLevel(logging.INFO)
 
 ## BOTO
 cwd = os.getcwd()
@@ -58,6 +61,25 @@ if not os.path.exists(realpath):
       basedir = cwd
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 import boto
+
+## List of packages needed on each node
+ALL_PACKAGES = [
+    'subversion',
+    'gcc',
+    'g++',
+    'sun-java6-jdk',
+    'valgrind',
+    'ant',
+    'htop',
+]
+NFSHEAD_PACKAGES = [
+    'nfs-kernel-server',
+    'unison',
+]
+NFSCLIENT_PACKAGES = [
+    'autofs',
+]
+
 
 ## Fabric Options
 env.key_filename = os.path.join(os.environ["HOME"], ".ssh/hstore.pem")
@@ -74,8 +96,8 @@ ENV_DEFAULT = {
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
     "ec2.region":                  "us-east-1b",
-    "ec2.access_key_id":           os.environ['AWS_ACCESS_KEY_ID'],
-    "ec2.secret_access_key":       os.environ['AWS_SECRET_ACCESS_KEY'],
+    "ec2.access_key_id":           os.getenv('AWS_ACCESS_KEY_ID'),
+    "ec2.secret_access_key":       os.getenv('AWS_SECRET_ACCESS_KEY'),
     "ec2.all_instances":           [ ],
     "ec2.running_instances":       [ ],
 
@@ -87,13 +109,14 @@ ENV_DEFAULT = {
     "client.count":                1,
     "client.processesperclient":   2,
     "client.txnrate":              -1,
-    "client.scalefactor":          100,
+    "client.scalefactor":          10,
     "client.blocking":             False,
     
-    ## H-Store SVN Options
+    ## H-Store Options
     "hstore.svn":                   "https://database.cs.brown.edu/svn/hstore/branches/partitioning-branch",
     "hstore.svn_options":           "--trust-server-cert --non-interactive --ignore-externals",
     "hstore.clean":                 False,
+    "hstore.exec_prefix":           "compile",
 }
 
 has_rcfile = os.path.exists(env.rcfile)
@@ -102,7 +125,7 @@ for k, v in ENV_DEFAULT.items():
         env[k] = v
     if v:
         t = type(v)
-        logging.debug("%s [%s] => %s" % (k, t, env[k]))
+        LOG.debug("%s [%s] => %s" % (k, t, env[k]))
         env[k] = t(env[k])
 ## FOR
 
@@ -115,13 +138,12 @@ ec2_conn = boto.connect_ec2(env["ec2.access_key_id"], env["ec2.secret_access_key
 @task
 def benchmark():
     __getInstances__()
-    site_idx = env["site.count"]
-    client_inst = env["ec2.running_instances"][site_idx]
-    assert client_inst
+    client_inst = __getClientInstance__()
     with settings(host_string=client_inst.public_dns_name):
         for project in ['tpcc', 'tm1', 'auctionmark']:
             exec_benchmark(project=project)
-        
+    ## WITH
+## DEF
 
 ## ----------------------------------------------
 ## start_cluster
@@ -139,10 +161,10 @@ def start_cluster():
     ## Check whether we enough instances already running
     instances_stopped = len(env["ec2.all_instances"]) - len(env["ec2.running_instances"])
     
-    logging.info("All Instances: %d" % len(env["ec2.all_instances"]))
-    logging.info("Running Instances: %d" % len(env["ec2.running_instances"]))
-    logging.info("Stopped Instances: %d" % instances_stopped)
-    logging.info("Needed Instances: %d" % instances_needed)
+    LOG.info("All Instances: %d" % len(env["ec2.all_instances"]))
+    LOG.info("Running Instances: %d" % len(env["ec2.running_instances"]))
+    LOG.info("Stopped Instances: %d" % instances_stopped)
+    LOG.info("Needed Instances: %d" % instances_needed)
     
     instances_needed = max(0, instances_needed - len(env["ec2.running_instances"]))
     
@@ -151,7 +173,7 @@ def start_cluster():
         waiting = [ ]
         for inst in env["ec2.all_instances"]:
             if not inst in env["ec2.running_instances"]:
-                logging.info("Restarting stopped node '%s'" % inst)
+                LOG.info("Restarting stopped node '%s'" % inst)
                 inst.start()
                 waiting.append(inst)
                 instances_needed -= 1
@@ -165,11 +187,11 @@ def start_cluster():
     
     ## Otherwise, we need to start some new motha truckas
     if instances_needed > 0:
-        logging.info("Deploying %d new instances" % instances_needed)
+        LOG.info("Deploying %d new instances" % instances_needed)
         instance_tags = [ ]
         for i in range(instances_needed):
             tags = { 
-                "Name": "hstore-%02d" % i,
+                "Name": "hstore-%02d" % (len(env["ec2.running_instances"]) + i),
                 "Type": "nfs-client",
             }
             instance_tags.append(tags)
@@ -185,10 +207,10 @@ def start_cluster():
     for i in range(len(env["ec2.running_instances"])):
         inst = env["ec2.running_instances"][i]
         if 'Type' in inst.tags and inst.tags['Type'] == 'nfs-node':
-            logging.debug("BEFORE: %s" % env["ec2.running_instances"])
+            LOG.debug("BEFORE: %s" % env["ec2.running_instances"])
             env["ec2.running_instances"].pop(i)
             env["ec2.running_instances"].insert(0, inst)
-            logging.debug("AFTER: %s" % env["ec2.running_instances"])
+            LOG.debug("AFTER: %s" % env["ec2.running_instances"])
             break
     ## FOR
         
@@ -216,6 +238,7 @@ def start_cluster():
 ## ----------------------------------------------
 @task
 def get_env():
+    LOG.debug("Testing whether we can access remote node")
     run("uname -a")
 
 ## ----------------------------------------------
@@ -232,7 +255,7 @@ def setup_env():
             "deb-src http://archive.canonical.com/ubuntu %s partner" % releaseName ], use_sudo=True)
     sudo("apt-get update")
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
-    sudo("apt-get --yes install subversion gcc g++ sun-java6-jdk valgrind ant htop")
+    sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
     
     with settings(warn_only=True):
         basename = os.path.basename(env.key_filename)
@@ -258,7 +281,7 @@ def setup_nfshead():
     with settings(warn_only=True):
         if run("test -d %s" % hstore_dir).failed:
             run("mkdir " + hstore_dir)
-    sudo("apt-get --yes install nfs-kernel-server")
+    sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
     sudo("exportfs -a")
     sudo("/etc/init.d/portmap start")
@@ -285,7 +308,7 @@ def setup_nfsclient():
     else:
         append("/etc/hosts", hosts_line, use_sudo=True)
     
-    sudo("apt-get --yes install autofs")
+    sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
     append("/etc/auto.master", "/home/%s/hstore /etc/auto.hstore" % env.user, use_sudo=True)
     append("/etc/auto.hstore", "* hstore-nfs:/home/%s/hstore/&" % env.user, use_sudo=True)
     sudo("/etc/init.d/autofs start")
@@ -293,10 +316,13 @@ def setup_nfsclient():
     ## Reboot and wait until it comes back online
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
-    logging.info("Rebooting " + env.host_string)
+    LOG.info("Rebooting " + env.host_string)
     reboot(10)
     __waitUntilStatus__(inst, 'running')
-    logging.info("NFS Client '%s' is online and ready" % inst)
+    LOG.info("NFS Client '%s' is online and ready" % inst)
+    
+    code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
+    run("cd " + code_dir)
 ## DEF
 
 ## ----------------------------------------------
@@ -320,7 +346,7 @@ def deploy_hstore():
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc"):
+def exec_benchmark(project="tpcc", json=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -340,7 +366,7 @@ def exec_benchmark(project="tpcc"):
         host_id += 1
 
     ## Update H-Store Conf file
-    write_conf()
+    write_conf(project)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
@@ -352,42 +378,65 @@ def exec_benchmark(project="tpcc"):
         "project":                      project,
         "hosts":                        ",".join(hosts),
     }
-    logging.debug("H-Store Config:\n" + pformat(hstore_options))
+    if json: hstore_options["jsonoutput"] = True
+    LOG.debug("H-Store Config:\n" + pformat(hstore_options))
     
     ## Any other option not listed in the above dict should be written to 
     ## a properties file
     
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
     with cd(code_dir):
-        run("ant hstore-prepare hstore-benchmark %s" % (hstore_opts_cmd))
+        output = run("ant %s hstore-prepare hstore-benchmark %s" % (env["hstore.exec_prefix"], hstore_opts_cmd))
+    assert output
+    return output
 ## DEF
 
 ## ----------------------------------------------
 ## write_conf
 ## ----------------------------------------------
 @task
-def write_conf():
+def write_conf(project):
+    assert project
     prefix_include = [ 'site', 'coordinator', 'client', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
-    with cd(code_dir):
-        hstore_conf = "properties/default.properties"
-        first = True
-        for key in env.keys():
-            prefix = key.split(".")[0]
-            if not prefix in prefix_include: continue
-            logging.debug("[%s] %s => %s" % (prefix, key, env[key]))
+    hstore_conf = { }
+    benchmark_conf = { }
+    
+    for key in env.keys():
+        prefix = key.split(".")[0]
+        if not prefix in prefix_include: continue
         
-            hstore_key = key.replace("__", ".") 
-            hstore_line = "%s = %s" % (hstore_key, env[key])
-            if contains(hstore_conf, hstore_key):
-                sed(hstore_conf, "%s[ ]*=.*" % re.escape(hstore_key), hstore_line)
+        if prefix == "benchmark":
+            benchmark_conf[key.split(".")[-1]] = env[key]
+        else:
+            hstore_conf[key] = env[key]
+    ## FOR
+
+    with cd(code_dir):
+        update_conf("properties/default.properties", hstore_conf)
+        update_conf("properties/benchmarks/%s.properties" % project, benchmark_conf)
+    ## WITH
+## DEF
+
+## ----------------------------------------------
+## update_conf
+## ----------------------------------------------
+@task
+def update_conf(conf_file, conf):
+    with hide('running', 'stdout'):
+        first = True
+        for key in conf.keys():
+            hstore_line = "%s = %s" % (key, conf[key])
+            if contains(conf_file, key):
+                sed(conf_file, "%s[ ]*=.*" % re.escape(key), hstore_line)
             else:
                 if first: hstore_line = "\n" + hstore_line
-                append(hstore_conf, hstore_line + "\n")
+                append(conf_file, hstore_line + "\n")
                 first = False
         ## FOR
     ## WITH
+## DEF
 
 ## ----------------------------------------------
 ## stop
@@ -399,7 +448,7 @@ def stop_cluster(terminate=False):
     waiting = [ ]
     for inst in env["ec2.running_instances"]:
         if inst.tags['Name'].startswith("hstore-") and inst.state == 'running':
-            logging.info("%s %s" % ("Terminating" if terminate else "Stopping", inst.public_dns_name))
+            LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", inst.public_dns_name))
             if terminate:
                 inst.terminate()
             else:
@@ -407,7 +456,7 @@ def stop_cluster(terminate=False):
             waiting.append(inst)
     ## FOR
     if waiting:
-        logging.info("Halting %d instances" % len(waiting))
+        LOG.info("Halting %d instances" % len(waiting))
         for inst in waiting:
             __waitUntilStatus__(inst, 'terminated' if terminate else 'stopped')
         ## FOR
@@ -417,7 +466,7 @@ def stop_cluster(terminate=False):
 ## __startInstances__
 ## ----------------------------------------------        
 def __startInstances__(instances_count, instance_type, instance_tags):
-    logging.info("Attemping to start %d '%s' execution nodes." % (instances_count, instance_type))
+    LOG.info("Attemping to start %d '%s' execution nodes." % (instances_count, instance_type))
     reservation = ec2_conn.run_instances(env["ec2.ami"],
                                          instance_type=instance_type,
                                          key_name=env["ec2.keypair"],
@@ -425,9 +474,8 @@ def __startInstances__(instances_count, instance_type, instance_tags):
                                          max_count=instances_count,
                                          security_groups=[ env["ec2.security_group"] ],
                                          placement=env["ec2.region"])
-    logging.info("Started %d execution nodes. Waiting for them to come online" % len(reservation.instances))
+    LOG.info("Started %d execution nodes. Waiting for them to come online" % len(reservation.instances))
     i = 0
-    env["ec2.running_instances"] = [ ]
     for inst in reservation.instances:
         env["ec2.running_instances"].append(inst)
         env["ec2.all_instances"].append(inst)
@@ -439,11 +487,11 @@ def __startInstances__(instances_count, instance_type, instance_tags):
             logging.error(str(instance_tags))
             raise
         __waitUntilStatus__(inst, 'running')
-        logging.info("READY [%s] %s" % (inst, instance_tags[i]))
+        LOG.info("READY [%s] %s" % (inst, instance_tags[i]))
         i += 1
     ## FOR
     time.sleep(20)
-    logging.info("Started %d instances." % len(reservation.instances))
+    LOG.info("Started %d instances." % len(reservation.instances))
 ## DEF
 
 ## ----------------------------------------------
@@ -466,7 +514,7 @@ def __waitUntilStatus__(inst, status):
         socket.setdefaulttimeout(10)
         host_status = False
         tries = 5
-        logging.info("Testing whether instance '%s' is ready [tries=%d]" % (inst.public_dns_name, tries))
+        LOG.info("Testing whether instance '%s' is ready [tries=%d]" % (inst.public_dns_name, tries))
         while tries > 0:
             host_status = False
             try:
@@ -484,7 +532,6 @@ def __waitUntilStatus__(inst, status):
             raise Exception("Failed to connect to '%s'" % inst.public_dns_name)
 ## DEF
 
-
 ## ----------------------------------------------
 ## __getInstances__
 ## ----------------------------------------------        
@@ -497,19 +544,31 @@ def __getInstances__():
             if inst.state != 'terminated': env["ec2.all_instances"].append(inst)
             if inst.state == 'running': env["ec2.running_instances"].append(inst)
     ## FOR
+    return env["ec2.running_instances"]
 ## DEF
 
 ## ----------------------------------------------
 ## __getInstance__
 ## ----------------------------------------------        
 def __getInstance__(public_dns_name):
-    logging.info("Looking for '%s'" % public_dns_name)
+    LOG.info("Looking for '%s'" % public_dns_name)
     __getInstances__()
     for inst in env["ec2.all_instances"]:
-        logging.debug("COMPARE '%s' <=> '%s'", inst.public_dns_name, public_dns_name)
+        LOG.debug("COMPARE '%s' <=> '%s'", inst.public_dns_name, public_dns_name)
         if inst.public_dns_name.strip() == public_dns_name.strip():
             return (inst)
     return (None)
+## DEF
+
+## ----------------------------------------------
+## __getClientInstance__
+## ----------------------------------------------        
+def __getClientInstance__():
+    __getInstances__()
+    site_idx = env["site.count"]
+    client_inst = env["ec2.running_instances"][site_idx]
+    assert client_inst
+    return client_inst
 ## DEF
 
 ## ----------------------------------------------
@@ -522,7 +581,7 @@ def __createSecurityGroup__():
             return
     ## FOR
     
-    logging.info("Creating security group '%s'" % env["ec2.security_group"])
+    LOG.info("Creating security group '%s'" % env["ec2.security_group"])
     sg = ec2_conn.create_security_group(env["ec2.security_group"], 'H-Store Security Group')
     sg.authorize(src_group=sg)
     sg.authorize('tcp', 22, 22, '0.0.0.0/0')
