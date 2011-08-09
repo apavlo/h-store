@@ -63,8 +63,8 @@ BASE_SETTINGS = {
     "client.blocking":                  True,
     "client.blocking_concurrent":       10,
     "client.txnrate":                   10000,
-    "client.count":                     4,
-    "client.processesperclient":        10,
+    "client.count":                     2,
+    "client.processesperclient":        8,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
@@ -152,10 +152,23 @@ if __name__ == '__main__':
           options[key] = [ value ]
     ## FOR
     if "debug" in options: LOG.setLevel(logging.DEBUG)
+    ## Global Options
+    for key in options:
+        varname = "OPT_" + key.replace("-", "_").upper()
+        if varname in globals() and len(options[key]) == 1:
+            orig_type = type(globals()[varname])
+            if orig_type == bool:
+                val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
+            else: 
+                val = orig_type(options[key][0])
+            globals()[varname] = val
+            logging.debug("%s = %s" % (varname, str(globals()[varname])))
+    ## FOR
 
     ## Update Fabric env
     exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
     assert exp_opts
+    pprint(exp_opts)
     for key,val in exp_opts.items():
         if type(val) != types.FunctionType: env[key] = val
     ## FOR
