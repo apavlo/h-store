@@ -85,7 +85,7 @@ public class EGenLoader {
      * @throws Exception
      */
     public Iterable<Object[]> getTable(final Table catalog_tbl) throws Exception {
-        String file = EGenLoader.this.output_path + File.separator + catalog_tbl.getName().toUpperCase() + ".txt";
+        File file = new File(EGenLoader.this.output_path + File.separator + catalog_tbl.getName().toUpperCase() + ".txt");
         return (new TableDataIterable(catalog_tbl, file));
     }
     

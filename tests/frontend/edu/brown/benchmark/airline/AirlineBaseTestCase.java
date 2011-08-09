@@ -11,25 +11,22 @@ import edu.brown.utils.ProjectType;
 public abstract class AirlineBaseTestCase extends BaseTestCase {
 
     // HACK
-    protected static String AIRLINE_DATA_DIR; //  = System.getenv(AirlineConstants.AIRLINE_DATA_PARAM.toUpperCase());
+    protected static File AIRLINE_DATA_DIR; //  = System.getenv(AirlineConstants.AIRLINE_DATA_PARAM.toUpperCase());
     protected static AirlineLoader loader;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AIRLINE);
-        if (loader == null) {
+        if (isFirstSetup()) {
             File dir = FileUtil.findDirectory("tests");
             assertNotNull(dir);
             assert(dir.exists()) : "Missing " + dir.getAbsolutePath();
-            File data_dir = new File(dir.getAbsolutePath() + "/frontend/" + AirlineBaseTestCase.class.getPackage().getName().replace(".", "/") + "/data");
-            assert(data_dir.exists()) : "Missing " + data_dir.getAbsolutePath();
-            AIRLINE_DATA_DIR = data_dir.getAbsolutePath();
-            
-            System.err.println(AirlineConstants.AIRLINE_DATA_PARAM + ": " + AIRLINE_DATA_DIR);
+            AIRLINE_DATA_DIR = new File(dir.getAbsolutePath() + "/frontend/" + AirlineBaseTestCase.class.getPackage().getName().replace(".", "/") + "/data");
+            assert(AIRLINE_DATA_DIR.exists()) : "Missing " + AIRLINE_DATA_DIR.getAbsolutePath();
             
             final Catalog loader_catalog = catalog;
             loader = new AirlineLoader(
-                new String[]{ AirlineConstants.AIRLINE_DATA_PARAM + "=" + AIRLINE_DATA_DIR }) {
+                new String[]{ "datadir" + "=" + AIRLINE_DATA_DIR }) {
                 public Catalog getCatalog() {
                     return (loader_catalog);
                 };

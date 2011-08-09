@@ -85,6 +85,7 @@ public class BenchmarkConfig {
     
     public boolean noCoordinator;
     public boolean noDataLoad;
+    public boolean noExecute;
     public boolean noShutdown;
     
     public String markovPath;
@@ -122,9 +123,11 @@ public class BenchmarkConfig {
         Class<?> confClass = this.getClass();
         for (Object key : CollectionUtil.wrapIterator(this.config.getKeys())) {
             String f_name = key.toString();
+            String f_value = this.config.getString(f_name); 
             
             // Always store whatever the property as a client parameter
-            clientParameters.put(f_name, this.config.getString(f_name));
+            LOG.info(String.format("Passing benchmark parameter to clients: %s = %s", f_name, f_value));
+            clientParameters.put(f_name, f_value);
             
             Field f = null;
             try {
@@ -199,6 +202,7 @@ public class BenchmarkConfig {
             boolean compileOnly,
             boolean useCatalogHosts,
             boolean noDataLoad,
+            boolean noExecute,
             boolean noShutdown,
             String workloadTrace,
             Set<Integer> profileSiteIds,
@@ -251,6 +255,7 @@ public class BenchmarkConfig {
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
         this.noDataLoad = noDataLoad;
+        this.noExecute = noExecute;
         this.noShutdown = noShutdown;
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;

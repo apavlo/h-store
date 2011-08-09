@@ -32,7 +32,8 @@ public class RandomDistribution {
     /**
      * Interface for discrete (integer) random distributions.
      */
-    public static abstract class DiscreteRNG {
+    public static abstract class DiscreteRNG extends Random {
+        private static final long serialVersionUID = 1L;
         protected final long min;
         protected final long max;
         protected final Random random;
@@ -55,6 +56,10 @@ public class RandomDistribution {
         public void enableHistory() {
             assert(this.history == null) : "Trying to enable history tracking more than once";
             this.history = new Histogram<Long>();
+        }
+        
+        public boolean isHistoryEnabled() {
+            return (this.history != null);
         }
         
         /**
@@ -125,6 +130,7 @@ public class RandomDistribution {
          * Get the next random number as an int
          * @return the next random number.
          */
+        @Override
         public final int nextInt() {
             long val = (int)this.nextLongImpl();
             if (this.history != null) this.history.put(val);
@@ -135,6 +141,7 @@ public class RandomDistribution {
          * Get the next random number as a long
          * @return the next random number.
          */
+        @Override
         public final long nextLong() {
             long val = this.nextLongImpl();
             if (this.history != null) this.history.put(val);
@@ -158,6 +165,7 @@ public class RandomDistribution {
      * P(i)=1/(max-min)
      */
     public static class Flat extends DiscreteRNG {
+        private static final long serialVersionUID = 1L;
 
         /**
          * Generate random integers from min (inclusive) to max (exclusive)
@@ -200,9 +208,11 @@ public class RandomDistribution {
      * P(i)=1/(max-min)
      */
     public static class FlatHistogram<T> extends DiscreteRNG {
+        private static final long serialVersionUID = 1L;
         private final Flat inner;
         private final Histogram<T> histogram;
-        private final SortedMap<Long, T> value_rle = new TreeMap<Long, T>(); 
+        private final SortedMap<Long, T> value_rle = new TreeMap<Long, T>();
+        private Histogram<T> history;
         
         /**
          * Generate a run-length of the values of the histogram
@@ -221,11 +231,30 @@ public class RandomDistribution {
             } // FOR
         }
         
+        @Override
+        public void enableHistory() {
+            this.history = new Histogram<T>();
+        }
+        
+        @Override
+        public boolean isHistoryEnabled() {
+            return (this.history != null);
+        }
+        
+        public Histogram<T> getHistogramHistory() {
+            if (this.history != null) {
+                return (this.history);
+            }
+            return (null);
+        }
+        
         public T nextValue() {
             int idx = this.inner.nextInt();
             for (long total : this.value_rle.keySet()) {
                 if (total >= idx) {
-                    return (this.value_rle.get(total));
+                    T val = this.value_rle.get(total);
+                    if (this.history != null) this.history.put(val);
+                    return (val);
                 }
             } // FOR
             assert(false) : "Went beyond our expected total '" + idx + "'";
@@ -249,6 +278,8 @@ public class RandomDistribution {
      * Gaussian Distribution
      */
     public static class Gaussian extends DiscreteRNG {
+        private static final long serialVersionUID = 1L;
+        
         public Gaussian(Random random, long min, long max) {
             super(random, min, max);
         }
@@ -272,6 +303,7 @@ public class RandomDistribution {
      * P(i)/P(j)=((j-min+1)/(i-min+1))^sigma.
      */
     public static class Zipf extends DiscreteRNG {
+        private static final long serialVersionUID = 1L;
         private static final double DEFAULT_EPSILON = 0.001;
         private final ArrayList<Long> k;
         private final ArrayList<Double> v;
@@ -376,6 +408,7 @@ public class RandomDistribution {
      * P(k)=select(max-min-1, k-min)*p^(k-min)*(1-p)^(k-min)*(1-p)^(max-k-1)
      */
     public static final class Binomial extends DiscreteRNG {
+        private static final long serialVersionUID = 1L;
         private final double[] v;
         private final long n;
     

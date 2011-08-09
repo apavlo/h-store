@@ -1498,15 +1498,6 @@ BENCHMARKS
         <arg value="coordinator.log_dir=${coordinator.log_dir}" />
         <arg value="client.log_dir=${client.log_dir}" />
 
-        <!-- TPC-C parameters -->
-        <arg value="benchmark.warehouses=${benchmark.warehouses}" />
-        <arg value="benchmark.loadthreads=${benchmark.loadthreads}" />
-        <arg value="benchmark.noop=${benchmark.noop}" />
-        <arg value="benchmark.neworder_only=${benchmark.neworder_only}" />
-        <arg value="benchmark.neworder_abort=${benchmark.neworder_abort}" />
-        <arg value="benchmark.neworder_multip=${benchmark.neworder_multip}" />
-        <arg value="benchmark.neworder_all_multip=${benchmark.neworder_all_multip}" />
-        
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
@@ -1522,6 +1513,7 @@ BENCHMARKS
         <arg value="CATALOGHOSTS=${cataloghosts}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
         <arg value="NODATALOAD=${nodataload}" />
+        <arg value="NOEXECUTE=${noexecute}" />
         <arg value="NOSHUTDOWN=${noshutdown}" />
         
         <!-- Actual number of connections opened to cluster will be:

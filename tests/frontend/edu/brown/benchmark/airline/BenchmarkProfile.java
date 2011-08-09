@@ -1,24 +1,22 @@
 package edu.brown.benchmark.airline;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.*;
-import java.util.Map.Entry;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-import org.json.*;
-import org.voltdb.VoltType;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
-import org.voltdb.utils.VoltTypeUtil;
 
-import edu.brown.benchmark.airline.util.*;
-import edu.brown.mappings.ParameterMapping;
-import edu.brown.utils.FileUtil;
+import edu.brown.benchmark.airline.util.CustomerId;
+import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
@@ -112,11 +110,11 @@ public class BenchmarkProfile implements JSONSerializable {
     
     /**
      * Set the scale factor for this benchmark profile
-     * @param scale_factor
+     * @param scaleFactor
      */
-    public void setScaleFactor(double scale_factor) {
-        assert(this.scale_factor > 0);
-        this.scale_factor = scale_factor;
+    public void setScaleFactor(double scaleFactor) {
+        assert(scaleFactor > 0) : "Invalid scale factor '" + scaleFactor + "'";
+        this.scale_factor = scaleFactor;
     }
     
     /**
@@ -293,7 +291,7 @@ public class BenchmarkProfile implements JSONSerializable {
      * Return the number of airports that are part of this profile
      * @return
      */
-    public long getAirportCount() {
+    public int getAirportCount() {
         return (this.airport_max_customer_id.size());
     }
 
@@ -383,7 +381,7 @@ public class BenchmarkProfile implements JSONSerializable {
     public int decrementFlightSeat(FlightId flight_id) {
         long id = flight_id.encode();
         Short seats = this.seats_remaining.get(id);
-        assert(seats != null);
+        assert(seats != null) : "Missing seat count for " + flight_id;
         return ((int)this.seats_remaining.put(id, (short)(seats - 1)));
     }
     

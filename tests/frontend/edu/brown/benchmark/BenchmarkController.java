@@ -483,15 +483,15 @@ public class BenchmarkController {
         }
 
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
-        if (m_loaderClass != null && !m_config.noDataLoad) {
+        if (m_loaderClass != null && m_config.noDataLoad == false) {
             this.startLoader(catalog, numClients);
         } else if (m_config.noDataLoad) {
             LOG.info("Skipping data loading phase");
         }
         LOG.info("Completed loading phase");
 
-        //Start the clients
-        this.startClients(numClients);
+        // Start the clients
+        if (m_config.noExecute == false) this.startClients(numClients);
         
         // registerInterest(uploader);
     }
@@ -637,8 +637,12 @@ public class BenchmarkController {
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
             allArgs.add("EXITONCOMPLETION=false");
-            
+        try {
             BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allArgs.toArray(new String[0]), true);
+        } catch (Throwable ex) {
+            this.failed = true;
+            throw new RuntimeException("Failed to load data using " + m_loaderClass.getSimpleName(), ex);
+        }
             
 //        }
 //        else {
@@ -1210,6 +1214,7 @@ public class BenchmarkController {
         
         boolean noCoordinator = false;
         boolean noDataLoad = false;
+        boolean noExecute = false;
         boolean noShutdown = false;
         
         Catalog catalog = null;
@@ -1422,9 +1427,12 @@ public class BenchmarkController {
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
             
-            // Disable data loading
+            /* Disable data loading */
             } else if (parts[0].equalsIgnoreCase("NODATALOAD")) {
                 noDataLoad = Boolean.parseBoolean(parts[1]);
+            /* Disable workload execution */
+            } else if (parts[0].equalsIgnoreCase("NOEXECUTE")) {
+                noExecute = Boolean.parseBoolean(parts[1]);
                 
             // Disable sending the shutdown command at the end of the benchmark run
             } else if (parts[0].equalsIgnoreCase("NOSHUTDOWN")) {
@@ -1602,6 +1610,7 @@ public class BenchmarkController {
                 compileOnly, 
                 useCatalogHosts,
                 noDataLoad,
+                noExecute,
                 noShutdown,
                 workloadTrace,
                 profileSiteIds,
@@ -1634,7 +1643,7 @@ public class BenchmarkController {
         boolean failed = false;
         try {
             controller.setupBenchmark();
-            controller.runBenchmark();
+            if (config.noExecute == false) controller.runBenchmark();
         } catch (Throwable ex) {
             LOG.fatal("Failed to complete benchmark", ex);
             failed = true;
