@@ -1,10 +1,8 @@
 package edu.brown.benchmark.airline.util;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
@@ -12,12 +10,24 @@ import org.apache.log4j.Logger;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class HistogramUtil {
-    private static final Logger LOG = Logger.getLogger(HistogramUtil.class.getName());
+    private static final Logger LOG = Logger.getLogger(HistogramUtil.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
-    private static final Pattern p = Pattern.compile("\\|");
+//    private static final Pattern p = Pattern.compile("\\|");
+
+    private static File getHistogramFile(File data_dir, String name) {
+        File file = new File(data_dir.getAbsolutePath() + File.separator + "histogram." + name.toLowerCase());
+        if (file.exists() == false) file = new File(file.getAbsolutePath() + ".gz");
+        return (file);
+    }
     
     public static Histogram<String> collapseAirportFlights(Map<String, Histogram<String>> m) {
         Histogram<String> h = new Histogram<String>();
@@ -37,9 +47,10 @@ public abstract class HistogramUtil {
      * @return
      * @throws Exception
      */
-    public static Map<String, Histogram<String>> loadAirportFlights(String filename) throws Exception {
+    public static Map<String, Histogram<String>> loadAirportFlights(File data_path) throws Exception {
+        File file = getHistogramFile(data_path, AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);
         Histogram<String> h = new Histogram<String>();
-        h.load(filename, null);
+        h.load(file.getAbsolutePath(), null);
         
         Map<String, Histogram<String>> m = new TreeMap<String, Histogram<String>>();
         Pattern pattern = Pattern.compile("-");
@@ -65,36 +76,38 @@ public abstract class HistogramUtil {
      * @return
      * @throws Exception
      */
-    public static Histogram<String> loadHistogram(String name, String data_path, boolean has_header) throws Exception {
-        String filename = data_path + File.separator + "histogram." + name.toLowerCase() + ".csv";
-        if (!(new File(filename)).exists()) filename += ".gz";
-        
+    public static Histogram<String> loadHistogram(String name, File data_path, boolean has_header) throws Exception {
+        File file = getHistogramFile(data_path, name);
         Histogram<String> histogram = new Histogram<String>();
-        BufferedReader reader = FileUtil.getReader(filename);
-        boolean first = true;
-        int ctr = -1;
-        while (reader.ready()) {
-            ctr++;
-            String line = reader.readLine();
-            if (first && has_header) {
-                first = false;
-                continue;
-            }
-            if (line.isEmpty()) continue;
-            
-            String data[] = p.split(line);
-            if (data.length != 2) {
-                LOG.warn("Unexpected data on line " + ctr + " in '" + name + "'");
-            } else {
-                try {
-                    String key = data[0];
-                    Integer value = Integer.valueOf(data[1].trim());
-                    histogram.put(key, value);
-                } catch (Exception ex) {
-                    LOG.error("Failed to parse data on line " + ctr + " in '" + name + "'", ex);
-                }
-            }
-        } // WHILE
+        histogram.load(file.getAbsolutePath(), null);
+        
+//        BufferedReader reader = FileUtil.getReader(file);
+//        boolean first = true;
+//        int ctr = -1;
+//        while (reader.ready()) {
+//            ctr++;
+//            String line = reader.readLine();
+//            if (first && has_header) {
+//                first = false;
+//                continue;
+//            }
+//            if (line.isEmpty()) continue;
+//            
+//            String data[] = p.split(line);
+//            if (data.length != 2) {
+//                LOG.warn("Unexpected data on line " + ctr + " in '" + name + "'");
+//            } else {
+//                try {
+//                    String key = data[0];
+//                    Integer value = Integer.valueOf(data[1].trim());
+//                    histogram.put(key, value);
+//                } catch (Exception ex) {
+//                    throw new Exception(String.format("Failed to parse data on line %d in '%s'", ctr, name), ex);
+//                }
+//            }
+//        } // WHILE
+        
+        if (debug.get()) LOG.debug(String.format("Histogram %s\n%s", name, histogram.toString()));
         
         return (histogram);
     }

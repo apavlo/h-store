@@ -4,6 +4,11 @@ public abstract class AirlineConstants {
     
     public static final int DISTANCES[] = { 5 }; // , 10, 25, 50, 100 };
     
+    public static final int DAYS_PAST = 7;
+
+    public static final int DAYS_FUTURE = 14;
+
+    
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
@@ -42,9 +47,6 @@ public abstract class AirlineConstants {
     // The maximum number of days that we allow a customer to wait before needing
     // a reservation on a return to their original departure airport
     public static final int MAX_RETURN_FLIGHT_DAYS = 14;
-    
-    // Parameter that points to where we can find the initial data files
-    public final static String AIRLINE_DATA_PARAM = "airline_data_dir";
     
     /**
      * Number of milliseconds in a day
