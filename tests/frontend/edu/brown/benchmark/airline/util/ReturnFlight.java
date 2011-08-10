@@ -80,5 +80,11 @@ public class ReturnFlight implements Comparable<ReturnFlight> {
         // Otherwise order by time
         return (this.return_date.compareTo(o.return_date));
     }
+    
+    @Override
+    public String toString() {
+        return String.format("ReturnFlight{%s,airport=%s,date=%s}",
+                             this.customer_id, this.return_airport_id, this.return_date);
+    }
 
 }

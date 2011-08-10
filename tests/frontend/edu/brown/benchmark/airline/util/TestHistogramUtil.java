@@ -3,8 +3,6 @@ package edu.brown.benchmark.airline.util;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
-
 import edu.brown.benchmark.airline.AirlineBaseTestCase;
 import edu.brown.benchmark.airline.AirlineConstants;
 import edu.brown.statistics.Histogram;
@@ -54,33 +52,13 @@ public class TestHistogramUtil extends AirlineBaseTestCase {
         
         // We expect the times to be in 15 minute increments, therefore there should
         // be exactly 96 entries in the histogram
-        assertEquals(96, histogram.values().size());
+        assertEquals(94, histogram.values().size());
         
         // Make sure the values are formatted correctly
         Pattern p = Pattern.compile("[\\d]{2,2}:[\\d]{2,2}");
         for (Object value : histogram.values()) {
             assert(p.matcher(value.toString()).matches()) : "Invalid entry '" + value + "'";
         } // FOR
-//        System.err.println("Values=" + histogram.getValueCount() + "\n" + histogram);
-    }
-    
-    /**
-     * testLoadAirlineFlights
-     */
-    public void testLoadAirlineFlights() throws Exception {
-//        Histogram<String> histogram = HistogramUtil.loadHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRLINE, AIRLINE_DATA_DIR, true);
-//        assertFalse(histogram.values().isEmpty());
-        // System.out.println(histogram);
-        
-        // We expect the times to be in 15 minute increments, therefore there should
-        // be exactly 96 entries in the histogram
-//        assertEquals(96, histogram.values().size());
-        
-        // Make sure the values are formatted correctly
-//        Pattern p = Pattern.compile("[\\d]{2,2}:[\\d]{2,2}");
-//        for (Object value : histogram.values()) {
-//            assert(p.matcher(value.toString()).matches()) : "Invalid entry '" + value + "'";
-//        } // FOR
 //        System.err.println("Values=" + histogram.getValueCount() + "\n" + histogram);
     }
 

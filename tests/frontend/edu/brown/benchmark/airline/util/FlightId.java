@@ -12,7 +12,6 @@ public class FlightId {
     private final long id;
     private final long depart_airport_id;
     private final long arrive_airport_id;
-    private final Long encoded;
     
     /**
      * This is the departure time of the flight in minutes since the benchmark start date
@@ -33,10 +32,6 @@ public class FlightId {
         this.depart_airport_id = depart_airport_id;
         this.arrive_airport_id = arrive_airport_id;
         this.depart_date = FlightId.calculateFlightDate(benchmark_start, flight_date);
-        this.encoded = FlightId.encode(new long[]{  this.id,
-                                                    this.depart_airport_id,
-                                                    this.arrive_airport_id,
-                                                    this.depart_date});
     }
     
     /**
@@ -49,7 +44,6 @@ public class FlightId {
         this.depart_airport_id = values[1];
         this.arrive_airport_id = values[2];
         this.depart_date = values[3];
-        this.encoded = composite_id;
     }
     
     /**
@@ -96,7 +90,10 @@ public class FlightId {
     }
     
     public long encode() {
-        return (this.encoded);
+        return FlightId.encode(new long[]{ this.id,
+                                           this.depart_airport_id,
+                                           this.arrive_airport_id,
+                                           this.depart_date});
     }
 
     public static long encode(long...values) {
@@ -129,11 +126,8 @@ public class FlightId {
     
     @Override
     public String toString() {
-        return ("FlightId<" + 
-                "depart_airport=" + this.depart_airport_id + "," +
-                "arrive_airport=" + this.arrive_airport_id + "," +
-                "depart_date=" + this.depart_date + "," +
-                "id=" + this.id + ">");
+        return String.format("FlightId{id=%d,depart=%d,arrive=%d,date=%s}",
+                             this.id, this.depart_airport_id, this.arrive_airport_id, this.depart_date);
     }
     
     @Override
@@ -150,7 +144,7 @@ public class FlightId {
     
     @Override
     public int hashCode() {
-        return (this.encoded.hashCode());
+        return (new Long(this.encode()).hashCode());
     }
     
 }

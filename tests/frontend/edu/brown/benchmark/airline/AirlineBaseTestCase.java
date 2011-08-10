@@ -12,7 +12,7 @@ public abstract class AirlineBaseTestCase extends BaseTestCase {
 
     // HACK
     protected static File AIRLINE_DATA_DIR; //  = System.getenv(AirlineConstants.AIRLINE_DATA_PARAM.toUpperCase());
-    protected static AirlineLoader loader;
+//    protected static AirlineLoader loader;
     
     @Override
     protected void setUp() throws Exception {
@@ -24,13 +24,13 @@ public abstract class AirlineBaseTestCase extends BaseTestCase {
             AIRLINE_DATA_DIR = new File(dir.getAbsolutePath() + "/frontend/" + AirlineBaseTestCase.class.getPackage().getName().replace(".", "/") + "/data");
             assert(AIRLINE_DATA_DIR.exists()) : "Missing " + AIRLINE_DATA_DIR.getAbsolutePath();
             
-            final Catalog loader_catalog = catalog;
-            loader = new AirlineLoader(
-                new String[]{ "datadir" + "=" + AIRLINE_DATA_DIR }) {
-                public Catalog getCatalog() {
-                    return (loader_catalog);
-                };
-            };
+//            final Catalog loader_catalog = catalog;
+//            loader = new AirlineLoader(
+//                new String[]{ "datadir" + "=" + AIRLINE_DATA_DIR }) {
+//                public Catalog getCatalog() {
+//                    return (loader_catalog);
+//                };
+//            }
         }
     }
     

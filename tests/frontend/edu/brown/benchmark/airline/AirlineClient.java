@@ -99,7 +99,7 @@ public class AirlineClient extends AirlineBaseClient {
     private final Map<Transaction, Integer> weights = new HashMap<Transaction, Integer>();
     private final Transaction xacts[] = new Transaction[100];
     
-    private final RandomDistribution.FlatHistogram airport_rand;
+    private final RandomDistribution.FlatHistogram<String> airport_rand;
     
     /**
      * When a customer looks for an open seat, they will then attempt to book that seat in
@@ -155,11 +155,11 @@ public class AirlineClient extends AirlineBaseClient {
         
         // Make sure we have the information we need in the BenchmarkProfile
         String error_msg = null;
-        if (this.profile.getFlightIdCount() == 0) {
+        if (this.getFlightIdCount() == 0) {
             error_msg = "The benchmark profile does not have any flight ids.";
-        } else if (this.profile.getCustomerIdCount() == 0) {
+        } else if (this.getCustomerIdCount() == 0) {
             error_msg = "The benchmark profile does not have any customer ids.";
-        } else if (this.profile.getFlightStartDate() == null) {
+        } else if (this.getFlightStartDate() == null) {
             error_msg = "The benchmark profile does not have a valid flight start date.";
         }
         if (error_msg != null) {
@@ -181,9 +181,7 @@ public class AirlineClient extends AirlineBaseClient {
         //
         LOG.info("Loading data files for histograms");
         this.loadHistograms();
-        
-        Histogram<String> histogram = this.getTotalAirportFlightsHistogram();
-        this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
+        this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, this.getTotalAirportFlightsHistogram());
     }
 
     @Override
@@ -311,7 +309,7 @@ public class AirlineClient extends AirlineBaseClient {
 
     private void executeNewReservation() throws IOException {
         Reservation r = this.pending_reservations.remove();
-        long r_id = this.profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION);
+        long r_id = this.getRecordCount(AirlineConstants.TABLENAME_RESERVATION);
         
         // Generate random attributes
         long attributes[] = new long[9];
@@ -371,7 +369,7 @@ public class AirlineClient extends AirlineBaseClient {
 
     private void executeUpdateReservation() throws IOException {
         // Pick a random reservation id
-        long r_id = this.m_rng.number(this.profile.getReservationUpcomingOffset(), this.profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION));
+        long r_id = this.m_rng.number(this.getReservationUpcomingOffset(), this.getRecordCount(AirlineConstants.TABLENAME_RESERVATION));
         long value = m_rng.number(1, 1 << 20);
         long attribute_idx = m_rng.number(0, UpdateReservation.NUM_UPDATES);
 

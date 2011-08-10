@@ -53,7 +53,7 @@ public class CustomerId {
     
     @Override
     public String toString() {
-        return ("CustomerId<" + this.getDepartAirportId() + "-" + this.getId() + ">");
+        return String.format("CustomerId{airport=%d,id=%d}", this.depart_airport_id, this.id);
     }
     
     @Override

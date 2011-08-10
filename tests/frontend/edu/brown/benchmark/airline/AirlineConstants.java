@@ -23,7 +23,6 @@ public abstract class AirlineConstants {
 
     // Initial Data Sizes
     public static final int NUM_CUSTOMERS = 1000000;
-    public static final int DEFAULT_SCALE_FACTOR = 1;
     
     /**
      * Average # of flights per day
