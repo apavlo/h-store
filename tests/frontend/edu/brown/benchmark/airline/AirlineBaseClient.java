@@ -4,17 +4,24 @@
 package edu.brown.benchmark.airline;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
@@ -25,6 +32,8 @@ import edu.brown.benchmark.airline.util.HistogramUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
@@ -33,7 +42,7 @@ import edu.mit.hstore.HStoreConf;
  * @author pavlo
  *
  */
-public abstract class AirlineBaseClient extends BenchmarkComponent {
+public abstract class AirlineBaseClient extends BenchmarkComponent implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(AirlineBaseClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -55,20 +64,21 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         {"AL_IATA_CODE",    "AL_ID"}, // AIRLINE
     };
     
-    /** Benchmark Profile */
-    protected BenchmarkProfile profile;
+    // ----------------------------------------------------------------
+    // DATA MEMBERS
+    // ----------------------------------------------------------------
     
     /** Data Directory */
-    private final File airline_data_dir;
+    private transient final File airline_data_dir;
    
     /** TODO */
-    protected final Map<String, Histogram<String>> histograms = new HashMap<String, Histogram<String>>();
+    private transient final Map<String, Histogram<String>> histograms = new HashMap<String, Histogram<String>>();
     
     /**
      * Each AirportCode will have a histogram of the number of flights 
      * that depart from that airport to all the other airports
      */
-    protected final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
+    protected transient final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
     
     /** The airports that we actually care about */
     protected final Set<String> airport_codes = new HashSet<String>();
@@ -80,27 +90,81 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
     protected final ListOrderedMap<String, Pair<Double, Double>> airport_locations = new ListOrderedMap<String, Pair<Double,Double>>();
     
     /**
-     * AirportCode -> Set<AirportCode, Distance>
-     * Only store the records for those airports in HISTOGRAM_FLIGHTS_PER_AIRPORT
-     */
-    protected final Map<String, Map<String, Short>> airport_distances = new HashMap<String, Map<String, Short>>();
-    
-    /**
      * Foreign Key Mappings
      * Column Name -> Xref Mapper
      */
-    protected final Map<String, String> fkey_value_xref = new HashMap<String, String>();
+    protected transient final Map<String, String> fkey_value_xref = new HashMap<String, String>();
 
     /**
      * Key -> Id Mappings
      */
-    protected final Map<String, String> code_columns = new HashMap<String, String>();
-    protected final Map<String, Map<String, Long>> code_id_xref = new HashMap<String, Map<String, Long>>();
+    protected transient final Map<String, String> code_columns = new HashMap<String, String>();
+    protected transient final Map<String, Map<String, Long>> code_id_xref = new HashMap<String, Map<String, Long>>();
     
     /**
      * Specialized random number generator
      */
-    protected final AbstractRandomGenerator m_rng;
+    protected transient final AbstractRandomGenerator m_rng;
+    
+    /**
+     * Data Scale Factor
+     * Range: ???
+     */
+    public double scale_factor;
+    /**
+     * For each airport id, store the last id of the customer that uses this airport
+     * as their local airport. The customer ids will be stored as follows in the dbms:
+     * <16-bit AirportId><48-bit CustomerId>
+     */
+    public final Map<Long, Long> airport_max_customer_id = new HashMap<Long, Long>();
+    
+    /**
+     * The date when flights total data set begins
+     */
+    public Date flight_start_date;
+    
+    /**
+     * The date for when the flights are considered upcoming and are eligible for reservations
+     */
+    public Date flight_upcoming_date;
+    
+    /**
+     * The number of days in the past that our flight data set includes.
+     */
+    public long flight_past_days;
+    
+    /**
+     * The number of days in the future (from the flight_upcoming_date) that our flight data set includes
+     */
+    public long flight_future_days;
+    
+    /**
+     * Store a list of FlightIds (encoded) and the number of seats
+     * remaining for a particular flight.
+     */
+    public final ListOrderedMap<Long, Short> seats_remaining = new ListOrderedMap<Long, Short>();
+    
+    /**
+     * The offset of when upcoming flights begin in the seats_remaining list
+     */
+    public Long flight_upcoming_offset = null;
+    
+    /**
+     * The offset of when reservations for upcoming flights begin
+     */
+    public Long reservation_upcoming_offset = null;
+    
+    /**
+     * The number of records loaded for each table
+     */
+    public final Map<String, Long> num_records = new HashMap<String, Long>();
+
+    /**
+     * AirportCode -> Set<AirportCode, Distance>
+     * Only store the records for those airports in HISTOGRAM_FLIGHTS_PER_AIRPORT
+     */
+    public final Map<String, Map<String, Short>> airport_distances = new HashMap<String, Map<String, Short>>();
+
     
     // ----------------------------------------------------------------
     // CONSTRUCTOR
@@ -122,20 +186,20 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
             String value = m_extraParams.get(key);
 
             // Benchmark Profile File
-            if (key.equals("benchmarkprofile")) {
+            if (key.equalsIgnoreCase("benchmarkprofile")) {
                 profile_file = value;
             // Random Generator Seed
-            } else if (key.equals("randomseed")) {
+            } else if (key.equalsIgnoreCase("randomseed")) {
                 seed = Integer.parseInt(value);
             // Random Generator Class
-            } else if (key.equals("randomgenerator")) {
+            } else if (key.equalsIgnoreCase("randomgenerator")) {
                 randGenClassName = value;
             // Random Generator Profile File
-            } else if (key.equals("randomprofile")) {
+            } else if (key.equalsIgnoreCase("randomprofile")) {
                 randGenProfilePath = value;
             // Data Directory
             // Parameter that points to where we can find the initial data files
-            } else if (key.equals("datadir")) {
+            } else if (key.equalsIgnoreCase("datadir")) {
                 data_dir = value;
             }
         } // FOR
@@ -151,13 +215,12 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         HStoreConf hstore_conf = this.getHStoreConf();
         
         // Create BenchmarkProfile
-        this.profile = new BenchmarkProfile();
-        this.profile.setScaleFactor(hstore_conf.client.scalefactor);
+        this.setScaleFactor(hstore_conf.client.scalefactor);
         if (profile_file != null) {
             try {
-                this.profile.load(profile_file, null);
+                this.load(profile_file, null);
             } catch (Exception ex) {
-                throw new RuntimeException("Failed to load benchmark profile file '" + profile_file + "'", ex);
+                throw new RuntimeException("Failed to load benchmark profile '" + profile_file + "'", ex);
             }
         }
         
@@ -214,6 +277,55 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         return (m);
     }
     
+    /**
+     * Get the scale factor value for this benchmark profile
+     * @return
+     */
+    public double getScaleFactor() {
+        return (this.scale_factor);
+    }
+    
+    /**
+     * Set the scale factor for this benchmark profile
+     * @param scaleFactor
+     */
+    public void setScaleFactor(double scaleFactor) {
+        assert(scaleFactor > 0) : "Invalid scale factor '" + scaleFactor + "'";
+        this.scale_factor = scaleFactor;
+    }
+    
+    /**
+     * The number of reservations preloaded for this benchmark run
+     * @return
+     */
+    public Long getRecordCount(String table_name) {
+        return (this.num_records.get(table_name));
+    }
+    
+    /**
+     * Set the number of preloaded reservations
+     * @param numReservations
+     */
+    public void setRecordCount(String table_name, long count) {
+        this.num_records.put(table_name, count);
+    }
+
+    /**
+     * The offset of when upcoming reservation ids begin
+     * @return
+     */
+    public Long getReservationUpcomingOffset() {
+        return (this.reservation_upcoming_offset);
+    }
+    
+    /**
+     * Set the number of upcoming reservation offset
+     * @param numReservations
+     */
+    public void setReservationUpcomingOffset(long offset) {
+        this.reservation_upcoming_offset = offset;
+    }
+    
     // ----------------------------------------------------------------
     // HISTOGRAM METHODS
     // ----------------------------------------------------------------
@@ -243,6 +355,10 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         return (this.airport_histograms.get(airport_code));
     }
     
+    public int getHistogramCount() {
+        return (this.histograms.size());
+    }
+    
     /**
      * Load all the histograms used in the benchmark
      */
@@ -251,14 +367,18 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
                                AirlineConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
         
         // Now load in the histograms that we will need for generating the flight data
-        try {
-            for (String histogram_name : AirlineConstants.HISTOGRAM_DATA_FILES) {
-                if (debug.get()) LOG.debug("Loading in histogram data file for '" + histogram_name + "'");
-                Histogram<String> hist = null;
-                
+        for (String histogramName : AirlineConstants.HISTOGRAM_DATA_FILES) {
+            if (this.histograms.containsKey(histogramName)) {
+                LOG.warn("Already loaded histogram '" + histogramName + "'. Skipping...");
+                continue;
+            }
+            if (debug.get()) LOG.debug("Loading in histogram data file for '" + histogramName + "'");
+            Histogram<String> hist = null;
+            
+            try {
                 // The Flights_Per_Airport histogram is actually a serialized map that has a histogram
                 // of the departing flights from each airport to all the others
-                if (histogram_name.equals(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
+                if (histogramName.equals(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT)) {
                     Map<String, Histogram<String>> m = HistogramUtil.loadAirportFlights(airline_data_dir);
                     assert(m != null);
                     if (debug.get()) LOG.debug(String.format("Loaded %d airport flight histograms", m.size()));
@@ -277,16 +397,17 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
                     
                 // All other histograms are just serialized and can be loaded directly
                 } else {
-                    hist = HistogramUtil.loadHistogram(histogram_name, this.airline_data_dir, true);
+                    hist = HistogramUtil.loadHistogram(histogramName, this.airline_data_dir, true);
                 }
-                assert(hist != null);
-                this.histograms.put(histogram_name, hist);
-                if (debug.get()) LOG.debug(String.format("Loaded histogram '%s' [sampleCount=%d, valueCount=%d]",
-                                                         histogram_name, hist.getSampleCount(), hist.getValueCount()));
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to load data files for histograms", ex);
-        }
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load histogram '" + histogramName + "'", ex);
+            }
+            assert(hist != null);
+            this.histograms.put(histogramName, hist);
+            if (debug.get()) LOG.debug(String.format("Loaded histogram '%s' [sampleCount=%d, valueCount=%d]",
+                                                     histogramName, hist.getSampleCount(), hist.getValueCount()));
+        } // FOR
+
     }
     
     // ----------------------------------------------------------------
@@ -298,7 +419,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
      * @return
      */
     public long getRandomAirportId() {
-        return (m_rng.nextInt((int)this.profile.getAirportCount()));
+        return (m_rng.nextInt((int)this.getAirportCount()));
     }
     
     /**
@@ -306,10 +427,10 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
      * @return
      */
     public FlightId getRandomFlightId() {
-        int start_idx = (int)this.profile.getFlightIdStartingOffset();
-        int end_idx = (int)this.profile.getFlightIdCount();
+        int start_idx = (int)this.getFlightIdStartingOffset();
+        int end_idx = (int)this.getFlightIdCount();
         int idx = this.m_rng.number(start_idx, end_idx - 1);
-        FlightId id = this.profile.getFlightId(idx);
+        FlightId id = this.getFlightId(idx);
         assert(id == null) : "Invalid FlightId offset '" + idx + "'";
         return (id);
     }
@@ -320,7 +441,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
      * @return
      */
     public CustomerId getRandomCustomerId(long airport_id) {
-        int max_id = this.profile.getCustomerIdCount(airport_id).intValue();
+        int max_id = this.getCustomerIdCount(airport_id).intValue();
         int base_id = this.m_rng.nextInt(max_id);
         return (new CustomerId(base_id, airport_id));
     }
@@ -331,9 +452,15 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
      */
     public CustomerId getRandomCustomerId() {
         Long airport_id = null;
+        int num_airports = this.getAirportCount();
+        if (trace.get()) LOG.trace(String.format("Selecting a random airport with customers [numAirports=%d]", num_airports));
         while (airport_id == null) {
-            airport_id = (long)this.m_rng.number(1, this.profile.getAirportCount());
-            if (this.profile.getCustomerIdCount(airport_id) != null) break;
+            airport_id = (long)this.m_rng.number(1, num_airports);
+            Long cnt = this.getCustomerIdCount(airport_id); 
+            if (cnt != null) {
+                if (trace.get()) LOG.trace(String.format("Selected airport '%s' [numCustomers=%d]", this.getAirportCode(airport_id), cnt));
+                break;
+            }
             airport_id = null;
         } // WHILE
         return (this.getRandomCustomerId(airport_id));
@@ -344,7 +471,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
      * @return
      */
     public long getRandomAirlineId() {
-        return (m_rng.nextInt(this.profile.getRecordCount(AirlineConstants.TABLENAME_AIRLINE).intValue()));
+        return (m_rng.nextInt(this.getRecordCount(AirlineConstants.TABLENAME_AIRLINE).intValue()));
     }
     
     /**
@@ -361,8 +488,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
      * @return
      */
     public Date getRandomUpcomingDate() {
-        Date upcoming_start_date = this.profile.getFlightUpcomingDate();
-        int offset = m_rng.nextInt((int)this.profile.getFlightFutureDays());
+        Date upcoming_start_date = this.getFlightUpcomingDate();
+        int offset = m_rng.nextInt((int)this.getFlightFutureDays());
         return (new Date(upcoming_start_date.getTime() + (offset * AirlineConstants.MILISECONDS_PER_DAY)));
     }
     
@@ -395,6 +522,181 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
     public Collection<String> getAirportCodes() {
         /// return (this.code_id_xref.get("AP_ID").keySet());
         return (this.airport_codes);
+    }
+    
+    public Histogram<String> getAirportCustomerHistogram() {
+        Histogram<String> h = new Histogram<String>();
+        if (debug.get()) LOG.debug("Generating Airport-CustomerCount histogram [numAirports=" + this.getAirportCount() + "]");
+        for (Entry<Long, Long> e : this.airport_max_customer_id.entrySet()) {
+            long airport_id = e.getKey();
+            h.put(this.getAirportCode(airport_id), e.getValue());
+        } // FOR
+        return (h);
+    }
+    
+    /**
+     * Return the number of airports that are part of this profile
+     * @return
+     */
+    public int getAirportCount() {
+        return (this.airport_codes.size());
+    }
+    
+    // -----------------------------------------------------------------
+    // FLIGHT DATES
+    // -----------------------------------------------------------------
+
+    /**
+     * The date in which the flight data set begins
+     * @return
+     */
+    public Date getFlightStartDate() {
+        return this.flight_start_date;
+    }
+    /**
+     * 
+     * @param start_date
+     */
+    public void setFlightStartDate(Date start_date) {
+        this.flight_start_date = start_date;
+    }
+
+    /**
+     * The date in which the flight data set begins
+     * @return
+     */
+    public Date getFlightUpcomingDate() {
+        return (this.flight_upcoming_date);
+    }
+    /**
+     * 
+     * @param start_date
+     */
+    public void setFlightUpcomingDate(Date upcoming_date) {
+        this.flight_upcoming_date = upcoming_date;
+    }
+    
+    /**
+     * The date in which upcoming flights begin
+     * @return
+     */
+    public long getFlightPastDays() {
+        return (this.flight_past_days);
+    }
+    /**
+     * 
+     * @param flight_start_date
+     */
+    public void setFlightPastDays(long flight_past_days) {
+        this.flight_past_days = flight_past_days;
+    }
+    
+    /**
+     * The date in which upcoming flights begin
+     * @return
+     */
+    public long getFlightFutureDays() {
+        return (this.flight_future_days);
+    }
+    /**
+     * 
+     * @param flight_start_date
+     */
+    public void setFlightFutureDays(long flight_future_days) {
+        this.flight_future_days = flight_future_days;
+    }
+    
+    // -----------------------------------------------------------------
+    // FLIGHT IDS
+    // -----------------------------------------------------------------
+    
+    public Iterable<FlightId> getFlightIds() {
+        return (new Iterable<FlightId>() {
+            @Override
+            public Iterator<FlightId> iterator() {
+                return (new Iterator<FlightId>() {
+                    private int idx = 0;
+                    private final int cnt = AirlineBaseClient.this.seats_remaining.size();
+                    
+                    @Override
+                    public boolean hasNext() {
+                        return (idx < this.cnt);
+                    }
+                    @Override
+                    public FlightId next() {
+                        long encoded = AirlineBaseClient.this.seats_remaining.get(this.idx++);
+                        return (new FlightId(encoded));
+                    }
+                    @Override
+                    public void remove() {
+                        // Not implemented
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * 
+     * @param flight_id
+     */
+    public void addFlightId(FlightId flight_id) {
+        assert(flight_id != null);
+        assert(this.flight_start_date != null);
+        assert(this.flight_upcoming_date != null);
+        this.seats_remaining.put(flight_id.encode(), (short)AirlineConstants.NUM_SEATS_PER_FLIGHT);
+        if (this.flight_upcoming_offset == null &&
+            this.flight_upcoming_date.compareTo(flight_id.getDepartDate(this.flight_start_date)) < 0) {
+            this.flight_upcoming_offset = new Long(this.seats_remaining.size() - 1);
+        }
+    }
+    
+    /**
+     * Return the number of unique flight ids
+     * @return
+     */
+    public long getFlightIdCount() {
+        return (this.seats_remaining.size());
+    }
+    
+    /**
+     * Return the index offset of when future flights 
+     * @return
+     */
+    public long getFlightIdStartingOffset() {
+        return (this.flight_upcoming_offset);
+    }
+    
+    /**
+     * Return flight 
+     * @param index
+     * @return
+     */
+    public FlightId getFlightId(int index) {
+        assert(index >= 0);
+        assert(index <= this.getFlightIdCount());
+        return (new FlightId(this.seats_remaining.get(index)));
+    }
+
+    /**
+     * Return the number of seats remaining for a flight
+     * @param flight_id
+     * @return
+     */
+    public int getFlightRemainingSeats(FlightId flight_id) {
+        return ((int)this.seats_remaining.get(flight_id.encode()));
+    }
+    
+    /**
+     * Decrement the number of available seats for a flight and return
+     * the total amount remaining
+     */
+    public int decrementFlightSeat(FlightId flight_id) {
+        long id = flight_id.encode();
+        Short seats = this.seats_remaining.get(id);
+        assert(seats != null) : "Missing seat count for " + flight_id;
+        assert(seats >= 0) : "Invalid seat count for " + flight_id;
+        return ((int)this.seats_remaining.put(id, (short)(seats - 1)));
     }
     
     // ----------------------------------------------------------------
@@ -447,6 +749,80 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         return (new Date((long)(depart_time.getTime() + flight_time)));
     }
     
+    // -----------------------------------------------------------------
+    // CUSTOMER IDS
+    // -----------------------------------------------------------------
+
+    private class CustomerIdIterable implements Iterable<CustomerId> {
+        private final ListOrderedSet<Long> airport_ids = new ListOrderedSet<Long>();
+        private Long last_airport_id = null;
+        private Long last_id = null;
+        private Long last_max_id = null;
+        
+        public CustomerIdIterable(long...airport_ids) {
+            for (long id : airport_ids) {
+                this.airport_ids.add(id);
+            } // FOR
+        }
+        
+        public CustomerIdIterable(Collection<Long> airport_ids) {
+            this.airport_ids.addAll(airport_ids);
+        }
+        
+        @Override
+        public Iterator<CustomerId> iterator() {
+            return new Iterator<CustomerId>() {
+                @Override
+                public boolean hasNext() {
+                    return (!CustomerIdIterable.this.airport_ids.isEmpty() || (last_id != null && last_id < last_max_id));
+                }
+                @Override
+                public CustomerId next() {
+                    if (last_airport_id == null) {
+                        last_airport_id = airport_ids.remove(0);
+                        last_id = 0l;
+                        last_max_id = AirlineBaseClient.this.airport_max_customer_id.get(last_airport_id);
+                    }
+                    CustomerId next_id = new CustomerId(last_id, last_airport_id);
+                    if (++last_id == last_max_id) last_airport_id = null;
+                    return next_id;
+                }
+                @Override
+                public void remove() {
+                    // Not implemented
+                }
+            };
+        }
+    } // END CLASS
+    
+    public Iterable<CustomerId> getCustomerIds() {
+        return (new CustomerIdIterable(this.airport_max_customer_id.keySet()));
+    }
+    public Iterable<CustomerId> getCustomerIds(Collection<Long> airport_ids) {
+        return (new CustomerIdIterable(airport_ids));
+    }
+    public Iterable<CustomerId> getCustomerIds(long...airport_ids) {
+        return (new CustomerIdIterable(airport_ids));
+    }
+    
+    public synchronized long incrementAirportCustomerCount(long airport_id) {
+        Long count = this.airport_max_customer_id.get(airport_id);
+        if (count == null) count = 0l;
+        count++;
+        this.airport_max_customer_id.put(airport_id, count);
+        return (count);
+    }
+    public Long getCustomerIdCount(long airport_id) {
+        return (this.airport_max_customer_id.get(airport_id));
+    }
+    public long getCustomerIdCount() {
+        long total = 0;
+        for (long max_id : this.airport_max_customer_id.values()) {
+            total += max_id;
+        }
+        return (total);
+    }
+    
     // ----------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------
@@ -460,5 +836,34 @@ public abstract class AirlineBaseClient extends BenchmarkComponent {
         }
         
         return (ret);
+    }
+    
+    // -----------------------------------------------------------------
+    // SERIALIZATION
+    // -----------------------------------------------------------------
+    
+    @Override
+    public void load(String input_path, Database catalog_db) throws IOException {
+        JSONUtil.load(this, catalog_db, input_path);
+    }
+    
+    @Override
+    public void save(String output_path) throws IOException {
+        JSONUtil.save(this, output_path);
+    }
+
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        JSONUtil.fieldsToJSON(stringer, this, AirlineBaseClient.class, JSONUtil.getSerializableFields(this.getClass()));
+    }
+    
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AirlineBaseClient.class, false, JSONUtil.getSerializableFields(this.getClass()));
     }
 }

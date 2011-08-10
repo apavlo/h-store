@@ -919,6 +919,7 @@ TEST CASES
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
+                
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name='org/voltdb/regressionsuites/**'/>
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -930,12 +931,9 @@ TEST CASES
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/designer/**/Test*.class'/>
+                
                 <!-- We run out of memory on this one -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
-                <!-- Busted tests because of hacking -->
-                <exclude name='edu/brown/benchmark/airline/Test*'/>
-                <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
 
                 <!-- Canadian Tests -->
                 <include name='ca/evanjones/**/*Test.class'/>
