@@ -380,6 +380,16 @@ public abstract class CollectionUtil {
             }
         });
     }
+    
+    public static <T> T pop(Collection<T> items) {
+        T t = CollectionUtil.getFirst(items);
+        if (t != null) {
+            boolean ret = items.remove(t);
+            assert(ret);
+        }
+        return (t);
+    }
+    
 //    
 //    /**
 //     * Create a set of all possible permutations of the given size for the elements in the data set

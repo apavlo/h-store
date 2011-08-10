@@ -211,15 +211,7 @@ public abstract class ThreadUtil {
         
         final int num_threads = runnables.size();
         final CountDownLatch latch = new CountDownLatch(num_threads);
-        final Throwable last_error[] = new Throwable[1];
-        
-        Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                last_error[0] = e;
-                while (latch.getCount() > 0) latch.countDown();
-            }
-        };
+        LatchedExceptionHandler handler = new LatchedExceptionHandler(latch);
         
         if (d) LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
         for (R r : runnables) {
@@ -233,9 +225,8 @@ public abstract class ThreadUtil {
             LOG.fatal("ThreadUtil.run() was interuptted!", ex);
             throw new RuntimeException(ex);
         } finally {
-            if (last_error[0] != null) {
-                if (LOG.isDebugEnabled()) LOG.error("Failed to execute threads", last_error[0]);
-                throw new RuntimeException(last_error[0]);
+            if (handler.hasError()) {
+                throw new RuntimeException("Failed to execute threads", handler.getLastError());
             }
         }
         if (d) {

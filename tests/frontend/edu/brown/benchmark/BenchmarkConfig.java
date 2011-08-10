@@ -126,7 +126,7 @@ public class BenchmarkConfig {
             String f_value = this.config.getString(f_name); 
             
             // Always store whatever the property as a client parameter
-            LOG.info(String.format("Passing benchmark parameter to clients: %s = %s", f_name, f_value));
+            LOG.debug(String.format("Passing benchmark parameter to clients: %s = %s", f_name, f_value));
             clientParameters.put(f_name, f_value);
             
             Field f = null;
