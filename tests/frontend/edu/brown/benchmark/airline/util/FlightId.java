@@ -1,6 +1,6 @@
 package edu.brown.benchmark.airline.util;
 
-import java.util.Date;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 
@@ -15,7 +15,7 @@ public class FlightId {
     
     /**
      * This is the departure time of the flight in minutes since the benchmark start date
-     * @see BenchmarkProfile.getFlightTimeInMinutes()
+     * @see AirlineBaseClient.getFlightTimeInMinutes()
      */
     private final long depart_date;
 
@@ -27,7 +27,7 @@ public class FlightId {
      * @param benchmark_start - the base date of when the benchmark data starts (including past days)
      * @param flight_date - when departure date of the flight
      */
-    public FlightId(long id, long depart_airport_id, long arrive_airport_id, Date benchmark_start, Date flight_date) {
+    public FlightId(long id, long depart_airport_id, long arrive_airport_id, TimestampType benchmark_start, TimestampType flight_date) {
         this.id = id;
         this.depart_airport_id = depart_airport_id;
         this.arrive_airport_id = arrive_airport_id;
@@ -52,8 +52,8 @@ public class FlightId {
      * @param flight_date
      * @return
      */
-    protected static final long calculateFlightDate(Date benchmark_start, Date flight_date) {
-        return (flight_date.getTime() - benchmark_start.getTime()) / 3600000; // 60s * 60m * 1000
+    protected static final long calculateFlightDate(TimestampType benchmark_start, TimestampType flight_date) {
+        return (flight_date.getMSTime() - benchmark_start.getMSTime()) / 3600000; // 60s * 60m * 1000
     }
     
     /**
@@ -80,13 +80,13 @@ public class FlightId {
     /**
      * @return the flight departure date
      */
-    public Date getDepartDate(Date benchmark_start) {
-        return (new Date(benchmark_start.getTime() + (this.depart_date * 3600000)));
+    public TimestampType getDepartDate(TimestampType benchmark_start) {
+        return (new TimestampType(benchmark_start.getTime() + (this.depart_date * AirlineConstants.MICROSECONDS_PER_MINUTE * 60)));
     }
     
-    public boolean isUpcoming(Date benchmark_start, long past_days) {
-        Date depart_date = this.getDepartDate(benchmark_start);
-        return ((depart_date.getTime() - benchmark_start.getTime()) >= (past_days * AirlineConstants.MILISECONDS_PER_DAY)); 
+    public boolean isUpcoming(TimestampType benchmark_start, long past_days) {
+        TimestampType depart_date = this.getDepartDate(benchmark_start);
+        return ((depart_date.getTime() - benchmark_start.getTime()) >= (past_days * AirlineConstants.MICROSECONDS_PER_DAY)); 
     }
     
     public long encode() {

@@ -35,13 +35,21 @@ public class TimestampType implements Comparable<TimestampType> {
     }
 
     /**
+     * Create a new TimestampType from a given date object
+     * @param date
+     */
+    public TimestampType(Date date) {
+        m_usecs = 0;
+        m_date = date;
+    }
+
+    /**
      * Create a TimestampType instance for the current time.
      */
     public TimestampType() {
-        m_usecs = 0;
-        m_date = new Date();
+        this(new Date());
     }
-
+    
     /**
      * Read the microsecond in time stored by this timestamp.
      * @return microseconds
@@ -49,6 +57,14 @@ public class TimestampType implements Comparable<TimestampType> {
     public long getTime() {
         long millis = m_date.getTime();
         return millis * 1000 + m_usecs;
+    }
+    
+    /**
+     * Read the milliseconds in time stored by this timestamp.
+     * @return milliseconds
+     */
+    public long getMSTime() {
+        return (m_date.getTime());
     }
 
     /**

@@ -6,16 +6,12 @@ package edu.brown.benchmark.airline;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +19,7 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
-import org.voltdb.utils.Pair;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.airline.util.CustomerId;
@@ -65,7 +61,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     };
     
     // ----------------------------------------------------------------
-    // DATA MEMBERS
+    // TRANSIENT DATA MEMBERS
     // ----------------------------------------------------------------
     
     /** Data Directory */
@@ -79,15 +75,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * that depart from that airport to all the other airports
      */
     protected transient final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
-    
-    /** The airports that we actually care about */
-    protected final Set<String> airport_codes = new HashSet<String>();
-    
-    /**
-     * Mapping from Airports to their geolocation coordinates
-     * AirportCode -> <Latitude, Longitude>
-     */
-    protected final ListOrderedMap<String, Pair<Double, Double>> airport_locations = new ListOrderedMap<String, Pair<Double,Double>>();
     
     /**
      * Foreign Key Mappings
@@ -106,6 +93,10 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     protected transient final AbstractRandomGenerator m_rng;
     
+    // ----------------------------------------------------------------
+    // SERIALIZABLE DATA MEMBERS
+    // ----------------------------------------------------------------
+    
     /**
      * Data Scale Factor
      * Range: ???
@@ -121,12 +112,12 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     /**
      * The date when flights total data set begins
      */
-    public Date flight_start_date;
+    public TimestampType flight_start_date;
     
     /**
      * The date for when the flights are considered upcoming and are eligible for reservations
      */
-    public Date flight_upcoming_date;
+    public TimestampType flight_upcoming_date;
     
     /**
      * The number of days in the past that our flight data set includes.
@@ -159,11 +150,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     public final Map<String, Long> num_records = new HashMap<String, Long>();
 
-    /**
-     * AirportCode -> Set<AirportCode, Distance>
-     * Only store the records for those airports in HISTOGRAM_FLIGHTS_PER_AIRPORT
-     */
-    public final Map<String, Map<String, Short>> airport_distances = new HashMap<String, Map<String, Short>>();
 
     
     // ----------------------------------------------------------------
@@ -340,12 +326,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         assert(h != null) : "Invalid histogram '" + name + "'";
         return (h);
     }
-    
-    public Histogram<String> getTotalAirportFlightsHistogram() {
-        // TODO
-        return (null);
-    }
-    
+
     /**
      * 
      * @param airport_code
@@ -355,6 +336,11 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         return (this.airport_histograms.get(airport_code));
     }
     
+    /**
+     * Returns the number of histograms that we have loaded
+     * Does not include the airport_histograms
+     * @return
+     */
     public int getHistogramCount() {
         return (this.histograms.size());
     }
@@ -385,7 +371,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
                     
                     // Store the airport codes information
                     this.airport_histograms.putAll(m);
-                    this.airport_codes.addAll(m.keySet());
                     
                     // We then need to flatten all of the histograms in this map into a single histogram
                     // that just counts the number of departing flights per airport. We will use this
@@ -441,9 +426,26 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * @return
      */
     public CustomerId getRandomCustomerId(long airport_id) {
-        int max_id = this.getCustomerIdCount(airport_id).intValue();
-        int base_id = this.m_rng.nextInt(max_id);
-        return (new CustomerId(base_id, airport_id));
+        Long cnt = this.getCustomerIdCount(airport_id);
+        if (cnt != null) {
+            int max_id = cnt.intValue();
+            int base_id = this.m_rng.nextInt(max_id);
+            return (new CustomerId(base_id, airport_id));
+        }
+        return (null);
+    }
+    
+    /**
+     * Return a random customer id based at the given airport_code 
+     * @param airport_code
+     * @return
+     */
+    public CustomerId getRandomCustomerId(String airport_code) {
+        Long airport_id = this.getAirportId(airport_code);
+        if (airport_id != null) {
+            return (this.getRandomCustomerId(airport_id));
+        }
+        return (null);
     }
     
     /**
@@ -487,10 +489,10 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * Return a random date in the future (after the start of upcoming flights)
      * @return
      */
-    public Date getRandomUpcomingDate() {
-        Date upcoming_start_date = this.getFlightUpcomingDate();
+    public TimestampType getRandomUpcomingDate() {
+        TimestampType upcoming_start_date = this.flight_upcoming_date;
         int offset = m_rng.nextInt((int)this.getFlightFutureDays());
-        return (new Date(upcoming_start_date.getTime() + (offset * AirlineConstants.MILISECONDS_PER_DAY)));
+        return (new TimestampType(upcoming_start_date.getTime() + (offset * AirlineConstants.MICROSECONDS_PER_DAY)));
     }
     
     // ----------------------------------------------------------------
@@ -498,7 +500,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     // ----------------------------------------------------------------
     
     /**
-     * Return all the airport ids that we known about
+     * Return all the airport ids that we know about
      * @return
      */
     public Collection<Long> getAirportIds() {
@@ -520,8 +522,15 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     }
     
     public Collection<String> getAirportCodes() {
-        /// return (this.code_id_xref.get("AP_ID").keySet());
-        return (this.airport_codes);
+        return (this.getCodeXref("AP_ID").keySet());
+    }
+    
+    /**
+     * Return the number of airports that are part of this profile
+     * @return
+     */
+    public int getAirportCount() {
+        return (this.getAirlineCodes().size());
     }
     
     public Histogram<String> getAirportCustomerHistogram() {
@@ -534,12 +543,16 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         return (h);
     }
     
-    /**
-     * Return the number of airports that are part of this profile
-     * @return
-     */
-    public int getAirportCount() {
-        return (this.airport_codes.size());
+    public Collection<String> getAirportsWithFlights() {
+        return this.airport_histograms.keySet();
+    }
+    
+    public boolean hasFlights(String airport_code) {
+        Histogram<String> h = this.getFightsPerAirportHistogram(airport_code);
+        if (h != null) {
+            return (h.getSampleCount() > 0);
+        }
+        return (false);
     }
     
     // -----------------------------------------------------------------
@@ -550,14 +563,14 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * The date in which the flight data set begins
      * @return
      */
-    public Date getFlightStartDate() {
+    public TimestampType getFlightStartDate() {
         return this.flight_start_date;
     }
     /**
      * 
      * @param start_date
      */
-    public void setFlightStartDate(Date start_date) {
+    public void setFlightStartDate(TimestampType start_date) {
         this.flight_start_date = start_date;
     }
 
@@ -565,14 +578,14 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * The date in which the flight data set begins
      * @return
      */
-    public Date getFlightUpcomingDate() {
+    public TimestampType getFlightUpcomingDate() {
         return (this.flight_upcoming_date);
     }
     /**
      * 
      * @param start_date
      */
-    public void setFlightUpcomingDate(Date upcoming_date) {
+    public void setFlightUpcomingDate(TimestampType upcoming_date) {
         this.flight_upcoming_date = upcoming_date;
     }
     
@@ -711,98 +724,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     public Collection<String> getAirlineCodes() {
         Map<String, Long> m = this.getCodeXref("AL_ID");
         return (m.keySet());
-    }
-    
-    // ----------------------------------------------------------------
-    // DISTANCE METHODS
-    // ----------------------------------------------------------------
-    
-    public void setDistance(String airport0, String airport1, double distance) {
-        short short_distance = (short)Math.round(distance);
-        for (String a[] : new String[][] { {airport0, airport1}, { airport1, airport0 }}) {
-            if (!this.airport_distances.containsKey(a[0])) {
-                this.airport_distances.put(a[0], new HashMap<String, Short>());
-            }
-            this.airport_distances.get(a[0]).put(a[1], short_distance);
-        } // FOR
-    }
-    
-    public Integer getDistance(String airport0, String airport1) {
-        assert(this.airport_distances.containsKey(airport0)) : "No distance entries for '" + airport0 + "'";
-        assert(this.airport_distances.get(airport0).containsKey(airport1)) : "No distance entries from '" + airport0 + "' to '" + airport1 + "'";
-        return ((int)this.airport_distances.get(airport0).get(airport1));
-    }
-
-    /**
-     * For the current depart+arrive airport destinations, calculate the estimated
-     * flight time and then add the to the departure time in order to come up with the
-     * expected arrival time.
-     * @param depart_airport
-     * @param arrive_airport
-     * @param depart_time
-     * @return
-     */
-    public Date calculateArrivalTime(String depart_airport, String arrive_airport, Date depart_time) {
-        Integer distance = this.getDistance(depart_airport, arrive_airport);
-        assert(distance != null) : String.format("The calculated distance between '%s' and '%s' is null", depart_airport, arrive_airport);
-        long flight_time = Math.round(distance / AirlineConstants.FLIGHT_TRAVEL_RATE) *  3600000;
-        return (new Date((long)(depart_time.getTime() + flight_time)));
-    }
-    
-    // -----------------------------------------------------------------
-    // CUSTOMER IDS
-    // -----------------------------------------------------------------
-
-    private class CustomerIdIterable implements Iterable<CustomerId> {
-        private final ListOrderedSet<Long> airport_ids = new ListOrderedSet<Long>();
-        private Long last_airport_id = null;
-        private Long last_id = null;
-        private Long last_max_id = null;
-        
-        public CustomerIdIterable(long...airport_ids) {
-            for (long id : airport_ids) {
-                this.airport_ids.add(id);
-            } // FOR
-        }
-        
-        public CustomerIdIterable(Collection<Long> airport_ids) {
-            this.airport_ids.addAll(airport_ids);
-        }
-        
-        @Override
-        public Iterator<CustomerId> iterator() {
-            return new Iterator<CustomerId>() {
-                @Override
-                public boolean hasNext() {
-                    return (!CustomerIdIterable.this.airport_ids.isEmpty() || (last_id != null && last_id < last_max_id));
-                }
-                @Override
-                public CustomerId next() {
-                    if (last_airport_id == null) {
-                        last_airport_id = airport_ids.remove(0);
-                        last_id = 0l;
-                        last_max_id = AirlineBaseClient.this.airport_max_customer_id.get(last_airport_id);
-                    }
-                    CustomerId next_id = new CustomerId(last_id, last_airport_id);
-                    if (++last_id == last_max_id) last_airport_id = null;
-                    return next_id;
-                }
-                @Override
-                public void remove() {
-                    // Not implemented
-                }
-            };
-        }
-    } // END CLASS
-    
-    public Iterable<CustomerId> getCustomerIds() {
-        return (new CustomerIdIterable(this.airport_max_customer_id.keySet()));
-    }
-    public Iterable<CustomerId> getCustomerIds(Collection<Long> airport_ids) {
-        return (new CustomerIdIterable(airport_ids));
-    }
-    public Iterable<CustomerId> getCustomerIds(long...airport_ids) {
-        return (new CustomerIdIterable(airport_ids));
     }
     
     public synchronized long incrementAirportCustomerCount(long airport_id) {

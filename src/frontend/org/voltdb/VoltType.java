@@ -17,6 +17,7 @@
 
 package org.voltdb;
 import java.math.BigDecimal;
+import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,7 +91,7 @@ public enum VoltType {
      * The epoch is Jan. 1 1970 00:00:00 GMT. Negative values represent
      * time before the epoch. This covers roughly 4000BC to 8000AD.
      */
-    TIMESTAMP ((byte)11, 8, "timestamp", new Class[] {TimestampType.class}),
+    TIMESTAMP ((byte)11, 8, "timestamp", new Class[] {TimestampType.class, Date.class}),
 
     /**
      * UTF-8 string with up to 32K chars.

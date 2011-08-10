@@ -1,6 +1,5 @@
 package edu.brown.benchmark.airline;
 
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -11,18 +10,19 @@ import org.json.JSONObject;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Table;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.airline.util.CustomerId;
+import edu.brown.benchmark.airline.util.CustomerIdIterable;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.statistics.Histogram;
 
 public class TestAirlineLoader extends AirlineBaseTestCase {
 
-    static final double SCALE_FACTOR = 1000;
-    
     private MockAirlineLoader loader;
 
+    private final double scale_factor = 1000;
     private final int num_airports = 10;
     private final int num_customers[] = new int[this.num_airports];
     private final int max_num_customers = 4;
@@ -31,7 +31,7 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
 
     private final HashSet<FlightId> flight_ids = new HashSet<FlightId>();
     private final long num_flights = 10l;
-    private final Date flightStartDate = new Date(1262630005000l); // Monday 01.04.2010 13:33:25
+    private final TimestampType flightStartDate = new TimestampType(1262630005000l); // Monday 01.04.2010 13:33:25
     private final int flightPastDays = 7;
     private final int flightFutureDays = 14;
     
@@ -68,10 +68,11 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
         super.setUp();
         
         String loaderArgs[] = {
-            "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, 
+            "CLIENT.SCALEFACTOR=" + scale_factor, 
             "HOST=localhost",
             "NUMCLIENTS=1",
             "DATADIR=" + AIRLINE_DATA_DIR,
+            "NOCONNECTIONS=true",
         };
         loader = new MockAirlineLoader(loaderArgs);
         assertNotNull(loader);
@@ -99,7 +100,7 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
             for (long arrive_airport_id = 0; arrive_airport_id < num_airports; arrive_airport_id++) {
                 if (depart_airport_id == arrive_airport_id) continue;
                 int time_offset = rand.nextInt(86400000 * (int)flightFutureDays);
-                Date flight_date = new Date(flightStartDate.getTime() + time_offset);
+                TimestampType flight_date = new TimestampType(flightStartDate.getTime() + time_offset);
                 FlightId id = new FlightId(count++, depart_airport_id, arrive_airport_id, flightStartDate, flight_date);
                 loader.addFlightId(id);
                 flight_ids.add(id);
@@ -134,7 +135,7 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
         } // FOR
         
 //        int idx = 0;
-        for (CustomerId customer_id : loader.getCustomerIds()) {
+        for (CustomerId customer_id : new CustomerIdIterable(loader.airport_max_customer_id)) {
             long airport_id = customer_id.getDepartAirportId();
             airport_counts.get(airport_id).incrementAndGet();
 //            System.err.println("[" + (idx++) + "]: " + customer_id);
@@ -173,7 +174,7 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
             assertTrue(catalog_tbl.getName(), it.iterator().hasNext());
         } // FOR
     }
-    
+//    
 //    /**
 //     * testLoadAllTables
 //     */

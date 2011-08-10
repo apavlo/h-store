@@ -12,14 +12,14 @@ public abstract class AirlineConstants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_DELETE_RESERVATION            = 10;
-    public static final int FREQUENCY_CHANGE_SEAT                   = 10;
-    public static final int FREQUENCY_FIND_FLIGHT_BY_AIRPORT        = 10;
-    public static final int FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT = 10;
-    public static final int FREQUENCY_FIND_OPEN_SEATS               = 10;
-    public static final int FREQUENCY_NEW_RESERVATION               = 10;
-    public static final int FREQUENCY_UPDATE_FREQUENT_FLYER         = 10;
-    public static final int FREQUENCY_UPDATE_RESERVATION            = 10;
+    public static final int FREQUENCY_DELETE_RESERVATION            = 0;
+    public static final int FREQUENCY_CHANGE_SEAT                   = 0;
+    public static final int FREQUENCY_FIND_FLIGHT_BY_AIRPORT        = 0;
+    public static final int FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT = 0;
+    public static final int FREQUENCY_FIND_OPEN_SEATS               = 100;
+    public static final int FREQUENCY_NEW_RESERVATION               = 0;
+    public static final int FREQUENCY_UPDATE_FREQUENT_FLYER         = 0;
+    public static final int FREQUENCY_UPDATE_RESERVATION            = 0;
 
     // Initial Data Sizes
     public static final int NUM_CUSTOMERS = 1000000;
@@ -48,9 +48,14 @@ public abstract class AirlineConstants {
     public static final int MAX_RETURN_FLIGHT_DAYS = 14;
     
     /**
-     * Number of milliseconds in a day
+     * Number of microseconds in a day
      */
-    public static final long MILISECONDS_PER_DAY = 86400000;
+    public static final long MICROSECONDS_PER_MINUTE = 60000000l;
+    
+    /**
+     * Number of microseconds in a day
+     */
+    public static final long MICROSECONDS_PER_DAY = 86400000000l; // 60sec * 60min * 24hr * 1,000,000 
     
     /**
      * The rate in which a flight can travel between two airports (miles per hour)

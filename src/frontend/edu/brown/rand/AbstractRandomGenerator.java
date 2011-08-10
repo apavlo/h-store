@@ -37,6 +37,14 @@ public abstract class AbstractRandomGenerator extends Random {
      * 
      * @param seed
      */
+    public AbstractRandomGenerator() {
+        super();
+    }
+    
+    /**
+     * 
+     * @param seed
+     */
     public AbstractRandomGenerator(Integer seed) {
         super(seed);
     }

@@ -81,6 +81,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -89,10 +90,11 @@ import edu.mit.hstore.HStoreConf;
  */
 public abstract class BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BenchmarkComponent.class);
-    
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        // log4j hack!
         LoggerUtil.setupLogging();
+        LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
     public static String CONTROL_PREFIX = "{HSTORE} ";
@@ -213,6 +215,12 @@ public abstract class BenchmarkComponent {
     private final int m_numClients;
     
     /**
+     * If set to true, don't try to make any connections to the cluster with this client
+     * This is just used for testing
+     */
+    private final boolean m_noConnections;
+    
+    /**
      * Total # of Partitions
      */
     private final int m_numPartitions;
@@ -286,19 +294,21 @@ public abstract class BenchmarkComponent {
             }
 
             while (true) {
-                final boolean debug = LOG.isDebugEnabled(); 
-                
                 try {
                     command = Command.get(in.readLine());
-                    if (debug) LOG.info(String.format("Recieved Message: '%s'", command));
+                    if (debug.get()) LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
                 if (command == null) continue;
-                if (debug) LOG.debug("ControlPipe Command = " + command);
+                if (debug.get()) LOG.debug("ControlPipe Command = " + command);
 
+                final ControlWorker worker = new ControlWorker();
+                final Thread t = new Thread(worker);
+                t.setDaemon(true);
+                
                 switch (command) {
                     case START: {
                         if (m_controlState != ControlState.READY) {
@@ -306,8 +316,9 @@ public abstract class BenchmarkComponent {
                             answerWithError();
                             continue;
                         }
-                        answerStart();
+                        t.start();
                         m_controlState = ControlState.RUNNING;
+                        answerOk();
                         break;
                     }
                     case POLL: {
@@ -319,7 +330,7 @@ public abstract class BenchmarkComponent {
                         answerPoll();
                         
                         // Call tick on the client!
-                        // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
+                        // if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
                         BenchmarkComponent.this.tick();
                         break;
                     }
@@ -404,11 +415,6 @@ public abstract class BenchmarkComponent {
             printControlMessage(m_controlState, txncounts.toString()); 
         }
 
-        public void answerStart() {
-            final ControlWorker worker = new ControlWorker();
-            new Thread(worker).start();
-        }
-        
         public void answerOk() {
             printControlMessage(m_controlState, "OK");
         }
@@ -421,27 +427,21 @@ public abstract class BenchmarkComponent {
     private class ControlWorker extends Thread {
         @Override
         public void run() {
-            if (m_txnRate == -1) {
-                if (m_sampler != null) {
-                    m_sampler.start();
-                }
-                try {
+            try {
+                if (m_txnRate == -1) {
+                    if (m_sampler != null) {
+                        m_sampler.start();
+                    }
                     runLoop();
+                } else {
+                    if (debug.get()) LOG.debug(String.format("Running rate controlled [m_txnRate=%d, m_txnsPerMillisecond=%f]", m_txnRate, m_txnsPerMillisecond));
+                    rateControlledRunLoop();
                 }
-                catch (final IOException e) {
-
-                }
-            }
-            else {
-                LOG.debug("Running rate controlled m_txnRate == "
-                    + m_txnRate + " m_txnsPerMillisecond == "
-                    + m_txnsPerMillisecond);
-                System.err.flush();
-                rateControlledRunLoop();
-            }
-
-            if (m_exitOnCompletion) {
+            } catch (Throwable ex) {
+                ex.printStackTrace();
                 System.exit(0);
+            } finally {
+                if (m_exitOnCompletion) System.exit(0);
             }
         }
 
@@ -629,6 +629,7 @@ public abstract class BenchmarkComponent {
         m_projectName = null;
         m_id = 0;
         m_numClients = 1;
+        m_noConnections = false;
         m_numPartitions = 0;
         m_counts = null;
         m_countDisplayNames = null;
@@ -666,6 +667,7 @@ public abstract class BenchmarkComponent {
         boolean exitOnCompletion = true;
         float checkTransaction = 0;
         boolean checkTables = false;
+        boolean noConnections = false;
 //        String statsDatabaseURL = null;
 //        int statsPollInterval = 10000;
         File catalogPath = null;
@@ -730,6 +732,9 @@ public abstract class BenchmarkComponent {
             }
             else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
                 checkTables = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("NOCONNECTIONS")) {
+                noConnections = Boolean.parseBoolean(parts[1]);
 //            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
 //                statsDatabaseURL = parts[1];
 //            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
@@ -738,7 +743,7 @@ public abstract class BenchmarkComponent {
                 m_extraParams.put(parts[0], parts[1]);
             }
         }
-        if (LOG.isDebugEnabled()) LOG.debug("Extra Client Parameters:\n" + StringUtil.formatMaps(m_extraParams));
+        if (debug.get()) LOG.debug("Extra Client Parameters:\n" + StringUtil.formatMaps(m_extraParams));
         
         // Initialize HStoreConf
         if (HStoreConf.isInitialized() == false) {
@@ -767,12 +772,6 @@ public abstract class BenchmarkComponent {
 //                statsSettings = null;
 //            }
 //        }
-        Client new_client =
-            ClientFactory.createClient(
-                getExpectedOutgoingMessageSize(),
-                null,
-                useHeavyweightClient(),
-                statsSettings);
 
         m_catalogPath = catalogPath;
         m_projectName = projectName;
@@ -785,6 +784,7 @@ public abstract class BenchmarkComponent {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
+        m_noConnections = noConnections;
         
         if (m_catalogPath != null) {
             try {
@@ -796,8 +796,12 @@ public abstract class BenchmarkComponent {
             }
         }
 
+        Client new_client = ClientFactory.createClient(getExpectedOutgoingMessageSize(),
+                                                       null,
+                                                       useHeavyweightClient(),
+                                                       statsSettings);
         if (m_blocking) {
-            LOG.debug("Using BlockingClient!");
+            if (debug.get()) LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
             m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
         } else {
             m_voltClient = new_client;
@@ -808,31 +812,33 @@ public abstract class BenchmarkComponent {
             setState(state, reason);
 
         // scan the inputs again looking for host connections
-        boolean atLeastOneConnection = false;
-        for (final String arg : args) {
-            final String[] parts = arg.split("=", 2);
-            if (parts.length == 1) {
-                continue;
-            }
-            else if (parts[0].equals("HOST")) {
-                final Pair<String, Integer> hostnport = StringUtil.getHostPort(parts[1]);
-                m_host = hostnport.getFirst();
-                m_port = hostnport.getSecond();
-                try {
-                    LOG.debug("Creating connection to " + hostnport);
-                    createConnection(m_host, m_port);
-                    LOG.debug("Created connection.");
-                    atLeastOneConnection = true;
+        if (m_noConnections == false) {
+            boolean atLeastOneConnection = false;
+            for (final String arg : args) {
+                final String[] parts = arg.split("=", 2);
+                if (parts.length == 1) {
+                    continue;
                 }
-                catch (final Exception ex) {
-                    setState(ControlState.ERROR, "createConnection to " + arg
-                        + " failed: " + ex.getMessage());
+                else if (parts[0].equals("HOST")) {
+                    final Pair<String, Integer> hostnport = StringUtil.getHostPort(parts[1]);
+                    m_host = hostnport.getFirst();
+                    m_port = hostnport.getSecond();
+                    try {
+                        if (debug.get()) LOG.debug("Creating connection to " + hostnport);
+                        createConnection(m_host, m_port);
+                        if (debug.get()) LOG.debug("Created connection.");
+                        atLeastOneConnection = true;
+                    }
+                    catch (final Exception ex) {
+                        setState(ControlState.ERROR, "createConnection to " + arg
+                            + " failed: " + ex.getMessage());
+                    }
                 }
             }
-        }
-        if (!atLeastOneConnection) {
-            setState(ControlState.ERROR, "No HOSTS specified on command line.");
-            LOG.warn("NO HOSTS WERE PROVIDED!");
+            if (!atLeastOneConnection) {
+                setState(ControlState.ERROR, "No HOSTS specified on command line.");
+                LOG.warn("NO HOSTS WERE PROVIDED!");
+            }
         }
         m_checkTransaction = checkTransaction;
         m_checkTables = checkTables;
@@ -869,14 +875,17 @@ public abstract class BenchmarkComponent {
             if (startImmediately) {
                 final ControlWorker worker = clientMain.new ControlWorker();
                 worker.start();
+                
                 // Wait for the worker to finish
+                if (debug.get()) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
                 worker.join();
             }
             else {
+                if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
                 clientMain.start();
             }
         }
-        catch (final Exception e) {
+        catch (final Throwable e) {
             e.printStackTrace();
             System.exit(-1);
         }
@@ -885,7 +894,7 @@ public abstract class BenchmarkComponent {
 
     // update the client state and start waiting for a message.
     private void start() {
-        m_controlPipe.run();
+        m_controlPipe.run(); // blocking
     }
 
     /**
@@ -966,7 +975,7 @@ public abstract class BenchmarkComponent {
 
     private void createConnection(final String hostname, final int port)
         throws UnknownHostException, IOException {
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Requesting connection to %s:%d", hostname, port));
+        if (debug.get()) LOG.debug(String.format("Requesting connection to %s:%d", hostname, port));
         m_voltClient.createConnection(hostname, port, m_username, m_password);
     }
 

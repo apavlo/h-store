@@ -24,32 +24,48 @@
 package edu.brown.benchmark.airline;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
 
 import org.apache.log4j.Logger;
-import org.voltdb.client.Client;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
-import org.voltdb.compiler.VoltProjectBuilder;
-import org.voltdb.benchmark.*;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcedureCallback;
+import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.airline.procedures.*;
+import edu.brown.benchmark.airline.procedures.ChangeSeat;
+import edu.brown.benchmark.airline.procedures.DeleteReservation;
+import edu.brown.benchmark.airline.procedures.FindOpenSeats;
+import edu.brown.benchmark.airline.procedures.NewReservation;
+import edu.brown.benchmark.airline.procedures.UpdateFrequentFlyer;
+import edu.brown.benchmark.airline.procedures.UpdateReservation;
 import edu.brown.benchmark.airline.util.CustomerId;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AirlineClient extends AirlineBaseClient {
     private static final Logger LOG = Logger.getLogger(AirlineClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * Airline Benchmark Transactions
      */
     public static enum Transaction {
         CHANGE_SEAT                     (AirlineConstants.FREQUENCY_CHANGE_SEAT),
+        DELETE_RESERVATION              (AirlineConstants.FREQUENCY_DELETE_RESERVATION),
         FIND_FLIGHT_BY_AIRPORT          (AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT),
         FIND_FLIGHT_BY_NEARBY_AIRPORT   (AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT),
         FIND_OPEN_SEATS                 (AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
@@ -143,7 +159,7 @@ public class AirlineClient extends AirlineBaseClient {
             
             // Transaction Weights
             // Expected format: -Dxactweight=TRANSACTION_NAME:###
-            if (key.equals("xactweight")) {
+            if (key.equalsIgnoreCase("xactweight")) {
                 String parts[] = value.split(":");
                 Transaction t = Transaction.get(parts[0]);
                 assert(t == null) : "Invalid transaction name '" + parts[0] + "'";
@@ -163,8 +179,7 @@ public class AirlineClient extends AirlineBaseClient {
             error_msg = "The benchmark profile does not have a valid flight start date.";
         }
         if (error_msg != null) {
-            LOG.error(error_msg + " Unable to start client.");
-            System.exit(1);
+            throw new RuntimeException(error_msg + " Unable to start client.");
         }
         
         // Create xact lookup array
@@ -176,12 +191,11 @@ public class AirlineClient extends AirlineBaseClient {
         } // FOR
         assert(total == xacts.length) : "The total weight for the transactions is " + total + ". It needs to be " + xacts.length;
         
-        //
         // Load Histograms
-        //
         LOG.info("Loading data files for histograms");
         this.loadHistograms();
-        this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, this.getTotalAirportFlightsHistogram());
+        Histogram<String> h = this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);
+        this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, h);
     }
 
     @Override
@@ -201,7 +215,7 @@ public class AirlineClient extends AirlineBaseClient {
         // Execute Transactions
         try {
             while (true) {
-                executeTransaction();
+                runOnce();
                 client.backpressureBarrier();
             } // WHILE
         } catch (InterruptedException e) {
@@ -221,13 +235,8 @@ public class AirlineClient extends AirlineBaseClient {
         }
     }
 
-    
-    /**
-     * 
-     * @return
-     * @throws IOException
-     */
-    private void executeTransaction() throws IOException {
+    @Override
+    protected boolean runOnce() throws IOException {
         int idx = this.m_rng.number(0, this.xacts.length);
         assert(idx >= 0);
         assert(idx < this.xacts.length);
@@ -238,15 +247,20 @@ public class AirlineClient extends AirlineBaseClient {
                 if (!this.pending_seatchanges.isEmpty()) this.executeChangeSeat();
                 break;
             }
+            case DELETE_RESERVATION: {
+                this.executeDeleteReservation();
+                break;
+            }
             case FIND_FLIGHT_BY_AIRPORT: {
                 this.executeFindFlightByAirport();
                 break;
             }
             case FIND_FLIGHT_BY_NEARBY_AIRPORT: {
+                this.executeFindFlightByNearbyAirport();
                 break;
             }
             case FIND_OPEN_SEATS: {
-                this.runFindOpenSeats();
+                this.executeFindOpenSeats();
                 break;
             }
             case NEW_RESERVATION: {
@@ -264,14 +278,14 @@ public class AirlineClient extends AirlineBaseClient {
             default:
                 assert(false) : "Unexpected transaction: " + this.xacts[idx]; 
         } // SWITCH
-        return;
+        return (true);
     }
     
     // -----------------------------------------------------------------
     // ChangeSeat
     // -----------------------------------------------------------------
     
-    private class ChangeSeatCallback implements ProcedureCallback {
+    class ChangeSeatCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(Transaction.CHANGE_SEAT.ordinal());
@@ -289,6 +303,24 @@ public class AirlineClient extends AirlineBaseClient {
         Reservation r = this.pending_seatchanges.remove();
         this.getClientHandle().callProcedure(new ChangeSeatCallback(), ChangeSeat.class.getSimpleName(), 
                                    r.flight_id.encode(), r.customer_id.encode(), r.seatnum);
+    }
+    
+    // -----------------------------------------------------------------
+    // DeleteReservation
+    // -----------------------------------------------------------------
+    
+    class DeleteReservationCallback implements ProcedureCallback {
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.DELETE_RESERVATION.ordinal());
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                // TODO
+            }
+        }
+    }
+
+    private void executeDeleteReservation() throws IOException {
+        // TODO
     }
     
     // ----------------------------------------------------------------
@@ -406,6 +438,10 @@ public class AirlineClient extends AirlineBaseClient {
                 long seatnum = results[0].getLong(1);
                 long airport_depart_id = flight_id.getDepartAirportId();
                 CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
+                if (customer_id == null) {
+                    customer_id = AirlineClient.this.getRandomCustomerId();
+                }
+                assert(customer_id != null);
                 
                 Reservation r = new Reservation(flight_id, customer_id, seatnum);
                 if (i == 0) {
@@ -424,7 +460,7 @@ public class AirlineClient extends AirlineBaseClient {
      * Execute the FindOpenSeat procedure
      * @throws IOException
      */
-    private void runFindOpenSeats() throws IOException {
+    private void executeFindOpenSeats() throws IOException {
         FlightId flight_id = this.getRandomFlightId();
         assert(flight_id != null);
         this.getClientHandle().callProcedure(new FindOpenSeatsCallback(), FindOpenSeats.class.getSimpleName(), flight_id.encode());
@@ -438,7 +474,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
+            incrementTransactionCounter(Transaction.FIND_FLIGHT_BY_AIRPORT.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() < 150);
@@ -451,24 +487,38 @@ public class AirlineClient extends AirlineBaseClient {
     }
 
     private void executeFindFlightByAirport() throws IOException {
-        //
         // Select two random airport ids
         // Does it matter whether the one airport actually flies to the other one?
-        //
         long depart_airport_id = this.getRandomAirportId();
         long arrive_airport_id;
         do {
             arrive_airport_id = this.getRandomAirportId();
         } while (arrive_airport_id == depart_airport_id);
         
-        //
         // Select a random date from our upcoming dates
-        //
-        Date start_date = this.getRandomUpcomingDate();
-        Date stop_date = new Date(start_date.getTime() + AirlineConstants.MILISECONDS_PER_DAY);
+        TimestampType start_date = this.getRandomUpcomingDate();
+        TimestampType stop_date = new TimestampType(start_date.getTime() + AirlineConstants.MICROSECONDS_PER_DAY);
         
         this.getClientHandle().callProcedure(new FindFlightByAirportCallback(),
                                    FindFlightByAirportCallback.class.getSimpleName(),
                                    depart_airport_id, arrive_airport_id, start_date, stop_date);
+    }
+    
+    // ----------------------------------------------------------------
+    // FindFlightByNearbyAirport
+    // ----------------------------------------------------------------
+    
+    class FindFlightByNearbyAirportCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.FIND_FLIGHT_BY_NEARBY_AIRPORT.ordinal());
+            // TODO
+        }
+
+    }
+
+    private void executeFindFlightByNearbyAirport() throws IOException {
+        // TODO 
     }
 }

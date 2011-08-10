@@ -56,7 +56,6 @@ public class ProcessSetManager implements Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    
     final int initial_polling_delay; 
     final File output_directory;
     final EventObservable failure_observable = new EventObservable();
@@ -69,6 +68,7 @@ public class ProcessSetManager implements Shutdownable {
 
     static class ProcessData {
         Process process;
+        ProcessPoller poller;
         int pid;
         StreamWatcher out;
         StreamWatcher err;
@@ -110,6 +110,33 @@ public class ProcessSetManager implements Shutdownable {
         Runtime.getRuntime().addShutdownHook(new ShutdownThread());
     }
 
+    class ProcessPoller extends Thread {
+        final Process p;
+        boolean is_alive = true;
+        
+        public ProcessPoller(Process p) {
+            this.p = p;
+            this.setDaemon(true);
+            this.setPriority(MIN_PRIORITY);
+        }
+        
+        @Override
+        public void run() {
+            try {
+                this.is_alive = true;
+                this.p.waitFor();
+            } catch (InterruptedException ex) {
+                // IGNORE
+            } finally {
+                this.is_alive = false;
+            }
+        }
+        
+        public boolean isProcessAlive() {
+            return (this.is_alive);
+        }
+    }
+    
     class ProcessSetPoller extends Thread {
         {
             this.setDaemon(true);
@@ -129,9 +156,10 @@ public class ProcessSetManager implements Shutdownable {
                 }
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
                     ProcessData pd = e.getValue();
-                    if (pd.err != null && pd.err.isAlive()) {
-                        LOG.debug("Polling " + e.getKey());
-                        writeToProcess(e.getKey(), " ");
+                    if (pd.poller.isProcessAlive() == false) {
+                        String msg = String.format("Failed to poll '%s'", e.getKey());
+                        LOG.error(msg);
+                        failure_observable.notifyObservers(e.getKey());
                     }
                 } // FOR
                 first = false;
@@ -268,6 +296,10 @@ public class ProcessSetManager implements Shutdownable {
                 assert(m_processes.containsKey(processName) == false) : processName + "\n" + m_processes;
                 m_processes.put(processName, pd);
                 
+                // Start the individual watching thread for this process
+                pd.poller = new ProcessPoller(pd.process);
+                pd.poller.start();
+                
                 if (this.poller.isAlive() == false) this.poller.start();
             } // SYNCH
         } catch (IOException e) {
@@ -383,6 +415,7 @@ public class ProcessSetManager implements Shutdownable {
 
         synchronized(createdProcesses) {
             createdProcesses.remove(pd.process);
+            pd.poller.interrupt();
         }
 
         return retval;
