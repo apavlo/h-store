@@ -9,6 +9,36 @@ import edu.brown.benchmark.airline.AirlineConstants;
 )
 public class NewReservation extends VoltProcedure {
     
+    public final SQLStmt SelectFlight = new SQLStmt(
+            "SELECT F_AL_ID, F_SEATS_LEFT " +
+            "  FROM " + AirlineConstants.TABLENAME_FLIGHT + 
+            " WHERE F_ID = ?");
+    
+    public final SQLStmt UpdateFlight = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_FLIGHT +
+            "   SET F_SEATS_LEFT = F_SEATS_LEFT - 1 " + 
+            " WHERE F_ID = ? ");
+    
+    public final SQLStmt UpdateCustomer = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
+            "   SET C_IATTR10 = C_IATTR10 + 1, " + 
+            "       C_IATTR11 = C_IATTR11 + 1, " +
+            "       C_IATTR12 = ?, " +
+            "       C_IATTR13 = ?, " +
+            "       C_IATTR14 = ?, " +
+            "       C_IATTR15 = ? " +
+            " WHERE C_ID = ? ");
+    
+    public final SQLStmt UpdateFrequentFlyer = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
+            "   SET FF_IATTR10 = FF_IATTR10 + 1, " + 
+            "       FF_IATTR11 = ?, " +
+            "       FF_IATTR12 = ?, " +
+            "       FF_IATTR13 = ?, " +
+            "       FF_IATTR14 = ? " +
+            " WHERE FF_C_ID = ? " +
+            "   AND FF_AL_ID = ?");
+    
     public final SQLStmt InsertReservation = new SQLStmt(
             "INSERT INTO " + AirlineConstants.TABLENAME_RESERVATION + " (" +
             "   R_ID, " +
@@ -40,33 +70,6 @@ public class NewReservation extends VoltProcedure {
             "   ? " +   // R_ATTR08
             ")");
     
-    public final SQLStmt SelectFlight = new SQLStmt(
-            "SELECT F_AL_ID, F_SEATS_LEFT " +
-            "  FROM " + AirlineConstants.TABLENAME_FLIGHT + 
-            " WHERE F_ID = ?");
-    
-    public final SQLStmt UpdateFlight = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_FLIGHT +
-            "   SET F_SEATS_LEFT = F_SEATS_LEFT - 1 " + 
-            " WHERE F_ID = ? ");
-    
-    public final SQLStmt UpdateCustomer = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
-            "   SET C_IATTR10 = ?, " + 
-            "       C_IATTR11 = ?, " +
-            "       C_IATTR12 = ?, " +
-            "       C_IATTR13 = ? " +
-            " WHERE C_ID = ? ");
-    
-    public final SQLStmt UpdateFrequentFlyer = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
-            "   SET FF_IATTR10 = ?, " + 
-            "       FF_IATTR11 = ?, " +
-            "       FF_IATTR12 = ?, " +
-            "       FF_IATTR13 = ? " +
-            " WHERE FF_C_ID = ? " +
-            "   AND FF_AL_ID = ?");
-    
     public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, long attrs[]) throws VoltAbortException {
         voltQueueSQL(SelectFlight, f_id);
         final VoltTable[] flight_results = voltExecuteSQL();
@@ -90,7 +93,6 @@ public class NewReservation extends VoltProcedure {
         voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
         
         final VoltTable[] results = voltExecuteSQL();
-        assert (results.length == 1);
         return (results);
     }
 }

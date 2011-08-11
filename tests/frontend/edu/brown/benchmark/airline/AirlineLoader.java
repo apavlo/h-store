@@ -2,10 +2,17 @@ package edu.brown.benchmark.airline;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,6 +63,107 @@ public class AirlineLoader extends AirlineBaseClient {
      */
     private final Map<String, Map<String, Short>> airport_distances = new HashMap<String, Map<String, Short>>();
 
+    /**
+     * Store a list of FlightIds and the number of seats
+     * remaining for a particular flight.
+     */
+    private final ListOrderedMap<FlightId, Short> seats_remaining = new ListOrderedMap<FlightId, Short>();
+
+    // -----------------------------------------------------------------
+    // FLIGHT IDS
+    // -----------------------------------------------------------------
+    
+    public Iterable<FlightId> getFlightIds() {
+        return (new Iterable<FlightId>() {
+            @Override
+            public Iterator<FlightId> iterator() {
+                return (new Iterator<FlightId>() {
+                    private int idx = 0;
+                    private final int cnt = seats_remaining.size();
+                    
+                    @Override
+                    public boolean hasNext() {
+                        return (idx < this.cnt);
+                    }
+                    @Override
+                    public FlightId next() {
+                        return (seats_remaining.get(this.idx++));
+                    }
+                    @Override
+                    public void remove() {
+                        // Not implemented
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * 
+     * @param flight_id
+     */
+    @Override
+    public boolean addFlightId(FlightId flight_id) {
+        assert(flight_id != null);
+        assert(this.flight_start_date != null);
+        assert(this.flight_upcoming_date != null);
+        super.addFlightId(flight_id);
+        this.seats_remaining.put(flight_id, (short)AirlineConstants.NUM_SEATS_PER_FLIGHT);
+        
+        // XXX
+        if (this.flight_upcoming_offset == null &&
+            this.flight_upcoming_date.compareTo(flight_id.getDepartDate(this.flight_start_date)) < 0) {
+            this.flight_upcoming_offset = (long)(this.seats_remaining.size() - 1);
+        }
+        return (true);
+    }
+    
+    /**
+     * Return the number of unique flight ids
+     * @return
+     */
+    public long getFlightIdCount() {
+        return (this.seats_remaining.size());
+    }
+    
+    /**
+     * Return the index offset of when future flights 
+     * @return
+     */
+    public long getFlightIdStartingOffset() {
+        return (this.flight_upcoming_offset);
+    }
+    
+    /**
+     * Return flight 
+     * @param index
+     * @return
+     */
+    public FlightId getFlightId(int index) {
+        assert(index >= 0);
+        assert(index <= this.getFlightIdCount());
+        return (this.seats_remaining.get(index));
+    }
+
+    /**
+     * Return the number of seats remaining for a flight
+     * @param flight_id
+     * @return
+     */
+    public int getFlightRemainingSeats(FlightId flight_id) {
+        return ((int)this.seats_remaining.get(flight_id));
+    }
+    
+    /**
+     * Decrement the number of available seats for a flight and return
+     * the total amount remaining
+     */
+    public int decrementFlightSeat(FlightId flight_id) {
+        Short seats = this.seats_remaining.get(flight_id);
+        assert(seats != null) : "Missing seat count for " + flight_id;
+        assert(seats >= 0) : "Invalid seat count for " + flight_id;
+        return ((int)this.seats_remaining.put(flight_id, (short)(seats - 1)));
+    }
     
     // ----------------------------------------------------------------
     // DISTANCE METHODS
@@ -150,6 +258,18 @@ public class AirlineLoader extends AirlineBaseClient {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
                 assert(catalog_tbl != null);
                 Iterable<Object[]> iterable = this.getFixedIterable(catalog_tbl);
+                
+//                // XXX
+//                if (table_name.equalsIgnoreCase("AIRPORT")) {
+//                    for (Object[] row : iterable) {
+//                        String code = (String)row[1];
+//                        if (hasFlights(code)) {
+//                            System.err.println(StringUtil.join("|", row));
+//                        }
+//                    }
+//                    System.exit(1);
+//                }
+                
                 this.loadTable(catalog_tbl, iterable, 5000);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to load data files for fixed-sized table '" + table_name + "'", ex);
@@ -240,6 +360,23 @@ public class AirlineLoader extends AirlineBaseClient {
                 assert(tuple[0] != null) : "The primary key for " + catalog_tbl.getName() + " is null";
                 if (trace.get()) LOG.trace(this.dumpTuple(catalog_tbl, tuple, row_idx));
                 
+                // AIRPORT 
+                if (is_airport) {
+                    // Skip any airport that does not have flights
+                    if (hasFlights((String)tuple[columns.get("AP_CODE").getIndex()]) == false) continue;
+                    
+                    // Update the row # so that it matches what we're actually loading
+                    int col_id_idx = columns.get("AP_ID").getIndex();
+                    tuple[col_id_idx] = (long)(row_idx + 1);
+                    
+                    // Store Locations
+                    int col_code_idx = columns.get("AP_CODE").getIndex();
+                    int col_lat_idx = columns.get("AP_LATITUDE").getIndex();
+                    int col_lon_idx = columns.get("AP_LONGITUDE").getIndex();
+                    Pair<Double, Double> coords = Pair.of((Double)tuple[col_lat_idx], (Double)tuple[col_lon_idx]);
+                    this.airport_locations.put(tuple[col_code_idx].toString(), coords);
+                }
+                
                 // Code Column -> Id Column
                 for (int col_code_idx : code_2_id.keySet()) {
                     assert(tuple[col_code_idx] != null) : "The code column at '" + col_code_idx + "' is null for " + catalog_tbl + "\n" + Arrays.toString(tuple);
@@ -269,15 +406,6 @@ public class AirlineLoader extends AirlineBaseClient {
                     }
                 } // FOR
                 
-                // Airport: Store Locations
-                if (is_airport) {
-                    int col_code_idx = columns.get("AP_CODE").getIndex();
-                    int col_lat_idx = columns.get("AP_LATITUDE").getIndex();
-                    int col_lon_idx = columns.get("AP_LONGITUDE").getIndex();
-                    Pair<Double, Double> coords = Pair.of((Double)tuple[col_lat_idx], (Double)tuple[col_lon_idx]);
-                    this.airport_locations.put(tuple[col_code_idx].toString(), coords);
-                }
-
                 vt.addRow(tuple);
                 if (row_idx > 0 && (row_idx+1) % batch_size == 0) {
                     // if (trace.get()) LOG.trace("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
@@ -293,6 +421,7 @@ public class AirlineLoader extends AirlineBaseClient {
         if (vt.getRowCount() > 0) {
             this.loadVoltTable(catalog_tbl.getName(), vt);
         }
+        if (is_airport) assert(this.getAirportCount() == row_idx) : String.format("%d != %d", this.getAirportCount(), row_idx);
         
         // Record the number of tuples that we loaded for this table in the profile 
         this.setRecordCount(catalog_tbl.getName(), row_idx + 1);
@@ -373,7 +502,7 @@ public class AirlineLoader extends AirlineBaseClient {
                 int col_idx = catalog_col.getIndex();
                 if (col_name.contains("_SATTR")) {
                     this.rnd_string.add(col_idx);
-                    this.rnd_string_min.put(col_idx, m_rng.nextInt(catalog_col.getSize()-1));
+                    this.rnd_string_min.put(col_idx, rng.nextInt(catalog_col.getSize()-1));
                     this.rnd_string_max.put(col_idx, catalog_col.getSize());
                 } else if (col_name.contains("_IATTR")) {
                     this.rnd_integer.add(catalog_col.getIndex());
@@ -394,11 +523,11 @@ public class AirlineLoader extends AirlineBaseClient {
                     for (int col_idx : rnd_string) {
                         int min_length = rnd_string_min.get(col_idx);
                         int max_length = rnd_string_max.get(col_idx);
-                        tuple[col_idx] = m_rng.astring(min_length, max_length);
+                        tuple[col_idx] = rng.astring(min_length, max_length);
                     } // FOR
                     // Random Integer (*_IATTR##)
                     for (int col_idx : rnd_integer) {
-                        tuple[col_idx] = m_rng.nextLong();
+                        tuple[col_idx] = rng.nextLong();
                     } // FOR
 
                     return (tuple);
@@ -431,7 +560,7 @@ public class AirlineLoader extends AirlineBaseClient {
             it = new FrequentFlyerIterable(catalog_tbl, total, per_customer);
         // Airport Distance
         } else if (name.equals(AirlineConstants.TABLENAME_AIRPORT_DISTANCE)) {
-            int max_distance = AirlineConstants.DISTANCES[AirlineConstants.DISTANCES.length - 1];
+            int max_distance = Integer.MAX_VALUE; // AirlineConstants.DISTANCES[AirlineConstants.DISTANCES.length - 1];
             it = new AirportDistanceIterable(catalog_tbl, max_distance);
         // Flights
         } else if (name.equals(AirlineConstants.TABLENAME_FLIGHT)) {
@@ -544,11 +673,11 @@ public class AirlineLoader extends AirlineBaseClient {
                         // Strings
                         } else if (types[i] == VoltType.STRING) {
                             int size = catalog_col.getSize();
-                            data[i] = m_rng.astring(m_rng.nextInt(size - 1), size);
+                            data[i] = rng.astring(rng.nextInt(size - 1), size);
                         
                         // Ints/Longs
                         } else {
-                            data[i] = m_rng.number(0, 1<<30);
+                            data[i] = rng.number(0, 1<<30);
                         }
                     } // FOR
                     last_id++;
@@ -570,13 +699,14 @@ public class AirlineLoader extends AirlineBaseClient {
     protected class CustomerIterable extends ScalingDataIterable {
         private final RandomDistribution.FlatHistogram<String> rand;
         private String airport_code = null;
+        private CustomerId last_id = null;
         
         public CustomerIterable(Table catalog_tbl, long total) {
-            super(catalog_tbl, total, new int[]{ 0, 1 });
+            super(catalog_tbl, total, new int[]{ 0, 1, 2 });
             
             // Use the flights per airport histogram to select where people are located
             Histogram<String> histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);  
-            this.rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
+            this.rand = new RandomDistribution.FlatHistogram<String>(rng, histogram);
             if (debug.get()) this.rand.enableHistory();
         }
         
@@ -594,12 +724,20 @@ public class AirlineLoader extends AirlineBaseClient {
                         airport_id = AirlineLoader.this.getAirportId(this.airport_code);
                     } // WHILE
                     long next_customer_id = AirlineLoader.this.incrementAirportCustomerCount(airport_id);
-                    value = new CustomerId(next_customer_id, airport_id).encode();
+                    this.last_id = new CustomerId(next_customer_id, airport_id); 
+                    value = this.last_id.encode();
                     if (trace.get()) LOG.trace(value + " => " + this.airport_code + " [" + getCustomerIdCount(airport_id) + "]");
                     break;
                 }
-                // LOCAL AIRPORT
+                // CUSTOMER ID STR
                 case (1): {
+                    assert(this.last_id != null);
+                    value = Long.toString(this.last_id.encode());
+                    this.last_id = null;
+                    break;
+                }
+                // LOCAL AIRPORT
+                case (2): {
                     assert(this.airport_code != null);
                     value = this.airport_code;
                     break;
@@ -644,14 +782,14 @@ public class AirlineLoader extends AirlineBaseClient {
             Histogram<String> histogram = new Histogram<String>();
             histogram.putAll(this.all_airlines);
             // Embed a Gaussian distribution
-            RandomDistribution.Gaussian gauss_rng = new RandomDistribution.Gaussian(m_rng, 0, this.all_airlines.size());
+            RandomDistribution.Gaussian gauss_rng = new RandomDistribution.Gaussian(rng, 0, this.all_airlines.size());
             this.airline_rand = new RandomDistribution.FlatHistogram<String>(gauss_rng, histogram);
             if (trace.get()) this.airline_rand.enableHistory();
             
             // Loop through for the total customers and figure out how many entries we 
             // should have for each one. This will be our new total;
             this.ff_per_customer = new short[(int)total];
-            RandomDistribution.Zipf ff_zipf = new RandomDistribution.Zipf(m_rng, 0, this.all_airlines.size(), 1.1);
+            RandomDistribution.Zipf ff_zipf = new RandomDistribution.Zipf(rng, 0, this.all_airlines.size(), 1.1);
             long new_total = 0; 
             total = AirlineLoader.this.getCustomerIdCount();
             for (int i = 0; i < total; i++) {
@@ -808,7 +946,7 @@ public class AirlineLoader extends AirlineBaseClient {
         
         private final Pattern time_pattern = Pattern.compile("([\\d]{2,2}):([\\d]{2,2})");
         private final ListOrderedMap<TimestampType, Integer> flights_per_day = new ListOrderedMap<TimestampType, Integer>();
-        private final Map<Long, AtomicInteger> airport_flight_ids = new HashMap<Long, AtomicInteger>();
+//        private final Map<Long, AtomicInteger> airport_flight_ids = new HashMap<Long, AtomicInteger>();
         
         private int day_idx = 0;
         private TimestampType today;
@@ -817,7 +955,8 @@ public class AirlineLoader extends AirlineBaseClient {
         private FlightId flight_id;
         private String depart_airport;
         private String arrive_airport;
-        private String airline;
+        private String airline_code;
+        private Long airline_id;
         private TimestampType depart_time;
         private TimestampType arrive_time;
         private int status;
@@ -832,24 +971,21 @@ public class AirlineLoader extends AirlineBaseClient {
             Histogram<String> histogram = new Histogram<String>();
             histogram.putAll(all_airlines);
             // Embed a Gaussian distribution
-            RandomDistribution.Gaussian gauss_rng = new RandomDistribution.Gaussian(m_rng, 0, all_airlines.size());
+            RandomDistribution.Gaussian gauss_rng = new RandomDistribution.Gaussian(rng, 0, all_airlines.size());
             this.airlines = new RandomDistribution.FlatHistogram<String>(gauss_rng, histogram);
             
             // Flights Per Airport
             histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);  
-            this.airports = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
+            this.airports = new RandomDistribution.FlatHistogram<String>(rng, histogram);
             for (String airport_code : histogram.values()) {
                 histogram = AirlineLoader.this.getFightsPerAirportHistogram(airport_code);
                 assert(histogram != null) : "Unexpected departure airport code '" + airport_code + "'";
-                this.flights_per_airport.put(airport_code, new RandomDistribution.FlatHistogram<String>(m_rng, histogram));
-            } // FOR
-            for (long airport_id : AirlineLoader.this.getAirportIds()) {
-                this.airport_flight_ids.put(airport_id, new AtomicInteger(0));
+                this.flights_per_airport.put(airport_code, new RandomDistribution.FlatHistogram<String>(rng, histogram));
             } // FOR
             
             // Flights Per Departure Time
             histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES);  
-            this.flight_times = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
+            this.flight_times = new RandomDistribution.FlatHistogram<String>(rng, histogram);
             
             // Figure out how many flights that we want for each day
             Calendar cal = Calendar.getInstance();
@@ -865,7 +1001,7 @@ public class AirlineLoader extends AirlineBaseClient {
             int num_flights_low = (int)Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY * 0.75);
             int num_flights_high = (int)Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY * 1.25);
             
-            RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(m_rng, num_flights_low, num_flights_high);
+            RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(rng, num_flights_low, num_flights_high);
             boolean first = true;
             for (long _date = this.today.getTime() - (days_past * AirlineConstants.MICROSECONDS_PER_DAY);
                  _date < this.today.getTime(); _date += AirlineConstants.MICROSECONDS_PER_DAY) {
@@ -925,7 +1061,8 @@ public class AirlineLoader extends AirlineBaseClient {
             this.arrive_time = AirlineLoader.this.calculateArrivalTime(this.depart_airport, this.arrive_airport, this.depart_time);
 
             // Airline
-            this.airline = this.airlines.nextValue().toString();
+            this.airline_code = this.airlines.nextValue();
+            this.airline_id = getAirlineId(this.airline_code);
             
             // Status
             this.status = 0; // TODO
@@ -938,7 +1075,7 @@ public class AirlineLoader extends AirlineBaseClient {
          * Give each seat a 70%-90% probability of being occupied
          */
         boolean seatIsOccupied() {
-            return (m_rng.number(1,100) < m_rng.number(70,90));
+            return (rng.number(1,100) < rng.number(AirlineConstants.PROB_SEAT_OCCUPIED_MIN, AirlineConstants.PROB_SEAT_OCCUPIED_MAX));
         }
         
         @Override
@@ -960,15 +1097,14 @@ public class AirlineLoader extends AirlineBaseClient {
                     // Generate a composite FlightId
                     long depart_airport_id = AirlineLoader.this.getAirportId(this.depart_airport);
                     long arrive_airport_id = AirlineLoader.this.getAirportId(this.arrive_airport);
-                    long base_id = this.airport_flight_ids.get(depart_airport_id).getAndIncrement(); 
-                    this.flight_id = new FlightId(base_id, depart_airport_id, arrive_airport_id, this.start_date, this.depart_time);
+                    this.flight_id = new FlightId(this.airline_id, depart_airport_id, arrive_airport_id, this.start_date, this.depart_time);
                     AirlineLoader.this.addFlightId(this.flight_id);
                     value = this.flight_id.encode();
                     break;
                 }
                 // AIRLINE ID
                 case (1): {
-                    value = this.airline;
+                    value = this.airline_code;
                     break;
                 }
                 // DEPART AIRPORT
@@ -1036,7 +1172,7 @@ public class AirlineLoader extends AirlineBaseClient {
          * We use a Gaussian distribution for determining how long a customer will stay at their
          * destination before needing to return to their original airport
          */
-        private final RandomDistribution.Gaussian rand_returns = new RandomDistribution.Gaussian(m_rng, 1, AirlineConstants.MAX_RETURN_FLIGHT_DAYS);
+        private final RandomDistribution.Gaussian rand_returns = new RandomDistribution.Gaussian(rng, 1, AirlineConstants.MAX_RETURN_FLIGHT_DAYS);
         
         private final LinkedBlockingDeque<Object[]> queue = new LinkedBlockingDeque<Object[]>(100);
         private Object current[] = null;
@@ -1108,13 +1244,13 @@ public class AirlineLoader extends AirlineBaseClient {
                     CustomerId customer_id = null;
                     Long airport_customer_cnt = AirlineLoader.this.getCustomerIdCount(depart_airport_id);
                     boolean local_customer = airport_customer_cnt != null && (flight_customer_ids.size() < airport_customer_cnt.intValue());
-                    int tries = 1000;
+                    int tries = 2000;
                     ReturnFlight return_flight = null;
                     while (tries > 0) {
                         return_flight = null;
                         
                         // Always book returning customers first
-                        if (!returning_customers.isEmpty()) {
+                        if (returning_customers.isEmpty() == false) {
                             return_flight = CollectionUtil.pop(returning_customers); 
                             customer_id = return_flight.getCustomerId();
                         }
@@ -1139,7 +1275,7 @@ public class AirlineLoader extends AirlineBaseClient {
                     
                     // If it's a new outbound flight, then we will randomly decide when this customer will return (if at all)
                     } else {
-                        int rand = m_rng.nextInt(100);
+                        int rand = rng.nextInt(100);
                         if (rand <= AirlineConstants.PROB_SINGLE_FLIGHT_RESERVATION) {
                             // Do nothing for now...
                             

@@ -37,7 +37,7 @@ public class TestFlightId extends TestCase {
                     for (TimestampType flight_date : this.flight_dates) {
                         FlightId flight_id = new FlightId(base_id, depart_airport_id, arrive_airport_id, this.start_date, flight_date);
                         assertNotNull(flight_id);
-                        assertEquals(base_id, flight_id.getId());
+                        assertEquals(base_id, flight_id.getAirlineId());
                         assertEquals(depart_airport_id, flight_id.getDepartAirportId());
                         assertEquals(arrive_airport_id, flight_id.getArriveAirportId());
                         assertEquals(flight_date, flight_id.getDepartDate(this.start_date));
@@ -61,7 +61,7 @@ public class TestFlightId extends TestCase {
                 
                         FlightId flight_id = new FlightId(encoded);
                         assertNotNull(flight_id);
-                        assertEquals(base_id, flight_id.getId());
+                        assertEquals(base_id, flight_id.getAirlineId());
                         assertEquals(depart_airport_id, flight_id.getDepartAirportId());
                         assertEquals(arrive_airport_id, flight_id.getArriveAirportId());
                         assertEquals(flight_date, flight_id.getDepartDate(this.start_date));

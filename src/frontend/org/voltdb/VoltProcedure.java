@@ -567,7 +567,7 @@ public abstract class VoltProcedure implements Poolable {
             } catch (Exception e) {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
-                LOG.fatal(msg, e);
+                LOG.error(msg, e);
                 status = ClientResponseImpl.GRACEFUL_FAILURE;
                 status_msg = msg;
                 return new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.client_handle);

@@ -1,29 +1,9 @@
-/* This file is part of VoltDB. 
- * Copyright (C) 2009 Vertica Systems Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- * 
- * The above copyright notice and this permission notice shall be 
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR 
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.                       
- */
-
 package edu.brown.benchmark.airline.procedures;
 
-import org.voltdb.*;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 
@@ -32,6 +12,20 @@ import edu.brown.benchmark.airline.AirlineConstants;
 )
 public class UpdateFrequentFlyer extends VoltProcedure {
     
+    public static final String BaseGetFF =
+        "SELECT * " +
+        "  FROM " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
+        " WHERE FF_AL_ID = ? AND ";
+
+    
+    public final SQLStmt GetFFCustomerId = new SQLStmt(
+        BaseGetFF + "FF_C_ID = ? "
+    );
+    
+    public final SQLStmt GetFFCustomerStr = new SQLStmt(
+        BaseGetFF + "FF_C_ID_STR = ? "
+    );
+            
     public final SQLStmt UpdateFF = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
             "   SET FF_IATTR00 = ?, " +
@@ -39,9 +33,21 @@ public class UpdateFrequentFlyer extends VoltProcedure {
             " WHERE FF_C_ID = ? " + 
             "   AND FF_AL_ID = ? ");
     
-    public VoltTable[] run(long c_id, long al_id, long attr0, long attr1) {
+    public VoltTable[] run(long c_id, String c_id_str, long al_id, long attr0, long attr1) {
+        if (c_id_str.isEmpty() == false) {
+            voltQueueSQL(GetFFCustomerStr, al_id, c_id_str);
+        } else {
+            voltQueueSQL(GetFFCustomerId, al_id, c_id);
+        }
+        VoltTable[] results = voltExecuteSQL();
+        assert (results.length == 1);
+        if (results[0].getRowCount() == 0) {
+            throw new VoltAbortException(String.format("No FrequentFlier information record found [c_id=%s, c_id_str=%s, al_id]",
+                                                       c_id, c_id_str, al_id));
+        }
+        
         voltQueueSQL(UpdateFF, attr0, attr1, c_id, al_id);
-        final VoltTable[] results = voltExecuteSQL();
+        results = voltExecuteSQL();
         assert (results.length == 1);
         return (results);
     }
