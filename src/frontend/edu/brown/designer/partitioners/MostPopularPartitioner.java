@@ -189,7 +189,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
         assert(total_memory_ratio <= 100) : "Too much memory per partition: " + total_memory_ratio;
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             if (pplan.getTableEntry(catalog_tbl) == null) {
-                Column catalog_col = CollectionUtil.getRandomValue(catalog_tbl.getColumns());
+                Column catalog_col = CollectionUtil.random(catalog_tbl.getColumns());
                 assert(catalog_col != null) : "Failed to randomly pick column for " + catalog_tbl;
                 pplan.table_entries.put(catalog_tbl, new TableEntry(PartitionMethodType.HASH, catalog_col, null, null));
                 if (debug.get()) LOG.debug("RANDOM SELECTION: " + CatalogUtil.getDisplayName(catalog_col));

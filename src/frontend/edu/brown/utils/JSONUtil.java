@@ -36,9 +36,10 @@ public abstract class JSONUtil {
      * @param clazz
      * @return
      */
-    public static Field[] getSerializableFields(Class<?> clazz) {
+    public static Field[] getSerializableFields(Class<?> clazz, String...fieldsToExclude) {
         Field ret[] = SERIALIZABLE_FIELDS.get(clazz);
         if (ret == null) {
+            Collection<String> exclude = CollectionUtil.addAll(new HashSet<String>(), fieldsToExclude);
             synchronized (SERIALIZABLE_FIELDS) {
                 ret = SERIALIZABLE_FIELDS.get(clazz);
                 if (ret == null) {
@@ -47,7 +48,8 @@ public abstract class JSONUtil {
                         int modifiers = f.getModifiers();
                         if (Modifier.isTransient(modifiers) == false &&
                             Modifier.isPublic(modifiers) == true &&
-                            Modifier.isStatic(modifiers) == false) {
+                            Modifier.isStatic(modifiers) == false &&
+                            exclude.contains(f.getName()) == false) {
                             fields.add(f);
                         }
                     } // FOR

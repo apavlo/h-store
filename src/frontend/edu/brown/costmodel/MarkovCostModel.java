@@ -443,7 +443,7 @@ public class MarkovCostModel extends AbstractCostModel {
         Set<Integer> most_touched = initial_est.getMostTouchedPartitions(this.thresholds);
         Integer e_base_partition = null; 
         if (most_touched.size() > 1) {
-            e_base_partition = CollectionUtil.getRandomValue(most_touched);
+            e_base_partition = CollectionUtil.random(most_touched);
         } else {
             e_base_partition = CollectionUtil.getFirst(most_touched);
         }

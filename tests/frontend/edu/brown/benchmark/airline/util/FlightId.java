@@ -9,26 +9,36 @@ public class FlightId {
     private static final int MAX_VALUE = 65535; // 2^14 - 1
     private static final int VALUE_OFFSET = 16;
 
-    private final long id;
+    /** 
+     * The airline for this flight
+     */
+    private final long airline_id;
+    /**
+     * The id of the departure airport
+     */
     private final long depart_airport_id;
+    /**
+     * The id of the arrival airport
+     */
     private final long arrive_airport_id;
-    
     /**
      * This is the departure time of the flight in minutes since the benchmark start date
      * @see AirlineBaseClient.getFlightTimeInMinutes()
      */
     private final long depart_date;
 
+    private transient int hashCode = -1;
+    
     /**
      * Constructor
-     * @param id - the unique id for this depart + arrive airport combination
+     * @param airline_id - The airline for this flight
      * @param depart_airport_id - the id of the departure airport
      * @param arrive_airport_id - the id of the arrival airport
      * @param benchmark_start - the base date of when the benchmark data starts (including past days)
      * @param flight_date - when departure date of the flight
      */
-    public FlightId(long id, long depart_airport_id, long arrive_airport_id, TimestampType benchmark_start, TimestampType flight_date) {
-        this.id = id;
+    public FlightId(long airline_id, long depart_airport_id, long arrive_airport_id, TimestampType benchmark_start, TimestampType flight_date) {
+        this.airline_id = airline_id;
         this.depart_airport_id = depart_airport_id;
         this.arrive_airport_id = arrive_airport_id;
         this.depart_date = FlightId.calculateFlightDate(benchmark_start, flight_date);
@@ -40,7 +50,7 @@ public class FlightId {
      */
     public FlightId(long composite_id) {
         long values[] = FlightId.decode(composite_id);
-        this.id = values[0];
+        this.airline_id = values[0];
         this.depart_airport_id = values[1];
         this.arrive_airport_id = values[2];
         this.depart_date = values[3];
@@ -59,8 +69,8 @@ public class FlightId {
     /**
      * @return the id
      */
-    public long getId() {
-        return id;
+    public long getAirlineId() {
+        return airline_id;
     }
 
     /**
@@ -90,7 +100,7 @@ public class FlightId {
     }
     
     public long encode() {
-        return FlightId.encode(new long[]{ this.id,
+        return FlightId.encode(new long[]{ this.airline_id,
                                            this.depart_airport_id,
                                            this.arrive_airport_id,
                                            this.depart_date});
@@ -126,15 +136,15 @@ public class FlightId {
     
     @Override
     public String toString() {
-        return String.format("FlightId{id=%d,depart=%d,arrive=%d,date=%s}",
-                             this.id, this.depart_airport_id, this.arrive_airport_id, this.depart_date);
+        return String.format("FlightId{airline=%d,depart=%d,arrive=%d,date=%s}",
+                             this.airline_id, this.depart_airport_id, this.arrive_airport_id, this.depart_date);
     }
     
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof FlightId) {
             FlightId o = (FlightId)obj;
-            return (this.id == o.id &&
+            return (this.airline_id == o.airline_id &&
                     this.depart_airport_id == o.depart_airport_id &&
                     this.arrive_airport_id == o.arrive_airport_id &&
                     this.depart_date == o.depart_date);
@@ -144,7 +154,10 @@ public class FlightId {
     
     @Override
     public int hashCode() {
-        return (new Long(this.encode()).hashCode());
+        if (this.hashCode == -1) {
+            this.hashCode = new Long(this.encode()).hashCode();
+        }
+        return (this.hashCode);
     }
     
 }

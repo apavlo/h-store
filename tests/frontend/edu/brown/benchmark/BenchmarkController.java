@@ -795,7 +795,7 @@ public class BenchmarkController {
 
     protected Client getClientConnection() {
         // Connect to the first host and tell them to dump out the database contents
-        Integer site_id = CollectionUtil.getRandomValue(m_launchHosts.keySet());
+        Integer site_id = CollectionUtil.random(m_launchHosts.keySet());
         assert(site_id != null);
         Pair<String, Integer> p = m_launchHosts.get(site_id);
         assert(p != null);

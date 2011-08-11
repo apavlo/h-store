@@ -409,6 +409,16 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
+     * Set the number of occurrences of this particular value i
+     * @param value the value to be added to the histogram
+     * 
+     */
+    public synchronized void set(X value, long i) {
+        long orig = this.get(value, 0);
+        this._put(value, orig - i);
+    }
+    
+    /**
      * Increments the number of occurrences of this particular value i
      * @param value the value to be added to the histogram
      * 

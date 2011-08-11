@@ -7,12 +7,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
@@ -46,7 +46,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    
     /**
      * Tuple Code to Tuple Id Mapping
      * For some tables, we want to store a unique code that can be used to map
@@ -61,45 +60,11 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     };
     
     // ----------------------------------------------------------------
-    // TRANSIENT DATA MEMBERS
-    // ----------------------------------------------------------------
-    
-    /** Data Directory */
-    private transient final File airline_data_dir;
-   
-    /** TODO */
-    private transient final Map<String, Histogram<String>> histograms = new HashMap<String, Histogram<String>>();
-    
-    /**
-     * Each AirportCode will have a histogram of the number of flights 
-     * that depart from that airport to all the other airports
-     */
-    protected transient final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
-    
-    /**
-     * Foreign Key Mappings
-     * Column Name -> Xref Mapper
-     */
-    protected transient final Map<String, String> fkey_value_xref = new HashMap<String, String>();
-
-    /**
-     * Key -> Id Mappings
-     */
-    protected transient final Map<String, String> code_columns = new HashMap<String, String>();
-    protected transient final Map<String, Map<String, Long>> code_id_xref = new HashMap<String, Map<String, Long>>();
-    
-    /**
-     * Specialized random number generator
-     */
-    protected transient final AbstractRandomGenerator m_rng;
-    
-    // ----------------------------------------------------------------
     // SERIALIZABLE DATA MEMBERS
     // ----------------------------------------------------------------
     
     /**
      * Data Scale Factor
-     * Range: ???
      */
     public double scale_factor;
     /**
@@ -108,55 +73,79 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * <16-bit AirportId><48-bit CustomerId>
      */
     public final Map<Long, Long> airport_max_customer_id = new HashMap<Long, Long>();
-    
     /**
      * The date when flights total data set begins
      */
     public TimestampType flight_start_date;
-    
     /**
      * The date for when the flights are considered upcoming and are eligible for reservations
      */
     public TimestampType flight_upcoming_date;
-    
     /**
      * The number of days in the past that our flight data set includes.
      */
     public long flight_past_days;
-    
     /**
      * The number of days in the future (from the flight_upcoming_date) that our flight data set includes
      */
     public long flight_future_days;
-    
-    /**
-     * Store a list of FlightIds (encoded) and the number of seats
-     * remaining for a particular flight.
-     */
-    public final ListOrderedMap<Long, Short> seats_remaining = new ListOrderedMap<Long, Short>();
-    
     /**
      * The offset of when upcoming flights begin in the seats_remaining list
      */
     public Long flight_upcoming_offset = null;
-    
     /**
      * The offset of when reservations for upcoming flights begin
      */
     public Long reservation_upcoming_offset = null;
-    
     /**
      * The number of records loaded for each table
      */
     public final Map<String, Long> num_records = new HashMap<String, Long>();
+    /**
+     * We want to maintain a small cache of FlightIds so that the AirlineClient
+     * has something to work with. We obviously don't want to store the entire set here
+     */
+    private final LinkedList<FlightId> cached_flight_ids = new LinkedList<FlightId>();
 
+    /** TODO */
+    public final Map<String, Histogram<String>> histograms = new HashMap<String, Histogram<String>>();
+    
+    /**
+     * Each AirportCode will have a histogram of the number of flights 
+     * that depart from that airport to all the other airports
+     */
+    public final Map<String, Histogram<String>> airport_histograms = new HashMap<String, Histogram<String>>();
 
+    /**
+     * Key -> Id Mappings
+     */
+    public final Map<String, String> code_columns = new HashMap<String, String>();
+    public final Map<String, Map<String, Long>> code_id_xref = new HashMap<String, Map<String, Long>>();
+    
+    /**
+     * Foreign Key Mappings
+     * Column Name -> Xref Mapper
+     */
+    public final Map<String, String> fkey_value_xref = new HashMap<String, String>();
+    
+    // ----------------------------------------------------------------
+    // TRANSIENT DATA MEMBERS
+    // ----------------------------------------------------------------
+    
+    /** Data Directory */
+    private transient final File airline_data_dir;
+    
+    /**
+     * Specialized random number generator
+     */
+    protected transient final AbstractRandomGenerator rng;
     
     // ----------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------
     
     /**
+     * Constructor
      * @param args
      */
     public AirlineBaseClient(String[] args) {
@@ -219,14 +208,16 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
             ex.printStackTrace();
             System.exit(1);
         }
-        this.m_rng = rng;
+        this.rng = rng;
 
         // Tuple Code to Tuple Id Mapping
         for (String xref[] : CODE_TO_ID_COLUMNS) {
             assert(xref.length == 2);
-            this.code_columns.put(xref[0], xref[1]);
-            this.code_id_xref.put(xref[1], new HashMap<String, Long>());
-            if (debug.get()) LOG.debug(String.format("Added mapping from Code Column '%s' to Id Column '%s'", xref[0], xref[1]));
+            if (this.code_columns.containsKey(xref[0]) == false) {
+                this.code_columns.put(xref[0], xref[1]);
+                this.code_id_xref.put(xref[1], new HashMap<String, Long>());
+                if (debug.get()) LOG.debug(String.format("Added mapping from Code Column '%s' to Id Column '%s'", xref[0], xref[1]));
+            }
         } // FOR
         
         // Foreign Key Code to Ids Mapping
@@ -404,20 +395,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * @return
      */
     public long getRandomAirportId() {
-        return (m_rng.nextInt((int)this.getAirportCount()));
-    }
-    
-    /**
-     * Return a random flight
-     * @return
-     */
-    public FlightId getRandomFlightId() {
-        int start_idx = (int)this.getFlightIdStartingOffset();
-        int end_idx = (int)this.getFlightIdCount();
-        int idx = this.m_rng.number(start_idx, end_idx - 1);
-        FlightId id = this.getFlightId(idx);
-        assert(id == null) : "Invalid FlightId offset '" + idx + "'";
-        return (id);
+        return (rng.number(1, (int)this.getAirportCount()));
     }
     
     /**
@@ -429,21 +407,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         Long cnt = this.getCustomerIdCount(airport_id);
         if (cnt != null) {
             int max_id = cnt.intValue();
-            int base_id = this.m_rng.nextInt(max_id);
+            int base_id = rng.nextInt(max_id);
             return (new CustomerId(base_id, airport_id));
-        }
-        return (null);
-    }
-    
-    /**
-     * Return a random customer id based at the given airport_code 
-     * @param airport_code
-     * @return
-     */
-    public CustomerId getRandomCustomerId(String airport_code) {
-        Long airport_id = this.getAirportId(airport_code);
-        if (airport_id != null) {
-            return (this.getRandomCustomerId(airport_id));
         }
         return (null);
     }
@@ -454,10 +419,10 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     public CustomerId getRandomCustomerId() {
         Long airport_id = null;
-        int num_airports = this.getAirportCount();
+        int num_airports = this.airport_max_customer_id.size();
         if (trace.get()) LOG.trace(String.format("Selecting a random airport with customers [numAirports=%d]", num_airports));
         while (airport_id == null) {
-            airport_id = (long)this.m_rng.number(1, num_airports);
+            airport_id = (long)this.rng.number(1, num_airports);
             Long cnt = this.getCustomerIdCount(airport_id); 
             if (cnt != null) {
                 if (trace.get()) LOG.trace(String.format("Selected airport '%s' [numCustomers=%d]", this.getAirportCode(airport_id), cnt));
@@ -473,16 +438,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * @return
      */
     public long getRandomAirlineId() {
-        return (m_rng.nextInt(this.getRecordCount(AirlineConstants.TABLENAME_AIRLINE).intValue()));
-    }
-    
-    /**
-     * Return a random reservation id
-     * @return
-     */
-    public long getRandomReservationId() {
-        // FIXME
-        return (0l);
+        return (rng.nextInt(this.getRecordCount(AirlineConstants.TABLENAME_AIRLINE).intValue()));
     }
 
     /**
@@ -491,8 +447,26 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     public TimestampType getRandomUpcomingDate() {
         TimestampType upcoming_start_date = this.flight_upcoming_date;
-        int offset = m_rng.nextInt((int)this.getFlightFutureDays());
+        int offset = rng.nextInt((int)this.getFlightFutureDays());
         return (new TimestampType(upcoming_start_date.getTime() + (offset * AirlineConstants.MICROSECONDS_PER_DAY)));
+    }
+    
+    /**
+     * Return a random FlightId from our set of cached ids
+     * @return
+     */
+    public FlightId getRandomFlightId() {
+        assert(this.cached_flight_ids.isEmpty() == false);
+        FlightId ret = null;
+        
+        // Grab a random FlightId from our cache and push it back to the end
+        // of the list. That way the order of the cache goes from MRU -> LRU
+        synchronized (this.cached_flight_ids) {
+            int idx = rng.nextInt(this.cached_flight_ids.size());
+            ret = this.cached_flight_ids.remove(idx);
+            this.cached_flight_ids.addFirst(ret);
+        } // SYNCH
+        return (ret);
     }
     
     // ----------------------------------------------------------------
@@ -530,7 +504,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * @return
      */
     public int getAirportCount() {
-        return (this.getAirlineCodes().size());
+        return (this.getAirportCodes().size());
     }
     
     public Histogram<String> getAirportCustomerHistogram() {
@@ -553,6 +527,38 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
             return (h.getSampleCount() > 0);
         }
         return (false);
+    }
+    
+    // -----------------------------------------------------------------
+    // FLIGHTS
+    // -----------------------------------------------------------------
+    
+    /**
+     * Add a new FlightId for this benchmark instance
+     * This method will decide whether to store the id or not in its cache
+     * @return True if the FlightId was added to the cache
+     */
+    public boolean addFlightId(FlightId flight_id) {
+        boolean added = false;
+        synchronized (this.cached_flight_ids) {
+            // If we have room, shove it right in
+            // We'll throw it in the back because we know it hasn't been used yet
+            if (this.cached_flight_ids.size() < AirlineConstants.CACHED_FLIGHT_ID_SIZE) {
+                this.cached_flight_ids.addLast(flight_id);
+                added = true;
+            
+            // Otherwise, we can will randomly decide whether to pop one out
+            } else if (rng.nextBoolean()) {
+                this.cached_flight_ids.pop();
+                this.cached_flight_ids.addLast(flight_id);
+                added = true;
+            }
+        } // SYNCH
+        return (added);
+    }
+    
+    public long getFlightIdCount() {
+        return (this.cached_flight_ids.size());
     }
     
     // -----------------------------------------------------------------
@@ -619,98 +625,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         this.flight_future_days = flight_future_days;
     }
     
-    // -----------------------------------------------------------------
-    // FLIGHT IDS
-    // -----------------------------------------------------------------
-    
-    public Iterable<FlightId> getFlightIds() {
-        return (new Iterable<FlightId>() {
-            @Override
-            public Iterator<FlightId> iterator() {
-                return (new Iterator<FlightId>() {
-                    private int idx = 0;
-                    private final int cnt = AirlineBaseClient.this.seats_remaining.size();
-                    
-                    @Override
-                    public boolean hasNext() {
-                        return (idx < this.cnt);
-                    }
-                    @Override
-                    public FlightId next() {
-                        long encoded = AirlineBaseClient.this.seats_remaining.get(this.idx++);
-                        return (new FlightId(encoded));
-                    }
-                    @Override
-                    public void remove() {
-                        // Not implemented
-                    }
-                });
-            }
-        });
-    }
-
-    /**
-     * 
-     * @param flight_id
-     */
-    public void addFlightId(FlightId flight_id) {
-        assert(flight_id != null);
-        assert(this.flight_start_date != null);
-        assert(this.flight_upcoming_date != null);
-        this.seats_remaining.put(flight_id.encode(), (short)AirlineConstants.NUM_SEATS_PER_FLIGHT);
-        if (this.flight_upcoming_offset == null &&
-            this.flight_upcoming_date.compareTo(flight_id.getDepartDate(this.flight_start_date)) < 0) {
-            this.flight_upcoming_offset = new Long(this.seats_remaining.size() - 1);
-        }
-    }
-    
-    /**
-     * Return the number of unique flight ids
-     * @return
-     */
-    public long getFlightIdCount() {
-        return (this.seats_remaining.size());
-    }
-    
-    /**
-     * Return the index offset of when future flights 
-     * @return
-     */
-    public long getFlightIdStartingOffset() {
-        return (this.flight_upcoming_offset);
-    }
-    
-    /**
-     * Return flight 
-     * @param index
-     * @return
-     */
-    public FlightId getFlightId(int index) {
-        assert(index >= 0);
-        assert(index <= this.getFlightIdCount());
-        return (new FlightId(this.seats_remaining.get(index)));
-    }
-
-    /**
-     * Return the number of seats remaining for a flight
-     * @param flight_id
-     * @return
-     */
-    public int getFlightRemainingSeats(FlightId flight_id) {
-        return ((int)this.seats_remaining.get(flight_id.encode()));
-    }
-    
-    /**
-     * Decrement the number of available seats for a flight and return
-     * the total amount remaining
-     */
-    public int decrementFlightSeat(FlightId flight_id) {
-        long id = flight_id.encode();
-        Short seats = this.seats_remaining.get(id);
-        assert(seats != null) : "Missing seat count for " + flight_id;
-        assert(seats >= 0) : "Invalid seat count for " + flight_id;
-        return ((int)this.seats_remaining.put(id, (short)(seats - 1)));
-    }
     
     // ----------------------------------------------------------------
     // AIRLINE METHODS
@@ -724,6 +638,11 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     public Collection<String> getAirlineCodes() {
         Map<String, Long> m = this.getCodeXref("AL_ID");
         return (m.keySet());
+    }
+    
+    public Long getAirlineId(String airline_code) {
+        Map<String, Long> m = this.getCodeXref("AL_ID");
+        return (m.get(airline_code));
     }
     
     public synchronized long incrementAirportCustomerCount(long airport_id) {
@@ -747,6 +666,16 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     // ----------------------------------------------------------------
     // UTILITY METHODS
     // ----------------------------------------------------------------
+    
+    public long getNextReservationId() {
+        long base_id = -1;
+        synchronized (this.num_records) {
+            base_id = this.num_records.get(AirlineConstants.TABLENAME_RESERVATION);
+            this.num_records.put(AirlineConstants.TABLENAME_RESERVATION, base_id+1);
+        } // SYNCH
+        // Offset it by the client id so that we can ensure it's unique
+        return (this.getClientId() | base_id<<48);
+    }
     
     public String toString() {
         String ret = "";
@@ -780,11 +709,26 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        JSONUtil.fieldsToJSON(stringer, this, AirlineBaseClient.class, JSONUtil.getSerializableFields(this.getClass()));
+        JSONUtil.fieldsToJSON(stringer, this, AirlineBaseClient.class, JSONUtil.getSerializableFields(this.getClass(), "cached_flight_ids"));
+        
+        // CACHED FIELD IDS
+        stringer.key("CACHED_FLIGHT_IDS").array();
+        for (FlightId f_id : this.cached_flight_ids) {
+            stringer.value(f_id.encode());
+        } // FOR
+        stringer.endArray();
     }
     
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AirlineBaseClient.class, false, JSONUtil.getSerializableFields(this.getClass()));
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AirlineBaseClient.class, false, JSONUtil.getSerializableFields(this.getClass(), "cached_flight_ids"));
+        
+        // CACHED FIELD IDS
+        JSONArray json_arr = json_object.getJSONArray("CACHED_FLIGHT_IDS");
+        this.cached_flight_ids.clear();
+        for (int i = 0, cnt = json_arr.length(); i < cnt; i++) {
+            FlightId f_id = new FlightId(json_arr.getLong(i));
+            this.cached_flight_ids.add(f_id);
+        } // FOR
     }
 }

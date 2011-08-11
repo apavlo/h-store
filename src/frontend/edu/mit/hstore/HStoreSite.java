@@ -1390,9 +1390,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.getFirst(most_touched);
             } else if (most_touched.isEmpty() == false) {
-                redirect_partition = CollectionUtil.getRandomValue(most_touched);
+                redirect_partition = CollectionUtil.random(most_touched);
             } else {
-                redirect_partition = CollectionUtil.getRandomValue(this.all_partitions);
+                redirect_partition = CollectionUtil.random(this.all_partitions);
             }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
