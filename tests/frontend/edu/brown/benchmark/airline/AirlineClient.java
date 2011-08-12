@@ -61,12 +61,12 @@ public class AirlineClient extends AirlineBaseClient {
      * Airline Benchmark Transactions
      */
     public static enum Transaction {
-        DELETE_RESERVATION              (DeleteReservation.class,           AirlineConstants.FREQUENCY_DELETE_RESERVATION),
-        FIND_FLIGHT_BY_AIRPORT          (FindFlightByAirport.class,         AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT),
-        FIND_OPEN_SEATS                 (FindOpenSeats.class,               AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
-        NEW_RESERVATION                 (NewReservation.class,              AirlineConstants.FREQUENCY_NEW_RESERVATION),
-        UPDATE_FREQUENT_FLYER           (UpdateFrequentFlyer.class,         AirlineConstants.FREQUENCY_UPDATE_FREQUENT_FLYER),
-        UPDATE_RESERVATION              (UpdateReservation.class,           AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
+        DELETE_RESERVATION          (DeleteReservation.class,   AirlineConstants.FREQUENCY_DELETE_RESERVATION),
+        FIND_FLIGHT_BY_AIRPORT      (FindFlightByAirport.class, AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT),
+        FIND_OPEN_SEATS             (FindOpenSeats.class,       AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
+        NEW_RESERVATION             (NewReservation.class,      AirlineConstants.FREQUENCY_NEW_RESERVATION),
+        UPDATE_CUSTOMER             (UpdateCustomer.class,      AirlineConstants.FREQUENCY_UPDATE_CUSTOMER),
+        UPDATE_RESERVATION          (UpdateReservation.class,   AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
         
         private Transaction(Class<? extends VoltProcedure> proc_class, int weight) {
             this.proc_class = proc_class;
@@ -248,8 +248,8 @@ public class AirlineClient extends AirlineBaseClient {
                 if (this.pending_inserts.isEmpty() == false) this.executeNewReservation(txn);
                 break;
             }
-            case UPDATE_FREQUENT_FLYER: {
-                this.executeUpdateFrequentFlyer(txn);
+            case UPDATE_CUSTOMER: {
+                this.executeUpdateCustomer(txn);
                 break;
             }
             case UPDATE_RESERVATION: {
@@ -267,11 +267,21 @@ public class AirlineClient extends AirlineBaseClient {
     // -----------------------------------------------------------------
     
     class DeleteReservationCallback implements ProcedureCallback {
+        
+        final Reservation reservation;
+        
+        public DeleteReservationCallback(Reservation r) {
+            this.reservation = r;
+        }
+        
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(Transaction.DELETE_RESERVATION.ordinal());
             if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 // TODO
+            } else if (debug.get()) {
+                LOG.info("DeleteReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
+                LOG.info("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
             }
         }
     }
@@ -280,7 +290,7 @@ public class AirlineClient extends AirlineBaseClient {
         // Pull off the first cached reservation and drop it on the cluster...
         Reservation r = this.pending_deletes.remove();
         assert(r != null);
-        int rand = rng.number(1, 100);
+        int rand = 100; // rng.number(1, 100);
         
         Object params[] = new Object[]{
             r.flight_id.encode(),       // [0] f_id
@@ -304,7 +314,7 @@ public class AirlineClient extends AirlineBaseClient {
             params[1] = r.customer_id.encode();
         }
         
-        this.getClientHandle().callProcedure(new DeleteReservationCallback(), txn.proc_class.getSimpleName(), params);
+        this.getClientHandle().callProcedure(new DeleteReservationCallback(r), txn.proc_class.getSimpleName(), params);
 
     }
     
@@ -359,24 +369,26 @@ public class AirlineClient extends AirlineBaseClient {
     
 
     // ----------------------------------------------------------------
-    // UpdateFrequentFlyer
+    // UpdateCustomer
     // ----------------------------------------------------------------
     
-    class UpdateFrequentFlyerCallback implements ProcedureCallback {
+    class UpdateCustomerCallback implements ProcedureCallback {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_FREQUENT_FLYER.ordinal());
+            incrementTransactionCounter(Transaction.UPDATE_CUSTOMER.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 assert (results.length == 1);
                 assert (results[0].getRowCount() == 1);
-                assert (results[0].asScalarLong() == 1);
+//                assert (results[0].asScalarLong() == 1);
+            } else if (debug.get()) {
+                LOG.debug("UpdateCustomer " + ": " + clientResponse.getStatusString(), clientResponse.getException());
             }
         }
     }
 
-    private void executeUpdateFrequentFlyer(Transaction txn) throws IOException {
+    private void executeUpdateCustomer(Transaction txn) throws IOException {
         // Pick a random customer and then have at it!
         CustomerId customer_id = this.getRandomCustomerId();
         long airline_id = this.getRandomAirlineId();
@@ -387,7 +399,7 @@ public class AirlineClient extends AirlineBaseClient {
         Object params[] = new Object[]{
             VoltType.NULL_BIGINT,
             "",
-            airline_id,
+//            airline_id,
             attr0,
             attr1
         };
@@ -401,7 +413,7 @@ public class AirlineClient extends AirlineBaseClient {
             params[0] = customer_id.encode();
         }
 
-        this.getClientHandle().callProcedure(new UpdateFrequentFlyerCallback(), txn.proc_class.getSimpleName(), params);
+        this.getClientHandle().callProcedure(new UpdateCustomerCallback(), txn.proc_class.getSimpleName(), params);
     }
 
     // ----------------------------------------------------------------

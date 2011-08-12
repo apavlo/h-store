@@ -656,14 +656,13 @@ public abstract class VoltProcedure implements Poolable {
                 String msg = sw.toString();
                 if (msg == null) msg = ex.toString();
                 
-                String currentQueries = "";
+                String currentQueries = "Current queued queries:";
                 for (int i = 0; i < batchQueryStmtIndex; i++) {
                     currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
                 }
                 if (executor.isShuttingDown() == false) {
-                    LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s\n%s", procedure_name, this.txn_id, msg, currentQueries), ex);
+                    LOG.error(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s\n%s", procedure_name, this.txn_id, msg, currentQueries), ex);
                 }
-                
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
                 status_msg = "UNEXPECTED ABORT: " + msg;
             }
@@ -952,7 +951,6 @@ public abstract class VoltProcedure implements Poolable {
             queryResults.clear();
             return batch_results;
         }
-        
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
         // Workload Trace - Start Query

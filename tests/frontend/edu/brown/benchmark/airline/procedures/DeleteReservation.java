@@ -27,7 +27,7 @@ public class DeleteReservation extends VoltProcedure {
     public final SQLStmt GetCustomerByFFNumber = new SQLStmt(
             "SELECT " + GetCustomerBase +
             "  FROM " + AirlineConstants.TABLENAME_CUSTOMER + ", " + AirlineConstants.TABLENAME_FREQUENT_FLYER + 
-            " WHERE FF_AL_ID = ? AND FF_C_ID_STR = ? AND FF_C_ID = C_ID");
+            " WHERE FF_C_ID_STR = ? AND FF_AL_ID = ? AND FF_C_ID = C_ID");
     
     public final SQLStmt DeleteReservation = new SQLStmt(
             "DELETE FROM " + AirlineConstants.TABLENAME_RESERVATION +
@@ -47,7 +47,7 @@ public class DeleteReservation extends VoltProcedure {
     public final SQLStmt UpdateFrequentFlyer = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
             "   SET FF_IATTR10 = FF_IATTR10 - 1 " + 
-            " WHERE FF_C_ID = ? " +
+            " WHERE FF_C_ID_STR = ? " +
             "   AND FF_AL_ID = ?");
     
     public VoltTable[] run(long f_id, long c_id, String c_id_str, String ff_c_id_str, long ff_al_id) {
@@ -56,13 +56,13 @@ public class DeleteReservation extends VoltProcedure {
         if (c_id != VoltType.NULL_BIGINT) {
             voltQueueSQL(GetCustomerById, c_id);
         // 20% of the time we will be given the customer's id as a string
-        } else if (c_id_str.length() > 0) {
-            voltQueueSQL(GetCustomerByIdStr, c_id);
+        } else if (c_id_str != null && c_id_str.length() > 0) {
+            voltQueueSQL(GetCustomerByIdStr, c_id_str);
         // 20% of the time we will be given their FrequentFlyer information
         } else {
             assert(ff_c_id_str.isEmpty() == false);
             assert(ff_al_id != VoltType.NULL_BIGINT);
-            voltQueueSQL(GetCustomerByFFNumber, ff_al_id, ff_c_id_str);
+            voltQueueSQL(GetCustomerByFFNumber, ff_c_id_str, ff_al_id);
         }
         
         // If there is no valid customer record, then throw an abort

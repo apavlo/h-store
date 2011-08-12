@@ -125,7 +125,7 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     }
     
     public ColumnSet.Entry get(int idx) {
-        return (CollectionUtil.get(this, idx));
+        return (super.get(idx));
     }
     
     /**
