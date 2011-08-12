@@ -4,25 +4,19 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.catalog.CatalogCloner;
-import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
-import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
 public class TestConstraintPropagator extends BasePartitionerTestCase {

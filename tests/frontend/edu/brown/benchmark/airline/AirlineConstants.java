@@ -14,12 +14,12 @@ public abstract class AirlineConstants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_DELETE_RESERVATION            = 10;
-    public static final int FREQUENCY_FIND_FLIGHT_BY_AIRPORT        = 25;
-    public static final int FREQUENCY_FIND_OPEN_SEATS               = 25;
-    public static final int FREQUENCY_NEW_RESERVATION               = 20;
-    public static final int FREQUENCY_UPDATE_FREQUENT_FLYER         = 5;
-    public static final int FREQUENCY_UPDATE_RESERVATION            = 15;
+    public static final int FREQUENCY_DELETE_RESERVATION        = 10;
+    public static final int FREQUENCY_FIND_FLIGHT_BY_AIRPORT    = 25;
+    public static final int FREQUENCY_FIND_OPEN_SEATS           = 25;
+    public static final int FREQUENCY_NEW_RESERVATION           = 20;
+    public static final int FREQUENCY_UPDATE_CUSTOMER           = 5;
+    public static final int FREQUENCY_UPDATE_RESERVATION        = 15;
 
     /** Initial Data Sizes */
     public static final int NUM_CUSTOMERS = 1000000;

@@ -18,7 +18,7 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
         FindFlightByAirport.class,
         FindOpenSeats.class,
         NewReservation.class,
-        UpdateFrequentFlyer.class,
+        UpdateCustomer.class,
         UpdateReservation.class,
     };
     
@@ -28,7 +28,7 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(FindFlightByAirport.class, AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT);
         addTransactionFrequency(FindOpenSeats.class, AirlineConstants.FREQUENCY_FIND_OPEN_SEATS);
         addTransactionFrequency(NewReservation.class, AirlineConstants.FREQUENCY_NEW_RESERVATION);
-        addTransactionFrequency(UpdateFrequentFlyer.class, AirlineConstants.FREQUENCY_UPDATE_FREQUENT_FLYER);
+        addTransactionFrequency(UpdateCustomer.class, AirlineConstants.FREQUENCY_UPDATE_CUSTOMER);
         addTransactionFrequency(UpdateReservation.class, AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
     }
     

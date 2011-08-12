@@ -1379,6 +1379,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
         DependencySet result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
+        assert(result != null) : "Unexpected null DependencySet for " + ts; 
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         
         ts.fastFinishRound();
@@ -2319,7 +2320,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * This won't return!
      */
     public synchronized void crash(Throwable ex) {
-        LOG.info(String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
+        LOG.warn(String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
         assert(this.hstore_messenger != null);
         this.hstore_messenger.shutdownCluster(ex); // This won't return
     }
