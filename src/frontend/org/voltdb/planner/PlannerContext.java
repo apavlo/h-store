@@ -17,6 +17,7 @@
 
 package org.voltdb.planner;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -45,6 +46,14 @@ public class PlannerContext {
         return s_columnPool;
     }
     
+    /**
+     * Return the Collection of all the PlanColumns managed under this PlannerContext instance
+     * @return
+     */
+    public Collection<PlanColumn> getAllPlanColumns() {
+        return s_columnPool.values();
+    }
+    
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
         return getPlanColumn(expression, columnName, SortOrder.kUnsorted, Storage.kTemporary);
     }
@@ -57,23 +66,27 @@ public class PlannerContext {
         
         // We've never seen this one before, so we have to make a new one...
         if (retval == null) {
-            int guid = -1;
-            while (true) {
-                int new_guid = s_nextId.incrementAndGet();
-                if (s_columnPool.get(new_guid) == null) {
-                    guid = new_guid; 
-                    break;
-                }
-            } // WHILE
-            assert(guid > 0);
+            int guid = this.getNextPlanColumnGUID();
             retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
             assert(s_columnPool.get(guid) == null);
             s_columnPool.put(guid, retval);
         }
-
         return retval;
     }
 
+    private synchronized int getNextPlanColumnGUID() {
+        int guid = -1;
+        while (true) {
+            int new_guid = s_nextId.incrementAndGet();
+            if (s_columnPool.get(new_guid) == null) {
+                guid = new_guid; 
+                break;
+            }
+        } // WHILE
+        assert(guid > 0);
+        return (guid);
+    }
+    
     /**
      * Internal Registration
      * HashCode -> PlanColumn

@@ -334,15 +334,15 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         // send back the number of tuples modified
         if (executor->forceTupleCount()) {
             send_tuple_count = true;
-            VOLT_DEBUG("PAVLO: Forcing tuple count [txn_id=%jd, planfragmentId=%jd, output_depId=%d, ctr=%d]",
+            VOLT_DEBUG("Forcing tuple count [txn_id=%jd, planfragmentId=%jd, output_depId=%d, ctr=%d]",
                        (intmax_t)txnId, (intmax_t)planfragmentId, m_currentOutputDepId, ctr);
         } else {
-            VOLT_DEBUG("PAVLO: Let's try to actually execute a PlanFragment...");
+                VOLT_DEBUG("Let's try to actually execute a PlanFragment...");
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
                 if (!executor->execute(params)) {
-                    VOLT_TRACE("The Executor's execution at position '%d'"
+                    VOLT_DEBUG("The Executor's execution at position '%d'"
                             " failed for PlanFragment '%jd'",
                             ctr, (intmax_t)planfragmentId);
                     if (cleanUpTable != NULL)
@@ -353,9 +353,10 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     return ENGINE_ERRORCODE_ERROR;
                 }
             } catch (SerializableEEException &e) {
-                VOLT_TRACE("The Executor's execution at position '%d'"
+                VOLT_ERROR("The Executor's execution at position '%d'"
                         " failed for PlanFragment '%jd'",
                         ctr, (intmax_t)planfragmentId);
+                VOLT_ERROR("SerializableEEException: %s", e.message().c_str());
                 if (cleanUpTable != NULL)
                     cleanUpTable->deleteAllTuples(false);
                 resetReusedResultOutputBuffer();

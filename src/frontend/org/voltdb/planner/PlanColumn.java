@@ -106,7 +106,7 @@ public class PlanColumn
     /**
      * Globally unique id identifying this column
      */
-    final int m_guid;
+    private final int m_guid;
 
     /**
      * Columns may be derived from other columns by expressions. For example,

@@ -61,7 +61,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
     protected final List<Integer> m_parentIds = new ArrayList<Integer>();
     
     // TODO: planner accesses this data directly. Should be protected.
-    public ArrayList<Integer> m_outputColumns = new ArrayList<Integer>();
+    protected ArrayList<Integer> m_outputColumns = new ArrayList<Integer>();
     protected final List<ScalarValueHints> m_outputColumnHints = new ArrayList<ScalarValueHints>();
     protected long m_estimatedOutputTupleCount = 0;
 
@@ -197,7 +197,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
      * Get number of output columns for this node
      * @return
      */
-    public int getOutputColumnCount() {
+    public int getOutputColumnGUIDCount() {
         return (this.m_outputColumns.size());
     }
     
@@ -215,7 +215,8 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
      * @return
      */
     public List<Integer> getOutputColumnGUIDs() {
-        return (Collections.unmodifiableList(this.m_outputColumns));
+//        return (Collections.unmodifiableList(this.m_outputColumns));
+        return (this.m_outputColumns);
     }
     
     public PlanColumn findMatchingOutputColumn(String tableName,
@@ -361,7 +362,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
      * Gets the number of parents.
      * @return the parents
      */
-    public int getParentCount() {
+    public int getParentPlanNodeCount() {
         return m_parents.size();
     }
 
@@ -399,7 +400,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         while (it.hasNext()) {
             AbstractPlanNode child = it.next();
             it.remove();                          // remove this.child from m_children
-            assert child.getParentCount() == 1;
+            assert child.getParentPlanNodeCount() == 1;
             child.clearParents();                 // and reset child's parents list
             node.addAndLinkChild(child);          // set node.child and child.parent
         }

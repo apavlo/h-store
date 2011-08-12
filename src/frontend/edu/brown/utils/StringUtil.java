@@ -28,8 +28,34 @@ public abstract class StringUtil {
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
 
+    /**
+     * 
+     * @param str
+     * @return
+     */
     public static String[] splitLines(String str) {
         return (str != null ? LINE_SPLIT.split(str) : null);
+    }
+    
+    public static String header(String msg) {
+        return StringUtil.header(msg, "-", 100);
+    }
+    
+    /**
+     * Create a nicely format header string where the given message is surround
+     * on both sides by the marker.
+     * Example:   "---------- MSG ----------"
+     * @param msg
+     * @param marker
+     * @param length
+     * @return
+     */
+    public static String header(String msg, String marker, int length) {
+        int msg_length = msg.length();
+        length = Math.max(msg_length, length);
+        int border_len = (length - msg_length - 2) / 2;
+        String border = StringUtil.repeat(marker, border_len);
+        return String.format("%s %s %s", border, msg, border);
     }
     
     

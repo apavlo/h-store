@@ -94,6 +94,11 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
         return (sb.toString());
     }
     
+    /**
+     * Use the given DDL string as the schema for this project
+     * This will cause the ProjectBuilder to write DDL out to a temporary file
+     * @param ddl
+     */
     public void setDDLContents(String ddl) {
         File f = FileUtil.writeStringToTempFile(ddl, "sql", false);
         try {

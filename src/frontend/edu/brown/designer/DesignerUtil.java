@@ -291,7 +291,7 @@ public abstract class DesignerUtil {
             protected void callback(final AbstractPlanNode node) {
                 // We should find the Materialize node before the Insert
                 if (node instanceof MaterializePlanNode) {
-                    for (Integer column_guid : node.m_outputColumns) {
+                    for (Integer column_guid : node.getOutputColumnGUIDs()) {
                         PlanColumn column = PlannerContext.singleton().get(column_guid);
                         assert(column != null);
                         AbstractExpression exp = column.getExpression();
@@ -464,8 +464,8 @@ public abstract class DesignerUtil {
                     // Assume that if we're here, then they want the mappings from columns to StmtParameters
                     assert(tables.size() == 1);
                     Table catalog_tbl = CollectionUtil.getFirst(tables);
-                    for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
-                        int column_guid = node.m_outputColumns.get(ctr);
+                    for (int ctr = 0, cnt = node.getOutputColumnGUIDs().size(); ctr < cnt; ctr++) {
+                        int column_guid = node.getOutputColumnGUIDs().get(ctr);
                         PlanColumn column = PlannerContext.singleton().get(column_guid);
                         assert(column != null);
                         
@@ -695,10 +695,10 @@ public abstract class DesignerUtil {
             for (AbstractScanPlanNode scan_node : scan_nodes) {
                 List<PlanColumn> output_cols = new ArrayList<PlanColumn>();
                 List<AbstractExpression> output_exps = new ArrayList<AbstractExpression>();
-                if (scan_node.m_outputColumns.isEmpty()) {
+                if (scan_node.getOutputColumnGUIDs().isEmpty()) {
                     if (scan_node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
                         ProjectionPlanNode proj_node = (ProjectionPlanNode)scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
-                        for (int guid : proj_node.m_outputColumns) {
+                        for (int guid : proj_node.getOutputColumnGUIDs()) {
                             PlanColumn column = PlannerContext.singleton().get(guid);
                             assert(column != null);
                             output_cols.add(column);
@@ -706,7 +706,7 @@ public abstract class DesignerUtil {
                         } // FOR
                     }
                 } else {
-                    for (int guid : scan_node.m_outputColumns) {
+                    for (int guid : scan_node.getOutputColumnGUIDs()) {
                         PlanColumn column = PlannerContext.singleton().get(guid);
                         assert(column != null);
                         output_cols.add(column);
