@@ -88,7 +88,7 @@ public class PlanNodeList extends PlanNodeTree implements Comparable<PlanNodeLis
             m_list.add(node);
             // Then update all of this node's parents and reduce their wait counter by 1
             // If the counter is at zero, then we'll add it to end of our list
-            for (int i = 0; i < node.getParentCount(); i++) {
+            for (int i = 0; i < node.getParentPlanNodeCount(); i++) {
                 AbstractPlanNode parent = node.getParent(i);
                 int remaining = child_cnts.get(parent) - 1;
                 child_cnts.put(parent, remaining);

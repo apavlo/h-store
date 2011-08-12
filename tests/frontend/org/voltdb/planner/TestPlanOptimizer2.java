@@ -1,16 +1,21 @@
 package org.voltdb.planner;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.slev;
+import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.types.PlanNodeType;
 
-import edu.brown.BaseTestCase;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -19,7 +24,7 @@ import edu.brown.utils.ProjectType;
  * 
  * @author pavlo
  */
-public class TestPlanOptimizations extends BaseTestCase {
+public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
 
     @Override
     protected void setUp() throws Exception {
@@ -51,6 +56,42 @@ public class TestPlanOptimizations extends BaseTestCase {
 //        assertEquals(0, proj_nodes.size());
     }
     
+    
+    /**
+     * testInlineProjectionColumns
+     */
+    public void testInlineProjectionColums() throws Exception {
+        Procedure catalog_proc = this.getProcedure(slev.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
+        
+        Table catalog_tbl = this.getTable("STOCK");
+        Map<String, Integer> col_offset_xref = new HashMap<String, Integer>();
+        for (String colName : new String[]{ "S_I_ID", "S_W_ID", "S_QUANTITY"}) {
+            Column catalog_col = this.getColumn(catalog_tbl, colName);
+            col_offset_xref.put(colName, catalog_col.getIndex());
+        }
+
+        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        assertNotNull(root);
+        
+        // Make sure the bottom-most IndexScan has an inline projection with the right columns
+        Collection<IndexScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class);
+        assertEquals(1, scan_nodes.size());
+        IndexScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        assertNotNull(scan_node);
+        assertEquals(1, scan_node.getParentPlanNodeCount());
+        assertEquals(0, scan_node.getChildPlanNodeCount());
+        assertEquals(1, scan_node.getInlinePlanNodeCount());
+        assertEquals(catalog_tbl.getName(), scan_node.getTargetTableName());
+        
+        ProjectionPlanNode proj_node = scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
+        assertNotNull(proj_node);
+        assertEquals(col_offset_xref.size(), proj_node.getOutputColumnGUIDCount());
+        
+        System.err.println(PlanNodeUtil.debug(scan_node));
+        checkExpressionOffsets(proj_node, col_offset_xref);
+    }
+    
     /**
      * testAggregatePushdown
      */
@@ -67,7 +108,7 @@ public class TestPlanOptimizations extends BaseTestCase {
         assertEquals(1, scan_nodes.size());
         AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
         assertNotNull(scan_node);
-        assertEquals(1, scan_node.getParentCount());
+        assertEquals(1, scan_node.getParentPlanNodeCount());
         // FIXME assertEquals(PlanNodeType.AGGREGATE, scan_node.getParent(0).getPlanNodeType());
         // FIXME AggregatePlanNode count_node = (AggregatePlanNode)scan_node.getParent(0);
         // FIXME assertNotNull(count_node);

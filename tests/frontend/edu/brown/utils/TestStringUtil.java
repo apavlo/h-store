@@ -9,6 +9,17 @@ import junit.framework.TestCase;
 public class TestStringUtil extends TestCase {
 
     /**
+     * testHeader
+     */
+    public void testHeader() throws Exception {
+        String msg = "THIS IS A TEST";
+        String title = StringUtil.header(msg);
+        assertNotNull(title);
+        System.out.println(title);
+        assert(title.length() > msg.length());
+    }
+    
+    /**
      * testColumns
      */
     @SuppressWarnings("unchecked")

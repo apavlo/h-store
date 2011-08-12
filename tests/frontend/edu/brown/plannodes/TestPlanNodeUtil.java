@@ -67,7 +67,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
             assertFalse(node0 == node1);
             assertEquals(node0.getChildPlanNodeCount(), node1.getChildPlanNodeCount());
             assertEquals(node0.getInlinePlanNodeCount(), node1.getInlinePlanNodeCount());
-            assertEquals(node0.getOutputColumnCount(), node1.getOutputColumnCount());
+            assertEquals(node0.getOutputColumnGUIDCount(), node1.getOutputColumnGUIDCount());
             
             List<AbstractExpression> exps0 = new ArrayList<AbstractExpression>(PlanNodeUtil.getExpressionsForPlanNode(node0));
             List<AbstractExpression> exps1 = new ArrayList<AbstractExpression>(PlanNodeUtil.getExpressionsForPlanNode(node1));

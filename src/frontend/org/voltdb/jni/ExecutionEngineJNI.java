@@ -318,14 +318,14 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
         assert (planFragmentIds.length == parameterSets.length);
         if (numFragmentIds == 0) {
+            LOG.warn("No fragments to execute. Returning empty DependencySet");
             return (new DependencySet(new int[0], new VoltTable[0]));
         }
-        final int batchSize = numFragmentIds;
 
         // serialize the param sets
         fsForParameterSet.clear();
         try {
-            for (int i = 0; i < batchSize; ++i) {
+            for (int i = 0; i < numFragmentIds; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
                 if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
             }
@@ -362,7 +362,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             this.temp_depids.clear();
             this.temp_tables.clear();
             int dep_ctr = 0;
-            for (int i = 0; i < batchSize; ++i) {
+            for (int i = 0; i < numFragmentIds; ++i) {
                 int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
                 
                 // PAVLO: Since we can't pass the dependency ids using nativeExecuteQueryPlanFragmentsAndGetResults(),

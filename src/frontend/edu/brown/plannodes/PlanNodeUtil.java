@@ -110,7 +110,7 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static AbstractPlanNode getRoot(AbstractPlanNode node) {
-        return (node.getParentCount() > 0 ? getRoot(node.getParent(0)) : node);
+        return (node.getParentPlanNodeCount() > 0 ? getRoot(node.getParent(0)) : node);
     }
     
     /**
@@ -274,6 +274,50 @@ public abstract class PlanNodeUtil {
      */
     public static Collection<Column> getOutputColumnsForPlanNode(final Database catalog_db, AbstractPlanNode node) {
         final PlannerContext pcontext = PlannerContext.singleton();
+        final Collection<Integer> planColumnIds = getOutputColumnIdsForPlanNode(node);
+
+        final Set<Column> columns = new ListOrderedSet<Column>();
+        for (Integer column_guid : planColumnIds) {
+            PlanColumn planColumn = pcontext.get(column_guid);
+            assert(planColumn != null);
+            AbstractExpression exp = planColumn.getExpression();
+            assert(exp != null);
+            Collection<Column> exp_cols = ExpressionUtil.getReferencedColumns(catalog_db, exp);
+            if (debug.get()) LOG.debug(planColumn.toString() + " => " + exp_cols);
+            columns.addAll(exp_cols);
+        } // FOR
+        
+        return (columns);
+    }
+    
+    /**
+     * Get the set of columns 
+     * @param catalog_db
+     * @param node
+     * @return
+     */
+    public static Collection<AbstractExpression> getOutputExpressionsForPlanNode(AbstractPlanNode node) {
+        final PlannerContext pcontext = PlannerContext.singleton();
+        final Collection<Integer> planColumnIds = getOutputColumnIdsForPlanNode(node);
+
+        final Set<AbstractExpression> exps = new ListOrderedSet<AbstractExpression>();
+        for (Integer column_guid : planColumnIds) {
+            PlanColumn planColumn = pcontext.get(column_guid);
+            assert(planColumn != null);
+            AbstractExpression exp = planColumn.getExpression();
+            assert(exp != null);
+            exps.add(exp);
+        } // FOR
+        
+        return (exps);
+    }
+    
+    /**
+     * 
+     * @param node
+     * @return
+     */
+    public static Collection<Integer> getOutputColumnIdsForPlanNode(AbstractPlanNode node) {
         final Set<Integer> planColumnIds = new HashSet<Integer>();
 
         // 2011-07-20: Using the AbstractExpressions is the more accurate way of getting the
@@ -295,18 +339,7 @@ public abstract class PlanNodeUtil {
             if (debug.get()) LOG.debug(node.getPlanNodeType() + ": " + agg_node.getAggregateColumnGuids());
         }
         
-        final Set<Column> columns = new ListOrderedSet<Column>();
-        for (Integer column_guid : planColumnIds) {
-            PlanColumn planColumn = pcontext.get(column_guid);
-            assert(planColumn != null);
-            AbstractExpression exp = planColumn.getExpression();
-            assert(exp != null);
-            Collection<Column> exp_cols = ExpressionUtil.getReferencedColumns(catalog_db, exp);
-            if (debug.get()) LOG.debug(planColumn.toString() + " => " + exp_cols);
-            columns.addAll(exp_cols);
-        } // FOR
-        
-        return (columns);
+        return (planColumnIds);
     }
     
     /**
@@ -317,8 +350,8 @@ public abstract class PlanNodeUtil {
      */
     public static Collection<Column> getUpdatedColumnsForPlanNode(final Database catalog_db, AbstractPlanNode node) {
         Set<Column> columns = new ListOrderedSet<Column>();
-        for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
-            int column_guid = node.m_outputColumns.get(ctr);
+        for (int ctr = 0, cnt = node.getOutputColumnGUIDs().size(); ctr < cnt; ctr++) {
+            int column_guid = node.getOutputColumnGUIDs().get(ctr);
             PlanColumn column = PlannerContext.singleton().get(column_guid);
             assert(column != null);
             
@@ -443,7 +476,7 @@ public abstract class PlanNodeUtil {
         new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(AbstractPlanNode element) {
-                guids.addAll(element.m_outputColumns);
+                guids.addAll(element.getOutputColumnGUIDs());
             }
         }.traverse(root);
         return (guids);
@@ -618,7 +651,7 @@ public abstract class PlanNodeUtil {
 //        if (false && node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
 //            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns (Inline Projection)", node.getInlinePlanNode(PlanNodeType.PROJECTION), line_spacer));
 //        } else {
-            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns", node.m_outputColumns, line_spacer));
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("OutputColumns", node.getOutputColumnGUIDs(), line_spacer));
 //        }
         
         // Inline PlanNodes

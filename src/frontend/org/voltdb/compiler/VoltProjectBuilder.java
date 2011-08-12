@@ -226,6 +226,11 @@ public class VoltProjectBuilder {
         assert(schemaURL != null);
         addSchema(schemaURL.getPath());
     }
+    
+    public void addSchema(final File schemaFile) {
+        assert(schemaFile != null);
+        addSchema(schemaFile.getAbsolutePath());
+    }
 
     public void addSchema(String schemaPath) {
         try {

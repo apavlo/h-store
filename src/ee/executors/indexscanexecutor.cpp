@@ -398,7 +398,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
     m_searchKey.setAllNulls();
     if (m_searchKeyAllParamArray != NULL)
     {
-        VOLT_TRACE("sweet, all params");
+        VOLT_DEBUG("sweet, all params");
         for (int ctr = 0; ctr < m_numOfSearchkeys; ctr++)
         {
             m_searchKey.setNValue( ctr, params[m_searchKeyAllParamArray[ctr]]);
@@ -474,6 +474,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         }
         else
         {
+            VOLT_ERROR("Unexpected IndexLookupType: %s", indexLookupToString(m_lookupType).c_str());
             return false;
         }
     }
@@ -491,6 +492,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             m_index->moveToEnd(order_by_asc);
     } else if (m_sortDirection == SORT_DIRECTION_TYPE_INVALID &&
                m_numOfSearchkeys == 0) {
+        VOLT_ERROR("Unexpected SortDirectionType: %s", sortDirectionToString(m_sortDirection).c_str());
         return false;
     }
 
@@ -508,7 +510,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
         if (end_expression != NULL &&
             end_expression->eval(&m_tuple, NULL).isFalse())
         {
-            VOLT_TRACE("End Expression evaluated to false, stopping scan");
+            VOLT_DEBUG("End Expression evaluated to false, stopping scan");
             break;
         }
         //
@@ -559,7 +561,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
                 TableTuple &temp_tuple = m_outputTable->tempTuple();
                 if (m_projectionAllTupleArray != NULL)
                 {
-                    VOLT_TRACE("sweet, all tuples");
+                    VOLT_DEBUG("sweet, all tuples");
                     for (int ctr = m_numOfColumns - 1; ctr >= 0; --ctr)
                     {
                         temp_tuple.setNValue(ctr,
@@ -594,6 +596,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params)
             //
             if (m_limitNode != NULL && tuples_written >= m_limitSize)
             {
+                VOLT_DEBUG("Hit limit of %d tuples. Halting scan", tuples_written);
                 break;
             }
         }

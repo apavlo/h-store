@@ -151,7 +151,7 @@ void outputLogHeader_(const char *file, int line, const char *func, int level);
 #if VOLT_LOG_LEVEL<=VOLT_LEVEL_TRACE
     #define VOLT_TRACE_ENABLED
     //#pragma message("VOLT_TRACE was enabled.")
-    #define LOG_TRACE(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, LOG_LEVEL_TRACE);::fprintf(LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(LOG_OUTPUT_STREAM, "\n");::fflush(LOG_OUTPUT_STREAM)
+    #define VOLT_TRACE(...) outputLogHeader_(__FILE__, __LINE__, __FUNCTION__, VOLT_LEVEL_TRACE);::fprintf(VOLT_LOG_OUTPUT_STREAM, __VA_ARGS__);fprintf(VOLT_LOG_OUTPUT_STREAM, "\n");::fflush(VOLT_LOG_OUTPUT_STREAM)
 #else
     #define VOLT_TRACE(...) ((void)0)
 #endif

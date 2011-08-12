@@ -227,7 +227,7 @@ public class SelectSubPlanAssembler extends SubPlanAssembler {
             // Now we have to update the column references used by the inner node
             //
             subPlan.updateOutputColumns(m_db);
-            final List<Integer> outputColumns = subPlan.m_outputColumns;
+            final List<Integer> outputColumns = subPlan.getOutputColumnGUIDs();
             final int offset = outputColumns.size();
             if (innerNode.getPredicate() != null) {
                 try {

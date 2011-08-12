@@ -1390,21 +1390,21 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Execute the given fragment tasks on this site's underlying EE
      * @param ts
      * @param undoToken
-     * @param fragmentIdIndex
+     * @param batchSize
      * @param fragmentIds
      * @param parameterSets
      * @param output_depIds
      * @param input_depIds
      * @return
      */
-    private DependencySet executePlanFragments(TransactionState ts, long undoToken, int fragmentIdIndex, long fragmentIds[], ParameterSet parameterSets[], int output_depIds[], int input_depIds[]) {
+    private DependencySet executePlanFragments(TransactionState ts, long undoToken, int batchSize, long fragmentIds[], ParameterSet parameterSets[], int output_depIds[], int input_depIds[]) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         long txn_id = ts.getTransactionId();
         
         if (d) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("Executing %d fragments for %s [lastTxnId=%d, undoToken=%d]",
-                      fragmentIdIndex, ts, this.lastCommittedTxnId, undoToken));
+                      batchSize, ts, this.lastCommittedTxnId, undoToken));
             if (t) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
@@ -1426,7 +1426,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Check whether this fragments are read-only
         if (ts.isExecReadOnly()) {
-            boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, fragmentIdIndex); 
+            boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, batchSize); 
             if (readonly == false) {
                 if (t) LOG.trace(String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
                 ts.markExecNotReadOnly();
@@ -1435,18 +1435,18 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         DependencySet result = null;
         try {
-            if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", fragmentIdIndex, this.partitionId, ts));
+            if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
                 ((LocalTransactionState)ts).profiler.startExecEE();
             }
             synchronized (this.ee) {
                 result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                                 fragmentIds,
-                                fragmentIdIndex,
+                                batchSize,
                                 input_depIds,
                                 output_depIds,
                                 parameterSets,
-                                fragmentIdIndex,
+                                batchSize,
                                 txn_id,
                                 this.lastCommittedTxnId,
                                 undoToken);
@@ -1454,6 +1454,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
                 ((LocalTransactionState)ts).profiler.stopExecEE();
             }
+        } catch (EEException ex) {
+            LOG.fatal("Unrecoverable error in the ExecutionEngine", ex);
+            System.exit(1);
         } catch (Throwable ex) {
             new RuntimeException(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
         }
@@ -1862,6 +1865,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // there is a race condition that a task with input dependencies will start running as soon as we
         // get one response back from another executor
         ts.initRound(this.getNextUndoToken());
+        assert(batch_size > 0);
         ts.setBatchSize(batch_size);
         boolean first = true;
         boolean read_only = ts.isExecReadOnly();
