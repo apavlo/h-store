@@ -1,4 +1,4 @@
-package edu.brown.benchmark.auctionmark.model;
+package edu.brown.benchmark.auctionmark.util;
 
 import org.voltdb.types.TimestampType;
 

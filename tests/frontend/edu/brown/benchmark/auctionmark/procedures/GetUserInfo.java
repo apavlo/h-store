@@ -14,7 +14,10 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
  * @author pavlo
  * @author visawee
  */
-@ProcInfo(partitionInfo = "USER.U_ID: 0", singlePartition = false)
+@ProcInfo(
+    partitionInfo = "USER.U_ID: 0",
+    singlePartition = false
+)
 public class GetUserInfo extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(GetUserInfo.class);
 
@@ -41,29 +44,22 @@ public class GetUserInfo extends VoltProcedure {
          "ORDER BY i_end_date ASC LIMIT 10 "
     );
 
-    public final SQLStmt select_seller_feedback = new SQLStmt(
-        "SELECT if_rating, if_comment, if_date, " +
-               "i_id, i_u_id, i_name, i_end_date, i_status, "+
-               "u_id, u_rating, u_sattr0, u_sattr1 " +
-          "FROM " + AuctionMarkConstants.TABLENAME_ITEM_FEEDBACK + ", " +
-                    AuctionMarkConstants.TABLENAME_ITEM + ", " +
-                    AuctionMarkConstants.TABLENAME_USER +
-        " WHERE if_u_id = ? AND if_i_id = i_id AND if_u_id = i_u_id " +
-           "AND if_buyer_id = u_id " +
-        " ORDER BY if_date DESC LIMIT 10 "
-    );
+    public static final String select_feedback_base =
+        "SELECT u_id, u_rating, u_sattr0, u_sattr1, " +
+        "       uf_rating, uf_date, uf_sattr0, " + 
+        "       i_id, i_u_id, i_name, i_end_date, i_status " +
+        "  FROM " + AuctionMarkConstants.TABLENAME_USER + ", " +
+                  AuctionMarkConstants.TABLENAME_USER_FEEDBACK + ", " +
+                  AuctionMarkConstants.TABLENAME_ITEM +
+        " WHERE u_id = ? AND uf_u_id = u_id " +
+        // For buyer feedback, this should be not equals
+        // For seller feedback, this should be equals
+        "   AND uf_i_id = i_id AND uf_u_id %s i_u_id " +
+        " ORDER BY uf_date DESC LIMIT 10 ";
     
-    public final SQLStmt select_buyer_feedback = new SQLStmt(
-        "SELECT if_rating, if_comment, if_date, " +
-               "i_id, i_u_id, i_name, i_end_date, i_status, "+
-               "u_id, u_rating, u_sattr0, u_sattr1 " +
-          "FROM " + AuctionMarkConstants.TABLENAME_ITEM_FEEDBACK + ", " +
-                    AuctionMarkConstants.TABLENAME_ITEM + ", " +
-                    AuctionMarkConstants.TABLENAME_USER +
-        " WHERE if_buyer_id = ? AND if_i_id = i_id AND if_u_id = i_u_id " +
-           "AND if_u_id = u_id " +
-        " ORDER BY if_date DESC LIMIT 10 "
-    );
+    public final SQLStmt select_seller_feedback = new SQLStmt(String.format(select_feedback_base, "="));
+    
+    public final SQLStmt select_buyer_feedback = new SQLStmt(String.format(select_feedback_base, "!="));
 
     /**
      * @param u_id
@@ -73,62 +69,69 @@ public class GetUserInfo extends VoltProcedure {
      */
     public VoltTable[] run(long u_id, long get_seller_items, long get_buyer_items, long get_feedback) {
         final boolean debug = LOG.isDebugEnabled();
+        if (debug)
+            LOG.debug("Grabbing USER: " + u_id);
         
-        if (debug) LOG.debug("Grabbing USER: " + u_id);
         voltQueueSQL(select_user, u_id);
         final VoltTable user_results[] = voltExecuteSQL();
-        assert(user_results.length == 1);
+        assert (user_results.length == 1);
 
         // 33% of the time they're going to ask for additional information
         if (get_seller_items == 1 || get_buyer_items == 1) {
             // Of that 75% of the times we're going to get the seller's items
             if (get_seller_items == 1) {
-                if (debug) LOG.debug("Grabbing Seller's Items: " + u_id);
+                if (debug)
+                    LOG.debug("Grabbing Seller's Items: " + u_id);
                 voltQueueSQL(select_seller_items, u_id);
-                
-            // And the remaining 25% of the time we'll get the buyer's purchased items
+
+                // And the remaining 25% of the time we'll get the buyer's
+                // purchased items
             } else if (get_buyer_items == 1) {
-                if (debug) LOG.debug("Grabbing Buyer's Items: " + u_id);
+                if (debug)
+                    LOG.debug("Grabbing Buyer's Items: " + u_id);
                 voltQueueSQL(select_buyer_items, u_id);
-                
-//                // Also get the user's feedback (33% of the time)
-//                if (get_feedback == 1) {
-//                    if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
-//                    voltQueueSQL(select_buyer_feedback, u_id);
-//                }
+
+                // // Also get the user's feedback (33% of the time)
+                // if (get_feedback == 1) {
+                // if (debug) LOG.debug("Grabbing User Feedback Items: " +
+                // u_id);
+                // voltQueueSQL(select_buyer_feedback, u_id);
+                // }
             }
         }
 
-        
         // Important: You have to make sure that none of the entries in the final
         // VoltTable results array that get passed back are null, otherwise
         // the ExecutionSite will throw an error!
         VoltTable results[] = null;
         if (get_seller_items == 1 || get_buyer_items == 1) {
             final VoltTable item_results[] = voltExecuteSQL();
-            assert(item_results.length > 0);
-            
+            assert (item_results.length > 0);
+
             // Also get the user's feedback (33% of the time)
-            // We had to move this into a separate queue+execute call because the BatchPlanner and
+            // We had to move this into a separate queue+execute call because
+            // the BatchPlanner and
             // TransactionState were not playing nicely!
             VoltTable feedback_results[] = new VoltTable[0];
             if (get_feedback == 1) {
-                if (debug) LOG.debug("Grabbing User Feedback Items: " + u_id);
+                if (debug)
+                    LOG.debug("Grabbing User Feedback Items: " + u_id);
                 // 2010-11-15: The distributed query planner chokes on this one and makes a plan
                 // that basically sends the entire user table to all nodes. So for now we'll just execute
                 // the query to grab the buyer's feedback information
                 // voltQueueSQL(select_seller_feedback, u_id);
                 voltQueueSQL(select_buyer_feedback, u_id);
                 feedback_results = voltExecuteSQL();
-                assert(feedback_results.length > 0);    
+                assert (feedback_results.length > 0);
             }
-            
+
             results = new VoltTable[item_results.length + feedback_results.length + 1];
-            
-            if (debug) LOG.debug("# of Results: " + results.length);
+
+            if (debug)
+                LOG.debug("# of Results: " + results.length);
             int results_idx = 0;
             results[results_idx++] = user_results[0];
-            
+
             for (VoltTable vt : item_results) {
                 results[results_idx++] = vt;
             }

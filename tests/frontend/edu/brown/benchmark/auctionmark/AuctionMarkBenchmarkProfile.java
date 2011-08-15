@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +48,7 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
+import org.voltdb.utils.Pair;
 
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
@@ -57,66 +57,81 @@ import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AuctionMarkBenchmarkProfile implements JSONSerializable {
-    protected static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
+    private static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
-    public List<Long> user_ids;
-
-    public enum Members {
-        SCALE_FACTOR,
-        TABLE_SIZES, 
-        ITEM_CATEGORY_HISTOGRAM,
-        USER_IDS,
-        USER_AVAILABLE_ITEMS,
-        USER_WAIT_FOR_PURCHASE_ITEMS,
-        USER_COMPLETE_ITEMS,
-        ITEM_BID_MAP,
-        ITEM_BUYER_MAP,
-        GAG_GAV_MAP,
-        GAG_GAV_HISTOGRAM
-    };
+    // ----------------------------------------------------------------
+    // SERIALIZABLE DATA MEMBERS
+    // ----------------------------------------------------------------
 
     /**
      * Data Scale Factor
      */
     public double scale_factor;
-
     /**
      * Map from table names to the number of tuples we inserted during loading
      */
     public Map<String, Long> table_sizes = Collections.synchronizedMap(new TreeMap<String, Long>());
-
     /**
      * Histogram for number of items per category (stored as category_id)
      */
     public Histogram<Long> item_category_histogram = new Histogram<Long>();
 
     /**
-     * Three status types for an item 1. Available (The auction of this item is
-     * still open) 2. Wait for purchase - The auction of this item is still
-     * open. There is a bid winner and the bid winner has not purchased the
-     * item. 3. Complete (The auction is closed and (There is no bid winner or
-     * The bid winner has already purchased the itme))
+     * A histogram for the number of users that have the number of items listed
+     * Long -> # of Users
      */
-    public Histogram<Long> user_available_items_histogram;
-    public Histogram<Long> user_wait_for_purchase_items_histogram;
-    public Histogram<Long> user_complete_items_histogram;
+    public Histogram<Integer> users_per_item_count = new Histogram<Integer>();
+    
+    /**
+     * Three status types for an item:
+     *  (1) Available (The auction of this item is still open)
+     *  (2) Wait for purchase - The auction of this item is still open. 
+     *      There is a bid winner and the bid winner has not purchased the item.
+     *  (3) Complete (The auction is closed and (There is no bid winner or
+     *      the bid winner has already purchased the item)
+     */
+    public Map<Long, List<Long>> user_available_items = new HashMap<Long, List<Long>>();
+    public Histogram<Long> user_available_items_histogram = new Histogram<Long>();
+    
+    public Map<Long, List<Long>> user_wait_for_purchase_items = new HashMap<Long, List<Long>>();
+    public Histogram<Long> user_wait_for_purchase_items_histogram = new Histogram<Long>();
+    
+    public Map<Long, List<Long>> user_complete_items = new HashMap<Long, List<Long>>();
+    public Histogram<Long> user_complete_items_histogram = new Histogram<Long>();
 
-    public Map<Long, List<Long>> user_available_items;
-    public Map<Long, List<Long>> user_wait_for_purchase_items;
-    public Map<Long, List<Long>> user_complete_items;
-    public Map<Long, Long> item_bid_map;
-    public Map<Long, Long> item_buyer_map;
+    public Map<Long, Long> item_bid_map = new HashMap<Long, Long>();
+    public Map<Long, Long> item_buyer_map = new HashMap<Long, Long>();
 
-    // Map from global attribute group to list of global attribute value
-    public Map<Long, List<Long>> gag_gav_map;
-    public Histogram<Long> gag_gav_histogram;
+    /** Map from global attribute group to list of global attribute value */
+    public Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
+    public Histogram<Long> gag_gav_histogram = new Histogram<Long>();
+    
+    // ----------------------------------------------------------------
+    // TRANSIENT DATA MEMBERS
+    // ----------------------------------------------------------------
+    
+    private transient FlatHistogram<Long> randomGAGId = null;
 
-    // Map from user ID to total number of items that user sell
-    // public Map<Long, Integer> user_total_items = new ConcurrentHashMap<Long,
-    // Integer>();
-
+    private final Map<AbstractRandomGenerator, RandomDistribution.DiscreteRNG> CACHE_getRandomUserId = new HashMap<AbstractRandomGenerator, RandomDistribution.DiscreteRNG>();
+    
+    /**
+     * Data used for calculating temporally skewed user ids
+     */
+    private Integer current_tick = -1;
+    private Integer window_total = null;
+    private Integer window_size = null;
+    private final Histogram<Integer> window_histogram = new Histogram<Integer>();
+    private final Vector<Integer> window_partitions = new Vector<Integer>();
+    
     // -----------------------------------------------------------------
     // GENERAL METHODS
     // -----------------------------------------------------------------
@@ -128,42 +143,16 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
         // Initialize table sizes
         for (String tableName : AuctionMarkConstants.TABLENAMES) {
-            this.table_sizes.put(tableName, 0l);
-        }
+            if (this.table_sizes.containsKey(tableName) == false) {
+                this.table_sizes.put(tableName, 0l);
+            }
+        } // FOR
 
+        this.window_histogram.setKeepZeroEntries(true);
+        
         // _lastUserId = this.getTableSize(AuctionMarkConstants.TABLENAME_USER);
 
         LOG.debug("AuctionMarkBenchmarkProfile :: constructor");
-
-        this.user_ids = new ArrayList<Long>();
-
-        this.user_available_items = new ConcurrentHashMap<Long, List<Long>>();
-        this.user_available_items_histogram = new Histogram<Long>();
-
-        this.user_wait_for_purchase_items = new ConcurrentHashMap<Long, List<Long>>();
-        this.user_wait_for_purchase_items_histogram = new Histogram<Long>();
-
-        this.user_complete_items = new ConcurrentHashMap<Long, List<Long>>();
-        this.user_complete_items_histogram = new Histogram<Long>();
-
-        this.item_bid_map = new ConcurrentHashMap<Long, Long>();
-        this.item_buyer_map = new ConcurrentHashMap<Long, Long>();
-
-        this.gag_gav_map = new ConcurrentHashMap<Long, List<Long>>();
-        this.gag_gav_histogram = new Histogram<Long>();
-    }
-
-    // -----------------------------------------------------------------
-    // SKEWING METHODS
-    // -----------------------------------------------------------------
-
-    private Integer current_tick = -1;
-    private Integer window_total = null;
-    private Integer window_size = null;
-    private final Histogram<Integer> window_histogram = new Histogram<Integer>();
-    private final Vector<Integer> window_partitions = new Vector<Integer>();
-    {
-        this.window_histogram.setKeepZeroEntries(true);
     }
 
     /**
@@ -217,7 +206,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     /**
      * Get the scale factor value for this benchmark profile
-     * 
      * @return
      */
     public double getScaleFactor() {
@@ -226,7 +214,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     /**
      * Set the scale factor for this benchmark profile
-     * 
      * @param scale_factor
      */
     public void setScaleFactor(double scale_factor) {
@@ -257,56 +244,28 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.setTableSize(table_name, new_size);
         return (new_size);
     }
+    
+    // ----------------------------------------------------------------
+    // USER METHODS
+    // ----------------------------------------------------------------
 
     public void addUserId(long userId) {
-        synchronized (this.user_ids) {
-            if (LOG.isTraceEnabled()) {
-                LOG.trace("@@@ adding userId = " + userId);
-            }
-            this.user_ids.add(userId);
-        }
+//        synchronized (this.user_ids) {
+//            if (LOG.isTraceEnabled()) {
+//                LOG.trace("@@@ adding userId = " + userId);
+//            }
+//            this.user_ids.add(userId);
+//        }
     }
 
     public long getUserId(int index) {
-        return this.user_ids.get(index);
+        return (0l);
+//        return this.user_ids.get(index);
     }
 
-    public List<Long> getUserIds() {
-        return this.user_ids;
-    }
-    
     public int getUserIdCount() {
-        return (this.user_ids.size());
-    }
-
-    /*
-     * Available item manipulators
-     */
-    public void addAvailableItem(long sellerId, long itemId) {
-        synchronized (this.user_available_items) {
-            List<Long> itemList = this.user_available_items.get(sellerId);
-            if (null == itemList) {
-                itemList = new LinkedList<Long>();
-                itemList.add(itemId);
-                this.user_available_items.put(sellerId, itemList);
-                this.user_available_items_histogram.put(sellerId);
-            } else if (!itemList.contains(itemId)) {
-                itemList.add(itemId);
-                this.user_available_items_histogram.put(sellerId);
-            }
-        }
-    }
-
-    public void removeAvailableItem(long sellerId, long itemId) {
-        synchronized (this.user_available_items) {
-            List<Long> itemList = this.user_available_items.get(sellerId);
-            if (null != itemList && itemList.remove(new Long(itemId))) {
-                this.user_available_items_histogram.remove(sellerId, 1);
-                if (0 == itemList.size()) {
-                    this.user_available_items.remove(sellerId);
-                }
-            }
-        }
+        return (0);
+//        return (this.user_ids.size());
     }
 
     /**
@@ -317,22 +276,21 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      */
     private Long getRandomUserId(AbstractRandomGenerator rng) {
         Long user_id = null;
-        assert(this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
-        synchronized (this.user_ids) {
-            int num_user_ids = this.user_ids.size();
-            if (num_user_ids > 0) {
-                RandomDistribution.DiscreteRNG randomUserIndex = this.CACHE_getRandomUserId.get(rng);
-                if (randomUserIndex == null || randomUserIndex.getMax() != num_user_ids) {
-                    // Do we really want everything to be Guassian??
-                    randomUserIndex = new Gaussian(rng, 0, num_user_ids - 1);
-                    this.CACHE_getRandomUserId.put(rng, randomUserIndex);
-                }
-                user_id = this.user_ids.get(randomUserIndex.nextInt());
-            }
-        }
+//        assert(this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
+//        synchronized (this.user_ids) {
+//            int num_user_ids = this.user_ids.size();
+//            if (num_user_ids > 0) {
+//                RandomDistribution.DiscreteRNG randomUserIndex = this.CACHE_getRandomUserId.get(rng);
+//                if (randomUserIndex == null || randomUserIndex.getMax() != num_user_ids) {
+//                    // Do we really want everything to be Guassian??
+//                    randomUserIndex = new Gaussian(rng, 0, num_user_ids - 1);
+//                    this.CACHE_getRandomUserId.put(rng, randomUserIndex);
+//                }
+//                user_id = this.user_ids.get(randomUserIndex.nextInt());
+//            }
+//        }
         return (user_id);
     }
-    private final Map<AbstractRandomGenerator, RandomDistribution.DiscreteRNG> CACHE_getRandomUserId = new HashMap<AbstractRandomGenerator, RandomDistribution.DiscreteRNG>();
 
     /**
      * Gets a random buyer ID within the client.
@@ -375,6 +333,40 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return (seller_id);
     }
     
+    // ----------------------------------------------------------------
+    // ITEM METHODS
+    // ----------------------------------------------------------------
+    
+    /**
+     * Available item manipulators
+     */
+    public void addAvailableItem(long sellerId, long itemId) {
+        synchronized (this.user_available_items) {
+            List<Long> itemList = this.user_available_items.get(sellerId);
+            if (null == itemList) {
+                itemList = new LinkedList<Long>();
+                itemList.add(itemId);
+                this.user_available_items.put(sellerId, itemList);
+                this.user_available_items_histogram.put(sellerId);
+            } else if (!itemList.contains(itemId)) {
+                itemList.add(itemId);
+                this.user_available_items_histogram.put(sellerId);
+            }
+        }
+    }
+
+    public void removeAvailableItem(long sellerId, long itemId) {
+        synchronized (this.user_available_items) {
+            List<Long> itemList = this.user_available_items.get(sellerId);
+            if (null != itemList && itemList.remove(new Long(itemId))) {
+                this.user_available_items_histogram.remove(sellerId, 1);
+                if (0 == itemList.size()) {
+                    this.user_available_items.remove(sellerId);
+                }
+            }
+        }
+    }
+
     /**
      * @param rng
      * @return
@@ -526,6 +518,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * buyer_num_wait_for_purchase_bids.get(buyerId) + 1; } else { numBids = 1;
      * } buyer_num_wait_for_purchase_bids.put(buyerId, numBids); }
      */
+    
+    // ----------------------------------------------------------------
+    // GLOBAL ATTRIBUTE METHODS
+    // ----------------------------------------------------------------
 
     public void addGAGIdGAVIdPair(long GAGId, long GAVId) {
         List<Long> GAVIds = this.gag_gav_map.get(GAGId);
@@ -539,15 +535,21 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.gag_gav_histogram.put(GAGId);
     }
 
-    public Long[] getRandomGAGIdGAVIdPair(AbstractRandomGenerator rng) {
-
-        FlatHistogram<Long> randomGAGId = new FlatHistogram<Long>(rng, this.gag_gav_histogram);
-        Long GAGId = randomGAGId.nextLong();
-
+    /**
+     * Return a random attribute group/value pair
+     * Pair<GLOBAL_ATTRIBUTE_GROUP, GLOBAL_ATTRIBUTE_VALUE>
+     * @param rng
+     * @return
+     */
+    public synchronized Pair<Long, Long> getRandomGAGIdGAVIdPair(AbstractRandomGenerator rng) {
+        if (this.randomGAGId == null) {
+            this.randomGAGId = new FlatHistogram<Long>(rng, this.gag_gav_histogram);
+        }
+        Long GAGId = this.randomGAGId.nextLong();
         List<Long> GAVIds = this.gag_gav_map.get(GAGId);
         Long GAVId = GAVIds.get(rng.nextInt(GAVIds.size()));
 
-        return new Long[] { GAGId, GAVId };
+        return Pair.of(GAGId, GAVId);
     }
     
     public long getRandomCategoryId(AbstractRandomGenerator rng) {
@@ -555,25 +557,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return randomCategory.nextLong();
     }
 
-    /*
-     * public void incrementTotalItems(long user_id) {
-     * synchronized(user_total_items){ Integer totalItems =
-     * user_total_items.get(user_id); if(null == totalItems){ totalItems = 1; }
-     * else { totalItems++; } user_total_items.put(user_id, totalItems); } }
-     * public int getTotalItems(long user_id) { synchronized(user_total_items){
-     * if(user_total_items.containsKey(user_id)){ return
-     * user_total_items.get(user_id); } else { return 0; } } }
-     */
-    /*
-     * public void setItemsPerUser(long user_id, int total_items, int
-     * completed_items) { // TODO (pavlo) } public void
-     * setCompletedItemsPerUser(long user_id, int completed_items) { // TODO
-     * (pavlo) } public int getCompletedItems(long user_id) { return 0; //
-     * TODO(pavlo) } public int getAvailableItems(long user_id) { return 0; //
-     * TODO(pavlo) }
-     */
-
-    // public
 
     // -----------------------------------------------------------------
     // SERIALIZATION
@@ -596,11 +579,11 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     @Override
     public void toJSON(JSONStringer stringer) throws JSONException {
-        JSONUtil.fieldsToJSON(stringer, this, AuctionMarkBenchmarkProfile.class, AuctionMarkBenchmarkProfile.Members.values());
+        JSONUtil.fieldsToJSON(stringer, this, AuctionMarkBenchmarkProfile.class, JSONUtil.getSerializableFields(this.getClass()));
     }
 
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AuctionMarkBenchmarkProfile.class, AuctionMarkBenchmarkProfile.Members.values());
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AuctionMarkBenchmarkProfile.class, false, JSONUtil.getSerializableFields(this.getClass()));
     }
 }

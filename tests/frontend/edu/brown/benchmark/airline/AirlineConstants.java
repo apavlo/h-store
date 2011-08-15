@@ -63,6 +63,9 @@ public abstract class AirlineConstants {
     
     /** Probability that FindFlightByAirport will use the distance search */
     public static final int PROB_FIND_AIRPORT_NEARBY = 30;
+    
+    /** Probability that UpdateCustomer should update FrequentFlyer records */
+    public static final int PROB_UPDATE_FREQUENT_FLYER = 30;
 
     // ----------------------------------------------------------------
     // DATE CONSTANTS

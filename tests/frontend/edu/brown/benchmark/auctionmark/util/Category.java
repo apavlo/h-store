@@ -1,13 +1,13 @@
-package edu.brown.benchmark.auctionmark.model;
+package edu.brown.benchmark.auctionmark.util;
 
-public class AuctionMarkCategory {
+public class Category {
     private int categoryID;
     private int parentCategoryID;
     private int itemCount;
     private String name;
     private boolean isLeaf;
 
-    public AuctionMarkCategory(int categoryID, String name, int parentCategoryID, int itemCount, boolean isLeaf) {
+    public Category(int categoryID, String name, int parentCategoryID, int itemCount, boolean isLeaf) {
         this.categoryID = categoryID;
         this.name = name;
         this.parentCategoryID = parentCategoryID;
