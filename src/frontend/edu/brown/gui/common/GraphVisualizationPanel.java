@@ -217,14 +217,14 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         this.getPickedVertexState().addItemListener(new ItemListener() {
             @Override
             public void itemStateChanged(ItemEvent e) {
-                V vertex = CollectionUtil.getFirst(GraphVisualizationPanel.this.getPickedVertexState().getPicked());
+                V vertex = CollectionUtil.first(GraphVisualizationPanel.this.getPickedVertexState().getPicked());
                 if (vertex != null) GraphVisualizationPanel.this.EVENT_SELECT_VERTEX.notifyObservers(vertex);
             }
         });
         this.getPickedEdgeState().addItemListener(new ItemListener() {
             @Override
             public void itemStateChanged(ItemEvent e) {
-                E edge = CollectionUtil.getFirst(GraphVisualizationPanel.this.getPickedEdgeState().getPicked());
+                E edge = CollectionUtil.first(GraphVisualizationPanel.this.getPickedEdgeState().getPicked());
                 if (edge != null) GraphVisualizationPanel.this.EVENT_SELECT_EDGE.notifyObservers(edge);
             }
         });

@@ -141,7 +141,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // Only the base partition should be touched (2 * num_txns). Everything else should
         // be touched num_txns
-        Integer base_partition = CollectionUtil.getFirst(orig_costModel.getQueryPartitionAccessHistogram().getMaxCountValues());
+        Integer base_partition = CollectionUtil.first(orig_costModel.getQueryPartitionAccessHistogram().getMaxCountValues());
         assertNotNull(base_partition);
         for (Integer p : orig_costModel.getQueryPartitionAccessHistogram().values()) {
             if (p.equals(base_partition)) {
@@ -282,7 +282,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         
         // Only the base partition should be touched (2 * num_txns). Everything else should
         // be touched num_txns
-        Integer base_partition = CollectionUtil.getFirst(cost_model.getQueryPartitionAccessHistogram().getMaxCountValues());
+        Integer base_partition = CollectionUtil.first(cost_model.getQueryPartitionAccessHistogram().getMaxCountValues());
         assertNotNull(base_partition);
         for (Integer p : cost_model.getQueryPartitionAccessHistogram().values()) {
             if (p.equals(base_partition)) {
@@ -297,9 +297,9 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++");
         
         // Now invalidate the cache for the first query in the procedure
-        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
-        Table catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTables(catalog_stmt));
+        Table catalog_tbl = CollectionUtil.first(CatalogUtil.getReferencedTables(catalog_stmt));
         assertNotNull(catalog_tbl);
         try {
             cost_model.invalidateCache(catalog_tbl);
@@ -337,9 +337,9 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(0, cost_model.getSinglePartitionProcedureHistogram().getSampleCount());
         
         // Now invalidate the cache for the first query in the procedure
-        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
-        Table catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTables(catalog_stmt));
+        Table catalog_tbl = CollectionUtil.first(CatalogUtil.getReferencedTables(catalog_stmt));
         assertNotNull(catalog_tbl);
         try {
             cost_model.invalidateCache(catalog_tbl);

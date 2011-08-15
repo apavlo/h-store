@@ -1113,7 +1113,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // Make sure that the partitioning ProcParameter hashes to the same site as the value
                 // used on the partitioning column for this table
                 } else if (!hashes.isEmpty() && txn_entry.base_partition != null) {
-                    int tbl_partition = CollectionUtil.getFirst(hashes);
+                    int tbl_partition = CollectionUtil.first(hashes);
                     if (txn_entry.base_partition != tbl_partition) {
                         if (trace.get()) LOG.trace(txn_trace + " executes on Partition #" + txn_entry.base_partition + " " +
                                              "but partitioning column " + CatalogUtil.getDisplayName(table_partition_col) + " " +

@@ -238,7 +238,7 @@ public class ParametersUtil {
                         continue;
                     }
                     // HACK: I'm lazy, just take the first one for now
-                    ParameterMapping c = CollectionUtil.getFirst(param_correlations);
+                    ParameterMapping c = CollectionUtil.first(param_correlations);
                     assert (c != null);
 
                     Integer proc_param = c.getProcParameter().getIndex();

@@ -54,7 +54,7 @@ public class TestFeatureSet extends BaseTestCase {
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         this.fset = new FeatureSet();
-        this.txn_trace = CollectionUtil.getFirst(workload.getTransactions());
+        this.txn_trace = CollectionUtil.first(workload.getTransactions());
     }
     
     /**

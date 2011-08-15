@@ -95,7 +95,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         assertEquals(1, stmt_partitions.size());
         assert(stmt_partitions.containsKey(table_key));
         assertEquals(1, stmt_partitions.get(table_key).size());
-        assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.getFirst(stmt_partitions.get(table_key)));
+        assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.first(stmt_partitions.get(table_key)));
     }
     
     /**
@@ -184,7 +184,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         // Just check to make sure that we get back exactly one partition
         assert(p.containsKey(table_key));
         assertEquals("Unexpected result: " + p.get(table_key), 1, p.get(table_key).size());
-        int stmt_partition = CollectionUtil.getFirst(p.get(table_key));
+        int stmt_partition = CollectionUtil.first(p.get(table_key));
         assert(stmt_partition >= 0) : "Invalid Partition: " + p.get(table_key);
         
         // Now create VoltTable and test that
@@ -255,7 +255,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
             Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
-            assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
+            assertEquals(w_id, (int)CollectionUtil.first(partitions));
         } // FOR
     }
     
@@ -275,7 +275,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
             Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
-            assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
+            assertEquals(w_id, (int)CollectionUtil.first(partitions));
         } // FOR
     }
     
@@ -309,7 +309,7 @@ public class TestPartitionEstimator extends BaseTestCase {
 //        System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertFalse(partitions.isEmpty());
         assertEquals(1, partitions.size());
-        assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
+        assertEquals(w_id, (int)CollectionUtil.first(partitions));
     }
     
     /**
@@ -343,7 +343,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
-        assertEquals(BASE_PARTITION, CollectionUtil.getFirst(partitions).intValue());
+        assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
     }
     
     /**
@@ -377,7 +377,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
-        assertEquals(BASE_PARTITION, CollectionUtil.getFirst(partitions).intValue());
+        assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
         
         // Then reset the catalog in p_estimator and run the estimation again
         // The new catalog has a different partition column for WAREHOUSE, so we should get

@@ -633,7 +633,7 @@ public class TransactionEstimator implements Loggable {
             // Update our cache if we tried and failed before
             if (attempt_cache_lookup) {
                 if (d) LOG.debug(String.format("Updating cache batch end for %s: %s -> %s", markov, current, state.current));
-                markov.addCachedBatchEnd(current, CollectionUtil.getLast(state.actual_path_edges), state.current, last_stmt, stmt_idxs[batch_size-1], state.cache_past_partitions, state.cache_last_partitions);
+                markov.addCachedBatchEnd(current, CollectionUtil.last(state.actual_path_edges), state.current, last_stmt, stmt_idxs[batch_size-1], state.cache_past_partitions, state.cache_last_partitions);
             }
         }
         

@@ -1,21 +1,27 @@
 package edu.brown.benchmark.auctionmark.util;
 
-public class UserId {
+public class UserId extends CompositeId {
     
-    private static final int MAX_VALUE = 65535; // 2^14 - 1
-    private static final int VALUE_OFFSET = 16;
+    private static final long BASE_VALUE_MASK = 16777215l; // (2^24)-1
+    private static final int VALUE_OFFSET = 24;
 
-    private final int size_index;
-    private final long size_offset;
+    /**
+     * The size index is the position in the histogram for the number
+     * of users per items size
+     */
+    private int size_index;
+    /**
+     * The offset is based on the number of users that exist at a given size index
+     */
+    private int size_offset;
     
-    private transient int hashCode = -1;
 
     /**
      * Constructor
      * @param size_index
      * @param size_offset
      */
-    public UserId(int size_index, long size_offset) {
+    public UserId(int size_index, int size_offset) {
         this.size_index = size_index;
         this.size_offset = size_offset;
     }
@@ -26,41 +32,29 @@ public class UserId {
      * @param composite_id
      */
     public UserId(long composite_id) {
-        long values[] = UserId.decode(composite_id);
-        this.size_index = (int)values[0];
-        this.size_offset = values[1];
+        this.decode(composite_id);
     }
     
+    @Override
     public long encode() {
-        return UserId.encode(new long[]{ this.size_index, this.size_offset});
+        return (this.encode(BASE_VALUE_MASK, VALUE_OFFSET));
     }
-
-    public static long encode(long...values) {
-        assert(values.length == 4);
-        for (int i = 0; i < values.length; i++) {
-            assert(values[i] >= 0) : "UserId value at position " + i + " is " + values[i];
-            assert(values[i] < MAX_VALUE) : "UserId value at position " + i + " is " + values[i] + ". Max value is " + MAX_VALUE;
-        } // FOR
-        
-        long id = values[0];
-        int offset = VALUE_OFFSET;
-        // System.out.println("0: " + id);
-        for (int i = 1; i < values.length; i++) {
-            id = id | values[i]<<offset;
-            // System.out.println(id + ": " + id + "  [offset=" + offset + ", value=" + values[i] + "]");
-            offset += VALUE_OFFSET;
-        }
-        return (id);
+    @Override
+    public void decode(long composite_id) {
+        long values[] = super.decode(composite_id, new long[2], BASE_VALUE_MASK, VALUE_OFFSET);
+        this.size_offset = (int)values[0];
+        this.size_index = (int)values[1];
+    }
+    @Override
+    public long[] toArray() {
+        return (new long[]{ this.size_index, this.size_offset});
     }
     
-    public static long[] decode(long composite_id) {
-        long values[] = new long[4];
-        int offset = 0;
-        for (int i = 0; i < values.length; i++) {
-            values[i] = composite_id>>offset & MAX_VALUE;
-            offset += VALUE_OFFSET;
-        } // FOR
-        return (values);
+    public int getSize() {
+        return this.size_index;
+    }
+    public long getOffset() {
+        return this.size_offset;
     }
     
     @Override
@@ -68,7 +62,6 @@ public class UserId {
         return String.format("UserId{index=%d,offset=%d}",
                              this.size_index, this.size_offset);
     }
-    
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof UserId) {
@@ -78,13 +71,4 @@ public class UserId {
         }
         return (false);
     }
-    
-    @Override
-    public int hashCode() {
-        if (this.hashCode == -1) {
-            this.hashCode = new Long(this.encode()).hashCode();
-        }
-        return (this.hashCode);
-    }
-    
 }

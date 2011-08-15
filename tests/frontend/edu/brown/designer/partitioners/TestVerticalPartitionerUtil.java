@@ -103,7 +103,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
+        VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
         assertNotNull(vpc);
         assertFalse(vpc.isUpdateApplied());
 
@@ -140,7 +140,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
+        VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
         assertNotNull(vpc);
         assertFalse(vpc.isUpdateApplied());
 
@@ -219,7 +219,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
+        VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
         assertNotNull(vpc);
         assertFalse(vpc.isUpdateApplied());
         
@@ -268,7 +268,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
+        VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
         assertNotNull(vpc);
         
         // BEFORE!
@@ -381,7 +381,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
-        VerticalPartitionColumn vpc = CollectionUtil.getFirst(candidates);
+        VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
         assertNotNull(vpc);
 
         Collection<Column> expected_cols = CollectionUtil.addAll(new HashSet<Column>(), this.getColumn(catalog_tbl, "SUB_NBR"),

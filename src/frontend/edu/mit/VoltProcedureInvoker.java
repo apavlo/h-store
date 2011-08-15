@@ -27,7 +27,7 @@ public class VoltProcedureInvoker {
         Client client = ClientFactory.createClient(128, null, false, null);
         
         Cluster catalog_clus = args.catalog_db.getParent(); 
-        Site catalog_site = CollectionUtil.getFirst(catalog_clus.getSites());
+        Site catalog_site = CollectionUtil.first(catalog_clus.getSites());
         assert(catalog_site != null);
         Host catalog_host = catalog_site.getHost();
         assert(catalog_host != null);

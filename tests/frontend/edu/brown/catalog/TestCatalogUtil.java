@@ -338,7 +338,7 @@ public class TestCatalogUtil extends BaseTestCase {
         
         for (Host catalog_host : host_partitions.keySet()) {
             Set<Partition> partitions = host_partitions.get(catalog_host);
-            Partition catalog_part = CollectionUtil.getFirst(partitions);
+            Partition catalog_part = CollectionUtil.first(partitions);
             int base_partition = catalog_part.getId();
             Set<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
             assertEquals(partitions.size(), local_partitions.size());
@@ -387,7 +387,7 @@ public class TestCatalogUtil extends BaseTestCase {
             clusters.add(c);
         } // FOR
         assertEquals(1, clusters.size());
-        assertEquals(catalog_clus, CollectionUtil.getFirst(clusters));
+        assertEquals(catalog_clus, CollectionUtil.first(clusters));
     }
     
     /**
@@ -402,7 +402,7 @@ public class TestCatalogUtil extends BaseTestCase {
             dbs.add(db1);
         } // FOR
         assertEquals(1, dbs.size());
-        assertEquals(db0, CollectionUtil.getFirst(dbs));
+        assertEquals(db0, CollectionUtil.first(dbs));
     }
     
     /**

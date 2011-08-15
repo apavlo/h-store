@@ -111,7 +111,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             ColumnSet cset = e.getAttribute(EdgeAttributes.COLUMNSET);
             assert(cset != null);
             Collection<DesignerVertex> vertices = orig_agraph.getIncidentVertices(e);
-            DesignerVertex v0 = CollectionUtil.getFirst(vertices);
+            DesignerVertex v0 = CollectionUtil.first(vertices);
             DesignerVertex v1 = v0;
             if (vertices.size() > 1) v1 = CollectionUtil.get(vertices, 1);
             assert(v1 != null);
@@ -483,13 +483,13 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
                 catalog_consts = CatalogUtil.findAll(catalog_consts, "type", ConstraintType.FOREIGN_KEY.getValue());
                 if (!catalog_consts.isEmpty()) {
                     assert(catalog_consts.size() == 1) : CatalogUtil.getDisplayName(catalog_col) + " has " + catalog_consts.size() + " foreign key constraints: " + catalog_consts; 
-                    Constraint catalog_const = CollectionUtil.getFirst(catalog_consts);
+                    Constraint catalog_const = CollectionUtil.first(catalog_consts);
                     Table catalog_fkey_tbl = catalog_const.getForeignkeytable();
                     assert(catalog_fkey_tbl != null);
                     
                     // Important! We only want to include tables that are actually referenced in this procedure
                     if (proc_tables.contains(catalog_fkey_tbl)) {
-                        Column catalog_fkey_col = CollectionUtil.getFirst(catalog_const.getForeignkeycols()).getColumn();
+                        Column catalog_fkey_col = CollectionUtil.first(catalog_const.getForeignkeycols()).getColumn();
                         assert(catalog_fkey_col != null);
                         
                         // TODO: Use real ExpressionType from the entry

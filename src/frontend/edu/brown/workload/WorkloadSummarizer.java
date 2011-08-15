@@ -71,7 +71,7 @@ public class WorkloadSummarizer {
                 for (Set<T> s : this.get(catalog_item).values()) {
                     int weight = s.size();
                     if (weight == 0) continue;
-                    T t = CollectionUtil.getFirst(s);
+                    T t = CollectionUtil.first(s);
                     t.setWeight(weight);
                     new_elements.add(t);
                 } // FOR

@@ -165,7 +165,7 @@ public abstract class AbstractPartitioner {
         protected void addTables(Collection<Table> tables) throws Exception {
             // Iterate through all of the procedures/queries and figure out which
             // ones we'll actually want to look at
-            Database catalog_db = (Database)CollectionUtil.getFirst(tables).getParent();
+            Database catalog_db = (Database)CollectionUtil.first(tables).getParent();
             for (Procedure catalog_proc : catalog_db.getProcedures()) {
                 for (Statement catalog_stmt : catalog_proc.getStatements()) {
                     Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);

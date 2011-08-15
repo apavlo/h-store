@@ -160,7 +160,7 @@ public class PartitionPlan implements JSONSerializable {
                 this.table_descendants.get(ancestor_tbl).add(catalog_tbl);
             } // FOR
             
-            Table root = (this.table_ancestors.get(catalog_tbl).isEmpty() ? catalog_tbl : CollectionUtil.getLast(this.table_ancestors.get(catalog_tbl)));
+            Table root = (this.table_ancestors.get(catalog_tbl).isEmpty() ? catalog_tbl : CollectionUtil.last(this.table_ancestors.get(catalog_tbl)));
             this.table_roots.put(catalog_tbl, root);
             
 //            last_tbl = catalog_tbl;

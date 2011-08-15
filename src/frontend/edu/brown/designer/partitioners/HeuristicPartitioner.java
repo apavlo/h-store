@@ -260,7 +260,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 for (DesignerEdge conflict_edge : rtree.getInEdges(conflict_vertex)) {
                     ColumnSet cset = (ColumnSet)conflict_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                     for (Column conflict_column : cset.findAllForParent(Column.class, conflict_tbl)) {
-                        Column ancestor_column = CollectionUtil.getLast(info.dependencies.getAncestors(conflict_column));
+                        Column ancestor_column = CollectionUtil.last(info.dependencies.getAncestors(conflict_column));
                         Integer count = ancestors.get(ancestor_column);
                         count = (count == null ? 1 : count + 1);
                         ancestors.put(ancestor_column, count);
@@ -634,13 +634,13 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                     LOG.debug("Choose PartitionSet.Entry " + best_entry + " because it has a path length of " + best_length);
                     aset = best_entry;
                 } else {
-                    aset = CollectionUtil.getFirst(asets);
+                    aset = CollectionUtil.first(asets);
                 }
                 
                 //
                 // We need to figure out which attribute to select if there are multiple ones
                 // Well, one way is to pick one that 
-                parent.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.getFirst(aset));
+                parent.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.first(aset));
             } // is_root
             
             //
@@ -667,7 +667,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                             LOG.debug("Creating new edge " + new_edge + " in PartitionTree");
                             LOG.debug(new_edge.debug(ptree));
                             
-                            child.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.getFirst(entries));
+                            child.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.first(entries));
                             child.setAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name(), PartitionMethodType.MAP);
                             
                             //
@@ -713,7 +713,7 @@ public class HeuristicPartitioner extends AbstractPartitioner {
             if (partition_edge != null) {
                 ColumnSet cset = (ColumnSet)partition_edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
                 Set<Column> attributes = cset.findAllForParent(Column.class, parent_table);
-                parent.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.getFirst(attributes));
+                parent.setAttribute(ptree, PartitionTree.VertexAttributes.ATTRIBUTE.name(), CollectionUtil.first(attributes));
                 parent.setAttribute(ptree, PartitionTree.VertexAttributes.METHOD.name(), PartitionMethodType.HASH);
                 LOG.debug(parent + parent.debug(ptree));
             } else {
@@ -899,10 +899,10 @@ public class HeuristicPartitioner extends AbstractPartitioner {
                 assert(picked_entries.isEmpty() == false);
                 if (picked_entries.size() > 1) {
                     LOG.warn("Multiple entries found with the same count for " + catalog_tbl + ". Picking the first one that has a parent");
-                    pplan.getTableEntries().put(catalog_tbl, CollectionUtil.getFirst(picked_entries));
+                    pplan.getTableEntries().put(catalog_tbl, CollectionUtil.first(picked_entries));
                 } else {
                     // Just grab the only one and stick it in the PartitionPlan
-                    pplan.getTableEntries().put(catalog_tbl, CollectionUtil.getFirst(picked_entries));
+                    pplan.getTableEntries().put(catalog_tbl, CollectionUtil.first(picked_entries));
                 }
                 //System.out.println(catalog_tbl + " => " + final_mapping.get(catalog_tbl).toString());
             //

@@ -84,7 +84,7 @@ public class TestCollectionUtil extends TestCase {
         list.add("a");
         list.add("b");
         list.add("c");
-        String key = CollectionUtil.getFirst(list);
+        String key = CollectionUtil.first(list);
         assertEquals("a", key);
     }
     

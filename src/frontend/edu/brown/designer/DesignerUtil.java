@@ -463,7 +463,7 @@ public abstract class DesignerUtil {
                 } else if (node instanceof MaterializePlanNode) {
                     // Assume that if we're here, then they want the mappings from columns to StmtParameters
                     assert(tables.size() == 1);
-                    Table catalog_tbl = CollectionUtil.getFirst(tables);
+                    Table catalog_tbl = CollectionUtil.first(tables);
                     for (int ctr = 0, cnt = node.getOutputColumnGUIDs().size(); ctr < cnt; ctr++) {
                         int column_guid = node.getOutputColumnGUIDs().get(ctr);
                         PlanColumn column = PlannerContext.singleton().get(column_guid);

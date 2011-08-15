@@ -13,15 +13,20 @@ public class UserIdGenerator implements Iterator<UserId> {
     private final Histogram<Integer> users_per_item_count;
     private final int min_size;
     private final int max_size;
-    private Integer currentIndex = null;
-    private Long currentCtr = null;
+    private Integer currentSize = null;
+    private int currentOffset;
     private UserId next = null;
+    private long total_ctr = 0l;
     
-    public UserIdGenerator(int numClients, Histogram<Integer> users_per_item_count) {
-        this(numClients, null, users_per_item_count);
-    }
-
-    public UserIdGenerator(int numClients, Integer clientId,  Histogram<Integer> users_per_item_count) {
+    /**
+     * Construct a new generator based on the given histogram.
+     * If clientId is not null, then this generator will only return UserIds that are mapped
+     * to that clientId based on the UserId's offset
+     * @param users_per_item_count
+     * @param numClients
+     * @param clientId
+     */
+    public UserIdGenerator(Histogram<Integer> users_per_item_count, int numClients,  Integer clientId) {
         if (numClients <= 0)
             throw new IllegalArgumentException("numClients must be more than 0 : " + numClients);
         if (clientId != null && clientId < 0)
@@ -33,16 +38,26 @@ public class UserIdGenerator implements Iterator<UserId> {
         this.min_size = users_per_item_count.getMinValue();
         this.max_size = users_per_item_count.getMaxValue();
         
-        this.currentIndex = this.min_size;
-        this.currentCtr = this.users_per_item_count.get(this.currentIndex);
+        this.setCurrentSize(this.min_size);
     }
 
+    public UserIdGenerator(Histogram<Integer> users_per_item_count, int numClients) {
+        this(users_per_item_count, numClients, null);
+    }
+    
+    public void setCurrentSize(int size) {
+        this.currentSize = size;
+        this.currentOffset = this.users_per_item_count.get(this.currentSize).intValue();
+    }
+    
     private UserId getNext() {
         // Find the next id for this size level
-        Long found = null;
-        while (this.currentIndex < this.max_size) {
-            while (this.currentCtr > 0) {
-                long nextCtr = this.currentCtr--;
+        Integer found = null;
+        while (this.currentSize <= this.max_size) {
+            while (this.currentOffset > 0) {
+                int nextCtr = this.currentOffset--;
+                this.total_ctr++;
+                
                 // If we weren't given a clientId, then we'll generate UserIds
                 // for all users in a given size level
                 if (this.clientId == null) {
@@ -50,18 +65,18 @@ public class UserIdGenerator implements Iterator<UserId> {
                     break;
                 }
                 // Otherwise we have to spin through and find one for our client
-                else if (nextCtr % this.numClients == this.clientId) {
+                else if (this.total_ctr % this.numClients == this.clientId) {
                     found = nextCtr;
                     break;
                 }
             } // WHILE
             if (found != null) break;
-            this.currentIndex++;
-            this.currentCtr = this.users_per_item_count.get(this.currentIndex);
+            this.currentSize++;
+            this.currentOffset = (int)this.users_per_item_count.get(this.currentSize, 0l);
         } // WHILE
         if (found == null) return (null);
         
-        return (new UserId(this.currentIndex, found));
+        return (new UserId(this.currentSize, found));
     }
     
     @Override

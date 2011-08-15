@@ -191,7 +191,7 @@ public class TestTransactionEstimator extends BaseTestCase {
      */
     @Test
     public void testProcessTransactionTrace() throws Exception {
-        TransactionTrace txn_trace = CollectionUtil.getFirst(workload.getTransactions());
+        TransactionTrace txn_trace = CollectionUtil.first(workload.getTransactions());
         assertNotNull(txn_trace);
         State s = this.t_estimator.processTransactionTrace(txn_trace);
         assertNotNull(s);
@@ -209,7 +209,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             // The last vertex in each MarkovEstimate should correspond to the last query in each batch
             MarkovVertex last_v = est.getVertex();
             assertNotNull(last_v);
-            assertEquals(CollectionUtil.getLast(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
+            assertEquals(CollectionUtil.last(queries).getCatalogItem(catalog_db), last_v.getCatalogItem());
         } // FOR
     }
 }

@@ -165,7 +165,7 @@ public class PlanOptimizer {
                 } else if (element instanceof AbstractJoinPlanNode) {
                     // get target table of inline scan
                     assert (element.getInlinePlanNodeCount() == 1) : "Join has incorrect number of inline nodes";
-                    AbstractScanPlanNode inline_scan_node = (AbstractScanPlanNode) CollectionUtil.getFirst(element.getInlinePlanNodes().values());
+                    AbstractScanPlanNode inline_scan_node = (AbstractScanPlanNode) CollectionUtil.first(element.getInlinePlanNodes().values());
                     ref_join_tbls.add(inline_scan_node.getTargetTableName());
                     /** need temp set to put into hashmap! **/
                     HashSet<String> temp_set = new HashSet<String>(ref_join_tbls);
@@ -236,7 +236,7 @@ public class PlanOptimizer {
                                         }
                                         else {
                                             for (Column col : col_set) {
-                                                Integer col_guid = CollectionUtil.getFirst(column_guid_xref.get(col));
+                                                Integer col_guid = CollectionUtil.first(column_guid_xref.get(col));
                                                 PlanColumn plan_col = m_context.get(col_guid);
                                                 for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
                                                     TupleValueExpression tv_exp = (TupleValueExpression) exp;
@@ -249,7 +249,7 @@ public class PlanOptimizer {
                                     } else if (inner_element instanceof AggregatePlanNode) {
                                         Set<Column> col_set = planNodeColumns.get(inner_element);
                                         for (Column col : col_set) {
-                                            Integer col_guid = CollectionUtil.getFirst(column_guid_xref.get(col));
+                                            Integer col_guid = CollectionUtil.first(column_guid_xref.get(col));
                                             PlanColumn plan_col = m_context.get(col_guid);
                                             for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
                                                 TupleValueExpression tv_exp = (TupleValueExpression) exp;
@@ -816,7 +816,7 @@ public class PlanOptimizer {
                 // If there is more than one column, then it's some sort of compound expression
                 // So we don't want to include in our mapping
                 if (catalog_cols.size() == 1) {
-                    this.addColumnMapping(CollectionUtil.getFirst(catalog_cols), col_guid);
+                    this.addColumnMapping(CollectionUtil.first(catalog_cols), col_guid);
                 }
             }
         } // FOR
@@ -833,7 +833,7 @@ public class PlanOptimizer {
             LOG.error(PlanNodeUtil.debugNode(scan_node));
         }
         assert (tables.size() == 1) : scan_node + ": " + tables;
-        Table catalog_tbl = CollectionUtil.getFirst(tables);
+        Table catalog_tbl = CollectionUtil.first(tables);
 
         Set<Column> output_columns = this.tableColumns.get(catalog_tbl);
 
@@ -1413,7 +1413,7 @@ public class PlanOptimizer {
 
             Table catalog_tbl = null;
             try {
-                catalog_tbl = CollectionUtil.getFirst(CatalogUtil.getReferencedTablesForPlanNode(m_catalogDb, idx_node));
+                catalog_tbl = CollectionUtil.first(CatalogUtil.getReferencedTablesForPlanNode(m_catalogDb, idx_node));
             } catch (Exception ex) {
                 LOG.fatal(ex);
                 System.exit(1);
@@ -1438,7 +1438,7 @@ public class PlanOptimizer {
                 // TupleValueExpresion index
                 // This ensures that we always get the ordering correct
                 //int orig_guid = idx_node.getOutputColumnGUID(offset_orig_idx);
-                int orig_guid = CollectionUtil.getFirst(column_guid_xref.get(catalog_col));
+                int orig_guid = CollectionUtil.first(column_guid_xref.get(catalog_col));
                 assert (orig_guid != -1);
                 PlanColumn orig_pc = m_context.get(orig_guid);
                 assert (orig_pc != null);

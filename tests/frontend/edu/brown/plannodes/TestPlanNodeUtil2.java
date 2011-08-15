@@ -172,7 +172,7 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
     public void testDeserializePlanFragment() throws Exception {
         Procedure catalog_proc = this.getProcedure("SelectAll");
         Statement catalog_stmt = this.getStatement(catalog_proc, "history");
-        PlanFragment catalog_frag = CollectionUtil.getFirst(catalog_stmt.getFragments());
+        PlanFragment catalog_frag = CollectionUtil.first(catalog_stmt.getFragments());
         assertNotNull(catalog_frag);
         
         // Pass the Fragment off to get deserialized

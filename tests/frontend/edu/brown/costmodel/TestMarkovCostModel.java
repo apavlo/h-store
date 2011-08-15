@@ -105,7 +105,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                 @Override
                 protected void resetImpl() { }
             });
-            assert(CollectionUtil.getFirst(workload.getTransactions()).getTransactionId() != CollectionUtil.getFirst(clone.getTransactions()).getTransactionId());
+            assert(CollectionUtil.first(workload.getTransactions()).getTransactionId() != CollectionUtil.first(clone.getTransactions()).getTransactionId());
             
             // assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
 
@@ -126,7 +126,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         this.costmodel = new MarkovCostModel(catalog_db, p_estimator, t_estimator, thresholds);
         
         // Take a TransactionTrace and throw it at the estimator to get our path info
-        this.txn_trace = CollectionUtil.getFirst(workload.getTransactions());
+        this.txn_trace = CollectionUtil.first(workload.getTransactions());
         assertNotNull(this.txn_trace);
         
         this.txn_state = t_estimator.processTransactionTrace(txn_trace);
@@ -198,7 +198,7 @@ public class TestMarkovCostModel extends BaseTestCase {
         // Remove all of the estimated read partitions except for one
         Set<Integer> e_read_partitions = costmodel.getLastEstimatedReadPartitions();
         assertNotNull(e_read_partitions);
-        Set<Integer> retain = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), CollectionUtil.getFirst(e_read_partitions)); 
+        Set<Integer> retain = (Set<Integer>)CollectionUtil.addAll(new HashSet<Integer>(), CollectionUtil.first(e_read_partitions)); 
         e_read_partitions.retainAll(retain);
         
         // Then add all of our partitions to the actual read partitions

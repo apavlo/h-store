@@ -197,21 +197,20 @@ public abstract class JSONUtil {
         if (debug.get()) LOG.debug("Serializing out " + fields.length + " elements for " + base_class.getSimpleName());
         for (Field f : fields) {
             String json_key = f.getName().toUpperCase();
+            stringer.key(json_key);
+            
             try {
                 Class<?> f_class = f.getType();
                 Object f_value = f.get(object);
                 
                 // Null
                 if (f_value == null) {
-                    stringer.key(json_key);
                     writeFieldValue(stringer, f_class, f_value);
                 // Maps
                 } else if (f_value instanceof Map) {
-                    stringer.key(json_key);
                     writeFieldValue(stringer, f_class, f_value);
                 // Everything else
                 } else {
-                    stringer.key(json_key);
                     writeFieldValue(stringer, f_class, f_value);
                     addClassForField(stringer, json_key, f_class, f_value);
                 }
@@ -292,14 +291,12 @@ public abstract class JSONUtil {
      */
     @SuppressWarnings("unchecked")
     protected static void readMapField(final JSONObject json_object, final Database catalog_db, final Map map, final Stack<Class> inner_classes) throws Exception {
-        Class key_class = inner_classes.pop();
-        Class val_class = inner_classes.pop();
-        Set<Class<?>> val_interfaces = ClassUtil.getInterfaces(val_class);
+        Class<?> key_class = inner_classes.pop();
+        Class<?> val_class = inner_classes.pop();
+        Collection<Class<?>> val_interfaces = ClassUtil.getInterfaces(val_class);
         
         assert(json_object != null);
-        Iterator<String> it = json_object.keys();
-        while (it.hasNext()) {
-            String json_key = it.next();
+        for (String json_key : CollectionUtil.wrapIterator(json_object.keys())) {
             final Stack<Class> next_inner_classes = new Stack<Class>();
             next_inner_classes.addAll(inner_classes);
             assert(next_inner_classes.equals(inner_classes));
@@ -348,7 +345,7 @@ public abstract class JSONUtil {
         // If it's a Collection or a Map, then we need to instantiate it before 
         // we can call readFieldValue() again for it.
         Class inner_class = inner_classes.pop();
-        Set<Class<?>> inner_interfaces = ClassUtil.getInterfaces(inner_class);
+        Collection<Class<?>> inner_interfaces = ClassUtil.getInterfaces(inner_class);
         
         for (int i = 0, cnt = json_array.length(); i < cnt; i++) {
             final Stack<Class> next_inner_classes = new Stack<Class>();

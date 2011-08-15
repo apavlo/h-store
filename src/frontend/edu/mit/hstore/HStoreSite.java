@@ -1388,7 +1388,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
-                redirect_partition = CollectionUtil.getFirst(most_touched);
+                redirect_partition = CollectionUtil.first(most_touched);
             } else if (most_touched.isEmpty() == false) {
                 redirect_partition = CollectionUtil.random(most_touched);
             } else {

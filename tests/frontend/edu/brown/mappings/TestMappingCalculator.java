@@ -76,7 +76,7 @@ public class TestMappingCalculator extends BaseTestCase {
         ProcedureCorrelations procc = this.pc.getProcedureCorrelations(this.catalog_proc);
         procc.start();
         
-        Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(this.catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
 
         QueryInstance query_instance = procc.getQueryInstance(catalog_stmt);
@@ -155,7 +155,7 @@ public class TestMappingCalculator extends BaseTestCase {
         for (int i = 0, cnt = catalog_stmt.getParameters().size(); i < cnt; i++) {
             StmtParameter catalog_param = catalog_stmt.getParameters().get(i);
             assertNotNull(catalog_param);
-            ParameterMapping c = CollectionUtil.getFirst(param_correlations.get(catalog_param));
+            ParameterMapping c = CollectionUtil.first(param_correlations.get(catalog_param));
             assertNotNull(c);
             
             assert(c.getCoefficient() >= threshold);

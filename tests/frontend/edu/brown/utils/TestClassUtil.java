@@ -68,7 +68,7 @@ public class TestClassUtil extends TestCase {
             List.class,
             RandomAccess.class,
         };
-        Set<Class<?>> results = ClassUtil.getInterfaces(target_class);
+        Collection<Class<?>> results = ClassUtil.getInterfaces(target_class);
         // System.err.println(target_class + " => " + results);
         assert(!results.isEmpty());
         assertEquals(expected.length, results.size());

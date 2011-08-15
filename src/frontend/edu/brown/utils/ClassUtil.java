@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -128,7 +129,7 @@ public abstract class ClassUtil {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static Set<Class<?>> getInterfaces(Class<?> element_class) {
+    public static Collection<Class<?>> getInterfaces(Class<?> element_class) {
         Set<Class<?>> ret = ClassUtil.CACHE_getInterfaceClasses.get(element_class);
         if (ret == null) {
 //            ret = new HashSet<Class<?>>();

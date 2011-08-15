@@ -266,7 +266,7 @@ public class Histogram<X> implements JSONSerializable {
     @Deprecated
     public <T> T getMinCountValue() {
         this.calculateInternalValues();
-        return ((T)CollectionUtil.getFirst(this.min_count_values));
+        return ((T)CollectionUtil.first(this.min_count_values));
     }
     /**
      * Return the set values with the smallest number of samples
@@ -293,7 +293,7 @@ public class Histogram<X> implements JSONSerializable {
     @Deprecated
     public <T> T getMaxCountValue() {
         this.calculateInternalValues();
-        return ((T)CollectionUtil.getFirst(this.max_count_values));
+        return ((T)CollectionUtil.first(this.max_count_values));
     }
     /**
      * Return the set values with the greatest number of samples

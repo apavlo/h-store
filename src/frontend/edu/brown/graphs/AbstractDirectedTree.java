@@ -50,7 +50,7 @@ public abstract class AbstractDirectedTree<V extends AbstractVertex, E extends A
         return (this.inner.getRoots());
     }
     public V getRoot(V V) {
-        return (CollectionUtil.getFirst(this.inner.getRoots()));
+        return (CollectionUtil.first(this.inner.getRoots()));
     }
     public Database getDatabase() {
         return (this.inner.getDatabase());

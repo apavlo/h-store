@@ -48,7 +48,7 @@ public class TestHistogram extends BaseTestCase {
         assertNotNull(min_values);
         assertEquals(1, min_values.size());
         
-        Long min_value = CollectionUtil.getFirst(min_values);
+        Long min_value = CollectionUtil.first(min_values);
         assertNotNull(min_value);
         assertEquals(expected, min_value.longValue());
         
@@ -76,7 +76,7 @@ public class TestHistogram extends BaseTestCase {
         assertNotNull(max_values);
         assertEquals(1, max_values.size());
         
-        Long max_value = CollectionUtil.getFirst(max_values);
+        Long max_value = CollectionUtil.first(max_values);
         assertNotNull(max_value);
         assertEquals(expected, max_value.longValue());
         

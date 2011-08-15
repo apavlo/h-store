@@ -53,7 +53,7 @@ public class TestParameterMappingsSet extends BaseTestCase {
     public void testGet() throws Exception {
         ParameterMapping c = CollectionUtil.get(this.pc, 2);
         assertNotNull(c);
-        ParameterMapping other = CollectionUtil.getFirst(this.pc.get(c.getStatement(), c.getStatementIndex(), c.getStmtParameter()));
+        ParameterMapping other = CollectionUtil.first(this.pc.get(c.getStatement(), c.getStatementIndex(), c.getStmtParameter()));
         assert(other != null);
         assert(c.equals(other));
     }

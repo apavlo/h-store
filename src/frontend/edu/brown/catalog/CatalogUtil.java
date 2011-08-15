@@ -1232,7 +1232,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 Table catalog_tbl = catalog_db.getTables().get(up_node.getTargetTableName());
                 assert (catalog_tbl != null) : "Missing table " + up_node.getTargetTableName();
                 
-                AbstractScanPlanNode scan_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
+                AbstractScanPlanNode scan_node = CollectionUtil.first(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
                 assert (scan_node != null) : "Failed to find underlying scan node for " + up_node;
                 ref_columns.addAll(PlanNodeUtil.getUpdatedColumnsForPlanNode(catalog_db, scan_node));
                 if (scan_node.getInlinePlanNodeCount() > 0) {
@@ -1375,7 +1375,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static <T extends CatalogType, U> T findOne(Iterable<T> items, String field, U value) {
-        return (CollectionUtil.getFirst(CatalogUtil.findAll(items, field, value)));
+        return (CollectionUtil.first(CatalogUtil.findAll(items, field, value)));
     }
 
     /**

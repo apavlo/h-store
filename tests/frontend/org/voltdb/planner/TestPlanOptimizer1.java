@@ -43,10 +43,10 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
      */
     private void checkTableColumns(Map<Table, SortedSet<Column>> tableCols) {
         assert (tableCols.size() == 1) : " ERROR: more than 1 entry in tableCols";
-        Table t = CollectionUtil.getFirst(tableCols.keySet());
+        Table t = CollectionUtil.first(tableCols.keySet());
         assert (t != null);
         assert (t.getName().equals("TABLEA")) : "table " + t.getName() + " does not match TABLEA";
-        Set<Column> cols = CollectionUtil.getFirst(tableCols.values());
+        Set<Column> cols = CollectionUtil.first(tableCols.values());
         assert (cols.size() == 2) : "Size: " + cols.size() + " doesn't match 2";
         assert (((Column) cols.toArray()[0]).getName().equals("A_ID")) : " first column: " + ((Column) cols.toArray()[0]).getName() + " doesn't match: " + " A_ID";
         assert (((Column) cols.toArray()[1]).getName().equals("A_VALUE0")) : "second column: " + ((Column) cols.toArray()[1]).getName() + " doesn't match: " + " A_VALUE0";
@@ -74,10 +74,10 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
         // add column A_VALUE5
         plan_opt.addTableColumn(catalog_db.getTables().get("TABLEA").getColumns().get("A_VALUE5"));
         assert (plan_opt.tableColumns.size() == 1) : " ERROR: more than 1 entry in tableCols";
-        Table t = CollectionUtil.getFirst(plan_opt.tableColumns.keySet());
+        Table t = CollectionUtil.first(plan_opt.tableColumns.keySet());
         assert (t != null);
         assert (t.getName().equals("TABLEA")) : "table " + t.getName() + " does not match TABLEA";
-        Set<Column> cols = CollectionUtil.getFirst(plan_opt.tableColumns.values());
+        Set<Column> cols = CollectionUtil.first(plan_opt.tableColumns.values());
         assert (cols.size() == 3) : "Size: " + cols.size() + " doesn't match 3";
         assert (((Column) cols.toArray()[0]).getName().equals("A_ID")) : " first column: " + ((Column) cols.toArray()[0]).getName() + " doesn't match: " + " A_ID";
         assert (((Column) cols.toArray()[1]).getName().equals("A_VALUE0")) : "second column: " + ((Column) cols.toArray()[1]).getName() + " doesn't match: " + " A_VALUE0";
@@ -85,10 +85,10 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
         // add column A_VALUE3
         plan_opt.addTableColumn(catalog_db.getTables().get("TABLEA").getColumns().get("A_VALUE3"));
         // expect the order to be A_ID, A_VALUE0, A_VALUE3, A_VALUE5
-        Table t2 = CollectionUtil.getFirst(plan_opt.tableColumns.keySet());
+        Table t2 = CollectionUtil.first(plan_opt.tableColumns.keySet());
         assert (t2 != null);
         assert (t2.getName().equals("TABLEA")) : "table " + t2.getName() + " does not match TABLEA";
-        Set<Column> cols2 = CollectionUtil.getFirst(plan_opt.tableColumns.values());
+        Set<Column> cols2 = CollectionUtil.first(plan_opt.tableColumns.values());
         assert (cols2.size() == 4) : "Size: " + cols2.size() + " doesn't match 4";
         assert (((Column) cols2.toArray()[0]).getName().equals("A_ID")) : " first column: " + ((Column) cols2.toArray()[0]).getName() + " doesn't match: " + " A_ID";
         assert (((Column) cols2.toArray()[1]).getName().equals("A_VALUE0")) : "second column: " + ((Column) cols2.toArray()[1]).getName() + " doesn't match: " + " A_VALUE0";
