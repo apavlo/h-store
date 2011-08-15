@@ -171,7 +171,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                     ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     assertEquals(e_cset.toString(), 1, e_cset.size());
-                    ColumnSet.Entry entry = CollectionUtil.getFirst(e_cset);
+                    ColumnSet.Entry entry = CollectionUtil.first(e_cset);
                     assertNotNull(entry);
                     assert(global_cset.contains(entry)) : "Missing " + entry;
                 } // FOR

@@ -46,7 +46,7 @@ public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
         // First check that our single scan node has an inline Projection
         Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
-        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        AbstractScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
         assertNotNull(scan_node);
         assertEquals(1, scan_node.getInlinePlanNodes().size());
         assertNotNull(scan_node.getInlinePlanNodes().get(PlanNodeType.PROJECTION));
@@ -77,7 +77,7 @@ public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
         // Make sure the bottom-most IndexScan has an inline projection with the right columns
         Collection<IndexScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
-        IndexScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        IndexScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
         assertNotNull(scan_node);
         assertEquals(1, scan_node.getParentPlanNodeCount());
         assertEquals(0, scan_node.getChildPlanNodeCount());
@@ -106,7 +106,7 @@ public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
         // Check that our single scan node has a COUNT AggregatePlanNode above it.
         Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
-        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        AbstractScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
         assertNotNull(scan_node);
         assertEquals(1, scan_node.getParentPlanNodeCount());
         // FIXME assertEquals(PlanNodeType.AGGREGATE, scan_node.getParent(0).getPlanNodeType());

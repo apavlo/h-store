@@ -32,14 +32,7 @@
 package edu.brown.benchmark.auctionmark;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
@@ -50,11 +43,15 @@ import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.auctionmark.util.ItemInfo;
+import edu.brown.benchmark.auctionmark.util.ItemId;
+import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
@@ -79,7 +76,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Map from table names to the number of tuples we inserted during loading
      */
-    public Map<String, Long> table_sizes = Collections.synchronizedMap(new TreeMap<String, Long>());
+    public final Map<String, Long> table_sizes = Collections.synchronizedMap(new TreeMap<String, Long>());
     /**
      * Histogram for number of items per category (stored as category_id)
      */
@@ -87,7 +84,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     /**
      * A histogram for the number of users that have the number of items listed
-     * Long -> # of Users
+     * ItemCount -> # of Users
      */
     public Histogram<Integer> users_per_item_count = new Histogram<Integer>();
     
@@ -99,20 +96,20 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      *  (3) Complete (The auction is closed and (There is no bid winner or
      *      the bid winner has already purchased the item)
      */
-    public Map<Long, List<Long>> user_available_items = new HashMap<Long, List<Long>>();
-    public Histogram<Long> user_available_items_histogram = new Histogram<Long>();
+    private final Set<ItemId> user_available_items = new HashSet<ItemId>();
+    public Histogram<UserId> user_available_items_histogram = new Histogram<UserId>();
     
-    public Map<Long, List<Long>> user_wait_for_purchase_items = new HashMap<Long, List<Long>>();
-    public Histogram<Long> user_wait_for_purchase_items_histogram = new Histogram<Long>();
+    public final Set<ItemId> user_wait_for_purchase_items = new HashSet<ItemId>();
+    public Histogram<UserId> user_wait_for_purchase_items_histogram = new Histogram<UserId>();
     
-    public Map<Long, List<Long>> user_complete_items = new HashMap<Long, List<Long>>();
-    public Histogram<Long> user_complete_items_histogram = new Histogram<Long>();
+    public final Set<ItemId> user_complete_items = new HashSet<ItemId>();
+    public Histogram<UserId> user_complete_items_histogram = new Histogram<UserId>();
 
-    public Map<Long, Long> item_bid_map = new HashMap<Long, Long>();
-    public Map<Long, Long> item_buyer_map = new HashMap<Long, Long>();
+    public final Map<Long, Long> item_bid_map = new HashMap<Long, Long>();
+    public final Map<Long, Long> item_buyer_map = new HashMap<Long, Long>();
 
     /** Map from global attribute group to list of global attribute value */
-    public Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
+    public final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
     public Histogram<Long> gag_gav_histogram = new Histogram<Long>();
     
     // ----------------------------------------------------------------
@@ -130,7 +127,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private Integer window_total = null;
     private Integer window_size = null;
     private final Histogram<Integer> window_histogram = new Histogram<Integer>();
-    private final Vector<Integer> window_partitions = new Vector<Integer>();
+    private final List<Integer> window_partitions = new ArrayList<Integer>();
     
     // -----------------------------------------------------------------
     // GENERAL METHODS
@@ -179,7 +176,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         if (this.window_size != null) {
             Integer last_partition = -1;
             if (this.window_partitions.isEmpty() == false) {
-                last_partition = this.window_partitions.lastElement();
+                last_partition = CollectionUtil.last(this.window_partitions);
             }
 
             this.window_partitions.clear();
@@ -190,13 +187,13 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 }
                 this.window_partitions.add(last_partition);
             } // FOR
-            System.err.println("Tick #" + this.current_tick + " Window: " + this.window_partitions);
-            System.err.println(this.window_histogram);
+            LOG.info("Tick #" + this.current_tick + " Window: " + this.window_partitions);
+            if (debug.get()) LOG.debug("Skew Window Histogram\n" + this.window_histogram);
             this.window_histogram.clearValues();
         }
     }
 
-    private int getPartition(Long seller_id) {
+    private int getPartition(UserId seller_id) {
         return (TheHashinator.hashToPartition(seller_id, this.window_total));
     }
 
@@ -249,28 +246,12 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // USER METHODS
     // ----------------------------------------------------------------
 
-    public void addUserId(long userId) {
-//        synchronized (this.user_ids) {
-//            if (LOG.isTraceEnabled()) {
-//                LOG.trace("@@@ adding userId = " + userId);
-//            }
-//            this.user_ids.add(userId);
-//        }
-    }
-
-    public long getUserId(int index) {
-        return (0l);
-//        return this.user_ids.get(index);
-    }
-
-    public int getUserIdCount() {
-        return (0);
-//        return (this.user_ids.size());
+    public long getUserIdCount() {
+        return (this.table_sizes.get(AuctionMarkConstants.TABLENAME_USER));
     }
 
     /**
      * Gets a random user ID within the client.
-     * 
      * @param rng
      * @return
      */
@@ -297,9 +278,9 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * @param rng
      * @return
      */
-    public Long getRandomBuyerId(AbstractRandomGenerator rng) {
+    public UserId getRandomBuyerId(AbstractRandomGenerator rng) {
         // We don't care about skewing the buyerIds at this point, so just get one from getRandomUserId
-        return (this.getRandomUserId(rng));
+        return (null); // TODO this.getRandomUserId(rng));
     }
     
     /**
@@ -322,7 +303,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             if (this.window_size == null) break;
             
             // Otherwise we need to skew this mother trucker..
-            partition = this.getPartition(seller_id);
+            partition = null; // TODO this.getPartition(seller_id);
             if (this.window_partitions.contains(partition)) {
                 break;
             }
@@ -337,54 +318,31 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // ITEM METHODS
     // ----------------------------------------------------------------
     
-    /**
-     * Available item manipulators
-     */
-    public void addAvailableItem(long sellerId, long itemId) {
-        synchronized (this.user_available_items) {
-            List<Long> itemList = this.user_available_items.get(sellerId);
-            if (null == itemList) {
-                itemList = new LinkedList<Long>();
-                itemList.add(itemId);
-                this.user_available_items.put(sellerId, itemList);
-                this.user_available_items_histogram.put(sellerId);
-            } else if (!itemList.contains(itemId)) {
-                itemList.add(itemId);
-                this.user_available_items_histogram.put(sellerId);
-            }
-        }
+    private void addItem(Set<ItemId> itemSet, Histogram<UserId> sellerHistogram, ItemId itemId) {
+        synchronized (itemSet) {
+            itemSet.add(itemId);
+            sellerHistogram.put(itemId.getSellerId());
+        } // SYNCH
     }
-
-    public void removeAvailableItem(long sellerId, long itemId) {
-        synchronized (this.user_available_items) {
-            List<Long> itemList = this.user_available_items.get(sellerId);
-            if (null != itemList && itemList.remove(new Long(itemId))) {
-                this.user_available_items_histogram.remove(sellerId, 1);
-                if (0 == itemList.size()) {
-                    this.user_available_items.remove(sellerId);
-                }
-            }
-        }
+    private void removeItem(Set<ItemId> itemSet, Histogram<UserId> sellerHistogram, ItemId itemId) {
+        synchronized (itemSet) {
+            itemSet.remove(itemId);
+            sellerHistogram.remove(itemId.getSellerId());
+        } // SYNCH
     }
-
-    /**
-     * @param rng
-     * @return
-     */
-    public Long[] getRandomAvailableItemIdSellerIdPair(AbstractRandomGenerator rng) {
-        Long sellerId = null;
-        Long itemId = null;
-        synchronized (this.user_available_items) {
-            FlatHistogram<Long> randomSeller = new FlatHistogram<Long>(rng, this.user_available_items_histogram);
+    private ItemId getRandomItemId(AbstractRandomGenerator rng, Set<ItemId> itemSet, Histogram<UserId> sellerHistogram) {
+        UserId sellerId = null;
+        ItemId itemId = null;
+        synchronized (itemSet) {
+            FlatHistogram<UserId> randomSeller = new FlatHistogram<UserId>(rng, sellerHistogram);
             Integer partition = null;
             while (true) {
                 partition = null;
-                sellerId = randomSeller.nextLong();
+                sellerId = randomSeller.nextValue();
                 // Uniform
                 if (this.window_size == null) {
                     break;
                 }
-
                 // Temporal Skew
                 partition = this.getPartition(sellerId);
                 if (this.window_partitions.contains(partition)) {
@@ -394,88 +352,44 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             if (this.window_size != null) {
                 this.window_histogram.put(partition);
             }
-
             long numAvailableItems = this.user_available_items_histogram.get(sellerId);
-            itemId = this.user_available_items.get(sellerId).get(rng.number(0, (int) numAvailableItems - 1));
+            itemId = null; // TODO this.user_available_items.get(sellerId).get(rng.number(0, (int) numAvailableItems - 1));
         } // SYNCHRONIZED
-        return new Long[] { itemId, sellerId };
+        return itemId;
     }
+    
+    
+    public void addAvailableItem(ItemId itemId) {
+        this.addItem(this.user_available_items, this.user_available_items_histogram, itemId);
+    }
+    public void removeAvailableItem(ItemId itemId) {
+        this.removeItem(this.user_available_items, this.user_available_items_histogram, itemId);
+    }
+    public ItemId getRandomAvailableItemId(AbstractRandomGenerator rng) {
+        return this.getRandomItemId(rng, this.user_available_items, this.user_available_items_histogram);
+    }
+    
+    public void addWaitForPurchaseItem(ItemId itemId) {
+        this.addItem(this.user_wait_for_purchase_items, this.user_wait_for_purchase_items_histogram, itemId);
+    }
+    public void removeWaitForPurchaseItem(ItemId itemId) {
+        this.removeItem(this.user_wait_for_purchase_items, this.user_wait_for_purchase_items_histogram, itemId);
+    }
+    public ItemId getRandomWaitForPurchaseItemId(AbstractRandomGenerator rng) {
+        return this.getRandomItemId(rng, this.user_wait_for_purchase_items, this.user_wait_for_purchase_items_histogram);
+    }
+    
+    public void addCompleteItem(ItemId itemId) {
+        this.addItem(this.user_complete_items, this.user_complete_items_histogram, itemId);
+    }
+    public void removeCompleteItem(ItemId itemId) {
+        this.removeItem(this.user_complete_items, this.user_complete_items_histogram, itemId);
+    }
+    public ItemId getRandomCompleteItemId(AbstractRandomGenerator rng) {
+        return this.getRandomItemId(rng, this.user_complete_items, this.user_complete_items_histogram);
+    }
+    
 
-    /*
-     * Complete item manipulators
-     */
-    public void addCompleteItem(long sellerId, long itemId) {
-        synchronized (this.user_complete_items) {
-            List<Long> itemList = this.user_complete_items.get(sellerId);
-            if (null == itemList) {
-                itemList = new LinkedList<Long>();
-                itemList.add(itemId);
-                this.user_complete_items.put(sellerId, itemList);
-                this.user_complete_items_histogram.put(sellerId);
-            } else if (!itemList.contains(itemId)) {
-                itemList.add(itemId);
-                this.user_complete_items_histogram.put(sellerId);
-            }
-        }
-    }
-
-    /**
-     * Returns a pair containing <ItemId, SellerId>
-     * @param rng
-     * @return
-     */
-    public Long[] getRandomCompleteItemIdSellerIdPair(AbstractRandomGenerator rng) {
-        synchronized (this.user_complete_items) {
-            FlatHistogram<Long> randomSeller = new FlatHistogram<Long>(rng, this.user_complete_items_histogram);
-            Long sellerId = randomSeller.nextLong();
-            long numCompleteItems = this.user_complete_items_histogram.get(sellerId);
-            Long itemId = this.user_complete_items.get(sellerId).get(rng.number(0, (int) numCompleteItems - 1));
-            Long[] ret = { itemId, sellerId };
-            return ret;
-        }
-    }
-
-    public void addWaitForPurchaseItem(long sellerId, long itemId, long bidId, long buyerId) {
-        synchronized (this.user_wait_for_purchase_items) {
-            List<Long> itemList = this.user_wait_for_purchase_items.get(sellerId);
-            this.item_bid_map.put(itemId, bidId);
-            this.item_buyer_map.put(itemId, buyerId);
-            if (null == itemList) {
-                itemList = new LinkedList<Long>();
-                itemList.add(itemId);
-                this.user_wait_for_purchase_items.put(sellerId, itemList);
-                this.user_wait_for_purchase_items_histogram.put(sellerId);
-            } else if (!itemList.contains(itemId)) {
-                itemList.add(itemId);
-                this.user_wait_for_purchase_items_histogram.put(sellerId);
-            }
-        }
-    }
-
-    public void removeWaitForPurchaseItem(long sellerId, long itemId) {
-        synchronized (this.user_wait_for_purchase_items) {
-            List<Long> itemList = this.user_wait_for_purchase_items.get(sellerId);
-            if (null != itemList && itemList.remove(new Long(itemId))) {
-                this.user_wait_for_purchase_items_histogram.remove(sellerId, 1);
-                if (0 == itemList.size()) {
-                    this.user_wait_for_purchase_items.remove(sellerId);
-                    this.item_bid_map.remove(itemId);
-                    this.item_buyer_map.remove(itemId);
-                }
-            }
-        }
-    }
-
-    public Long[] getRandomWaitForPurchaseItemIdSellerIdPair(AbstractRandomGenerator rng) {
-        synchronized (this.user_wait_for_purchase_items) {
-            FlatHistogram<Long> randomSeller = new FlatHistogram<Long>(rng, this.user_wait_for_purchase_items_histogram);
-            Long sellerId = randomSeller.nextLong();
-            long numWaitForPurchaseItems = this.user_wait_for_purchase_items.get(sellerId).size();
-            Long itemId = this.user_wait_for_purchase_items.get(sellerId).get(rng.number(0, (int) numWaitForPurchaseItems - 1));
-            Long[] ret = { itemId, sellerId };
-            return ret;
-        }
-    }
 
     public long getBidId(long itemId) {
         return this.item_bid_map.get(itemId);
@@ -485,40 +399,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return this.item_buyer_map.get(itemId);
     }
 
-    /**
-     * Gets random buyer ID who has a bid in "Wait For Purchase" status. Note
-     * that this method will decrement the number of bids in "Wait For Purchase"
-     * status of a buyer whose ID is return.
-     * 
-     * @param rng
-     *            the random generator
-     * @return random buyer ID who has a bid in the "Wait For Purchase" status.
-     */
-    /*
-     * public Long
-     * getRandomBuyerWhoHasWaitForPurchaseBid(AbstractRandomGenerator rng){ int
-     * randomIndex = rng.number(0, buyer_num_wait_for_purchase_bids.size() - 1);
-     * int i=0; Long buyerId = null; int numBids = 0; for(Map.Entry<Long,
-     * Integer> entry: buyer_num_wait_for_purchase_bids.entrySet()){ if(i++ ==
-     * randomIndex){ buyerId = entry.getKey(); numBids = entry.getValue();
-     * break; } } if(numBids > 1){ buyer_num_wait_for_purchase_bids.put(buyerId,
-     * numBids - 1); } else { buyer_num_wait_for_purchase_bids.remove(buyerId);
-     * } return buyerId; }
-     */
-
-    /**
-     * Increments the number of bids in the "Wait For Purchase" status of a
-     * given buyerId.
-     * 
-     * @param buyerId
-     */
-    /*
-     * public void addBuyerWhoHasWaitForPurchaseBid(Long buyerId){ int numBids;
-     * if(buyer_num_wait_for_purchase_bids.containsKey(buyerId)){ numBids =
-     * buyer_num_wait_for_purchase_bids.get(buyerId) + 1; } else { numBids = 1;
-     * } buyer_num_wait_for_purchase_bids.put(buyerId, numBids); }
-     */
-    
     // ----------------------------------------------------------------
     // GLOBAL ATTRIBUTE METHODS
     // ----------------------------------------------------------------

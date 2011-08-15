@@ -1274,7 +1274,7 @@ public class PlanAssembler {
                 break;
             }
             
-            AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scans);
+            AbstractScanPlanNode scan_node = CollectionUtil.first(scans);
             assert(scan_node != null);
             // For some reason we have to do this??
             for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {

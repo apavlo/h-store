@@ -691,7 +691,7 @@ public abstract class PlanNodeUtil {
             if (matches.isEmpty()) {
                 LOG.warn("Unable to find any column with param #" + catalog_stmt_param.getIndex() + " in " + catalog_stmt);
             } else {
-                col_key = CatalogKey.createKey(CollectionUtil.getFirst(matches));
+                col_key = CatalogKey.createKey(CollectionUtil.first(matches));
             }
             PlanNodeUtil.CACHE_STMTPARAMETER_COLUMN.put(param_key, col_key);
         }
@@ -777,7 +777,7 @@ public abstract class PlanNodeUtil {
             
             if (!next_last_node.isEmpty()) last_node = next_last_node.remove(0);
         } // FOR
-        return (CollectionUtil.getFirst(sorted_nodes));
+        return (CollectionUtil.first(sorted_nodes));
     }
 
     /**

@@ -68,7 +68,7 @@ public class TestGraphUtil extends BaseTestCase {
             Collection<DesignerEdge> clone_e = clone.findEdgeSet(clone_v0, clone_v1);
             assertFalse(clone_e.isEmpty());
             assertEquals(1, clone_e.size());
-            assertEquals(edge_type, clone.getEdgeType(CollectionUtil.getFirst(clone_e)));
+            assertEquals(edge_type, clone.getEdgeType(CollectionUtil.first(clone_e)));
         } // FOR
     }
     

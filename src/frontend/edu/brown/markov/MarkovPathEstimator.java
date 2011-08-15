@@ -496,7 +496,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         // since they will be sorted by their probability
         if (t) LOG.trace("Candidate Edges: " + this.candidates);
         if (num_candidates > 0) {
-            MarkovEdge next_edge = CollectionUtil.getFirst(this.candidates);
+            MarkovEdge next_edge = CollectionUtil.first(this.candidates);
             MarkovVertex next_vertex = markov.getOpposite(element, next_edge);
             children.addAfter(next_vertex);
             if (was_forced) this.forced_vertices.add(next_vertex);

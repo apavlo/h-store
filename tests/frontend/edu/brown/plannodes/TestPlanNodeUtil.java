@@ -150,7 +150,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         
         AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
         assertNotNull(root);
-        IndexScanPlanNode idx_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
+        IndexScanPlanNode idx_node = CollectionUtil.first(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
         assertNotNull(idx_node);
         
         Collection<Column> columns = PlanNodeUtil.getUpdatedColumnsForPlanNode(catalog_db, idx_node);
@@ -187,7 +187,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         
         Collection<AbstractPlanNode> found = PlanNodeUtil.getPlanNodesReferencingTable(root_node, catalog_tbl);
         assertEquals(1, found.size());
-        AbstractPlanNode node = CollectionUtil.getFirst(found);
+        AbstractPlanNode node = CollectionUtil.first(found);
         assertNotNull(node);
         assertTrue(node instanceof AbstractScanPlanNode);
     }

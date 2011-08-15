@@ -175,7 +175,7 @@ public abstract class VertexTreeWalker<V extends AbstractVertex, E extends Abstr
             }
         
             // Always mark our last child as the next child in the next depth
-            this.bfs_levels.put(this.getDepth() + 1, CollectionUtil.getLast(bfs_children.asList()));
+            this.bfs_levels.put(this.getDepth() + 1, CollectionUtil.last(bfs_children.asList()));
         }
         
         return;

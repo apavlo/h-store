@@ -40,7 +40,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-            catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+            catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
             assertNotNull(catalog_stmt);
             
             File file = this.getParameterMappingsFile(ProjectType.TM1);

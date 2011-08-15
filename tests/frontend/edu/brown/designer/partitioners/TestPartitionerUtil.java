@@ -144,7 +144,7 @@ public class TestPartitionerUtil extends BasePartitionerTestCase {
         assertFalse(param_order.isEmpty());
         
         // We should get back the first ProcParameter for each Procedure, since that maps to S_ID
-        ProcParameter catalog_proc_param = CatalogKey.getFromKey(catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class);
+        ProcParameter catalog_proc_param = CatalogKey.getFromKey(catalog_db, CollectionUtil.first(param_order), ProcParameter.class);
         assertNotNull(catalog_proc_param);
         assertEquals(0, catalog_proc_param.getIndex());
     }

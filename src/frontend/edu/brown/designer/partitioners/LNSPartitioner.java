@@ -907,7 +907,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         }
         Map<ProcParameter, Double> sorted = CollectionUtil.sortByValues(final_param_weights, true);
         assert(sorted != null);
-        ProcParameter best_param = CollectionUtil.getFirst(sorted.keySet());
+        ProcParameter best_param = CollectionUtil.first(sorted.keySet());
         if (debug.get()) LOG.debug("Best Param: " + best_param  + " " + sorted);
         return (best_param);
     }

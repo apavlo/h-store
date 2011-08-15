@@ -668,9 +668,9 @@ public class ArgumentsParser {
             } else {
                 String suggestions = "";
                 i = 0;
-                String end = CollectionUtil.getLast(parts[0].split("\\."));
+                String end = CollectionUtil.last(parts[0].split("\\."));
                 for (String param : PARAMS) {
-                    String param_end = CollectionUtil.getLast(param.split("\\."));
+                    String param_end = CollectionUtil.last(param.split("\\."));
                     if (param.startsWith(parts[0]) ||
                         (end != null && param.endsWith(end)) ||
                         (end != null && param_end != null && param_end.startsWith(end))) {

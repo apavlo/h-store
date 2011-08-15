@@ -78,7 +78,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
             for (Procedure catalog_proc : this.info.catalog_db.getProcedures()) {
                 if (catalog_proc.getSystemproc() || catalog_proc.getParameters().size() == 0) continue;
                 Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
-                ProcedureEntry pentry = new ProcedureEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class), null);
+                ProcedureEntry pentry = new ProcedureEntry(PartitionMethodType.HASH, CatalogKey.getFromKey(info.catalog_db, CollectionUtil.first(param_order), ProcParameter.class), null);
                 pplan.getProcedureEntries().put(catalog_proc, pentry);
             } // FOR
         }

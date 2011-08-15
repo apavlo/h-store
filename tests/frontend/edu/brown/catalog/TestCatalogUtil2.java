@@ -28,7 +28,7 @@ public class TestCatalogUtil2 extends BaseTestCase {
      */
     public void testGetReferencedColumns() throws Exception {
         Procedure catalog_proc = this.getProcedure(GetSubscriberData.class);
-        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         assertNotNull(catalog_stmt);
         
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);

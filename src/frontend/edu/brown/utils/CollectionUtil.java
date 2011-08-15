@@ -232,7 +232,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getFirst(Iterable<T> items) {
+    public static <T> T first(Iterable<T> items) {
         return (CollectionUtil.get(items, 0));
     }
     
@@ -242,7 +242,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getFirst(Iterator<T> items) {
+    public static <T> T first(Iterator<T> items) {
         return (items.hasNext() ? items.next() : null);
     }
     
@@ -252,7 +252,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getFirst(Enumeration<T> items) {
+    public static <T> T first(Enumeration<T> items) {
         return (items.hasMoreElements() ? items.nextElement() : null);
     }
     
@@ -282,7 +282,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getLast(Iterable<T> items) {
+    public static <T> T last(Iterable<T> items) {
         T last = null;
         if (items instanceof AbstractList<?>) {
             AbstractList<T> list = (AbstractList<T>)items;
@@ -301,7 +301,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getLast(T...items) {
+    public static <T> T last(T...items) {
         if (items != null && items.length > 0) {
             return (items[items.length-1]);
         }
@@ -387,7 +387,7 @@ public abstract class CollectionUtil {
     }
     
     public static <T> T pop(Collection<T> items) {
-        T t = CollectionUtil.getFirst(items);
+        T t = CollectionUtil.first(items);
         if (t != null) {
             boolean ret = items.remove(t);
             assert(ret);

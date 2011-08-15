@@ -2,7 +2,7 @@ package edu.brown.benchmark.airline.util;
 
 public class CustomerId {
 
-    private static final long BASE_ID_MASK = 281474976710655l; // 2^48-1
+    private static final long BASE_ID_MASK = 281474976710655l; // (2^48)-1
     private static final int AIRPORT_ID_OFFSET = 48;
     
     private final long id;

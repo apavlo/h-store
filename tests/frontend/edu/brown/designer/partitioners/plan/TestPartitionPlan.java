@@ -55,18 +55,18 @@ public class TestPartitionPlan extends BaseTestCase {
         changed = pplan0.getChangedEntries(pplan1);
         assertNotNull(changed);
         assertEquals(1, changed.size());
-        assertEquals(catalog_tbl, CollectionUtil.getFirst(changed));
+        assertEquals(catalog_tbl, CollectionUtil.first(changed));
         changed = pplan1.getChangedEntries(pplan0);
         assertNotNull(changed);
         assertEquals(1, changed.size());
-        assertEquals(catalog_tbl, CollectionUtil.getFirst(changed));
+        assertEquals(catalog_tbl, CollectionUtil.first(changed));
 
         // Remove the entry from pplan1 and make sure that it comes back as changed for pplan0 but not pplan1
         pplan1.getTableEntries().remove(catalog_tbl);
         changed = pplan0.getChangedEntries(pplan1);
         assertNotNull(changed);
         assertEquals(1, changed.size());
-        assertEquals(catalog_tbl, CollectionUtil.getFirst(changed));
+        assertEquals(catalog_tbl, CollectionUtil.first(changed));
         changed = pplan1.getChangedEntries(pplan0);
         assertNotNull(changed);
         assert(changed.isEmpty()) : changed;

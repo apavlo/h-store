@@ -116,7 +116,6 @@ public abstract class AuctionMarkConstants {
     public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP = 100;
     public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE = TABLESIZE_GLOBAL_ATTRIBUTE_GROUP * 10;
     public static final long TABLESIZE_USER = 100000;
-    public static final long TABLESIZE_ITEM = TABLESIZE_USER * 10;
     
     // ----------------------------------------------------------------
     // USER PARAMETERS
@@ -136,7 +135,7 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MIN_INITIAL_PRICE = 1;
     public static final int ITEM_MAX_INITIAL_PRICE = 1000000;
     public static final int ITEM_MAX_FINAL_PRICE = 10000000;
-    public static final int ITEM_MIN_ITEMS_PER_SELLER = 1;
+    public static final int ITEM_MIN_ITEMS_PER_SELLER = 0;
     public static final int ITEM_MAX_ITEMS_PER_SELLER = 10000;
     public static final int ITEM_MIN_BIDS_PER_DAY = 0;
     public static final int ITEM_MAX_BIDS_PER_DAY = 12;
@@ -148,6 +147,10 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MAX_COMMENTS = 5;
     public static final int ITEM_MIN_GLOBAL_ATTRS = 1;
     public static final int ITEM_MAX_GLOBAL_ATTRS = 10;
+    
+    /**
+     * When an item receives a bid we will increase its price by this amount
+     */
     public static final float ITEM_BID_PERCENT_STEP = 0.05f;
     
     public static final int ITEM_MAX_PURCHASE_DURATION_DAYS = 7;
@@ -227,29 +230,29 @@ public abstract class AuctionMarkConstants {
     // should not be modified by the scale factor
     public static final Collection<String> FIXED_TABLES = new HashSet<String>();
     static {
-        AuctionMarkConstants.FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_REGION);
-        AuctionMarkConstants.FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
-        AuctionMarkConstants.FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_REGION);
+        FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
     }
     
     public static final Collection<String> DYNAMIC_TABLES = new HashSet<String>();
     static {
-    	AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
-    	AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_COMMENT);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_FEEDBACK);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_BID);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ITEM);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_WATCH);
+    	DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
+    	DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_COMMENT);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_FEEDBACK);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_BID);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ITEM);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_WATCH);
     }
     
     // These tables are loaded from static data files
     public static final Collection<String> DATAFILE_TABLES = new HashSet<String>();
     static {
-    	AuctionMarkConstants.DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
+    	DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
     }
 
     static final long SECONDS_IN_A_DAY = 24 * 60 * 60;

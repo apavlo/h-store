@@ -263,7 +263,7 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
                         // and the target scan table
                         assert (element.getInlinePlanNodes().size() == 1) : "More than 1 Inline Nodes in NestLoopIndex";
                         assert (element.getInlinePlanNode(PlanNodeType.INDEXSCAN) != null || element.getInlinePlanNode(PlanNodeType.SEQSCAN) != null) : "No scan nodes exist in inline plan nodes";
-                        AbstractScanPlanNode scan_node = (AbstractScanPlanNode) CollectionUtil.getFirst(element.getInlinePlanNodes().values());
+                        AbstractScanPlanNode scan_node = (AbstractScanPlanNode) CollectionUtil.first(element.getInlinePlanNodes().values());
                         // get all columns of the "target table" being scanned
                         // and append them to the current intermediate table
                         // + determine new offsets + determine new guids

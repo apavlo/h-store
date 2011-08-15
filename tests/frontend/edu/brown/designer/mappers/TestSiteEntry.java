@@ -16,7 +16,7 @@ public class TestSiteEntry extends TestFragmentEntry {
         super.setUp();
         if (catalog_host == null) {
             Cluster catalog_cluster = CatalogUtil.getCluster(catalog_db);
-            catalog_host = CollectionUtil.getFirst(catalog_cluster.getHosts());
+            catalog_host = CollectionUtil.first(catalog_cluster.getHosts());
             
             site = new SiteEntry(99);
             site.add(fragment);

@@ -15,7 +15,7 @@ public class TestItemId extends TestCase {
             for (int item_ctr = 0; item_ctr < num_items; item_ctr++) {
                 ItemId customer_id = new ItemId(user_id, item_ctr);
                 assertNotNull(customer_id);
-                assertEquals(user_id, customer_id.getUserId());
+                assertEquals(user_id, customer_id.getSellerId());
                 assertEquals(item_ctr, customer_id.getItemCtr());
             } // FOR
         } // FOR
@@ -27,17 +27,12 @@ public class TestItemId extends TestCase {
     public void testItemIdEncode() {
         for (long user_id : this.user_ids) {
             for (int item_ctr = 0; item_ctr < num_items; item_ctr++) {
-                long values[] = { user_id, item_ctr };
-                long encoded = ItemId.encode(values);
-//                System.err.println("user_id=" + user_id);
-//                System.err.println("item_ctr=" + item_ctr);
-//                System.err.println("encoded=" + encoded);
-//                System.exit(1);
+                long encoded = new ItemId(user_id, item_ctr).encode();
                 assert(encoded >= 0);
                 
                 ItemId customer_id = new ItemId(encoded);
                 assertNotNull(customer_id);
-                assertEquals(user_id, customer_id.getUserId());
+                assertEquals(user_id, customer_id.getSellerId());
                 assertEquals(item_ctr, customer_id.getItemCtr());
             } // FOR
         } // FOR
@@ -50,10 +45,10 @@ public class TestItemId extends TestCase {
         for (long user_id : this.user_ids) {
             for (int item_ctr = 0; item_ctr < num_items; item_ctr++) {
                 long values[] = { user_id, item_ctr };
-                long encoded = ItemId.encode(values);
+                long encoded = new ItemId(user_id, item_ctr).encode();
                 assert(encoded >= 0);
 
-                long new_values[] = ItemId.decode(encoded);
+                long new_values[] = new ItemId(encoded).toArray();
                 assertEquals(values.length, new_values.length);
                 for (int i = 0; i < new_values.length; i++) {
                     assertEquals(values[i], new_values[i]);

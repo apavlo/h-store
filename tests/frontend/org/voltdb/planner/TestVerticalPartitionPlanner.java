@@ -86,7 +86,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         // Check to make sure that we don't try to update a query when we don't have
         // any vertical partitions defined
         Procedure catalog_proc = this.getProcedure("TestInvalid");
-        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         boolean ret = vp_planner.process(catalog_stmt);
         assertFalse(ret);
     }
@@ -103,7 +103,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         for (int i = 0; i < REWRITE_SQLS.length; i++) {
             String procName = String.format("TestRewrite%d", i);
             Procedure catalog_proc = this.getProcedure(procName);
-            Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+            Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         
             String orig_sql = catalog_stmt.getSqltext();
             String new_sql = vp_planner.rewriteSQL(catalog_stmt, m);
@@ -121,7 +121,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
      */
     public void testSingleColumnQuery() throws Exception {
         Procedure catalog_proc = this.getProcedure("TestSingleTable");
-        Statement catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
         Object params[] = new Object[]{ "ABC" };
         
         Integer base_partition = new Random().nextInt(NUM_PARTITIONS);
@@ -141,7 +141,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         assertNotNull(new_partitions);
 //        System.err.println("NEW PARTITIONS: " + new_partitions);
         assertEquals(1, new_partitions.size());
-        assertEquals(base_partition, CollectionUtil.getFirst(new_partitions));
+        assertEquals(base_partition, CollectionUtil.first(new_partitions));
     }
     
     /**

@@ -138,13 +138,13 @@ public class TestJSONUtilComplex extends BaseTestCase {
             this.obj.map_map.put(i, new HashMap<Integer, Integer>());
 
             for (int ii = 0, cnt = rand.nextInt(NUM_ELEMENTS) + 1; ii < cnt; ii++) {
-                CollectionUtil.getLast(this.obj.list_list).add(rand.nextInt());
-                CollectionUtil.getLast(this.obj.list_set).add(rand.nextInt());
-                CollectionUtil.getLast(this.obj.list_map).put(rand.nextInt(), rand.nextInt());
+                CollectionUtil.last(this.obj.list_list).add(rand.nextInt());
+                CollectionUtil.last(this.obj.list_set).add(rand.nextInt());
+                CollectionUtil.last(this.obj.list_map).put(rand.nextInt(), rand.nextInt());
                 
-                CollectionUtil.getLast(this.obj.set_list).add(rand.nextInt());
-                CollectionUtil.getLast(this.obj.set_set).add(rand.nextInt());
-                CollectionUtil.getLast(this.obj.set_map).put(rand.nextInt(), rand.nextInt());
+                CollectionUtil.last(this.obj.set_list).add(rand.nextInt());
+                CollectionUtil.last(this.obj.set_set).add(rand.nextInt());
+                CollectionUtil.last(this.obj.set_map).put(rand.nextInt(), rand.nextInt());
                 
                 this.obj.map_list.get(i).add(rand.nextInt());
                 this.obj.map_set.get(i).add(rand.nextInt());

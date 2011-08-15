@@ -166,7 +166,7 @@ public class ConstraintPropagator {
             for (DesignerEdge e : this.agraph.getIncidentEdges(v)) {
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                 assert(cset != null);
-                Column catalog_col = CollectionUtil.getFirst(cset.findAllForParent(Column.class, catalog_tbl));
+                Column catalog_col = CollectionUtil.first(cset.findAllForParent(Column.class, catalog_tbl));
                 if (catalog_col == null) LOG.fatal("Failed to find column for " + catalog_tbl + " in ColumnSet:\n" + cset);
                 
                 // Always add the base column without any vertical partitioning

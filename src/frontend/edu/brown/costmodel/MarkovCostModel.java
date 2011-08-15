@@ -286,7 +286,7 @@ public class MarkovCostModel extends AbstractCostModel {
         
         // Try fast version
         try {
-            if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.getLast(s.getInitialPath()), actual)) {
+            if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.last(s.getInitialPath()), actual)) {
                 // Otherwise we have to do the full path comparison to figure out just how wrong we are
                 cost = this.comparePathsFull(s);
                 this.full_path_counter.put(s.getProcedure());
@@ -333,7 +333,7 @@ public class MarkovCostModel extends AbstractCostModel {
         this.a_read_partitions.clear();
         this.a_write_partitions.clear();
         MarkovUtil.getReadWritePartitions(actual, this.a_read_partitions, this.a_write_partitions);
-        return (this.comparePathsFast(CollectionUtil.getLast(estimated), actual));
+        return (this.comparePathsFast(CollectionUtil.last(estimated), actual));
     }
 
     /**
@@ -345,7 +345,7 @@ public class MarkovCostModel extends AbstractCostModel {
     private boolean comparePathsFast(MarkovVertex e_last, List<MarkovVertex> actual) {
         // (1) Check that the MarkovEstimate's last state matches the actual path (commit vs abort) 
         assert(e_last != null);
-        MarkovVertex a_last = CollectionUtil.getLast(actual);
+        MarkovVertex a_last = CollectionUtil.last(actual);
         assert(a_last != null);
         assert(a_last.isEndingVertex());
         if (trace.get()) {
@@ -388,14 +388,14 @@ public class MarkovCostModel extends AbstractCostModel {
         this.e_all_partitions.clear();
         this.e_all_partitions.addAll(this.e_read_partitions);
         this.e_all_partitions.addAll(this.e_write_partitions);
-        MarkovVertex e_last = CollectionUtil.getLast(estimated);
+        MarkovVertex e_last = CollectionUtil.last(estimated);
         assert(e_last != null);
         
         List<MarkovVertex> actual = s.getActualPath();
         this.a_all_partitions.clear();
         this.a_all_partitions.addAll(this.a_read_partitions);
         this.a_all_partitions.addAll(this.a_write_partitions);
-        MarkovVertex a_last = CollectionUtil.getLast(actual);
+        MarkovVertex a_last = CollectionUtil.last(actual);
         assert(a_last != null);
         assert(a_last.isEndingVertex());
         
@@ -445,7 +445,7 @@ public class MarkovCostModel extends AbstractCostModel {
         if (most_touched.size() > 1) {
             e_base_partition = CollectionUtil.random(most_touched);
         } else {
-            e_base_partition = CollectionUtil.getFirst(most_touched);
+            e_base_partition = CollectionUtil.first(most_touched);
         }
         if (e_base_partition == null || e_base_partition != base_partition) {
             if (trace.get()) {
@@ -735,7 +735,7 @@ public class MarkovCostModel extends AbstractCostModel {
         );
         HStoreConf.initArgumentsParser(args, null);
         final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
-        final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.getFirst(args.workload_base_partitions) : null);
+        final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.first(args.workload_base_partitions) : null);
         final int num_threads = ThreadUtil.getMaxGlobalThreads();
         final boolean stop_on_error = true;
         final boolean force_fullpath = true;

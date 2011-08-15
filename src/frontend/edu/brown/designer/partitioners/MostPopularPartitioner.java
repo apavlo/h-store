@@ -103,7 +103,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             } else if (forced_columns.isEmpty() == false) {
                 // Assume there is only one candidate
                 assert(forced_columns.size() == 1) : "Unexpected number of forced columns: " + forced_columns;
-                Column catalog_col = CollectionUtil.getFirst(forced_columns);
+                Column catalog_col = CollectionUtil.first(forced_columns);
                 pentry = new TableEntry(PartitionMethodType.HASH, catalog_col, null, null);
                 if (debug.get()) LOG.debug("FORCED PARTITION: " + CatalogUtil.getDisplayName(catalog_col));
                 total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
@@ -180,7 +180,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 
                 total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
                 total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
-                Column most_popular = CollectionUtil.getFirst(column_histogram.getMaxCountValues());
+                Column most_popular = CollectionUtil.first(column_histogram.getMaxCountValues());
                 pentry = new TableEntry(PartitionMethodType.HASH, most_popular, null, null);
                 if (debug.get()) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), most_popular.getName()));
             }
@@ -209,7 +209,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 
                 Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
                 if (param_order.isEmpty() == false) {
-                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, CollectionUtil.getFirst(param_order), ProcParameter.class);
+                    ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, CollectionUtil.first(param_order), ProcParameter.class);
                     if (debug.get()) LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
                     
                     // Create a new PartitionEntry for this procedure and set it to be always single-partitioned

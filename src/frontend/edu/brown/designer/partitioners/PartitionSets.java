@@ -83,7 +83,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         public DesignerEdge getEdge(Table child_table) {
             DesignerEdge ret = null;
             if (this.table_edge_xref.containsKey(child_table)) {
-                ret = CollectionUtil.getFirst(this.table_edge_xref.get(child_table));
+                ret = CollectionUtil.first(this.table_edge_xref.get(child_table));
             }
             return (ret);
         }

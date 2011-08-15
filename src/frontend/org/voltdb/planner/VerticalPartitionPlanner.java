@@ -129,7 +129,7 @@ public class VerticalPartitionPlanner {
             Map<Statement, Statement> optimized = this.projectBuilder.getRewrittenQueryPlans();
             assert (optimized != null);
             assert (optimized.size() == 1);
-            CatalogUtil.copyQueryPlans(CollectionUtil.getFirst(optimized.values()), catalog_stmt);
+            CatalogUtil.copyQueryPlans(CollectionUtil.first(optimized.values()), catalog_stmt);
             return (true);
         }
         return (false);
@@ -376,7 +376,7 @@ public class VerticalPartitionPlanner {
 
                 Procedure new_catalog_proc = catalog_db.getProcedures().get(procName);
                 assert (new_catalog_proc != null);
-                Statement new_catalog_stmt = CollectionUtil.getFirst(new_catalog_proc.getStatements());
+                Statement new_catalog_stmt = CollectionUtil.first(new_catalog_proc.getStatements());
                 assert (new_catalog_stmt != null);
                 ret.put(catalog_stmt, new_catalog_stmt);
             } // FOR

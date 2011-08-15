@@ -320,7 +320,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 } else {
                     assert(!partitions.isEmpty()) : "No touched partitions for " + txn_trace;
                     if (partitions.size() == 1 && txn_entry.getExecutionPartition() != null) {
-                        assert(CollectionUtil.getFirst(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
+                        assert(CollectionUtil.first(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
                         exec_mismatch_ctrs[i]++;
                         partitions_touched[i]++;
                     } else {

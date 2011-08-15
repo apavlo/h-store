@@ -171,7 +171,7 @@ public class TestFeatureClusterer extends BaseTestCase {
         // Construct a simple MarkovAttributeSet that only contains the BasePartitionFeature
         MarkovAttributeSet base_aset = new MarkovAttributeSet(data, FeatureUtil.getFeatureKeyPrefix(BasePartitionFeature.class));
         assertFalse(base_aset.isEmpty());
-        int base_partition_idx = CollectionUtil.getFirst(base_aset).index();
+        int base_partition_idx = CollectionUtil.first(base_aset).index();
         
         AbstractClusterer clusterer = this.fclusterer.createClusterer(base_aset, data);
         assertNotNull(clusterer);

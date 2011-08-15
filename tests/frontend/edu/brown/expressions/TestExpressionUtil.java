@@ -65,13 +65,13 @@ public class TestExpressionUtil extends BaseTestCase {
         Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertNotNull(scan_nodes);
         assertEquals(1, scan_nodes.size());
-        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        AbstractScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
         assertNotNull(scan_node);
         
         Collection<AbstractExpression> exps = PlanNodeUtil.getExpressionsForPlanNode(scan_node);
         assertNotNull(exps);
         assertFalse(exps.isEmpty());
-        AbstractExpression exp = CollectionUtil.getFirst(exps);
+        AbstractExpression exp = CollectionUtil.first(exps);
         assertNotNull(exp);
         
         // Clone the mofo and make sure equals() returns true!
@@ -99,7 +99,7 @@ public class TestExpressionUtil extends BaseTestCase {
         AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
         assertNotNull(root);
         //System.err.println(PlanNodeUtil.debug(root));
-        IndexScanPlanNode scan_node = CollectionUtil.getFirst(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
+        IndexScanPlanNode scan_node = CollectionUtil.first(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
         assertNotNull(scan_node);
         
         AbstractExpression exp = scan_node.getEndExpression();

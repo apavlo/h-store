@@ -229,7 +229,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
 
         LOG.debug("Looking at " + CatalogUtil.getDisplayName(catalog_stmt));
         try {
-            Table catalog_tbl = CollectionUtil.getFirst(catalog_tbls);
+            Table catalog_tbl = CollectionUtil.first(catalog_tbls);
             String table_key = CatalogKey.createKey(catalog_tbl);
             Integer bytes = MemoryEstimator.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
             this.table_total_sizes.put(table_key, this.table_total_sizes.get(table_key) + bytes);

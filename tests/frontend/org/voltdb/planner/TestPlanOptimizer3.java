@@ -174,7 +174,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         assertEquals(1, limit_nodes.size());
 
         // Get the Limit nodes output columns and make sure their valid
-        LimitPlanNode limit_node = CollectionUtil.getFirst(limit_nodes);
+        LimitPlanNode limit_node = CollectionUtil.first(limit_nodes);
         assertNotNull(limit_node);
         for (int column_guid : limit_node.getOutputColumnGUIDs()) {
             PlanColumn column = PlannerContext.singleton().get(column_guid);
@@ -208,7 +208,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         assertEquals(1, limit_nodes.size());
 
         // Get the Limit nodes output columns and make sure their valid
-        LimitPlanNode limit_node = CollectionUtil.getFirst(limit_nodes);
+        LimitPlanNode limit_node = CollectionUtil.first(limit_nodes);
         assertNotNull(limit_node);
         for (int column_guid : limit_node.getOutputColumnGUIDs()) {
             PlanColumn column = PlannerContext.singleton().get(column_guid);
@@ -257,7 +257,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         // First check that our single scan node has an inline Projection
         Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
-        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        AbstractScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
         assertNotNull(scan_node);
         assertEquals(1, scan_node.getInlinePlanNodes().size());
 
@@ -326,7 +326,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         // dynamically figure things out for ourselves
         Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class);
         assertEquals(1, scan_nodes.size());
-        AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scan_nodes);
+        AbstractScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
         assertNotNull(scan_node);
         Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
 
@@ -358,7 +358,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         Collection<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
         assertNotNull(join_nodes);
         assertEquals(1, join_nodes.size());
-        AbstractJoinPlanNode join_node = CollectionUtil.getFirst(join_nodes);
+        AbstractJoinPlanNode join_node = CollectionUtil.first(join_nodes);
         assertNotNull(join_node);
 
         // Remove the columns from the second table

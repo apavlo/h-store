@@ -247,7 +247,7 @@ public class DesignerVisualization extends AbstractViewer {
         for (DesignerVertex v : graph.getVertices()) {
             if (!graph.getIncidentEdges(v).isEmpty()) {
                 this.visualizers.get(selected_idx).selectVertex(v);
-                this.visualizers.get(selected_idx).selectEdge(CollectionUtil.getFirst(graph.getIncidentEdges(v)));
+                this.visualizers.get(selected_idx).selectEdge(CollectionUtil.first(graph.getIncidentEdges(v)));
                 break;
             }
         } // FOR

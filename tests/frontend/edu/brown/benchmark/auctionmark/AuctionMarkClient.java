@@ -49,6 +49,7 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Zipf;
@@ -131,8 +132,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         GET_ITEM(AuctionMarkConstants.FREQUENCY_GET_ITEM, false, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = client.profile.getRandomAvailableItemIdSellerIdPair(rng);
-                return new Object[]{itemIdSellerIdPair[0],itemIdSellerIdPair[1]};
+            	ItemId itemIdSellerIdPair = client.profile.getRandomAvailableItemId(rng);
+                return new Object[]{itemIdSellerIdPair.encode(), itemIdSellerIdPair.getSellerId().encode()};
             }
 
 			@Override
@@ -146,7 +147,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_BID(AuctionMarkConstants.FREQUENCY_NEW_BID, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long buyerId = client.profile.getRandomBuyerId(rng);
+            	Long buyerId = null; // FIXME client.profile.getRandomBuyerId(rng);
             	assert(buyerId != null);
 
             	voltTable.resetRowPosition();
@@ -187,8 +188,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_COMMENT(AuctionMarkConstants.FREQUENCY_NEW_COMMENT, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = client.profile.getRandomCompleteItemIdSellerIdPair(rng);
-            	Long buyerId = client.profile.getRandomBuyerId(rng);
+            	Long[] itemIdSellerIdPair = null; // FIXME client.profile.getRandomCompleteItemIdSellerIdPair(rng);
+            	Long buyerId = null; // FIXME client.profile.getRandomBuyerId(rng);
             	assert(buyerId != null);
             	String question = rng.astring(10, 128);
                 return new Object[]{itemIdSellerIdPair[0], itemIdSellerIdPair[1], buyerId, question};
@@ -206,7 +207,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         GET_COMMENT(AuctionMarkConstants.FREQUENCY_GET_COMMENT, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = client.profile.getRandomCompleteItemIdSellerIdPair(rng);
+            	Long[] itemIdSellerIdPair = null; // FIXME client.profile.getRandomCompleteItemIdSellerIdPair(rng);
                 return new Object[]{itemIdSellerIdPair[1]};
             }
 
@@ -252,8 +253,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_FEEDBACK(AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = client.profile.getRandomCompleteItemIdSellerIdPair(rng);
-            	Long buyerId = client.profile.getRandomBuyerId(rng);
+            	Long[] itemIdSellerIdPair = null; // FIXME client.profile.getRandomCompleteItemIdSellerIdPair(rng);
+            	Long buyerId = null; // FIXME client.profile.getRandomBuyerId(rng);
             	assert(buyerId != null);
             	Long rating = (long)rng.number(0, 10);
             	String feedback = rng.astring(10, 128);
@@ -335,7 +336,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_PURCHASE(AuctionMarkConstants.FREQUENCY_NEW_PURCHASE, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = client.profile.getRandomWaitForPurchaseItemIdSellerIdPair(rng);
+            	Long[] itemIdSellerIdPair = null; // FIXME client.profile.getRandomWaitForPurchaseItemIdSellerIdPair(rng);
             	long bidId = client.profile.getBidId(itemIdSellerIdPair[0]);
             	long buyerId = client.profile.getBuyerId(itemIdSellerIdPair[0]);
             	long sellerId = itemIdSellerIdPair[1];
@@ -421,7 +422,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         UPDATE_ITEM(AuctionMarkConstants.FREQUENCY_UPDATE_ITEM, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = client.profile.getRandomAvailableItemIdSellerIdPair(rng);
+            	Long[] itemIdSellerIdPair = null; // FIXME client.profile.getRandomAvailableItemId(rng);
             	String description = rng.astring(50, 255);
                 return new Object[]{
                 		itemIdSellerIdPair[0], itemIdSellerIdPair[1], description
@@ -439,7 +440,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         GET_USER_INFO(AuctionMarkConstants.FREQUENCY_GET_USER_INFO, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	long userId = client.profile.getRandomAvailableItemIdSellerIdPair(rng)[1];
+            	Long userId = null; // FIXME client.profile.getRandomAvailableItemId(rng)[1];
             	long get_seller_items = 0;
             	long get_buyer_items = 0;
             	long get_feedback = 0;
@@ -473,7 +474,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         GET_WATCHED_ITEMS(AuctionMarkConstants.FREQUENCY_GET_WATCHED_ITEMS, true, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generate(AuctionMarkClient client, AbstractRandomGenerator rng, VoltTable voltTable) {
-            	Long userId = client.profile.getRandomBuyerId(rng);
+            	Long userId = null; // FIXME client.profile.getRandomBuyerId(rng);
             	assert(userId != null);
                 return new Object[]{
                 	userId
@@ -610,11 +611,13 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         this._partitionStartOffset = this.getClientId() * partitionRange;
         this._partitionEndOffset = ((this.getClientId() + 1) * partitionRange) - 1;
 
+        /** FIXME
         this.initItemMap(profile.user_available_items, profile.user_available_items, profile.user_available_items_histogram);
         this.initItemMap(profile.user_wait_for_purchase_items, profile.user_wait_for_purchase_items, profile.user_wait_for_purchase_items_histogram);
         this.initItemMap(profile.user_complete_items, profile.user_complete_items, profile.user_complete_items_histogram);
         this.initItemBidMap(profile.item_bid_map);
         this.initItemBuyerMap(profile.item_buyer_map);
+        */
 //        this.initUserIds(profile.user_ids);
 
         this._nextItemId.set(profile.getTableSize(AuctionMarkConstants.TABLENAME_ITEM));
@@ -790,15 +793,15 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         				long buyerId = results[0].getLong("ib_buyer_id");
         				
         				if(itemStatus == 0){
-	        				profile.removeAvailableItem(sellerId, itemId);
+	        				// FIXME profile.removeAvailableItem(sellerId, itemId);
 	        				
 	        				long bidId = results[0].getLong("imb_ib_id");
 	        				if(results[0].wasNull()){
 	        					// No winning bid
-	        					profile.addCompleteItem(sellerId, itemId);
+	        				    // FIXME profile.addCompleteItem(sellerId, itemId);
 	        				} else {
 	        					// Has winning bid
-	        					profile.addWaitForPurchaseItem(sellerId, itemId, bidId, buyerId);
+	        				    // FIXME profile.addWaitForPurchaseItem(sellerId, itemId, bidId, buyerId);
 	        				}
         				}
         			}
@@ -835,7 +838,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         			if(results.length > 0 && results[0].advanceRow()){
 	        			long itemId = results[0].getLong("i_id");
 	        			long sellerId = results[0].getLong("i_u_id");        			
-	        			profile.addAvailableItem(sellerId, itemId);
+	        			// FIXME profile.addAvailableItem(sellerId, itemId);
         			}
         			break;
         		}
@@ -845,8 +848,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
 	        			long sellerId = results[0].getLong("u_id");
 	        			if (trace.get()) LOG.trace("clientCallback:: NEW_PURCHASE itemId = " + itemId);
 	        			if (trace.get()) LOG.trace("clientCallback:: NEW_PURCHASE sellerId = " + sellerId);
-	        			profile.removeWaitForPurchaseItem(sellerId, itemId);
-	        			profile.addCompleteItem(sellerId, itemId);
+	        			// FIXME profile.removeWaitForPurchaseItem(sellerId, itemId);
+	        			// FIXME profile.addCompleteItem(sellerId, itemId);
 	        			if (trace.get()) LOG.trace("clientCallback:: NEW_PURCHASE END");
         			}
         			break;
@@ -880,6 +883,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         }
     }
 
+    /** FIXME
     private void initItemBidMap(Map<Long, Long> sourceItemBidMap) {
         for (Map.Entry<Long, List<Long>> entry : profile.user_wait_for_purchase_items.entrySet()) {
             for (Long itemId : entry.getValue()) {
@@ -895,6 +899,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             }
         }
     }
+    */
 
     private void initUserIds(List<Long> sourceUserIds) {
         long maxUserId = -1;

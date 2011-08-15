@@ -198,7 +198,7 @@ public abstract class CatalogKey {
         T catalog_child = null;
         CatalogType catalog_parent = null;
         
-        String parent_key = CollectionUtil.getFirst(jsonObject.keys());
+        String parent_key = CollectionUtil.first(jsonObject.keys());
         String orig_parent_key = parent_key;
         String multiattribute_key = null;
         String child_key = jsonObject.getString(parent_key);
@@ -347,7 +347,7 @@ public abstract class CatalogKey {
         if (name == null) {
             try {
                 JSONObject jsonObject = new JSONObject(catalog_key);
-                String key = CollectionUtil.getFirst(jsonObject.keys());
+                String key = CollectionUtil.first(jsonObject.keys());
                 assert(key != null);
                 name = jsonObject.getString(key);
             } catch (Throwable ex) {

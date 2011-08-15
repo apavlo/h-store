@@ -202,7 +202,7 @@ public class TestMarkovGraph extends BaseTestCase {
         MarkovVertex start = testGraph.getStartVertex();
         MarkovVertex stop = testGraph.getCommitVertex();
 
-        Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(this.catalog_proc.getStatements());
         Set<Integer> all_previous = new HashSet<Integer>();
         for (int i = 0; i < 10; i++) {
             Set<Integer> partitions = new HashSet<Integer>();
