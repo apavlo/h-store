@@ -23,15 +23,28 @@ public class UpdateCustomer extends VoltProcedure {
         "  FROM " + AirlineConstants.TABLENAME_CUSTOMER +
         " WHERE C_ID_STR = ? "
     );
-            
-    public final SQLStmt UpdateFF = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
-            "   SET FF_IATTR00 = ?, " +
-            "       FF_IATTR01 = FF_IATTR01 + ? " +
-            " WHERE FF_C_ID = ? " + 
-            "   AND FF_AL_ID = ? ");
     
-    public VoltTable[] run(long c_id, String c_id_str, long attr0, long attr1) {
+    public final SQLStmt UpdateCustomer = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
+            "   SET C_IATTR00 = ?, " +
+            "       C_IATTR01 = ? " +
+            " WHERE C_ID = ?"
+        );
+    
+    public final SQLStmt GetFrequentFlyers = new SQLStmt(
+        "SELECT * FROM " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
+        " WHERE FF_C_ID = ?"
+    );
+            
+    public final SQLStmt UpdatFrequentFlyers = new SQLStmt(
+        "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
+        "   SET FF_IATTR00 = ?, " +
+        "       FF_IATTR01 = ? " +
+        " WHERE FF_C_ID = ? " + 
+        "   AND FF_AL_ID = ? "
+    );
+    
+    public VoltTable[] run(long c_id, String c_id_str, long update_ff, long attr0, long attr1) {
         if (c_id_str != null && c_id_str.isEmpty() == false) {
             voltQueueSQL(GetCustomerIdStr, c_id_str);
         } else {
@@ -43,10 +56,23 @@ public class UpdateCustomer extends VoltProcedure {
             throw new VoltAbortException(String.format("No Customer information record found [c_id=%d, c_id_str=%s]",
                                                        c_id, c_id_str));
         }
+        boolean adv = results[0].advanceRow();
+        assert(adv);
+        c_id = results[0].getLong(0);
         
-//        voltQueueSQL(UpdateFF, attr0, attr1, c_id, al_id);
-//        results = voltExecuteSQL();
-//        assert (results.length == 1);
+        if (update_ff > 0) {
+            voltQueueSQL(GetFrequentFlyers, c_id); 
+            VoltTable ff_results[] = voltExecuteSQL();
+            assert(results.length == 1);
+            while (ff_results[0].advanceRow()) {
+                long ff_al_id = ff_results[0].getLong(1); 
+                voltQueueSQL(UpdatFrequentFlyers, attr0, attr1, c_id, ff_al_id);
+            } // WHILE
+        }
+        
+        voltQueueSQL(UpdateCustomer, attr0, attr1, c_id);
+        results = voltExecuteSQL();
+        assert (results.length >= 1);
         return (results);
     }
 }

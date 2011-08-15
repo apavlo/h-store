@@ -1,6 +1,4 @@
-package edu.brown.benchmark.auctionmark.model;
-
-import java.util.Date;
+package edu.brown.benchmark.auctionmark.util;
 
 import org.voltdb.types.TimestampType;
 
@@ -37,20 +35,12 @@ public class ItemInfo implements Cloneable {
 
     @Override
     public ItemInfo clone() {
-        ItemInfo ret = new ItemInfo();
-        ret.num_bids = this.num_bids;
-        ret.num_images = this.num_images;
-        ret.num_attributes = this.num_attributes;
-        ret.num_comments = this.num_comments;
-        ret.num_watches = this.num_watches;
-        ret.still_available = this.still_available;
-        ret.startDate = this.startDate;
-        ret.endDate = this.endDate;
-        ret.purchaseDate = this.purchaseDate;
-        ret.initialPrice = this.initialPrice;
-        ret.currentPrice = this.currentPrice;
-        ret.seller_id = this.seller_id;
-        ret.last_bidder_id = this.last_bidder_id;
+        ItemInfo ret = null;
+        try {
+            ret = (ItemInfo)super.clone();
+        } catch (CloneNotSupportedException ex) {
+            throw new RuntimeException("Failed to clone ItemInfo", ex);
+        }
         return (ret);
     }
 }

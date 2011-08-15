@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,6 +70,11 @@ public class AirlineLoader extends AirlineBaseClient {
      */
     private final ListOrderedMap<FlightId, Short> seats_remaining = new ListOrderedMap<FlightId, Short>();
 
+    /**
+     * Counter for the number of tables that we have finished loading
+     */
+    private final transient AtomicInteger finished = new AtomicInteger(0);
+    
     // -----------------------------------------------------------------
     // FLIGHT IDS
     // -----------------------------------------------------------------
@@ -258,18 +264,6 @@ public class AirlineLoader extends AirlineBaseClient {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
                 assert(catalog_tbl != null);
                 Iterable<Object[]> iterable = this.getFixedIterable(catalog_tbl);
-                
-//                // XXX
-//                if (table_name.equalsIgnoreCase("AIRPORT")) {
-//                    for (Object[] row : iterable) {
-//                        String code = (String)row[1];
-//                        if (hasFlights(code)) {
-//                            System.err.println(StringUtil.join("|", row));
-//                        }
-//                    }
-//                    System.exit(1);
-//                }
-                
                 this.loadTable(catalog_tbl, iterable, 5000);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to load data files for fixed-sized table '" + table_name + "'", ex);
@@ -321,6 +315,7 @@ public class AirlineLoader extends AirlineBaseClient {
     public void loadTable(Table catalog_tbl, Iterable<Object[]> iterable, int batch_size) {
         // Special Case: Airport Locations
         final boolean is_airport = catalog_tbl.getName().equals(AirlineConstants.TABLENAME_AIRPORT);
+        final Database catalog_db = CatalogUtil.getDatabase(catalog_tbl.getCatalog()); 
         
         if (debug.get()) LOG.debug(String.format("Generating new records for table %s [batchSize=%d]", catalog_tbl.getName(), batch_size));
         final VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
@@ -426,8 +421,9 @@ public class AirlineLoader extends AirlineBaseClient {
         // Record the number of tuples that we loaded for this table in the profile 
         this.setRecordCount(catalog_tbl.getName(), row_idx + 1);
         
-        // if (vt.getRowCount() > 0) this.loadVoltTable(catalog_tbl.getName(), vt);
-        LOG.info(String.format("Finished loading %d tuples for %s", row_idx, catalog_tbl.getName()));
+        LOG.info(String.format("Finished loading all %d tuples for %s [%d / %d]",
+                                row_idx, catalog_tbl.getName(),
+                                this.finished.incrementAndGet(), catalog_db.getTables().size()));
         return;
     }
     

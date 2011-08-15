@@ -42,13 +42,20 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
 /**
  *
  */
 public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
-    protected final Logger LOG;
+    private static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     /**
      * Benchmark Profile
@@ -68,11 +75,6 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
     protected final Database catalog_db;
 
     /**
-     * Whether to enable debug information
-     */
-    protected boolean debug;
-    
-    /**
      * Path to directory with data files needed by the loader 
      */
     protected final String data_directory;
@@ -82,14 +84,14 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
      */
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
-        LOG = Logger.getLogger(child_class);
-        this.debug = LOG.isDebugEnabled();
         
         String profile_file = null;
         int seed = 0;
         String randGenClassName = DefaultRandomGenerator.class.getName();
         String randGenProfilePath = null;
         String dataDir = null;
+        Integer temporal_window = null;
+        Integer temporal_total = null;
         
         for (String key : m_extraParams.keySet()) {
             String value = m_extraParams.get(key);
@@ -97,18 +99,28 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
             // Benchmark Profile File
             if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
                 profile_file = value;
+            }
             // Random Generator Seed
-            } else if (key.equalsIgnoreCase("RANDOMSEED")) {
+            else if (key.equalsIgnoreCase("RANDOMSEED")) {
                 seed = Integer.parseInt(value);
+            }
             // Random Generator Class
-            } else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
+            else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
                 randGenClassName = value;
+            }
             // Random Generator Profile File
-            } else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
+            else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
                 randGenProfilePath = value;
+            }
             // Data directory
-            } else if (key.equalsIgnoreCase("DATADIR")) {
+            else if (key.equalsIgnoreCase("DATADIR")) {
                 dataDir = value;
+            }
+            // Temporal Skew
+            else if (key.equalsIgnoreCase("TEMPORALWINDOW")) {
+                assert(m_extraParams.containsKey("TEMPORALTOTAL")) : "Missing TEMPORALTOTAL parameter";
+                temporal_window = Integer.valueOf(m_extraParams.get("TEMPORALWINDOW"));
+                temporal_total = Integer.valueOf(m_extraParams.get("TEMPORALTOTAL"));
             }
         } // FOR
         
@@ -143,7 +155,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
                 File path = new File(tests_dir.getAbsolutePath() + File.separator + "frontend" + File.separator +
                                      AuctionMarkBaseClient.class.getPackage().getName().replace('.', File.separatorChar) +
                                      File.separator + "data").getCanonicalFile();
-                if (this.debug) LOG.debug("Default data directory path = " + path);
+                if (debug.get()) LOG.debug("Default data directory path = " + path);
                 if (!path.exists()) {
                     throw new RuntimeException("The default data directory " + path + " does not exist");
                 } else if (!path.isDirectory()) {
@@ -169,6 +181,12 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         }
         this.rng = rng;
         
+        // Temporal Skew
+        if (temporal_window != null && temporal_window > 0) {
+            profile.enableTemporalSkew(temporal_window, temporal_total);
+            LOG.info(String.format("Enabling temporal skew [window=%d, total=%d]", temporal_window, temporal_total));
+        }
+        
         // Catalog
         Catalog _catalog = null;
         try {
@@ -188,7 +206,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
     public File saveProfile() {
         assert(this.profile != null);
         File f = FileUtil.getTempFile("profile", false);
-        if (this.debug) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
+        if (debug.get()) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
         try {
             this.profile.save(f.getAbsolutePath());
         } catch (IOException ex) {

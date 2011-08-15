@@ -290,7 +290,7 @@ public class AirlineClient extends AirlineBaseClient {
         // Pull off the first cached reservation and drop it on the cluster...
         Reservation r = this.pending_deletes.remove();
         assert(r != null);
-        int rand = 100; // rng.number(1, 100);
+        int rand = rng.number(1, 100);
         
         Object params[] = new Object[]{
             r.flight_id.encode(),       // [0] f_id
@@ -315,187 +315,6 @@ public class AirlineClient extends AirlineBaseClient {
         }
         
         this.getClientHandle().callProcedure(new DeleteReservationCallback(r), txn.proc_class.getSimpleName(), params);
-
-    }
-    
-    // ----------------------------------------------------------------
-    // NewReservation
-    // ----------------------------------------------------------------
-    
-    class NewReservationCallback implements ProcedureCallback {
-        final Reservation reservation;
-        
-        public NewReservationCallback(Reservation r) {
-            this.reservation = r;
-        }
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
-            VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
-                assert(results.length > 1);
-                assert(results[0].getRowCount() == 1);
-                assert(results[0].asScalarLong() == 1);
-
-                // Queue this motha trucka up for a deletin'
-                if (rng.nextBoolean()) {
-                    pending_deletes.add(this.reservation);
-                }
-                // Or queue it for an update
-                else if (rng.nextBoolean()) {
-                    pending_updates.add(this.reservation);
-                }
-            } else if (debug.get()) {
-                LOG.debug("NewReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
-                LOG.debug("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
-            }
-        }
-    }
-
-    private void executeNewReservation(Transaction txn) throws IOException {
-        Reservation r = this.pending_inserts.remove();
-        
-        // Generate random attributes
-        long attributes[] = new long[9];
-        for (int i = 0; i < attributes.length; i++) {
-            attributes[i] = rng.nextLong();
-        } // FOR
-
-        this.getClientHandle().callProcedure(new NewReservationCallback(r),
-                                             txn.proc_class.getSimpleName(),
-                                             r.id, r.customer_id.encode(), r.flight_id.encode(), r.seatnum, attributes);
-    }
-    
-
-    // ----------------------------------------------------------------
-    // UpdateCustomer
-    // ----------------------------------------------------------------
-    
-    class UpdateCustomerCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_CUSTOMER.ordinal());
-            VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
-                assert (results.length == 1);
-                assert (results[0].getRowCount() == 1);
-//                assert (results[0].asScalarLong() == 1);
-            } else if (debug.get()) {
-                LOG.debug("UpdateCustomer " + ": " + clientResponse.getStatusString(), clientResponse.getException());
-            }
-        }
-    }
-
-    private void executeUpdateCustomer(Transaction txn) throws IOException {
-        // Pick a random customer and then have at it!
-        CustomerId customer_id = this.getRandomCustomerId();
-        long airline_id = this.getRandomAirlineId();
-        long attr0 = this.rng.nextLong();
-        long attr1 = this.rng.nextLong();
-        int rand = rng.number(1, 100);
-        
-        Object params[] = new Object[]{
-            VoltType.NULL_BIGINT,
-            "",
-//            airline_id,
-            attr0,
-            attr1
-        };
-        
-        // Update with the Customer's id as a string 
-        if (rand <= AirlineConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR) {
-            params[1] = Long.toString(customer_id.encode());
-        }
-        // Update using their Customer id
-        else {
-            params[0] = customer_id.encode();
-        }
-
-        this.getClientHandle().callProcedure(new UpdateCustomerCallback(), txn.proc_class.getSimpleName(), params);
-    }
-
-    // ----------------------------------------------------------------
-    // UpdateReservation
-    // ----------------------------------------------------------------
-    
-    class UpdateReservationCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
-            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
-                assert (clientResponse.getResults().length == 1);
-                assert (clientResponse.getResults()[0].getRowCount() == 1);
-                assert (clientResponse.getResults()[0].asScalarLong() == 1 ||
-                        clientResponse.getResults()[0].asScalarLong() == 0);
-            }
-        }
-    }
-
-    private void executeUpdateReservation(Transaction txn) throws IOException {
-        // Pull off the first pending seat change and throw that ma at the server
-        Reservation r = this.pending_updates.remove();
-        assert(r != null);
-        
-        // Pick a random reservation id
-        long value = rng.number(1, 1 << 20);
-        long attribute_idx = rng.nextInt(UpdateReservation.NUM_UPDATES);
-
-        this.getClientHandle().callProcedure(new UpdateReservationCallback(),
-                                             txn.proc_class.getSimpleName(), 
-                                             r.id, r.flight_id.encode(), r.customer_id.encode(), r.seatnum, attribute_idx, value);
-    }
-
-    // ----------------------------------------------------------------
-    // FindOpenSeats
-    // ----------------------------------------------------------------
-    
-    class FindOpenSeatsCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
-            VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
-            assert (results[0].getRowCount() < 150);
-            // there is some tiny probability of an empty flight .. maybe
-            // 1/(20**150)
-            // if you hit this assert (with valid code), play the lottery!
-            assert (results[0].getRowCount() > 1);
-            
-            // Store the pending reservation in our queue for a later transaction by using
-            // the first empty seat.
-            boolean adv = results[0].advanceRow();
-            assert(adv);
-                
-            FlightId flight_id = new FlightId(results[0].getLong(0));
-            long seatnum = results[0].getLong(1);
-            long airport_depart_id = flight_id.getDepartAirportId();
-            CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
-            if (customer_id == null) {
-                customer_id = AirlineClient.this.getRandomCustomerId();
-            }
-            assert(customer_id != null);
-            
-            Reservation r = new Reservation(getNextReservationId(), flight_id, customer_id, seatnum);
-            if (rng.nextBoolean()) {
-                AirlineClient.this.pending_inserts.add(r);
-                if (debug.get()) LOG.info("QUEUED INSERT: " + flight_id + " / " + flight_id.encode());
-            }
-        }
-
-    }
-
-    /**
-     * Execute the FindOpenSeat procedure
-     * @throws IOException
-     */
-    private void executeFindOpenSeats(Transaction txn) throws IOException {
-        FlightId flight_id = this.getRandomFlightId();
-        assert(flight_id != null);
-        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(), txn.proc_class.getSimpleName(), flight_id.encode());
     }
     
     // ----------------------------------------------------------------
@@ -554,4 +373,180 @@ public class AirlineClient extends AirlineBaseClient {
         this.getClientHandle().callProcedure(new FindFlightCallback(txn), txn.proc_class.getSimpleName(), params);
     }
 
+    // ----------------------------------------------------------------
+    // FindOpenSeats
+    // ----------------------------------------------------------------
+    
+    class FindOpenSeatsCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
+            VoltTable[] results = clientResponse.getResults();
+            assert (results.length == 1);
+            assert (results[0].getRowCount() < 150);
+            // there is some tiny probability of an empty flight .. maybe
+            // 1/(20**150)
+            // if you hit this assert (with valid code), play the lottery!
+            assert (results[0].getRowCount() > 1);
+            
+            // Store the pending reservation in our queue for a later transaction by using
+            // the first empty seat.
+            boolean adv = results[0].advanceRow();
+            assert(adv);
+                
+            FlightId flight_id = new FlightId(results[0].getLong(0));
+            long seatnum = results[0].getLong(1);
+            long airport_depart_id = flight_id.getDepartAirportId();
+            CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
+            if (customer_id == null) {
+                customer_id = AirlineClient.this.getRandomCustomerId();
+            }
+            assert(customer_id != null);
+            
+            Reservation r = new Reservation(getNextReservationId(), flight_id, customer_id, seatnum);
+            if (rng.nextBoolean()) {
+                AirlineClient.this.pending_inserts.add(r);
+                if (debug.get()) LOG.info("QUEUED INSERT: " + flight_id + " / " + flight_id.encode());
+            }
+        }
+    }
+
+    /**
+     * Execute the FindOpenSeat procedure
+     * @throws IOException
+     */
+    private void executeFindOpenSeats(Transaction txn) throws IOException {
+        FlightId flight_id = this.getRandomFlightId();
+        assert(flight_id != null);
+        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(), txn.proc_class.getSimpleName(), flight_id.encode());
+    }
+    
+    // ----------------------------------------------------------------
+    // NewReservation
+    // ----------------------------------------------------------------
+    
+    class NewReservationCallback implements ProcedureCallback {
+        final Reservation reservation;
+        
+        public NewReservationCallback(Reservation r) {
+            this.reservation = r;
+        }
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
+            VoltTable[] results = clientResponse.getResults();
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                assert(results.length > 1);
+                assert(results[0].getRowCount() == 1);
+                assert(results[0].asScalarLong() == 1);
+
+                // Queue this motha trucka up for a deletin'
+                if (rng.nextBoolean()) {
+                    pending_deletes.add(this.reservation);
+                }
+                // Or queue it for an update
+                else if (rng.nextBoolean()) {
+                    pending_updates.add(this.reservation);
+                }
+            } else if (debug.get()) {
+                LOG.debug("NewReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
+                LOG.debug("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
+            }
+        }
+    }
+
+    private void executeNewReservation(Transaction txn) throws IOException {
+        Reservation r = this.pending_inserts.remove();
+        
+        // Generate random attributes
+        long attributes[] = new long[9];
+        for (int i = 0; i < attributes.length; i++) {
+            attributes[i] = rng.nextLong();
+        } // FOR
+
+        this.getClientHandle().callProcedure(new NewReservationCallback(r),
+                                             txn.proc_class.getSimpleName(),
+                                             r.id, r.customer_id.encode(), r.flight_id.encode(), r.seatnum, attributes);
+    }
+
+    // ----------------------------------------------------------------
+    // UpdateCustomer
+    // ----------------------------------------------------------------
+    
+    class UpdateCustomerCallback implements ProcedureCallback {
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.UPDATE_CUSTOMER.ordinal());
+            VoltTable[] results = clientResponse.getResults();
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                assert (results.length >= 1);
+                assert (results[0].getRowCount() == 1);
+//                assert (results[0].asScalarLong() == 1);
+            } else if (debug.get()) {
+                LOG.debug("UpdateCustomer " + ": " + clientResponse.getStatusString(), clientResponse.getException());
+            }
+        }
+    }
+
+    private void executeUpdateCustomer(Transaction txn) throws IOException {
+        // Pick a random customer and then have at it!
+        CustomerId customer_id = this.getRandomCustomerId();
+        long attr0 = this.rng.nextLong();
+        long attr1 = this.rng.nextLong();
+        long update_ff = (rng.number(1, 100) <= AirlineConstants.PROB_UPDATE_FREQUENT_FLYER ? 1 : 0);
+        
+        Object params[] = new Object[]{
+            VoltType.NULL_BIGINT,
+            "",
+            update_ff,
+            attr0,
+            attr1
+        };
+        
+        // Update with the Customer's id as a string 
+        int rand = rng.number(1, 100);
+        if (rand <= AirlineConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR) {
+            params[1] = Long.toString(customer_id.encode());
+        }
+        // Update using their Customer id
+        else {
+            params[0] = customer_id.encode();
+        }
+
+        this.getClientHandle().callProcedure(new UpdateCustomerCallback(), txn.proc_class.getSimpleName(), params);
+    }
+
+    // ----------------------------------------------------------------
+    // UpdateReservation
+    // ----------------------------------------------------------------
+    
+    class UpdateReservationCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                assert (clientResponse.getResults().length == 1);
+                assert (clientResponse.getResults()[0].getRowCount() == 1);
+                assert (clientResponse.getResults()[0].asScalarLong() == 1 ||
+                        clientResponse.getResults()[0].asScalarLong() == 0);
+            }
+        }
+    }
+
+    private void executeUpdateReservation(Transaction txn) throws IOException {
+        // Pull off the first pending seat change and throw that ma at the server
+        Reservation r = this.pending_updates.remove();
+        assert(r != null);
+        
+        // Pick a random reservation id
+        long value = rng.number(1, 1 << 20);
+        long attribute_idx = rng.nextInt(UpdateReservation.NUM_UPDATES);
+
+        this.getClientHandle().callProcedure(new UpdateReservationCallback(),
+                                             txn.proc_class.getSimpleName(), 
+                                             r.id, r.flight_id.encode(), r.customer_id.encode(), r.seatnum, attribute_idx, value);
+    }
 }

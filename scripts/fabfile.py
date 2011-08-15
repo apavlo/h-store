@@ -140,7 +140,7 @@ def benchmark():
     __getInstances__()
     client_inst = __getClientInstance__()
     with settings(host_string=client_inst.public_dns_name):
-        for project in ['tpcc', 'tm1', 'auctionmark']:
+        for project in ['tpcc', 'tm1', 'airline', 'auctionmark']:
             exec_benchmark(project=project)
     ## WITH
 ## DEF

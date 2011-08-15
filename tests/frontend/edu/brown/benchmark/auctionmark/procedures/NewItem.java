@@ -37,8 +37,9 @@ public class NewItem extends VoltProcedure{
             	"i_num_images," + 
             	"i_num_global_attrs," + 
             	"i_start_date," + 
-            	"i_end_date" 
-            +") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
+            	"i_end_date," +
+            	"i_iattr0" + 
+            ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)"
         );
     
     public final SQLStmt select_category = new SQLStmt(
@@ -71,7 +72,7 @@ public class NewItem extends VoltProcedure{
     			"ii_id," + 
     			"ii_i_id," + 
     			"ii_u_id," + 
-    			"ii_path" + 
+    			"ii_sattr0" + 
     		") VALUES(?, ?, ?, ?)"
     	);
     

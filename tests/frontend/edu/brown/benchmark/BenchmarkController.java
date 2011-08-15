@@ -379,19 +379,22 @@ public class BenchmarkController {
         if (m_config.compileBenchmark) {
             if (m_config.hosts.length == 0) m_config.hosts = new String[] { "localhost" };
             
-        m_projectBuilder.compile(
-                m_jarFileName,
-                m_config.sitesPerHost,
-                m_config.hosts.length,
-                m_config.k_factor,
-                m_config.hosts[0]);
+            boolean success = m_projectBuilder.compile(m_jarFileName,
+                                                       m_config.sitesPerHost,
+                                                       m_config.hosts.length,
+                                                       m_config.k_factor,
+                                                       m_config.hosts[0]);
+            if (m_config.compileOnly || success == false) {
+                assert(FileUtil.exists(m_jarFileName)) : "Failed to create jar file '" + m_jarFileName + "'";
+                if (success) {
+                    LOG.info("Compilation Complete. Exiting [" + m_jarFileName + "]");
+                } else {
+                    LOG.error("Compilation Failed. Exiting [" + m_jarFileName + "]");
+                }
+                System.exit(success ? 0 : -1);
+            }
         } else {
             if (debug.get()) LOG.debug("Skipping benchmark project compilation");
-        }
-        if (m_config.compileOnly) {
-            assert(FileUtil.exists(m_jarFileName)) : "Failed to create jar file '" + m_jarFileName + "'";
-            LOG.info("Compilation complete. Exiting [" + m_jarFileName + "]");
-            System.exit(0);
         }
         
         // Load the catalog that we just made

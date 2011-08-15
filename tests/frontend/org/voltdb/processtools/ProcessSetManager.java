@@ -156,7 +156,7 @@ public class ProcessSetManager implements Shutdownable {
                 }
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
                     ProcessData pd = e.getValue();
-                    if (pd.poller.isProcessAlive() == false) {
+                    if (pd.poller != null && pd.poller.isProcessAlive() == false) {
                         String msg = String.format("Failed to poll '%s'", e.getKey());
                         LOG.error(msg);
                         failure_observable.notifyObservers(e.getKey());
