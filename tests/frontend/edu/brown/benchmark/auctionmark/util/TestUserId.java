@@ -17,7 +17,7 @@ public class TestUserId extends TestCase {
             for (int offset = 0; offset < 10; offset++) {
                 UserId user_id = new UserId(size, offset);
                 assertNotNull(user_id);
-                assertEquals(size, user_id.getSize());
+                assertEquals(size, user_id.getItemCount());
                 assertEquals(offset, user_id.getOffset());
             } // FOR
         } // FOR
@@ -35,7 +35,7 @@ public class TestUserId extends TestCase {
                 
                 UserId user_id = new UserId(encoded);
                 assertNotNull(user_id);
-                assertEquals(size, user_id.getSize());
+                assertEquals(size, user_id.getItemCount());
                 assertEquals(offset, user_id.getOffset());
             } // FOR
         } // FOR
@@ -48,7 +48,7 @@ public class TestUserId extends TestCase {
         for (int i = 0; i < 100; i++) {
             int size = rand.nextInt(10000);
             for (int offset = 0; offset < 10; offset++) {
-                long values[] = { size, offset };
+                long values[] = { offset, size };
                 long encoded = new UserId(size, offset).encode();
                 assert(encoded >= 0);
                 

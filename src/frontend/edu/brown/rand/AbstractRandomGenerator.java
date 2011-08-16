@@ -64,9 +64,19 @@ public abstract class AbstractRandomGenerator extends Random {
         return value;
     }
     
-    public long number(Long reservationUpcomingOffset, long reservationCount) {
-        // TODO Auto-generated method stub
-        return 0;
+    public long number(long minimum, long maximum) {
+        long range_size = (maximum - minimum) + 1;
+        
+        // error checking and 2^x checking removed for simplicity.
+        long bits, val;
+        do {
+            bits = (this.nextLong() << 1) >>> 1;
+            val = bits % range_size;
+        } while (bits - val + range_size < 0L);
+        val += minimum;
+        assert(val >= minimum);
+        assert(val <= maximum);
+        return val;
     }
 
     

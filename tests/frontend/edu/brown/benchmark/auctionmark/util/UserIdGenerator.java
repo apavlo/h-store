@@ -11,12 +11,13 @@ public class UserIdGenerator implements Iterator<UserId> {
     private final int numClients;
     private final Integer clientId;
     private final Histogram<Integer> users_per_item_count;
-    private final int min_size;
-    private final int max_size;
-    private Integer currentSize = null;
-    private int currentOffset;
+    private final int min_count;
+    private final int max_count;
+    
     private UserId next = null;
-    private long total_ctr = 0l;
+    private Integer currentItemCount = null;
+    private int currentOffset;
+    private long currentPosition = 0l;
     
     /**
      * Construct a new generator based on the given histogram.
@@ -35,28 +36,52 @@ public class UserIdGenerator implements Iterator<UserId> {
         this.numClients = numClients;
         this.clientId = clientId;
         this.users_per_item_count = users_per_item_count;
-        this.min_size = users_per_item_count.getMinValue();
-        this.max_size = users_per_item_count.getMaxValue();
+        this.min_count = users_per_item_count.getMinValue();
+        this.max_count = users_per_item_count.getMaxValue();
         
-        this.setCurrentSize(this.min_size);
+        this.setCurrentItemCount(this.min_count);
     }
 
     public UserIdGenerator(Histogram<Integer> users_per_item_count, int numClients) {
         this(users_per_item_count, numClients, null);
     }
     
-    public void setCurrentSize(int size) {
-        this.currentSize = size;
-        this.currentOffset = this.users_per_item_count.get(this.currentSize).intValue();
+    
+    public long getTotalUsers() {
+        return (this.users_per_item_count.getSampleCount());
     }
     
-    private UserId getNext() {
+    public void setCurrentItemCount(int size) {
+        // It's lame, but we need to make sure that we prime total_ctr
+        // so that we always get the same UserIds back per client
+        this.currentPosition = 0;
+        for (int i = 0; i < size; i++) {
+            this.currentPosition += this.users_per_item_count.get(i, 0l);
+        } // FOR
+        this.currentItemCount = size;
+        this.currentOffset = this.users_per_item_count.get(this.currentItemCount).intValue();
+    }
+    
+    public long getCurrentPosition() {
+        return (this.currentPosition);
+    }
+    
+    public UserId seekToPosition(long position) {
+        assert(position < this.getTotalUsers());
+        UserId user_id = null;
+        while (this.currentPosition < position) {
+            user_id = this.next();
+        } // WHILE
+        return (user_id);
+    }
+    
+    private UserId findNextUserId() {
         // Find the next id for this size level
         Integer found = null;
-        while (this.currentSize <= this.max_size) {
+        while (this.currentItemCount <= this.max_count) {
             while (this.currentOffset > 0) {
                 int nextCtr = this.currentOffset--;
-                this.total_ctr++;
+                this.currentPosition++;
                 
                 // If we weren't given a clientId, then we'll generate UserIds
                 // for all users in a given size level
@@ -65,34 +90,34 @@ public class UserIdGenerator implements Iterator<UserId> {
                     break;
                 }
                 // Otherwise we have to spin through and find one for our client
-                else if (this.total_ctr % this.numClients == this.clientId) {
+                else if (this.currentPosition % this.numClients == this.clientId) {
                     found = nextCtr;
                     break;
                 }
             } // WHILE
             if (found != null) break;
-            this.currentSize++;
-            this.currentOffset = (int)this.users_per_item_count.get(this.currentSize, 0l);
+            this.currentItemCount++;
+            this.currentOffset = (int)this.users_per_item_count.get(this.currentItemCount, 0l);
         } // WHILE
         if (found == null) return (null);
         
-        return (new UserId(this.currentSize, found));
+        return (new UserId(this.currentItemCount, found));
     }
     
     @Override
     public synchronized boolean hasNext() {
         if (this.next == null) {
             synchronized (this) {
-                if (this.next == null) this.next = this.getNext();
+                if (this.next == null) this.next = this.findNextUserId();
             }
         }
         return (this.next != null);
     }
 
     @Override
-    public synchronized  UserId next() {
+    public synchronized UserId next() {
         if (this.next == null) {
-            this.next = this.getNext();
+            this.next = this.findNextUserId();
         }
         UserId ret = this.next;
         this.next = null;
@@ -101,6 +126,6 @@ public class UserIdGenerator implements Iterator<UserId> {
 
     @Override
     public void remove() {
-        throw new NotImplementedException("Can't call remove");
+        throw new NotImplementedException("Cannot call remove!!");
     }
 }
