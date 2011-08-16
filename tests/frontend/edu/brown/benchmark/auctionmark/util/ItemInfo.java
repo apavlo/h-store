@@ -5,20 +5,22 @@ import java.util.List;
 
 import org.voltdb.types.TimestampType;
 
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 
 public class ItemInfo implements Cloneable {
     public final ItemId id;
-    public final List<Bid> bids = new ArrayList<Bid>();
+    private final List<Bid> bids = new ArrayList<Bid>();
+    private Histogram<UserId> bidderHistogram = new Histogram<UserId>();
     
-    public short num_bids;
-    public short num_images;
-    public short num_attributes;
-    public short num_comments;
+    public short numBids;
+    public short numImages;
+    public short numAttributes;
+    public short numComments;
     public short num_watches;
     public boolean still_available;
-    public TimestampType startDate;
-    public TimestampType endDate;
+    public TimestampType start_date;
+    public TimestampType end_date;
     public TimestampType purchaseDate;
     public float initialPrice;
     public float currentPrice;
@@ -27,14 +29,14 @@ public class ItemInfo implements Cloneable {
 
     public ItemInfo(ItemId id) {
         this.id = id;
-        this.num_bids = 0;
-        this.num_images = 0;
-        this.num_attributes = 0;
-        this.num_comments = 0;
+        this.numBids = 0;
+        this.numImages = 0;
+        this.numAttributes = 0;
+        this.numComments = 0;
         this.num_watches = 0;
         this.still_available = true;
-        this.startDate = null;
-        this.endDate = null;
+        this.start_date = null;
+        this.end_date = null;
         this.purchaseDate = null;
         this.initialPrice = 0;
         this.currentPrice = 0;
@@ -42,15 +44,21 @@ public class ItemInfo implements Cloneable {
         this.lastBidderId = null;
     }
 
-    public Bid getNextBid(long id) {
-        Bid b = new Bid(id);
+    public Bid getNextBid(long id, UserId bidder_id) {
+        assert(bidder_id != null);
+        Bid b = new Bid(id, bidder_id);
         this.bids.add(b);
-        assert(this.bids.size() <= this.num_bids);
+        assert(this.bids.size() <= this.numBids);
+        this.bidderHistogram.put(bidder_id);
         return (b);
     }
     
     public Bid getLastBid() {
         return (CollectionUtil.last(this.bids));
+    }
+    
+    public Histogram<UserId> getBidderHistogram() {
+        return bidderHistogram;
     }
     
     @Override
@@ -66,21 +74,19 @@ public class ItemInfo implements Cloneable {
     
     public class Bid implements Cloneable {
         public final long id;
-        public UserId bidderId;
+        public final UserId bidderId;
         public float maxBid;
         public TimestampType createDate;
         public TimestampType updateDate;
-        public boolean won;
 
-        private Bid(long id) {
+        private Bid(long id, UserId bidderId) {
             this.id = id;
-            this.bidderId = null;
+            this.bidderId = bidderId;
             this.maxBid = 0;
             this.createDate = null;
             this.updateDate = null;
-            this.won = false;
         }
-
+        
         public ItemInfo getItemInfo() {
             return (ItemInfo.this);
         }

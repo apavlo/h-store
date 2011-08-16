@@ -58,8 +58,7 @@ public class TestUserIdGenerator extends TestCase {
 	}
 
 	/**
-	 * 
-	 * @throws Exception
+	 * testPerClient
 	 */
 	public void testPerClient() throws Exception {
 	    Histogram<Integer> clients_h = new Histogram<Integer>();
@@ -91,5 +90,32 @@ public class TestUserIdGenerator extends TestCase {
 	    } // FOR
 	    System.err.println(clients_h);
 	}
-
+	
+	/**
+	 * testSetCurrentSize
+	 */
+	public void testSetCurrentSize() throws Exception {
+	    // First create a UserIdGenerator for a random ClientId and populate
+	    // the set of all the UserIds that we expect for this client
+	    Random rand = new Random();
+	    int client = rand.nextInt(NUM_CLIENTS);
+	    UserIdGenerator generator = new UserIdGenerator(users_per_item_count, NUM_CLIENTS, client);
+	    Set<UserId> seen = new HashSet<UserId>();
+	    for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+            assertNotNull(u_id);
+            assert(seen.contains(u_id) == false) : "Duplicate UserId " + u_id;
+            seen.add(u_id);
+        } // FOR
+	    
+	    // Now make sure that we always get back the same UserIds regardless of where
+        // we jump around with using setCurrentSize()
+	    for (int i = 0; i < 10; i++) {
+	        int size = rand.nextInt(users_per_item_count.getMaxValue()+1);
+	        generator.setCurrentItemCount(size);
+	        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+	            assertNotNull(u_id);
+	            assert(seen.contains(u_id)) : "Unexpected UserId " + u_id;
+	        } // FOR
+	    } // FOR
+	}
 }

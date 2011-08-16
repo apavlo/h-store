@@ -32,8 +32,13 @@
 package edu.brown.benchmark.auctionmark;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 import org.json.JSONException;
@@ -43,13 +48,13 @@ import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.UserId;
+import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
 import edu.brown.rand.AbstractRandomGenerator;
-import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
+import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
@@ -96,17 +101,12 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      *  (3) Complete (The auction is closed and (There is no bid winner or
      *      the bid winner has already purchased the item)
      */
-    private final Set<ItemId> user_available_items = new HashSet<ItemId>();
-    public Histogram<UserId> user_available_items_histogram = new Histogram<UserId>();
-    
-    public final Set<ItemId> user_wait_for_purchase_items = new HashSet<ItemId>();
-    public Histogram<UserId> user_wait_for_purchase_items_histogram = new Histogram<UserId>();
-    
-    public final Set<ItemId> user_complete_items = new HashSet<ItemId>();
-    public Histogram<UserId> user_complete_items_histogram = new Histogram<UserId>();
+    public final LinkedList<ItemId> user_available_items = new LinkedList<ItemId>();
+    public final LinkedList<ItemId> user_wait_for_purchase_items = new LinkedList<ItemId>();
+    public final LinkedList<ItemId> user_complete_items = new LinkedList<ItemId>();
 
-    public final Map<Long, Long> item_bid_map = new HashMap<Long, Long>();
-    public final Map<Long, Long> item_buyer_map = new HashMap<Long, Long>();
+    public final Map<ItemId, Long> item_bid_map = new HashMap<ItemId, Long>();
+    public final Map<ItemId, UserId> item_buyer_map = new HashMap<ItemId, UserId>();
 
     /** Map from global attribute group to list of global attribute value */
     public final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
@@ -116,9 +116,14 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // TRANSIENT DATA MEMBERS
     // ----------------------------------------------------------------
     
-    private transient FlatHistogram<Long> randomGAGId = null;
+    /**
+     * Specialized random number generator
+     */
+    private final AbstractRandomGenerator rng;
+    
+    private final int num_clients;
 
-    private final Map<AbstractRandomGenerator, RandomDistribution.DiscreteRNG> CACHE_getRandomUserId = new HashMap<AbstractRandomGenerator, RandomDistribution.DiscreteRNG>();
+    private transient final Map<Integer, UserIdGenerator> userIdGenerators = new HashMap<Integer, UserIdGenerator>();
     
     /**
      * Data used for calculating temporally skewed user ids
@@ -129,6 +134,22 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private final Histogram<Integer> window_histogram = new Histogram<Integer>();
     private final List<Integer> window_partitions = new ArrayList<Integer>();
     
+    /** Random time different in seconds */
+    public final Gaussian randomTimeDiff;
+    
+    /** Random duration in days */
+    public final Gaussian randomDuration;
+
+    public final Zipf randomNumImages;
+    public final Zipf randomNumAttributes;
+    public final Zipf randomPurchaseDuration;
+    public final Zipf randomNumComments;
+    public final Zipf randomInitialPrice;
+
+    private transient FlatHistogram<Long> randomGAGId;
+    private transient FlatHistogram<Long> randomCategory;
+    private transient FlatHistogram<Integer> randomItemCount;
+    
     // -----------------------------------------------------------------
     // GENERAL METHODS
     // -----------------------------------------------------------------
@@ -136,7 +157,9 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Constructor - Keep your pimp hand strong!
      */
-    public AuctionMarkBenchmarkProfile() {
+    public AuctionMarkBenchmarkProfile(AbstractRandomGenerator rng, int num_clients) {
+        this.rng = rng;
+        this.num_clients = num_clients;
 
         // Initialize table sizes
         for (String tableName : AuctionMarkConstants.TABLENAMES) {
@@ -146,6 +169,24 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         } // FOR
 
         this.window_histogram.setKeepZeroEntries(true);
+        
+        this.randomInitialPrice = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_INITIAL_PRICE,
+                                                     AuctionMarkConstants.ITEM_MAX_INITIAL_PRICE, 1.001);
+        
+        // Random time difference in a second scale
+        this.randomTimeDiff = new Gaussian(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
+                                                     AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
+        this.randomDuration = new Gaussian(this.rng, 1, AuctionMarkConstants.ITEM_MAX_DURATION_DAYS);
+
+        this.randomPurchaseDuration = new Zipf(this.rng, 0, AuctionMarkConstants.ITEM_MAX_PURCHASE_DURATION_DAYS, 1.001);
+
+        this.randomNumImages = new Zipf(this.rng,   AuctionMarkConstants.ITEM_MIN_IMAGES,
+                                                    AuctionMarkConstants.ITEM_MAX_IMAGES, 1.001);
+        this.randomNumAttributes = new Zipf(this.rng,    AuctionMarkConstants.ITEM_MIN_GLOBAL_ATTRS,
+                                                    AuctionMarkConstants.ITEM_MAX_GLOBAL_ATTRS, 1.001);
+        this.randomNumComments = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_COMMENTS,
+                                                    AuctionMarkConstants.ITEM_MAX_COMMENTS, 1.001);
+
         
         // _lastUserId = this.getTableSize(AuctionMarkConstants.TABLENAME_USER);
 
@@ -164,7 +205,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         for (int p = 0; p < this.window_total; p++) {
             this.window_histogram.put(p, 0);
         }
-
         this.tick();
     }
 
@@ -208,7 +248,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public double getScaleFactor() {
         return (this.scale_factor);
     }
-
     /**
      * Set the scale factor for this benchmark profile
      * @param scale_factor
@@ -228,7 +267,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     /**
      * Add the give tuple to the running to total for the table
-     * 
      * @param table_name
      * @param size
      */
@@ -251,159 +289,251 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     }
 
     /**
-     * Gets a random user ID within the client.
-     * @param rng
+     * 
+     * @param min_item_count
+     * @param client
+     * @param skew
+     * @param exclude
      * @return
      */
-    private Long getRandomUserId(AbstractRandomGenerator rng) {
-        Long user_id = null;
-//        assert(this.user_ids.isEmpty() == false) : "The list of user ids is empty!";
-//        synchronized (this.user_ids) {
-//            int num_user_ids = this.user_ids.size();
-//            if (num_user_ids > 0) {
-//                RandomDistribution.DiscreteRNG randomUserIndex = this.CACHE_getRandomUserId.get(rng);
-//                if (randomUserIndex == null || randomUserIndex.getMax() != num_user_ids) {
-//                    // Do we really want everything to be Guassian??
-//                    randomUserIndex = new Gaussian(rng, 0, num_user_ids - 1);
-//                    this.CACHE_getRandomUserId.put(rng, randomUserIndex);
-//                }
-//                user_id = this.user_ids.get(randomUserIndex.nextInt());
-//            }
-//        }
+    private UserId getRandomUserId(int min_item_count, Integer client, boolean skew, UserId...exclude) {
+        if (this.randomItemCount == null) {
+            synchronized (this) {
+                if (this.randomItemCount == null)
+                    this.randomItemCount = new FlatHistogram<Integer>(this.rng, this.users_per_item_count);
+            } // SYNCH
+        }
+        
+        // First grab the UserIdGenerator for the client (or -1 if there is no client)
+        // and seek to that itemCount. We use the UserIdGenerator to ensure that we always 
+        // select the next UserId for a given client from the same set of UserIds
+        Integer client_idx = (client == null ? -1 : client);
+        UserIdGenerator gen = this.userIdGenerators.get(client_idx);
+        if (gen == null) {
+            synchronized (this.userIdGenerators) {
+                gen = this.userIdGenerators.get(client);
+                if (gen == null) {
+                    gen = new UserIdGenerator(this.users_per_item_count, this.num_clients, client);
+                    this.userIdGenerators.put(client_idx, gen);
+                }
+            } // SYNCH
+        }
+        
+        UserId user_id = null;
+        int tries = 100;
+        while (user_id == null && tries-- > 0) {
+            // We first need to figure out how many items our seller needs to have
+            int itemCount = -1;
+            assert(min_item_count < this.users_per_item_count.getMaxValue());
+            while (itemCount < min_item_count) {
+                itemCount = this.randomItemCount.nextValue();
+            } // WHILE
+        
+            // Set the current item count and then choose a random position
+            // between where the generator is currently at and where it ends
+            synchronized (gen) {
+                gen.setCurrentItemCount(itemCount);
+                long position = rng.number(gen.getCurrentPosition(), gen.getTotalUsers());
+                user_id = gen.seekToPosition(position);
+            } // SYNCH
+            
+            // Make sure that we didn't select the same UserId as the one we were
+            // told to exclude.
+            if (exclude != null && exclude.length > 0) {
+                for (UserId ex : exclude) {
+                    if (ex != null && ex.equals(user_id)) {
+                        user_id = null;
+                        break;
+                    }
+                } // FOR
+                if (user_id == null) continue;
+            }
+            
+            // If we don't care about skew, then we're done right here
+            if (skew == false || this.window_size == null) break;
+            
+            // Otherwise, check whether this seller maps to our current window
+            Integer partition = this.getPartition(user_id);
+            if (this.window_partitions.contains(partition)) {
+                this.window_histogram.put(partition);
+                break;
+            }
+            user_id = null;
+        } // WHILE
+        assert(user_id != null);
+        
         return (user_id);
     }
 
     /**
-     * Gets a random buyer ID within the client.
-     * @param rng
+     * Gets a random buyer ID for all clients
      * @return
      */
-    public UserId getRandomBuyerId(AbstractRandomGenerator rng) {
+    public UserId getRandomBuyerId(UserId...exclude) {
         // We don't care about skewing the buyerIds at this point, so just get one from getRandomUserId
-        return (null); // TODO this.getRandomUserId(rng));
+        return (this.getRandomUserId(0, null, false, exclude));
+    }
+    /**
+     * Gets a random buyer ID for the given client
+     * @return
+     */
+    public UserId getRandomBuyerId(int client, UserId...exclude) {
+        // We don't care about skewing the buyerIds at this point, so just get one from getRandomUserId
+        return (this.getRandomUserId(0, client, false, exclude));
+    }
+    /**
+     * Get a random buyer UserId, where the probability that a particular user is selected
+     * increases based on the number of bids that they have made in the past. We won't allow
+     * the last bidder to be selected again
+     * @param previousBidders
+     * @return
+     */
+    public UserId getRandomBuyerId(Histogram<UserId> previousBidders, UserId...exclude) {
+        // This is very inefficient, but it's probably good enough for now
+        Histogram<UserId> new_h = new Histogram<UserId>(previousBidders);
+        for (UserId ex : exclude) new_h.removeAll(ex);
+        new_h.put(this.getRandomBuyerId(exclude));
+        
+        FlatHistogram<UserId> rand_h = new FlatHistogram<UserId>(rng, new_h);
+        return (rand_h.nextValue());
     }
     
     /**
-     * Gets a random seller ID within the client.
-     * @param rng
+     * Gets a random seller ID for all clients
      * @return
      */
-    public Long getRandomSellerId(AbstractRandomGenerator rng) {
-        Long seller_id = null;
-        Integer partition = null;
-        
-        while (true) {
-            partition = null;
-            seller_id = this.getRandomUserId(rng);
-            
-            // Bad mojo!
-            if (seller_id == null) break;
-            
-            // If there is no skew, then we can just jump out right here!
-            if (this.window_size == null) break;
-            
-            // Otherwise we need to skew this mother trucker..
-            partition = null; // TODO this.getPartition(seller_id);
-            if (this.window_partitions.contains(partition)) {
-                break;
-            }
-        } // WHILE
-        if (partition != null) {
-            this.window_histogram.put(partition);
-        }
-        return (seller_id);
+    public UserId getRandomSellerId() {
+        return (this.getRandomUserId(1, null, true));
+    }
+    /**
+     * Gets a random buyer ID for the given client
+     * @return
+     */
+    public UserId getRandomSellerId(int client) {
+        return (this.getRandomUserId(1, client, true));
     }
     
     // ----------------------------------------------------------------
     // ITEM METHODS
     // ----------------------------------------------------------------
     
-    private void addItem(Set<ItemId> itemSet, Histogram<UserId> sellerHistogram, ItemId itemId) {
+    private boolean addItem(LinkedList<ItemId> itemSet, ItemId itemId) {
+        boolean added = false;
         synchronized (itemSet) {
-            itemSet.add(itemId);
-            sellerHistogram.put(itemId.getSellerId());
+            if (itemSet.contains(itemId)) return (true);
+            
+            // If we have room, shove it right in
+            // We'll throw it in the back because we know it hasn't been used yet
+            if (itemSet.size() < 1000) {
+                itemSet.addLast(itemId);
+                added = true;
+            
+            // Otherwise, we can will randomly decide whether to pop one out
+            } else if (this.rng.nextBoolean()) {
+                itemSet.pop();
+                itemSet.addLast(itemId);
+                added = true;
+            }
         } // SYNCH
+        return (added);
     }
-    private void removeItem(Set<ItemId> itemSet, Histogram<UserId> sellerHistogram, ItemId itemId) {
+    private void removeItem(LinkedList<ItemId> itemSet, ItemId itemId) {
         synchronized (itemSet) {
             itemSet.remove(itemId);
-            sellerHistogram.remove(itemId.getSellerId());
         } // SYNCH
     }
-    private ItemId getRandomItemId(AbstractRandomGenerator rng, Set<ItemId> itemSet, Histogram<UserId> sellerHistogram) {
-        UserId sellerId = null;
+    private ItemId getRandomItemId(LinkedList<ItemId> itemSet) {
         ItemId itemId = null;
         synchronized (itemSet) {
-            FlatHistogram<UserId> randomSeller = new FlatHistogram<UserId>(rng, sellerHistogram);
+            int num_items = itemSet.size();
             Integer partition = null;
-            while (true) {
+            int idx = -1;
+            while (num_items > 0) {
                 partition = null;
-                sellerId = randomSeller.nextValue();
+                idx = this.rng.nextInt(num_items);
+                itemId = itemSet.get(idx);
+                assert(itemId != null);
+                
                 // Uniform
                 if (this.window_size == null) {
                     break;
                 }
                 // Temporal Skew
-                partition = this.getPartition(sellerId);
+                partition = this.getPartition(itemId.getSellerId());
                 if (this.window_partitions.contains(partition)) {
+                    this.window_histogram.put(partition);
                     break;
                 }
             } // WHILE
-            if (this.window_size != null) {
-                this.window_histogram.put(partition);
-            }
-            long numAvailableItems = this.user_available_items_histogram.get(sellerId);
-            itemId = null; // TODO this.user_available_items.get(sellerId).get(rng.number(0, (int) numAvailableItems - 1));
+            if (itemId == null) return (null);
+            assert(idx >= 0);
+            itemSet.remove(idx);
+            itemSet.addFirst(itemId);
         } // SYNCHRONIZED
         return itemId;
     }
     
-    
     public void addAvailableItem(ItemId itemId) {
-        this.addItem(this.user_available_items, this.user_available_items_histogram, itemId);
+        this.addItem(this.user_available_items, itemId);
     }
     public void removeAvailableItem(ItemId itemId) {
-        this.removeItem(this.user_available_items, this.user_available_items_histogram, itemId);
+        this.removeItem(this.user_available_items, itemId);
     }
-    public ItemId getRandomAvailableItemId(AbstractRandomGenerator rng) {
-        return this.getRandomItemId(rng, this.user_available_items, this.user_available_items_histogram);
+    public ItemId getRandomAvailableItemId() {
+        return this.getRandomItemId(this.user_available_items);
+    }
+    public int getAvailableItemIdsCount() {
+        return this.user_available_items.size();
     }
     
     public void addWaitForPurchaseItem(ItemId itemId) {
-        this.addItem(this.user_wait_for_purchase_items, this.user_wait_for_purchase_items_histogram, itemId);
+        this.addItem(this.user_wait_for_purchase_items, itemId);
     }
     public void removeWaitForPurchaseItem(ItemId itemId) {
-        this.removeItem(this.user_wait_for_purchase_items, this.user_wait_for_purchase_items_histogram, itemId);
+        this.removeItem(this.user_wait_for_purchase_items, itemId);
     }
-    public ItemId getRandomWaitForPurchaseItemId(AbstractRandomGenerator rng) {
-        return this.getRandomItemId(rng, this.user_wait_for_purchase_items, this.user_wait_for_purchase_items_histogram);
+    public ItemId getRandomWaitForPurchaseItemId() {
+        return this.getRandomItemId(this.user_wait_for_purchase_items);
+    }
+    public int getWaitForPurchaseItemIdsCount() {
+        return this.user_wait_for_purchase_items.size();
     }
     
     public void addCompleteItem(ItemId itemId) {
-        this.addItem(this.user_complete_items, this.user_complete_items_histogram, itemId);
+        this.addItem(this.user_complete_items, itemId);
     }
     public void removeCompleteItem(ItemId itemId) {
-        this.removeItem(this.user_complete_items, this.user_complete_items_histogram, itemId);
+        this.removeItem(this.user_complete_items, itemId);
     }
-    public ItemId getRandomCompleteItemId(AbstractRandomGenerator rng) {
-        return this.getRandomItemId(rng, this.user_complete_items, this.user_complete_items_histogram);
+    public ItemId getRandomCompleteItemId() {
+        return this.getRandomItemId(this.user_complete_items);
+    }
+    public int getCompleteItemIdsCount() {
+        return this.user_complete_items.size();
     }
     
-
-
-    public long getBidId(long itemId) {
-        return this.item_bid_map.get(itemId);
+    public int getAllItemIdsCount() {
+        return (this.getAvailableItemIdsCount() +
+                this.getWaitForPurchaseItemIdsCount() +
+                this.getCompleteItemIdsCount());
     }
-
-    public long getBuyerId(long itemId) {
-        return this.item_buyer_map.get(itemId);
+    public ItemId getRandomItemId() {
+        assert(this.getAllItemIdsCount() > 0);
+        LinkedList<ItemId> itemSet = null;
+        while (itemSet == null || itemSet.isEmpty()) {
+            int idx = rng.nextInt(3);
+            if (idx == 0) itemSet = this.user_available_items;
+            else if (idx == 1) itemSet = this.user_wait_for_purchase_items;
+            else if (idx == 2) itemSet = this.user_complete_items;
+        } // WHILE
+        return (this.getRandomItemId(itemSet));
     }
 
     // ----------------------------------------------------------------
     // GLOBAL ATTRIBUTE METHODS
     // ----------------------------------------------------------------
 
-    public void addGAGIdGAVIdPair(long GAGId, long GAVId) {
+    public synchronized void addGAGIdGAVIdPair(long GAGId, long GAVId) {
         List<Long> GAVIds = this.gag_gav_map.get(GAGId);
         if (null == GAVIds) {
             GAVIds = new ArrayList<Long>();
@@ -418,10 +548,9 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Return a random attribute group/value pair
      * Pair<GLOBAL_ATTRIBUTE_GROUP, GLOBAL_ATTRIBUTE_VALUE>
-     * @param rng
      * @return
      */
-    public synchronized Pair<Long, Long> getRandomGAGIdGAVIdPair(AbstractRandomGenerator rng) {
+    public synchronized Pair<Long, Long> getRandomGAGIdGAVIdPair() {
         if (this.randomGAGId == null) {
             this.randomGAGId = new FlatHistogram<Long>(rng, this.gag_gav_histogram);
         }
@@ -432,8 +561,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return Pair.of(GAGId, GAVId);
     }
     
-    public long getRandomCategoryId(AbstractRandomGenerator rng) {
-        FlatHistogram<Long> randomCategory = new FlatHistogram<Long>(rng, this.item_category_histogram);
+    public synchronized long getRandomCategoryId() {
+        if (this.randomCategory == null) {
+            this.randomCategory = new FlatHistogram<Long>(this.rng, this.item_category_histogram); 
+        }
         return randomCategory.nextLong();
     }
 

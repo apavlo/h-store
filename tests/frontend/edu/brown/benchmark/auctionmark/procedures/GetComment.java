@@ -18,17 +18,18 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 )
 public class GetComment extends VoltProcedure {
 	
-    public final SQLStmt select_comment = new SQLStmt(
-            "SELECT * FROM " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " + 
-            "WHERE ic_u_id = ? AND ic_response = ?"
-        );
+    public final SQLStmt select_comments = new SQLStmt(
+        "SELECT " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + ".*,  " +
+        "       i_name, i_current_price, i_num_bids, i_end_date " +
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " + 
+                    AuctionMarkConstants.TABLENAME_ITEM_COMMENT +
+        " WHERE i_id = ? AND i_u_id = ? AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN + 
+        "   AND i_id = ic_i_id AND i_u_id = ic_u_id = ? AND ic_response = ?"
+    );
 	
-    public VoltTable run(long seller_id) {
-    	
-    	// Set comment_id
-    	voltQueueSQL(select_comment, seller_id, null);
-    	VoltTable[] results = voltExecuteSQL();
-        return results[0];
+    public VoltTable[] run(long item_id, long seller_id) {
+    	voltQueueSQL(select_comments, item_id, seller_id, null);
+    	return (voltExecuteSQL());
     }	
 	
 }

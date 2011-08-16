@@ -59,7 +59,6 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         NewFeedback.class,
         NewItem.class,
         NewPurchase.class,
-        NewUser.class,
         PostAuction.class,
         UpdateItem.class,
     };
@@ -77,7 +76,6 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(NewFeedback.class, AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK);
         addTransactionFrequency(NewItem.class, AuctionMarkConstants.FREQUENCY_NEW_ITEM);
         addTransactionFrequency(NewPurchase.class, AuctionMarkConstants.FREQUENCY_NEW_PURCHASE);
-        addTransactionFrequency(NewUser.class, AuctionMarkConstants.FREQUENCY_NEW_USER);
         addTransactionFrequency(PostAuction.class, AuctionMarkConstants.FREQUENCY_POST_AUCTION);
         addTransactionFrequency(UpdateItem.class, AuctionMarkConstants.FREQUENCY_UPDATE_ITEM);
     }

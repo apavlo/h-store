@@ -47,10 +47,10 @@ public class UserId extends CompositeId {
     }
     @Override
     public long[] toArray() {
-        return (new long[]{ this.size_index, this.size_offset});
+        return (new long[]{ this.size_offset, this.size_index });
     }
     
-    public int getSize() {
+    public int getItemCount() {
         return this.size_index;
     }
     public long getOffset() {

@@ -124,9 +124,20 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
             }
         } // FOR
         
+        // Random Generator
+        AbstractRandomGenerator rng = null;
+        try {
+            rng = AbstractRandomGenerator.factory(randGenClassName, seed);
+            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
+        this.rng = rng;
+        
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
-        this.profile = new AuctionMarkBenchmarkProfile();
+        this.profile = new AuctionMarkBenchmarkProfile(rng, getNumClients());
         if (child_class.equals(AuctionMarkClient.class)) {
             this.profile_path = new File(profile_file);
             if (this.profile_path.exists()) {
@@ -170,16 +181,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         if (this.data_directory == null) LOG.warn("No data directory was set!");
         else LOG.debug("AuctionMark Data Directory: " + dataDir);
         
-        // Random Generator
-        AbstractRandomGenerator rng = null;
-        try {
-            rng = AbstractRandomGenerator.factory(randGenClassName, seed);
-            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            System.exit(1);
-        }
-        this.rng = rng;
+
         
         // Temporal Skew
         if (temporal_window != null && temporal_window > 0) {

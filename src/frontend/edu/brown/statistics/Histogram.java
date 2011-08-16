@@ -479,7 +479,7 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
-     * Remove the entrie count for the given value
+     * Remove the entire count for the given value
      * @param value
      */
     public synchronized void removeAll(X value) {

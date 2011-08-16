@@ -196,9 +196,6 @@ public class RandomDistribution {
             } while (bits - val + (this.range_size - 1) < 0L);
             val += this.min;
             assert(val >= min);
-            
-            // HACK
-//            if (val == max) val--;
             assert(val < max);
             return val;
         }

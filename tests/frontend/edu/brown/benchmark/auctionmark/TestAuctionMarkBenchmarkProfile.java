@@ -6,6 +6,8 @@ import org.json.JSONObject;
 import org.junit.Test;
 
 import edu.brown.BaseTestCase;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.ProjectType;
 
 /**
@@ -13,7 +15,10 @@ import edu.brown.utils.ProjectType;
  */
 public class TestAuctionMarkBenchmarkProfile extends BaseTestCase {
 
-    private final AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile();
+    private static final int NUM_CLIENTS = 10;
+    private static final AbstractRandomGenerator RAND = new DefaultRandomGenerator();
+    
+    private final AuctionMarkBenchmarkProfile profile = new AuctionMarkBenchmarkProfile(RAND, NUM_CLIENTS);
     private final Random rand = new Random();
     
     @Override
@@ -49,7 +54,7 @@ public class TestAuctionMarkBenchmarkProfile extends BaseTestCase {
     public void testSerialization() throws Exception {
         String json_string = this.profile.toJSONString();
         
-        AuctionMarkBenchmarkProfile clone = new AuctionMarkBenchmarkProfile();
+        AuctionMarkBenchmarkProfile clone = new AuctionMarkBenchmarkProfile(RAND, NUM_CLIENTS);
         clone.fromJSON(new JSONObject(json_string), catalog_db);
         //assertNotNull(clone.items_per_user);
         assertNotNull(clone.item_category_histogram);
