@@ -9,21 +9,21 @@ public class UserId extends CompositeId {
      * The size index is the position in the histogram for the number
      * of users per items size
      */
-    private int size_index;
+    private int itemCount;
     /**
      * The offset is based on the number of users that exist at a given size index
      */
-    private int size_offset;
+    private int offset;
     
 
     /**
      * Constructor
-     * @param size_index
-     * @param size_offset
+     * @param itemCount
+     * @param offset
      */
-    public UserId(int size_index, int size_offset) {
-        this.size_index = size_index;
-        this.size_offset = size_offset;
+    public UserId(int itemCount, int offset) {
+        this.itemCount = itemCount;
+        this.offset = offset;
     }
     
     /**
@@ -42,32 +42,32 @@ public class UserId extends CompositeId {
     @Override
     public void decode(long composite_id) {
         long values[] = super.decode(composite_id, new long[2], BASE_VALUE_MASK, VALUE_OFFSET);
-        this.size_offset = (int)values[0];
-        this.size_index = (int)values[1];
+        this.offset = (int)values[0];
+        this.itemCount = (int)values[1];
     }
     @Override
     public long[] toArray() {
-        return (new long[]{ this.size_offset, this.size_index });
+        return (new long[]{ this.offset, this.itemCount });
     }
     
     public int getItemCount() {
-        return this.size_index;
+        return this.itemCount;
     }
     public int getOffset() {
-        return this.size_offset;
+        return this.offset;
     }
     
     @Override
     public String toString() {
-        return String.format("UserId{index=%d,offset=%d,hash=%d}",
-                             this.size_index, this.size_offset, this.hashCode());
+        return String.format("UserId{itemCount=%d,offset=%d}",
+                             this.itemCount, this.offset);
     }
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof UserId) {
             UserId o = (UserId)obj;
-            return (this.size_index == o.size_index &&
-                    this.size_offset == o.size_offset);
+            return (this.itemCount == o.itemCount &&
+                    this.offset == o.offset);
         }
         return (false);
     }
