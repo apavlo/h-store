@@ -103,11 +103,9 @@ public class ItemInfo implements Cloneable {
         public float maxBid;
         public TimestampType createDate;
         public TimestampType updateDate;
+        public boolean buyer_feedback = false;
+        public boolean seller_feedback = false;
 
-        public boolean set_maxbid = false;
-        public boolean set_purchase = false;
-        public boolean set_useritem = false;
-        
         private Bid(long id, UserId bidderId) {
             this.id = id;
             this.bidderId = bidderId;

@@ -39,12 +39,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
-import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.CollectionUtils;
@@ -65,6 +66,7 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
+import edu.brown.benchmark.auctionmark.util.ItemInfo.Bid;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Gaussian;
@@ -74,6 +76,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
@@ -100,18 +103,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /** The set of tables that we have finished loading **/
     private final transient Collection<String> finished = new HashSet<String>();
     
-    /** Temporary storage of user ids */
-    private final List<UserId> user_ids = new ArrayList<UserId>();
-
-    /** Temporary storage of the number of bids that we need to create per item */
-    private final List<ItemInfo> item_infos = new ArrayList<ItemInfo>();
-
-    /** These are the item purchases that we need to create feedback from the buyer */
-    private final Queue<ItemInfo.Bid> pending_buyer_feedback = new LinkedList<ItemInfo.Bid>();
-    
-    /** These are the item purchases that we need to create feedback from the seller */
-    private final Queue<ItemInfo.Bid> pending_seller_feedback = new LinkedList<ItemInfo.Bid>();
-    
     /**
      * 
      * @param args
@@ -136,16 +127,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         // Fixed-Size Table Generators
         // ---------------------------
         
-        // REGION
         this.registerGenerator(new RegionGenerator());
-
-        // CATEGORY
         this.registerGenerator(new CategoryGenerator(new File(this.data_directory, "categories.txt")));
-
-        // GLOBAL_ATTRIBUTE_GROUP
         this.registerGenerator(new GlobalAttributeGroupGenerator());
-
-        // GLOBAL_ATTRIBUTE_VALUE
         this.registerGenerator(new GlobalAttributeValueGenerator());
 
         // ---------------------------
@@ -153,40 +137,29 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         // ---------------------------
         
         // USER TABLES
-        this.registerGenerator(
-            new UserGenerator().addSubGenerator(
-                new UserAttributesGenerator())
-        );
-
+        this.registerGenerator(new UserGenerator());
+        this.registerGenerator(new UserAttributesGenerator());
+        this.registerGenerator(new UserItemGenerator());
+        this.registerGenerator(new UserWatchGenerator());
+        this.registerGenerator(new UserFeedbackGenerator());
+        
         // ITEM TABLES
-        this.registerGenerator(
-            new ItemGenerator().addSubGenerator(
-                new ItemBidGenerator().addSubGenerator(
-                    new ItemMaxBidGenerator(),
-                    new ItemPurchaseGenerator().addSubGenerator(
-                        new UserFeedbackGenerator()
-                    ),
-                    new UserItemGenerator(),
-                    new UserWatchGenerator()
-                ),
-                new ItemAttributeGenerator(),
-                new ItemImageGenerator(),
-                new ItemCommentGenerator()
-            )
-        );
+        this.registerGenerator(new ItemGenerator());
+        this.registerGenerator(new ItemAttributeGenerator());
+        this.registerGenerator(new ItemBidGenerator());
+        this.registerGenerator(new ItemMaxBidGenerator());
+        this.registerGenerator(new ItemCommentGenerator());
+        this.registerGenerator(new ItemImageGenerator());
+        this.registerGenerator(new ItemPurchaseGenerator());
     }
     
     private void registerGenerator(AbstractTableGenerator generator) {
         // Register this one as well as any sub-generators
         this.generators.put(generator.getTableName(), generator);
-        for (AbstractTableGenerator sub_generator : generator.getSubGenerators()) {
+        for (AbstractTableGenerator sub_generator : generator.getSubTableGenerators()) {
             this.registerGenerator(sub_generator);
             this.sub_generators.add(sub_generator.getTableName());
         } // FOR
-    }
-    
-    private boolean isSubGenerator(AbstractTableGenerator generator) {
-        return (this.sub_generators.contains(generator.getTableName()));
     }
 
     @Override
@@ -202,10 +175,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
         final List<Thread> threads = new ArrayList<Thread>();
         for (AbstractTableGenerator generator : this.generators.values()) {
-            if (isSubGenerator(generator)) continue;
+            // if (isSubGenerator(generator)) continue;
             Thread t = new Thread(generator);
             t.setUncaughtExceptionHandler(handler);
             threads.add(t);
+            
+            // Make sure we call init first before starting any thread
+            generator.init();
         }
         assert(threads.size() > 0);
         handler.addObserver(new EventObserver() {
@@ -244,57 +220,27 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      */
     protected void generateTableData(String tableName) {
+        LOG.info(StringUtil.header("START " + tableName, "*", 100));
         final AbstractTableGenerator generator = this.generators.get(tableName);
         assert (generator != null);
 
         // Generate Data
-        generator.init();
-        long expectedTotal = generator.getTableSize();
-        if (debug.get()) LOG.debug("Loading " + expectedTotal + " tuples for table '" + tableName + "'");
-        this.generateTableDataLoop(generator);
-        
-        // Mark as finished
-        Collection<String> finishedTables = this.generateTableDataFinished(generator);
-        for (String t : finishedTables) {
-            this.finished.add(t);
-            LOG.info(String.format("Finished loading %d tuples for %s [%d / %d]", this.profile.getTableSize(t), t, this.finished.size(), catalog_db.getTables().size()));
-        } // FOR
-        if (debug.get()) {
-            LOG.debug("Remaining Tables: " + CollectionUtils.subtract(CatalogUtil.getDisplayNames(catalog_db.getTables()), this.finished));
-        }
-        
-    }
-    
-    private Collection<String> generateTableDataFinished(AbstractTableGenerator generator) {
-        // Mark as Finished
-        Collection<String> finishedTables = CollectionUtil.addAll(new ArrayList<String>(), generator.getTableName());
-        generator.markAsFinished();
-        if (generator.hasSubGenerators()) {
-            for (AbstractTableGenerator sub_generator : generator.sub_generators) {
-                finishedTables.addAll(this.generateTableDataFinished(sub_generator));
-            } // FOR
-        }
-        return (finishedTables);
-    }
-    
-    private void generateTableDataLoop(AbstractTableGenerator generator) {
         final VoltTable volt_table = generator.getVoltTable();
         while (generator.hasMore()) {
             generator.generateBatch();
             this.loadTable(generator.getTableName(), volt_table, generator.getTableSize());
             volt_table.clearRowData();
-
-            // Dependent Tables
-            if (generator.hasSubGenerators()) {
-                if (debug.get())
-                    LOG.debug("Invoking " + generator.sub_generators.size() + " sub-generators for " + generator.getTableName());
-                for (AbstractTableGenerator sub_generator : generator.sub_generators) {
-                    sub_generator.init();
-                    this.generateTableDataLoop(sub_generator);
-                } // FOR
-            }
         } // WHILE
-        return;
+        
+        // Mark as finished
+        generator.markAsFinished();
+        this.finished.add(tableName);
+        String msg = String.format("FINISH %s - %d tuples - [%d / %d]", tableName, this.profile.getTableSize(tableName), this.finished.size(), this.generators.size());  
+        LOG.info(StringUtil.header(msg, "*", 100));
+        if (debug.get()) {
+            LOG.debug("Remaining Tables: " + CollectionUtils.subtract(this.generators.keySet(), this.finished));
+        }
+        
     }
     
     /**
@@ -303,13 +249,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      * @param table
      */
-    protected void loadTable(String tableName, VoltTable table, Long expectedTotal) {
+    protected void loadTable(String tableName, VoltTable table, Long expected) {
         long count = table.getRowCount();
         long current = this.profile.getTableSize(tableName);
         
         if (debug.get()) 
-            LOG.debug(String.format("%s: Loading %d rows - %d / %s [bytes=%d]",
-                                    tableName, count, current, (expectedTotal != null ? expectedTotal.toString() : "-----"),
+            LOG.debug(String.format("%s: Loading %d rows - TOTAL %d%s [bytes=%d]",
+                                    tableName, count, current,
+                                    (expected != null && expected > 0 ? " / " + expected : ""),
                                     table.getUnderlyingBufferSize()));
 
         // Load up this dirty mess...
@@ -321,9 +268,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         this.profile.addToTableSize(tableName, count);
     }
 
-    // ----------------------------------------------------------------
-    // DATA GENERATION
-    // ----------------------------------------------------------------
 
     /**********************************************************************************************
      * AbstractTableGenerator
@@ -338,10 +282,10 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         protected final List<String> dependencyTables = new ArrayList<String>();
 
         /**
-         * Some generators have children tables that we want to load tuples for each batch of this generator. For
-         * example, for each ITEM batch, we want to generate ITEM_BID tuples.
+         * Some generators have children tables that we want to load tuples for each batch of this generator. 
+         * The queues we need to update every time we generate a new ItemInfo
          */
-        protected final List<AbstractTableGenerator> sub_generators = new ArrayList<AbstractTableGenerator>();
+        protected final Set<SubTableGenerator<?>> sub_generators = new HashSet<SubTableGenerator<?>>();  
 
         protected final Object[] row;
         protected long count = 0;
@@ -426,17 +370,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         
         /**
          * All sub-classes must implement this. This will enter new tuple data into the row
-         * @return TODO
          */
         protected abstract int populateRow();
         
         public void run() {
-            // Sub-generators should not be run in separate threads
-            assert(isSubGenerator(this) == false) : "Unexpected threaded execution for '" + tableName + "'";
-            
             // First block on the CountDownLatches of all the tables that we depend on
             if (this.dependencyTables.size() > 0 && debug.get())
-                LOG.debug(String.format("Table generator for '%s' is blocked waiting for %d other tables: %s",
+                LOG.debug(String.format("%s: Table generator is blocked waiting for %d other tables: %s",
                                         this.tableName, this.dependencyTables.size(), this.dependencyTables));
             for (String dependency : this.dependencyTables) {
                 AbstractTableGenerator gen = AuctionMarkLoader.this.generators.get(dependency);
@@ -454,6 +394,35 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             } catch (Throwable ex) {
                 throw new RuntimeException("Unexpected error while generating table data for '" + this.tableName + "'", ex);
             }
+        }
+        
+        @SuppressWarnings("unchecked")
+        public <T extends AbstractTableGenerator> T addSubTableGenerator(SubTableGenerator<?> sub_item) {
+            this.sub_generators.add(sub_item);
+            return ((T)this);
+        }
+        @SuppressWarnings("unchecked")
+        public void updateSubTableGenerators(Object obj) {
+            // Queue up this item for our multi-threaded sub-generators
+            if (trace.get())
+                LOG.trace(String.format("%s: Updating %d sub-generators with %s: %s",
+                                        this.tableName, this.sub_generators.size(), obj, this.sub_generators));
+            for (SubTableGenerator sub_generator : this.sub_generators) {
+                sub_generator.queue(obj);
+            } // FOR
+        }
+        public boolean hasSubTableGenerators() {
+            return (!this.sub_generators.isEmpty());
+        }
+        public Collection<SubTableGenerator<?>> getSubTableGenerators() {
+            return (this.sub_generators);
+        }
+        public Collection<String> getSubGeneratorTableNames() {
+            List<String> names = new ArrayList<String>();
+            for (AbstractTableGenerator gen : this.sub_generators) {
+                names.add(gen.catalog_tbl.getName());
+            }
+            return (names);
         }
         
         protected int populateRandomColumns(Object row[]) {
@@ -474,58 +443,30 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             
             return (cols);
         }
-        
-        
-        @SuppressWarnings("unchecked")
-        public <T extends AbstractTableGenerator> T addSubGenerator(AbstractTableGenerator...generators) {
-            CollectionUtil.addAll(this.sub_generators, generators);
-            return ((T)this);
-        }
-
-        public boolean hasSubGenerators() {
-            return (!this.sub_generators.isEmpty());
-        }
-        public Collection<AbstractTableGenerator> getSubGenerators() {
-            return (this.sub_generators);
-        }
-        public Collection<String> getSubGeneratorTableNames() {
-            List<String> names = new ArrayList<String>();
-            for (AbstractTableGenerator gen : this.sub_generators) {
-                names.add(gen.catalog_tbl.getName());
-            }
-            return (names);
-        }
 
         /**
          * Returns true if this generator has more tuples that it wants to add
-         * 
          * @return
          */
         public synchronized boolean hasMore() {
             return (this.count < this.tableSize);
         }
-
         /**
          * Return the table's catalog object for this generator
-         * 
          * @return
          */
         public Table getTableCatalog() {
             return (this.catalog_tbl);
         }
-
         /**
          * Return the VoltTable handle
-         * 
          * @return
          */
         public VoltTable getVoltTable() {
             return this.table;
         }
-
         /**
          * Returns the number of tuples that will be loaded into this table
-         * 
          * @return
          */
         public Long getTableSize() {
@@ -578,22 +519,20 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
          * 
          */
         public void generateBatch() {
-            if (debug.get()) LOG.debug("Generating new batch for " + this.getTableName());
+            if (trace.get()) LOG.trace(String.format("%s: Generating new batch", this.getTableName()));
             long batch_count = 0;
-            try {
-                while (this.hasMore() && this.table.getRowCount() < this.batchSize) {
-                    this.addRow();
-                    batch_count++;
-                } // WHILE
-            } catch (ClassCastException ex) {
-                ex.printStackTrace();
-                throw new RuntimeException(ex);
-            }
-            if (debug.get()) LOG.debug("Finished generating new batch of " + batch_count + " tuples for " + this.getTableName());
+            while (this.hasMore() && this.table.getRowCount() < this.batchSize) {
+                this.addRow();
+                batch_count++;
+            } // WHILE
+            if (debug.get()) LOG.debug(String.format("%s: Finished generating new batch of %d tuples", this.getTableName(), batch_count));
         }
 
         public void markAsFinished(){
         	this.latch.countDown();
+            for (SubTableGenerator<?> sub_generator : this.sub_generators) {
+                sub_generator.stopWhenEmpty();
+            } // FOR
         }
         
         public boolean isFinish(){
@@ -603,64 +542,89 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         public List<String> getDependencies() {
             return this.dependencyTables;
         }
+        
+        @Override
+        public String toString() {
+            return String.format("Generator[%s]", this.tableName);
+        }
     } // END CLASS
 
     /**********************************************************************************************
-     * SubItemTableGenerator
-     * This is for tables that are based off of the ITEM table
+     * SubUserTableGenerator
+     * This is for tables that are based off of the USER table
      **********************************************************************************************/
-    protected abstract class SubItemTableGenerator extends AbstractTableGenerator {
+    protected abstract class SubTableGenerator<T> extends AbstractTableGenerator {
         
-        private Iterator<ItemInfo> itemInfoItr;
-        private ItemInfo currentItemInfo;
-        private short currentNumItemElements;
+        private final LinkedBlockingDeque<T> queue = new LinkedBlockingDeque<T>();
+        private T current;
+        private short currentCounter;
+        private boolean stop = false;
+        private final String sourceTableName;
 
-        public SubItemTableGenerator(String tableName) {
-            super(tableName, AuctionMarkConstants.TABLENAME_ITEM);
+        public SubTableGenerator(String tableName, String sourceTableName, String...dependencies) {
+            super(tableName, dependencies);
+            this.sourceTableName = sourceTableName;
         }
         
-        protected abstract short getItemInfoField(ItemInfo itemInfo);
-        protected abstract int populateRow(ItemInfo itemInfo, short remaining);
+        protected abstract short getElementCounter(T t);
+        protected abstract int populateRow(T t, short remaining);
+        
+        public void queue(T t) {
+            assert(this.queue.contains(t) == false) : "Trying to queue duplicate element for '" + this.getTableName() + "'";
+            this.queue.add(t);
+        }
+        public void stopWhenEmpty() {
+            this.stop = true;
+        }
         
         @Override
         public void init() {
-            long numElements = 0;
-            this.itemInfoItr = AuctionMarkLoader.this.item_infos.iterator();
-            while (this.itemInfoItr.hasNext()) {
-                ItemInfo itemInfo = this.itemInfoItr.next();
-                numElements += this.getItemInfoField(itemInfo);
-            } // WHILE
-            this.currentItemInfo = null;
-            this.currentNumItemElements = 0;
-
-            this.tableSize = numElements;
-            this.itemInfoItr = AuctionMarkLoader.this.item_infos.iterator();
+            // Get the AbstractTableGenerator that will feed into this generator
+            AbstractTableGenerator parent_gen = AuctionMarkLoader.this.generators.get(this.sourceTableName);
+            assert(parent_gen != null) : "Unexpected source TableGenerator '" + this.sourceTableName + "'";
+            parent_gen.addSubTableGenerator(this);
+            
+            this.current = null;
+            this.currentCounter = 0;
         }
         @Override
         public final boolean hasMore() {
-            return (this.getNextItemInfo() != null);
+            return (this.getNext() != null);
         }
         @Override
         protected final int populateRow() {
-            ItemInfo itemInfo = this.getNextItemInfo();
-            assert(itemInfo != null);
-            this.currentNumItemElements--;
-            return (this.populateRow(itemInfo, this.currentNumItemElements));
+            T t = this.getNext();
+            assert(t != null);
+            this.currentCounter--;
+            return (this.populateRow(t, this.currentCounter));
         }
-        private final ItemInfo getNextItemInfo() {
-            ItemInfo last = this.currentItemInfo;
-            if (this.currentItemInfo == null || this.currentNumItemElements == 0) {
-                assert(this.itemInfoItr != null) : "Missing ItemInfo Iterator?";
-                while (this.itemInfoItr.hasNext() && this.currentNumItemElements == 0) {
-                    this.currentItemInfo = this.itemInfoItr.next();
-                    this.currentNumItemElements = this.getItemInfoField(this.currentItemInfo);
+        private final T getNext() {
+            T last = this.current;
+            if (this.current == null || this.currentCounter == 0) {
+                while (this.currentCounter == 0) {
+                    try {
+                        this.current = this.queue.poll(1000, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException ex) {
+                        return (null);
+                    }
+                    // Check whether we should stop
+                    if (this.current == null) {
+                        if (this.stop) break;
+                        continue;
+                    }
+                    this.currentCounter = this.getElementCounter(this.current);
                 } // WHILE
-                if (this.currentNumItemElements == 0) return (null);
             }
-            if (last != this.currentItemInfo) this.newItemInfoCallback(this.currentItemInfo);
-            return this.currentItemInfo;
+            if (last != this.current) {
+                if (last != null) this.finishElementCallback(last);
+                if (this.current != null) this.newElementCallback(this.current);
+            }
+            return this.current;
         }
-        protected void newItemInfoCallback(ItemInfo itemInfo) {
+        protected void finishElementCallback(T t) {
+            // Nothing...
+        }
+        protected void newElementCallback(T t) {
             // Nothing... 
         }
     } // END CLASS
@@ -696,7 +660,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      **********************************************************************************************/
     protected class CategoryGenerator extends AbstractTableGenerator {
         private final File data_file;
-        // private final Map<String, Long> name_id_xref = new HashMap<String, Long>();
         private final Map<String, Category> categoryMap;
         private Iterator<String> categoryKeyItr;
 
@@ -836,7 +799,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // the user ids by placing them into numeric ranges
             Zipf randomNumItems = new Zipf(rng,
                                            AuctionMarkConstants.ITEM_MIN_ITEMS_PER_SELLER,
-                                           AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER,
+                                           Math.round(AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER / profile.getScaleFactor()),
                                            1.001);
             for (long i = 0; i < this.tableSize; i++) {
                 int num_items = randomNumItems.nextInt();
@@ -848,11 +811,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             assert(this.idGenerator.hasNext());
         }
         @Override
-        public void generateBatch() {
-            super.generateBatch();
-            AuctionMarkLoader.this.user_ids.clear();
-        }
-        @Override
         public synchronized boolean hasMore() {
             return this.idGenerator.hasNext();
         }
@@ -861,7 +819,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             int col = 0;
 
             UserId u_id = this.idGenerator.next();
-            AuctionMarkLoader.this.user_ids.add(u_id);
             
             // U_ID
             this.row[col++] = u_id;
@@ -874,6 +831,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // U_R_ID
             this.row[col++] = this.randomRegion.nextInt();
             
+            this.updateSubTableGenerators(u_id);
             return (col);
         }
     }
@@ -881,44 +839,28 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_ATTRIBUTES Generator
      **********************************************************************************************/
-    protected class UserAttributesGenerator extends AbstractTableGenerator {
+    protected class UserAttributesGenerator extends SubTableGenerator<UserId> {
         private final Zipf randomNumUserAttributes;
-        private Iterator<UserId> userAttributeItr;
-        private UserId currentUserId;
-        private int currentNumUserAttributes;
         
         public UserAttributesGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES,
                   AuctionMarkConstants.TABLENAME_USER);
             
-            this.randomNumUserAttributes = new Zipf(rng, AuctionMarkConstants.USER_MIN_ATTRIBUTES, AuctionMarkConstants.USER_MAX_ATTRIBUTES, 1.001);
-        }
-
-        @Override
-        public void init() {
-            // Loop through all the users from the current batch and generate attributes
-            this.userAttributeItr = AuctionMarkLoader.this.user_ids.iterator();
-            this.currentUserId = null;
-            this.currentNumUserAttributes = 0;
+            this.randomNumUserAttributes = new Zipf(rng, AuctionMarkConstants.USER_MIN_ATTRIBUTES,
+                                                         AuctionMarkConstants.USER_MAX_ATTRIBUTES, 1.001);
         }
         @Override
-        public synchronized boolean hasMore() {
-            return (this.currentNumUserAttributes > 0 || this.userAttributeItr.hasNext());
+        protected short getElementCounter(UserId user_id) {
+            return (short)(randomNumUserAttributes.nextInt());
         }
         @Override
-        protected int populateRow() {
+        protected int populateRow(UserId user_id, short remaining) {
             int col = 0;
-
-            if (this.currentNumUserAttributes == 0) {
-                this.currentUserId = this.userAttributeItr.next();
-                this.currentNumUserAttributes = randomNumUserAttributes.nextInt();
-            }
-            assert(this.currentUserId != null);
             
             // UA_ID
-            this.row[col++] = new Integer((int) this.count);
+            this.row[col++] = this.count;
             // UA_U_ID
-            this.row[col++] = this.currentUserId;
+            this.row[col++] = user_id;
             // UA_NAME
             this.row[col++] = AuctionMarkLoader.this.rng.astring(5, 32);
             // UA_VALUE
@@ -926,7 +868,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // U_CREATED
             this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
             
-            this.currentNumUserAttributes--;
             return (col);
         }
     } // END CLASS
@@ -934,15 +875,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM Generator
      **********************************************************************************************/
-    protected class ItemGenerator extends AbstractTableGenerator {
+    protected class ItemGenerator extends SubTableGenerator<UserId> {
 
-        private UserIdGenerator sellerItemsItr;
-        private int sellerNumItems = 0;
-        private UserId currentSeller = null;
+        /** Current time in milliseconds */
+        private final long currentTimestamp;
         
-        // Current time in milliseconds
-        private long currentTimestamp;
-
         /**
          * BidDurationDay -> Pair<NumberOfBids, NumberOfWatches>
          */
@@ -950,48 +887,35 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         
         public ItemGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM,
-                  AuctionMarkConstants.TABLENAME_CATEGORY, AuctionMarkConstants.TABLENAME_USER);
+                  AuctionMarkConstants.TABLENAME_USER,
+                  AuctionMarkConstants.TABLENAME_CATEGORY);
             
+            long ct1 = Calendar.getInstance().getTimeInMillis();
+            long ct2 = Math.round((double)ct1 / 1000);
+            long ct3 = ct2 * 1000;
+            this.currentTimestamp = ct3;
+        }
+        
+        @Override
+        protected short getElementCounter(UserId user_id) {
+            return (short)(user_id.getItemCount());
+        }
+
+        @Override
+        public void init() {
+            super.init();
             this.tableSize = 0l;
             for (Integer size : profile.users_per_item_count.values()) {
                 this.tableSize += size.intValue() * profile.users_per_item_count.get(size);
             } // FOR
         }
-        
         @Override
-        public void generateBatch() {
-            // IMPORTANT: Make sure we clear out the ItemInfo collection so that our
-            // sub-generators only work with the new ITEM records that we insert in this batch
-            AuctionMarkLoader.this.item_infos.clear();
-            super.generateBatch();
-        }
-        @Override
-        public synchronized boolean hasMore() {
-            return sellerItemsItr.hasNext();
-        }
-        @Override
-        public void init() {
-            long ct1 = Calendar.getInstance().getTimeInMillis();
-            long ct2 = Math.round((double)ct1 / 1000);
-            long ct3 = ct2 * 1000;
-            this.currentTimestamp = ct3;
-            this.sellerItemsItr = new UserIdGenerator(profile.users_per_item_count, getNumClients());
-            this.sellerNumItems = 1;
-            this.sellerItemsItr.setCurrentItemCount(this.sellerNumItems);
-            this.currentSeller = null;
-        }
-        @Override
-        protected int populateRow() {
+        protected int populateRow(UserId seller_id, short remaining) {
             int col = 0;
             
-            if (this.currentSeller == null || this.sellerNumItems == 0) {
-                this.currentSeller = this.sellerItemsItr.next();
-                this.sellerNumItems = (int)this.currentSeller.getItemCount();
-            }
-            assert(this.currentSeller != null);
-
-            ItemInfo itemInfo = new ItemInfo(new ItemId(this.currentSeller, this.sellerNumItems));
-            itemInfo.sellerId = this.currentSeller;
+            ItemId itemId = new ItemId(seller_id, remaining);
+            ItemInfo itemInfo = new ItemInfo(itemId);
+            itemInfo.sellerId = seller_id;
             itemInfo.end_date = this.getRandomEndTimestamp();
             itemInfo.start_date = this.getRandomStartTimestamp(itemInfo.end_date);
             itemInfo.initialPrice = profile.randomInitialPrice.nextInt();
@@ -1007,7 +931,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                         1.001);
                 Zipf randomNumWatches = new Zipf(AuctionMarkLoader.this.rng,
                         AuctionMarkConstants.ITEM_MIN_WATCHES_PER_DAY * (int)bidDurationDay,
-                        AuctionMarkConstants.ITEM_MAX_WATCHES_PER_DAY * (int)bidDurationDay, 1.001);
+                        (int)Math.ceil(AuctionMarkConstants.ITEM_MAX_WATCHES_PER_DAY * (int)bidDurationDay / profile.getScaleFactor()), 1.001);
                 this.item_bid_watch_zipfs.put(bidDurationDay, Pair.of(randomNumBids, randomNumWatches));
             }
             Pair<Zipf, Zipf> p = this.item_bid_watch_zipfs.get(bidDurationDay);
@@ -1085,7 +1009,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // I_STATUS
             this.row[col++] = (itemInfo.still_available ? AuctionMarkConstants.STATUS_ITEM_OPEN : AuctionMarkConstants.STATUS_ITEM_CLOSED);
 
-            AuctionMarkLoader.this.item_infos.add(itemInfo);
+            this.updateSubTableGenerators(itemInfo);
             return (col);
         }
 
@@ -1108,13 +1032,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_IMAGE Generator
      **********************************************************************************************/
-    protected class ItemImageGenerator extends SubItemTableGenerator {
+    protected class ItemImageGenerator extends SubTableGenerator<ItemInfo> {
 
         public ItemImageGenerator() {
-            super(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
+            super(AuctionMarkConstants.TABLENAME_ITEM_IMAGE,
+                  AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
+        public short getElementCounter(ItemInfo itemInfo) {
             return itemInfo.numImages;
         }
         @Override
@@ -1135,13 +1060,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_ATTRIBUTE Generator
      **********************************************************************************************/
-    protected class ItemAttributeGenerator extends SubItemTableGenerator {
+    protected class ItemAttributeGenerator extends SubTableGenerator<ItemInfo> {
 
         public ItemAttributeGenerator() {
-            super(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE);
+            super(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE,
+                  AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
+        public short getElementCounter(ItemInfo itemInfo) {
             return itemInfo.numAttributes;
         }
         @Override
@@ -1168,13 +1094,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_COMMENT Generator
      **********************************************************************************************/
-    protected class ItemCommentGenerator extends SubItemTableGenerator {
+    protected class ItemCommentGenerator extends SubTableGenerator<ItemInfo> {
 
         public ItemCommentGenerator() {
-            super(AuctionMarkConstants.TABLENAME_ITEM_COMMENT);
+            super(AuctionMarkConstants.TABLENAME_ITEM_COMMENT,
+                  AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
+        public short getElementCounter(ItemInfo itemInfo) {
             return (itemInfo.purchaseDate != null ? itemInfo.numComments : 0);
         }
         @Override
@@ -1208,7 +1135,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_BID Generator
      **********************************************************************************************/
-    protected class ItemBidGenerator extends SubItemTableGenerator {
+    protected class ItemBidGenerator extends SubTableGenerator<ItemInfo> {
 
         private ItemInfo.Bid bid = null;
         private float currentBidPriceAdvanceStep;
@@ -1216,10 +1143,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         private boolean new_item;
         
         public ItemBidGenerator() {
-            super(AuctionMarkConstants.TABLENAME_ITEM_BID);
+            super(AuctionMarkConstants.TABLENAME_ITEM_BID,
+                  AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
+        public short getElementCounter(ItemInfo itemInfo) {
             return (itemInfo.numBids);
         }
         @Override
@@ -1293,10 +1221,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IB_UPDATED
             this.row[col++] = this.bid.updateDate;
 
+            if (remaining == 0) this.updateSubTableGenerators(itemInfo);
             return (col);
         }
         @Override
-        protected void newItemInfoCallback(ItemInfo itemInfo) {
+        protected void newElementCallback(ItemInfo itemInfo) {
             this.new_item = true;
             this.bid = null;
         }
@@ -1305,21 +1234,21 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_MAX_BID Generator
      **********************************************************************************************/
-    protected class ItemMaxBidGenerator extends SubItemTableGenerator {
+    protected class ItemMaxBidGenerator extends SubTableGenerator<ItemInfo> {
 
         public ItemMaxBidGenerator() {
-            super(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID);
+            super(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID,
+                AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
-            return (short)(itemInfo.getBidCount() > 0 && itemInfo.getLastBid().set_maxbid == false ? 1 : 0);
+        public short getElementCounter(ItemInfo itemInfo) {
+            return (short)(itemInfo.getBidCount() > 0 ? 1 : 0);
         }
         @Override
         protected int populateRow(ItemInfo itemInfo, short remaining) {
             int col = 0;
             ItemInfo.Bid bid = itemInfo.getLastBid();
             assert(bid != null) : "No bids?\n" + itemInfo;
-            bid.set_maxbid = true;
 
             // IMB_I_ID
             this.row[col++] = itemInfo.id;
@@ -1336,6 +1265,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IMB_UPDATED
             this.row[col++] = bid.updateDate;
 
+            if (remaining == 0) this.updateSubTableGenerators(itemInfo);
             return (col);
         }
     }
@@ -1343,21 +1273,21 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_PURCHASE Generator
      **********************************************************************************************/
-    protected class ItemPurchaseGenerator extends SubItemTableGenerator {
+    protected class ItemPurchaseGenerator extends SubTableGenerator<ItemInfo> {
 
         public ItemPurchaseGenerator() {
-            super(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE);
+            super(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE,
+                  AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
-            return (short)(itemInfo.getBidCount() > 0 && itemInfo.purchaseDate != null && itemInfo.getLastBid().set_purchase == false ? 1 : 0);
+        public short getElementCounter(ItemInfo itemInfo) {
+            return (short)(itemInfo.getBidCount() > 0 && itemInfo.purchaseDate != null ? 1 : 0);
         }
         @Override
         protected int populateRow(ItemInfo itemInfo, short remaining) {
             int col = 0;
             ItemInfo.Bid bid = itemInfo.getLastBid();
             assert(bid != null) : itemInfo;
-            bid.set_purchase = true;
             
             // IP_ID
             this.row[col++] = this.count;
@@ -1371,12 +1301,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.row[col++] = itemInfo.purchaseDate;
 
             if (rng.number(1, 100) <= AuctionMarkConstants.PROB_PURCHASE_BUYER_LEAVES_FEEDBACK) {
-                pending_buyer_feedback.add(bid);
+                bid.buyer_feedback = true;
             }
             if (rng.number(1, 100) <= AuctionMarkConstants.PROB_PURCHASE_SELLER_LEAVES_FEEDBACK) {
-                pending_seller_feedback.add(bid);
+                bid.seller_feedback = true;
             }
             
+            if (remaining == 0) this.updateSubTableGenerators(bid);
             return (col);
         }
     } // END CLASS
@@ -1384,7 +1315,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_FEEDBACK Generator
      **********************************************************************************************/
-    protected class UserFeedbackGenerator extends AbstractTableGenerator {
+    protected class UserFeedbackGenerator extends SubTableGenerator<ItemInfo.Bid> {
 
         public UserFeedbackGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER_FEEDBACK,
@@ -1392,20 +1323,21 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         }
 
         @Override
-        public void init() {
-            this.tableSize = (long)(pending_buyer_feedback.size() + pending_seller_feedback.size());
+        protected short getElementCounter(Bid bid) {
+            return (short)((bid.buyer_feedback ? 1 : 0) + (bid.seller_feedback ? 1 : 0));
         }
         @Override
-        protected int populateRow() {
+        protected int populateRow(ItemInfo.Bid bid, short remaining) {
             int col = 0;
 
-            boolean is_buyer = true;
-            ItemInfo.Bid bid = pending_buyer_feedback.poll();
-            if (bid == null) {
-                bid = pending_seller_feedback.poll();
+            boolean is_buyer = false;
+            if (bid.buyer_feedback && bid.seller_feedback == false) {
+                is_buyer = true;
+            } else if (bid.seller_feedback && bid.buyer_feedback == false) {
                 is_buyer = false;
+            } else if (remaining > 1) {
+                is_buyer = true;
             }
-            assert(bid != null);
             ItemInfo itemInfo = bid.getItemInfo();
             
             // UF_ID
@@ -1430,21 +1362,21 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_ITEM Generator
      **********************************************************************************************/
-    protected class UserItemGenerator extends SubItemTableGenerator {
+    protected class UserItemGenerator extends SubTableGenerator<ItemInfo> {
 
         public UserItemGenerator() {
-            super(AuctionMarkConstants.TABLENAME_USER_ITEM);
+            super(AuctionMarkConstants.TABLENAME_USER_ITEM,
+                  AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
-            return (short)(itemInfo.getBidCount() > 0 && itemInfo.purchaseDate != null && itemInfo.getLastBid().set_useritem == false ? 1 : 0);
+        public short getElementCounter(ItemInfo itemInfo) {
+            return (short)(itemInfo.getBidCount() > 0 && itemInfo.purchaseDate != null ? 1 : 0);
         }
         @Override
         protected int populateRow(ItemInfo itemInfo, short remaining) {
             int col = 0;
             ItemInfo.Bid bid = itemInfo.getLastBid();
             assert(bid != null) : itemInfo;
-            bid.set_useritem = true; 
             
             // UI_U_ID
             this.row[col++] = bid.bidderId;
@@ -1470,13 +1402,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_WATCH Generator
      **********************************************************************************************/
-    protected class UserWatchGenerator extends SubItemTableGenerator {
+    protected class UserWatchGenerator extends SubTableGenerator<ItemInfo> {
 
         public UserWatchGenerator() {
-            super(AuctionMarkConstants.TABLENAME_USER_WATCH);
+            super(AuctionMarkConstants.TABLENAME_USER_WATCH,
+                  AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getItemInfoField(ItemInfo itemInfo) {
+        public short getElementCounter(ItemInfo itemInfo) {
             return (itemInfo.num_watches);
         }
         @Override

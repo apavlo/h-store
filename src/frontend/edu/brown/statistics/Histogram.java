@@ -659,8 +659,14 @@ public class Histogram<X> implements JSONSerializable {
         
         this.calculateInternalValues();
         
+        // Figure out the max size of the counts
+        int max_ctr_length = 4;
+        for (Long ctr : this.histogram.values()) {
+            max_ctr_length = Math.max(max_ctr_length, ctr.toString().length());
+        } // FOR
+        
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
-        String f = "%-" + max_length + "s [%5d] ";
+        String f = "%-" + max_length + "s [%" + max_ctr_length + "d] ";
         boolean first = true;
         boolean has_labels = this.hasDebugLabels();
         for (Object value : this.histogram.keySet()) {
