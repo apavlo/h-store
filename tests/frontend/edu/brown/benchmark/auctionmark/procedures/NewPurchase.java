@@ -15,7 +15,6 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
  * @author visawee
  */
 @ProcInfo (
-    partitionInfo = "USER.U_ID: 2",
     singlePartition = true
 )
 public class NewPurchase extends VoltProcedure{

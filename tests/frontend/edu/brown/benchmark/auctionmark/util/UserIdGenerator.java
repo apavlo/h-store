@@ -59,7 +59,7 @@ public class UserIdGenerator implements Iterator<UserId> {
             this.currentPosition += this.users_per_item_count.get(i, 0l);
         } // FOR
         this.currentItemCount = size;
-        this.currentOffset = this.users_per_item_count.get(this.currentItemCount).intValue();
+        this.currentOffset = (int)this.users_per_item_count.get(this.currentItemCount, 0l);
     }
     
     public long getCurrentPosition() {
@@ -67,7 +67,7 @@ public class UserIdGenerator implements Iterator<UserId> {
     }
     
     public UserId seekToPosition(long position) {
-        assert(position < this.getTotalUsers());
+        assert(position <= this.getTotalUsers()) : String.format("%d < %d", position, this.getTotalUsers());
         UserId user_id = null;
         while (this.currentPosition < position) {
             user_id = this.next();

@@ -24,7 +24,7 @@ public class GetComment extends VoltProcedure {
         "  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " + 
                     AuctionMarkConstants.TABLENAME_ITEM_COMMENT +
         " WHERE i_id = ? AND i_u_id = ? AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN + 
-        "   AND i_id = ic_i_id AND i_u_id = ic_u_id = ? AND ic_response = ?"
+        "   AND i_id = ic_i_id AND i_u_id = ic_u_id AND ic_response = ?"
     );
 	
     public VoltTable[] run(long item_id, long seller_id) {

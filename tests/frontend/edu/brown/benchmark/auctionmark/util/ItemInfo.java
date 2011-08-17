@@ -1,12 +1,15 @@
 package edu.brown.benchmark.auctionmark.util;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 public class ItemInfo implements Cloneable {
     public final ItemId id;
@@ -43,6 +46,10 @@ public class ItemInfo implements Cloneable {
         this.sellerId = null;
         this.lastBidderId = null;
     }
+    
+    public int getBidCount() {
+        return (this.bids.size());
+    }
 
     public Bid getNextBid(long id, UserId bidder_id) {
         assert(bidder_id != null);
@@ -50,6 +57,7 @@ public class ItemInfo implements Cloneable {
         this.bids.add(b);
         assert(this.bids.size() <= this.numBids);
         this.bidderHistogram.put(bidder_id);
+        assert(this.bids.size() == this.bidderHistogram.getSampleCount());
         return (b);
     }
     
@@ -72,6 +80,23 @@ public class ItemInfo implements Cloneable {
         return (ret);
     }
     
+    @Override
+    public String toString() {
+        Class<?> hints_class = this.getClass();
+        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+        for (Field f : hints_class.getDeclaredFields()) {
+            String key = f.getName().toUpperCase();
+            Object val = null;
+            try {
+                val = f.get(this);
+            } catch (IllegalAccessException ex) {
+                val = ex.getMessage();
+            }
+            m.put(key, val);
+        } // FOR
+        return (StringUtil.formatMaps(m));
+    }
+    
     public class Bid implements Cloneable {
         public final long id;
         public final UserId bidderId;
@@ -79,6 +104,10 @@ public class ItemInfo implements Cloneable {
         public TimestampType createDate;
         public TimestampType updateDate;
 
+        public boolean set_maxbid = false;
+        public boolean set_purchase = false;
+        public boolean set_useritem = false;
+        
         private Bid(long id, UserId bidderId) {
             this.id = id;
             this.bidderId = bidderId;
@@ -100,6 +129,23 @@ public class ItemInfo implements Cloneable {
                 throw new RuntimeException("Failed to clone " + this.getClass().getSimpleName(), ex);
             }
             return (ret);
+        }
+        
+        @Override
+        public String toString() {
+            Class<?> hints_class = this.getClass();
+            ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+            for (Field f : hints_class.getDeclaredFields()) {
+                String key = f.getName().toUpperCase();
+                Object val = null;
+                try {
+                    val = f.get(this);
+                } catch (IllegalAccessException ex) {
+                    val = ex.getMessage();
+                }
+                m.put(key, val);
+            } // FOR
+            return (StringUtil.formatMaps(m));
         }
     }
 }

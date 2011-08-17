@@ -332,6 +332,7 @@ CREATE TABLE USER_ITEM (
     ui_ip_ib_u_id       BIGINT,
     ui_created          TIMESTAMP,
     FOREIGN KEY (ui_i_id, ui_i_u_id) REFERENCES ITEM (i_id, i_u_id),
+    FOREIGN KEY (ui_ip_id, ui_ip_ib_id, ui_ip_ib_i_id, ui_ip_ib_u_id) REFERENCES ITEM_PURCHASE (ip_id, ip_ib_id, ip_ib_i_id, ip_ib_u_id),
     PRIMARY KEY (ui_u_id, ui_i_id, ui_i_u_id)
 );
 

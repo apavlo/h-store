@@ -32,6 +32,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         "HOST=localhost",
         "NUMCLIENTS=1",
 //        "CATALOG=" + BaseTestCase.getCatalogJarPath(ProjectType.AUCTIONMARK).getAbsolutePath(),
+        "NOCONNECTIONS=true",
     };
     
     /**
@@ -72,7 +73,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
             
             // Make sure that we do this here because AuctionMarkLoader.generateTableData() doesn't do this anymore
             int current_batchSize = table.getRowCount();
-            long current_tableSize = MockAuctionMarkLoader.this.profile.addToTableSize(tableName, current_batchSize);
+            profile.addToTableSize(tableName, current_batchSize);
+            long current_tableSize = profile.getTableSize(tableName);
             
             if (debug) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
@@ -113,7 +115,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         }
     }
     
-    protected static void initTable(String tablename) throws Exception {
+    protected static void initTable(String tableName) throws Exception {
         String field_name = null;
         Field field_handle = null;
         
@@ -121,25 +123,31 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         Long batchsize = Long.MAX_VALUE;
         
         // Not all tables will have a table size
-    	if (!AuctionMarkConstants.DATAFILE_TABLES.contains(tablename) && !AuctionMarkConstants.DYNAMIC_TABLES.contains(tablename)) {
-	        LOG.debug("Retrieving TABLESIZE attribute for table '" + tablename + "'");
-	        field_name = "TABLESIZE_" + tablename;
+    	if (AuctionMarkConstants.DATAFILE_TABLES.contains(tableName) == false &&
+    	    AuctionMarkConstants.DYNAMIC_TABLES.contains(tableName) == false &&
+    	    tableName.equalsIgnoreCase(AuctionMarkConstants.TABLENAME_ITEM) == false) {
+	        LOG.debug("Retrieving TABLESIZE attribute for table '" + tableName + "'");
+	        field_name = "TABLESIZE_" + tableName;
 	        field_handle = AuctionMarkConstants.class.getField(field_name);
 	        assertNotNull(field_handle);
 	        tablesize = (Long)field_handle.get(null);
-	        if (!AuctionMarkConstants.FIXED_TABLES.contains(tablename)) tablesize = Math.round(tablesize / SCALE_FACTOR);
+	        if (!AuctionMarkConstants.FIXED_TABLES.contains(tableName)) tablesize = Math.round(tablesize / SCALE_FACTOR);
     	}
     	
     	// But all tables should have a batch size
-        field_name = "BATCHSIZE_" + tablename;
+        field_name = "BATCHSIZE_" + tableName;
         field_handle = AuctionMarkConstants.class.getField(field_name);
         assertNotNull(field_handle);
         batchsize = (Long)field_handle.get(null);
 
         // Make sure we reset the total number of rows we have loaded so far
-        EXPECTED_TABLESIZES.put(tablename, tablesize);
-        EXPECTED_BATCHSIZES.put(tablename, batchsize.intValue());
+        EXPECTED_TABLESIZES.put(tableName, tablesize);
+        EXPECTED_BATCHSIZES.put(tableName, batchsize.intValue());
     }
+    
+//    public void testRunLoop() throws Exception {
+//        loader.runLoop();
+//    }
     
     /**
      * testGenerateRegion

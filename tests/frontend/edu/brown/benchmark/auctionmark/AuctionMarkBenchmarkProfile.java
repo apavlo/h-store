@@ -81,7 +81,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /**
      * Map from table names to the number of tuples we inserted during loading
      */
-    public final Map<String, Long> table_sizes = Collections.synchronizedMap(new TreeMap<String, Long>());
+    public Histogram<String> table_sizes = new Histogram<String>();
     /**
      * Histogram for number of items per category (stored as category_id)
      */
@@ -104,9 +104,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public final LinkedList<ItemId> user_available_items = new LinkedList<ItemId>();
     public final LinkedList<ItemId> user_wait_for_purchase_items = new LinkedList<ItemId>();
     public final LinkedList<ItemId> user_complete_items = new LinkedList<ItemId>();
-
-    public final Map<ItemId, Long> item_bid_map = new HashMap<ItemId, Long>();
-    public final Map<ItemId, UserId> item_buyer_map = new HashMap<ItemId, UserId>();
 
     /** Map from global attribute group to list of global attribute value */
     public final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
@@ -135,16 +132,16 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private final List<Integer> window_partitions = new ArrayList<Integer>();
     
     /** Random time different in seconds */
-    public final Gaussian randomTimeDiff;
+    public transient final Gaussian randomTimeDiff;
     
     /** Random duration in days */
-    public final Gaussian randomDuration;
+    public transient final Gaussian randomDuration;
 
-    public final Zipf randomNumImages;
-    public final Zipf randomNumAttributes;
-    public final Zipf randomPurchaseDuration;
-    public final Zipf randomNumComments;
-    public final Zipf randomInitialPrice;
+    public transient final Zipf randomNumImages;
+    public transient final Zipf randomNumAttributes;
+    public transient final Zipf randomPurchaseDuration;
+    public transient final Zipf randomNumComments;
+    public transient final Zipf randomInitialPrice;
 
     private transient FlatHistogram<Long> randomGAGId;
     private transient FlatHistogram<Long> randomCategory;
@@ -162,8 +159,9 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.num_clients = num_clients;
 
         // Initialize table sizes
+        this.table_sizes.setKeepZeroEntries(true);
         for (String tableName : AuctionMarkConstants.TABLENAMES) {
-            if (this.table_sizes.containsKey(tableName) == false) {
+            if (this.table_sizes.contains(tableName) == false) {
                 this.table_sizes.put(tableName, 0l);
             }
         } // FOR
@@ -262,7 +260,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     }
 
     public void setTableSize(String table_name, long size) {
-        this.table_sizes.put(table_name, size);
+        this.table_sizes.set(table_name, size);
     }
 
     /**
@@ -270,14 +268,8 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * @param table_name
      * @param size
      */
-    public synchronized long addToTableSize(String table_name, long size) {
-        Long orig_size = this.table_sizes.get(table_name);
-        if (orig_size == null) {
-            orig_size = 0l;
-        }
-        long new_size = orig_size + size;
-        this.setTableSize(table_name, new_size);
-        return (new_size);
+    public synchronized void addToTableSize(String table_name, long size) {
+        this.table_sizes.put(table_name, size);
     }
     
     // ----------------------------------------------------------------
@@ -391,8 +383,17 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public UserId getRandomBuyerId(Histogram<UserId> previousBidders, UserId...exclude) {
         // This is very inefficient, but it's probably good enough for now
         Histogram<UserId> new_h = new Histogram<UserId>(previousBidders);
+        new_h.setKeepZeroEntries(false);
         for (UserId ex : exclude) new_h.removeAll(ex);
         new_h.put(this.getRandomBuyerId(exclude));
+        try {
+            LOG.trace("New Histogram:\n" + new_h);
+        } catch (NullPointerException ex) {
+            for (UserId user_id : new_h.values()) {
+                System.err.println(String.format("%s => NEW:%s / ORIG:%s", user_id, new_h.get(user_id), previousBidders.get(user_id)));
+            }
+            throw ex;
+        }
         
         FlatHistogram<UserId> rand_h = new FlatHistogram<UserId>(rng, new_h);
         return (rand_h.nextValue());

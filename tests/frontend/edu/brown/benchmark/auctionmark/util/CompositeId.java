@@ -10,9 +10,9 @@ import org.voltdb.catalog.Database;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
-public abstract class CompositeId implements JSONSerializable {
+public abstract class CompositeId implements Comparable<CompositeId>, JSONSerializable {
     
-    protected transient int hashCode = -1;
+    private transient int hashCode = -1;
     
     protected final long encode(long max_value, long offset) {
         long values[] = this.toArray();
@@ -38,6 +38,11 @@ public abstract class CompositeId implements JSONSerializable {
     public abstract long encode();
     public abstract void decode(long composite_id);
     public abstract long[] toArray();
+    
+    @Override
+    public int compareTo(CompositeId o) {
+        return Math.abs(this.hashCode()) - Math.abs(o.hashCode());
+    }
     
     @Override
     public int hashCode() {

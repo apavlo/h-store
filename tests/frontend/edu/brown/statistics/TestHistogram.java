@@ -246,8 +246,7 @@ public class TestHistogram extends BaseTestCase {
     
     /**
      * testFromJSON
-     *
-     **/
+     */
     public void testFromJSON() throws Exception {
         String json = h.toJSONString();
         assertNotNull(json);

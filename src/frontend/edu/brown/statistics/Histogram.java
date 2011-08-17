@@ -414,8 +414,11 @@ public class Histogram<X> implements JSONSerializable {
      * 
      */
     public synchronized void set(X value, long i) {
-        long orig = this.get(value, 0);
-        this._put(value, orig - i);
+        Long orig = this.get(value);
+        if (orig != null && orig != i) {
+            i = (orig > i ? -1*(orig - i) : i - orig);
+        }
+        this._put(value, i);
     }
     
     /**
@@ -483,8 +486,8 @@ public class Histogram<X> implements JSONSerializable {
      * @param value
      */
     public synchronized void removeAll(X value) {
-        long cnt = this.histogram.get(value);
-        if (cnt > 0) {
+        Long cnt = this.histogram.get(value);
+        if (cnt != null && cnt > 0) {
             this._put(value, cnt * -1);
 //            this.calculateInternalValues();
         }
