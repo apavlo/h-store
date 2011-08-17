@@ -730,7 +730,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 UserId buyerId = new UserId(results[0].getLong("ib_buyer_id"));
                 long itemStatus = results[0].getLong("i_status");
 
-                if (itemStatus == 0) {
+                if (itemStatus == AuctionMarkConstants.STATUS_ITEM_OPEN) {
                     profile.removeAvailableItem(itemId);
 
                     long bidId = results[0].getLong("imb_ib_id");
@@ -829,7 +829,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     public ItemId getNextItemId(UserId seller_id) {
         Integer cnt = this.seller_item_cnt.get(seller_id);
         if (cnt == 0) {
-            cnt = seller_id.getItemCount();
+            cnt = (int)seller_id.getItemCount();
         }
         this.seller_item_cnt.put(seller_id, ++cnt);
         return (new ItemId(seller_id, cnt));

@@ -53,14 +53,14 @@ public class UserId extends CompositeId {
     public int getItemCount() {
         return this.size_index;
     }
-    public long getOffset() {
+    public int getOffset() {
         return this.size_offset;
     }
     
     @Override
     public String toString() {
-        return String.format("UserId{index=%d,offset=%d}",
-                             this.size_index, this.size_offset);
+        return String.format("UserId{index=%d,offset=%d,hash=%d}",
+                             this.size_index, this.size_offset, this.hashCode());
     }
     @Override
     public boolean equals(Object obj) {

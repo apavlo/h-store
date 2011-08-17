@@ -171,7 +171,7 @@ public abstract class AuctionMarkConstants {
     public static final long BATCHSIZE_USER_FEEDBACK            = 1000;
     public static final long BATCHSIZE_USER_ITEM                = 5000;
     public static final long BATCHSIZE_USER_WATCH               = 5000;
-    public static final long BATCHSIZE_ITEM                     = 1000;
+    public static final long BATCHSIZE_ITEM                     = 2000;
     public static final long BATCHSIZE_ITEM_ATTRIBUTE           = 5000;
     public static final long BATCHSIZE_ITEM_IMAGE               = 5000;
     public static final long BATCHSIZE_ITEM_COMMENT             = 1000;
