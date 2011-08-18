@@ -6,6 +6,7 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
@@ -17,14 +18,26 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 public class NewFeedback extends VoltProcedure{
     private static final Logger LOG = Logger.getLogger(NewFeedback.class);
     
-    public final SQLStmt select_max_feedback = new SQLStmt(
+    // -----------------------------------------------------------------
+    // STATIC MEMBERS
+    // -----------------------------------------------------------------
+    
+    private static final ColumnInfo[] RESULT_COLS = {
+        new VoltTable.ColumnInfo("if_id", VoltType.BIGINT),
+    };
+    
+    // -----------------------------------------------------------------
+    // STATEMENTS
+    // -----------------------------------------------------------------
+    
+    public final SQLStmt selectMaxFeedback = new SQLStmt(
         "SELECT MAX(uf_id) " + 
         "  FROM " + AuctionMarkConstants.TABLENAME_USER_FEEDBACK + " " + 
         " WHERE uf_i_id = ? AND uf_u_id = ?"
     );
 	
-    public final SQLStmt insert_feedback = new SQLStmt(
-        "INSERT INTO " + AuctionMarkConstants.TABLENAME_USER_FEEDBACK + "(" +
+    public final SQLStmt insertFeedback = new SQLStmt(
+        "INSERT INTO " + AuctionMarkConstants.TABLENAME_USER_FEEDBACK + "( " +
         	"uf_id," +
         	"uf_u_id," +
         	"uf_i_id," +
@@ -45,13 +58,23 @@ public class NewFeedback extends VoltProcedure{
         ")"
     );
     
+    public final SQLStmt updateUser = new SQLStmt(
+        "UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
+           "SET u_rating = u_rating + ? " + 
+        " WHERE u_id = ?"
+    );
+    
+    // -----------------------------------------------------------------
+    // RUN METHOD
+    // -----------------------------------------------------------------
+    
     public VoltTable run(long i_id, long seller_id, long buyer_id, long rating, String comment) {
         final boolean debug = LOG.isDebugEnabled();
         if (debug)
             LOG.debug("NewFeedback::: selecting max feedback");
 
         // Set comment_id
-        voltQueueSQL(select_max_feedback, i_id, seller_id);
+        voltQueueSQL(selectMaxFeedback, i_id, seller_id);
         VoltTable[] results = voltExecuteSQL();
         assert (1 == results.length);
         long if_id = -1;
@@ -65,14 +88,15 @@ public class NewFeedback extends VoltProcedure{
         if (debug)
             LOG.debug("NewFeedback::: if_id = " + if_id);
 
-        voltQueueSQL(insert_feedback, if_id, i_id, seller_id, buyer_id, rating, new TimestampType(), comment);
+        voltQueueSQL(insertFeedback, if_id, seller_id, i_id, seller_id, buyer_id, rating, new TimestampType(), comment);
+        voltQueueSQL(updateUser, rating, seller_id);
         voltExecuteSQL();
 
         if (debug)
             LOG.debug("NewFeedback::: feedback inserted ");
 
         // Return new if_id
-        VoltTable ret = new VoltTable(new VoltTable.ColumnInfo("if_id", VoltType.BIGINT));
+        VoltTable ret = new VoltTable(RESULT_COLS);
         ret.addRow(if_id);
         return ret;
     }

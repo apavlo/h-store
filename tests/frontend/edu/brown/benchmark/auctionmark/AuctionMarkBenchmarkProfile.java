@@ -33,6 +33,7 @@ package edu.brown.benchmark.auctionmark;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -89,7 +90,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * A histogram for the number of users that have the number of items listed
      * ItemCount -> # of Users
      */
-    public Histogram<Integer> users_per_item_count = new Histogram<Integer>();
+    public Histogram<Long> users_per_item_count = new Histogram<Long>();
     
     /**
      * Three status types for an item:
@@ -143,7 +144,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
     private transient FlatHistogram<Long> randomGAGId;
     private transient FlatHistogram<Long> randomCategory;
-    private transient FlatHistogram<Integer> randomItemCount;
+    private transient FlatHistogram<Long> randomItemCount;
     
     // -----------------------------------------------------------------
     // GENERAL METHODS
@@ -290,9 +291,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         if (this.randomItemCount == null) {
             synchronized (this) {
                 if (this.randomItemCount == null)
-                    this.randomItemCount = new FlatHistogram<Integer>(this.rng, this.users_per_item_count);
+                    this.randomItemCount = new FlatHistogram<Long>(this.rng, this.users_per_item_count);
             } // SYNCH
         }
+        skew = (skew && this.window_size != null);
         
         // First grab the UserIdGenerator for the client (or -1 if there is no client)
         // and seek to that itemCount. We use the UserIdGenerator to ensure that we always 
@@ -310,10 +312,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         }
         
         UserId user_id = null;
-        int tries = 100;
+        int tries = 1000;
         while (user_id == null && tries-- > 0) {
             // We first need to figure out how many items our seller needs to have
-            int itemCount = -1;
+            long itemCount = -1;
             assert(min_item_count < this.users_per_item_count.getMaxValue());
             while (itemCount < min_item_count) {
                 itemCount = this.randomItemCount.nextValue();
@@ -326,12 +328,14 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 long position = rng.number(gen.getCurrentPosition(), gen.getTotalUsers());
                 user_id = gen.seekToPosition(position);
             } // SYNCH
+            if (user_id == null) continue;
             
             // Make sure that we didn't select the same UserId as the one we were
             // told to exclude.
             if (exclude != null && exclude.length > 0) {
                 for (UserId ex : exclude) {
                     if (ex != null && ex.equals(user_id)) {
+                        if (trace.get()) LOG.trace("Excluding " + user_id);
                         user_id = null;
                         break;
                     }
@@ -340,7 +344,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             }
             
             // If we don't care about skew, then we're done right here
-            if (skew == false || this.window_size == null) break;
+            if (skew == false || this.window_size == null) {
+                if (trace.get()) LOG.trace("Selected " + user_id);
+                break;
+            }
             
             // Otherwise, check whether this seller maps to our current window
             Integer partition = this.getPartition(user_id);
@@ -348,9 +355,13 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 this.window_histogram.put(partition);
                 break;
             }
+            if (trace.get()) LOG.trace("Skipping " + user_id);
             user_id = null;
         } // WHILE
-        assert(user_id != null);
+        assert(user_id != null) : String.format("Failed to select a random UserId " +
+                                                "[min_item_count=%d, client=%d, skew=%s, exclude=%s, totalPossible=%d, currentPosition=%d]",
+                                                min_item_count, client, skew, Arrays.toString(exclude),
+                                                gen.getTotalUsers(), gen.getCurrentPosition());
         
         return (user_id);
     }
@@ -423,7 +434,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             
             // If we have room, shove it right in
             // We'll throw it in the back because we know it hasn't been used yet
-            if (itemSet.size() < 1000) {
+            if (itemSet.size() < AuctionMarkConstants.ITEM_ID_CACHE_SIZE) {
                 itemSet.addLast(itemId);
                 added = true;
             
@@ -441,7 +452,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             itemSet.remove(itemId);
         } // SYNCH
     }
-    private ItemId getRandomItemId(LinkedList<ItemId> itemSet) {
+    private ItemId getRandomItemId(LinkedList<ItemId> itemSet, boolean hasCurrentPrice) {
         ItemId itemId = null;
         synchronized (itemSet) {
             int num_items = itemSet.size();
@@ -452,6 +463,11 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 idx = this.rng.nextInt(num_items);
                 itemId = itemSet.get(idx);
                 assert(itemId != null);
+                
+                // Needs to have an embedded currentPrice
+                if (hasCurrentPrice && itemId.hasCurrentPrice() == false) {
+                    continue;
+                }
                 
                 // Uniform
                 if (this.window_size == null) {
@@ -479,7 +495,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.removeItem(this.user_available_items, itemId);
     }
     public ItemId getRandomAvailableItemId() {
-        return this.getRandomItemId(this.user_available_items);
+        return this.getRandomItemId(this.user_available_items, false);
+    }
+    public ItemId getRandomAvailableItemId(boolean hasCurrentPrice) {
+        return this.getRandomItemId(this.user_available_items, hasCurrentPrice);
     }
     public int getAvailableItemIdsCount() {
         return this.user_available_items.size();
@@ -492,7 +511,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.removeItem(this.user_wait_for_purchase_items, itemId);
     }
     public ItemId getRandomWaitForPurchaseItemId() {
-        return this.getRandomItemId(this.user_wait_for_purchase_items);
+        return this.getRandomItemId(this.user_wait_for_purchase_items, false);
     }
     public int getWaitForPurchaseItemIdsCount() {
         return this.user_wait_for_purchase_items.size();
@@ -505,7 +524,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         this.removeItem(this.user_complete_items, itemId);
     }
     public ItemId getRandomCompleteItemId() {
-        return this.getRandomItemId(this.user_complete_items);
+        return this.getRandomItemId(this.user_complete_items, false);
     }
     public int getCompleteItemIdsCount() {
         return this.user_complete_items.size();
@@ -525,7 +544,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             else if (idx == 1) itemSet = this.user_wait_for_purchase_items;
             else if (idx == 2) itemSet = this.user_complete_items;
         } // WHILE
-        return (this.getRandomItemId(itemSet));
+        return (this.getRandomItemId(itemSet, false));
     }
 
     // ----------------------------------------------------------------

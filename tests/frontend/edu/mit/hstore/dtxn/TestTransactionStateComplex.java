@@ -20,7 +20,7 @@ import org.voltdb.catalog.*;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.auctionmark.procedures.GetWatchedItems;
+import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
 import edu.mit.hstore.dtxn.DependencyInfo;
@@ -35,8 +35,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
-    private static final String TARGET_PROCEDURE = GetWatchedItems.class.getSimpleName();
-    private static final String TARGET_STATEMENT = "select_watched_items";
+    private static final String TARGET_PROCEDURE = GetUserInfo.class.getSimpleName();
+    private static final String TARGET_STATEMENT = "selectWatchedItems";
     private static final int NUM_DUPLICATE_STATEMENTS = 1;
     
     private static final int NUM_PARTITIONS = 10;

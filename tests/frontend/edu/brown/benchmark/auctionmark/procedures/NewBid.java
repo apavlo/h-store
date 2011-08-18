@@ -1,9 +1,4 @@
-/**
- * 
- */
 package edu.brown.benchmark.auctionmark.procedures;
-
-import java.util.Date;
 
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
@@ -25,17 +20,6 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 )
 public class NewBid extends VoltProcedure {
 
-    /**
-     * -- Store Bid
--- minBid, bid, maxBid???
--- * Assume that bid type 0 = bid, 1 = buy now
-UPDATE ITEM SET i_max_bid=$maxBid, i_nb_of_bids = i_nb_of_bids+1 WHERE i_id=$itemId;
-
-INSERT INTO ITEM_BID() 
-VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
-     * 
-     */
-    
     public final SQLStmt updateItem = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM +
         "   SET i_num_bids = i_num_bids + 1 " +     
@@ -44,44 +28,31 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
     );
 
     public final SQLStmt getMaxBidId = new SQLStmt(
-            "SELECT MAX(ib_id) " + 
-            "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_BID +
-            " WHERE ib_i_id = ? AND ib_u_id = ? "
+        "SELECT MAX(ib_id) " + 
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_BID +
+        " WHERE ib_i_id = ? AND ib_u_id = ? "
     );
-    /*
-    public final SQLStmt getItemMaxBid = new SQLStmt(
-        "SELECT " + AuctionMarkConstants.TABLENAME_ITEM_BID + ".* " + 
-        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", "
-                  + AuctionMarkConstants.TABLENAME_ITEM_BID +
-        " WHERE imb_i_id = ? " +
-          " AND imb_u_id = ? " +
-          " AND imb_ib_id = ib_id " +
-          " AND imb_ib_i_id = ib_i_id " +
-          " AND imb_ib_u_id = ib_u_id "
-    );
-    */
     
     public final SQLStmt getItemMaxBid = new SQLStmt(
-    		"SELECT imb_ib_id " + 
-            "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " " + 
-            " WHERE imb_i_id = ? " +
-              " AND imb_u_id = ? "
+		"SELECT imb_ib_id " + 
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " " + 
+        " WHERE imb_i_id = ? " +
+          " AND imb_u_id = ? "
     );
     
     public final SQLStmt getItemBid = new SQLStmt(
-    		"SELECT ib_bid, ib_max_bid " + 
-    		"  FROM " + AuctionMarkConstants.TABLENAME_ITEM_BID + " " + 
-    		" WHERE ib_id = ? AND ib_i_id = ? AND ib_u_id = ? "
+		"SELECT ib_bid, ib_max_bid " + 
+		"  FROM " + AuctionMarkConstants.TABLENAME_ITEM_BID + " " + 
+		" WHERE ib_id = ? AND ib_i_id = ? AND ib_u_id = ? "
     ); 
     
     
     public final SQLStmt getItemMaxBid2 = new SQLStmt(
-            "SELECT " + " * " + 
-            "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " " + 
-            " WHERE imb_i_id = ? " +
-              " AND imb_u_id = ? "
+        "SELECT " + " * " + 
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " " + 
+        " WHERE imb_i_id = ? " +
+          " AND imb_u_id = ? "
     );
-    
     
     public final SQLStmt updateItemMaxBid = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + 
@@ -94,11 +65,11 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
     );
     
     public final SQLStmt updateBid = new SQLStmt(
-            "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_BID + 
-            "   SET ib_bid = ? " +
-            " WHERE ib_id = ? " +
-            "   AND ib_i_id = ? " +
-            "   AND ib_u_id = ? "
+        "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_BID + 
+        "   SET ib_bid = ? " +
+        " WHERE ib_id = ? " +
+        "   AND ib_i_id = ? " +
+        "   AND ib_u_id = ? "
     );
     
     public final SQLStmt insertItemBid = new SQLStmt(
@@ -143,101 +114,94 @@ VALUES ($bidId, $itemId, $sellerId, $buyerId,  $qty, 0, $bid, $maxBid, '$now');
         ")"
     );
     
-    /**
-     * 
-     * @param item_id
-     * @param seller_id
-     * @param buyer_id
-     * @param bid
-     * @param type
-     */
+
     public VoltTable run(long item_id, long seller_id, long buyer_id, double bid, double maxBid) {
         TimestampType currentTimestamp = new TimestampType();
-        
+
         // First check to make sure that we can even add a new bid to this item
         // If we fail to update, the new know that the auction is closed
         voltQueueSQL(updateItem, item_id, seller_id);
         VoltTable results[] = voltExecuteSQL();
-        assert(1 == results.length);
+        assert (1 == results.length);
         boolean advRow = results[0].advanceRow();
-        assert(advRow);
+        assert (advRow);
         if (results[0].getLong(0) == 0) {
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
-        
+
         voltQueueSQL(getMaxBidId, item_id, seller_id);
         results = voltExecuteSQL();
-        assert(1 == results.length);
-        
+        assert (1 == results.length);
+
         long ib_id;
-        
-        if(results[0].advanceRow()){
-        	// Has 1 or more bids for this item
-        	ib_id = results[0].getLong(0);
-        	if(results[0].wasNull()){
-        		ib_id = 0;
-        	} else {
-        		ib_id++;
-        	}
+
+        if (results[0].advanceRow()) {
+            // Has 1 or more bids for this item
+            ib_id = results[0].getLong(0);
+            if (results[0].wasNull()) {
+                ib_id = 0;
+            } else {
+                ib_id++;
+            }
         } else {
-        	// No bid for this item yet
-        	ib_id = 0;
+            // No bid for this item yet
+            ib_id = 0;
         }
-        
+
         // Get the current max bid record for this item
         voltQueueSQL(getItemMaxBid, item_id, seller_id);
         VoltTable[] itemMaxBidTable = voltExecuteSQL();
-        assert(itemMaxBidTable.length == 1);
-        
+        assert (itemMaxBidTable.length == 1);
+
         // If we have an existing max bid, then we need to figure out whether we are
         // the new highest bidder or if the existing one just has their max_bid bumped up
         if (itemMaxBidTable[0].getRowCount() == 1) {
-        	boolean advanceRow = itemMaxBidTable[0].advanceRow(); 
-            assert(advanceRow);
-            
+            boolean advanceRow = itemMaxBidTable[0].advanceRow();
+            assert (advanceRow);
+
             long current_bid_id = itemMaxBidTable[0].getLong(0);
-        
+
             voltQueueSQL(getItemBid, current_bid_id, item_id, seller_id);
             VoltTable[] itemBidTable = voltExecuteSQL();
-            
-            assert(1 == itemBidTable.length);
-            advanceRow = itemBidTable[0].advanceRow(); 
-            assert(advanceRow);
-            
+
+            assert (1 == itemBidTable.length);
+            advanceRow = itemBidTable[0].advanceRow();
+            assert (advanceRow);
+
             double current_bid = itemBidTable[0].getDouble(0);
             double current_max_bid = itemBidTable[0].getDouble(1);
             boolean newBidWin = false;
-            
-            if(maxBid > current_max_bid){
-            	newBidWin = true;
-            	if(bid < current_max_bid){
+
+            if (maxBid > current_max_bid) {
+                newBidWin = true;
+                if (bid < current_max_bid) {
                     bid = current_max_bid;
-            	}
+                }
             } else {
-            	if(bid > current_bid){
-            		voltQueueSQL(updateBid, bid, current_bid_id, item_id, seller_id);
-            		voltExecuteSQL();
-            	}
+                if (bid > current_bid) {
+                    voltQueueSQL(updateBid, bid, current_bid_id, item_id, seller_id);
+                    voltExecuteSQL();
+                }
             }
-            
+
             voltQueueSQL(insertItemBid, ib_id, item_id, seller_id, buyer_id, bid, maxBid, currentTimestamp, currentTimestamp);
             voltExecuteSQL();
-            
-            if(newBidWin){
-            	voltQueueSQL(updateItemMaxBid, ib_id, item_id, seller_id, currentTimestamp, item_id, seller_id);
-            	voltExecuteSQL();
+
+            if (newBidWin) {
+                voltQueueSQL(updateItemMaxBid, ib_id, item_id, seller_id, currentTimestamp, item_id, seller_id);
+                voltExecuteSQL();
             }
-            
+
         } else {
-        	
+
             // There is no existing max bid record, therefore we can just insert ourselves
-        	voltQueueSQL(insertItemBid, ib_id, item_id, seller_id, buyer_id, bid, maxBid, currentTimestamp, currentTimestamp);
+            voltQueueSQL(insertItemBid, ib_id, item_id, seller_id, buyer_id, bid, maxBid, currentTimestamp, currentTimestamp);
             voltExecuteSQL();
-        	
-        	voltQueueSQL(insertItemMaxBid, item_id, seller_id, ib_id, item_id, seller_id, currentTimestamp, currentTimestamp);
-        	voltExecuteSQL();
+
+            voltQueueSQL(insertItemMaxBid, item_id, seller_id, ib_id, item_id, seller_id, currentTimestamp, currentTimestamp);
+            voltExecuteSQL();
         }
-        
+
         // Return new ib_id
         VoltTable ret = new VoltTable(new VoltTable.ColumnInfo("ib_id", VoltType.BIGINT));
         ret.addRow(ib_id);

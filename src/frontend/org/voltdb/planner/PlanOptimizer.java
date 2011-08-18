@@ -295,7 +295,7 @@ public class PlanOptimizer {
                                 }
                             }
                             if (!exists) {
-                                LOG.warn("Trouble plan column name: " + plan_col.m_displayName);
+                                if (debug.get()) LOG.warn("Trouble plan column name: " + plan_col.m_displayName);
                             } else {
                                 assert (orig_col_exp != null);
                                 AbstractExpression new_col_exp = null;

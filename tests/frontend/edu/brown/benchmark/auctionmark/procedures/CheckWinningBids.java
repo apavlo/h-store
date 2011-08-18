@@ -13,7 +13,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 /**
  * CheckWinningBids
- * <Add description>
+ * @author pavlo
  * @author visawee
  */
 @ProcInfo (
@@ -23,36 +23,50 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 public class CheckWinningBids extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(CheckWinningBids.class);
 	
+    // -----------------------------------------------------------------
+    // STATIC MEMBERS
+    // -----------------------------------------------------------------
+    
+    private static final ColumnInfo[] RESULT_COLS = {
+        new ColumnInfo("i_id", VoltType.BIGINT), 
+        new ColumnInfo("i_u_id", VoltType.BIGINT),  
+        new ColumnInfo("i_status", VoltType.BIGINT), 
+        new ColumnInfo("imb_ib_id", VoltType.BIGINT), 
+        new ColumnInfo("ib_buyer_id", VoltType.BIGINT),
+    };
+    
+    // -----------------------------------------------------------------
+    // STATEMENTS
+    // -----------------------------------------------------------------
+    
+    public final SQLStmt selectDueItems = new SQLStmt(
+        "SELECT i_id, i_u_id, i_status " + 
+          "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
+         "WHERE (i_start_date BETWEEN ? AND ?) " +
+           "AND i_u_id >= ? AND i_u_id < ? " +
+           "AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN + " " +
+         "LIMIT 100 "
+    );
+    
+    public final SQLStmt selectMaxBid = new SQLStmt(
+        "SELECT imb_ib_id " + 
+          "FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " " +  
+        " WHERE imb_i_id = ? AND imb_u_id = ? "
+    );
+    
+    public final SQLStmt selectItemBid = new SQLStmt(
+        "SELECT ib_buyer_id " + 
+          "FROM " + AuctionMarkConstants.TABLENAME_ITEM_BID + " " + 
+        " WHERE ib_id = ? AND ib_i_id = ? AND ib_u_id = ? "
+    );
+    
 	/*
 	public final SQLStmt select_due_items = new SQLStmt(
 		"SELECT i_id, i_u_id " + 
 		"FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
 		"WHERE i_start_date >= ? AND i_end_date <= ? AND i_u_id >= ? AND i_u_id < ? "
 	);
-	*/
 	
-	public final SQLStmt select_due_items = new SQLStmt(
-		"SELECT i_id, i_u_id, i_status " + 
-		  "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
-		 "WHERE (i_start_date BETWEEN ? AND ?) " +
-		   "AND i_u_id >= ? AND i_u_id < ? " +
-		   "AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN + " " +
-		 "LIMIT 100 "
-	);
-	
-	public final SQLStmt select_max_bid = new SQLStmt(
-			"SELECT imb_ib_id " + 
-			"FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " " +  
-			"WHERE imb_i_id = ? AND imb_u_id = ? "
-	);
-	
-	public final SQLStmt select_item_bid = new SQLStmt(
-    		"SELECT ib_buyer_id " + 
-    		"FROM " + AuctionMarkConstants.TABLENAME_ITEM_BID + " " + 
-    		"WHERE ib_id = ? AND ib_i_id = ? AND ib_u_id = ? "
-    	);
-	
-	/*
 	public final SQLStmt select_max_bid = new SQLStmt(
 		"SELECT ib_buyer_id, imb_ib_id " + 
 		"FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " + 
@@ -61,8 +75,7 @@ public class CheckWinningBids extends VoltProcedure {
 		"AND imb_i_id = ? AND imb_u_id = ? "
 		
 	);
-	*/
-	/*
+	
     public final SQLStmt select_due_items_with_bids = new SQLStmt(
     	"SELECT i_id, i_u_id, ib_id, ib_buyer_id, imb_ib_id " + 
         "FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " + 
@@ -72,30 +85,18 @@ public class CheckWinningBids extends VoltProcedure {
         " AND ib_id = imb_ib_id AND ib_u_id = imb_u_id " + 
         " AND i_start_date >= ? AND i_end_date <= ? AND i_u_id >= ? AND i_u_id < ? " 
     );
-    */
     
-    /*
-     * "LEFT OUTER JOIN " + AuctionMarkConstants.TABLENAME_ITEM_BID + " ON i_id = ib_i_id AND i_u_id = ib_u_id " +
+     "LEFT OUTER JOIN " + AuctionMarkConstants.TABLENAME_ITEM_BID + " ON i_id = ib_i_id AND i_u_id = ib_u_id " +
         "LEFT OUTER JOIN " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + " ON ib_id = imb_ib_id AND ib_u_id = imb_u_id " + 
         "WHERE i_start_date >= ? AND i_end_date <= ? AND i_u_id >= ? AND i_u_id < ?"
      */
 
-    private final ColumnInfo[] columnInfo = {
-        new ColumnInfo("i_id", VoltType.BIGINT), 
-        new ColumnInfo("i_u_id", VoltType.BIGINT),  
-        new ColumnInfo("i_status", VoltType.BIGINT), 
-        new ColumnInfo("imb_ib_id", VoltType.BIGINT), 
-        new ColumnInfo("ib_buyer_id", VoltType.BIGINT),
-    };
 
-    /**
-     * 
-     * @param startTime
-     * @param endTime
-     * @param clientId
-     * @param clientMaxElements
-     * @return
-     */
+
+    // -----------------------------------------------------------------
+    // RUN METHOD
+    // -----------------------------------------------------------------
+
     public VoltTable run(TimestampType startTime, TimestampType endTime, int clientId, long clientMaxElements) {
         final boolean debug = LOG.isDebugEnabled();
         
@@ -120,13 +121,13 @@ public class CheckWinningBids extends VoltProcedure {
         System.out.println("E All items");
         */
         
-        voltQueueSQL(select_due_items, startTime, endTime, startUserId, endUserId);
+        voltQueueSQL(selectDueItems, startTime, endTime, startUserId, endUserId);
         VoltTable[] dueItemsTable = voltExecuteSQL();
         assert(1 == dueItemsTable.length);
         
         if (debug) LOG.debug("CheckWinningBids::: total due items = " + dueItemsTable[0].getRowCount());
         
-        final VoltTable ret = new VoltTable(columnInfo);
+        final VoltTable ret = new VoltTable(RESULT_COLS);
         
         while(dueItemsTable[0].advanceRow()){
         	long itemId = dueItemsTable[0].getLong(0);
@@ -134,7 +135,7 @@ public class CheckWinningBids extends VoltProcedure {
         	long itemStatus = dueItemsTable[0].getLong(2);
         	//System.out.println("CheckWinningBids::: getting max bid for itemId = " + itemId + " : userId = " + userId);
         	
-        	voltQueueSQL(select_max_bid, itemId, userId);
+        	voltQueueSQL(selectMaxBid, itemId, userId);
             VoltTable[] maxBidTable = voltExecuteSQL();
             assert(1 == maxBidTable.length);            
             
@@ -142,7 +143,7 @@ public class CheckWinningBids extends VoltProcedure {
             	//System.out.println("CheckWinningBids::: found max bid");
             	long maxBidId = maxBidTable[0].getLong(0);
             	
-                voltQueueSQL(select_item_bid, maxBidId, itemId, userId);
+                voltQueueSQL(selectItemBid, maxBidId, itemId, userId);
                 VoltTable[] bidTable = voltExecuteSQL();
                 assert(1 == bidTable.length);
                 boolean adv = bidTable[0].advanceRow();
@@ -206,39 +207,5 @@ public class CheckWinningBids extends VoltProcedure {
         return ret;
     }	
 
-    class UserItem implements Comparable<UserItem> {
 
-    	private long _userId;
-		private long _itemId;
-    	
-    	public UserItem(long userId, long itemId){
-    		this._userId = userId;
-    		this._itemId = itemId;
-    	}
-    	
-    	public long getUserId() {
-			return _userId;
-		}
-
-		public long getItemId() {
-			return _itemId;
-		}
-    	
-		public int hashCode(){
-			return (new Long(_userId)).hashCode() + (new Long(_itemId)).hashCode(); 
-		}
-		
-		@Override
-		public int compareTo(UserItem other) {
-			if(_userId == other.getUserId()){
-				if(_itemId == other.getItemId()){
-					return 0;
-				} else {
-					return _itemId > other.getItemId()? 1: -1;
-				}
-			} else {
-				return _userId > other.getUserId()? 1: -1;
-			}
-		}
-    }
 }

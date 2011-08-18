@@ -60,6 +60,7 @@ CREATE TABLE USER (
     u_rating            BIGINT NOT NULL,
     u_balance           FLOAT NOT NULL,
     u_created           TIMESTAMP,
+    u_comments			INTEGER DEFAULT 0,
     u_r_id              BIGINT NOT NULL REFERENCES REGION (r_id),
     u_sattr0            VARCHAR(64),
     u_sattr1            VARCHAR(64),
@@ -169,6 +170,7 @@ CREATE TABLE ITEM (
     i_start_date        TIMESTAMP,
     i_end_date          TIMESTAMP,
     i_status		    INT DEFAULT 0,
+    i_updated           TIMESTAMP,
     i_iattr0            BIGINT DEFAULT NULL,
     i_iattr1            BIGINT DEFAULT NULL,
     i_iattr2			BIGINT DEFAULT NULL,
@@ -335,6 +337,7 @@ CREATE TABLE USER_ITEM (
     FOREIGN KEY (ui_ip_id, ui_ip_ib_id, ui_ip_ib_i_id, ui_ip_ib_u_id) REFERENCES ITEM_PURCHASE (ip_id, ip_ib_id, ip_ib_i_id, ip_ib_u_id),
     PRIMARY KEY (ui_u_id, ui_i_id, ui_i_u_id)
 );
+-- CREATE INDEX IDX_USER_ITEM_ID ON USER_ITEM (ui_i_id);
 
 -- ================================================================
 -- USER_WATCH

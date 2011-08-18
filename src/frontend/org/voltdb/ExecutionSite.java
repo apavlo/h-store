@@ -76,6 +76,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SQLException;
@@ -1160,6 +1161,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         try {
             result = this.executeFragmentTaskMessage(ts, ftask);
             fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
+        } catch (ConstraintFailureException ex) {
+            LOG.fatal("Hit an ConstraintFailureException for " + ts, ex);
+            fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
         } catch (EEException ex) {
             LOG.fatal("Hit an EE Error for " + ts, ex);
             this.crash(ex);

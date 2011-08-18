@@ -144,9 +144,9 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
                 try {
                     LOG.info("Loading Profile: " + this.profile_path.getAbsolutePath());
                     this.profile.load(this.profile_path.getAbsolutePath(), null);
+                    LOG.info("Profile loaded!");
                 } catch (Exception ex) {
-                    LOG.error("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
-                    System.exit(1);
+                    throw new RuntimeException("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
                 }
             }
         } else {

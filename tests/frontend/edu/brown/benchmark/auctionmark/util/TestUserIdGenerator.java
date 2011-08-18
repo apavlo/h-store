@@ -31,12 +31,12 @@ public class TestUserIdGenerator extends TestCase {
             AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER,
             1.0001);
     
-    private final Histogram<Integer> users_per_item_count = new Histogram<Integer>();
+    private final Histogram<Long> users_per_item_count = new Histogram<Long>();
 	
 	@Before
 	public void setUp() throws Exception {
         for (long i = 0; i < NUM_USERS; i++) {
-            this.users_per_item_count.put(randomNumItems.nextInt());
+            this.users_per_item_count.put((long)randomNumItems.nextInt());
         } // FOR
         assertEquals(NUM_USERS, this.users_per_item_count.getSampleCount());
 	}
@@ -50,7 +50,7 @@ public class TestUserIdGenerator extends TestCase {
 	    assert(generator.hasNext());
 	    for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
 	        assertNotNull(u_id);
-	        assert(seen.contains(u_id) == false) : "Duplicate UserId " + u_id;
+	        assert(seen.contains(u_id) == false) : "Duplicate " + u_id;
 	        seen.add(u_id);
 //	        System.err.println(u_id);
 	    } // FOR
@@ -69,8 +69,8 @@ public class TestUserIdGenerator extends TestCase {
             assert(generator.hasNext());
             for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
                 assertNotNull(u_id);
-                assert(seen.contains(u_id) == false) : "Duplicate UserId " + u_id;
-                assert(all_seen.contains(u_id) == false) : "Duplicate UserId " + u_id;
+                assert(seen.contains(u_id) == false) : "Duplicate " + u_id;
+                assert(all_seen.contains(u_id) == false) : "Duplicate " + u_id;
                 seen.add(u_id);
                 all_seen.add(u_id);
             } // FOR
@@ -91,6 +91,33 @@ public class TestUserIdGenerator extends TestCase {
 	    System.err.println(clients_h);
 	}
 	
+    /**
+     * testSingleClient
+     */
+	public void testSingleClient() throws Exception {
+        // First create a UserIdGenerator for all clients and get
+        // the set of all the UserIds that we expect
+        UserIdGenerator generator = new UserIdGenerator(users_per_item_count, 1);
+        Set<UserId> expected = new HashSet<UserId>();
+        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+            assertNotNull(u_id);
+            assert(expected.contains(u_id) == false) : "Duplicate " + u_id;
+            expected.add(u_id);
+        } // FOR
+        
+        // Now create a new generator that only has one client. That means that we should
+        // get back all the same UserIds
+        Set<UserId> actual = new HashSet<UserId>();
+        generator = new UserIdGenerator(users_per_item_count, 1, 0);
+        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+            assertNotNull(u_id);
+            assert(actual.contains(u_id) == false) : "Duplicate " + u_id;
+            assert(expected.contains(u_id)) : "Unexpected " + u_id;
+            actual.add(u_id);
+        } // FOR
+        assertEquals(expected.size(), actual.size());
+    }
+	
 	/**
 	 * testSetCurrentSize
 	 */
@@ -103,18 +130,18 @@ public class TestUserIdGenerator extends TestCase {
 	    Set<UserId> seen = new HashSet<UserId>();
 	    for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
             assertNotNull(u_id);
-            assert(seen.contains(u_id) == false) : "Duplicate UserId " + u_id;
+            assert(seen.contains(u_id) == false) : "Duplicate " + u_id;
             seen.add(u_id);
         } // FOR
 	    
 	    // Now make sure that we always get back the same UserIds regardless of where
         // we jump around with using setCurrentSize()
 	    for (int i = 0; i < 10; i++) {
-	        int size = rand.nextInt(users_per_item_count.getMaxValue()+1);
+	        int size = rand.nextInt((int)(users_per_item_count.getMaxValue()+1));
 	        generator.setCurrentItemCount(size);
 	        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
 	            assertNotNull(u_id);
-	            assert(seen.contains(u_id)) : "Unexpected UserId " + u_id;
+	            assert(seen.contains(u_id)) : "Unexpected " + u_id;
 	        } // FOR
 	    } // FOR
 	}
