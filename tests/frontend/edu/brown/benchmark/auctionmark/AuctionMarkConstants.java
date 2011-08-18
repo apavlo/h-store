@@ -35,33 +35,30 @@ import java.util.*;
 
 public abstract class AuctionMarkConstants {
     
-    public enum BidType {
-        AUCTION,
-        BUYNOW
-    } 
-
     // ----------------------------------------------------------------
     // DATA INFORMATION
     // ----------------------------------------------------------------
 
+    public enum BidType {
+        AUCTION,
+        BUYNOW
+    } 
+    
     public static final int STATUS_ITEM_OPEN                    = 0;
     public static final int STATUS_ITEM_WAITING_FOR_PURCHASE    = 1;
     public static final int STATUS_ITEM_CLOSED                  = 2;
+    
+    public static final long NO_WINNING_BID                     = -1;
     
     // ----------------------------------------------------------------
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
     
-    
-    // the maximum number of clients that this benchmark can handle
-    public static final int MAXIMUM_NUM_CLIENTS = 1000;
-    
     // the maximum number of IDs that can be generated in each client (for each table)
     public static final long MAXIMUM_CLIENT_IDS = 100000000000000l;
     
-    
-    public static final long INTERVAL_CHECK_WINNING_BIDS = 10000; // Check winning bid's frequency in millisecond
-    public static final boolean ENABLE_CHECK_WINNING_BIDS   = true;
+    public static final long INTERVAL_CHECK_WINNING_BIDS    = 10000; // Check winning bid's frequency in millisecond
+    public static final boolean ENABLE_CHECK_WINNING_BIDS   = false;
     
     // Non-standard txns
     public static final int FREQUENCY_CHECK_WINNING_BIDS    = -1; // called at regular intervals
@@ -71,7 +68,6 @@ public abstract class AuctionMarkConstants {
     
 //    public static final int FREQUENCY_GET_ITEM              = 45;
 //    public static final int FREQUENCY_GET_USER_INFO         = 10;
-//    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 5;
 //    public static final int FREQUENCY_NEW_BID               = 18;
 //    public static final int FREQUENCY_NEW_COMMENT           = 2; // total FREQUENCY_GET_COMMENT = FREQUENCY_GET_COMMENT + FREQUENCY_NEW_COMMENT_RESPONSE because FREQUENCY_NEW_COMMENT_RESPONSE depend on FREQUENCY_GET_COMMENT 
 //    public static final int FREQUENCY_GET_COMMENT           = 2;
@@ -81,54 +77,43 @@ public abstract class AuctionMarkConstants {
 //    public static final int FREQUENCY_NEW_PURCHASE          = 2;
 //    public static final int FREQUENCY_UPDATE_ITEM           = 2;
     
-    public static final int FREQUENCY_GET_ITEM              = 100;
-    public static final int FREQUENCY_GET_USER_INFO         = 0;
-    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 0;
-    public static final int FREQUENCY_NEW_BID               = 0;
-    public static final int FREQUENCY_NEW_COMMENT           = 0; // total FREQUENCY_GET_COMMENT = FREQUENCY_GET_COMMENT + FREQUENCY_NEW_COMMENT_RESPONSE because FREQUENCY_NEW_COMMENT_RESPONSE depend on FREQUENCY_GET_COMMENT 
-    public static final int FREQUENCY_GET_COMMENT           = 0;
+    public static final int FREQUENCY_GET_ITEM              = 33;
+    public static final int FREQUENCY_GET_USER_INFO         = 33;
+    public static final int FREQUENCY_NEW_BID               = 34;
+    public static final int FREQUENCY_NEW_COMMENT           = 0;  
     public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
     public static final int FREQUENCY_NEW_FEEDBACK          = 0;
     public static final int FREQUENCY_NEW_ITEM              = 0;
     public static final int FREQUENCY_NEW_PURCHASE          = 0;
     public static final int FREQUENCY_UPDATE_ITEM           = 0;
     
-//    public static final int FREQUENCY_GET_ITEM              = 0;
-//    public static final int FREQUENCY_GET_USER_INFO         = 100;
-//    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 0;
-//    public static final int FREQUENCY_NEW_BID               = 0;
-//    public static final int FREQUENCY_NEW_COMMENT           = 0;
-//    public static final int FREQUENCY_GET_COMMENT           = 0;
-//    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
-//    public static final int FREQUENCY_NEW_FEEDBACK          = 0;
-//    public static final int FREQUENCY_NEW_ITEM              = 0;
-//    public static final int FREQUENCY_NEW_PURCHASE          = 0;
-//    public static final int FREQUENCY_UPDATE_ITEM           = 0;
-
-    
     // ----------------------------------------------------------------
     // DEFAULT TABLE SIZES
     // ----------------------------------------------------------------
-    public static final long TABLESIZE_REGION = 75;
-    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP = 100;
-    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE = TABLESIZE_GLOBAL_ATTRIBUTE_GROUP * 10;
-    public static final long TABLESIZE_USER = 100000;
+    
+    public static final long TABLESIZE_REGION                   = 75;
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP   = 100;
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE   = TABLESIZE_GLOBAL_ATTRIBUTE_GROUP * 10;
+    public static final long TABLESIZE_USER                     = 100000;
     
     // ----------------------------------------------------------------
     // USER PARAMETERS
     // ----------------------------------------------------------------
+    
     public static final int USER_MIN_ATTRIBUTES = 0;
     public static final int USER_MAX_ATTRIBUTES = 5;
         
     // ----------------------------------------------------------------
     // SELLER PARAMETERS
-    // ---------------------------------------------------------------- 
+    // ----------------------------------------------------------------
+    
     public static final float SELLER_PERCENT = 10.0f;
     public static final int SELLER_MAX_ITEM = 1000;
     
     // ----------------------------------------------------------------
     // ITEM PARAMETERS
     // ----------------------------------------------------------------
+    
     public static final int ITEM_MIN_INITIAL_PRICE = 1;
     public static final int ITEM_MAX_INITIAL_PRICE = 1000000;
     public static final int ITEM_MAX_FINAL_PRICE = 10000000;
@@ -159,9 +144,12 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MAX_DURATION_DAYS = 7;
     public static final int ITEM_MAX_PURCHASE_DAY = 7;
     
+    public static final int ITEM_ID_CACHE_SIZE  = 500;
+    
     // ----------------------------------------------------------------
     // DEFAULT BATCH SIZES
     // ----------------------------------------------------------------
+    
     public static final long BATCHSIZE_REGION                   = 5000;
     public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_GROUP   = 5000;
     public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_VALUE   = 5000;
@@ -178,7 +166,8 @@ public abstract class AuctionMarkConstants {
     public static final long BATCHSIZE_ITEM_BID                 = 5000;
     public static final long BATCHSIZE_ITEM_MAX_BID             = 5000;
     public static final long BATCHSIZE_ITEM_PURCHASE            = 5000;
-
+    
+    public static final long BATCHSIZE_POST_AUCTION             = 25;
     
     // ----------------------------------------------------------------
     // TABLE NAMES
@@ -252,17 +241,25 @@ public abstract class AuctionMarkConstants {
     	DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
     }
 
-    static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
-    static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;
-    static final long MICROSECONDS_IN_A_DAY = MILLISECONDS_IN_A_DAY * 1000;
+    public static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
+    public static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;
+    public static final long MICROSECONDS_IN_A_DAY = MILLISECONDS_IN_A_DAY * 1000;
     
     // ----------------------------------------------------------------
     // PROBABILITIES
     // ----------------------------------------------------------------
     
-    /** The probability that a buyer will leave feedback for the seller */
+    /** The probability that a buyer will leave feedback for the seller (1-100)*/
     public static final int PROB_PURCHASE_BUYER_LEAVES_FEEDBACK = 75;
-    
-    /** The probability that a seller will leave feedback for the buyer */
+    /** The probability that a seller will leave feedback for the buyer (1-100)*/
     public static final int PROB_PURCHASE_SELLER_LEAVES_FEEDBACK = 80;
+    
+    public static final int PROB_GETUSERINFO_INCLUDE_FEEDBACK = 33;
+    public static final int PROB_GETUSERINFO_INCLUDE_COMMENTS = 25;
+    public static final int PROB_GETUSERINFO_INCLUDE_SELLER_ITEMS = 25;
+    public static final int PROB_GETUSERINFO_INCLUDE_BUYER_ITEMS = 25;
+    public static final int PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS = 50;
+    
+    public static final int PROB_UPDATEITEM_DELETE_ATTRIBUTE = 25;
+    public static final int PROB_UPDATEITEM_ADD_ATTRIBUTE = 25;
 }

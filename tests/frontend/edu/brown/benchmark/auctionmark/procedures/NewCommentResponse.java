@@ -9,7 +9,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 /**
  * NewCommentResponse
- * Description goes here...
+ * @author pavlo
  * @author visawee
  */
 @ProcInfo (
@@ -18,14 +18,29 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 )
 public class NewCommentResponse extends VoltProcedure{
 	
-    public final SQLStmt update_comment = new SQLStmt(
-            "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " +
-            	"SET ic_response = ? " +
-            "WHERE ic_id = ? AND ic_i_id = ? AND ic_u_id = ? "
+    // -----------------------------------------------------------------
+    // STATEMENTS
+    // -----------------------------------------------------------------
+    
+    public final SQLStmt updateComment = new SQLStmt(
+        "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " +
+        	"SET ic_response = ? " +
+        "WHERE ic_id = ? AND ic_i_id = ? AND ic_u_id = ? "
+    );
+    
+    public final SQLStmt updateUser = new SQLStmt(
+        "UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
+           "SET u_comments = u_comments - 1 " + 
+        " WHERE u_id = ?"
     );
 
+    // -----------------------------------------------------------------
+    // RUN METHOD
+    // -----------------------------------------------------------------
+    
     public VoltTable[] run(long i_id, long ic_id, long seller_id, String response) {
-        voltQueueSQL(update_comment, response, ic_id, i_id, seller_id);
+        voltQueueSQL(updateComment, response, ic_id, i_id, seller_id);
+        voltQueueSQL(updateUser, seller_id);
         return (voltExecuteSQL());
     }	
 }

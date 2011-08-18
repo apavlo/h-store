@@ -589,7 +589,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     }
     /**
      * 
-     * @param start_date
+     * @param startDate
      */
     public void setFlightUpcomingDate(TimestampType upcoming_date) {
         this.flight_upcoming_date = upcoming_date;

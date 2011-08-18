@@ -49,10 +49,8 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         CheckWinningBids.class,
-        GetComment.class,
         GetItem.class,
         GetUserInfo.class,
-        GetWatchedItems.class,
         NewBid.class,
         NewComment.class,
         NewCommentResponse.class,
@@ -66,10 +64,8 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
     // Transaction Frequencies
     {
         addTransactionFrequency(CheckWinningBids.class, AuctionMarkConstants.FREQUENCY_CHECK_WINNING_BIDS);
-        addTransactionFrequency(GetComment.class, AuctionMarkConstants.FREQUENCY_GET_COMMENT);
         addTransactionFrequency(GetItem.class, AuctionMarkConstants.FREQUENCY_GET_ITEM);
         addTransactionFrequency(GetUserInfo.class, AuctionMarkConstants.FREQUENCY_GET_USER_INFO);
-        addTransactionFrequency(GetWatchedItems.class, AuctionMarkConstants.FREQUENCY_GET_WATCHED_ITEMS);
         addTransactionFrequency(NewBid.class, AuctionMarkConstants.FREQUENCY_NEW_BID);
         addTransactionFrequency(NewComment.class, AuctionMarkConstants.FREQUENCY_NEW_COMMENT);
         addTransactionFrequency(NewCommentResponse.class, AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE);

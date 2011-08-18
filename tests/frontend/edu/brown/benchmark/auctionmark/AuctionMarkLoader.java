@@ -76,7 +76,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
@@ -120,7 +119,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     public AuctionMarkLoader(String[] args) {
         super(AuctionMarkLoader.class, args);
 
-        assert(AuctionMarkConstants.MAXIMUM_NUM_CLIENTS > this.getNumClients());
         if (debug.get()) LOG.debug("AuctionMarkLoader::: numClients = " + this.getNumClients());
         
         // ---------------------------
@@ -220,7 +218,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param tableName
      */
     protected void generateTableData(String tableName) {
-        LOG.info(StringUtil.header("START " + tableName, "*", 100));
+        LOG.info("*** START " + tableName);
         final AbstractTableGenerator generator = this.generators.get(tableName);
         assert (generator != null);
 
@@ -235,8 +233,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         // Mark as finished
         generator.markAsFinished();
         this.finished.add(tableName);
-        String msg = String.format("FINISH %s - %d tuples - [%d / %d]", tableName, this.profile.getTableSize(tableName), this.finished.size(), this.generators.size());  
-        LOG.info(StringUtil.header(msg, "*", 100));
+        LOG.info(String.format("*** FINISH %s - %d tuples - [%d / %d]", tableName, this.profile.getTableSize(tableName), this.finished.size(), this.generators.size()));
         if (debug.get()) {
             LOG.debug("Remaining Tables: " + CollectionUtils.subtract(this.generators.keySet(), this.finished));
         }
@@ -802,7 +799,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                                            Math.round(AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER / profile.getScaleFactor()),
                                            1.001);
             for (long i = 0; i < this.tableSize; i++) {
-                int num_items = randomNumItems.nextInt();
+                long num_items = randomNumItems.nextInt();
                 profile.users_per_item_count.put(num_items);
             } // FOR
             if (trace.get())
@@ -828,6 +825,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.row[col++] = (this.randomBalance.nextInt()) / 10.0;
             // U_CREATED
             this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
+            // U_COMMENTS
+            this.row[col++] = 0;
             // U_R_ID
             this.row[col++] = this.randomRegion.nextInt();
             
@@ -905,7 +904,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         public void init() {
             super.init();
             this.tableSize = 0l;
-            for (Integer size : profile.users_per_item_count.values()) {
+            for (Long size : profile.users_per_item_count.values()) {
                 this.tableSize += size.intValue() * profile.users_per_item_count.get(size);
             } // FOR
         }
@@ -916,14 +915,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             ItemId itemId = new ItemId(seller_id, remaining);
             ItemInfo itemInfo = new ItemInfo(itemId);
             itemInfo.sellerId = seller_id;
-            itemInfo.end_date = this.getRandomEndTimestamp();
-            itemInfo.start_date = this.getRandomStartTimestamp(itemInfo.end_date);
+            itemInfo.endDate = this.getRandomEndTimestamp();
+            itemInfo.startDate = this.getRandomStartTimestamp(itemInfo.endDate);
             itemInfo.initialPrice = profile.randomInitialPrice.nextInt();
             itemInfo.numImages = (short) profile.randomNumImages.nextInt();
             itemInfo.numAttributes = (short) profile.randomNumAttributes.nextInt();
             
             //LOG.info("endDate = " + endDate + " : startDate = " + startDate);
-            long bidDurationDay = ((itemInfo.end_date.getTime() - itemInfo.start_date.getTime()) / AuctionMarkConstants.MICROSECONDS_IN_A_DAY);
+            long bidDurationDay = ((itemInfo.endDate.getTime() - itemInfo.startDate.getTime()) / AuctionMarkConstants.MICROSECONDS_IN_A_DAY);
             if (this.item_bid_watch_zipfs.containsKey(bidDurationDay) == false) {
                 Zipf randomNumBids = new Zipf(AuctionMarkLoader.this.rng,
                         AuctionMarkConstants.ITEM_MIN_BIDS_PER_DAY * (int)bidDurationDay,
@@ -939,23 +938,23 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             
             // Calculate the number of bids and watches for this item
             itemInfo.numBids = (short)p.getFirst().nextInt();
-            itemInfo.num_watches = (short)p.getSecond().nextInt();
+            itemInfo.numWatches = (short)p.getSecond().nextInt();
             
             // The auction for this item has already closed
-            if (itemInfo.end_date.getTime() <= this.currentTimestamp * 1000l) {
-                itemInfo.still_available = false;
+            if (itemInfo.endDate.getTime() <= this.currentTimestamp * 1000l) {
+                itemInfo.stillAvailable = false;
                 if (itemInfo.numBids > 0) {
                 	// Somebody won a bid and bought the item
                     itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
                     //System.out.println("@@@ z last_bidder_id = " + itemInfo.last_bidder_id);
-                    itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.end_date);
+                    itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.endDate);
                     itemInfo.numComments = (short) profile.randomNumComments.nextInt();
                     profile.addCompleteItem(itemInfo.id);
                 }
             }
             // Item is still available
             else {
-            	itemInfo.still_available = true;
+            	itemInfo.stillAvailable = true;
             	profile.addAvailableItem(itemInfo.id);
             	if (itemInfo.numBids > 0) {
             		itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
@@ -964,50 +963,43 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             // I_ID
             this.row[col++] = itemInfo.id;
-
             // I_U_ID
             this.row[col++] = itemInfo.sellerId;
-
             // I_C_ID
             this.row[col++] = profile.getRandomCategoryId();
-
             // I_NAME
             this.row[col++] = AuctionMarkLoader.this.rng.astring(6, 32);
-
             // I_DESCRIPTION
             this.row[col++] = AuctionMarkLoader.this.rng.astring(50, 255);
-
             // I_USER_ATTRIBUTES
             this.row[col++] = AuctionMarkLoader.this.rng.astring(20, 255);
-
             // I_INITIAL_PRICE
             this.row[col++] = itemInfo.initialPrice;
 
-            // I_CURRENT_PRICE ?? reserve price
+            // I_CURRENT_PRICE
             if (itemInfo.numBids > 0) {
                 itemInfo.currentPrice = itemInfo.initialPrice + (itemInfo.numBids * itemInfo.initialPrice * AuctionMarkConstants.ITEM_BID_PERCENT_STEP);
                 this.row[col++] = itemInfo.currentPrice;
+                itemId.setCurrentPrice(itemInfo.currentPrice); // HACK
             } else {
                 this.row[col++] = itemInfo.initialPrice;
+                itemId.setCurrentPrice(itemInfo.initialPrice); // HACK
             }
 
             // I_NUM_BIDS
             this.row[col++] = itemInfo.numBids;
-
             // I_NUM_IMAGES
             this.row[col++] = itemInfo.numImages;
-
             // I_NUM_GLOBAL_ATTRS
             this.row[col++] = itemInfo.numAttributes;
-
             // I_START_DATE
-            this.row[col++] = itemInfo.start_date;
-
+            this.row[col++] = itemInfo.startDate;
             // I_END_DATE
-            this.row[col++] = itemInfo.end_date;
-
+            this.row[col++] = itemInfo.endDate;
             // I_STATUS
-            this.row[col++] = (itemInfo.still_available ? AuctionMarkConstants.STATUS_ITEM_OPEN : AuctionMarkConstants.STATUS_ITEM_CLOSED);
+            this.row[col++] = (itemInfo.stillAvailable ? AuctionMarkConstants.STATUS_ITEM_OPEN : AuctionMarkConstants.STATUS_ITEM_CLOSED);
+            // I_UPDATED
+            this.row[col++] = itemInfo.startDate;
 
             this.updateSubTableGenerators(itemInfo);
             return (col);
@@ -1064,7 +1056,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         public ItemAttributeGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE,
-                  AuctionMarkConstants.TABLENAME_ITEM);
+                  AuctionMarkConstants.TABLENAME_ITEM,
+                  AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
         }
         @Override
         public short getElementCounter(ItemInfo itemInfo) {
@@ -1117,7 +1110,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IC_BUYER_ID
             this.row[col++] = itemInfo.lastBidderId;
             // IC_DATE
-            this.row[col++] = this.getRandomCommentDate(itemInfo.start_date, itemInfo.end_date);
+            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, itemInfo.endDate);
             // IC_QUESTION
             this.row[col++] = AuctionMarkLoader.this.rng.astring(10, 128);
             // IC_RESPONSE
@@ -1165,12 +1158,12 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 bidderId = (itemInfo.numBids == 1 ? itemInfo.lastBidderId :
                                                     profile.getRandomBuyerId(itemInfo.sellerId));
                 TimestampType endDate;
-                if (itemInfo.still_available) {
+                if (itemInfo.stillAvailable) {
                     endDate = new TimestampType();
                 } else {
-                    endDate = itemInfo.end_date;
+                    endDate = itemInfo.endDate;
                 }
-                this.currentCreateDateAdvanceStep = (endDate.getTime() - itemInfo.start_date.getTime()) / (remaining + 1);
+                this.currentCreateDateAdvanceStep = (endDate.getTime() - itemInfo.startDate.getTime()) / (remaining + 1);
                 this.currentBidPriceAdvanceStep = itemInfo.initialPrice * AuctionMarkConstants.ITEM_BID_PERCENT_STEP;
             }
             // The last bid must always be the item's lastBidderId
@@ -1195,7 +1188,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             float last_bid = (this.new_item ? itemInfo.initialPrice : this.bid.maxBid);
             this.bid = itemInfo.getNextBid(this.count, bidderId);
             this.bid.maxBid = last_bid + this.currentBidPriceAdvanceStep;    
-            this.bid.createDate = new TimestampType(itemInfo.start_date.getTime() + this.currentCreateDateAdvanceStep);
+            this.bid.createDate = new TimestampType(itemInfo.startDate.getTime() + this.currentCreateDateAdvanceStep);
             this.bid.updateDate = this.bid.createDate; 
             
             if (remaining == 0 && itemInfo.purchaseDate != null) {
@@ -1393,7 +1386,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UI_IP_IB_U_ID
             this.row[col++] = null;
             // UI_CREATED
-            this.row[col++] = itemInfo.end_date;
+            this.row[col++] = itemInfo.endDate;
             
             return (col);
         }
@@ -1410,7 +1403,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         }
         @Override
         public short getElementCounter(ItemInfo itemInfo) {
-            return (itemInfo.num_watches);
+            return (itemInfo.numWatches);
         }
         @Override
         protected int populateRow(ItemInfo itemInfo, short remaining) {
@@ -1433,8 +1426,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UW_I_U_ID
             this.row[col++] = itemInfo.sellerId;
             // UW_CREATED
-            TimestampType endDate = (itemInfo.still_available ? new TimestampType() : itemInfo.end_date);
-            this.row[col++] = this.getRandomCommentDate(itemInfo.start_date, endDate);
+            TimestampType endDate = (itemInfo.stillAvailable ? new TimestampType() : itemInfo.endDate);
+            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, endDate);
 
             return (col);
         }

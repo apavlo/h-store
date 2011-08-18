@@ -10,13 +10,13 @@ public class UserIdGenerator implements Iterator<UserId> {
 
     private final int numClients;
     private final Integer clientId;
-    private final Histogram<Integer> users_per_item_count;
-    private final int min_count;
-    private final int max_count;
+    private final Histogram<Long> users_per_item_count;
+    private final long min_count;
+    private final long max_count;
     
     private UserId next = null;
-    private Integer currentItemCount = null;
-    private int currentOffset;
+    private Long currentItemCount = null;
+    private long currentOffset;
     private long currentPosition = 0l;
     
     /**
@@ -27,7 +27,7 @@ public class UserIdGenerator implements Iterator<UserId> {
      * @param numClients
      * @param clientId
      */
-    public UserIdGenerator(Histogram<Integer> users_per_item_count, int numClients,  Integer clientId) {
+    public UserIdGenerator(Histogram<Long> users_per_item_count, int numClients,  Integer clientId) {
         if (numClients <= 0)
             throw new IllegalArgumentException("numClients must be more than 0 : " + numClients);
         if (clientId != null && clientId < 0)
@@ -42,7 +42,7 @@ public class UserIdGenerator implements Iterator<UserId> {
         this.setCurrentItemCount(this.min_count);
     }
 
-    public UserIdGenerator(Histogram<Integer> users_per_item_count, int numClients) {
+    public UserIdGenerator(Histogram<Long> users_per_item_count, int numClients) {
         this(users_per_item_count, numClients, null);
     }
     
@@ -51,15 +51,15 @@ public class UserIdGenerator implements Iterator<UserId> {
         return (this.users_per_item_count.getSampleCount());
     }
     
-    public void setCurrentItemCount(int size) {
+    public void setCurrentItemCount(long size) {
         // It's lame, but we need to make sure that we prime total_ctr
         // so that we always get the same UserIds back per client
         this.currentPosition = 0;
-        for (int i = 0; i < size; i++) {
+        for (long i = 0; i < size; i++) {
             this.currentPosition += this.users_per_item_count.get(i, 0l);
         } // FOR
         this.currentItemCount = size;
-        this.currentOffset = (int)this.users_per_item_count.get(this.currentItemCount, 0l);
+        this.currentOffset = this.users_per_item_count.get(this.currentItemCount, 0l);
     }
     
     public long getCurrentPosition() {
@@ -77,10 +77,10 @@ public class UserIdGenerator implements Iterator<UserId> {
     
     private UserId findNextUserId() {
         // Find the next id for this size level
-        Integer found = null;
+        Long found = null;
         while (this.currentItemCount <= this.max_count) {
             while (this.currentOffset > 0) {
-                int nextCtr = this.currentOffset--;
+                long nextCtr = this.currentOffset--;
                 this.currentPosition++;
                 
                 // If we weren't given a clientId, then we'll generate UserIds
@@ -101,7 +101,7 @@ public class UserIdGenerator implements Iterator<UserId> {
         } // WHILE
         if (found == null) return (null);
         
-        return (new UserId(this.currentItemCount, found));
+        return (new UserId(this.currentItemCount.intValue(), found.intValue()));
     }
     
     @Override

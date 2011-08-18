@@ -1,5 +1,10 @@
 package edu.brown.benchmark.auctionmark.util;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
+
 /**
  * Composite Item Id
  * First 48-bits are the seller's USER.U_ID
@@ -11,8 +16,25 @@ public class ItemId extends CompositeId {
     private static final long BASE_VALUE_MASK = 281474976710655l; // 2^48-1
     private static final int VALUE_OFFSET = 48;
     
+    
+    private static final long ITEM_ID_MASK = 0x0FFFFFFFFFFFFFFFl; 
+    
+    public static long getUniqueElementId(long item_id, int idx) {
+        return ((long) idx << 60) | (item_id & ITEM_ID_MASK);
+    }
+    
     private UserId seller_id;
     private int item_ctr;
+    
+    /**
+     * We can keep a transient copy of the current price of this item in here
+     * It's just easier this way
+     */
+    private transient Double currentPrice = null;
+    
+    public ItemId() {
+        // For serialization
+    }
     
     public ItemId(UserId seller_id, int item_ctr) {
         this.seller_id = seller_id;
@@ -58,6 +80,15 @@ public class ItemId extends CompositeId {
         return (this.item_ctr);
     }
     
+    public boolean hasCurrentPrice() {
+        return (this.currentPrice != null);
+    }
+    public double getCurrentPrice() {
+        return this.currentPrice;
+    }
+    public void setCurrentPrice(double price) {
+        this.currentPrice = price;
+    }
     
     @Override
     public String toString() {
@@ -71,5 +102,23 @@ public class ItemId extends CompositeId {
                     this.item_ctr == o.item_ctr);
         }
         return (false);
+    }
+
+    // -----------------------------------------------------------------
+    // SERIALIZATION
+    // -----------------------------------------------------------------
+    
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        super.toJSON(stringer);
+        stringer.key("PRICE").value(this.currentPrice);
+    }
+    
+    @Override
+    public void fromJSON(JSONObject jsonObject, Database catalogDb) throws JSONException {
+        super.fromJSON(jsonObject, catalogDb);
+        if (jsonObject.has("PRICE") && jsonObject.isNull("PRICE") == false) {
+            this.currentPrice = jsonObject.getDouble("PRICE");
+        }
     }
 }
