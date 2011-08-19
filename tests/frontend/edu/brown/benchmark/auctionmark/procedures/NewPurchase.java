@@ -1,5 +1,7 @@
 package edu.brown.benchmark.auctionmark.procedures;
 
+import java.util.Random;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -8,6 +10,7 @@ import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
+import edu.brown.benchmark.auctionmark.util.ItemId;
 
 /**
  * NewPurchase
@@ -46,13 +49,7 @@ public class NewPurchase extends VoltProcedure{
         "   AND imb_ib_id = ib_id AND imb_ib_i_id = ib_i_id AND imb_ib_u_id = ib_u_id " +
         "   AND ib_buyer_id = u_id "
     );
-    
-    public final SQLStmt selectMaxPurchaseId = new SQLStmt(
-        "SELECT MAX(ip_id) " + 
-        "FROM " + AuctionMarkConstants.TABLENAME_ITEM_PURCHASE + " " +
-        "WHERE ip_ib_i_id = ? AND ip_ib_u_id = ?"
-    );
-    
+
     public final SQLStmt insertPurchase = new SQLStmt(
         "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_PURCHASE + "(" +
         	"ip_id," +
@@ -88,7 +85,7 @@ public class NewPurchase extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(long item_id, long seller_id) throws VoltAbortException {
+    public VoltTable run(long item_id, long seller_id, double buyer_credit) throws VoltAbortException {
         // Get the ITEM_MAX_BID record so that we know what we need to process
         voltQueueSQL(selectBuyerInfo, item_id, seller_id);
         VoltTable results[] = voltExecuteSQL();
@@ -109,21 +106,18 @@ public class NewPurchase extends VoltProcedure{
         double u_balance = results[0].getDouble(7);
         
         // Make sure that the buyer has enough money to cover this charge
-        if (ib_max_bid > u_balance) {
-            throw new VoltAbortException("Buyer does not have enough money in account to purchase item");
+        // We can add in a credit for the buyer's account
+        if (ib_max_bid > (buyer_credit + u_balance)) {
+            throw new VoltAbortException(String.format("Buyer does not have enough money in account to purchase item " +
+                                                       "[maxBid=%.2f, balance=%.2f, credit=%.2f]",
+                                                       ib_max_bid, u_balance, buyer_credit));
         }
 
         // Set item_purchase_id
-        voltQueueSQL(selectMaxPurchaseId, item_id, seller_id);
-        results = voltExecuteSQL();
-        assert (results.length == 1);
-        long ip_id = 0;
-        while (results[0].advanceRow()) {
-            long temp = results[0].getLong(0);
-            ip_id = (results[0].wasNull() ? 0 : temp + 1);
-        } // WHILE
+        long ip_id = ItemId.getUniqueElementId(item_id, 1);
 
         // Insert a new purchase
+        // System.err.println(String.format("NewPurchase: ip_id=%d, ib_bid=%.2f, item_id=%d, seller_id=%d", ip_id, ib_bid, item_id, seller_id));
         voltQueueSQL(insertPurchase, ip_id, ib_bid, item_id, seller_id, new TimestampType());
         
         // Update item status to close
@@ -133,7 +127,7 @@ public class NewPurchase extends VoltProcedure{
         voltQueueSQL(updateUserItem, ip_id, ib_bid, item_id, seller_id, ib_buyer_id, item_id, seller_id);
         
         // Decrement the buyer's account and credit the seller's account
-        voltQueueSQL(updateUserBalance, -1*(ib_max_bid), ib_buyer_id);
+        voltQueueSQL(updateUserBalance, -1*(ib_max_bid) + buyer_credit, ib_buyer_id);
         voltQueueSQL(updateUserBalance, -ib_max_bid, seller_id);
         
         results = voltExecuteSQL();

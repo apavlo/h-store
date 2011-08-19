@@ -202,25 +202,19 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
     }
     
     /**
-     * Save the information stored in the BenchmarkProfile out to a file 
+     * Save the information stored in the BenchmarkProfile out to a file
+     * and queue it to be sent to all of the clients
      * @throws IOException
      */
     public File saveProfile() {
         assert(this.profile != null);
-        File f = FileUtil.getTempFile("profile", false);
+        File f = FileUtil.getTempFile("auctionmark", false);
         if (debug.get()) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
         try {
             this.profile.save(f.getAbsolutePath());
+            this.sendFileToAllClients("BENCHMARKPROFILE", f);
         } catch (IOException ex) {
-            LOG.fatal("Failed to save BenchmarkProfile", ex);
-            System.exit(1);
-        }
-        try {
-            for (int i = 0; i < this.getNumClients(); i++) {
-                this.sendFileToClient(i, "BENCHMARKPROFILE", f);
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Failed to save BenchmarkProfile", ex);
         }
         return (f);
     }

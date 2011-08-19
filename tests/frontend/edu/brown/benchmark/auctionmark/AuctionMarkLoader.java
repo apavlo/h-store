@@ -33,16 +33,7 @@ package edu.brown.benchmark.auctionmark;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Observable;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -69,7 +60,6 @@ import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
 import edu.brown.benchmark.auctionmark.util.ItemInfo.Bid;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.RandomDistribution.Flat;
-import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
@@ -778,15 +768,17 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     protected class UserGenerator extends AbstractTableGenerator {
         private final Zipf randomBalance;
         private final Flat randomRegion;
-        private final Gaussian randomRating;
+        private final Zipf randomRating;
         private UserIdGenerator idGenerator;
         
         public UserGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER,
                   AuctionMarkConstants.TABLENAME_REGION);
             this.randomRegion = new Flat(AuctionMarkLoader.this.rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION);
-            this.randomRating = new Gaussian(AuctionMarkLoader.this.rng, 0, 6);
-            this.randomBalance = new Zipf(AuctionMarkLoader.this.rng, 0, 501, 1.001);
+            this.randomRating = new Zipf(AuctionMarkLoader.this.rng, AuctionMarkConstants.USER_MIN_RATING,
+                                                                     AuctionMarkConstants.USER_MAX_RATING, 1.0001);
+            this.randomBalance = new Zipf(AuctionMarkLoader.this.rng, AuctionMarkConstants.USER_MIN_BALANCE,
+                                                                      AuctionMarkConstants.USER_MAX_BALANCE, 1.001);
         }
 
         @Override
@@ -918,6 +910,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             itemInfo.endDate = this.getRandomEndTimestamp();
             itemInfo.startDate = this.getRandomStartTimestamp(itemInfo.endDate);
             itemInfo.initialPrice = profile.randomInitialPrice.nextInt();
+            assert(itemInfo.initialPrice > 0) : "Invalid initial price for " + itemId;
             itemInfo.numImages = (short) profile.randomNumImages.nextInt();
             itemInfo.numAttributes = (short) profile.randomNumAttributes.nextInt();
             
@@ -949,13 +942,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     //System.out.println("@@@ z last_bidder_id = " + itemInfo.last_bidder_id);
                     itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.endDate);
                     itemInfo.numComments = (short) profile.randomNumComments.nextInt();
-                    profile.addCompleteItem(itemInfo.id);
+                    profile.addCompleteItemId(itemInfo.id);
                 }
             }
             // Item is still available
             else {
             	itemInfo.stillAvailable = true;
-            	profile.addAvailableItem(itemInfo.id);
+            	profile.addAvailableItemId(itemInfo.id);
             	if (itemInfo.numBids > 0) {
             		itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
             	}
@@ -1194,7 +1187,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             if (remaining == 0 && itemInfo.purchaseDate != null) {
                 assert(itemInfo.getBidCount() == itemInfo.numBids) : String.format("%d != %d\n%s",
                                                                                    itemInfo.getBidCount(), itemInfo.numBids, itemInfo);
-                profile.addWaitForPurchaseItem(itemInfo.id);
+                profile.addWaitForPurchaseItemId(itemInfo.id);
             }
             
             // IB_ID

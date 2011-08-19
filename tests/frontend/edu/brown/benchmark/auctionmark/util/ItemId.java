@@ -83,10 +83,11 @@ public class ItemId extends CompositeId {
     public boolean hasCurrentPrice() {
         return (this.currentPrice != null);
     }
-    public double getCurrentPrice() {
+    public Double getCurrentPrice() {
         return this.currentPrice;
     }
     public void setCurrentPrice(double price) {
+        assert(price >= 0) : "Negative price for " + this;
         this.currentPrice = price;
     }
     

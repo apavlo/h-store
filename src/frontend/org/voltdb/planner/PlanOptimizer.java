@@ -114,7 +114,7 @@ public class PlanOptimizer {
         // Check if our tree contains anything that we want to ignore
         Collection<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
         if (trace.get())
-            LOG.trace("PlanNodeTypes: " + types);
+            LOG.trace(sql + " - PlanNodeTypes: " + types);
         for (PlanNodeType t : TO_IGNORE) {
             if (types.contains(t)) {
                 if (trace.get())
@@ -130,7 +130,12 @@ public class PlanOptimizer {
         this.populateTableNodeInfo(root);
         
         if (debug.get()) LOG.debug(StringUtil.header("APPLYING OPTIMIZATIONS"));
-        this.process(root);
+        try {
+            this.process(root);
+        } catch (Throwable ex) {
+            LOG.warn("Failed to optimize SQL\n" + sql, ex);
+            return (null);
+        }
         
         return (this.new_root);
     }
@@ -1112,7 +1117,7 @@ public class PlanOptimizer {
      * @return
      * @throws Exception
      */
-    protected boolean updateProjectionColumns(ProjectionPlanNode node) {
+    protected boolean updateProjectionColumns(final ProjectionPlanNode node) {
         assert (node.getChildPlanNodeCount() == 1) : node;
         final AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
@@ -1155,7 +1160,7 @@ public class PlanOptimizer {
                             new_child_pc = null;
                             new_idx++;
                         } // FOR
-                        assert (new_child_pc != null);
+                        assert (new_child_pc != null) : String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
                         tv_exp.setColumnIndex(new_idx);
                     }
                 }

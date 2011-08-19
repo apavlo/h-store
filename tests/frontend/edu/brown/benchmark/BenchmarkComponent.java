@@ -524,8 +524,9 @@ public abstract class BenchmarkComponent {
 
 
     /**
-     * Queue a local file to be sent to the client with the given client id. The file will be copied into
-     * the path specified by remote_file. When the client is started it will be passed argument <parameter>=<remote_file>
+     * Queue a local file to be sent to the client with the given client id.
+     * The file will be copied into the path specified by remote_file.
+     * When the client is started it will be passed argument <parameter>=<remote_file>
      * @param client_id
      * @param parameter
      * @param local_file
@@ -536,11 +537,31 @@ public abstract class BenchmarkComponent {
         this.uploader.sendFileToClient(client_id, parameter, local_file, remote_file);
         LOG.debug(String.format("Queuing local file '%s' to be sent to client %d as parameter '%s' to remote file '%s'", local_file, client_id, parameter, remote_file));
     }
+    
+    /**
+     * 
+     * @param client_id
+     * @param parameter
+     * @param local_file
+     * @throws IOException
+     */
     public void sendFileToClient(int client_id, String parameter, File local_file) throws IOException {
         String suffix = FileUtil.getExtension(local_file);
         String prefix = String.format("%s-%02d-", local_file.getName().replace("." + suffix, ""), client_id);
         File remote_file = FileUtil.getTempFile(prefix, suffix, false);
         sendFileToClient(client_id, parameter, local_file, remote_file);
+    }
+    
+    /**
+     * Queue a local file to be sent to all clients
+     * @param parameter
+     * @param local_file
+     * @throws IOException
+     */
+    public void sendFileToAllClients(String parameter, File local_file) throws IOException {
+        for (int i = 0, cnt = this.getNumClients(); i < cnt; i++) {
+            this.sendFileToClient(i, parameter, local_file);
+        } // FOR
     }
     
     protected void setBenchmarkClientFileUploader(BenchmarkClientFileUploader uploader) {

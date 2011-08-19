@@ -35,9 +35,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.json.JSONException;
@@ -430,7 +432,19 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private boolean addItem(LinkedList<ItemId> itemSet, ItemId itemId) {
         boolean added = false;
         synchronized (itemSet) {
-            if (itemSet.contains(itemId)) return (true);
+            if (itemSet.contains(itemId)) {
+                // HACK: Swap them if the one we already have doesn't have
+                // the current price set but the new one does
+                if (itemId.hasCurrentPrice()) {
+                    int idx = itemSet.indexOf(itemId);
+                    if (itemSet.get(idx).hasCurrentPrice() == false) {
+                        itemSet.set(idx, itemId);
+                    }
+                }
+                return (true);
+            }
+            if (itemId.hasCurrentPrice()) 
+                assert(itemId.getCurrentPrice() > 0) : "Negative current price for " + itemId;
             
             // If we have room, shove it right in
             // We'll throw it in the back because we know it hasn't been used yet
@@ -454,44 +468,63 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     }
     private ItemId getRandomItemId(LinkedList<ItemId> itemSet, boolean hasCurrentPrice) {
         ItemId itemId = null;
+        Set<ItemId> seen = new HashSet<ItemId>();
         synchronized (itemSet) {
             int num_items = itemSet.size();
             Integer partition = null;
             int idx = -1;
-            while (num_items > 0) {
+            
+            if (debug.get()) 
+                LOG.info(String.format("Getting random ItemId [numItems=%d, hasCurrentPrice=%s]",
+                                       num_items, hasCurrentPrice));
+            while (num_items > 0 && seen.size() < num_items) {
                 partition = null;
                 idx = this.rng.nextInt(num_items);
-                itemId = itemSet.get(idx);
-                assert(itemId != null);
+                ItemId tempId = itemSet.get(idx);
+                assert(tempId != null);
+                if (seen.contains(tempId)) continue;
+                seen.add(tempId);
                 
                 // Needs to have an embedded currentPrice
-                if (hasCurrentPrice && itemId.hasCurrentPrice() == false) {
+                if (hasCurrentPrice && tempId.hasCurrentPrice() == false) {
                     continue;
                 }
                 
                 // Uniform
                 if (this.window_size == null) {
+                    itemId = tempId;
                     break;
                 }
                 // Temporal Skew
-                partition = this.getPartition(itemId.getSellerId());
+                partition = this.getPartition(tempId.getSellerId());
                 if (this.window_partitions.contains(partition)) {
                     this.window_histogram.put(partition);
+                    itemId = tempId;
                     break;
                 }
             } // WHILE
-            if (itemId == null) return (null);
+            if (itemId == null) {
+                if (debug.get()) LOG.debug("Failed to find ItemId [hasCurrentPrice=" + hasCurrentPrice + "]");
+                return (null);
+            }
             assert(idx >= 0);
+            
+            // Take the item out of the set and insert back to the front
+            // This is so that we can maintain MRU->LRU ordering
             itemSet.remove(idx);
             itemSet.addFirst(itemId);
         } // SYNCHRONIZED
+        if (hasCurrentPrice) {
+            assert(itemId.hasCurrentPrice()) : "Missing current price for " + itemId;
+            assert(itemId.getCurrentPrice() > 0) : "Negative current price for " + itemId;
+        }
         return itemId;
     }
     
-    public void addAvailableItem(ItemId itemId) {
+    public void addAvailableItemId(ItemId itemId) {
         this.addItem(this.user_available_items, itemId);
     }
-    public void removeAvailableItem(ItemId itemId) {
+    public void removeAvailableItemId(ItemId itemId) {
         this.removeItem(this.user_available_items, itemId);
     }
     public ItemId getRandomAvailableItemId() {
@@ -504,10 +537,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return this.user_available_items.size();
     }
     
-    public void addWaitForPurchaseItem(ItemId itemId) {
+    public void addWaitForPurchaseItemId(ItemId itemId) {
         this.addItem(this.user_wait_for_purchase_items, itemId);
     }
-    public void removeWaitForPurchaseItem(ItemId itemId) {
+    public void removeWaitForPurchaseItemId(ItemId itemId) {
         this.removeItem(this.user_wait_for_purchase_items, itemId);
     }
     public ItemId getRandomWaitForPurchaseItemId() {
@@ -517,10 +550,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return this.user_wait_for_purchase_items.size();
     }
     
-    public void addCompleteItem(ItemId itemId) {
+    public void addCompleteItemId(ItemId itemId) {
         this.addItem(this.user_complete_items, itemId);
     }
-    public void removeCompleteItem(ItemId itemId) {
+    public void removeCompleteItemId(ItemId itemId) {
         this.removeItem(this.user_complete_items, itemId);
     }
     public ItemId getRandomCompleteItemId() {
