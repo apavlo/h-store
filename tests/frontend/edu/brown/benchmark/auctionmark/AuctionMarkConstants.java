@@ -36,56 +36,27 @@ import java.util.*;
 public abstract class AuctionMarkConstants {
     
     // ----------------------------------------------------------------
-    // DATA INFORMATION
-    // ----------------------------------------------------------------
-
-    public enum BidType {
-        AUCTION,
-        BUYNOW
-    } 
-    
-    public static final int STATUS_ITEM_OPEN                    = 0;
-    public static final int STATUS_ITEM_WAITING_FOR_PURCHASE    = 1;
-    public static final int STATUS_ITEM_CLOSED                  = 2;
-    
-    public static final long NO_WINNING_BID                     = -1;
-    
-    // ----------------------------------------------------------------
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
     
     // the maximum number of IDs that can be generated in each client (for each table)
     public static final long MAXIMUM_CLIENT_IDS = 100000000000000l;
     
-    public static final long INTERVAL_CHECK_WINNING_BIDS    = 10000; // Check winning bid's frequency in millisecond
-    public static final boolean ENABLE_CHECK_WINNING_BIDS   = false;
-    
     // Non-standard txns
-    public static final int FREQUENCY_CHECK_WINNING_BIDS    = -1; // called at regular intervals
-    public static final int FREQUENCY_POST_AUCTION          = -1; // called after CHECK_WINNING_BIDS
+    public static final int FREQUENCY_CLOSE_AUCTIONS    = -1; // called at regular intervals
+    public static final boolean ENABLE_CLOSE_AUCTIONS   = true;
+    public static final long INTERVAL_CLOSE_AUCTIONS    = 10000; // Check winning bid's frequency in millisecond
     
     // Regular Txn Mix
-    
-//    public static final int FREQUENCY_GET_ITEM              = 45;
-//    public static final int FREQUENCY_GET_USER_INFO         = 10;
-//    public static final int FREQUENCY_NEW_BID               = 18;
-//    public static final int FREQUENCY_NEW_COMMENT           = 2; // total FREQUENCY_GET_COMMENT = FREQUENCY_GET_COMMENT + FREQUENCY_NEW_COMMENT_RESPONSE because FREQUENCY_NEW_COMMENT_RESPONSE depend on FREQUENCY_GET_COMMENT 
-//    public static final int FREQUENCY_GET_COMMENT           = 2;
-//    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 1;
-//    public static final int FREQUENCY_NEW_FEEDBACK          = 3;
-//    public static final int FREQUENCY_NEW_ITEM              = 10;
-//    public static final int FREQUENCY_NEW_PURCHASE          = 2;
-//    public static final int FREQUENCY_UPDATE_ITEM           = 2;
-    
-    public static final int FREQUENCY_GET_ITEM              = 33;
-    public static final int FREQUENCY_GET_USER_INFO         = 33;
-    public static final int FREQUENCY_NEW_BID               = 34;
-    public static final int FREQUENCY_NEW_COMMENT           = 0;  
-    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
-    public static final int FREQUENCY_NEW_FEEDBACK          = 0;
-    public static final int FREQUENCY_NEW_ITEM              = 0;
-    public static final int FREQUENCY_NEW_PURCHASE          = 0;
-    public static final int FREQUENCY_UPDATE_ITEM           = 0;
+    public static final int FREQUENCY_GET_ITEM              = 25;
+    public static final int FREQUENCY_GET_USER_INFO         = 15;
+    public static final int FREQUENCY_NEW_BID               = 20;
+    public static final int FREQUENCY_NEW_COMMENT           = 5;  
+    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 5;
+    public static final int FREQUENCY_NEW_FEEDBACK          = 5;
+    public static final int FREQUENCY_NEW_ITEM              = 10;
+    public static final int FREQUENCY_NEW_PURCHASE          = 5;
+    public static final int FREQUENCY_UPDATE_ITEM           = 10;
     
     // ----------------------------------------------------------------
     // DEFAULT TABLE SIZES
@@ -102,25 +73,23 @@ public abstract class AuctionMarkConstants {
     
     public static final int USER_MIN_ATTRIBUTES = 0;
     public static final int USER_MAX_ATTRIBUTES = 5;
-        
-    // ----------------------------------------------------------------
-    // SELLER PARAMETERS
-    // ----------------------------------------------------------------
     
-    public static final float SELLER_PERCENT = 10.0f;
-    public static final int SELLER_MAX_ITEM = 1000;
+    public static final long USER_MIN_BALANCE   = 1000;
+    public static final long USER_MAX_BALANCE   = 100000;
+    
+    public static final long USER_MIN_RATING   = 0;
+    public static final long USER_MAX_RATING   = 10000;
     
     // ----------------------------------------------------------------
     // ITEM PARAMETERS
     // ----------------------------------------------------------------
     
     public static final int ITEM_MIN_INITIAL_PRICE = 1;
-    public static final int ITEM_MAX_INITIAL_PRICE = 1000000;
-    public static final int ITEM_MAX_FINAL_PRICE = 10000000;
+    public static final int ITEM_MAX_INITIAL_PRICE = 1000;
     public static final int ITEM_MIN_ITEMS_PER_SELLER = 0;
     public static final int ITEM_MAX_ITEMS_PER_SELLER = 10000;
     public static final int ITEM_MIN_BIDS_PER_DAY = 0;
-    public static final int ITEM_MAX_BIDS_PER_DAY = 12;
+    public static final int ITEM_MAX_BIDS_PER_DAY = 10;
     public static final int ITEM_MIN_WATCHES_PER_DAY = 0;
     public static final int ITEM_MAX_WATCHES_PER_DAY = 20;
     public static final int ITEM_MIN_IMAGES = 1;
@@ -130,10 +99,14 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MIN_GLOBAL_ATTRS = 1;
     public static final int ITEM_MAX_GLOBAL_ATTRS = 10;
     
+    public static final int STATUS_ITEM_OPEN                    = 0;
+    public static final int STATUS_ITEM_WAITING_FOR_PURCHASE    = 1;
+    public static final int STATUS_ITEM_CLOSED                  = 2;
+    
     /**
      * When an item receives a bid we will increase its price by this amount
      */
-    public static final float ITEM_BID_PERCENT_STEP = 0.05f;
+    public static final float ITEM_BID_PERCENT_STEP = 0.025f;
     
     public static final int ITEM_MAX_PURCHASE_DURATION_DAYS = 7;
     
@@ -167,7 +140,7 @@ public abstract class AuctionMarkConstants {
     public static final long BATCHSIZE_ITEM_MAX_BID             = 5000;
     public static final long BATCHSIZE_ITEM_PURCHASE            = 5000;
     
-    public static final long BATCHSIZE_POST_AUCTION             = 25;
+    public static final long BATCHSIZE_CLOSE_AUCTIONS_UPDATES             = 25;
     
     // ----------------------------------------------------------------
     // TABLE NAMES
@@ -261,5 +234,8 @@ public abstract class AuctionMarkConstants {
     public static final int PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS = 50;
     
     public static final int PROB_UPDATEITEM_DELETE_ATTRIBUTE = 25;
-    public static final int PROB_UPDATEITEM_ADD_ATTRIBUTE = 25;
+    public static final int PROB_UPDATEITEM_ADD_ATTRIBUTE = -1; // 25;
+    
+    /** The probability that a buyer will not have enough money to purchase an item (1-100) */
+    public static final int PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY = 1;
 }

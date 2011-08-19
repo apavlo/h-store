@@ -48,7 +48,7 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = AuctionMarkLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
-        CheckWinningBids.class,
+        CloseAuctions.class,
         GetItem.class,
         GetUserInfo.class,
         NewBid.class,
@@ -57,13 +57,12 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         NewFeedback.class,
         NewItem.class,
         NewPurchase.class,
-        PostAuction.class,
         UpdateItem.class,
     };
     
     // Transaction Frequencies
     {
-        addTransactionFrequency(CheckWinningBids.class, AuctionMarkConstants.FREQUENCY_CHECK_WINNING_BIDS);
+        addTransactionFrequency(CloseAuctions.class, AuctionMarkConstants.FREQUENCY_CLOSE_AUCTIONS);
         addTransactionFrequency(GetItem.class, AuctionMarkConstants.FREQUENCY_GET_ITEM);
         addTransactionFrequency(GetUserInfo.class, AuctionMarkConstants.FREQUENCY_GET_USER_INFO);
         addTransactionFrequency(NewBid.class, AuctionMarkConstants.FREQUENCY_NEW_BID);
@@ -72,7 +71,6 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(NewFeedback.class, AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK);
         addTransactionFrequency(NewItem.class, AuctionMarkConstants.FREQUENCY_NEW_ITEM);
         addTransactionFrequency(NewPurchase.class, AuctionMarkConstants.FREQUENCY_NEW_PURCHASE);
-        addTransactionFrequency(PostAuction.class, AuctionMarkConstants.FREQUENCY_POST_AUCTION);
         addTransactionFrequency(UpdateItem.class, AuctionMarkConstants.FREQUENCY_UPDATE_ITEM);
     }
     

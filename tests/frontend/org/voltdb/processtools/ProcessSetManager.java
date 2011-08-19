@@ -119,7 +119,6 @@ public class ProcessSetManager implements Shutdownable {
             this.setDaemon(true);
             this.setPriority(MIN_PRIORITY);
         }
-        
         @Override
         public void run() {
             try {
@@ -131,18 +130,18 @@ public class ProcessSetManager implements Shutdownable {
                 this.is_alive = false;
             }
         }
-        
         public boolean isProcessAlive() {
             return (this.is_alive);
         }
-    }
+    } // END CLASS
     
     class ProcessSetPoller extends Thread {
-        {
+        boolean reported_error = false;
+        
+        ProcessSetPoller() {
             this.setDaemon(true);
             this.setPriority(MIN_PRIORITY);
         }
-        
         @Override
         public void run() {
             if (debug.get()) LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
@@ -156,16 +155,17 @@ public class ProcessSetManager implements Shutdownable {
                 }
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
                     ProcessData pd = e.getValue();
-                    if (pd.poller != null && pd.poller.isProcessAlive() == false) {
+                    if (pd.poller != null && pd.poller.isProcessAlive() == false && reported_error == false) {
                         String msg = String.format("Failed to poll '%s'", e.getKey());
                         LOG.error(msg);
                         failure_observable.notifyObservers(e.getKey());
+                        reported_error = true;
                     }
                 } // FOR
                 first = false;
             } // WHILE
         }
-    }
+    } // END CLASS
     
     class StreamWatcher extends Thread {
         final BufferedReader m_reader;

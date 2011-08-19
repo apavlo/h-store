@@ -49,7 +49,7 @@ public class GetUserInfo extends VoltProcedure {
     );
 
     public final SQLStmt selectItemComments = new SQLStmt(
-        "SELECT " + ITEM_COLUMNS +
+        "SELECT " + ITEM_COLUMNS + ", " +
         "       ic_id, ic_i_id, ic_u_id, ic_buyer_id, ic_date, ic_question " +
         "  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " + 
                     AuctionMarkConstants.TABLENAME_ITEM_COMMENT +

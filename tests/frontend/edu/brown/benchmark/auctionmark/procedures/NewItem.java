@@ -31,7 +31,8 @@ public class NewItem extends VoltProcedure {
     
 	private static final VoltTable.ColumnInfo RESULT_COLS[] = {
         new VoltTable.ColumnInfo("i_id", VoltType.BIGINT), 
-        new VoltTable.ColumnInfo("i_u_id", VoltType.BIGINT)
+        new VoltTable.ColumnInfo("i_u_id", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("i_current_price", VoltType.FLOAT),
 	};
 	
 	// -----------------------------------------------------------------
@@ -217,7 +218,7 @@ public class NewItem extends VoltProcedure {
 
         // Return new item_id and user_id
         VoltTable ret = new VoltTable(RESULT_COLS);
-        ret.addRow(new Object[] { item_id, seller_id });
+        ret.addRow(new Object[] { item_id, seller_id, initial_price });
         return ret;
     }
 }

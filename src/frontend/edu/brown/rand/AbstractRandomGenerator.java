@@ -175,7 +175,7 @@ public abstract class AbstractRandomGenerator extends Random {
      */
     public double fixedPoint(int decimal_places, double minimum, double maximum) {
         assert decimal_places > 0;
-        assert minimum < maximum;
+        assert minimum < maximum : String.format("%f < %f", minimum, maximum);
 
         int multiplier = 1;
         for (int i = 0; i < decimal_places; ++i) {
