@@ -267,6 +267,22 @@ def setup_env():
                 put(local_file, remote_file, mode=0600)
     ## WITH
     
+    # Bash Aliases
+    code_dir = os.path.join("$HOME", "hstore", os.path.basename(env["hstore.svn"]))
+    log_dir = env.get("site.log_dir", "/tmp/hstore/logs/sites")
+    aliases = {
+        # H-Store Home
+        'hh':  'cd ' + code_dir,
+        # H-Store Site Logs
+        'hl':  'cd ' + log_dir,
+        # General Aliases
+        'rmf': 'rm -rf',
+        'la':  'ls -lh',
+        'h':   'history',
+    }
+    aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
+    update_conf(".bashrc", aliases, noSpaces=True)
+    
 ## DEF
 
 ## ----------------------------------------------
@@ -346,7 +362,7 @@ def deploy_hstore():
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", json=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -366,7 +382,7 @@ def exec_benchmark(project="tpcc", json=False):
         host_id += 1
 
     ## Update H-Store Conf file
-    write_conf(project)
+    write_conf(project, removals)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
@@ -395,27 +411,39 @@ def exec_benchmark(project="tpcc", json=False):
 ## write_conf
 ## ----------------------------------------------
 @task
-def write_conf(project):
+def write_conf(project, removals=[ ]):
     assert project
     prefix_include = [ 'site', 'coordinator', 'client', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
-    hstore_conf = { }
-    benchmark_conf = { }
+    hstoreConf_updates = { }
+    hstoreConf_removals = set()
+    benchmarkConf_updates = { }
+    benchmarkConf_removals = set()
     
     for key in env.keys():
         prefix = key.split(".")[0]
         if not prefix in prefix_include: continue
-        
         if prefix == "benchmark":
-            benchmark_conf[key.split(".")[-1]] = env[key]
+            benchmarkConf_updates[key.split(".")[-1]] = env[key]
         else:
-            hstore_conf[key] = env[key]
+            hstoreConf_updates[key] = env[key]
+    ## FOR
+    for key in removals:
+        prefix = key.split(".")[0]
+        if not prefix in prefix_include: continue
+        if prefix == "benchmark":
+            key = key.split(".")[-1]
+            assert not key in benchmarkConf_updates
+            benchmarkConf_removals.add(key)
+        else:
+            assert not key in hstoreConf_updates
+            hstoreConf_removals.add(key)
     ## FOR
 
     with cd(code_dir):
-        update_conf("properties/default.properties", hstore_conf)
-        update_conf("properties/benchmarks/%s.properties" % project, benchmark_conf)
+        update_conf("properties/default.properties", hstoreConf_updates, hstoreConf_removals)
+        update_conf("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals)
     ## WITH
 ## DEF
 
@@ -423,17 +451,33 @@ def write_conf(project):
 ## update_conf
 ## ----------------------------------------------
 @task
-def update_conf(conf_file, conf):
+def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
     with hide('running', 'stdout'):
         first = True
-        for key in conf.keys():
-            hstore_line = "%s = %s" % (key, conf[key])
+        space = "" if noSpaces else " "
+        
+        ## Keys we want to update/insert
+        for key, val in updates.items():
+            hstore_line = "%s%s=%s%s" % (key, space, space, val)
+            try:
+                if contains(conf_file, key):
+                    sed(conf_file, "%s[ ]*=.*" % re.escape(key), hstore_line)
+                    LOG.debug("Updated '%s' in %s to be '%s'" % (key, conf_file, val))
+                else:
+                    if first: hstore_line = "\n" + hstore_line
+                    append(conf_file, hstore_line + "\n")
+                    first = False
+                    LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
+            except:
+                LOG.error("Failed to update '%s' with key '%s'" % (conf_file, key))
+                raise
+        ## FOR
+        
+        ## Keys we need to completely remove from the file
+        for key in removals:
             if contains(conf_file, key):
-                sed(conf_file, "%s[ ]*=.*" % re.escape(key), hstore_line)
-            else:
-                if first: hstore_line = "\n" + hstore_line
-                append(conf_file, hstore_line + "\n")
-                first = False
+                sed(conf_file, "%s[ ]*=.*" % re.escape(key), "")
+                LOG.debug("Removed '%s' in %s" % (key, conf_file))
         ## FOR
     ## WITH
 ## DEF

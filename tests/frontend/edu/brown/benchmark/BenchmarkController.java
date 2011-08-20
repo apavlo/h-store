@@ -1264,15 +1264,17 @@ public class BenchmarkController {
         
         for (String arg : vargs) {
             String[] parts = arg.split("=",2);
+            for (int i = 0; i < parts.length; i++)
+                parts[1] = parts[1].trim();
+            
             if (parts.length == 1) {
                 continue;
             } else if (parts[1].startsWith("${")) {
                 continue;
-                
+            /* HStoreConf File Path */
             } else if (parts[0].equalsIgnoreCase("CONF")) {
                 hstore_conf_path = parts[1];
-                
-                
+            /* Benchmark Configuration File Path */
             } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
 
