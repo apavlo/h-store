@@ -33,19 +33,17 @@ package edu.brown.benchmark.auctionmark;
 
 import java.util.*;
 
+import org.voltdb.types.TimestampType;
+
 public abstract class AuctionMarkConstants {
     
     // ----------------------------------------------------------------
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
     
-    // the maximum number of IDs that can be generated in each client (for each table)
-    public static final long MAXIMUM_CLIENT_IDS = 100000000000000l;
-    
     // Non-standard txns
     public static final int FREQUENCY_CLOSE_AUCTIONS    = -1; // called at regular intervals
     public static final boolean ENABLE_CLOSE_AUCTIONS   = true;
-    public static final long INTERVAL_CLOSE_AUCTIONS    = 10000; // Check winning bid's frequency in millisecond
     
     // Regular Txn Mix
     public static final int FREQUENCY_GET_ITEM              = 25;
@@ -57,6 +55,16 @@ public abstract class AuctionMarkConstants {
     public static final int FREQUENCY_NEW_ITEM              = 10;
     public static final int FREQUENCY_NEW_PURCHASE          = 5;
     public static final int FREQUENCY_UPDATE_ITEM           = 10;
+    
+//    public static final int FREQUENCY_GET_ITEM              = 50;
+//    public static final int FREQUENCY_GET_USER_INFO         = 0;
+//    public static final int FREQUENCY_NEW_BID               = 50;
+//    public static final int FREQUENCY_NEW_COMMENT           = 0;  
+//    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
+//    public static final int FREQUENCY_NEW_FEEDBACK          = 0;
+//    public static final int FREQUENCY_NEW_ITEM              = 0;
+//    public static final int FREQUENCY_NEW_PURCHASE          = 0;
+//    public static final int FREQUENCY_UPDATE_ITEM           = 0;
     
     // ----------------------------------------------------------------
     // DEFAULT TABLE SIZES
@@ -99,25 +107,37 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MIN_GLOBAL_ATTRS = 1;
     public static final int ITEM_MAX_GLOBAL_ATTRS = 10;
     
-    public static final int STATUS_ITEM_OPEN                    = 0;
-    public static final int STATUS_ITEM_WAITING_FOR_PURCHASE    = 1;
-    public static final int STATUS_ITEM_CLOSED                  = 2;
+    public static final int ITEM_STATUS_OPEN                    = 0;
+    public static final int ITEM_STATUS_WAITING_FOR_PURCHASE    = 1;
+    public static final int ITEM_STATUS_CLOSED                  = 2;
     
-    /**
-     * When an item receives a bid we will increase its price by this amount
-     */
+    /** When an item receives a bid we will increase its price by this amount */
     public static final float ITEM_BID_PERCENT_STEP = 0.025f;
     
+    /** How long should we wait before the buyer purchases an item that they won */
     public static final int ITEM_MAX_PURCHASE_DURATION_DAYS = 7;
     
-    //public static final int ITEM_PERCENT_SOLD = 20;
-    // Duration in days that expired bids are preserved
-    public static final int ITEM_PRESERVE_DAYS = 30;
-    // Maximum duration in days for each auction
+    /** Duration in days that expired bids are preserved */
+    public static final int ITEM_PRESERVE_DAYS = 7;
+    
+    /** The duration in days for each auction */
     public static final int ITEM_MAX_DURATION_DAYS = 7;
     public static final int ITEM_MAX_PURCHASE_DAY = 7;
     
+    /**
+     * This defines the maximum size of a small cache of ItemIds that
+     * we maintain in the benchmark profile. For some procedures, the client will 
+     * ItemIds out of this cache and use them as txn parameters 
+     */
     public static final int ITEM_ID_CACHE_SIZE  = 500;
+    
+    /**
+     * If the amount of time (in milliseconds) remaining for an item auction
+     * is less than this parameter, then it will be added to a special queue
+     * in the client. We will increase the likelihood that a users will bid on these
+     * items as it gets closer to their end times
+     */
+    public static final long ITEM_ENDING_SOON = 600000; // 10 minutes
     
     // ----------------------------------------------------------------
     // DEFAULT BATCH SIZES
@@ -214,6 +234,26 @@ public abstract class AuctionMarkConstants {
     	DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
     }
 
+    // ----------------------------------------------------------------
+    // TIME PARAMETERS
+    // ----------------------------------------------------------------
+    
+    /**
+     * 1 sec in real time equals this value in the benchmark's virtual time in seconds
+     */
+    public static final long TIME_SCALE_FACTOR = 3600l; // one hour
+    
+    public static TimestampType getScaledTimestamp(TimestampType start, TimestampType current) {
+        if (start == null || current == null) return (null);
+        long elapsed = current.getTime() - start.getTime();
+        long scale = Math.round((elapsed / 1000000.0) *  AuctionMarkConstants.TIME_SCALE_FACTOR) * 1000000;
+        return (new TimestampType(current.getTime() + scale));
+    }
+    
+    
+    /** How often to execute CLOSE_AUCTIONS in virtual milliseconds */
+    public static final long INTERVAL_CLOSE_AUCTIONS    = 3600000l; // Check winning bid's frequency in millisecond
+    
     public static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
     public static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;
     public static final long MICROSECONDS_IN_A_DAY = MILLISECONDS_IN_A_DAY * 1000;
@@ -238,4 +278,10 @@ public abstract class AuctionMarkConstants {
     
     /** The probability that a buyer will not have enough money to purchase an item (1-100) */
     public static final int PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY = 1;
+    
+    /** The probability that the NewBid txn will try to bid on a closed item (1-100) */
+    public static final int PROB_NEWBID_CLOSED_ITEM = 5;
+    
+    /** The probability that a NewBid txn will target an item whose auction is ending soon (1-100) */
+    public static final int PROB_NEWBID_ENDINGSOON_ITEM = 50;
 }

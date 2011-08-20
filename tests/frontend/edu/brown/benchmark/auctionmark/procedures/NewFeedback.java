@@ -12,7 +12,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 @ProcInfo (
-    partitionInfo = "USER.U_ID: 1",
+    partitionInfo = "USER.U_ID: 2",
     singlePartition = true
 )
 public class NewFeedback extends VoltProcedure{
@@ -30,7 +30,7 @@ public class NewFeedback extends VoltProcedure{
     // STATEMENTS
     // -----------------------------------------------------------------
     
-    public final SQLStmt selectMaxFeedback = new SQLStmt(
+    public final SQLStmt getMaxFeedback = new SQLStmt(
         "SELECT MAX(uf_id) " + 
         "  FROM " + AuctionMarkConstants.TABLENAME_USER_FEEDBACK + " " + 
         " WHERE uf_i_id = ? AND uf_u_id = ?"
@@ -60,7 +60,8 @@ public class NewFeedback extends VoltProcedure{
     
     public final SQLStmt updateUser = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
-           "SET u_rating = u_rating + ? " + 
+           "SET u_rating = u_rating + ?, " +
+           "    u_updated = ? " +
         " WHERE u_id = ?"
     );
     
@@ -68,13 +69,13 @@ public class NewFeedback extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(long i_id, long seller_id, long buyer_id, long rating, String comment) {
+    public VoltTable run(TimestampType benchmarkStart, long i_id, long seller_id, long buyer_id, long rating, String comment) {
+        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
-        if (debug)
-            LOG.debug("NewFeedback::: selecting max feedback");
+        if (debug) LOG.debug("NewFeedback::: selecting max feedback");
 
         // Set comment_id
-        voltQueueSQL(selectMaxFeedback, i_id, seller_id);
+        voltQueueSQL(getMaxFeedback, i_id, seller_id);
         VoltTable[] results = voltExecuteSQL();
         assert (1 == results.length);
         long if_id = -1;
@@ -85,15 +86,11 @@ public class NewFeedback extends VoltProcedure{
             if_id = results[0].getLong(0) + 1;
         }
 
-        if (debug)
-            LOG.debug("NewFeedback::: if_id = " + if_id);
-
-        voltQueueSQL(insertFeedback, if_id, seller_id, i_id, seller_id, buyer_id, rating, new TimestampType(), comment);
-        voltQueueSQL(updateUser, rating, seller_id);
+        if (debug) LOG.debug("NewFeedback::: if_id = " + if_id);
+        voltQueueSQL(insertFeedback, if_id, seller_id, i_id, seller_id, buyer_id, rating, currentTime, comment);
+        voltQueueSQL(updateUser, rating, currentTime, seller_id);
         voltExecuteSQL();
-
-        if (debug)
-            LOG.debug("NewFeedback::: feedback inserted ");
+        if (debug) LOG.debug("NewFeedback::: feedback inserted ");
 
         // Return new if_id
         VoltTable ret = new VoltTable(RESULT_COLS);

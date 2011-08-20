@@ -65,6 +65,11 @@ public class UserId extends CompositeId {
         return String.format("UserId{itemCount=%d,offset=%d}",
                              this.itemCount, this.offset);
     }
+    
+    public static String toString(long userId) {
+        return new UserId(userId).toString();
+    }
+    
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof UserId) {

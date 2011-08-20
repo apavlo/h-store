@@ -1,7 +1,5 @@
 package edu.brown.benchmark.auctionmark.procedures;
 
-import java.util.Random;
-
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -18,6 +16,7 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
  * @author visawee
  */
 @ProcInfo (
+    partitionInfo = "USER.U_ID: 2",
     singlePartition = true
 )
 public class NewPurchase extends VoltProcedure{
@@ -27,10 +26,14 @@ public class NewPurchase extends VoltProcedure{
     // -----------------------------------------------------------------
     
     private static final VoltTable.ColumnInfo[] RESULT_COLS = {
+        new VoltTable.ColumnInfo("i_id", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("i_u_id", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("i_num_bids", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("i_current_price", VoltType.FLOAT),
+        new VoltTable.ColumnInfo("i_end_date", VoltType.TIMESTAMP),
+        new VoltTable.ColumnInfo("i_status", VoltType.BIGINT),
         new VoltTable.ColumnInfo("ip_id", VoltType.BIGINT),
         new VoltTable.ColumnInfo("ip_ib_id", VoltType.BIGINT), 
-        new VoltTable.ColumnInfo("ip_ib_i_id", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("u_id", VoltType.BIGINT),
         new VoltTable.ColumnInfo("ip_ib_u_id", VoltType.BIGINT)
     };
     
@@ -38,18 +41,26 @@ public class NewPurchase extends VoltProcedure{
     // STATEMENTS
     // -----------------------------------------------------------------
     
-    public final SQLStmt selectBuyerInfo = new SQLStmt(
-        "SELECT imb_ib_id, imb_ib_i_id, imb_ib_u_id, " +
-        "       ib_id, ib_buyer_id, ib_bid, ib_max_bid, " +
+    public final SQLStmt getItemInfo = new SQLStmt(
+        "SELECT i_num_bids, i_current_price, i_end_date, " +
+        "       ib_id, ib_buyer_id, " +
         "       u_balance " +
-		"  FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
+		"  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " +
+		            AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
 		            AuctionMarkConstants.TABLENAME_ITEM_BID + ", " +
 		            AuctionMarkConstants.TABLENAME_USER +
-        " WHERE imb_i_id = ? AND imb_u_id = ? " +
+        " WHERE i_id = ? AND i_u_id = ? AND i_status = " + AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE +
+        "   AND imb_i_id = i_id AND imb_u_id = i_u_id " +
         "   AND imb_ib_id = ib_id AND imb_ib_i_id = ib_i_id AND imb_ib_u_id = ib_u_id " +
         "   AND ib_buyer_id = u_id "
     );
 
+    public final SQLStmt getBuyerInfo = new SQLStmt(
+        "SELECT u_id, u_balance " +
+        "  FROM " + AuctionMarkConstants.TABLENAME_USER +
+        " WHERE u_id = ? "
+    );
+    
     public final SQLStmt insertPurchase = new SQLStmt(
         "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_PURCHASE + "(" +
         	"ip_id," +
@@ -60,9 +71,10 @@ public class NewPurchase extends VoltProcedure{
         ") VALUES(?,?,?,?,?)"
     );
     
-    public final SQLStmt updateItemStatus = new SQLStmt(
+    public final SQLStmt updateItem = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM + " " +
-        	"SET i_status = " + AuctionMarkConstants.STATUS_ITEM_CLOSED + " " +   
+        	"SET i_status = " + AuctionMarkConstants.ITEM_STATUS_CLOSED + ", " +
+        	"    i_updated = ? " +
         "WHERE i_id = ? AND i_u_id = ? "
     );    
     
@@ -85,32 +97,34 @@ public class NewPurchase extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(long item_id, long seller_id, double buyer_credit) throws VoltAbortException {
+    public VoltTable run(TimestampType benchmarkStart, long item_id, long seller_id, double buyer_credit) throws VoltAbortException {
+        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+        
         // Get the ITEM_MAX_BID record so that we know what we need to process
-        voltQueueSQL(selectBuyerInfo, item_id, seller_id);
+        voltQueueSQL(getItemInfo, item_id, seller_id);
         VoltTable results[] = voltExecuteSQL();
         assert (results.length == 1);
         if (results[0].getRowCount() == 0) {
-            throw new VoltAbortException("No ITEM_MAX_BID record for item " + item_id);
+            throw new VoltAbortException("No ITEM_MAX_BID is available record for item " + item_id);
         }
         assert (results[0].getRowCount() == 1);
         boolean adv = results[0].advanceRow();
         assert (adv);
-//        long imb_ib_id = results[0].getLong(0);
-//        long imb_ib_i_id = results[0].getLong(1);
-//        long imb_ib_u_id = results[0].getLong(2);
-//        long ib_id = results[0].getLong(3);
+        
+        long i_num_bids = results[0].getLong(0);
+        double i_current_price = results[0].getDouble(1);
+        TimestampType i_end_date = results[0].getTimestampAsTimestamp(2);
+        long i_status = AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE;
+        long ib_id = results[0].getLong(3);
         long ib_buyer_id = results[0].getLong(4);
-        double ib_bid = results[0].getDouble(5);
-        double ib_max_bid = results[0].getDouble(6);
-        double u_balance = results[0].getDouble(7);
+        double u_balance = results[0].getDouble(5);
         
         // Make sure that the buyer has enough money to cover this charge
         // We can add in a credit for the buyer's account
-        if (ib_max_bid > (buyer_credit + u_balance)) {
+        if (i_current_price > (buyer_credit + u_balance)) {
             throw new VoltAbortException(String.format("Buyer does not have enough money in account to purchase item " +
                                                        "[maxBid=%.2f, balance=%.2f, credit=%.2f]",
-                                                       ib_max_bid, u_balance, buyer_credit));
+                                                       i_current_price, u_balance, buyer_credit));
         }
 
         // Set item_purchase_id
@@ -118,25 +132,43 @@ public class NewPurchase extends VoltProcedure{
 
         // Insert a new purchase
         // System.err.println(String.format("NewPurchase: ip_id=%d, ib_bid=%.2f, item_id=%d, seller_id=%d", ip_id, ib_bid, item_id, seller_id));
-        voltQueueSQL(insertPurchase, ip_id, ib_bid, item_id, seller_id, new TimestampType());
+        voltQueueSQL(insertPurchase, ip_id, ib_id, item_id, seller_id, currentTime);
         
         // Update item status to close
-        voltQueueSQL(updateItemStatus, item_id, seller_id);
+        voltQueueSQL(updateItem, currentTime, item_id, seller_id);
         
         // And update this the USER_ITEM record to link it to the new ITEM_PURCHASE record
-        voltQueueSQL(updateUserItem, ip_id, ib_bid, item_id, seller_id, ib_buyer_id, item_id, seller_id);
+        voltQueueSQL(updateUserItem, ip_id, ib_id, item_id, seller_id, ib_buyer_id, item_id, seller_id);
         
         // Decrement the buyer's account and credit the seller's account
-        voltQueueSQL(updateUserBalance, -1*(ib_max_bid) + buyer_credit, ib_buyer_id);
-        voltQueueSQL(updateUserBalance, -ib_max_bid, seller_id);
+        voltQueueSQL(updateUserBalance, -1*(i_current_price) + buyer_credit, ib_buyer_id);
+        voltQueueSQL(updateUserBalance, i_current_price, seller_id);
         
         results = voltExecuteSQL();
         assert(results.length > 0);
 
         // Return ip_id, ip_ib_id, ip_ib_i_id, u_id, ip_ib_u_id
         VoltTable ret = new VoltTable(RESULT_COLS);
-        ret.addRow(new Object[] { ip_id, ib_bid, item_id, seller_id, ib_buyer_id });
-        
+        ret.addRow(new Object[] {
+            // ITEM ID
+            item_id,
+            // SELLER ID
+            seller_id, 
+            // NUM BIDS
+            i_num_bids,
+            // CURRENT PRICE
+            i_current_price,
+            // END DATE
+            i_end_date,
+            // STATUS
+            i_status,
+            // PURCHASE ID
+            ip_id,
+            // BID ID
+            ib_id,
+            // BUYER ID
+            ib_buyer_id,
+        });
         return ret;
     }	
 }

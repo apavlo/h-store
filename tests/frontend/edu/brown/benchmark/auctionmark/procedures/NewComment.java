@@ -15,7 +15,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
  * @author visawee
  */
 @ProcInfo (
-    partitionInfo = "USER.U_ID: 1",
+    partitionInfo = "USER.U_ID: 2",
     singlePartition = true
 )
 public class NewComment extends VoltProcedure{
@@ -34,7 +34,7 @@ public class NewComment extends VoltProcedure{
     // STATEMENTS
     // -----------------------------------------------------------------
     
-    public final SQLStmt selectMaxItemCommentId = new SQLStmt(
+    public final SQLStmt getMaxItemCommentId = new SQLStmt(
         "SELECT MAX(ic_id) " + 
         "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + 
         " WHERE ic_i_id = ? AND ic_u_id = ?"
@@ -46,14 +46,16 @@ public class NewComment extends VoltProcedure{
         	"ic_i_id," +
         	"ic_u_id," +
         	"ic_buyer_id," +
-        	"ic_date," +
-        	"ic_question" +
-        ") VALUES(?,?,?,?,?,?)"
+        	"ic_question, " +
+        	"ic_created," +
+        	"ic_updated " +
+        ") VALUES (?,?,?,?,?,?,?)"
     );
     
     public final SQLStmt updateUser = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
-           "SET u_comments = u_comments + 1 " + 
+           "SET u_comments = u_comments + 1, " +
+           "    u_updated = ? " +
         " WHERE u_id = ?"
     );
 	
@@ -61,11 +63,12 @@ public class NewComment extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(long item_id, long seller_id, long buyer_id, String question) {
+    public VoltTable run(TimestampType benchmarkStart, long item_id, long seller_id, long buyer_id, String question) {
+        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
     	long ic_id;
     	
         // Set comment_id
-        voltQueueSQL(selectMaxItemCommentId, item_id, seller_id);
+        voltQueueSQL(getMaxItemCommentId, item_id, seller_id);
         VoltTable[] results = voltExecuteSQL();
         assert (1 == results.length);
         if (0 == results[0].getRowCount()) {
@@ -76,8 +79,8 @@ public class NewComment extends VoltProcedure{
             ic_id = results[0].getLong(0) + 1;
         }
 
-        voltQueueSQL(insertItemComment, ic_id, item_id, seller_id, buyer_id, new TimestampType(), question);
-        voltQueueSQL(updateUser, seller_id);
+        voltQueueSQL(insertItemComment, ic_id, item_id, seller_id, buyer_id, question, currentTime, currentTime);
+        voltQueueSQL(updateUser, currentTime, seller_id);
         voltExecuteSQL();
 
         // Return new ic_id

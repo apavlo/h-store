@@ -815,12 +815,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.row[col++] = this.randomRating.nextInt();
             // U_BALANCE
             this.row[col++] = (this.randomBalance.nextInt()) / 10.0;
-            // U_CREATED
-            this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
             // U_COMMENTS
             this.row[col++] = 0;
             // U_R_ID
             this.row[col++] = this.randomRegion.nextInt();
+            // U_CREATED
+            this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
+            // U_UPDATED
+            this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
             
             this.updateSubTableGenerators(u_id);
             return (col);
@@ -990,7 +992,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // I_END_DATE
             this.row[col++] = itemInfo.endDate;
             // I_STATUS
-            this.row[col++] = (itemInfo.stillAvailable ? AuctionMarkConstants.STATUS_ITEM_OPEN : AuctionMarkConstants.STATUS_ITEM_CLOSED);
+            this.row[col++] = (itemInfo.stillAvailable ? AuctionMarkConstants.ITEM_STATUS_OPEN : AuctionMarkConstants.ITEM_STATUS_CLOSED);
             // I_UPDATED
             this.row[col++] = itemInfo.startDate;
 
@@ -1102,12 +1104,14 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             this.row[col++] = itemInfo.sellerId;
             // IC_BUYER_ID
             this.row[col++] = itemInfo.lastBidderId;
-            // IC_DATE
-            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, itemInfo.endDate);
             // IC_QUESTION
             this.row[col++] = AuctionMarkLoader.this.rng.astring(10, 128);
             // IC_RESPONSE
             this.row[col++] = AuctionMarkLoader.this.rng.astring(10, 128);
+            // IC_CREATED
+            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, itemInfo.endDate);
+            // IC_UPDATED
+            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, itemInfo.endDate);
 
             return (col);
         }
@@ -1180,14 +1184,17 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
             float last_bid = (this.new_item ? itemInfo.initialPrice : this.bid.maxBid);
             this.bid = itemInfo.getNextBid(this.count, bidderId);
-            this.bid.maxBid = last_bid + this.currentBidPriceAdvanceStep;    
             this.bid.createDate = new TimestampType(itemInfo.startDate.getTime() + this.currentCreateDateAdvanceStep);
             this.bid.updateDate = this.bid.createDate; 
             
-            if (remaining == 0 && itemInfo.purchaseDate != null) {
-                assert(itemInfo.getBidCount() == itemInfo.numBids) : String.format("%d != %d\n%s",
-                                                                                   itemInfo.getBidCount(), itemInfo.numBids, itemInfo);
-                profile.addWaitForPurchaseItemId(itemInfo.id);
+            if (remaining == 0) {
+                this.bid.maxBid = itemInfo.currentPrice;
+                if (itemInfo.purchaseDate != null) {
+                    assert(itemInfo.getBidCount() == itemInfo.numBids) : String.format("%d != %d\n%s", itemInfo.getBidCount(), itemInfo.numBids, itemInfo);
+                    profile.addWaitForPurchaseItemId(itemInfo.id);
+                }
+            } else {
+                this.bid.maxBid = last_bid + this.currentBidPriceAdvanceStep;
             }
             
             // IB_ID
@@ -1199,7 +1206,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IB_BUYER_ID
             this.row[col++] = this.bid.bidderId;
             // IB_BID
-            this.row[col++] = this.bid.maxBid - (this.currentBidPriceAdvanceStep/2.0f);
+            this.row[col++] = this.bid.maxBid - (remaining > 0 ? (this.currentBidPriceAdvanceStep/2.0f) : 0);
             // IB_MAX_BID
             this.row[col++] = this.bid.maxBid;
             // IB_CREATED
