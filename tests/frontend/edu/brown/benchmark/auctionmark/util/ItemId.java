@@ -95,6 +95,11 @@ public class ItemId extends CompositeId {
     public String toString() {
         return ("ItemId<" + this.getItemCtr() + "-" + this.getSellerId() + ">");
     }
+    
+    public static String toString(long itemId) {
+        return new ItemId(itemId).toString();
+    }
+    
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ItemId) {

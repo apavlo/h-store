@@ -16,7 +16,7 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
  * @author visawee
  */
 @ProcInfo (
-    partitionInfo = "USER.U_ID: 1",
+    partitionInfo = "USER.U_ID: 2",
     singlePartition = true
 )
 public class UpdateItem extends VoltProcedure{
@@ -30,7 +30,7 @@ public class UpdateItem extends VoltProcedure{
         "   SET i_description = ?, " +
         "       i_updated = ? " +
         " WHERE i_id = ? AND i_u_id = ? " +
-        "   AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN
+        "   AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
     );
     
     public final SQLStmt deleteItemAttribute = new SQLStmt(
@@ -63,9 +63,11 @@ public class UpdateItem extends VoltProcedure{
 	 * A small percentage of the transactions will be for auctions that are
 	 * uneditable (1.0%?); when this occurs, the transaction will abort.
 	 */
-    public VoltTable run(long item_id, long seller_id, String description, long delete_attribute, long add_attribute[]) {
-        TimestampType timestamp = new TimestampType();
-        voltQueueSQL(updateItem, description, timestamp, item_id, seller_id);
+    public VoltTable run(TimestampType benchmarkStart,
+                         long item_id, long seller_id, String description,
+                         long delete_attribute, long add_attribute[]) {
+        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+        voltQueueSQL(updateItem, description, currentTime, item_id, seller_id);
         final VoltTable results[] = voltExecuteSQL(false);
         assert(results.length == 1);
         if (results[0].getRowCount() == 0) {

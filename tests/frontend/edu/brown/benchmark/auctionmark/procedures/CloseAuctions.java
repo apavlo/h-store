@@ -28,8 +28,10 @@ public class CloseAuctions extends VoltProcedure {
     private static final ColumnInfo[] RESULT_COLS = {
         new ColumnInfo("i_id", VoltType.BIGINT), 
         new ColumnInfo("i_u_id", VoltType.BIGINT),  
-        new ColumnInfo("i_status", VoltType.BIGINT),
+        new ColumnInfo("i_num_bids", VoltType.BIGINT),
         new ColumnInfo("i_current_price", VoltType.FLOAT),
+        new ColumnInfo("i_end_date", VoltType.TIMESTAMP),
+        new ColumnInfo("i_status", VoltType.BIGINT),
         new ColumnInfo("imb_ib_id", VoltType.BIGINT), 
         new ColumnInfo("ib_buyer_id", VoltType.BIGINT),
     };
@@ -38,15 +40,15 @@ public class CloseAuctions extends VoltProcedure {
     // STATEMENTS
     // -----------------------------------------------------------------
     
-    public final SQLStmt selectDueItems = new SQLStmt(
-        "SELECT i_id, i_u_id, i_status, i_current_price, i_num_bids " + 
+    public final SQLStmt getDueItems = new SQLStmt(
+        "SELECT i_id, i_u_id, i_current_price, i_num_bids, i_end_date, i_status " + 
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
          "WHERE (i_start_date BETWEEN ? AND ?) " +
-           "AND i_status = " + AuctionMarkConstants.STATUS_ITEM_OPEN + " " +
+           "AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN + " " +
          "LIMIT 100 "
     );
       
-    public final SQLStmt selectMaxBid = new SQLStmt(
+    public final SQLStmt getMaxBid = new SQLStmt(
         "SELECT imb_ib_id, ib_buyer_id " + 
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
                     AuctionMarkConstants.TABLENAME_ITEM_BID +
@@ -56,7 +58,8 @@ public class CloseAuctions extends VoltProcedure {
     
     public final SQLStmt updateItemStatus = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM + " " +
-           "SET i_status = ? " +   
+           "SET i_status = ?, " +
+           "    i_updated = ? " +
         "WHERE i_id = ? AND i_u_id = ? "
     );
 
@@ -79,16 +82,16 @@ public class CloseAuctions extends VoltProcedure {
      * @param bid_ids - ItemBid Ids
      * @return
      */
-    public VoltTable run(TimestampType startTime, TimestampType endTime) {
+    public VoltTable run(TimestampType benchmarkStart, TimestampType startTime, TimestampType endTime) {
+        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
 
-        final TimestampType timestamp = new TimestampType();
         if (debug) {
-            LOG.debug("CloseAuctions::: startTime = " + startTime);
-            LOG.debug("CloseAuctions::: endTime = " + endTime);
+            LOG.debug(String.format("startTime=%s, endTime=%s, currentTime=%s",
+                                    startTime, endTime, currentTime));
         }
 
-        voltQueueSQL(selectDueItems, startTime, endTime);
+        voltQueueSQL(getDueItems, startTime, endTime);
         final VoltTable[] dueItemsTable = voltExecuteSQL();
         assert (1 == dueItemsTable.length);
 
@@ -103,24 +106,34 @@ public class CloseAuctions extends VoltProcedure {
         while (dueItemsTable[0].advanceRow()) {
             long itemId = dueItemsTable[0].getLong(0);
             long sellerId = dueItemsTable[0].getLong(1);
-            long itemStatus = dueItemsTable[0].getLong(2);
-            double currentPrice = dueItemsTable[0].getDouble(3);
-            long numBids = dueItemsTable[0].getLong(4);
-            if (debug) LOG.debug("CloseAuctions::: getting max bid for itemId = " + itemId + " : userId = " + sellerId);
-            assert(itemStatus == AuctionMarkConstants.STATUS_ITEM_OPEN);
+            double currentPrice = dueItemsTable[0].getDouble(2);
+            long numBids = dueItemsTable[0].getLong(3);
+            TimestampType endDate = dueItemsTable[0].getTimestampAsTimestamp(4);
+            long itemStatus = dueItemsTable[0].getLong(5);
             
-            output_rows[i] = new Object[] { itemId, sellerId, itemStatus, currentPrice, null, null };
+            if (debug) LOG.debug("CloseAuctions::: getting max bid for itemId = " + itemId + " : userId = " + sellerId);
+            assert(itemStatus == AuctionMarkConstants.ITEM_STATUS_OPEN);
+            
+            output_rows[i] = new Object[] { itemId,         // i_id
+                                            sellerId,       // i_u_id
+                                            numBids,        // i_num_bids
+                                            currentPrice,   // i_current_price
+                                            endDate,        // i_end_date
+                                            itemStatus,     // i_status
+                                            null,           // imb_ib_id
+                                            null            // ib_buyer_id
+            };
             
             // Has bid on this item - set status to WAITING_FOR_PURCHASE
             // We'll also insert a new USER_ITEM record as needed
             if (numBids > 0) {
-                voltQueueSQL(selectMaxBid, itemId, sellerId);
+                voltQueueSQL(getMaxBid, itemId, sellerId);
                 with_bids[i++] = true;
                 waiting_ctr++;
             }
             // No bid on this item - set status to CLOSED
             else {
-                if (debug) LOG.debug(String.format("CloseAuctions::: %s => CLOSED", new ItemId(itemId)));
+                if (debug) LOG.debug(String.format("CloseAuctions::: %s => CLOSED", ItemId.toString(itemId)));
                 closed_ctr++;
                 with_bids[i++] = false;
             }
@@ -136,11 +149,11 @@ public class CloseAuctions extends VoltProcedure {
         for (i = 0; i < with_bids.length; i++) {
             long itemId = (Long)output_rows[i][0];
             long sellerId = (Long)output_rows[i][0];
-            long status = (with_bids[i] ? AuctionMarkConstants.STATUS_ITEM_WAITING_FOR_PURCHASE :
-                                          AuctionMarkConstants.STATUS_ITEM_CLOSED);
-            this.voltQueueSQL(this.updateItemStatus, status, itemId, sellerId);
+            long status = (with_bids[i] ? AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE :
+                                          AuctionMarkConstants.ITEM_STATUS_CLOSED);
+            this.voltQueueSQL(updateItemStatus, status, currentTime, itemId, sellerId);
             if (debug) LOG.debug(String.format("CloseAuctions::: %s => %s",
-                                 new ItemId(itemId), (status == AuctionMarkConstants.STATUS_ITEM_CLOSED ? "CLOSED" : "WAITING_FOR_PURCHASE")));
+                                 ItemId.toString(itemId), (status == AuctionMarkConstants.ITEM_STATUS_CLOSED ? "CLOSED" : "WAITING_FOR_PURCHASE")));
             
             if (with_bids[i]) {
                 final VoltTable vt = bidResults[bidResultsCtr++]; 
@@ -149,11 +162,11 @@ public class CloseAuctions extends VoltProcedure {
                 long bidId = vt.getLong(0);
                 long buyerId = vt.getLong(1);
                 
-                output_rows[i][4] = bidId;
-                output_rows[i][5] = buyerId;
+                output_rows[i][RESULT_COLS.length-2] = bidId;   // imb_ib_id
+                output_rows[i][RESULT_COLS.length-1] = buyerId; // ib_buyer_id
                 
                 assert (buyerId != -1);
-                this.voltQueueSQL(this.insertUserItem, buyerId, itemId, sellerId, timestamp);       
+                this.voltQueueSQL(insertUserItem, buyerId, itemId, sellerId, currentTime);       
             }
             if (++batch_size > AuctionMarkConstants.BATCHSIZE_CLOSE_AUCTIONS_UPDATES) {
                 this.voltExecuteSQL();

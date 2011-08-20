@@ -102,9 +102,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      *  (3) Complete (The auction is closed and (There is no bid winner or
      *      the bid winner has already purchased the item)
      */
-    public final LinkedList<ItemId> user_available_items = new LinkedList<ItemId>();
-    public final LinkedList<ItemId> user_wait_for_purchase_items = new LinkedList<ItemId>();
-    public final LinkedList<ItemId> user_complete_items = new LinkedList<ItemId>();
+    public final LinkedList<ItemId> available_itemIds = new LinkedList<ItemId>();
+    public final LinkedList<ItemId> endingSoon_itemIds = new LinkedList<ItemId>();
+    public final LinkedList<ItemId> waitForPurchase_itemIds = new LinkedList<ItemId>();
+    public final LinkedList<ItemId> complete_itemIds = new LinkedList<ItemId>();
 
     /** Map from global attribute group to list of global attribute value */
     public final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
@@ -147,6 +148,13 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private transient FlatHistogram<Long> randomGAGId;
     private transient FlatHistogram<Long> randomCategory;
     private transient FlatHistogram<Long> randomItemCount;
+    
+    /**
+     * Keep track of previous waitForPurchase ItemIds so that we don't try to call NewPurchase
+     * on them more than once
+     */
+    private transient final Set<ItemId> previousWaitForPurchase = new HashSet<ItemId>();
+
     
     // -----------------------------------------------------------------
     // GENERAL METHODS
@@ -521,63 +529,112 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         return itemId;
     }
     
-    public void addAvailableItemId(ItemId itemId) {
-        this.addItem(this.user_available_items, itemId);
+    /**********************************************************************************************
+     * AVAILABLE ITEMS
+     **********************************************************************************************/
+    public boolean addAvailableItemId(ItemId itemId) {
+        return (this.addItem(this.available_itemIds, itemId));
     }
     public void removeAvailableItemId(ItemId itemId) {
-        this.removeItem(this.user_available_items, itemId);
+        this.removeItem(this.available_itemIds, itemId);
     }
     public ItemId getRandomAvailableItemId() {
-        return this.getRandomItemId(this.user_available_items, false);
+        return this.getRandomItemId(this.available_itemIds, false);
     }
     public ItemId getRandomAvailableItemId(boolean hasCurrentPrice) {
-        return this.getRandomItemId(this.user_available_items, hasCurrentPrice);
+        return this.getRandomItemId(this.available_itemIds, hasCurrentPrice);
     }
     public int getAvailableItemIdsCount() {
-        return this.user_available_items.size();
+        return this.available_itemIds.size();
+    }
+
+    /**********************************************************************************************
+     * ENDING SOON ITEMS
+     **********************************************************************************************/
+    public boolean addEndingSoonItemId(ItemId itemId) {
+        boolean ret = this.addItem(this.endingSoon_itemIds, itemId);
+        this.removeAvailableItemId(itemId);
+        return (ret);
+    }
+    public void removeEndingSoonItemId(ItemId itemId) {
+        this.removeItem(this.endingSoon_itemIds, itemId);
+    }
+    public ItemId getRandomEndingSoonItemId() {
+        return this.getRandomItemId(this.endingSoon_itemIds, false);
+    }
+    public ItemId getRandomEndingSoonItemId(boolean hasCurrentPrice) {
+        return this.getRandomItemId(this.endingSoon_itemIds, hasCurrentPrice);
+    }
+    public int getEndingSoonItemIdsCount() {
+        return this.endingSoon_itemIds.size();
     }
     
-    public void addWaitForPurchaseItemId(ItemId itemId) {
-        this.addItem(this.user_wait_for_purchase_items, itemId);
+    /**********************************************************************************************
+     * WAITING FOR PURCHASE ITEMS
+     **********************************************************************************************/
+    public boolean addWaitForPurchaseItemId(ItemId itemId) {
+        boolean ret = false;
+        if (this.previousWaitForPurchase.contains(itemId) == false) {
+            this.previousWaitForPurchase.add(itemId);
+            ret = this.addItem(this.waitForPurchase_itemIds, itemId);
+        }
+        this.removeAvailableItemId(itemId);
+        this.removeEndingSoonItemId(itemId);
+        return (ret);
     }
     public void removeWaitForPurchaseItemId(ItemId itemId) {
-        this.removeItem(this.user_wait_for_purchase_items, itemId);
+        this.removeItem(this.waitForPurchase_itemIds, itemId);
     }
     public ItemId getRandomWaitForPurchaseItemId() {
-        return this.getRandomItemId(this.user_wait_for_purchase_items, false);
+        return this.getRandomItemId(this.waitForPurchase_itemIds, false);
     }
     public int getWaitForPurchaseItemIdsCount() {
-        return this.user_wait_for_purchase_items.size();
+        return this.waitForPurchase_itemIds.size();
     }
-    
-    public void addCompleteItemId(ItemId itemId) {
-        this.addItem(this.user_complete_items, itemId);
+
+    /**********************************************************************************************
+     * COMPLETED ITEMS
+     **********************************************************************************************/
+    public boolean addCompleteItemId(ItemId itemId) {
+        boolean ret = this.addItem(this.complete_itemIds, itemId);
+        this.removeAvailableItemId(itemId);
+        this.removeEndingSoonItemId(itemId);
+        this.removeWaitForPurchaseItemId(itemId);
+        return (ret);
     }
     public void removeCompleteItemId(ItemId itemId) {
-        this.removeItem(this.user_complete_items, itemId);
+        this.removeItem(this.complete_itemIds, itemId);
     }
     public ItemId getRandomCompleteItemId() {
-        return this.getRandomItemId(this.user_complete_items, false);
+        return this.getRandomItemId(this.complete_itemIds, false);
     }
     public int getCompleteItemIdsCount() {
-        return this.user_complete_items.size();
+        return this.complete_itemIds.size();
     }
     
+    /**********************************************************************************************
+     * ALL ITEMS
+     **********************************************************************************************/
     public int getAllItemIdsCount() {
         return (this.getAvailableItemIdsCount() +
+                this.getEndingSoonItemIdsCount() +
                 this.getWaitForPurchaseItemIdsCount() +
                 this.getCompleteItemIdsCount());
     }
+    @SuppressWarnings("unchecked")
     public ItemId getRandomItemId() {
         assert(this.getAllItemIdsCount() > 0);
-        LinkedList<ItemId> itemSet = null;
-        while (itemSet == null || itemSet.isEmpty()) {
-            int idx = rng.nextInt(3);
-            if (idx == 0) itemSet = this.user_available_items;
-            else if (idx == 1) itemSet = this.user_wait_for_purchase_items;
-            else if (idx == 2) itemSet = this.user_complete_items;
+        LinkedList<ItemId> itemSets[] = new LinkedList[]{
+            this.available_itemIds,
+            this.endingSoon_itemIds,
+            this.waitForPurchase_itemIds,
+            this.complete_itemIds,
+        };
+        int idx = -1;
+        while (idx == -1 || itemSets[idx].isEmpty()) {
+            idx = rng.nextInt(itemSets.length);
         } // WHILE
-        return (this.getRandomItemId(itemSet, false));
+        return (this.getRandomItemId(itemSets[idx], false));
     }
 
     // ----------------------------------------------------------------

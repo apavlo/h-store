@@ -19,7 +19,7 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
  * @author visawee
  */
 @ProcInfo (
-    partitionInfo = "USER.U_ID: 1",
+    partitionInfo = "USER.U_ID: 2",
     singlePartition = true
 )
 public class NewItem extends VoltProcedure {
@@ -30,9 +30,12 @@ public class NewItem extends VoltProcedure {
     // -----------------------------------------------------------------
     
 	private static final VoltTable.ColumnInfo RESULT_COLS[] = {
-        new VoltTable.ColumnInfo("i_id", VoltType.BIGINT), 
+        new VoltTable.ColumnInfo("i_id", VoltType.BIGINT),
         new VoltTable.ColumnInfo("i_u_id", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("i_num_bids", VoltType.BIGINT),
         new VoltTable.ColumnInfo("i_current_price", VoltType.FLOAT),
+        new VoltTable.ColumnInfo("i_end_date", VoltType.TIMESTAMP),
+        new VoltTable.ColumnInfo("i_status", VoltType.BIGINT),
 	};
 	
 	// -----------------------------------------------------------------
@@ -47,12 +50,14 @@ public class NewItem extends VoltProcedure {
         	"i_name," + 
         	"i_description," + 
         	"i_user_attributes," + 
-        	"i_initial_price," + 
+        	"i_initial_price," +
+        	"i_current_price," + 
         	"i_num_bids," + 
         	"i_num_images," + 
         	"i_num_global_attrs," + 
         	"i_start_date," + 
         	"i_end_date," +
+        	"i_status, " +
         	"i_updated," +
         	"i_iattr0" + 
         ") VALUES (" +
@@ -63,25 +68,27 @@ public class NewItem extends VoltProcedure {
             "?," +  // i_description
             "?," +  // i_user_attributes
             "?," +  // i_initial_price
+            "?," +  // i_current_price
             "?," +  // i_num_bids
             "?," +  // i_num_images
             "?," +  // i_num_global_attrs
             "?," +  // i_start_date
             "?," +  // i_end_date
+            "?," +  // i_status
             "?," +  // i_updated
             "1"  +  // i_attr0
         ")"
     );
     
-    public final SQLStmt selectCategory = new SQLStmt(
+    public final SQLStmt getCategory = new SQLStmt(
         "SELECT * FROM " + AuctionMarkConstants.TABLENAME_CATEGORY + " WHERE c_id = ? "
     );
     
-    public final SQLStmt selectCategoryParent = new SQLStmt(
+    public final SQLStmt getCategoryParent = new SQLStmt(
         "SELECT * FROM " + AuctionMarkConstants.TABLENAME_CATEGORY + " WHERE c_parent_id = ? "
     );
     
-    public final SQLStmt selectGlobalAttribute = new SQLStmt(
+    public final SQLStmt getGlobalAttribute = new SQLStmt(
         "SELECT gag_name, gav_name, gag_c_id " +
           "FROM " + AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP + ", " +
                     AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE +
@@ -110,7 +117,8 @@ public class NewItem extends VoltProcedure {
     
     public final SQLStmt updateUserBalance = new SQLStmt(
 		"UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
-		   "SET u_balance = u_balance - 1 " + 
+		   "SET u_balance = u_balance - 1, " +
+		   "    u_updated = ? " +
 		" WHERE u_id = ?"
 	);
     
@@ -132,19 +140,13 @@ public class NewItem extends VoltProcedure {
 	 * and so on. After these records are inserted, the transaction then updates
 	 * the USER record to add the listing fee to the seller's balance.
 	 */
-    public VoltTable run(long item_id,
-                         long seller_id,
-                         long category_id,
-                         String name,
-                         String description,
-                         double initial_price,
-                         String attributes,
-                         long gag_ids[],
-                         long gav_ids[],
-                         String images[],
-                         TimestampType start_date,
-                         TimestampType end_date) {
-        
+    public VoltTable run(TimestampType benchmarkStart,
+                         long item_id, long seller_id, long category_id,
+                         String name, String description,
+                         double initial_price, String attributes,
+                         long gag_ids[], long gav_ids[], String images[],
+                         TimestampType start_date, TimestampType end_date) {
+        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
         if (debug) {
             LOG.debug("NewItem :: run ");
@@ -159,10 +161,10 @@ public class NewItem extends VoltProcedure {
         // Get attribute names and category path and append
         // them to the item description
         for (int i = 0; i < gag_ids.length; i++) {
-            voltQueueSQL(selectGlobalAttribute, gav_ids[i], gag_ids[i]);
+            voltQueueSQL(getGlobalAttribute, gav_ids[i], gag_ids[i]);
         } // FOR
-        voltQueueSQL(selectCategory, category_id);
-        voltQueueSQL(selectCategoryParent, category_id);
+        voltQueueSQL(getCategory, category_id);
+        voltQueueSQL(getCategoryParent, category_id);
         VoltTable results[] = voltExecuteSQL();
         assert (results.length == gag_ids.length + 2);
         
@@ -196,9 +198,10 @@ public class NewItem extends VoltProcedure {
         // Insert new ITEM tuple
         voltQueueSQL(insertItem, item_id, seller_id, category_id,
                                  name, description, attributes,
-                                 initial_price, 0,
+                                 initial_price, initial_price, 0,
                                  images.length, gav_ids.length,
-                                 start_date, end_date, new TimestampType());
+                                 start_date, end_date,
+                                 AuctionMarkConstants.ITEM_STATUS_OPEN, currentTime);
 
         // Insert ITEM_ATTRIBUTE tuples
         for (int i = 0; i < gav_ids.length; i++) {
@@ -212,13 +215,28 @@ public class NewItem extends VoltProcedure {
         } // FOR
 
         // Update listing fee
-        voltQueueSQL(updateUserBalance, seller_id);
+        voltQueueSQL(updateUserBalance, currentTime, seller_id);
         
-        voltExecuteSQL();
-
+        // Bombs away!
+        results = voltExecuteSQL();
+        assert(results.length > 0);
+        
         // Return new item_id and user_id
         VoltTable ret = new VoltTable(RESULT_COLS);
-        ret.addRow(new Object[] { item_id, seller_id, initial_price });
+        ret.addRow(new Object[] {
+            // ITEM ID
+            item_id,
+            // SELLER ID
+            seller_id,
+            // NUM BIDS
+            0,
+            // CURRENT PRICE
+            initial_price,
+            // END DATE
+            end_date,
+            // STATUS
+            AuctionMarkConstants.ITEM_STATUS_OPEN
+        });
         return ret;
     }
 }
