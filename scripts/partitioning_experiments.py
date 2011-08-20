@@ -61,7 +61,7 @@ LOG.setLevel(logging.INFO)
 
 BASE_SETTINGS = {
     "client.blocking":                  True,
-    "client.blocking_concurrent":       10,
+    "client.blocking_concurrent":       100,
     "client.txnrate":                   10000,
     "client.count":                     2,
     "client.processesperclient":        8,
@@ -70,6 +70,7 @@ BASE_SETTINGS = {
     "client.warmup":                    60000,
     
     "site.count":                       4,
+    "site.partitions_per_site":         4,
     "site.status_show_txn_info":        True,
     "site.memory":                      12288,
     
@@ -78,11 +79,19 @@ BASE_SETTINGS = {
     "benchmark.neworder_all_multip":    False,
 }
 
+def motivationBaseUpdate(env, exp_factor):
+    num_warehouses = env["site.count"] * env["site.partitions_per_site"]
+    env["benchmark.warehouses"] = num_warehouses
+    env["benchmark.loadthreads"] = num_warehouses    
+## DEF
+
 ## HACK
 def motivation0UpdateEnv(env, exp_factor):
+    motivationBaseUpdate(env, exp_factor)
     env["benchmark.neworder_multip_mix"] = exp_factor
 ## DEF
 def motivation1UpdateEnv(env, exp_factor):
+    motivationBaseUpdate(env, exp_factor)
     if exp_factor == 0:
         env["benchmark.neworder_skew_warehouse"] = False
     else:
@@ -111,6 +120,9 @@ EXPERIMENT_SETTINGS = {
 OPT_EXP_TYPE = "motivation"
 OPT_EXP_TRIALS = 3
 OPT_EXP_SETTINGS = 0
+OPT_EXP_FACTOR_START = 0
+OPT_EXP_FACTOR_STOP = 110
+OPT_REPEAT_FAILED_TRIALS = 3
 
 ## ==============================================
 ## parseResultsOutput
@@ -138,6 +150,10 @@ if __name__ == '__main__':
         "exp-type=",
         "exp-settings=",
         "exp-trials=",
+        "exp-factor-start=",
+        "exp-factor-stop=",
+        
+        "repeat-failed-trials=",
         
         # Enable debug logging
         "debug",
@@ -197,7 +213,7 @@ if __name__ == '__main__':
     stop = False
     
     LOG.info("%s/%d - Experiment Parameters:\n%s" % (OPT_EXP_TYPE.title(), OPT_EXP_SETTINGS, pformat(exp_opts)))
-    for exp_factor in range(0, 100, 10):
+    for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 10):
         if "updateEnvFunc" in exp_opts: exp_opts["updateEnvFunc"](env, exp_factor)
         if exp_factor == 0:
             env["hstore.exec_prefix"] = "compile"
@@ -206,17 +222,24 @@ if __name__ == '__main__':
         
         results = [ ]
         for trial in range(OPT_EXP_TRIALS):
-            LOG.info("Executing trial #%d for factor %d" % (trial, exp_factor))
-            try:
-                with settings(host_string=client_inst.public_dns_name):
-                    output = fabfile.exec_benchmark(project="tpcc", json=True)
-                    results.append(parseResultsOutput(output))
-                ## WITH
-            except KeyboardInterrupt:
-                stop = True
-                break
-            except SystemExit:
-                LOG.warn("Failed to complete trial succesfully")
+            attempts = OPT_REPEAT_FAILED_TRIALS
+            while attempts > 0 and stop == False:
+                attempts -= 1
+                LOG.info("Executing trial #%d for factor %d [attempt=%d/%d]" % (trial, exp_factor, (OPT_REPEAT_FAILED_TRIALS-attempts), OPT_REPEAT_FAILED_TRIALS))
+                try:
+                    with settings(host_string=client_inst.public_dns_name):
+                        output = fabfile.exec_benchmark(project="tpcc", json=True)
+                        results.append(parseResultsOutput(output))
+                    ## WITH
+                    break
+                except KeyboardInterrupt:
+                    stop = True
+                    break
+                except SystemExit:
+                    LOG.warn("Failed to complete trial succesfully")
+                    pass
+            ## WHILE
+            if stop: break
         ## FOR
         if results: all_results.append(results)
         if stop: break
@@ -229,7 +252,7 @@ if __name__ == '__main__':
             print "EXP FACTOR %d" % (i * 10)
             for trial in range(len(all_results[i])):
                 r = all_results[i][trial]
-                print "   TRIAL #%d:", r["TXNPERSECOND"]
+                print "   TRIAL #%d: %s" % (trial, r["TXNPERSECOND"])
             ## FOR
             print
         ## FOR

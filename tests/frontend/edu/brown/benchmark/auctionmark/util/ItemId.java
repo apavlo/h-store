@@ -13,7 +13,7 @@ import org.voltdb.catalog.Database;
  */
 public class ItemId extends CompositeId {
 
-    private static final long BASE_VALUE_MASK = 281474976710655l; // 2^48-1
+    private static final long BASE_VALUE_MASK = 281474976710655l; // (2^48)-1
     private static final int VALUE_OFFSET = 48;
     
     
@@ -57,11 +57,11 @@ public class ItemId extends CompositeId {
     public void decode(long composite_id) {
         long values[] = super.decode(composite_id, new long[3], BASE_VALUE_MASK, VALUE_OFFSET);
         this.seller_id = new UserId(values[0]);
-        this.item_ctr = (int)values[1];
+        this.item_ctr = (int)values[1]-1;
     }
     @Override
     public long[] toArray() {
-        return (new long[]{ this.seller_id.encode(), this.item_ctr });
+        return (new long[]{ this.seller_id.encode(), this.item_ctr+1 });
     }
     
     /**

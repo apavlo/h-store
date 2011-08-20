@@ -56,7 +56,7 @@ public class BatchPlanner {
 
     public static final int MAX_ROUND_SIZE = 10;
     
-    public static final int MAX_BATCH_SIZE = 64;
+    public static final int MAX_BATCH_SIZE = 128;
 
     public static final int PLAN_POOL_INITIAL_SIZE = 200;
 

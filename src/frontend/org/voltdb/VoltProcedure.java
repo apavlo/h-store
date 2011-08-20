@@ -925,6 +925,11 @@ public abstract class VoltProcedure implements Poolable {
         if (t) LOG.trace("Batching Statement: " + stmt.getText());
     }
 
+    public void voltClearQueue() {
+        batchQueryStmtIndex = 0;
+        batchQueryArgsIndex = 0;
+    }
+    
     /**
      * Execute the currently queued SQL {@link org.voltdb.SQLStmt statements} and return
      * the result tables.

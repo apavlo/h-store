@@ -160,7 +160,7 @@ public abstract class AuctionMarkConstants {
     public static final long BATCHSIZE_ITEM_MAX_BID             = 5000;
     public static final long BATCHSIZE_ITEM_PURCHASE            = 5000;
     
-    public static final long BATCHSIZE_CLOSE_AUCTIONS_UPDATES             = 25;
+    public static final long BATCHSIZE_CLOSE_AUCTIONS_UPDATES   = 50;
     
     // ----------------------------------------------------------------
     // TABLE NAMES

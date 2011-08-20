@@ -240,8 +240,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         long count = table.getRowCount();
         long current = this.profile.getTableSize(tableName);
         
-        if (debug.get()) 
-            LOG.debug(String.format("%s: Loading %d rows - TOTAL %d%s [bytes=%d]",
+//        if (debug.get()) 
+            LOG.info(String.format("%s: Loading %d rows - TOTAL %d%s [bytes=%d]",
                                     tableName, count, current,
                                     (expected != null && expected > 0 ? " / " + expected : ""),
                                     table.getUnderlyingBufferSize()));
