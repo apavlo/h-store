@@ -768,7 +768,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
             } // WHILE
         } catch (final Throwable ex) {
-            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) {
+                LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
+                                        this.partitionId, (ts != null ? " - " + ts.toString() : "")), ex);
+                if (ts != null) LOG.fatal("TransactionState Dump:\n" + ts.debug());
+            }
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
 //            if (d) 

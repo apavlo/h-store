@@ -46,18 +46,20 @@ logging.basicConfig(level = logging.INFO,
                     stream = sys.stdout)
 
 HSTORE_OPTS = {
-    "client.duration":              120000,
+    "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
     "client.processesperclient":    1,
-    "client.txnrate":               1000,
-    "client.blocking":              False,
+    "client.txnrate":               10000,
+    "client.blocking":              True,
+    "client.blocking_concurrent":   1000,
+    "client.scalefactor":           100,
 }
 
 ## ==============================================
-## wordCount
+## txnCount
 ## ==============================================
-def wordCount(path):
+def txnCount(path):
     cmd = "wc -l %s*" % path
     (result, output) = commands.getstatusoutput(cmd)
     assert result == 0, cmd + "\n" + output
@@ -71,7 +73,7 @@ def wordCount(path):
 ## ==============================================
 if __name__ == '__main__':
     aparser = argparse.ArgumentParser(description='Create H-Store transaction trace files')
-    aparser.add_argument('benchmark', choices=[ 'tpcc', 'tm1', 'auctionmark', 'locality' ],
+    aparser.add_argument('benchmark', choices=[ 'tpcc', 'tm1', 'auctionmark', 'locality', 'airline' ],
                          help='Target benchmark')
     aparser.add_argument('--config', type=file,
                          help='Path to H-Store configuration file to use')
@@ -90,7 +92,7 @@ if __name__ == '__main__':
     HSTORE_OPTS["project"] = args['benchmark']
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, HSTORE_OPTS[x]), HSTORE_OPTS.keys()))
 
-    total_wc = 0
+    total_cnt = 0
     trace_ctr = 0
     while True:
         trace = "%s-%02d" % (trace_base, trace_ctr)
@@ -98,11 +100,11 @@ if __name__ == '__main__':
         subprocess.check_call(cmd, shell=True)
         
         ## After each run check whether we have enough transaction traces
-        wc = wordCount(trace_base)
-        assert wc > 0
-        total_wc += wc
-        logging.info("Number of transactions after round %d: %d" % (trace_ctr, total_wc))
-        if total_wc >= args['txn_count']: break
+        cnt = txnCount(trace_base)
+        assert cnt > 0
+        total_cnt += cnt
+        logging.info("Number of transactions after round %d: %d" % (trace_ctr, total_cnt))
+        if total_cnt >= args['txn_count']: break
         trace_ctr += 1
     ## WHILE
     

@@ -10,7 +10,6 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
-import edu.brown.benchmark.auctionmark.util.ItemId;
 
 /**
  * PostAuction
@@ -45,9 +44,10 @@ public class CloseAuctions extends VoltProcedure {
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
          "WHERE (i_start_date BETWEEN ? AND ?) " +
            "AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN + " " +
-         "LIMIT 100 "
+         "ORDER BY i_id ASC " +
+         "LIMIT 25 "
     );
-      
+    
     public final SQLStmt getMaxBid = new SQLStmt(
         "SELECT imb_ib_id, ib_buyer_id " + 
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
@@ -91,93 +91,105 @@ public class CloseAuctions extends VoltProcedure {
                                     startTime, endTime, currentTime));
         }
 
-        voltQueueSQL(getDueItems, startTime, endTime);
-        final VoltTable[] dueItemsTable = voltExecuteSQL();
-        assert (1 == dueItemsTable.length);
-
-        if (debug)
-            LOG.debug("CloseAuctions::: total due items = " + dueItemsTable[0].getRowCount());
-
+        final VoltTable ret = new VoltTable(RESULT_COLS);
         int closed_ctr = 0;
         int waiting_ctr = 0;
-        boolean with_bids[] = new boolean[dueItemsTable[0].getRowCount()];
-        Object output_rows[][] = new Object[with_bids.length][];
-        int i = 0; 
-        while (dueItemsTable[0].advanceRow()) {
-            long itemId = dueItemsTable[0].getLong(0);
-            long sellerId = dueItemsTable[0].getLong(1);
-            double currentPrice = dueItemsTable[0].getDouble(2);
-            long numBids = dueItemsTable[0].getLong(3);
-            TimestampType endDate = dueItemsTable[0].getTimestampAsTimestamp(4);
-            long itemStatus = dueItemsTable[0].getLong(5);
-            
-            if (debug) LOG.debug("CloseAuctions::: getting max bid for itemId = " + itemId + " : userId = " + sellerId);
-            assert(itemStatus == AuctionMarkConstants.ITEM_STATUS_OPEN);
-            
-            output_rows[i] = new Object[] { itemId,         // i_id
-                                            sellerId,       // i_u_id
-                                            numBids,        // i_num_bids
-                                            currentPrice,   // i_current_price
-                                            endDate,        // i_end_date
-                                            itemStatus,     // i_status
-                                            null,           // imb_ib_id
-                                            null            // ib_buyer_id
-            };
-            
-            // Has bid on this item - set status to WAITING_FOR_PURCHASE
-            // We'll also insert a new USER_ITEM record as needed
-            if (numBids > 0) {
-                voltQueueSQL(getMaxBid, itemId, sellerId);
-                with_bids[i++] = true;
-                waiting_ctr++;
-            }
-            // No bid on this item - set status to CLOSED
-            else {
-                if (debug) LOG.debug(String.format("CloseAuctions::: %s => CLOSED", ItemId.toString(itemId)));
-                closed_ctr++;
-                with_bids[i++] = false;
-            }
-        } // FOR
-        final VoltTable[] bidResults = voltExecuteSQL();
-        assert(bidResults.length == waiting_ctr);
-        
-        // We have to do this extra step because H-Store doesn't have good support in the
-        // query optimizer for LEFT OUTER JOINs
-        final VoltTable ret = new VoltTable(RESULT_COLS);
-        int batch_size = 0;
-        int bidResultsCtr = 0;
-        for (i = 0; i < with_bids.length; i++) {
-            long itemId = (Long)output_rows[i][0];
-            long sellerId = (Long)output_rows[i][0];
-            long status = (with_bids[i] ? AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE :
-                                          AuctionMarkConstants.ITEM_STATUS_CLOSED);
-            this.voltQueueSQL(updateItemStatus, status, currentTime, itemId, sellerId);
-            if (debug) LOG.debug(String.format("CloseAuctions::: %s => %s",
-                                 ItemId.toString(itemId), (status == AuctionMarkConstants.ITEM_STATUS_CLOSED ? "CLOSED" : "WAITING_FOR_PURCHASE")));
-            
-            if (with_bids[i]) {
-                final VoltTable vt = bidResults[bidResultsCtr++]; 
-                boolean adv = vt.advanceRow();
-                assert(adv);
-                long bidId = vt.getLong(0);
-                long buyerId = vt.getLong(1);
-                
-                output_rows[i][RESULT_COLS.length-2] = bidId;   // imb_ib_id
-                output_rows[i][RESULT_COLS.length-1] = buyerId; // ib_buyer_id
-                
-                assert (buyerId != -1);
-                this.voltQueueSQL(insertUserItem, buyerId, itemId, sellerId, currentTime);       
-            }
-            if (++batch_size > AuctionMarkConstants.BATCHSIZE_CLOSE_AUCTIONS_UPDATES) {
-                this.voltExecuteSQL();
-                batch_size = 0;
-            }
-            ret.addRow(output_rows[i]);
-        } // FOR
-        if (batch_size > 0) this.voltExecuteSQL();
+        int round = 0;
+        while (true) {
+            voltQueueSQL(getDueItems, startTime, endTime);
+            final VoltTable[] dueItemsTable = voltExecuteSQL();
+            assert (1 == dueItemsTable.length);
+            if (dueItemsTable[0].getRowCount() == 0) break;
+            if (debug)
+                LOG.debug(String.format("Round #%02d - Due Items %d / %d\n%s\n",
+                                       round, dueItemsTable[0].getRowCount(), (closed_ctr+waiting_ctr), dueItemsTable[0]));
 
-        if (debug)
-            LOG.debug(String.format("CloseAuctions::: closed=%d / waiting=%d", closed_ctr, waiting_ctr));
+            boolean with_bids[] = new boolean[dueItemsTable[0].getRowCount()];
+            Object output_rows[][] = new Object[with_bids.length][];
+            int i = 0; 
+            while (dueItemsTable[0].advanceRow()) {
+                long itemId = dueItemsTable[0].getLong(0);
+                long sellerId = dueItemsTable[0].getLong(1);
+                double currentPrice = dueItemsTable[0].getDouble(2);
+                long numBids = dueItemsTable[0].getLong(3);
+                TimestampType endDate = dueItemsTable[0].getTimestampAsTimestamp(4);
+                long itemStatus = dueItemsTable[0].getLong(5);
+                
+                if (debug) LOG.debug(String.format("Getting max bid for itemId=%d / sellerId=%d", itemId, sellerId));
+                assert(itemStatus == AuctionMarkConstants.ITEM_STATUS_OPEN);
+                
+                output_rows[i] = new Object[] { itemId,         // i_id
+                                                sellerId,       // i_u_id
+                                                numBids,        // i_num_bids
+                                                currentPrice,   // i_current_price
+                                                endDate,        // i_end_date
+                                                itemStatus,     // i_status
+                                                null,           // imb_ib_id
+                                                null            // ib_buyer_id
+                };
+                
+                // Has bid on this item - set status to WAITING_FOR_PURCHASE
+                // We'll also insert a new USER_ITEM record as needed
+                if (numBids > 0) {
+                    voltQueueSQL(getMaxBid, itemId, sellerId);
+                    with_bids[i++] = true;
+                    waiting_ctr++;
+                }
+                // No bid on this item - set status to CLOSED
+                else {
+                    closed_ctr++;
+                    with_bids[i++] = false;
+                }
+            } // FOR
+            final VoltTable[] bidResults = voltExecuteSQL();
+            
+            // We have to do this extra step because H-Store doesn't have good support in the
+            // query optimizer for LEFT OUTER JOINs
+            int batch_size = 0;
+            int bidResultsCtr = 0;
+            for (i = 0; i < with_bids.length; i++) {
+                long itemId = (Long)output_rows[i][0];
+                long sellerId = (Long)output_rows[i][1];
+                long status = (with_bids[i] ? AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE :
+                                              AuctionMarkConstants.ITEM_STATUS_CLOSED);
+                voltQueueSQL(updateItemStatus, status, currentTime, itemId, sellerId);
+                if (debug) LOG.debug(String.format("Updated Status for Item %d => %s",
+                                     itemId, (status == AuctionMarkConstants.ITEM_STATUS_CLOSED ? "CLOSED" : "WAITING_FOR_PURCHASE")));
+                
+                if (with_bids[i]) {
+                    final VoltTable vt = bidResults[bidResultsCtr++]; 
+                    boolean adv = vt.advanceRow();
+                    assert(adv);
+                    long bidId = vt.getLong(0);
+                    long buyerId = vt.getLong(1);
+                    
+                    output_rows[i][RESULT_COLS.length-2] = bidId;   // imb_ib_id
+                    output_rows[i][RESULT_COLS.length-1] = buyerId; // ib_buyer_id
+                    
+                    assert (buyerId != -1);
+                    voltQueueSQL(insertUserItem, buyerId, itemId, sellerId, currentTime);
+                    batch_size++;
+                }
+                if (++batch_size > AuctionMarkConstants.BATCHSIZE_CLOSE_AUCTIONS_UPDATES) {
+                    VoltTable updateResults[] = voltExecuteSQL();
+                    for (int j = 0; j < updateResults.length; j++) {
+                        VoltTable vt = updateResults[j];
+                        assert(vt.getRowCount() == 0);
+                        if (vt.asScalarLong() == 0) {
+                            String msg = "Failed to process closed auctions\n" + voltLastQueriesExecuted()[j];
+                            throw new VoltAbortException(msg);
+                        }
+                    } // FOR
+                    batch_size = 0;
+                }
+                ret.addRow(output_rows[i]);
+            } // FOR
+            if (batch_size > 0) voltExecuteSQL();
+            round++;
+        } // WHILE
+
+//        if (debug)
+            LOG.info(String.format("Updated Auctions - Closed=%d / Waiting=%d", closed_ctr, waiting_ctr));
         return (ret);
     }
 }
