@@ -36,7 +36,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static final long UNDO_TOKEN = 10l;
     
     private static final String TARGET_PROCEDURE = GetUserInfo.class.getSimpleName();
-    private static final String TARGET_STATEMENT = "selectWatchedItems";
+    private static final String TARGET_STATEMENT = "getWatchedItems";
     private static final int NUM_DUPLICATE_STATEMENTS = 1;
     
     private static final int NUM_PARTITIONS = 10;
