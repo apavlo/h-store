@@ -95,6 +95,8 @@ EXPERIMENT_SETTINGS = {
         {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
+            "site.exec_neworder_cheat":          True,
+            "site.exec_neworder_cheat_done_partitions": True,
             "updateEnvFunc":                     motivation0UpdateEnv,
         },
         ## Trial #1 - Vary the amount of skew of warehouse ids
@@ -140,6 +142,7 @@ if __name__ == '__main__':
         # Enable debug logging
         "debug",
     ])
+    
     ## ----------------------------------------------
     ## COMMAND OPTIONS
     ## ----------------------------------------------
@@ -151,7 +154,9 @@ if __name__ == '__main__':
        else:
           options[key] = [ value ]
     ## FOR
-    if "debug" in options: LOG.setLevel(logging.DEBUG)
+    if "debug" in options:
+        LOG.setLevel(logging.DEBUG)
+        fabfile.LOG.setLevel(logging.DEBUG)
     ## Global Options
     for key in options:
         varname = "OPT_" + key.replace("-", "_").upper()
@@ -162,22 +167,43 @@ if __name__ == '__main__':
             else: 
                 val = orig_type(options[key][0])
             globals()[varname] = val
-            logging.debug("%s = %s" % (varname, str(globals()[varname])))
+            LOG.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
 
     ## Update Fabric env
     exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
     assert exp_opts
-    pprint(exp_opts)
     for key,val in exp_opts.items():
         if type(val) != types.FunctionType: env[key] = val
     ## FOR
     
+    ## Figure out what keys we need to remove to ensure that one experiment
+    ## doesn't contaminate another
+    conf_remove = set()
+    for other_type in EXPERIMENT_SETTINGS.keys():
+        for i in range(len(EXPERIMENT_SETTINGS[other_type])):
+            if other_type != OPT_EXP_TYPE or i != OPT_EXP_SETTINGS:
+                for key in EXPERIMENT_SETTINGS[other_type][i].keys():
+                    if not key in exp_opts: conf_remove.add(key)
+                ## FOR
+            ## IF
+        ## FOR
+    ## FOR
+    LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
+    
     client_inst = fabfile.__getClientInstance__()
+    LOG.debug("Client Instance: " + client_inst.public_dns_name)
     all_results = [ ]
     stop = False
+    
+    LOG.info("%s/%d - Experiment Parameters:\n%s" % (OPT_EXP_TYPE.title(), OPT_EXP_SETTINGS, pformat(exp_opts)))
     for exp_factor in range(0, 100, 10):
         if "updateEnvFunc" in exp_opts: exp_opts["updateEnvFunc"](env, exp_factor)
+        if exp_factor == 0:
+            env["hstore.exec_prefix"] = "compile"
+        else:
+            env["hstore.exec_prefix"] = ""
+        
         results = [ ]
         for trial in range(OPT_EXP_TRIALS):
             LOG.info("Executing trial #%d for factor %d" % (trial, exp_factor))
@@ -199,9 +225,12 @@ if __name__ == '__main__':
     try:
         disconnect_all()
     finally:
-        for results in all_results:
-            for r in results:
-                print r["TXNPERSECOND"]
+        for i in range(len(all_results)):
+            print "EXP FACTOR %d" % (i * 10)
+            for trial in range(len(all_results[i])):
+                r = all_results[i][trial]
+                print "   TRIAL #%d:", r["TXNPERSECOND"]
+            ## FOR
             print
         ## FOR
     ## TRY
