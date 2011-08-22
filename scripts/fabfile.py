@@ -70,11 +70,13 @@ ALL_PACKAGES = [
     'sun-java6-jdk',
     'valgrind',
     'ant',
+    ## Not required, but handy to have
     'htop',
+    'realpath',
+    'unison',
 ]
 NFSHEAD_PACKAGES = [
     'nfs-kernel-server',
-    'unison',
 ]
 NFSCLIENT_PACKAGES = [
     'autofs',
@@ -174,6 +176,13 @@ def start_cluster():
         for inst in env["ec2.all_instances"]:
             if not inst in env["ec2.running_instances"]:
                 LOG.info("Restarting stopped node '%s'" % inst)
+                
+                ## Check whether we need to change the instance type before we restart it
+                currentType = inst.get_attribute("instanceType")
+                assert currentType != None
+                if currentType != env["ec2.type"]:
+                    LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, env["ec2.type"], inst))
+                    inst.modify_attribute("instanceType", env["ec2.type"])
                 inst.start()
                 waiting.append(inst)
                 instances_needed -= 1
@@ -197,7 +206,7 @@ def start_cluster():
             instance_tags.append(tags)
         ## FOR
         assert instances_needed == len(instance_tags), "%d != %d" % (instances_needed, len(instance_tags))
-        __startInstances__(instances_needed, env["ec2.type"], instance_tags)
+        __startInstances__(instances_needed, instance_tags)
         instances_needed = 0
     ## IF
     assert instances_needed == 0
@@ -279,6 +288,7 @@ def setup_env():
         'rmf': 'rm -rf',
         'la':  'ls -lh',
         'h':   'history',
+        'top': 'htop',
     }
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
@@ -352,7 +362,7 @@ def deploy_hstore():
             if run("test -d %s" % code_dir).failed:
                 run("svn checkout %s %s %s" % (env["hstore.svn_options"], env["hstore.svn"], code_dir))
         with cd(code_dir):
-            run("svn update %s" % env["hstore.svn_options"])
+            #run("svn update %s" % env["hstore.svn_options"])
             if env["hstore.clean"]:
                 run("ant clean-all")
             run("ant build")
@@ -452,6 +462,7 @@ def write_conf(project, removals=[ ]):
 ## ----------------------------------------------
 @task
 def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
+    LOG.debug("Updating configuration file '%s' - Updates=%d / Removals=%d", conf_file, len(updates), len(removals))
     with hide('running', 'stdout'):
         first = True
         space = "" if noSpaces else " "
@@ -504,15 +515,17 @@ def stop_cluster(terminate=False):
         for inst in waiting:
             __waitUntilStatus__(inst, 'terminated' if terminate else 'stopped')
         ## FOR
+    else:
+        LOG.info("No running H-Store instances were found")
 ## DEF
 
 ## ----------------------------------------------
 ## __startInstances__
 ## ----------------------------------------------        
-def __startInstances__(instances_count, instance_type, instance_tags):
-    LOG.info("Attemping to start %d '%s' execution nodes." % (instances_count, instance_type))
+def __startInstances__(instances_count, instance_tags):
+    LOG.info("Attemping to start %d '%s' execution nodes." % (instances_count, env["ec2.type"]))
     reservation = ec2_conn.run_instances(env["ec2.ami"],
-                                         instance_type=instance_type,
+                                         instance_type=env["ec2.type"],
                                          key_name=env["ec2.keypair"],
                                          min_count=instances_count,
                                          max_count=instances_count,

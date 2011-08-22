@@ -50,9 +50,12 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile.QueueType;
 import edu.brown.benchmark.auctionmark.util.CompositeId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
+import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -64,21 +67,16 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
-    /**
-     * Current Timestamp
-     */
-    private TimestampType current_time = new TimestampType();
-    
-    private final TimestampType start_time = new TimestampType();
 
-    /**
-     * The last time that we called CHECK_WINNING_BIDS on this client
-     */
-    private TimestampType lastCloseAuctionsTime = null;
     
+    /**
+     * TODO
+     */
     private final Map<UserId, Integer> seller_item_cnt = new HashMap<UserId, Integer>();
 
+    /**
+     * TODO
+     */
     private final List<long[]> pending_commentResponse = Collections.synchronizedList(new ArrayList<long[]>());
     
     // --------------------------------------------------------------------
@@ -115,23 +113,21 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         CLOSE_AUCTIONS(AuctionMarkConstants.FREQUENCY_CLOSE_AUCTIONS, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-                return new Object[] { client.start_time, 
-                                      client.getLastCloseAuctionsTime(),
-                                      client.updateAndGetLastCloseAuctionsTime(),
-                };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      client.profile.getLastCloseAuctionsTime(),
+                                      client.profile.updateAndGetLastCloseAuctionsTime() };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
 			    if (AuctionMarkConstants.ENABLE_CLOSE_AUCTIONS && client.getClientId() == 0) {
-			        TimestampType lastCheckWinningBidTime = client.getLastCloseAuctionsTime();
-			        
 			        // If we've never checked before, then we'll want to do that now
-			        if (lastCheckWinningBidTime == null) return (true);
+			        if (client.profile.hasLastCloseAuctionsTime() == false) return (true);
 
 			        // Otherwise check whether enough time has passed since the last time we checked
-			        TimestampType currentTime = client.getCurrentTime();
+			        TimestampType lastCheckWinningBidTime = client.profile.getLastCloseAuctionsTime();
+			        TimestampType currentTime = client.profile.getCurrentTime();
 			        long time_elapsed = Math.round((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0);
-			        if (debug.get()) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.start_time, currentTime, time_elapsed));
+			        if (debug.get()) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.profile.getBenchmarkStartTime(), currentTime, time_elapsed));
 			        if (time_elapsed > AuctionMarkConstants.INTERVAL_CLOSE_AUCTIONS) return (true);
 			    }
 				return (false);
@@ -143,8 +139,9 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         GET_ITEM(AuctionMarkConstants.FREQUENCY_GET_ITEM, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-            	ItemId itemId = client.profile.getRandomAvailableItemId();
-                return new Object[] { client.start_time, itemId, itemId.getSellerId() };
+            	ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.id, itemInfo.getSellerId() };
             }
 
 			@Override
@@ -181,7 +178,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 rand = client.rng.number(0, 100);
                 long get_watched_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS ? 1 : VoltType.NULL_BIGINT); 
                 
-                return new Object[] { client.start_time, userId,
+                return new Object[] { client.getTimestampParameterArray(),
+                                      userId,
                                       get_feedback, get_comments,
                                       get_seller_items, get_buyer_items, get_watched_items };
             }
@@ -197,24 +195,24 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
                 
-                ItemId itemId;
+                ItemInfo itemInfo;
                 UserId sellerId;
                 UserId buyerId;
                 double bid;
                 double maxBid;
                 
                 boolean has_available = (client.profile.getAvailableItemIdsCount() > 0);
-                boolean has_ending = (client.profile.getEndingSoonItemIdsCount() > 0);
-                boolean has_waiting = (client.profile.getWaitForPurchaseItemIdsCount() > 0);
-                boolean has_completed = (client.profile.getCompleteItemIdsCount() > 0); 
+                boolean has_ending = (client.profile.getEndingSoonItemsCount() > 0);
+                boolean has_waiting = (client.profile.getWaitForPurchaseItemsCount() > 0);
+                boolean has_completed = (client.profile.getCompleteItemsCount() > 0); 
                 
                 // Some NEW_BIDs will be for items that have already ended.
                 // This will simulate somebody trying to bid at the very end but failing
                 if ((has_waiting || has_completed) &&
                     (client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM || has_available == false)) {
-                    itemId = (has_waiting ? client.profile.getRandomWaitForPurchaseItemId() :
-                                            client.profile.getRandomCompleteItemId());
-                    sellerId = itemId.getSellerId();
+                    itemInfo = (has_waiting ? client.profile.getRandomWaitForPurchaseItem() :
+                                              client.profile.getRandomCompleteItem());
+                    sellerId = itemInfo.getSellerId();
                     buyerId = client.profile.getRandomBuyerId(sellerId);
                     
                     // The bid/maxBid do not matter because they won't be able to actually
@@ -228,24 +226,25 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     assert(has_available || has_ending);
                     // 50% of NEW_BIDS will be for items that are ending soon
                     if ((has_ending && client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM) || has_available == false) {
-                        itemId = client.profile.getRandomEndingSoonItemId(true);
+                        itemInfo = client.profile.getRandomEndingSoonItem(true);
                     } else {
-                        itemId = client.profile.getRandomAvailableItemId(true);    
+                        itemInfo = client.profile.getRandomAvailableItemId(true);    
                     }
                     
-                    sellerId = itemId.getSellerId();
+                    sellerId = itemInfo.getSellerId();
                     buyerId = client.profile.getRandomBuyerId(sellerId);
                     
-                    double currentPrice = itemId.getCurrentPrice();
+                    double currentPrice = itemInfo.getCurrentPrice();
                     bid = client.rng.fixedPoint(2, currentPrice, currentPrice * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2)));
                     maxBid = client.rng.fixedPoint(2, bid, (bid * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2))));
                 }
 
-                return new Object[] { client.start_time, itemId, sellerId, buyerId, maxBid };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.id, sellerId, buyerId, maxBid, itemInfo.endDate };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
-			    return (client.profile.getAllItemIdsCount() > 0);
+			    return (client.profile.getAllItemsCount() > 0);
 			}
         }),
         // ====================================================================
@@ -254,15 +253,16 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_COMMENT(AuctionMarkConstants.FREQUENCY_NEW_COMMENT, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-                ItemId itemId = client.profile.getRandomCompleteItemId();
-                UserId sellerId = itemId.getSellerId();
+                ItemInfo itemInfo = client.profile.getRandomCompleteItem();
+                UserId sellerId = itemInfo.getSellerId();
                 UserId buyerId = client.profile.getRandomBuyerId(sellerId);
                 String question = client.rng.astring(10, 128);
-                return new Object[] { client.start_time, itemId, sellerId, buyerId, question };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.id, sellerId, buyerId, question };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getCompleteItemIdsCount() > 0);
+				return (client.profile.getCompleteItemsCount() > 0);
 			}
         }),
         // ====================================================================
@@ -280,7 +280,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 UserId sellerId = itemId.getSellerId();
                 String response = client.rng.astring(10, 128);
 
-                return new Object[] { client.start_time, itemId, sellerId, commentId, response };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemId, sellerId, commentId, response };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -293,16 +294,17 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_FEEDBACK(AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-                ItemId itemId = client.profile.getRandomCompleteItemId();
-                UserId sellerId = itemId.getSellerId();
+                ItemInfo itemInfo = client.profile.getRandomCompleteItem();
+                UserId sellerId = itemInfo.getSellerId();
                 UserId buyerId = client.profile.getRandomBuyerId(sellerId);
                 long rating = (long) client.rng.number(-1, 1);
                 String feedback = client.rng.astring(10, 80);
-                return new Object[] { client.start_time, itemId, sellerId, buyerId, rating, feedback };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.id, sellerId, buyerId, rating, feedback };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getCompleteItemIdsCount() > 0);
+				return (client.profile.getCompleteItemsCount() > 0);
 			}
         }),
         // ====================================================================
@@ -347,15 +349,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     images[i] = client.rng.astring(20, 100);
                 } // FOR
 
-                TimestampType start_date = AuctionMarkConstants.getScaledTimestamp(client.start_time, new TimestampType());
-                long duration = ((long)client.profile.randomDuration.nextInt()) * AuctionMarkConstants.MICROSECONDS_IN_A_DAY;
-                TimestampType end_date = new TimestampType(start_date.getTime() + duration);
+                long duration = client.profile.randomDuration.nextInt();
 
-                return new Object[] { client.start_time,
+                return new Object[] { client.getTimestampParameterArray(),
                                       itemId, sellerId, categoryId,
-                                      name, description, initial_price, attributes,
-                                      gag_ids, gav_ids, images,
-                                      start_date, end_date };
+                                      name, description, duration, initial_price, attributes,
+                                      gag_ids, gav_ids, images };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -368,24 +367,25 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_PURCHASE(AuctionMarkConstants.FREQUENCY_NEW_PURCHASE, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-                ItemId itemId = client.profile.getRandomWaitForPurchaseItemId();
-                UserId sellerId = itemId.getSellerId();
+                ItemInfo itemInfo = client.profile.getRandomWaitForPurchaseItem();
+                UserId sellerId = itemInfo.getSellerId();
                 double buyer_credit = 0d;
                 
                 // Whether the buyer will not have enough money
-                if (itemId.hasCurrentPrice()) {
+                if (itemInfo.hasCurrentPrice()) {
                     if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY) {
-                        buyer_credit = -1 * itemId.getCurrentPrice();
+                        buyer_credit = -1 * itemInfo.getCurrentPrice();
                     } else {
-                        buyer_credit = itemId.getCurrentPrice();
-                        client.profile.removeWaitForPurchaseItemId(itemId);
+                        buyer_credit = itemInfo.getCurrentPrice();
+                        client.profile.removeWaitForPurchaseItem(itemInfo);
                     }
                 }
-                return new Object[] { client.start_time, itemId, sellerId, buyer_credit };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.id, sellerId, buyer_credit };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getWaitForPurchaseItemIdsCount() > 0);
+				return (client.profile.getWaitForPurchaseItemsCount() > 0);
 			}
         }),
         // ====================================================================
@@ -394,8 +394,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         UPDATE_ITEM(AuctionMarkConstants.FREQUENCY_UPDATE_ITEM, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-                ItemId itemId = client.profile.getRandomAvailableItemId();
-                UserId sellerId = itemId.getSellerId();
+                ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
+                UserId sellerId = itemInfo.getSellerId();
                 String description = client.rng.astring(50, 255);
                 
                 long delete_attribute = VoltType.NULL_BIGINT;
@@ -416,7 +416,9 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     add_attribute[1] = gag_gav.getSecond();
                 }
                 
-                return new Object[] { client.start_time, itemId, sellerId, description, delete_attribute, add_attribute };
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.id, sellerId, description,
+                                      delete_attribute, add_attribute };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -573,19 +575,31 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     }
     
     @Override
-    protected void tick() {
-        super.tick();
+    public void tick(int counter) {
+        super.tick(counter);
         profile.tick();
     }
     
     @Override
     protected boolean runOnce() throws IOException {
+        // We need to subtract the different between this and the profile's start time,
+        // since that accounts for the time gap between when the loader started and when the client start.
+        // Otherwise, all of our cache date will be out dated if it took a really long time
+        // to load everything up. Again, in order to keep things in synch, we only want to
+        // set this on the first call to runOnce(). This will account for start a bunch of
+        // clients on multiple nodes but then having to wait until they're all up and running
+        // before starting the actual benchmark run.
+        if (profile.hasClientStartTime() == false) profile.setAndGetClientStartTime();
+        
         Transaction txn = null;
         Object[] params = null;
 
         // Always update the current timestamp
-        this.updateAndGetCurrentTime();
+        profile.updateAndGetCurrentTime();
 
+        // And the queues that the profile maintains for us
+        profile.updateItemQueues();
+        
         // Find the next txn and its parameters that we will run. We want to wrap this
         // around a synchronization block so that nobody comes in and takes the parameters
         // from us before we actually run it
@@ -665,11 +679,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     protected abstract class BaseCallback implements ProcedureCallback {
         final Transaction txn;
         final Object params[];
-        
-        int updated_available = 0;
-        int updated_endingSoon = 0;
-        int updated_waitingForPurchase = 0;
-        int updated_completed = 0;
+        final Histogram<QueueType> updated = new Histogram<QueueType>();
         
         public BaseCallback(Transaction txn, Object params[]) {
             this.txn = txn;
@@ -708,45 +718,27 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         public ItemId processItemRecord(VoltTable vt) {
             ItemId itemId = new ItemId(vt.getLong("i_id"));
             TimestampType endDate = vt.getTimestampAsTimestamp("i_end_date");
-            long numBids = vt.getLong("i_num_bids");
-            
+            short numBids = (short)vt.getLong("i_num_bids");
             double currentPrice = vt.getDouble("i_current_price");
-            assert(vt.wasNull() == false);
-            itemId.setCurrentPrice(currentPrice);
+            ItemInfo itemInfo = new ItemInfo(itemId, currentPrice, endDate, numBids);
+            if (vt.hasColumn("ip_id")) itemInfo.status = AuctionMarkConstants.ITEM_STATUS_CLOSED;
+            if (vt.hasColumn("i_status")) itemInfo.status = vt.getLong("i_status");
             
             UserId sellerId = new UserId(vt.getLong("i_u_id"));
             assert (itemId.getSellerId().equals(sellerId));
             
-            // Calculate how much time is left for this auction
-            long remaining = new TimestampType().getMSTime() - endDate.getMSTime();
-            
-            // Already ended
-            if (remaining <= 0) {
-                if (numBids > 0) {
-                    boolean ret = profile.addWaitForPurchaseItemId(itemId);
-                    if (ret) this.updated_waitingForPurchase++;
-                } else {
-                    boolean ret = profile.addCompleteItemId(itemId);
-                    if (ret) this.updated_completed++;
-                }
-            }
-            // About to end soon
-            else if (remaining < AuctionMarkConstants.ITEM_ENDING_SOON) {
-                boolean ret = profile.addEndingSoonItemId(itemId);
-                if (ret) this.updated_endingSoon++;
-            }
-            // Still available
-            else {
-                boolean ret = profile.addAvailableItemId(itemId);
-                if (ret) this.updated_available++;
-            }
+            QueueType qtype = profile.addItemToProperQueue(itemInfo, false);
+            this.updated.put(qtype);
+
             return (itemId);
         }
         @Override
         public String toString() {
-            return String.format("%s :: available=+%d, endingSoon=+%d, waiting=+%d, completed=+%d",
-                                 this.txn,
-                                 this.updated_available, this.updated_endingSoon, this.updated_waitingForPurchase, this.updated_completed);
+            String cnts[] = new String[QueueType.values().length];
+            for (QueueType qtype : QueueType.values()) {
+                cnts[qtype.ordinal()] = String.format("%s=+%d", qtype, updated.get(qtype, 0));
+            }
+            return String.format("%s :: %s", this.txn, StringUtil.join(", ", cnts));
         }
     } // END CLASS
     
@@ -947,21 +939,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         return (new ItemId(seller_id, cnt));
     }
     
-    public synchronized TimestampType updateAndGetCurrentTime() {
-        this.current_time = new TimestampType();
-        return AuctionMarkConstants.getScaledTimestamp(this.start_time, this.current_time);
-    }
-
-    public TimestampType getCurrentTime() {
-        return AuctionMarkConstants.getScaledTimestamp(this.start_time, this.current_time);
-    }
-
-    public TimestampType getLastCloseAuctionsTime() {
-        return AuctionMarkConstants.getScaledTimestamp(this.start_time, this.lastCloseAuctionsTime);
-    }
-
-    public synchronized TimestampType updateAndGetLastCloseAuctionsTime() {
-        this.lastCloseAuctionsTime = new TimestampType();
-        return AuctionMarkConstants.getScaledTimestamp(this.start_time, this.lastCloseAuctionsTime);
+    public TimestampType[] getTimestampParameterArray() {
+        return new TimestampType[] { profile.getBenchmarkStartTime(),
+                                     profile.getClientStartTime() };
     }
 }

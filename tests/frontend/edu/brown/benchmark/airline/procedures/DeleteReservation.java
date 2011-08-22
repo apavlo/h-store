@@ -26,7 +26,8 @@ public class DeleteReservation extends VoltProcedure {
     
     public final SQLStmt GetCustomerByFFNumber = new SQLStmt(
             "SELECT " + GetCustomerBase +
-            "  FROM " + AirlineConstants.TABLENAME_CUSTOMER + ", " + AirlineConstants.TABLENAME_FREQUENT_FLYER + 
+            "  FROM " + AirlineConstants.TABLENAME_CUSTOMER + ", " + 
+                        AirlineConstants.TABLENAME_FREQUENT_FLYER + 
             " WHERE FF_C_ID_STR = ? AND FF_AL_ID = ? AND FF_C_ID = C_ID");
     
     public final SQLStmt DeleteReservation = new SQLStmt(

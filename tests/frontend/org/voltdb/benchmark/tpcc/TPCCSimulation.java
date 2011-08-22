@@ -60,6 +60,7 @@ import org.voltdb.benchmark.Clock;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.rand.RandomDistribution;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 
 public class TPCCSimulation {
@@ -112,6 +113,10 @@ public class TPCCSimulation {
     static long lastAssignedWarehouseId = 1;
     
     private RandomDistribution.Zipf zipf;
+    
+    private int temporal_skew_counter = 0;
+    private final Histogram<Short> lastWarehouseHistory = new Histogram<Short>();
+    private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>();
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
                           Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor) {
@@ -129,14 +134,18 @@ public class TPCCSimulation {
         if (config.neworder_skew_warehouse) {
             if (LOG.isDebugEnabled()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
             this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, this.max_w_id+1, this.skewFactor);
-            this.zipf.enableHistory();
         }
 
         lastAssignedWarehouseId += 1;
         if (lastAssignedWarehouseId > max_w_id)
             lastAssignedWarehouseId = 1;
         
-        if (LOG.isDebugEnabled()) LOG.debug(this.toString());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(this.toString());
+        }
+        
+        this.lastWarehouseHistory.setKeepZeroEntries(true);
+        this.totalWarehouseHistory.setKeepZeroEntries(true);
     }
     
     /**
@@ -165,11 +174,35 @@ public class TPCCSimulation {
         m.put("Items", parameters.items);
         m.put("Affine Warehouse", lastAssignedWarehouseId);
         m.put("Skew Factor", this.skewFactor);
+        if (this.zipf != null) {
+            m.put("Skewed Warehouses", this.zipf.getHistory());
+        }
         return ("TPCC Simulator Options\n" + StringUtil.formatMaps(m, this.config.debugMap()));
     }
     
     protected RandomDistribution.Zipf getWarehouseZipf() {
         return (this.zipf);
+    }
+    
+    protected Histogram<Short> getLastRoundWarehouseHistory() {
+        return (this.lastWarehouseHistory);
+    }
+    protected Histogram<Short> getTotalWarehouseHistory() {
+        return (this.totalWarehouseHistory);
+    }
+    public synchronized void tick(int counter) {
+        this.temporal_skew_counter = counter;
+        if (config.temporal_skew) {
+            if (LOG.isDebugEnabled()) {
+                Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
+                m.put(String.format("LAST ROUND [sampleCount=%d]", this.lastWarehouseHistory.getSampleCount()),
+                      this.lastWarehouseHistory);
+                m.put(String.format("TOTAL [sampleCount=%d]", this.totalWarehouseHistory.getSampleCount()),
+                      this.totalWarehouseHistory);
+                LOG.debug(String.format("ROUND #%02d - Warehouse Temporal Skew\n%s", counter, StringUtil.formatMaps(m)));
+            }
+            this.lastWarehouseHistory.clearValues();
+        }
     }
 
     private short generateWarehouseId() {
@@ -179,14 +212,14 @@ public class TPCCSimulation {
         if (config.warehouse_affinity) {
             w_id = (short)this.affineWarehouse;
         } 
+        // TEMPORAL SKEW
+        else if (config.temporal_skew) {
+            w_id = (short)((this.temporal_skew_counter % parameters.warehouses) + parameters.starting_warehouse);
+        }
         // ZIPFIAN SKEWED WAREHOUSE ID
         else if (config.neworder_skew_warehouse) {
             assert(this.zipf != null);
             w_id = (short)this.zipf.nextInt();
-            if (LOG.isDebugEnabled()) {
-                long num_samples = this.zipf.getSampleCount();
-                if (num_samples > 0 && num_samples % 5000 == 0) LOG.debug("W_ID Distribution:\n" + this.zipf.getHistory());
-            }
         }
         // GAUSSIAN SKEWED WAREHOUSE ID
         else if (skewFactor > 0.0d) {
@@ -199,6 +232,10 @@ public class TPCCSimulation {
         
         assert(w_id >= parameters.starting_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id); 
         assert(w_id <= this.max_w_id) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id);
+        
+        this.lastWarehouseHistory.put(w_id);
+        this.totalWarehouseHistory.put(w_id);
+            
         return w_id;
     }
 

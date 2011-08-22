@@ -101,6 +101,8 @@ public abstract class VoltTableRow {
      */
     protected abstract int getColumnIndex(String columnName);
 
+    protected abstract boolean hasColumn(String columnName);
+    
     /**
      * Returns the number of columns in the table schema
      * @return Number of columns in the table schema

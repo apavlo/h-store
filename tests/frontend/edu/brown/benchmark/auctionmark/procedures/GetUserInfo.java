@@ -94,7 +94,7 @@ public class GetUserInfo extends VoltProcedure {
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable[] run(TimestampType benchmarkStart, long user_id, long get_feedback, long get_comments, long get_seller_items, long get_buyer_items, long get_watched_items) {
+    public VoltTable[] run(TimestampType benchmarkTimes[], long user_id, long get_feedback, long get_comments, long get_seller_items, long get_buyer_items, long get_watched_items) {
         final boolean debug = LOG.isDebugEnabled();
         
         // The first VoltTable in the output will always be the user's information

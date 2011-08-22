@@ -60,9 +60,9 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 
 BASE_SETTINGS = {
-    "client.blocking":                  True,
-    "client.blocking_concurrent":       100,
-    "client.txnrate":                   10000,
+    "client.blocking":                  False,
+    "client.blocking_concurrent":       10000,
+    "client.txnrate":                   2500,
     "client.count":                     2,
     "client.processesperclient":        8,
     "client.skewfactor":                -1,
@@ -72,7 +72,8 @@ BASE_SETTINGS = {
     "site.count":                       4,
     "site.partitions_per_site":         4,
     "site.status_show_txn_info":        True,
-    "site.memory":                      12288,
+    "site.exec_profiling":              True,
+    "site.memory":                      6144,
     
     "benchmark.neworder_only":          True,
     "benchmark.neworder_abort":         False,
@@ -94,13 +95,26 @@ def motivation1UpdateEnv(env, exp_factor):
     motivationBaseUpdate(env, exp_factor)
     if exp_factor == 0:
         env["benchmark.neworder_skew_warehouse"] = False
+        env["client.skewfactor"] =  -1
     else:
         env["client.skewfactor"] = 1.00001 + (0.25 * (exp_factor - 10) / 10.0)
+    LOG.info("client.skewfactor = %f [exp_factor=%d]" % (env["client.skewfactor"], exp_factor))
+## DEF
+def motivation2UpdateEnv(env, exp_factor):
+    motivationBaseUpdate(env, exp_factor)
+    if exp_factor == 0:
+        env["benchmark.temporal_skew"] = False
+        env["client.tickinterval"] =  -1
+    else:
+        env["benchmark.temporal_skew"] = True
+        env["client.tickinterval"] =  int(250 * (exp_factor/10.0))
+    
+    LOG.info("client.tickinterval = %f [expFactor=%d]" % (env["client.tickinterval"], exp_factor))
 ## DEF
 
 EXPERIMENT_SETTINGS = {
     "motivation": [
-        ## Trial #0 - Vary the percentage of multi-partition txns
+        ## Settings #0 - Vary the percentage of multi-partition txns
         {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
@@ -108,11 +122,19 @@ EXPERIMENT_SETTINGS = {
             "site.exec_neworder_cheat_done_partitions": True,
             "updateEnvFunc":                     motivation0UpdateEnv,
         },
-        ## Trial #1 - Vary the amount of skew of warehouse ids
+        ## Settings #1 - Vary the amount of skew of warehouse ids
         {
-            "benchmark.neworder_skew_warehouse": False,
+            "benchmark.neworder_skew_warehouse": True,
             "benchmark.neworder_multip":         False,
             "updateEnvFunc":                     motivation1UpdateEnv,
+        },
+        ## Settings #2 - Temporal Skew
+        {
+            "client.tickinterval":               -1,
+            "benchmark.neworder_skew_warehouse": False,
+            "benchmark.neworder_multip":         False,
+            "benchmark.temporal_skew":           True,
+            "updateEnvFunc":                     motivation2UpdateEnv,
         },
     ],
 }
@@ -212,23 +234,28 @@ if __name__ == '__main__':
     all_results = [ ]
     stop = False
     
-    LOG.info("%s/%d - Experiment Parameters:\n%s" % (OPT_EXP_TYPE.title(), OPT_EXP_SETTINGS, pformat(exp_opts)))
+    first = True
     for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 10):
         if "updateEnvFunc" in exp_opts: exp_opts["updateEnvFunc"](env, exp_factor)
-        if exp_factor == 0:
-            env["hstore.exec_prefix"] = "compile"
-        else:
-            env["hstore.exec_prefix"] = ""
         
         results = [ ]
         for trial in range(OPT_EXP_TRIALS):
             attempts = OPT_REPEAT_FAILED_TRIALS
             while attempts > 0 and stop == False:
+                if first:
+                    env["hstore.exec_prefix"] = "compile"
+                else:
+                    env["hstore.exec_prefix"] = ""
+                first = False
+                
+                if attempts == OPT_REPEAT_FAILED_TRIALS and trial == 0:
+                    LOG.debug("%s/%d - Experiment Parameters:\n%s" % (OPT_EXP_TYPE.title(), OPT_EXP_SETTINGS, pformat(env)))
+                
                 attempts -= 1
                 LOG.info("Executing trial #%d for factor %d [attempt=%d/%d]" % (trial, exp_factor, (OPT_REPEAT_FAILED_TRIALS-attempts), OPT_REPEAT_FAILED_TRIALS))
                 try:
                     with settings(host_string=client_inst.public_dns_name):
-                        output = fabfile.exec_benchmark(project="tpcc", json=True)
+                        output = fabfile.exec_benchmark(project="tpcc", removals=conf_remove, json=True)
                         results.append(parseResultsOutput(output))
                     ## WITH
                     break
@@ -241,17 +268,17 @@ if __name__ == '__main__':
             ## WHILE
             if stop: break
         ## FOR
-        if results: all_results.append(results)
+        if results: all_results.append((exp_factor, results))
         if stop: break
     ## FOR
     
     try:
         disconnect_all()
     finally:
-        for i in range(len(all_results)):
-            print "EXP FACTOR %d" % (i * 10)
-            for trial in range(len(all_results[i])):
-                r = all_results[i][trial]
+        for exp_factor, results in all_results:
+            print "EXP FACTOR %d" % exp_factor
+            for trial in range(len(results)):
+                r = results[trial]
                 print "   TRIAL #%d: %s" % (trial, r["TXNPERSECOND"])
             ## FOR
             print

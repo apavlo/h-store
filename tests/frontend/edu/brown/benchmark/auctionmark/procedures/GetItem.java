@@ -40,8 +40,7 @@ public class GetItem extends VoltProcedure {
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable[] run(TimestampType benchmarkStart, long item_id, long seller_id) {
-        // final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+    public VoltTable[] run(TimestampType benchmarkTimes[], long item_id, long seller_id) {
         voltQueueSQL(getItem, item_id, seller_id);
         voltQueueSQL(getUser, seller_id);
         return (voltExecuteSQL(true));

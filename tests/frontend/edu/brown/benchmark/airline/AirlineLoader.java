@@ -3,7 +3,6 @@ package edu.brown.benchmark.airline;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -434,6 +433,9 @@ public class AirlineLoader extends AirlineBaseClient {
      */
     protected void loadVoltTable(String tableName, VoltTable vt) {
         if (debug.get()) LOG.debug(String.format("Loading %d tuples for %s", vt.getRowCount(), tableName));
+//        if (tableName.equalsIgnoreCase("FLIGHT")) {
+//            System.out.println(vt);
+//        }
         try {
             this.getClientHandle().callProcedure("@LoadMultipartitionTable", tableName, vt); 
         } catch (Exception e) {
@@ -984,14 +986,7 @@ public class AirlineLoader extends AirlineBaseClient {
             this.flight_times = new RandomDistribution.FlatHistogram<String>(rng, histogram);
             
             // Figure out how many flights that we want for each day
-            Calendar cal = Calendar.getInstance();
-            int year = cal.get(Calendar.YEAR);
-            int month= cal.get(Calendar.MONTH);
-            int day = cal.get(Calendar.DAY_OF_MONTH);
-            
-            cal.clear();
-            cal.set(year, month, day);
-            this.today = new TimestampType(cal.getTime());
+            this.today = new TimestampType();
             
             this.total = 0;
             int num_flights_low = (int)Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY * 0.75);
@@ -1110,7 +1105,7 @@ public class AirlineLoader extends AirlineBaseClient {
                 }
                 // DEPART TIME
                 case (3): {
-                    value = this.depart_time.getMSTime();
+                    value = this.depart_time;
                     break;
                 }
                 // ARRIVE AIRPORT

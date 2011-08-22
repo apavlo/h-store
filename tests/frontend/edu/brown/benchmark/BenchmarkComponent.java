@@ -249,6 +249,10 @@ public abstract class BenchmarkComponent {
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
     
+    private final int m_tickInterval;
+    private final Thread m_tickThread;
+    private int m_tickCounter = 0;
+    
     /**
      * Configuration
      */
@@ -317,6 +321,7 @@ public abstract class BenchmarkComponent {
                             continue;
                         }
                         t.start();
+                        if (m_tickThread != null) m_tickThread.start();
                         m_controlState = ControlState.RUNNING;
                         answerOk();
                         break;
@@ -329,9 +334,11 @@ public abstract class BenchmarkComponent {
                         }
                         answerPoll();
                         
-                        // Call tick on the client!
-                        // if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
-                        BenchmarkComponent.this.tick();
+                        // Call tick on the client if we're not polling ourselves
+                        if (BenchmarkComponent.this.m_tickInterval < 0) {
+                            if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
+                            BenchmarkComponent.this.tick(m_tickCounter++);
+                        }
                         break;
                     }
                     case CLEAR: {
@@ -594,10 +601,10 @@ public abstract class BenchmarkComponent {
     
     /**
      * Is called every time the interval time is reached
+     * @param counter TODO
      */
-    protected void tick() {
+    public void tick(int counter) {
         // Default is to do nothing!
-//        System.out.println("BenchmarkComponent.tick()");
     }
     
 
@@ -657,6 +664,8 @@ public abstract class BenchmarkComponent {
         m_checkTransaction = 0;
         m_checkTables = false;
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
+        m_tickInterval = -1;
+        m_tickThread = null;
         
         // FIXME
         m_hstoreConf = null;
@@ -685,6 +694,7 @@ public abstract class BenchmarkComponent {
         int id = 0;
         int num_clients = 0;
         int num_partitions = 0;
+        int tickInterval = -1;
         boolean exitOnCompletion = true;
         float checkTransaction = 0;
         boolean checkTables = false;
@@ -756,11 +766,15 @@ public abstract class BenchmarkComponent {
             }
             else if (parts[0].equalsIgnoreCase("NOCONNECTIONS")) {
                 noConnections = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("CLIENT.TICKINTERVAL")) {
+                tickInterval = Integer.parseInt(parts[1]);
+            }
 //            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
 //                statsDatabaseURL = parts[1];
 //            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
 //                statsPollInterval = Integer.parseInt(parts[1]);
-            } else {
+            else {
                 m_extraParams.put(parts[0], parts[1]);
             }
         }
@@ -805,6 +819,7 @@ public abstract class BenchmarkComponent {
         m_txnRate = transactionRate;
         m_txnsPerMillisecond = transactionRate / 1000.0;
         m_blocking = blocking;
+        m_tickInterval = tickInterval;
         m_noConnections = noConnections;
         
         if (m_catalogPath != null) {
@@ -869,6 +884,29 @@ public abstract class BenchmarkComponent {
         m_counts = new AtomicLong[m_countDisplayNames.length];
         for (int ii = 0; ii < m_counts.length; ii++) {
             m_counts[ii] = new AtomicLong(0);
+        }
+        
+        // If we need to call tick more frequently that when POLL is called,
+        // then we'll want to use a separate thread
+        if (m_tickInterval > 0) {
+            LOG.info("Creating local thread that will call tick every " + (m_tickInterval / 1000) + " seconds");
+            Runnable r = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        while (true) {
+                            BenchmarkComponent.this.tick(m_tickCounter++);
+                            Thread.sleep(m_tickInterval);
+                        } // WHILE
+                    } catch (InterruptedException ex) {
+                        LOG.info("Tick thread was interrupted");
+                    }
+                }
+            };
+            m_tickThread = new Thread(r);
+            m_tickThread.setDaemon(true);
+        } else {
+            m_tickThread = null;
         }
     }
 
@@ -962,6 +1000,10 @@ public abstract class BenchmarkComponent {
         return (m_projectName);
     }
 
+    public final int getCurrentTickCounter() {
+        return (m_tickCounter);
+    }
+    
     /**
      * Return the catalog used for this benchmark.
      * @return
@@ -1028,7 +1070,7 @@ public abstract class BenchmarkComponent {
         }
 
         if (!isSatisfied)
-            System.err.println("Transaction " + procName + " failed check");
+            LOG.error("Transaction " + procName + " failed check");
 
         return isSatisfied;
     }

@@ -1,149 +1,96 @@
 package edu.brown.benchmark.auctionmark.util;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.statistics.Histogram;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.StringUtil;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
-public class ItemInfo implements Cloneable {
-    public final ItemId id;
-    private final List<Bid> bids = new ArrayList<Bid>();
-    private Histogram<UserId> bidderHistogram = new Histogram<UserId>();
-    
-    public short numBids;
-    public short numImages;
-    public short numAttributes;
-    public short numComments;
-    public short numWatches;
-    public boolean stillAvailable;
-    public TimestampType startDate;
+public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
+    public ItemId id;
+    public Float currentPrice;
     public TimestampType endDate;
-    public TimestampType purchaseDate;
-    public float initialPrice;
-    public float currentPrice;
-    public UserId sellerId;
-    public UserId lastBidderId; // if null, then no bidder
-
-    public ItemInfo(ItemId id) {
+    public long numBids = 0;
+    public long status = AuctionMarkConstants.ITEM_STATUS_OPEN;
+    
+    public ItemInfo(ItemId id, Double currentPrice, TimestampType endDate, int numBids) {
         this.id = id;
-        this.numBids = 0;
-        this.numImages = 0;
-        this.numAttributes = 0;
-        this.numComments = 0;
-        this.numWatches = 0;
-        this.stillAvailable = true;
-        this.startDate = null;
-        this.endDate = null;
-        this.purchaseDate = null;
-        this.initialPrice = 0;
-        this.currentPrice = 0;
-        this.sellerId = null;
-        this.lastBidderId = null;
-    }
-    
-    public int getBidCount() {
-        return (this.bids.size());
+        this.currentPrice = (currentPrice != null ? currentPrice.floatValue() : null);
+        this.endDate = endDate;
+        this.numBids = numBids;
     }
 
-    public Bid getNextBid(long id, UserId bidder_id) {
-        assert(bidder_id != null);
-        Bid b = new Bid(id, bidder_id);
-        this.bids.add(b);
-        assert(this.bids.size() <= this.numBids);
-        this.bidderHistogram.put(bidder_id);
-        assert(this.bids.size() == this.bidderHistogram.getSampleCount());
-        return (b);
+    public ItemInfo() {
+        // For serialization
     }
     
-    public Bid getLastBid() {
-        return (CollectionUtil.last(this.bids));
+    public ItemId getItemId() {
+        return (this.id);
     }
-    
-    public Histogram<UserId> getBidderHistogram() {
-        return bidderHistogram;
+    public UserId getSellerId() {
+        return (this.id.getSellerId());
+    }
+    public boolean hasCurrentPrice() {
+        return (this.currentPrice != null);
+    }
+    public Float getCurrentPrice() {
+        return currentPrice;
+    }
+    public boolean hasEndDate() {
+        return (this.endDate != null);
+    }
+    public TimestampType getEndDate() {
+        return endDate;
     }
     
     @Override
-    public ItemInfo clone() {
-        ItemInfo ret = null;
-        try {
-            ret = (ItemInfo)super.clone();
-        } catch (CloneNotSupportedException ex) {
-            throw new RuntimeException("Failed to clone " + this.getClass().getSimpleName(), ex);
-        }
-        return (ret);
+    public int compareTo(ItemInfo o) {
+        return this.id.compareTo(o.id);
     }
-    
     @Override
     public String toString() {
-        Class<?> hints_class = this.getClass();
-        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
-        for (Field f : hints_class.getDeclaredFields()) {
-            String key = f.getName().toUpperCase();
-            Object val = null;
-            try {
-                val = f.get(this);
-            } catch (IllegalAccessException ex) {
-                val = ex.getMessage();
-            }
-            m.put(key, val);
-        } // FOR
-        return (StringUtil.formatMaps(m));
+        return this.id.toString();
+    }
+    @Override
+    public int hashCode() {
+        return this.id.hashCode();
+    }
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ItemInfo) {
+            return (this.id.equals(((ItemInfo)obj).id));
+        }
+        return (false);
     }
     
-    public class Bid implements Cloneable {
-        public final long id;
-        public final UserId bidderId;
-        public float maxBid;
-        public TimestampType createDate;
-        public TimestampType updateDate;
-        public boolean buyer_feedback = false;
-        public boolean seller_feedback = false;
-
-        private Bid(long id, UserId bidderId) {
-            this.id = id;
-            this.bidderId = bidderId;
-            this.maxBid = 0;
-            this.createDate = null;
-            this.updateDate = null;
-        }
+    // -----------------------------------------------------------------
+    // SERIALIZATION
+    // -----------------------------------------------------------------
+    
+    @Override
+    public void load(String input_path, Database catalog_db) throws IOException {
         
-        public ItemInfo getItemInfo() {
-            return (ItemInfo.this);
-        }
+    }
+    @Override
+    public void save(String output_path) throws IOException {
         
-        @Override
-        public Bid clone() {
-            Bid ret = null;
-            try {
-                ret = (Bid)super.clone();
-            } catch (CloneNotSupportedException ex) {
-                throw new RuntimeException("Failed to clone " + this.getClass().getSimpleName(), ex);
-            }
-            return (ret);
-        }
-        
-        @Override
-        public String toString() {
-            Class<?> hints_class = this.getClass();
-            ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
-            for (Field f : hints_class.getDeclaredFields()) {
-                String key = f.getName().toUpperCase();
-                Object val = null;
-                try {
-                    val = f.get(this);
-                } catch (IllegalAccessException ex) {
-                    val = ex.getMessage();
-                }
-                m.put(key, val);
-            } // FOR
-            return (StringUtil.formatMaps(m));
-        }
+    }
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        JSONUtil.fieldsToJSON(stringer, this, ItemInfo.class, JSONUtil.getSerializableFields(ItemInfo.class));
+    }
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, ItemInfo.class, true, JSONUtil.getSerializableFields(ItemInfo.class));
     }
 }

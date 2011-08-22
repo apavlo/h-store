@@ -33,6 +33,7 @@ package edu.brown.benchmark.auctionmark;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -57,7 +58,6 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
-import edu.brown.benchmark.auctionmark.util.ItemInfo.Bid;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Zipf;
@@ -66,6 +66,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
@@ -91,6 +92,109 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
     /** The set of tables that we have finished loading **/
     private final transient Collection<String> finished = new HashSet<String>();
+
+    
+    public static class LoaderItemInfo extends ItemInfo {
+        private final List<Bid> bids = new ArrayList<Bid>();
+        private Histogram<UserId> bidderHistogram = new Histogram<UserId>();
+        
+        public short numImages;
+        public short numAttributes;
+        public short numComments;
+        public short numWatches;
+        public TimestampType startDate;
+        public TimestampType purchaseDate;
+        public float initialPrice;
+        public UserId sellerId;
+        public UserId lastBidderId; // if null, then no bidder
+
+        public LoaderItemInfo(ItemId id, TimestampType endDate, int numBids) {
+            super(id, null, endDate, numBids);
+            this.numImages = 0;
+            this.numAttributes = 0;
+            this.numComments = 0;
+            this.numWatches = 0;
+            this.startDate = null;
+            this.purchaseDate = null;
+            this.initialPrice = 0;
+            this.sellerId = null;
+            this.lastBidderId = null;
+        }
+        
+        public int getBidCount() {
+            return (this.bids.size());
+        }
+        public Bid getNextBid(long id, UserId bidder_id) {
+            assert(bidder_id != null);
+            Bid b = new Bid(id, bidder_id);
+            this.bids.add(b);
+            assert(this.bids.size() <= this.numBids);
+            this.bidderHistogram.put(bidder_id);
+            assert(this.bids.size() == this.bidderHistogram.getSampleCount());
+            return (b);
+        }
+        public Bid getLastBid() {
+            return (CollectionUtil.last(this.bids));
+        }
+        public Histogram<UserId> getBidderHistogram() {
+            return bidderHistogram;
+        }
+        
+        @Override
+        public String toString() {
+            Class<?> hints_class = this.getClass();
+            ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+            for (Field f : hints_class.getDeclaredFields()) {
+                String key = f.getName().toUpperCase();
+                Object val = null;
+                try {
+                    val = f.get(this);
+                } catch (IllegalAccessException ex) {
+                    val = ex.getMessage();
+                }
+                m.put(key, val);
+            } // FOR
+            return (StringUtil.formatMaps(m));
+        }
+        
+        public class Bid {
+            public final long id;
+            public final UserId bidderId;
+            public float maxBid;
+            public TimestampType createDate;
+            public TimestampType updateDate;
+            public boolean buyer_feedback = false;
+            public boolean seller_feedback = false;
+
+            private Bid(long id, UserId bidderId) {
+                this.id = id;
+                this.bidderId = bidderId;
+                this.maxBid = 0;
+                this.createDate = null;
+                this.updateDate = null;
+            }
+            
+            public LoaderItemInfo getLoaderItemInfo() {
+                return (LoaderItemInfo.this);
+            }
+            @Override
+            public String toString() {
+                Class<?> hints_class = this.getClass();
+                ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+                for (Field f : hints_class.getDeclaredFields()) {
+                    String key = f.getName().toUpperCase();
+                    Object val = null;
+                    try {
+                        val = f.get(this);
+                    } catch (IllegalAccessException ex) {
+                        val = ex.getMessage();
+                    }
+                    m.put(key, val);
+                } // FOR
+                return (StringUtil.formatMaps(m));
+            }
+        } // END CLASS
+    } // END CLASS
     
     /**
      * 
@@ -232,7 +336,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     
     /**
      * The method that actually loads the VoltTable into the database Can be overridden for testing purposes.
-     * 
      * @param tableName
      * @param table
      */
@@ -270,7 +373,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         /**
          * Some generators have children tables that we want to load tuples for each batch of this generator. 
-         * The queues we need to update every time we generate a new ItemInfo
+         * The queues we need to update every time we generate a new LoaderItemInfo
          */
         protected final Set<SubTableGenerator<?>> sub_generators = new HashSet<SubTableGenerator<?>>();  
 
@@ -287,7 +390,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
 
         /**
          * Constructor
-         * 
          * @param catalog_tbl
          */
         public AbstractTableGenerator(String tableName, String...dependencies) {
@@ -869,24 +971,20 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * ITEM Generator
      **********************************************************************************************/
     protected class ItemGenerator extends SubTableGenerator<UserId> {
-
-        /** Current time in milliseconds */
-        private final long currentTimestamp;
         
         /**
          * BidDurationDay -> Pair<NumberOfBids, NumberOfWatches>
          */
         private final Map<Long, Pair<Zipf, Zipf>> item_bid_watch_zipfs = new HashMap<Long, Pair<Zipf,Zipf>>();
         
+        /** End date distribution */
+        private final Histogram<String> endDateHistogram = new Histogram<String>();
+        private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH");
+        
         public ItemGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM,
                   AuctionMarkConstants.TABLENAME_USER,
                   AuctionMarkConstants.TABLENAME_CATEGORY);
-            
-            long ct1 = Calendar.getInstance().getTimeInMillis();
-            long ct2 = Math.round((double)ct1 / 1000);
-            long ct3 = ct2 * 1000;
-            this.currentTimestamp = ct3;
         }
         
         @Override
@@ -907,17 +1005,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             int col = 0;
             
             ItemId itemId = new ItemId(seller_id, remaining);
-            ItemInfo itemInfo = new ItemInfo(itemId);
-            itemInfo.sellerId = seller_id;
-            itemInfo.endDate = this.getRandomEndTimestamp();
-            itemInfo.startDate = this.getRandomStartTimestamp(itemInfo.endDate);
-            itemInfo.initialPrice = profile.randomInitialPrice.nextInt();
-            assert(itemInfo.initialPrice > 0) : "Invalid initial price for " + itemId;
-            itemInfo.numImages = (short) profile.randomNumImages.nextInt();
-            itemInfo.numAttributes = (short) profile.randomNumAttributes.nextInt();
+            TimestampType endDate = this.getRandomEndTimestamp();
+            TimestampType startDate = this.getRandomStartTimestamp(endDate); 
             
             //LOG.info("endDate = " + endDate + " : startDate = " + startDate);
-            long bidDurationDay = ((itemInfo.endDate.getTime() - itemInfo.startDate.getTime()) / AuctionMarkConstants.MICROSECONDS_IN_A_DAY);
+            long bidDurationDay = ((endDate.getTime() - startDate.getTime()) / AuctionMarkConstants.MICROSECONDS_IN_A_DAY);
             if (this.item_bid_watch_zipfs.containsKey(bidDurationDay) == false) {
                 Zipf randomNumBids = new Zipf(AuctionMarkLoader.this.rng,
                         AuctionMarkConstants.ITEM_MIN_BIDS_PER_DAY * (int)bidDurationDay,
@@ -930,31 +1022,40 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             }
             Pair<Zipf, Zipf> p = this.item_bid_watch_zipfs.get(bidDurationDay);
             assert(p != null);
-            
+
             // Calculate the number of bids and watches for this item
-            itemInfo.numBids = (short)p.getFirst().nextInt();
-            itemInfo.numWatches = (short)p.getSecond().nextInt();
+            short numBids = (short)p.getFirst().nextInt();
+            short numWatches = (short)p.getSecond().nextInt();
+            
+            // Create the ItemInfo object that we will use to cache the local data 
+            // for this item. This will get garbage collected once all the derivative
+            // tables are done with it.
+            LoaderItemInfo itemInfo = new LoaderItemInfo(itemId, endDate, numBids);
+            itemInfo.sellerId = seller_id;
+            itemInfo.startDate = endDate;
+            itemInfo.initialPrice = profile.randomInitialPrice.nextInt();
+            assert(itemInfo.initialPrice > 0) : "Invalid initial price for " + itemId;
+            itemInfo.numImages = (short) profile.randomNumImages.nextInt();
+            itemInfo.numAttributes = (short) profile.randomNumAttributes.nextInt();
+            itemInfo.numBids = numBids;
+            itemInfo.numWatches = numWatches;
             
             // The auction for this item has already closed
-            if (itemInfo.endDate.getTime() <= this.currentTimestamp * 1000l) {
-                itemInfo.stillAvailable = false;
+            if (itemInfo.endDate.getTime() <= profile.getBenchmarkStartTime().getTime()) {
                 if (itemInfo.numBids > 0) {
                 	// Somebody won a bid and bought the item
                     itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
                     //System.out.println("@@@ z last_bidder_id = " + itemInfo.last_bidder_id);
                     itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.endDate);
                     itemInfo.numComments = (short) profile.randomNumComments.nextInt();
-                    profile.addCompleteItemId(itemInfo.id);
                 }
+                itemInfo.status = AuctionMarkConstants.ITEM_STATUS_CLOSED;
             }
             // Item is still available
-            else {
-            	itemInfo.stillAvailable = true;
-            	profile.addAvailableItemId(itemInfo.id);
-            	if (itemInfo.numBids > 0) {
-            		itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
-            	}
+            else if (itemInfo.numBids > 0) {
+        		itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
             }
+            profile.addItemToProperQueue(itemInfo, true);
 
             // I_ID
             this.row[col++] = itemInfo.id;
@@ -975,10 +1076,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             if (itemInfo.numBids > 0) {
                 itemInfo.currentPrice = itemInfo.initialPrice + (itemInfo.numBids * itemInfo.initialPrice * AuctionMarkConstants.ITEM_BID_PERCENT_STEP);
                 this.row[col++] = itemInfo.currentPrice;
-                itemId.setCurrentPrice(itemInfo.currentPrice); // HACK
             } else {
                 this.row[col++] = itemInfo.initialPrice;
-                itemId.setCurrentPrice(itemInfo.initialPrice); // HACK
             }
 
             // I_NUM_BIDS
@@ -992,12 +1091,21 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // I_END_DATE
             this.row[col++] = itemInfo.endDate;
             // I_STATUS
-            this.row[col++] = (itemInfo.stillAvailable ? AuctionMarkConstants.ITEM_STATUS_OPEN : AuctionMarkConstants.ITEM_STATUS_CLOSED);
+            this.row[col++] = itemInfo.status;
             // I_UPDATED
             this.row[col++] = itemInfo.startDate;
 
+            if (debug.get())
+                this.endDateHistogram.put(sdf.format(itemInfo.endDate.asApproximateJavaDate()));
+            
             this.updateSubTableGenerators(itemInfo);
             return (col);
+        }
+        
+        @Override
+        public void markAsFinished() {
+            super.markAsFinished();
+            if (debug.get()) LOG.debug("Item End Date Distribution:\n" + this.endDateHistogram);
         }
 
         private TimestampType getRandomStartTimestamp(TimestampType endDate) {
@@ -1007,8 +1115,10 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             return startTimestamp;
         }
         private TimestampType getRandomEndTimestamp() {
-            int timeDiff = profile.randomTimeDiff.nextInt();
-            return new TimestampType(this.currentTimestamp * 1000 + timeDiff * 1000 * 1000);
+            long timeDiff = profile.randomTimeDiff.nextLong();
+            TimestampType time = new TimestampType(profile.getBenchmarkStartTime().getTime() + (timeDiff * 1000000));
+//            LOG.info(timeDiff + " => " + sdf.format(time.asApproximateJavaDate()));
+            return time;
         }
         private TimestampType getRandomPurchaseTimestamp(TimestampType endDate) {
             long duration = profile.randomPurchaseDuration.nextInt();
@@ -1019,18 +1129,18 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_IMAGE Generator
      **********************************************************************************************/
-    protected class ItemImageGenerator extends SubTableGenerator<ItemInfo> {
+    protected class ItemImageGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public ItemImageGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM_IMAGE,
                   AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return itemInfo.numImages;
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
 
             // II_ID
@@ -1047,7 +1157,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_ATTRIBUTE Generator
      **********************************************************************************************/
-    protected class ItemAttributeGenerator extends SubTableGenerator<ItemInfo> {
+    protected class ItemAttributeGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public ItemAttributeGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE,
@@ -1055,11 +1165,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                   AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return itemInfo.numAttributes;
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
             Pair<Long, Long> gag_gav = profile.getRandomGAGIdGAVIdPair();
             assert(gag_gav != null);
@@ -1082,18 +1192,18 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_COMMENT Generator
      **********************************************************************************************/
-    protected class ItemCommentGenerator extends SubTableGenerator<ItemInfo> {
+    protected class ItemCommentGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public ItemCommentGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM_COMMENT,
                   AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return (itemInfo.purchaseDate != null ? itemInfo.numComments : 0);
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
 
             // IC_ID
@@ -1125,9 +1235,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_BID Generator
      **********************************************************************************************/
-    protected class ItemBidGenerator extends SubTableGenerator<ItemInfo> {
+    protected class ItemBidGenerator extends SubTableGenerator<LoaderItemInfo> {
 
-        private ItemInfo.Bid bid = null;
+        private LoaderItemInfo.Bid bid = null;
         private float currentBidPriceAdvanceStep;
         private long currentCreateDateAdvanceStep;
         private boolean new_item;
@@ -1137,11 +1247,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                   AuctionMarkConstants.TABLENAME_ITEM);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
-            return (itemInfo.numBids);
+        public short getElementCounter(LoaderItemInfo itemInfo) {
+            return ((short)itemInfo.numBids);
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
             assert(itemInfo.numBids > 0);
             
@@ -1155,8 +1265,8 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 bidderId = (itemInfo.numBids == 1 ? itemInfo.lastBidderId :
                                                     profile.getRandomBuyerId(itemInfo.sellerId));
                 TimestampType endDate;
-                if (itemInfo.stillAvailable) {
-                    endDate = new TimestampType();
+                if (itemInfo.status == AuctionMarkConstants.ITEM_STATUS_OPEN) {
+                    endDate = profile.getBenchmarkStartTime();
                 } else {
                     endDate = itemInfo.endDate;
                 }
@@ -1191,7 +1301,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 this.bid.maxBid = itemInfo.currentPrice;
                 if (itemInfo.purchaseDate != null) {
                     assert(itemInfo.getBidCount() == itemInfo.numBids) : String.format("%d != %d\n%s", itemInfo.getBidCount(), itemInfo.numBids, itemInfo);
-                    profile.addWaitForPurchaseItemId(itemInfo.id);
                 }
             } else {
                 this.bid.maxBid = last_bid + this.currentBidPriceAdvanceStep;
@@ -1218,7 +1327,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             return (col);
         }
         @Override
-        protected void newElementCallback(ItemInfo itemInfo) {
+        protected void newElementCallback(LoaderItemInfo itemInfo) {
             this.new_item = true;
             this.bid = null;
         }
@@ -1227,20 +1336,20 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_MAX_BID Generator
      **********************************************************************************************/
-    protected class ItemMaxBidGenerator extends SubTableGenerator<ItemInfo> {
+    protected class ItemMaxBidGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public ItemMaxBidGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID,
                 AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return (short)(itemInfo.getBidCount() > 0 ? 1 : 0);
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
-            ItemInfo.Bid bid = itemInfo.getLastBid();
+            LoaderItemInfo.Bid bid = itemInfo.getLastBid();
             assert(bid != null) : "No bids?\n" + itemInfo;
 
             // IMB_I_ID
@@ -1266,20 +1375,20 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * ITEM_PURCHASE Generator
      **********************************************************************************************/
-    protected class ItemPurchaseGenerator extends SubTableGenerator<ItemInfo> {
+    protected class ItemPurchaseGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public ItemPurchaseGenerator() {
             super(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE,
                   AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return (short)(itemInfo.getBidCount() > 0 && itemInfo.purchaseDate != null ? 1 : 0);
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
-            ItemInfo.Bid bid = itemInfo.getLastBid();
+            LoaderItemInfo.Bid bid = itemInfo.getLastBid();
             assert(bid != null) : itemInfo;
             
             // IP_ID
@@ -1308,7 +1417,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_FEEDBACK Generator
      **********************************************************************************************/
-    protected class UserFeedbackGenerator extends SubTableGenerator<ItemInfo.Bid> {
+    protected class UserFeedbackGenerator extends SubTableGenerator<LoaderItemInfo.Bid> {
 
         public UserFeedbackGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER_FEEDBACK,
@@ -1316,11 +1425,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         }
 
         @Override
-        protected short getElementCounter(Bid bid) {
+        protected short getElementCounter(LoaderItemInfo.Bid bid) {
             return (short)((bid.buyer_feedback ? 1 : 0) + (bid.seller_feedback ? 1 : 0));
         }
         @Override
-        protected int populateRow(ItemInfo.Bid bid, short remaining) {
+        protected int populateRow(LoaderItemInfo.Bid bid, short remaining) {
             int col = 0;
 
             boolean is_buyer = false;
@@ -1331,7 +1440,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             } else if (remaining > 1) {
                 is_buyer = true;
             }
-            ItemInfo itemInfo = bid.getItemInfo();
+            LoaderItemInfo itemInfo = bid.getLoaderItemInfo();
             
             // UF_ID
             this.row[col++] = this.count;
@@ -1346,7 +1455,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UF_RATING
             this.row[col++] = 1; // TODO
             // UF_DATE
-            this.row[col++] = new TimestampType(); // Does this matter?
+            this.row[col++] = profile.getBenchmarkStartTime(); // Does this matter?
 
             return (col);
         }
@@ -1355,20 +1464,20 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_ITEM Generator
      **********************************************************************************************/
-    protected class UserItemGenerator extends SubTableGenerator<ItemInfo> {
+    protected class UserItemGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public UserItemGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER_ITEM,
                   AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return (short)(itemInfo.getBidCount() > 0 && itemInfo.purchaseDate != null ? 1 : 0);
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
-            ItemInfo.Bid bid = itemInfo.getLastBid();
+            LoaderItemInfo.Bid bid = itemInfo.getLastBid();
             assert(bid != null) : itemInfo;
             
             // UI_U_ID
@@ -1395,18 +1504,18 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /**********************************************************************************************
      * USER_WATCH Generator
      **********************************************************************************************/
-    protected class UserWatchGenerator extends SubTableGenerator<ItemInfo> {
+    protected class UserWatchGenerator extends SubTableGenerator<LoaderItemInfo> {
 
         public UserWatchGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER_WATCH,
                   AuctionMarkConstants.TABLENAME_ITEM_BID);
         }
         @Override
-        public short getElementCounter(ItemInfo itemInfo) {
+        public short getElementCounter(LoaderItemInfo itemInfo) {
             return (itemInfo.numWatches);
         }
         @Override
-        protected int populateRow(ItemInfo itemInfo, short remaining) {
+        protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
             
             // Make it more likely that a user that has bid on an item is watching it
@@ -1426,15 +1535,15 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UW_I_U_ID
             this.row[col++] = itemInfo.sellerId;
             // UW_CREATED
-            TimestampType endDate = (itemInfo.stillAvailable ? new TimestampType() : itemInfo.endDate);
-            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, endDate);
+            this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, itemInfo.endDate);
 
             return (col);
         }
         private TimestampType getRandomCommentDate(TimestampType startDate, TimestampType endDate) {
-            long start = (startDate.getTime() / 1000000);
-            long end = (endDate.getTime() / 1000000);
-            return new TimestampType((AuctionMarkLoader.this.rng.number(start, end) * 1000 * 1000));
+            int start = Math.round(startDate.getTime() / 1000000);
+            int end = Math.round(endDate.getTime() / 1000000);
+            long offset = AuctionMarkLoader.this.rng.number(start, end);
+            return new TimestampType(offset * 1000000l);
         }
     } // END CLASS
 } // END CLASS

@@ -7,6 +7,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
@@ -63,10 +64,10 @@ public class UpdateItem extends VoltProcedure{
 	 * A small percentage of the transactions will be for auctions that are
 	 * uneditable (1.0%?); when this occurs, the transaction will abort.
 	 */
-    public VoltTable run(TimestampType benchmarkStart,
+    public VoltTable run(TimestampType benchmarkTimes[],
                          long item_id, long seller_id, String description,
                          long delete_attribute, long add_attribute[]) {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         voltQueueSQL(updateItem, description, currentTime, item_id, seller_id);
         final VoltTable results[] = voltExecuteSQL(false);
         assert(results.length == 1);

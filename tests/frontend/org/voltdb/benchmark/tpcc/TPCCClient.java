@@ -49,7 +49,7 @@ import edu.mit.hstore.HStoreConf;
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
     final TPCCSimulation m_tpccSim;
-    final TPCCSimulation m_tpccSim2;
+//    final TPCCSimulation m_tpccSim2;
     final ScaleParameters m_scaleParams;
     final TPCCConfig m_tpccConfig;
 
@@ -220,7 +220,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         m_tpccConfig = TPCCConfig.defaultConfig();
         m_scaleParams = params;
         m_tpccSim = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
-        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
+//        m_tpccSim2 = new TPCCSimulation(this, generator, clock, m_scaleParams, m_tpccConfig, 1.0);
     }
 
     /** Complies with our benchmark client remote controller scheme */
@@ -229,7 +229,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 
         // default values
         int warehouses = 1;
-        int firstWarehouse = Constants.STARTING_WAREHOUSE;
 
         for (Entry<String, String> e : m_extraParams.entrySet()) {
             String key = e.getKey();
@@ -238,10 +237,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             // WAREHOUSES
             if (key.equalsIgnoreCase("warehouses")) {
                 warehouses = Integer.parseInt(val);
-            }
-            // FIRST WAREHOUSE ID
-            else if (key.equalsIgnoreCase("first_warehouse")) {
-                firstWarehouse = Integer.parseInt(val);
             }
         }
         m_tpccConfig = TPCCConfig.createConfig(m_extraParams);
@@ -259,13 +254,13 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         RandomGenerator.NURandC base_loadC2 = new RandomGenerator.NURandC(0,0,0);
         RandomGenerator.NURandC base_runC2 = RandomGenerator.NURandC.makeForRun(
                 new RandomGenerator.Implementation(0), base_loadC2);
-        RandomGenerator rng2 = new RandomGenerator.Implementation(0);
+//        RandomGenerator rng2 = new RandomGenerator.Implementation(0);
         rng.setC(base_runC2);
 
         HStoreConf hstore_conf = this.getHStoreConf();
-        m_scaleParams = ScaleParameters.makeWithScaleFactor(warehouses, firstWarehouse, hstore_conf.client.scalefactor);
+        m_scaleParams = ScaleParameters.makeWithScaleFactor(warehouses, m_tpccConfig.firstWarehouse, hstore_conf.client.scalefactor);
         m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
-        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
+//        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 
         // Set up checking
         buildConstraints();
@@ -524,19 +519,19 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     @Override
     public void runLoop() throws NoConnectionsException {
         m_blockOnBackpressure = true;
-        if (Runtime.getRuntime().availableProcessors() > 4) {
-            new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        while (true) {
-                            m_tpccSim2.doOne();
-                        }
-                    } catch (IOException e) {
-                    }
-                }
-            }.start();
-        }
+//        if (Runtime.getRuntime().availableProcessors() > 4) {
+//            new Thread() {
+//                @Override
+//                public void run() {
+//                    try {
+//                        while (true) {
+//                            m_tpccSim2.doOne();
+//                        }
+//                    } catch (IOException e) {
+//                    }
+//                }
+//            }.start();
+//        }
         try {
             while (true) {
                 // will send procedures to first connection w/o backpressure
@@ -580,7 +575,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                 try {
                     this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
             }
@@ -625,7 +619,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                 try {
                     this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
             }
@@ -684,7 +677,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                 try {
                     this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
             }
@@ -715,7 +707,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                    try {
 //                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
-//                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
@@ -725,7 +716,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                    try {
 //                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
-//                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
@@ -736,7 +726,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                    try {
 //                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
-//                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
@@ -771,7 +760,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                    try {
 //                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
-//                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
@@ -783,7 +771,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                    try {
 //                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
-//                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
@@ -797,7 +784,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 //                    try {
 //                        this.getClientHandle().backpressureBarrier();
 //                    } catch (InterruptedException e) {
-//                        // TODO Auto-generated catch block
 //                        e.printStackTrace();
 //                    }
 //                }
@@ -845,7 +831,6 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             try {
                 this.getClientHandle().backpressureBarrier();
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         }
@@ -882,6 +867,12 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
               customersPerDistrict, newOrdersPerDistrict);
     }
 
+    @Override
+    public void tick(int counter) {
+        m_tpccSim.tick(counter);
+        LOG.debug("TICK: " + counter);
+    }
+    
     @Override
     public void callbackStop() {
         if (m_tpccConfig.neworder_skew_warehouse) {

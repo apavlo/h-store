@@ -112,10 +112,12 @@ public class ProcessSetManager implements Shutdownable {
 
     class ProcessPoller extends Thread {
         final Process p;
+        final String name;
         boolean is_alive = true;
         
-        public ProcessPoller(Process p) {
+        public ProcessPoller(Process p, String name) {
             this.p = p;
+            this.name = name;
             this.setDaemon(true);
             this.setPriority(MIN_PRIORITY);
         }
@@ -127,6 +129,9 @@ public class ProcessSetManager implements Shutdownable {
             } catch (InterruptedException ex) {
                 // IGNORE
             } finally {
+                if (shutting_down == false) {
+                    LOG.warn(String.format("'%s' has stopped", this.name));
+                }
                 this.is_alive = false;
             }
         }
@@ -297,7 +302,7 @@ public class ProcessSetManager implements Shutdownable {
                 m_processes.put(processName, pd);
                 
                 // Start the individual watching thread for this process
-                pd.poller = new ProcessPoller(pd.process);
+                pd.poller = new ProcessPoller(pd.process, processName);
                 pd.poller.start();
                 
                 if (this.poller.isAlive() == false) this.poller.start();

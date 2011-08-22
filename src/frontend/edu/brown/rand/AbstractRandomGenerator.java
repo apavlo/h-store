@@ -56,7 +56,7 @@ public abstract class AbstractRandomGenerator extends Random {
      * @returns a int in the range [minimum, maximum]. Note that this is inclusive.
      */
     public int number(int minimum, int maximum) {
-        assert minimum <= maximum;
+        assert minimum <= maximum : String.format("%d <= %d", minimum, maximum);
         int range_size = maximum - minimum + 1;
         int value = this.nextInt(range_size);
         value += minimum;
@@ -65,6 +65,7 @@ public abstract class AbstractRandomGenerator extends Random {
     }
     
     public long number(long minimum, long maximum) {
+        assert minimum <= maximum : String.format("%d <= %d", minimum, maximum);
         long range_size = (maximum - minimum) + 1;
         
         // error checking and 2^x checking removed for simplicity.

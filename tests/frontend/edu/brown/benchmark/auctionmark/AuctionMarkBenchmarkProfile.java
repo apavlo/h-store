@@ -34,6 +34,8 @@ package edu.brown.benchmark.auctionmark;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -47,12 +49,14 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.TheHashinator;
 import org.voltdb.catalog.Database;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.auctionmark.util.ItemId;
+import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
 import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.RandomDistribution.DiscreteRNG;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
@@ -61,6 +65,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AuctionMarkBenchmarkProfile implements JSONSerializable {
@@ -71,10 +76,38 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    private static Comparator<ItemInfo> ENDDATE_COMPARATOR = new Comparator<ItemInfo>() {
+        @Override
+        public int compare(ItemInfo o1, ItemInfo o2) {
+            assert(o1.hasEndDate());
+            assert(o2.hasEndDate());
+            return o1.getEndDate().compareTo(o2.getEndDate());
+        }
+    };
+    
+    public enum QueueType {
+        AVAILABLE,
+        ENDING_SOON,
+        WAITING_FOR_PURCHASE,
+        COMPLETED;
+    }
+    
     // ----------------------------------------------------------------
     // SERIALIZABLE DATA MEMBERS
     // ----------------------------------------------------------------
 
+    /** The start time used when creating the data for this benchmark */
+    public TimestampType benchmarkStartTime;
+    
+    /** When this client started executing */
+    public TimestampType clientStartTime;
+    
+    /** Current Timestamp */
+    public TimestampType currentTime;
+
+    /** The last time that we called CHECK_WINNING_BIDS on this client */
+    public TimestampType lastCloseAuctionsTime;
+    
     /**
      * Data Scale Factor
      */
@@ -102,10 +135,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      *  (3) Complete (The auction is closed and (There is no bid winner or
      *      the bid winner has already purchased the item)
      */
-    public final LinkedList<ItemId> available_itemIds = new LinkedList<ItemId>();
-    public final LinkedList<ItemId> endingSoon_itemIds = new LinkedList<ItemId>();
-    public final LinkedList<ItemId> waitForPurchase_itemIds = new LinkedList<ItemId>();
-    public final LinkedList<ItemId> complete_itemIds = new LinkedList<ItemId>();
+    public final LinkedList<ItemInfo> items_available = new LinkedList<ItemInfo>();
+    public final LinkedList<ItemInfo> items_endingSoon = new LinkedList<ItemInfo>();
+    public final LinkedList<ItemInfo> items_waitingForPurchase = new LinkedList<ItemInfo>();
+    public final LinkedList<ItemInfo> items_completed = new LinkedList<ItemInfo>();
 
     /** Map from global attribute group to list of global attribute value */
     public final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
@@ -134,7 +167,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private final List<Integer> window_partitions = new ArrayList<Integer>();
     
     /** Random time different in seconds */
-    public transient final Gaussian randomTimeDiff;
+    public transient final DiscreteRNG randomTimeDiff;
     
     /** Random duration in days */
     public transient final Gaussian randomDuration;
@@ -153,7 +186,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * Keep track of previous waitForPurchase ItemIds so that we don't try to call NewPurchase
      * on them more than once
      */
-    private transient final Set<ItemId> previousWaitForPurchase = new HashSet<ItemId>();
+    private transient final Set<ItemInfo> previousWaitForPurchase = new HashSet<ItemInfo>();
 
     
     // -----------------------------------------------------------------
@@ -183,6 +216,8 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         // Random time difference in a second scale
         this.randomTimeDiff = new Gaussian(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
                                                      AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
+//        this.randomTimeDiff = new Flat(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
+//                                                  AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
         this.randomDuration = new Gaussian(this.rng, 1, AuctionMarkConstants.ITEM_MAX_DURATION_DAYS);
 
         this.randomPurchaseDuration = new Zipf(this.rng, 0, AuctionMarkConstants.ITEM_MAX_PURCHASE_DURATION_DAYS, 1.001);
@@ -220,6 +255,8 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      */
     public void tick() {
         this.current_tick++;
+        
+        // Update Skew Window
         if (this.window_size != null) {
             Integer last_partition = -1;
             if (this.window_partitions.isEmpty() == false) {
@@ -234,16 +271,93 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 }
                 this.window_partitions.add(last_partition);
             } // FOR
-            LOG.info("Tick #" + this.current_tick + " Window: " + this.window_partitions);
+            LOG.info("Skew Tick #" + this.current_tick + " Window: " + this.window_partitions);
             if (debug.get()) LOG.debug("Skew Window Histogram\n" + this.window_histogram);
             this.window_histogram.clearValues();
         }
     }
-
+    
     private int getPartition(UserId seller_id) {
         return (TheHashinator.hashToPartition(seller_id, this.window_total));
     }
 
+    // -----------------------------------------------------------------
+    // TIME METHODS
+    // -----------------------------------------------------------------
+
+    /**
+     * 
+     * @param benchmarkStart
+     * @param clientStart
+     * @param current
+     * @return
+     */
+    public static TimestampType getScaledTimestamp(TimestampType benchmarkStart, TimestampType clientStart, TimestampType current) {
+        if (benchmarkStart == null || clientStart == null || current == null) return (null);
+        
+        // First get the offset between the benchmarkStart and the clientStart
+        // We then subtract that value from the current time. This gives us the total elapsed 
+        // time from the current time to the time that the benchmark start (with the gap 
+        // from when the benchmark was loading data cut out) 
+        long base = benchmarkStart.getTime();
+        long offset = current.getTime() - (clientStart.getTime() - base);
+        long elapsed = (offset - base) * AuctionMarkConstants.TIME_SCALE_FACTOR;
+        return (new TimestampType(base + elapsed));
+    }
+
+    
+    private TimestampType getScaledCurrentTimestamp() {
+        assert(this.clientStartTime != null);
+        TimestampType now = new TimestampType();
+        TimestampType time = AuctionMarkBenchmarkProfile.getScaledTimestamp(this.benchmarkStartTime, this.clientStartTime, now);
+        if (debug.get())
+            LOG.info(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
+                                   time.getMSTime(), now.getMSTime(), this.benchmarkStartTime.getMSTime(), this.clientStartTime.getMSTime()));
+        return (time);
+    }
+    
+    public synchronized TimestampType updateAndGetCurrentTime() {
+        this.currentTime = this.getScaledCurrentTimestamp();
+        return this.currentTime;
+    }
+    public TimestampType getCurrentTime() {
+        return this.currentTime;
+    }
+    
+    public TimestampType setAndGetBenchmarkStartTime() {
+        assert(this.benchmarkStartTime == null);
+        this.benchmarkStartTime = new TimestampType();
+        return (this.benchmarkStartTime);
+    }
+    public TimestampType getBenchmarkStartTime() {
+        return (this.benchmarkStartTime);
+    }
+
+    public TimestampType setAndGetClientStartTime() {
+        assert(this.clientStartTime == null);
+        this.clientStartTime = new TimestampType();
+        return (this.clientStartTime);
+    }
+    public TimestampType getClientStartTime() {
+        return (this.clientStartTime);
+    }
+    public boolean hasClientStartTime() {
+        return (this.clientStartTime != null);
+    }
+    
+
+    public synchronized TimestampType updateAndGetLastCloseAuctionsTime() {
+        this.lastCloseAuctionsTime = this.getScaledCurrentTimestamp();
+        return this.lastCloseAuctionsTime;
+    }
+    public TimestampType getLastCloseAuctionsTime() {
+        return this.lastCloseAuctionsTime;
+    }
+    public boolean hasLastCloseAuctionsTime() {
+        return (this.lastCloseAuctionsTime != null);
+    }
+    
+    
     // -----------------------------------------------------------------
     // GENERAL METHODS
     // -----------------------------------------------------------------
@@ -437,82 +551,152 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // ITEM METHODS
     // ----------------------------------------------------------------
     
-    private boolean addItem(LinkedList<ItemId> itemSet, ItemId itemId) {
+    private boolean addItem(LinkedList<ItemInfo> itemSet, ItemInfo itemInfo) {
         boolean added = false;
         synchronized (itemSet) {
-            if (itemSet.contains(itemId)) {
-                // HACK: Swap them if the one we already have doesn't have
-                // the current price set but the new one does
-                if (itemId.hasCurrentPrice()) {
-                    int idx = itemSet.indexOf(itemId);
-                    if (itemSet.get(idx).hasCurrentPrice() == false) {
-                        itemSet.set(idx, itemId);
-                    }
-                }
+            if (itemSet.contains(itemInfo)) {
+                // HACK: Always swap existing ItemInfos with our new one, since it will
+                // more up-to-date information
+                int idx = itemSet.indexOf(itemInfo);
+                ItemInfo existing = itemSet.set(idx, itemInfo);
+                assert(existing != null);
                 return (true);
             }
-            if (itemId.hasCurrentPrice()) 
-                assert(itemId.getCurrentPrice() > 0) : "Negative current price for " + itemId;
+            if (itemInfo.hasCurrentPrice()) 
+                assert(itemInfo.getCurrentPrice() > 0) : "Negative current price for " + itemInfo;
             
             // If we have room, shove it right in
             // We'll throw it in the back because we know it hasn't been used yet
             if (itemSet.size() < AuctionMarkConstants.ITEM_ID_CACHE_SIZE) {
-                itemSet.addLast(itemId);
+                itemSet.addLast(itemInfo);
                 added = true;
             
             // Otherwise, we can will randomly decide whether to pop one out
             } else if (this.rng.nextBoolean()) {
                 itemSet.pop();
-                itemSet.addLast(itemId);
+                itemSet.addLast(itemInfo);
                 added = true;
             }
         } // SYNCH
         return (added);
     }
-    private void removeItem(LinkedList<ItemId> itemSet, ItemId itemId) {
+    private void removeItem(LinkedList<ItemInfo> itemSet, ItemInfo itemInfo) {
         synchronized (itemSet) {
-            itemSet.remove(itemId);
+            itemSet.remove(itemInfo);
         } // SYNCH
     }
-    private ItemId getRandomItemId(LinkedList<ItemId> itemSet, boolean hasCurrentPrice) {
-        ItemId itemId = null;
-        Set<ItemId> seen = new HashSet<ItemId>();
+    
+    public synchronized void updateItemQueues() {
+        TimestampType currentTime = this.updateAndGetCurrentTime();
+        assert(currentTime != null);
+        
+        // HACK
+        Set<ItemInfo> all = new HashSet<ItemInfo>();
+        all.addAll(this.items_available);
+        all.addAll(this.items_endingSoon);
+        all.addAll(this.items_waitingForPurchase);
+        all.addAll(this.items_completed);
+        for (ItemInfo itemInfo : all) {
+            this.addItemToProperQueue(itemInfo, false);
+        } // FOR
+        
+        Map<QueueType, Integer> m = new HashMap<QueueType, Integer>();
+        m.put(QueueType.AVAILABLE, this.items_available.size());
+        m.put(QueueType.ENDING_SOON, this.items_endingSoon.size());
+        m.put(QueueType.WAITING_FOR_PURCHASE, this.items_waitingForPurchase.size());
+        m.put(QueueType.COMPLETED, this.items_completed.size());
+        LOG.info(String.format("Updated Item Queues [%s]:\n%s", currentTime, StringUtil.formatMaps(m)));
+    }
+    
+    public QueueType addItemToProperQueue(ItemInfo itemInfo, boolean is_loader) {
+        // Calculate how much time is left for this auction
+        TimestampType baseTime = (is_loader ? this.getBenchmarkStartTime() : this.getCurrentTime());
+        long remaining = baseTime.getMSTime() - itemInfo.endDate.getMSTime();
+        QueueType ret;
+        
+        // Already ended
+        if (remaining <= 10000) {
+            if (itemInfo.numBids > 0 && itemInfo.status != AuctionMarkConstants.ITEM_STATUS_CLOSED) {
+                if (this.previousWaitForPurchase.contains(itemInfo) == false) {
+                    this.previousWaitForPurchase.add(itemInfo);
+                    this.addItem(this.items_waitingForPurchase, itemInfo);
+                }
+                ret = QueueType.WAITING_FOR_PURCHASE;
+            } else {
+                this.addItem(this.items_completed, itemInfo);
+                ret = QueueType.COMPLETED;
+            }
+            this.removeAvailableItem(itemInfo);
+            this.removeEndingSoonItem(itemInfo);
+        }
+        // About to end soon
+        else if (remaining < AuctionMarkConstants.ENDING_SOON) {
+            this.addItem(this.items_endingSoon, itemInfo);
+            this.removeAvailableItem(itemInfo);
+            ret = QueueType.ENDING_SOON;
+        }
+        // Still available
+        else {
+            this.addItem(this.items_available, itemInfo);
+            ret = QueueType.AVAILABLE;
+        }
+        return (ret);
+    }
+    
+    /**
+     * 
+     * @param itemSet
+     * @param needCurrentPrice
+     * @param needFutureEndDate TODO
+     * @return
+     */
+    private ItemInfo getRandomItem(LinkedList<ItemInfo> itemSet, boolean needCurrentPrice, boolean needFutureEndDate) {
+        ItemInfo itemInfo = null;
+        Set<ItemInfo> seen = new HashSet<ItemInfo>();
+        TimestampType currentTime = this.updateAndGetCurrentTime();
+        
         synchronized (itemSet) {
             int num_items = itemSet.size();
             Integer partition = null;
             int idx = -1;
             
             if (debug.get()) 
-                LOG.info(String.format("Getting random ItemId [numItems=%d, hasCurrentPrice=%s]",
-                                       num_items, hasCurrentPrice));
+                LOG.info(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
+                                       num_items, currentTime, needCurrentPrice));
             while (num_items > 0 && seen.size() < num_items) {
                 partition = null;
                 idx = this.rng.nextInt(num_items);
-                ItemId tempId = itemSet.get(idx);
-                assert(tempId != null);
-                if (seen.contains(tempId)) continue;
-                seen.add(tempId);
+                ItemInfo temp = itemSet.get(idx);
+                assert(temp != null);
+                if (seen.contains(temp)) continue;
+                seen.add(temp);
                 
                 // Needs to have an embedded currentPrice
-                if (hasCurrentPrice && tempId.hasCurrentPrice() == false) {
+                if (needCurrentPrice && temp.hasCurrentPrice() == false) {
+                    continue;
+                }
+                
+                // If they want an item that is ending in the future, then we compare it with 
+                // the current timestamp
+                if (needFutureEndDate && (temp.hasEndDate() == false || temp.getEndDate().compareTo(currentTime) < 0)) {
                     continue;
                 }
                 
                 // Uniform
                 if (this.window_size == null) {
-                    itemId = tempId;
+                    itemInfo = temp;
                     break;
                 }
                 // Temporal Skew
-                partition = this.getPartition(tempId.getSellerId());
+                partition = this.getPartition(temp.getSellerId());
                 if (this.window_partitions.contains(partition)) {
                     this.window_histogram.put(partition);
-                    itemId = tempId;
+                    itemInfo = temp;
                     break;
                 }
             } // WHILE
-            if (itemId == null) {
-                if (debug.get()) LOG.debug("Failed to find ItemId [hasCurrentPrice=" + hasCurrentPrice + "]");
+            if (itemInfo == null) {
+                if (debug.get()) LOG.debug("Failed to find ItemInfo [hasCurrentPrice=" + needCurrentPrice + "]");
                 return (null);
             }
             assert(idx >= 0);
@@ -520,121 +704,99 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             // Take the item out of the set and insert back to the front
             // This is so that we can maintain MRU->LRU ordering
             itemSet.remove(idx);
-            itemSet.addFirst(itemId);
+            itemSet.addFirst(itemInfo);
         } // SYNCHRONIZED
-        if (hasCurrentPrice) {
-            assert(itemId.hasCurrentPrice()) : "Missing current price for " + itemId;
-            assert(itemId.getCurrentPrice() > 0) : "Negative current price for " + itemId;
+        if (needCurrentPrice) {
+            assert(itemInfo.hasCurrentPrice()) : "Missing currentPrice for " + itemInfo;
+            assert(itemInfo.getCurrentPrice() > 0) : "Negative currentPrice '" + itemInfo.getCurrentPrice() + "' for " + itemInfo;
         }
-        return itemId;
+        if (needFutureEndDate) {
+            assert(itemInfo.hasEndDate()) : "Missing endDate for " + itemInfo;
+        }
+        return itemInfo;
     }
     
     /**********************************************************************************************
      * AVAILABLE ITEMS
      **********************************************************************************************/
-    public boolean addAvailableItemId(ItemId itemId) {
-        return (this.addItem(this.available_itemIds, itemId));
+    public void removeAvailableItem(ItemInfo itemInfo) {
+        this.removeItem(this.items_available, itemInfo);
     }
-    public void removeAvailableItemId(ItemId itemId) {
-        this.removeItem(this.available_itemIds, itemId);
+    public ItemInfo getRandomAvailableItemId() {
+        return this.getRandomItem(this.items_available, false, false);
     }
-    public ItemId getRandomAvailableItemId() {
-        return this.getRandomItemId(this.available_itemIds, false);
-    }
-    public ItemId getRandomAvailableItemId(boolean hasCurrentPrice) {
-        return this.getRandomItemId(this.available_itemIds, hasCurrentPrice);
+    public ItemInfo getRandomAvailableItemId(boolean hasCurrentPrice) {
+        return this.getRandomItem(this.items_available, hasCurrentPrice, false);
     }
     public int getAvailableItemIdsCount() {
-        return this.available_itemIds.size();
+        return this.items_available.size();
     }
 
     /**********************************************************************************************
      * ENDING SOON ITEMS
      **********************************************************************************************/
-    public boolean addEndingSoonItemId(ItemId itemId) {
-        boolean ret = this.addItem(this.endingSoon_itemIds, itemId);
-        this.removeAvailableItemId(itemId);
-        return (ret);
+    public void removeEndingSoonItem(ItemInfo itemInfo) {
+        this.removeItem(this.items_endingSoon, itemInfo);
     }
-    public void removeEndingSoonItemId(ItemId itemId) {
-        this.removeItem(this.endingSoon_itemIds, itemId);
+    public ItemInfo getRandomEndingSoonItem() {
+        return this.getRandomItem(this.items_endingSoon, false, true);
     }
-    public ItemId getRandomEndingSoonItemId() {
-        return this.getRandomItemId(this.endingSoon_itemIds, false);
+    public ItemInfo getRandomEndingSoonItem(boolean hasCurrentPrice) {
+        return this.getRandomItem(this.items_endingSoon, hasCurrentPrice, true);
     }
-    public ItemId getRandomEndingSoonItemId(boolean hasCurrentPrice) {
-        return this.getRandomItemId(this.endingSoon_itemIds, hasCurrentPrice);
-    }
-    public int getEndingSoonItemIdsCount() {
-        return this.endingSoon_itemIds.size();
+    public int getEndingSoonItemsCount() {
+        return this.items_endingSoon.size();
     }
     
     /**********************************************************************************************
      * WAITING FOR PURCHASE ITEMS
      **********************************************************************************************/
-    public boolean addWaitForPurchaseItemId(ItemId itemId) {
-        boolean ret = false;
-        if (this.previousWaitForPurchase.contains(itemId) == false) {
-            this.previousWaitForPurchase.add(itemId);
-            ret = this.addItem(this.waitForPurchase_itemIds, itemId);
-        }
-        this.removeAvailableItemId(itemId);
-        this.removeEndingSoonItemId(itemId);
-        return (ret);
+    public void removeWaitForPurchaseItem(ItemInfo itemInfo) {
+        this.removeItem(this.items_waitingForPurchase, itemInfo);
     }
-    public void removeWaitForPurchaseItemId(ItemId itemId) {
-        this.removeItem(this.waitForPurchase_itemIds, itemId);
+    public ItemInfo getRandomWaitForPurchaseItem() {
+        return this.getRandomItem(this.items_waitingForPurchase, false, false);
     }
-    public ItemId getRandomWaitForPurchaseItemId() {
-        return this.getRandomItemId(this.waitForPurchase_itemIds, false);
-    }
-    public int getWaitForPurchaseItemIdsCount() {
-        return this.waitForPurchase_itemIds.size();
+    public int getWaitForPurchaseItemsCount() {
+        return this.items_waitingForPurchase.size();
     }
 
     /**********************************************************************************************
      * COMPLETED ITEMS
      **********************************************************************************************/
-    public boolean addCompleteItemId(ItemId itemId) {
-        boolean ret = this.addItem(this.complete_itemIds, itemId);
-        this.removeAvailableItemId(itemId);
-        this.removeEndingSoonItemId(itemId);
-        this.removeWaitForPurchaseItemId(itemId);
-        return (ret);
+    public void removeCompleteItem(ItemInfo itemInfo) {
+        this.removeItem(this.items_completed, itemInfo);
     }
-    public void removeCompleteItemId(ItemId itemId) {
-        this.removeItem(this.complete_itemIds, itemId);
+    public ItemInfo getRandomCompleteItem() {
+        return this.getRandomItem(this.items_completed, false, false);
     }
-    public ItemId getRandomCompleteItemId() {
-        return this.getRandomItemId(this.complete_itemIds, false);
-    }
-    public int getCompleteItemIdsCount() {
-        return this.complete_itemIds.size();
+    public int getCompleteItemsCount() {
+        return this.items_completed.size();
     }
     
     /**********************************************************************************************
      * ALL ITEMS
      **********************************************************************************************/
-    public int getAllItemIdsCount() {
+    public int getAllItemsCount() {
         return (this.getAvailableItemIdsCount() +
-                this.getEndingSoonItemIdsCount() +
-                this.getWaitForPurchaseItemIdsCount() +
-                this.getCompleteItemIdsCount());
+                this.getEndingSoonItemsCount() +
+                this.getWaitForPurchaseItemsCount() +
+                this.getCompleteItemsCount());
     }
     @SuppressWarnings("unchecked")
-    public ItemId getRandomItemId() {
-        assert(this.getAllItemIdsCount() > 0);
-        LinkedList<ItemId> itemSets[] = new LinkedList[]{
-            this.available_itemIds,
-            this.endingSoon_itemIds,
-            this.waitForPurchase_itemIds,
-            this.complete_itemIds,
+    public ItemInfo getRandomItem() {
+        assert(this.getAllItemsCount() > 0);
+        LinkedList<ItemInfo> itemSets[] = new LinkedList[]{
+            this.items_available,
+            this.items_endingSoon,
+            this.items_waitingForPurchase,
+            this.items_completed,
         };
         int idx = -1;
         while (idx == -1 || itemSets[idx].isEmpty()) {
             idx = rng.nextInt(itemSets.length);
         } // WHILE
-        return (this.getRandomItemId(itemSets[idx], false));
+        return (this.getRandomItem(itemSets[idx], false, false));
     }
 
     // ----------------------------------------------------------------

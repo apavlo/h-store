@@ -27,6 +27,7 @@ import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.benchmark.airline.util.HistogramUtil;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
@@ -396,6 +397,15 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     public long getRandomAirportId() {
         return (rng.number(1, (int)this.getAirportCount()));
+    }
+    
+    public long getRandomOtherAirport(long airport_id) {
+        String code = this.getAirportCode(airport_id);
+        Histogram<String> h = this.airport_histograms.get(code);
+        assert(h != null);
+        FlatHistogram<String> f = new FlatHistogram<String>(rng, h);
+        String other = f.nextValue();
+        return this.getAirportId(other);
     }
     
     /**

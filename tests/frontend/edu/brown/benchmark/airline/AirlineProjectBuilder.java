@@ -15,7 +15,7 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         DeleteReservation.class,
-        FindFlightByAirport.class,
+        FindFlights.class,
         FindOpenSeats.class,
         NewReservation.class,
         UpdateCustomer.class,
@@ -25,7 +25,7 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
     // Transaction Frequencies
     {
         addTransactionFrequency(DeleteReservation.class, AirlineConstants.FREQUENCY_DELETE_RESERVATION);
-        addTransactionFrequency(FindFlightByAirport.class, AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT);
+        addTransactionFrequency(FindFlights.class, AirlineConstants.FREQUENCY_FIND_FLIGHTS);
         addTransactionFrequency(FindOpenSeats.class, AirlineConstants.FREQUENCY_FIND_OPEN_SEATS);
         addTransactionFrequency(NewReservation.class, AirlineConstants.FREQUENCY_NEW_RESERVATION);
         addTransactionFrequency(UpdateCustomer.class, AirlineConstants.FREQUENCY_UPDATE_CUSTOMER);

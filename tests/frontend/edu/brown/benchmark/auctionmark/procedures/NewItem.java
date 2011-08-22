@@ -10,6 +10,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
@@ -140,14 +141,16 @@ public class NewItem extends VoltProcedure {
 	 * and so on. After these records are inserted, the transaction then updates
 	 * the USER record to add the listing fee to the seller's balance.
 	 */
-    public VoltTable run(TimestampType benchmarkStart,
+    public VoltTable run(TimestampType benchmarkTimes[],
                          long item_id, long seller_id, long category_id,
-                         String name, String description,
-                         double initial_price, String attributes,
-                         long gag_ids[], long gav_ids[], String images[],
-                         TimestampType start_date, TimestampType end_date) {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+                         String name, String description, long duration, double initial_price, String attributes,
+                         long gag_ids[], long gav_ids[], String images[]) {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
+        
+        // Calculate endDate
+        TimestampType end_date = new TimestampType(currentTime.getTime() + (duration * AuctionMarkConstants.MICROSECONDS_IN_A_DAY));
+        
         if (debug) {
             LOG.debug("NewItem :: run ");
             LOG.debug(">> item_id = " + item_id + " , seller_id = " + seller_id + ", category_id = " + category_id);
@@ -155,7 +158,7 @@ public class NewItem extends VoltProcedure {
             LOG.debug(">> initial_price = " + initial_price + " , attributes length = " + attributes.length());
             LOG.debug(">> gag_ids[].length = " + gag_ids.length + " , gav_ids[] length = " + gav_ids.length);
             LOG.debug(">> image length = " + images.length + " ");
-            LOG.debug(">> start = " + start_date + ", end = " + end_date);
+            LOG.debug(">> start = " + currentTime + ", end = " + end_date);
         }
 
         // Get attribute names and category path and append
@@ -200,7 +203,7 @@ public class NewItem extends VoltProcedure {
                                  name, description, attributes,
                                  initial_price, initial_price, 0,
                                  images.length, gav_ids.length,
-                                 start_date, end_date,
+                                 currentTime, end_date,
                                  AuctionMarkConstants.ITEM_STATUS_OPEN, currentTime);
 
         // Insert ITEM_ATTRIBUTE tuples

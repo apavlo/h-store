@@ -50,6 +50,8 @@ public class RandomDistribution {
             this.mean = this.range_size / 2.0;
         }
         
+        protected abstract long nextLongImpl();
+        
         /**
          * Enable keeping track of the values that the RNG generates
          */
@@ -148,7 +150,11 @@ public class RandomDistribution {
             return (val);
         }
         
-        protected abstract long nextLongImpl();
+        @Override
+        public String toString() {
+            return String.format("%s[min=%d, max=%d]", this.getClass().getSimpleName(), this.min, this.max);
+        }
+        
         
         public static long nextLong(Random rng, long n) {
             // error checking and 2^x checking removed for simplicity.

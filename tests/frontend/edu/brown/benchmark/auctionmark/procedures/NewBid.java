@@ -8,6 +8,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -22,7 +23,7 @@ import edu.brown.benchmark.auctionmark.util.UserId;
     singlePartition = true
 )
 public class NewBid extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(CloseAuctions.class);
+    private static final Logger LOG = Logger.getLogger(NewBid.class);
 
     // -----------------------------------------------------------------
     // STATIC MEMBERS
@@ -43,11 +44,11 @@ public class NewBid extends VoltProcedure {
     // -----------------------------------------------------------------
 
     public final SQLStmt getItem = new SQLStmt(
-        "SELECT i_initial_price, i_current_price, i_num_bids, i_end_date " +
+        "SELECT i_initial_price, i_current_price, i_num_bids, i_end_date, i_status " +
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
-         "WHERE i_id = ? AND i_u_id = ? " +
-         "  AND i_end_date > ? " +
-         "  AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
+         "WHERE i_id = ? AND i_u_id = ? " //+
+//         "  AND i_end_date > ? " +
+//         "  AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
     );
     
     public final SQLStmt getMaxBidId = new SQLStmt(
@@ -134,16 +135,19 @@ public class NewBid extends VoltProcedure {
         ")"
     );
 
-    public VoltTable run(TimestampType benchmarkStart, long item_id, long seller_id, long buyer_id, double newBidMax) {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+    public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, long buyer_id, double newBid, TimestampType estimatedEndDate) {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
+        if (debug) LOG.debug(String.format("Attempting to place new bid on Item %d [buyer=%d, bid=%.2f]", item_id, buyer_id, newBid));
 
         // Check to make sure that we can even add a new bid to this item
         // If we fail to get back an item, then we know that the auction is closed
-        voltQueueSQL(getItem, item_id, seller_id, currentTime);
+        voltQueueSQL(getItem, item_id, seller_id); // , currentTime);
         VoltTable[] results = voltExecuteSQL();
         assert (results.length == 1);
         if (results[0].getRowCount() == 0) {
+//            if (debug) 
+                LOG.info("The auction for item " + item_id + " has ended - " + currentTime);
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
         boolean advRow = results[0].advanceRow();
@@ -152,8 +156,15 @@ public class NewBid extends VoltProcedure {
         double i_current_price = results[0].getDouble(1);
         long i_num_bids = results[0].getLong(2);
         TimestampType i_end_date = results[0].getTimestampAsTimestamp(3);
+        long i_status = results[0].getLong(4);
         long newBidId = 0;
         long newBidMaxBuyerId = buyer_id;
+        
+        if (i_end_date.compareTo(currentTime) < 0 || i_status != AuctionMarkConstants.ITEM_STATUS_OPEN) {
+            LOG.info(String.format("The auction for item %d has ended [status=%d]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
+                                   item_id, i_status, currentTime, i_end_date, estimatedEndDate));
+            throw new VoltAbortException("Unable to bid on item: Auction has ended");
+        }
         
         // If we existing bids, then we need to figure out whether we are the new highest
         // bidder or if the existing one just has their max_bid bumped up
@@ -182,27 +193,28 @@ public class NewBid extends VoltProcedure {
             // This means we just need to increase their current max bid amount without
             // changing the current auction price
             if (buyer_id == currentBuyerId) {
-                if (newBidMax < currentBidMax) {
-                    String msg = String.format("%s is already the highest bidder but is trying to " +
+                if (newBid < currentBidMax) {
+                    String msg = String.format("%s is already the highest bidder for Item %d but is trying to " +
                                                "set a new max bid %.2f that is less than current max bid %.2f",
-                                               UserId.toString(buyer_id), newBidMax, currentBidMax);
+                                               buyer_id, item_id, newBid, currentBidMax);
+                    if (debug) LOG.debug(msg);
                     throw new VoltAbortException(msg);
                 }
-                voltQueueSQL(updateBid, i_current_price, newBidMax, currentTime, currentBidId, item_id, seller_id);
-                if (debug) LOG.debug(String.format("Increasing %s's existing current winner %s max bid from %.2f to %.2f",
-                                                   ItemId.toString(item_id), UserId.toString(buyer_id), currentBidMax, newBidMax));
+                voltQueueSQL(updateBid, i_current_price, newBid, currentTime, currentBidId, item_id, seller_id);
+                if (debug) LOG.debug(String.format("Increasing the max bid the highest bidder %s from %.2f to %.2f for Item %d",
+                                                   buyer_id, currentBidMax, newBid, item_id));
             }
             // Otherwise check whether this new bidder's max bid is greater than the current max
             else {
                 // The new maxBid trumps the existing guy, so our the buyer_id for this txn becomes the new
                 // winning bidder at this time. The new current price is one step above the previous
                 // max bid amount 
-                if (newBidMax > currentBidMax) {
-                    i_current_price = Math.min(newBidMax, currentBidMax + (i_initial_price * AuctionMarkConstants.ITEM_BID_PERCENT_STEP));
+                if (newBid > currentBidMax) {
+                    i_current_price = Math.min(newBid, currentBidMax + (i_initial_price * AuctionMarkConstants.ITEM_BID_PERCENT_STEP));
                     assert(i_current_price > currentBidMax);
                     voltQueueSQL(updateItemMaxBid, newBidId, item_id, seller_id, currentTime, item_id, seller_id);
-                    if (debug) LOG.debug(String.format("Changing %s's new current winning bidder to %s [newMaxBid=%.2f > currentMaxBid=%.2f]",
-                                                        ItemId.toString(item_id), UserId.toString(buyer_id), newBidMax, currentBidMax));
+                    if (debug) LOG.debug(String.format("Changing new highest bidder of Item %d to %s [newMaxBid=%.2f > currentMaxBid=%.2f]",
+                                                        item_id, UserId.toString(buyer_id), newBid, currentBidMax));
 
                 }
                 // The current max bidder is still the current one
@@ -211,11 +223,11 @@ public class NewBid extends VoltProcedure {
                 // that we caused the user to bid more than they wanted.
                 else {
                     newBidMaxBuyerId = currentBuyerId;
-                    i_current_price = Math.min(currentBidMax, newBidMax + (i_initial_price * AuctionMarkConstants.ITEM_BID_PERCENT_STEP));
-                    assert(i_current_price >= newBidMax) : String.format("%.2f > %.2f", i_current_price, newBidMax);
+                    i_current_price = Math.min(currentBidMax, newBid + (i_initial_price * AuctionMarkConstants.ITEM_BID_PERCENT_STEP));
+                    assert(i_current_price >= newBid) : String.format("%.2f > %.2f", i_current_price, newBid);
                     voltQueueSQL(updateBid, i_current_price, i_current_price, currentTime, currentBidId, item_id, seller_id);
-                    if (debug) LOG.debug(String.format("Keeping %s's current winning bidder as %s but updating current price from %.2f to %.2f",
-                                                       ItemId.toString(item_id), UserId.toString(buyer_id), currentBidAmount, i_current_price));
+                    if (debug) LOG.debug(String.format("Keeping the existing highest bidder of Item %d as %s but updating current price from %.2f to %.2f",
+                                                       item_id, buyer_id, currentBidAmount, i_current_price));
                 }
             
                 // Always insert an new ITEM_BID record even if BuyerId doesn't become
@@ -223,17 +235,17 @@ public class NewBid extends VoltProcedure {
                 // the BuyerId already has ITEM_BID record, because we want to maintain
                 // the history of all the bid attempts
                 voltQueueSQL(insertItemBid, newBidId, item_id, seller_id, buyer_id,
-                                            i_current_price, newBidMax, currentTime, currentTime);
+                                            i_current_price, newBid, currentTime, currentTime);
                 voltQueueSQL(updateItem, i_current_price, currentTime, item_id, seller_id);
             }
         }
         // There is no existing max bid record, therefore we can just insert ourselves
         else {
-            voltQueueSQL(insertItemBid, newBidId, item_id, seller_id, buyer_id, i_initial_price, newBidMax, currentTime, currentTime);
+            voltQueueSQL(insertItemBid, newBidId, item_id, seller_id, buyer_id, i_initial_price, newBid, currentTime, currentTime);
             voltQueueSQL(insertItemMaxBid, item_id, seller_id, newBidId, item_id, seller_id, currentTime, currentTime);
             voltQueueSQL(updateItem, i_current_price, currentTime, item_id, seller_id);
-            if (debug) LOG.debug(String.format("Creating %s's first bid record and marking %s as current winner at %.2f",
-                                               ItemId.toString(item_id), UserId.toString(buyer_id), i_current_price));
+            if (debug) LOG.debug(String.format("Creating the first bid record for Item %d and setting %s as highest bidder at %.2f",
+                                               item_id, buyer_id, i_current_price));
         }
         
         // Fire off all of our queue

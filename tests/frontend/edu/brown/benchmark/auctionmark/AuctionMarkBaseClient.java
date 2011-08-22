@@ -151,6 +151,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
             }
         } else {
             this.profile_path = null;
+            this.profile.setAndGetBenchmarkStartTime();
         }
         HStoreConf hstore_conf = this.getHStoreConf();
         this.profile.setScaleFactor(hstore_conf.client.scalefactor);
@@ -180,8 +181,6 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         this.data_directory = dataDir;
         if (this.data_directory == null) LOG.warn("No data directory was set!");
         else LOG.debug("AuctionMark Data Directory: " + dataDir);
-        
-
         
         // Temporal Skew
         if (temporal_window != null && temporal_window > 0) {

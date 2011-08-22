@@ -33,7 +33,6 @@ package edu.brown.benchmark.auctionmark;
 
 import java.util.*;
 
-import org.voltdb.types.TimestampType;
 
 public abstract class AuctionMarkConstants {
     
@@ -121,7 +120,7 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_PRESERVE_DAYS = 7;
     
     /** The duration in days for each auction */
-    public static final int ITEM_MAX_DURATION_DAYS = 7;
+    public static final int ITEM_MAX_DURATION_DAYS = 10;
     public static final int ITEM_MAX_PURCHASE_DAY = 7;
     
     /**
@@ -129,15 +128,7 @@ public abstract class AuctionMarkConstants {
      * we maintain in the benchmark profile. For some procedures, the client will 
      * ItemIds out of this cache and use them as txn parameters 
      */
-    public static final int ITEM_ID_CACHE_SIZE  = 500;
-    
-    /**
-     * If the amount of time (in milliseconds) remaining for an item auction
-     * is less than this parameter, then it will be added to a special queue
-     * in the client. We will increase the likelihood that a users will bid on these
-     * items as it gets closer to their end times
-     */
-    public static final long ITEM_ENDING_SOON = 600000; // 10 minutes
+    public static final int ITEM_ID_CACHE_SIZE  = 250;
     
     // ----------------------------------------------------------------
     // DEFAULT BATCH SIZES
@@ -241,18 +232,18 @@ public abstract class AuctionMarkConstants {
     /**
      * 1 sec in real time equals this value in the benchmark's virtual time in seconds
      */
-    public static final long TIME_SCALE_FACTOR = 3600l; // one hour
-    
-    public static TimestampType getScaledTimestamp(TimestampType start, TimestampType current) {
-        if (start == null || current == null) return (null);
-        long elapsed = current.getTime() - start.getTime();
-        long scale = Math.round((elapsed / 1000000.0) *  AuctionMarkConstants.TIME_SCALE_FACTOR) * 1000000;
-        return (new TimestampType(current.getTime() + scale));
-    }
-    
+    public static final long TIME_SCALE_FACTOR = 3600l; //  * 1000000l; // one hour
     
     /** How often to execute CLOSE_AUCTIONS in virtual milliseconds */
     public static final long INTERVAL_CLOSE_AUCTIONS    = 3600000l; // Check winning bid's frequency in millisecond
+    
+    /**
+     * If the amount of time (in milliseconds) remaining for an item auction
+     * is less than this parameter, then it will be added to a special queue
+     * in the client. We will increase the likelihood that a users will bid on these
+     * items as it gets closer to their end times
+     */
+    public static final long ENDING_SOON = 3600000l; // 5 hours
     
     public static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
     public static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;

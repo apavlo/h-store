@@ -1,10 +1,5 @@
 package edu.brown.benchmark.auctionmark.util;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONStringer;
-import org.voltdb.catalog.Database;
-
 /**
  * Composite Item Id
  * First 48-bits are the seller's USER.U_ID
@@ -25,12 +20,6 @@ public class ItemId extends CompositeId {
     
     private UserId seller_id;
     private int item_ctr;
-    
-    /**
-     * We can keep a transient copy of the current price of this item in here
-     * It's just easier this way
-     */
-    private transient Double currentPrice = null;
     
     public ItemId() {
         // For serialization
@@ -80,17 +69,6 @@ public class ItemId extends CompositeId {
         return (this.item_ctr);
     }
     
-    public boolean hasCurrentPrice() {
-        return (this.currentPrice != null);
-    }
-    public Double getCurrentPrice() {
-        return this.currentPrice;
-    }
-    public void setCurrentPrice(double price) {
-        assert(price >= 0) : "Negative price for " + this;
-        this.currentPrice = price;
-    }
-    
     @Override
     public String toString() {
         return ("ItemId<" + this.getItemCtr() + "-" + this.getSellerId() + ">");
@@ -104,27 +82,9 @@ public class ItemId extends CompositeId {
     public boolean equals(Object obj) {
         if (obj instanceof ItemId) {
             ItemId o = (ItemId)obj;
-            return (this.seller_id == o.seller_id &&
+            return (this.seller_id.equals(o.seller_id) &&
                     this.item_ctr == o.item_ctr);
         }
         return (false);
-    }
-
-    // -----------------------------------------------------------------
-    // SERIALIZATION
-    // -----------------------------------------------------------------
-    
-    @Override
-    public void toJSON(JSONStringer stringer) throws JSONException {
-        super.toJSON(stringer);
-        stringer.key("PRICE").value(this.currentPrice);
-    }
-    
-    @Override
-    public void fromJSON(JSONObject jsonObject, Database catalogDb) throws JSONException {
-        super.fromJSON(jsonObject, catalogDb);
-        if (jsonObject.has("PRICE") && jsonObject.isNull("PRICE") == false) {
-            this.currentPrice = jsonObject.getDouble("PRICE");
-        }
     }
 }

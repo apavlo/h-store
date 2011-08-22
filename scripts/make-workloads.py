@@ -53,7 +53,7 @@ HSTORE_OPTS = {
     "client.txnrate":               10000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1000,
-    "client.scalefactor":           100,
+    "client.scalefactor":           10,
 }
 
 ## ==============================================
@@ -61,10 +61,11 @@ HSTORE_OPTS = {
 ## ==============================================
 def txnCount(path):
     cmd = "wc -l %s*" % path
+    logging.debug("Executing Line Count: " + cmd)
     (result, output) = commands.getstatusoutput(cmd)
     assert result == 0, cmd + "\n" + output
     lines = output.split("\n")
-    assert lines[-1].find("total") != -1
+    if len(lines) > 1: assert lines[-1].find("total") != -1
     return int(lines[-1].strip().split(" ")[0])
 ## DEF
     
@@ -81,6 +82,8 @@ if __name__ == '__main__':
                          help='The number of transaction records needed')
     aparser.add_argument('--output-path', type=str, default="traces",
                          help='The output directory to store the traces')
+    aparser.add_argument('--overwrite', type=bool, default=False,
+                         help='Overwrite existing trace files')
     aparser.add_argument('--debug', action='store_true',
                          help='Enable debug log messages')
     args = vars(aparser.parse_args())
@@ -92,12 +95,21 @@ if __name__ == '__main__':
     HSTORE_OPTS["project"] = args['benchmark']
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, HSTORE_OPTS[x]), HSTORE_OPTS.keys()))
 
+    logging.info("Generating Transaction Workload for %s [totalTxns=%d]" % (args['benchmark'].upper(), args['txn_count']))
     total_cnt = 0
     trace_ctr = 0
     while True:
         trace = "%s-%02d" % (trace_base, trace_ctr)
-        cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
-        subprocess.check_call(cmd, shell=True)
+        
+        # Check whether it already exists, then we can skip this round
+        existing_file = trace + "-0"
+        if args['overwrite'] == False and os.path.exists(existing_file) and txnCount(existing_file) > 0:
+            logging.info("Trace file '%s' already exists with %d lines. Skipping..." % (trace, txnCount(existing_file)))
+
+        ## Otherwise light 'em up!
+        else:
+            cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
+            subprocess.check_call(cmd, shell=True)
         
         ## After each run check whether we have enough transaction traces
         cnt = txnCount(trace_base)
@@ -107,5 +119,32 @@ if __name__ == '__main__':
         if total_cnt >= args['txn_count']: break
         trace_ctr += 1
     ## WHILE
+    
+    # Compute the total again so that we know we are getting all of the existing files
+    total_cnt = txnCount(trace_base)
+    assert total_cnt > 0
+    
+    ## Then combine them into a single file
+    output = "%s-combined.trace" % args['benchmark']
+    logging.info("Combining %d trace records into a single file '%s'" % (total_cnt, output))
+    if os.path.exists(output):
+        if args['overwrite']:
+            logging.warn("Overwriting existing combined output file '%s'" % output)
+        else:
+            raise Exception("The combined output file '%s' already exists" % output)
+    
+    HSTORE_OPTS = {
+        "project":              args['benchmark'],
+        "volt.server.memory":   5000,
+        "output":               output,
+        "workload":             trace_base + "*",
+    }
+    hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, HSTORE_OPTS[x]), HSTORE_OPTS.keys()))
+    cmd = "ant workload-combine %s" % hstore_opts_cmd
+    subprocess.check_call(cmd, shell=True)
+    
+    ## Zip it up!
+    cmd = "gzip --best -v " + output
+    subprocess.check_call(cmd, shell=True)
     
 ## MAIN

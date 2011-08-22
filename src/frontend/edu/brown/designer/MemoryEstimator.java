@@ -150,10 +150,10 @@ public class MemoryEstimator {
         // tuples for all possible partitions
         TableStatistics table_stats = this.stats.getTableStatistics(catalog_tbl);
         assert(table_stats != null) : "Missing statistics for " + catalog_tbl;
-        if (table_stats.tuple_size_total == 0) {
+        if (d && table_stats.tuple_size_total == 0) {
             LOG.warn(this.stats.debug(CatalogUtil.getDatabase(catalog_tbl)));
         }
-        assert(table_stats.tuple_size_total != 0) : "Size estimate for " + catalog_tbl + " is zero!";
+        // assert(table_stats.tuple_size_total != 0) : "Size estimate for " + catalog_tbl + " is zero!";
         
         Column catalog_col = null;
         if (catalog_tbl.getIsreplicated()) {
