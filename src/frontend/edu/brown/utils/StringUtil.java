@@ -18,8 +18,8 @@ import com.google.protobuf.ByteString;
 public abstract class StringUtil {
 
     public static final String SPACER       = "   ";
-    public static final String DOUBLE_LINE  = "============================================================================\n";
-    public static final String SINGLE_LINE  = "----------------------------------------------------------------------------\n";
+    public static final String DOUBLE_LINE  = StringUtil.repeat("=", 64) + "\n";
+    public static final String SINGLE_LINE  = StringUtil.repeat("-", 64) + "\n";
 
     private static final Pattern LINE_SPLIT = Pattern.compile("\n");
     private static final Pattern TITLE_SPLIT = Pattern.compile(" ");

@@ -9,10 +9,12 @@ import edu.brown.benchmark.airline.AirlineConstants;
 )
 public class NewReservation extends VoltProcedure {
     
-    public final SQLStmt SelectFlight = new SQLStmt(
-            "SELECT F_AL_ID, F_SEATS_LEFT " +
-            "  FROM " + AirlineConstants.TABLENAME_FLIGHT + 
-            " WHERE F_ID = ?");
+    public final SQLStmt GetFlight = new SQLStmt(
+            "SELECT F_AL_ID, F_SEATS_LEFT, " +
+                    AirlineConstants.TABLENAME_AIRLINE + ".* " +
+            "  FROM " + AirlineConstants.TABLENAME_FLIGHT + ", " +
+                        AirlineConstants.TABLENAME_AIRLINE +
+            " WHERE F_ID = ? AND F_AL_ID = AL_ID");
     
     public final SQLStmt UpdateFlight = new SQLStmt(
             "UPDATE " + AirlineConstants.TABLENAME_FLIGHT +
@@ -71,7 +73,7 @@ public class NewReservation extends VoltProcedure {
             ")");
     
     public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, long attrs[]) throws VoltAbortException {
-        voltQueueSQL(SelectFlight, f_id);
+        voltQueueSQL(GetFlight, f_id);
         final VoltTable[] flight_results = voltExecuteSQL();
         assert(flight_results.length == 1);
 

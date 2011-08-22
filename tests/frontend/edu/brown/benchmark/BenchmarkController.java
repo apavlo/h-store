@@ -1402,8 +1402,6 @@ public class BenchmarkController {
                 applicationName = parts[1];
             } else if (parts[0].equalsIgnoreCase("SUBAPPLICATIONNAME")) {
                 subApplicationName = parts[1];
-
-            /** PAVLO **/
             } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
                 coordinatorHost = parts[1];
             } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {

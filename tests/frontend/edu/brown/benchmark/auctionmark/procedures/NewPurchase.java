@@ -7,6 +7,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
@@ -97,8 +98,8 @@ public class NewPurchase extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(TimestampType benchmarkStart, long item_id, long seller_id, double buyer_credit) throws VoltAbortException {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+    public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, double buyer_credit) throws VoltAbortException {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         
         // Get the ITEM_MAX_BID record so that we know what we need to process
         voltQueueSQL(getItemInfo, item_id, seller_id);

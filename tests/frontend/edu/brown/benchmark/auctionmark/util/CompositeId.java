@@ -12,7 +12,7 @@ import edu.brown.utils.JSONUtil;
 
 public abstract class CompositeId implements Comparable<CompositeId>, JSONSerializable {
     
-    private transient int hashCode = -1;
+    private transient Integer hashCode = null;
     
     protected final long encode(long max_value, long offset) {
         long values[] = this.toArray();
@@ -25,6 +25,7 @@ public abstract class CompositeId implements Comparable<CompositeId>, JSONSerial
                                                           this.getClass().getSimpleName(), i, values[i], max_value);
             id = (i == 0 ? values[i] : id | values[i]<<(offset * i));
         } // FOR
+        this.hashCode = new Long(id).hashCode();
         return (id);
     }
     
@@ -46,8 +47,9 @@ public abstract class CompositeId implements Comparable<CompositeId>, JSONSerial
     
     @Override
     public int hashCode() {
-        if (this.hashCode == -1) {
-            this.hashCode = new Long(this.encode()).hashCode();
+        if (this.hashCode == null) {
+            this.encode();
+            assert(this.hashCode != null);
         }
         return (this.hashCode);
     }

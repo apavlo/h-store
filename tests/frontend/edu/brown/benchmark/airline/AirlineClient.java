@@ -62,7 +62,7 @@ public class AirlineClient extends AirlineBaseClient {
      */
     public static enum Transaction {
         DELETE_RESERVATION          (DeleteReservation.class,   AirlineConstants.FREQUENCY_DELETE_RESERVATION),
-        FIND_FLIGHT_BY_AIRPORT      (FindFlightByAirport.class, AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT),
+        FIND_FLIGHTS                (FindFlights.class,         AirlineConstants.FREQUENCY_FIND_FLIGHTS),
         FIND_OPEN_SEATS             (FindOpenSeats.class,       AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
         NEW_RESERVATION             (NewReservation.class,      AirlineConstants.FREQUENCY_NEW_RESERVATION),
         UPDATE_CUSTOMER             (UpdateCustomer.class,      AirlineConstants.FREQUENCY_UPDATE_CUSTOMER),
@@ -236,7 +236,7 @@ public class AirlineClient extends AirlineBaseClient {
                 if (this.pending_deletes.isEmpty() == false) this.executeDeleteReservation(txn);
                 break;
             }
-            case FIND_FLIGHT_BY_AIRPORT: {
+            case FIND_FLIGHTS: {
                 this.executeFindFlight(txn);
                 break;
             }
@@ -318,20 +318,14 @@ public class AirlineClient extends AirlineBaseClient {
     }
     
     // ----------------------------------------------------------------
-    // FindFlight
-    // Includes both FindFlightByAirport and FindFlightByNearbyAirport
+    // FindFlights
     // ----------------------------------------------------------------
     
-    class FindFlightCallback implements ProcedureCallback {
-        final Transaction txn;
-        
-        public FindFlightCallback(Transaction txn) {
-            this.txn = txn;
-        }
+    class FindFlightsCallback implements ProcedureCallback {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(this.txn.ordinal());
+            incrementTransactionCounter(Transaction.FIND_FLIGHTS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (results.length > 1) {
                 // Convert the data into a FlightIds that other transactions can use
@@ -350,19 +344,44 @@ public class AirlineClient extends AirlineBaseClient {
      * @throws IOException
      */
     private void executeFindFlight(Transaction txn) throws IOException {
+        long depart_airport_id;
+        long arrive_airport_id;
+        TimestampType start_date;
+        TimestampType stop_date;
+        
         // Select two random airport ids
-        // Does it matter whether the one airport actually flies to the other one?
-        long depart_airport_id = this.getRandomAirportId();
-        long arrive_airport_id = (long)rng.numberExcluding(1, (int)this.getAirportCount(), (int)depart_airport_id);
+        if (rng.number(1, 100) <= 10) {
+            // Does it matter whether the one airport actually flies to the other one?
+            depart_airport_id = this.getRandomAirportId();
+            arrive_airport_id = this.getRandomOtherAirport(depart_airport_id);
+//        long arrive_airport_id = (long)rng.numberExcluding(1, (int)this.getAirportCount(), (int)depart_airport_id);
+            
+            // Select a random date from our upcoming dates
+            start_date = this.getRandomUpcomingDate();
+            stop_date = new TimestampType(start_date.getTime() + (AirlineConstants.MICROSECONDS_PER_DAY * 2));
+        }
         
-        // Select a random date from our upcoming dates
-        TimestampType start_date = this.getRandomUpcomingDate();
-        TimestampType stop_date = new TimestampType(start_date.getTime() + AirlineConstants.MICROSECONDS_PER_DAY);
+        // Use an existing flight so that we guaranteed to get back results
+        else {
+            FlightId f_id = this.getRandomFlightId();
+            depart_airport_id = f_id.getDepartAirportId();
+            arrive_airport_id = f_id.getArriveAirportId();
+            
+            TimestampType flightDate = f_id.getDepartDate(this.getFlightStartDate());
+            long range = Math.round(AirlineConstants.MICROSECONDS_PER_DAY * 0.5);
+            start_date = new TimestampType(flightDate.getTime() - range);
+            stop_date = new TimestampType(flightDate.getTime() + range);
+            
+            if (debug.get())
+                LOG.debug("Using FlightId " + f_id.encode() + " as look up: " + f_id + " / " + flightDate);
+        }
         
+        // If distance is greater than zero, then we will also get flights from nearby airports
         long distance = -1;
-        if (rng.number(1, 100) < AirlineConstants.PROB_FIND_AIRPORT_NEARBY) {
+        if (rng.number(1, 100) <= AirlineConstants.PROB_FIND_AIRPORT_NEARBY) {
             distance = AirlineConstants.DISTANCES[rng.nextInt(AirlineConstants.DISTANCES.length)];
         }
+        
         Object params[] = new Object[] {
             depart_airport_id,
             arrive_airport_id,
@@ -370,7 +389,7 @@ public class AirlineClient extends AirlineBaseClient {
             stop_date,
             distance
         };
-        this.getClientHandle().callProcedure(new FindFlightCallback(txn), txn.proc_class.getSimpleName(), params);
+        this.getClientHandle().callProcedure(new FindFlightsCallback(), txn.proc_class.getSimpleName(), params);
     }
 
     // ----------------------------------------------------------------

@@ -376,6 +376,11 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         protected int getColumnIndex(String columnName) {
             return VoltTable.this.getColumnIndex(columnName);
         }
+        
+        @Override
+        protected boolean hasColumn(String columnName) {
+            return VoltTable.this.hasColumn(columnName);
+        }
 
         @Override
         protected VoltType getColumnType(int columnIndex) {
@@ -450,6 +455,16 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
             msg += "[" + i + "]" + getColumnName(i) + ",";
         }
         throw new IllegalArgumentException(msg);
+    }
+    
+    @Override
+    public boolean hasColumn(String name) {
+        assert(verifyTableInvariants());
+        for (int i = 0; i < m_colCount; i++) {
+            if (getColumnName(i).equalsIgnoreCase(name))
+                return (true);
+        }
+        return false;
     }
 
     /**

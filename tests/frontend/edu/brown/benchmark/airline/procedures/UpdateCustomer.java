@@ -24,12 +24,19 @@ public class UpdateCustomer extends VoltProcedure {
         " WHERE C_ID_STR = ? "
     );
     
+    public final SQLStmt GetBaseAirport = new SQLStmt(
+        "SELECT * " +
+        "  FROM " + AirlineConstants.TABLENAME_AIRPORT + ", " +
+                    AirlineConstants.TABLENAME_COUNTRY +
+        " WHERE AP_ID = ? AND AP_CO_ID = CO_ID "
+    );
+    
     public final SQLStmt UpdateCustomer = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
-            "   SET C_IATTR00 = ?, " +
-            "       C_IATTR01 = ? " +
-            " WHERE C_ID = ?"
-        );
+        "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
+        "   SET C_IATTR00 = ?, " +
+        "       C_IATTR01 = ? " +
+        " WHERE C_ID = ?"
+    );
     
     public final SQLStmt GetFrequentFlyers = new SQLStmt(
         "SELECT * FROM " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
@@ -59,6 +66,13 @@ public class UpdateCustomer extends VoltProcedure {
         boolean adv = results[0].advanceRow();
         assert(adv);
         c_id = results[0].getLong(0);
+        long base_airport = results[0].getLong(2);
+        
+        // Get their airport information
+        // TODO: Do something interesting with this data
+        voltQueueSQL(GetBaseAirport, base_airport);
+        VoltTable airport_results[] = voltExecuteSQL();
+        assert(airport_results.length == 1);
         
         if (update_ff > 0) {
             voltQueueSQL(GetFrequentFlyers, c_id); 

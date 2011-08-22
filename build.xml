@@ -56,11 +56,12 @@
 <property name='depcache'                    value='.depcache' />
 
 <!-- Supplmental H-Store Files -->
-<property name='files.dir'                   location='${base.dir}/files' />
+<property name='files.dir'                   location='files' />
 <property name='files.stats.dir'             location='${files.dir}/stats' />
 <property name='files.workloads.dir'         location='${files.dir}/workloads' />
 <property name='files.markovs.dir'           location='${files.dir}/markovs' />
 <property name='files.hints.dir'             location='${files.dir}/designhints' />
+<property name='files.mappings.dir'          location='${files.dir}/mappings' />
 
 <!-- ProtocolBuffer Source -->
 <property name="src.protobuf.dir"            location="third_party/cpp/protobuf" />
@@ -1484,6 +1485,7 @@ BENCHMARKS
         <arg value="client.skewfactor=${client.skewfactor}" />
         <arg value="client.temporalwindow=${client.temporalwindow}" />
         <arg value="client.temporaltotal=${client.temporaltotal}" />
+        <arg value="client.tickinterval=${client.tickinterval}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
@@ -1969,17 +1971,17 @@ DESIGNER
         <assertions><enable /></assertions>
     </java>-->
     
-    <echo>Creating stats file for ${target.workload}...</echo>
+    <echo>Creating stats file for workload '${target.workload}'</echo>
     <antcall target="stats">
         <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
-        <param name="stats" value="${benchmark.tablestats}" />
+<!--         <param name="stats" value="${benchmark.tablestats}" /> -->
         <param name="output" value="${files.stats.dir}/${target.workload}.stats" />
     </antcall>
     <gzip src="${files.stats.dir}/${target.workload}.stats" destfile="${files.stats.dir}/${target.workload}.stats.gz"/>
     <delete file="${benchmark.tablestats}" />
     
-    <echo>Creating mappings file for ${workload}...</echo>
+    <echo>Creating mappings file for workload '${target.workload}'</echo>
     <antcall target="mappings-generate">
         <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />

@@ -35,10 +35,15 @@ import edu.brown.benchmark.airline.AirlineConstants;
 public class UpdateReservation extends VoltProcedure {
     
     public final SQLStmt CheckSeat = new SQLStmt(
-        "SELECT R_ID FROM RESERVATION WHERE R_F_ID = ? and R_SEAT = ?");
+        "SELECT R_ID " +
+        "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
+        " WHERE R_F_ID = ? and R_SEAT = ?"
+    );
 
-    public final SQLStmt CheckCID = new SQLStmt(
-        "SELECT R_ID FROM RESERVATION WHERE R_ID = ? and R_C_ID = ?");
+    public final SQLStmt CheckCustomer = new SQLStmt(
+        "SELECT R_ID " + 
+        "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
+        " WHERE R_ID = ? and R_C_ID = ?");
 
     private static final String BASE_SQL = "UPDATE " + AirlineConstants.TABLENAME_RESERVATION +
                                            "   SET R_SEAT = ?, %s = ? " +
@@ -64,7 +69,7 @@ public class UpdateReservation extends VoltProcedure {
         // check if the seat is occupied
         // check if the customer has multiple seats on this flight
         voltQueueSQL(CheckSeat, f_id, seatnum);
-        voltQueueSQL(CheckCID, f_id, c_id);
+        voltQueueSQL(CheckCustomer, f_id, c_id);
         final VoltTable[] results = voltExecuteSQL();
         
         assert(results.length == 2);

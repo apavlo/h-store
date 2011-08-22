@@ -10,6 +10,8 @@ import edu.brown.utils.StringUtil;
 
 public final class TPCCConfig {
 
+    public int firstWarehouse = Constants.STARTING_WAREHOUSE;
+    
     public boolean warehouse_affinity = false;
     public boolean noop = false;
     public boolean neworder_only = false;
@@ -17,6 +19,8 @@ public final class TPCCConfig {
     public boolean neworder_multip = false;
     public boolean neworder_all_multip = false;
     public boolean neworder_skew_warehouse = false;
+
+    public boolean temporal_skew = false;
     
     /** Percentage of neworder txns that are forced to be multi-partitioned */
     public int neworder_multip_mix = 0;
@@ -29,8 +33,13 @@ public final class TPCCConfig {
             String key = e.getKey();
             String val = e.getValue();
             
+            // FIRST WAREHOUSE ID
+            if (key.equalsIgnoreCase("first_warehouse") && !val.isEmpty()) {
+                firstWarehouse = Integer.parseInt(val);
+            }
+            
             // WAREHOUSE AFFINITY
-            if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
+            else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
                 warehouse_affinity = Boolean.parseBoolean(val);
             }
             // NOOPs
@@ -61,7 +70,11 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
                 neworder_multip_mix = Integer.parseInt(val);
             }
-        }
+            // TEMPORAL SKEW
+            else if (key.equalsIgnoreCase("temporal_skew") && !val.isEmpty()) {
+                temporal_skew = Boolean.parseBoolean(val);
+            }
+        } // FOR
     }
     
     public static TPCCConfig defaultConfig() {

@@ -8,6 +8,7 @@ import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 /**
@@ -63,8 +64,8 @@ public class NewComment extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(TimestampType benchmarkStart, long item_id, long seller_id, long buyer_id, String question) {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+    public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, long buyer_id, String question) {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
     	long ic_id;
     	
         // Set comment_id

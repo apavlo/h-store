@@ -9,6 +9,7 @@ import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 @ProcInfo (
@@ -69,8 +70,8 @@ public class NewFeedback extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
     
-    public VoltTable run(TimestampType benchmarkStart, long i_id, long seller_id, long buyer_id, long rating, String comment) {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+    public VoltTable run(TimestampType benchmarkTimes[],long i_id, long seller_id, long buyer_id, long rating, String comment) {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
         if (debug) LOG.debug("NewFeedback::: selecting max feedback");
 

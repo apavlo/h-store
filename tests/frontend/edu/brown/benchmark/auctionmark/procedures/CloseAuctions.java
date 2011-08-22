@@ -9,6 +9,7 @@ import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 /**
@@ -82,8 +83,8 @@ public class CloseAuctions extends VoltProcedure {
      * @param bid_ids - ItemBid Ids
      * @return
      */
-    public VoltTable run(TimestampType benchmarkStart, TimestampType startTime, TimestampType endTime) {
-        final TimestampType currentTime = AuctionMarkConstants.getScaledTimestamp(benchmarkStart, new TimestampType());
+    public VoltTable run(TimestampType benchmarkTimes[], TimestampType startTime, TimestampType endTime) {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
 
         if (debug) {
@@ -94,8 +95,8 @@ public class CloseAuctions extends VoltProcedure {
         final VoltTable ret = new VoltTable(RESULT_COLS);
         int closed_ctr = 0;
         int waiting_ctr = 0;
-        int round = 0;
-        while (true) {
+        int round = 10;
+        while (round-- > 0) {
             voltQueueSQL(getDueItems, startTime, endTime);
             final VoltTable[] dueItemsTable = voltExecuteSQL();
             assert (1 == dueItemsTable.length);
@@ -185,7 +186,6 @@ public class CloseAuctions extends VoltProcedure {
                 ret.addRow(output_rows[i]);
             } // FOR
             if (batch_size > 0) voltExecuteSQL();
-            round++;
         } // WHILE
 
 //        if (debug)
