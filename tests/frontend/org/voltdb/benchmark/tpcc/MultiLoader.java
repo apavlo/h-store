@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Observable;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
@@ -50,14 +51,14 @@ import java.util.concurrent.Semaphore;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.client.Client;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.BenchmarkConfig;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.EventObservableExceptionHandler;
+import edu.brown.utils.EventObserver;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -603,8 +604,6 @@ public class MultiLoader extends BenchmarkComponent {
 
         /** generate replicated tables, ITEM and CUSTOMER_NAME. */
         public void makeReplicated() {
-            final Client client = getClientHandle();
-            
             // create ITEMS here to reduce memory consumption
             VoltTable items = new VoltTable(new VoltTable.ColumnInfo("I_ID", VoltType.INTEGER),
                                             new VoltTable.ColumnInfo("I_IM_ID", VoltType.INTEGER),
@@ -630,26 +629,15 @@ public class MultiLoader extends BenchmarkComponent {
                 
                 // Items! Sail yo ho!
                 if (items.getRowCount() == replicated_batch_size) {
-                    try {
-                        LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
-                        client.callProcedure("@LoadMultipartitionTable", "ITEM", items);
-                        items.clearRowData();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        System.exit(1);
-                    }
+                    LOG.info(String.format("Loading replicated ITEM table [tuples=%d/%d]", i, m_parameters.items));
+                    loadVoltTable("ITEM", items);
                 }
             } // FOR
             if (items.getRowCount() > 0) {
-                try {
-                    String extra = "";
-                    if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
-                    LOG.info("Loading replicated ITEM table" + extra);
-                    client.callProcedure("@LoadMultipartitionTable", "ITEM", items);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
+                String extra = "";
+                if (items.getRowCount() < m_parameters.items) extra = String.format(" [tuples=%d/%d]", m_parameters.items-items.getRowCount(), m_parameters.items);
+                LOG.info("Loading replicated ITEM table" + extra);
+                loadVoltTable("ITEM", items);
             }
 
 //            if (m_voltClient != null) {
@@ -704,12 +692,12 @@ public class MultiLoader extends BenchmarkComponent {
                             batch.add(table.fetchRow(i2));
                             if (batch.getRowCount() == replicated_batch_size) {
                                 LOG.debug(String.format("Loading replicated CUSTOMER_NAME table [tuples=%d/%d]", i2, cnt2));
-                                client.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
+                                loadVoltTable("CUSTOMER_NAME", batch);
                                 batch.clearRowData();
                             }
                         } // FOR
                         if (batch.getRowCount() > 0) {
-                            client.callProcedure("@LoadMultipartitionTable", "CUSTOMER_NAME", batch);
+                            loadVoltTable("CUSTOMER_NAME", batch);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -780,12 +768,7 @@ public class MultiLoader extends BenchmarkComponent {
             for (int i = 0; i < data_tables.length; ++i) {
                 if (data_tables[i] != null && data_tables[i].getRowCount() > 0) {
                     if (debug) LOG.debug(String.format("WAREHOUSE[%02d]: %s %d tuples", w_id, table_names[i], data_tables[i].getRowCount()));
-                    try {
-                        getClientHandle().callProcedure("@LoadMultipartitionTable", table_names[i], data_tables[i]);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        System.exit(1);
-                    }
+                    loadVoltTable(table_names[i], data_tables[i]);
                 }
             }
             // rethrowExceptionLoad(Constants.LOAD_WAREHOUSE, params);
@@ -882,6 +865,16 @@ public class MultiLoader extends BenchmarkComponent {
 
     @Override
     public void runLoop() throws NoConnectionsException {
+        final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
+        handler.addObserver(new EventObserver() {
+            @Override
+            public void update(Observable o, Object obj) {
+                Throwable e = (Throwable)obj;
+                e.printStackTrace();
+                System.exit(-1);
+            }
+        });
+        
         ArrayList<Integer> warehouseIds = new ArrayList<Integer>();
         int count = (m_warehouses + m_firstWarehouse - 1);
         for (int ii = m_firstWarehouse; ii <= count; ii++) {
@@ -895,6 +888,7 @@ public class MultiLoader extends BenchmarkComponent {
         boolean doMakeReplicated = true;
         for (LoadThread loadThread : m_loadThreads) {
             LOG.debug("Starting LoadThread...");
+            loadThread.setUncaughtExceptionHandler(handler);
             loadThread.start(doMakeReplicated);
             doMakeReplicated = false;
         }

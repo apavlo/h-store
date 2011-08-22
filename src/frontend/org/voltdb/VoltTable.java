@@ -396,7 +396,12 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         protected int getRowStart() {
             return VoltTable.this.getRowStart();
         }
-
+        
+        @Override
+        public int getRowSize() {
+            return VoltTable.this.getRowSize();
+        }
+        
         @Override
         public VoltTableRow cloneRow() {
             Row retval = new Row(m_position);
@@ -1109,6 +1114,13 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
     @Override
     protected final int getRowStart() {
         return m_rowStart;
+    }
+    
+    @Override
+    public int getRowSize() {
+        // FIXME
+        int total_size = VoltTable.this.getUnderlyingBufferSize();
+        return (total_size / m_rowCount);
     }
 
     @Override

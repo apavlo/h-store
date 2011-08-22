@@ -427,23 +427,6 @@ public class AirlineLoader extends AirlineBaseClient {
     }
     
     /**
-     * Push the VoltTable out to the database cluster
-     * @param tableName
-     * @param vt
-     */
-    protected void loadVoltTable(String tableName, VoltTable vt) {
-        if (debug.get()) LOG.debug(String.format("Loading %d tuples for %s", vt.getRowCount(), tableName));
-//        if (tableName.equalsIgnoreCase("FLIGHT")) {
-//            System.out.println(vt);
-//        }
-        try {
-            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tableName, vt); 
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load tuples for '" + tableName + "'", e);
-        }
-    }
-    
-    /**
      * Save the information stored in the BenchmarkProfile out to a file 
      * @throws IOException
      */

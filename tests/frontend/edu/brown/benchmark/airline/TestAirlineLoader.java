@@ -10,6 +10,7 @@ import org.json.JSONObject;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.BaseTestCase;
@@ -45,8 +46,9 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
             return (BaseTestCase.catalog);
         }
         @Override
-        protected void loadVoltTable(String tableName, VoltTable vt) {
+        public ClientResponse loadVoltTable(String tableName, VoltTable vt) {
             assertNotNull(vt);
+            return (null);
         }
 //        @Override
 //        protected Iterable<Object[]> getScalingIterable(Table catalog_tbl) {

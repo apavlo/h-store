@@ -117,6 +117,8 @@ public abstract class VoltTableRow {
 
     protected abstract int getRowStart();
 
+    public abstract int getRowSize();
+    
     /**
      * Clone a row. The new instance returned will have an independent
      * position from the original instance.
@@ -219,7 +221,7 @@ public abstract class VoltTableRow {
         }
         return true;
     }
-
+    
     public final Object get(int columnIndex) {
         return (this.get(columnIndex, this.getColumnType(columnIndex)));
     }

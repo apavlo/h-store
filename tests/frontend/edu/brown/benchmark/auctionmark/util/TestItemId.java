@@ -39,24 +39,4 @@ public class TestItemId extends TestCase {
             } // FOR
         } // FOR
     }
-    
-    /**
-     * testItemIdDecode
-     */
-    public void testItemIdDecode() {
-        for (long u_id : this.user_ids) {
-            UserId user_id = new UserId(u_id);
-            for (int item_ctr = 0; item_ctr < num_items; item_ctr++) {
-                long values[] = { user_id.encode(), item_ctr };
-                long encoded = new ItemId(user_id, item_ctr).encode();
-                assert(encoded >= 0);
-
-                long new_values[] = new ItemId(encoded).toArray();
-                assertEquals(values.length, new_values.length);
-                for (int i = 0; i < new_values.length; i++) {
-                    assertEquals(values[i], new_values[i]);
-                } // FOR
-            } // FOR
-        } // FOR
-    }
 }

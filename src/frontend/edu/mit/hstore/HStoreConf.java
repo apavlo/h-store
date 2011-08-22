@@ -675,6 +675,13 @@ public final class HStoreConf {
             experimental=true
         )
         public int temporaltotal;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=-1,
+            advanced=true
+        )
+        public int tick_interval;
 
         @ConfigProperty(
             description="The amount of time (in ms) that the client will back-off from sending requests " +
@@ -699,6 +706,23 @@ public final class HStoreConf {
             advanced=false
         )
         public String dump_database_dir = HStoreConf.this.global.temp_dir + "/dumps";
+        
+        @ConfigProperty(
+            description="If set to true, then the benchmark data loader will generate a WorkloadStatistics " +
+                        "based on the data uploaded to the server. These stats will be written to the path " +
+                        "specified by ${client.tablestats_output}.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean tablestats = false;
+        
+        @ConfigProperty(
+            description="If ${client.tablestats} is enabled, then the loader will write out a database statistics " +
+                        "file in the directory defined in this parameter.",
+            defaultString="${global.temp_dir}/stats",
+            advanced=true
+        )
+        public String tablestats_dir = HStoreConf.this.global.temp_dir + "/stats";
     }
     
     /**

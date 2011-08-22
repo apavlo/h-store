@@ -1486,6 +1486,8 @@ BENCHMARKS
         <arg value="client.temporalwindow=${client.temporalwindow}" />
         <arg value="client.temporaltotal=${client.temporaltotal}" />
         <arg value="client.tickinterval=${client.tickinterval}" />
+        <arg value="client.tablestats=${client.tablestats}" />
+        <arg value="client.tablestats_dir=${client.tablestats_dir}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
@@ -1958,7 +1960,7 @@ DESIGNER
     <condition property="target.workload" value="${project}">
         <not><isset property="target.workload"/></not>
     </condition>
-    <property name="benchmark.tablestats" location="${global.temp_dir}/${project}.table.stats" />
+    <property name="benchmark.tablestats" location="${global.temp_dir}/stats/${project}.stats" />
     
 <!--    <echo>Creating table stats file for ${project}...</echo>
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
@@ -1971,21 +1973,21 @@ DESIGNER
         <assertions><enable /></assertions>
     </java>-->
     
-    <echo>Creating stats file for workload '${target.workload}'</echo>
+    <echo>Creating stats file for workload '${target.workload}' using '${benchmark.tablestats}' as base</echo>
     <antcall target="stats">
         <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
-<!--         <param name="stats" value="${benchmark.tablestats}" /> -->
-        <param name="output" value="${files.stats.dir}/${target.workload}.stats" />
+        <param name="stats" value="${benchmark.tablestats}" />
+        <param name="output" value="${files.stats.dir}/${project}.stats" />
     </antcall>
-    <gzip src="${files.stats.dir}/${target.workload}.stats" destfile="${files.stats.dir}/${target.workload}.stats.gz"/>
-    <delete file="${benchmark.tablestats}" />
+    <gzip src="${files.stats.dir}/${project}.stats" destfile="${files.stats.dir}/${project}.stats.gz"/>
+<!--     <delete file="${benchmark.tablestats}" /> -->
     
     <echo>Creating mappings file for workload '${target.workload}'</echo>
     <antcall target="mappings-generate">
         <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
-        <param name="output" value="${files.mappings.dir}/${target.workload}.mappings" />
+        <param name="output" value="${files.mappings.dir}/${project}.mappings" />
     </antcall>
 </target>
 
