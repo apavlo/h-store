@@ -62,7 +62,7 @@ LOG.setLevel(logging.INFO)
 BASE_SETTINGS = {
     "client.blocking":                  False,
     "client.blocking_concurrent":       10000,
-    "client.txnrate":                   2500,
+    "client.txnrate":                   1500,
     "client.count":                     2,
     "client.processesperclient":        8,
     "client.skewfactor":                -1,

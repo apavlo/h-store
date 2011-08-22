@@ -160,7 +160,7 @@ public class ProcessSetManager implements Shutdownable {
                 }
                 for (Entry<String, ProcessData> e : m_processes.entrySet()) {
                     ProcessData pd = e.getValue();
-                    if (pd.poller != null && pd.poller.isProcessAlive() == false && reported_error == false) {
+                    if (pd.poller != null && pd.poller.isProcessAlive() == false && reported_error == false && isShuttingDown() == false) {
                         String msg = String.format("Failed to poll '%s'", e.getKey());
                         LOG.error(msg);
                         failure_observable.notifyObservers(e.getKey());
@@ -262,7 +262,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     @Override
-    public void prepareShutdown() {
+    public synchronized void prepareShutdown() {
         this.shutting_down = true;
         for (String name : this.m_processes.keySet()) {
             this.prepareShutdown(name);
@@ -270,7 +270,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     @Override
-    public void shutdown() {
+    public synchronized void shutdown() {
         this.shutting_down = true;
         this.poller.interrupt();
         for (String name : m_processes.keySet()) {
@@ -279,7 +279,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     @Override
-    public boolean isShuttingDown() {
+    public synchronized boolean isShuttingDown() {
         return (this.shutting_down);
     }
 
