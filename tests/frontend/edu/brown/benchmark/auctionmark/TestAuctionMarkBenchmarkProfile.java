@@ -35,6 +35,8 @@ public class TestAuctionMarkBenchmarkProfile extends BaseTestCase {
             this.profile.setTableSize(table_name, count);
             assertEquals(count, this.profile.getTableSize(table_name));
         } // FOR
+        
+        profile.setAndGetBenchmarkStartTime();
     }
     
     /**

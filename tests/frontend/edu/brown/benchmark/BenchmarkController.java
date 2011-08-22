@@ -584,7 +584,7 @@ public class BenchmarkController {
     
     public void startLoader(final Catalog catalog, final int numClients) {
         if (debug.get()) LOG.debug("Starting loader: " + m_loaderClass);
-        final ArrayList<String> allArgs = new ArrayList<String>();
+        final ArrayList<String> allLoaderArgs = new ArrayList<String>();
         final ArrayList<String> loaderCommand = new ArrayList<String>();
 
         // set loader max heap to MAX(1M,6M) based on thread count.
@@ -619,29 +619,30 @@ public class BenchmarkController {
         
         for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
             String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
-            allArgs.add("HOST=" + address);
+            allLoaderArgs.add("HOST=" + address);
             if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
         } // FOR
 
-        allArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
-        allArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
-        allArgs.add("NUMCLIENTS=" + numClients);
-        allArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
+        allLoaderArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
+        allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
+        allLoaderArgs.add("NUMCLIENTS=" + numClients);
+        allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
+        allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
+        allLoaderArgs.add("LOADER=true");
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
             if (e.getKey().equals("TXNRATE")) {
                 continue;
             }
             String arg = String.format("%s=%s", e.getKey(), e.getValue());
-            allArgs.add(arg);
+            allLoaderArgs.add(arg);
         } // FOR
 
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
-            allArgs.add("EXITONCOMPLETION=false");
+            allLoaderArgs.add("EXITONCOMPLETION=false");
         try {
-            BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allArgs.toArray(new String[0]), true);
+            BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allLoaderArgs.toArray(new String[0]), true);
         } catch (Throwable ex) {
             this.failed = true;
             throw new RuntimeException("Failed to load data using " + m_loaderClass.getSimpleName(), ex);
@@ -704,6 +705,7 @@ public class BenchmarkController {
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allClientArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
+        allClientArgs.add("LOADER=false");
         
         for (Pair<String, Integer> p : m_launchHosts.values()) {
             allClientArgs.add("HOST=" + p.getFirst() + ":" + p.getSecond());

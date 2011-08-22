@@ -28,6 +28,7 @@ package edu.brown.statistics;
 import java.util.*;
 
 import org.json.*;
+import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.*;
 import org.voltdb.types.QueryType;
@@ -123,6 +124,21 @@ public class TableStatistics extends AbstractStatistics<Table> {
     }
     public ColumnStatistics getColumnStatistics(String col_key) {
         return (this.column_stats.get(col_key));
+    }
+    
+    public void process(Database catalog_db, VoltTableRow row) {
+        long rowSize = row.getRowSize();
+        this.tuple_count_total++;
+        this.tuple_size_total += rowSize;
+        
+        if (this.tuple_size_min == null || this.tuple_size_min > rowSize) {
+            this.tuple_size_min = rowSize;
+        }
+        if (this.tuple_size_max == null || this.tuple_size_max > rowSize) {
+            this.tuple_size_max = rowSize;
+        }
+        
+        // XXX: Should we call call process for the ColumnStats?
     }
     
     @Override

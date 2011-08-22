@@ -66,10 +66,13 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.benchmark.BlockingClient;
 import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
@@ -78,6 +81,9 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.TableStatistics;
+import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
@@ -254,6 +260,20 @@ public abstract class BenchmarkComponent {
     private int m_tickCounter = 0;
     
     /**
+     * Keep track of the number of tuples loaded so that we can generate table statistics
+     */
+    private final boolean m_tableStats;
+    private final File m_tableStatsDir;
+    private final Histogram<String> m_tableTuples = new Histogram<String>();
+    private final Histogram<String> m_tableBytes = new Histogram<String>();
+    private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
+
+    /**
+     * 
+     */
+    private BenchmarkClientFileUploader uploader = null;
+    
+    /**
      * Configuration
      */
     private final HStoreConf m_hstoreConf;
@@ -365,7 +385,7 @@ public abstract class BenchmarkComponent {
                     }
                     case SHUTDOWN: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
-                            callbackStop();
+                            invokeCallbackStop();
                             try {
                                 m_voltClient.callProcedure("@Shutdown");
                             } catch (Exception ex) {
@@ -377,7 +397,7 @@ public abstract class BenchmarkComponent {
                     }
                     case STOP: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
-                            callbackStop();
+                            invokeCallbackStop();
                             try {
                                 if (m_sampler != null) {
                                     m_sampler.setShouldStop();
@@ -527,8 +547,101 @@ public abstract class BenchmarkComponent {
         }
     }
     
-    private BenchmarkClientFileUploader uploader = null;
+    /**
+     * This method will load a VoltTable into the database for the given tableName.
+     * The database will automatically split the tuples and send to the correct partitions
+     * The current thread will block until the the database cluster returns the result.
+     * Can be overridden for testing purposes.
+     * @param tableName
+     * @param vt
+     */
+    public ClientResponse loadVoltTable(String tableName, VoltTable vt) {
+        assert(vt != null) : "Null VoltTable for '" + tableName + "'";
+        
+        long rowCount = vt.getRowCount();
+        long rowTotal = m_tableTuples.get(tableName, 0l);
+        long byteCount = vt.getUnderlyingBufferSize();
+        
+        LOG.info(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d]",
+                               tableName.toUpperCase(), rowCount, rowTotal, byteCount));
+        
+        // Load up this dirty mess...
+        ClientResponse cr = null;
+        try {
+            cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
+            m_tableTuples.put(tableName, rowCount);
+            m_tableBytes.put(tableName, byteCount);
+        } catch (Exception e) {
+            throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
+        }
+        
+        // Keep track of table stats
+        if (m_tableStats && cr.getStatus() == ClientResponse.SUCCESS) {
+            final Catalog catalog = this.getCatalog();
+            assert(catalog != null);
+            final Database catalog_db = CatalogUtil.getDatabase(catalog);
+            final Table catalog_tbl = catalog_db.getTables().getIgnoreCase(tableName);
+            assert(catalog_tbl != null) : "Invalid table name '" + tableName + "'";
+            
+            synchronized (m_tableStatsData) {
+                TableStatistics stats = m_tableStatsData.get(catalog_tbl);
+                if (stats == null) {
+                    stats = new TableStatistics(catalog_tbl);
+                    stats.preprocess(catalog_db);
+                    m_tableStatsData.put(catalog_tbl, stats);
+                }
+                vt.resetRowPosition();
+                while (vt.advanceRow()) {
+                    VoltTableRow row = vt.getRow();
+                    stats.process(catalog_db, row);
+                } // WHILE
+            } // SYNCH
+        }
+        return (cr);
+    }
+    
+    /**
+     * Get the number of tuples loaded into the given table thus far
+     * @param tableName
+     * @return
+     */
+    public final long getTableTupleCount(String tableName) {
+        return (m_tableTuples.get(tableName));
+    }
+    /**
+     * Get the number of bytes loaded into the given table thus far
+     * @param tableName
+     * @return
+     */
+    public final long getTableBytes(String tableName) {
+        return (m_tableBytes.get(tableName));
+    }
+    
+    /**
+     * Generate a WorkloadStatistics object based on the table stats that
+     * were collected using loadVoltTable()
+     * @return
+     */
+    private final WorkloadStatistics generateWorkloadStatistics() {
+        assert(m_tableStatsDir != null);
+        final Catalog catalog = this.getCatalog();
+        assert(catalog != null);
+        final Database catalog_db = CatalogUtil.getDatabase(catalog);
 
+        // Make sure we call postprocess on all of our friends
+        for (TableStatistics tableStats : m_tableStatsData.values()) {
+            try {
+                tableStats.postprocess(catalog_db);
+            } catch (Exception ex) {
+                String tableName = tableStats.getCatalogItem(catalog_db).getName();
+                throw new RuntimeException("Failed to process TableStatistics for '" + tableName + "'", ex);
+            }
+        } // FOR
+        
+        WorkloadStatistics stats = new WorkloadStatistics(catalog_db);
+        stats.apply(m_tableStatsData);
+        return (stats);
+    }
 
     /**
      * Queue a local file to be sent to the client with the given client id.
@@ -591,12 +704,33 @@ public abstract class BenchmarkComponent {
      */
     abstract protected String[] getTransactionDisplayNames();
     
+    private final void invokeCallbackStop() {
+        // If we were generating stats, then get the final WorkloadStatistics object
+        // and write it out to a file for them to use
+        if (m_tableStats) {
+            WorkloadStatistics stats = this.generateWorkloadStatistics();
+            assert(stats != null);
+            
+            if (m_tableStatsDir.exists() == false) m_tableStatsDir.mkdirs();
+            String path = m_tableStatsDir.getAbsolutePath() + "/" + this.getProjectName() + ".stats";
+            LOG.info("Writing table statistics data to '" + path + "'");
+            try {
+                stats.save(path);
+            } catch (IOException ex) {
+                LOG.error("Failed to save table statistics to '" + path + "'", ex);
+                System.exit(1);
+            }
+        }
+        
+        this.callbackStop();
+    }
+    
     /**
      * Optional callback for when this BenchmarkComponent has been told to stop
      * This is not a reliable callback and should only be used for testing
      */
     public void callbackStop() {
-        
+        // Default is to do nothing
     }
     
     /**
@@ -666,6 +800,8 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
         m_tickInterval = -1;
         m_tickThread = null;
+        m_tableStats = false;
+        m_tableStatsDir = null;
         
         // FIXME
         m_hstoreConf = null;
@@ -679,22 +815,40 @@ public abstract class BenchmarkComponent {
      * @param args
      */
     public BenchmarkComponent(String args[]) {
-        /*
-         * Input parameters: HOST=host:port (may occur multiple times)
-         * USER=username PASSWORD=password
-         */
-
+        // Initialize HStoreConf
+        String hstore_conf_path = null;
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
+            final String[] parts = arg.split("=", 2);
+            if (parts.length > 1 && parts[1].startsWith("${") == false && parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+                break;
+            }
+        } // FOR
+            
+        if (HStoreConf.isInitialized() == false) {
+            assert(hstore_conf_path != null) : "Missing HStoreConf file";
+            HStoreConf.init(new File(hstore_conf_path), args);
+        } else {
+            HStoreConf.singleton().loadFromArgs(args);
+        }
+        m_hstoreConf = HStoreConf.singleton();
+        
+        int transactionRate = -1; // m_hstoreConf.client.txnrate;
+        boolean blocking = m_hstoreConf.client.blocking;
+        boolean tableStats = m_hstoreConf.client.tablestats;
+        String tableStatsDir = m_hstoreConf.client.tablestats_dir;
+        int tickInterval = m_hstoreConf.client.tick_interval;
+        
         // default values
         String username = "user";
         String password = "password";
         ControlState state = ControlState.PREPARING; // starting state
         String reason = ""; // and error string
-        int transactionRate = -1;
-        boolean blocking = false;
         int id = 0;
+        boolean is_loader = false;
         int num_clients = 0;
         int num_partitions = 0;
-        int tickInterval = -1;
         boolean exitOnCompletion = true;
         float checkTransaction = 0;
         boolean checkTables = false;
@@ -703,9 +857,6 @@ public abstract class BenchmarkComponent {
 //        int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
-
-        // HStoreConf Path
-        String hstore_conf_path = null;
         
         // scan the inputs once to read everything but host names
         for (int i = 0; i < args.length; i++) {
@@ -724,12 +875,12 @@ public abstract class BenchmarkComponent {
                 args[i] = parts[0] + "=" + parts[1]; // HACK
             }
             
-            if (parts[0].equalsIgnoreCase("CONF")) {
-                hstore_conf_path = parts[1];
-            }
-            else if (parts[0].equalsIgnoreCase("CATALOG")) {
+            if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
+            }
+            else if (parts[0].equalsIgnoreCase("LOADER")) {
+                is_loader = Boolean.parseBoolean(parts[1]);
             }
             else if (parts[0].equalsIgnoreCase("NAME")) {
                 projectName = parts[1];
@@ -767,9 +918,6 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("NOCONNECTIONS")) {
                 noConnections = Boolean.parseBoolean(parts[1]);
             }
-            else if (parts[0].equalsIgnoreCase("CLIENT.TICKINTERVAL")) {
-                tickInterval = Integer.parseInt(parts[1]);
-            }
 //            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
 //                statsDatabaseURL = parts[1];
 //            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
@@ -780,14 +928,7 @@ public abstract class BenchmarkComponent {
         }
         if (debug.get()) LOG.debug("Extra Client Parameters:\n" + StringUtil.formatMaps(m_extraParams));
         
-        // Initialize HStoreConf
-        if (HStoreConf.isInitialized() == false) {
-            assert(hstore_conf_path != null) : "Missing HStoreConf file";
-            HStoreConf.init(new File(hstore_conf_path), args);
-        } else {
-            HStoreConf.singleton().loadFromArgs(args);
-        }
-        m_hstoreConf = HStoreConf.singleton();
+
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
         
@@ -817,10 +958,12 @@ public abstract class BenchmarkComponent {
         m_username = username;
         m_password = password;
         m_txnRate = transactionRate;
-        m_txnsPerMillisecond = transactionRate / 1000.0;
+        m_txnsPerMillisecond = (is_loader ? -1 : transactionRate / 1000.0);
         m_blocking = blocking;
         m_tickInterval = tickInterval;
         m_noConnections = noConnections;
+        m_tableStats = tableStats;
+        m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
         
         if (m_catalogPath != null) {
             try {
@@ -938,6 +1081,7 @@ public abstract class BenchmarkComponent {
                 // Wait for the worker to finish
                 if (debug.get()) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
                 worker.join();
+                clientMain.invokeCallbackStop();
             }
             else {
                 if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
@@ -945,7 +1089,8 @@ public abstract class BenchmarkComponent {
             }
         }
         catch (final Throwable e) {
-            e.printStackTrace();
+            String name = (clientMain != null ? clientMain.getProjectName()+"." : "") + clientClass.getSimpleName(); 
+            LOG.error("Unexpected error while invoking " + name, e);
             System.exit(-1);
         }
         return (clientMain);

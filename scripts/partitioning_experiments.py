@@ -83,7 +83,9 @@ BASE_SETTINGS = {
 def motivationBaseUpdate(env, exp_factor):
     num_warehouses = env["site.count"] * env["site.partitions_per_site"]
     env["benchmark.warehouses"] = num_warehouses
-    env["benchmark.loadthreads"] = num_warehouses    
+    env["benchmark.loadthreads"] = num_warehouses
+    if exp_factor > 0:
+        env["client.blocking"] = True # To prevent OutOfMemory
 ## DEF
 
 ## HACK
@@ -104,12 +106,12 @@ def motivation2UpdateEnv(env, exp_factor):
     motivationBaseUpdate(env, exp_factor)
     if exp_factor == 0:
         env["benchmark.temporal_skew"] = False
-        env["client.tickinterval"] =  -1
+        env["client.tick_interval"] =  -1
     else:
         env["benchmark.temporal_skew"] = True
-        env["client.tickinterval"] =  int(250 * (exp_factor/10.0))
+        env["client.tick_interval"] =  int(250 * (exp_factor/10.0))
     
-    LOG.info("client.tickinterval = %f [expFactor=%d]" % (env["client.tickinterval"], exp_factor))
+    LOG.info("client.tick_interval = %f [expFactor=%d]" % (env["client.tick_interval"], exp_factor))
 ## DEF
 
 EXPERIMENT_SETTINGS = {

@@ -12,6 +12,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
@@ -63,7 +64,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         }
         
         @Override
-        protected void loadTable(String tableName, VoltTable table, Long expectedTotal) {
+        public ClientResponse loadVoltTable(String tableName, VoltTable table) {
             assertEquals(SCALE_FACTOR, HStoreConf.singleton().client.scalefactor, 0.01);
             
             boolean debug = DEBUG_TABLES.contains(tableName);
@@ -93,6 +94,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
 
             // Debug Output
             if (debug) LOG.debug(table);
+            
+            return (null);
         }
     };
     

@@ -163,10 +163,12 @@ def start_cluster():
     ## Check whether we enough instances already running
     instances_stopped = len(env["ec2.all_instances"]) - len(env["ec2.running_instances"])
     
-    LOG.info("All Instances: %d" % len(env["ec2.all_instances"]))
-    LOG.info("Running Instances: %d" % len(env["ec2.running_instances"]))
-    LOG.info("Stopped Instances: %d" % instances_stopped)
-    LOG.info("Needed Instances: %d" % instances_needed)
+    LOG.info("AllInstances:%d / Running:%d / Stopped:%d / Needed:%d" % ( \
+        len(env["ec2.all_instances"]), \
+        len(env["ec2.running_instances"]), \
+        instances_stopped, \
+        instances_needed \
+    ))
     
     instances_needed = max(0, instances_needed - len(env["ec2.running_instances"]))
     
@@ -178,8 +180,10 @@ def start_cluster():
                 LOG.info("Restarting stopped node '%s'" % inst)
                 
                 ## Check whether we need to change the instance type before we restart it
-                currentType = inst.get_attribute("instanceType")
-                assert currentType != None
+                attr = inst.get_attribute("instanceType")
+                assert attr != None
+                assert "instanceType" in attr
+                currentType = attr["instanceType"]
                 if currentType != env["ec2.type"]:
                     LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, env["ec2.type"], inst))
                     inst.modify_attribute("instanceType", env["ec2.type"])
@@ -362,7 +366,7 @@ def deploy_hstore():
             if run("test -d %s" % code_dir).failed:
                 run("svn checkout %s %s %s" % (env["hstore.svn_options"], env["hstore.svn"], code_dir))
         with cd(code_dir):
-            #run("svn update %s" % env["hstore.svn_options"])
+            run("svn update %s" % env["hstore.svn_options"])
             if env["hstore.clean"]:
                 run("ant clean-all")
             run("ant build")

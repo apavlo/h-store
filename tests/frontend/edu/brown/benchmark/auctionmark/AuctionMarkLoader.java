@@ -320,7 +320,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         final VoltTable volt_table = generator.getVoltTable();
         while (generator.hasMore()) {
             generator.generateBatch();
-            this.loadTable(generator.getTableName(), volt_table, generator.getTableSize());
+            this.loadVoltTable(generator.getTableName(), volt_table);
             volt_table.clearRowData();
         } // WHILE
         
@@ -331,33 +331,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         if (debug.get()) {
             LOG.debug("Remaining Tables: " + CollectionUtils.subtract(this.generators.keySet(), this.finished));
         }
-        
     }
-    
-    /**
-     * The method that actually loads the VoltTable into the database Can be overridden for testing purposes.
-     * @param tableName
-     * @param table
-     */
-    protected void loadTable(String tableName, VoltTable table, Long expected) {
-        long count = table.getRowCount();
-        long current = this.profile.getTableSize(tableName);
-        
-//        if (debug.get()) 
-            LOG.info(String.format("%s: Loading %d rows - TOTAL %d%s [bytes=%d]",
-                                    tableName, count, current,
-                                    (expected != null && expected > 0 ? " / " + expected : ""),
-                                    table.getUnderlyingBufferSize()));
-
-        // Load up this dirty mess...
-        try {
-            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tableName, table);
-        } catch (Exception e) {
-            throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
-        }
-        this.profile.addToTableSize(tableName, count);
-    }
-
 
     /**********************************************************************************************
      * AbstractTableGenerator
@@ -617,7 +591,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             if (debug.get()) LOG.debug(String.format("%s: Finished generating new batch of %d tuples", this.getTableName(), batch_count));
         }
 
-        public void markAsFinished(){
+        public void markAsFinished() {
+            profile.addToTableSize(tableName, getTableTupleCount(tableName));
+            
         	this.latch.countDown();
             for (SubTableGenerator<?> sub_generator : this.sub_generators) {
                 sub_generator.stopWhenEmpty();

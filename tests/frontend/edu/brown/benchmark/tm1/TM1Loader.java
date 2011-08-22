@@ -32,14 +32,14 @@
  ***************************************************************************/
 package edu.brown.benchmark.tm1;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
+import edu.brown.catalog.CatalogUtil;
 
 public class TM1Loader extends TM1BaseClient {
     private static final Logger LOG = Logger.getLogger(TM1Loader.class);
@@ -47,11 +47,6 @@ public class TM1Loader extends TM1BaseClient {
     
     public volatile boolean notDone = true;
     
-    /**
-     * Keep track of the number of tuples we inserted
-     */
-    private Map<String, Long> table_counts = new HashMap<String, Long>(); 
-
     public static void main(String[] args) {
         if (d) LOG.debug("MAIN: " + TM1Loader.class.getName());
         edu.brown.benchmark.BenchmarkComponent.main(TM1Loader.class, args, true);
@@ -60,10 +55,6 @@ public class TM1Loader extends TM1BaseClient {
     public TM1Loader(String[] args) {
         super(args);
         if (d) LOG.debug("CONSTRUCTOR: " + TM1Loader.class.getName());
-        
-        for (String tableName : TM1Constants.TABLENAMES) {
-            this.table_counts.put(tableName, 0l);    
-        } // FOR
     }
 
     @Override
@@ -74,25 +65,33 @@ public class TM1Loader extends TM1BaseClient {
     @Override
     public void runLoop() {
         if (d) LOG.debug("Starting TM1Loader [subscriberSize=" + subscriberSize + ",scaleFactor=" + scaleFactor + "]");
+        
+        final Catalog catalog = this.getCatalog();
+        final Database catalog_db = CatalogUtil.getDatabase(catalog);
+        
         Thread threads[] = new Thread[] {
             new Thread() {
                 public void run() {
                     if (d) LOG.debug("Start loading " + TM1Constants.TABLENAME_SUBSCRIBER);
-                    genSubscriber();
+                    Table catalog_tbl = catalog_db.getTables().get(TM1Constants.TABLENAME_SUBSCRIBER);
+                    genSubscriber(catalog_tbl);
                     if (d) LOG.debug("Finished loading " + TM1Constants.TABLENAME_SUBSCRIBER);
                 }
             },
             new Thread() {
                 public void run() {
                     if (d) LOG.debug("Start loading " + TM1Constants.TABLENAME_ACCESS_INFO);
-                    genAccessInfo();
+                    Table catalog_tbl = catalog_db.getTables().get(TM1Constants.TABLENAME_ACCESS_INFO);
+                    genAccessInfo(catalog_tbl);
                     if (d) LOG.debug("Finished loading " + TM1Constants.TABLENAME_ACCESS_INFO);
                 }
             },
             new Thread() {
                 public void run() {
                     if (d) LOG.debug("Start loading " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " and " + TM1Constants.TABLENAME_CALL_FORWARDING);
-                    genSpeAndCal();
+                    Table catalog_spe = catalog_db.getTables().get(TM1Constants.TABLENAME_SPECIAL_FACILITY);
+                    Table catalog_cal = catalog_db.getTables().get(TM1Constants.TABLENAME_CALL_FORWARDING);
+                    genSpeAndCal(catalog_spe, catalog_cal);
                     if (d) LOG.debug("Finished loading " + TM1Constants.TABLENAME_SPECIAL_FACILITY + " and " + TM1Constants.TABLENAME_CALL_FORWARDING);
                 }
             }
@@ -144,81 +143,11 @@ public class TM1Loader extends TM1BaseClient {
     }
 
     /**
-     * Define the internal tables that will be populated and sent to VoltDB.
-     */
-    VoltTable initSubscriberTable() {
-        return new VoltTable(
-                new VoltTable.ColumnInfo("S_ID", VoltType.INTEGER),
-                new VoltTable.ColumnInfo("SUB_NBR", VoltType.STRING),
-                new VoltTable.ColumnInfo("BIT_1", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_2", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_3", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_4", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_5", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_6", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_7", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_8", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_9", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BIT_10", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_1", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_2", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_3", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_4", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_5", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_6", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_7", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_8", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_9", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("HEX_10", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("BYTE2_1", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_2", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_3", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_4", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_5", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_6", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_7", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_8", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_9", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("BYTE2_10", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("MSC_LOCATION", VoltType.INTEGER),
-                new VoltTable.ColumnInfo("VLR_LOCATION", VoltType.INTEGER));
-    }
-
-    VoltTable initAccessInfoTable() {
-        return new VoltTable(
-                new VoltTable.ColumnInfo("S_ID", VoltType.INTEGER),
-                new VoltTable.ColumnInfo("AI_TYPE", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("DATA1", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("DATA2", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("DATA3", VoltType.STRING),
-                new VoltTable.ColumnInfo("DATA4", VoltType.STRING));
-    }
-
-    VoltTable initSpecialFacilityTable() {
-        return new VoltTable(
-                new VoltTable.ColumnInfo("S_ID", VoltType.INTEGER),
-                new VoltTable.ColumnInfo("SF_TYPE", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("IS_ACTIVE", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("ERROR_CNTRL", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("DATA_A", VoltType.SMALLINT),
-                new VoltTable.ColumnInfo("DATA_B", VoltType.STRING));
-    }
-
-    VoltTable initCallForwardingTable() {
-        return new VoltTable(
-                new VoltTable.ColumnInfo("S_ID", VoltType.INTEGER),
-                new VoltTable.ColumnInfo("SF_TYPE", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("START_TIME", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("END_TIME", VoltType.TINYINT),
-                new VoltTable.ColumnInfo("NUMBERX", VoltType.STRING));
-    }
-
-    /**
      * Populate Subscriber table per benchmark spec.
      */
-    void genSubscriber() {
+    void genSubscriber(Table catalog_tbl) {
+        final VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
         long s_id = 0;
-        VoltTable table = initSubscriberTable();
         Object row[] = new Object[table.getColumnCount()];
 
         long total = 0;
@@ -249,13 +178,13 @@ public class TM1Loader extends TM1BaseClient {
             
             if (table.getRowCount() >= TM1Constants.BATCH_SIZE) {
                 if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, total, subscriberSize));
-                loadTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
+                loadVoltTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
             if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_SUBSCRIBER, total, subscriberSize));
-            loadTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
+            loadVoltTable(TM1Constants.TABLENAME_SUBSCRIBER, table);
             table.clearRowData();
         }
     }
@@ -263,9 +192,9 @@ public class TM1Loader extends TM1BaseClient {
     /**
      * Populate Access_Info table per benchmark spec.
      */
-    void genAccessInfo() {
+    void genAccessInfo(Table catalog_tbl) {
+        final VoltTable table = CatalogUtil.getVoltTable(catalog_tbl);
         int s_id = 0;
-        VoltTable table = initAccessInfoTable();
         int[] arr = { 1, 2, 3, 4 };
 
         int[] ai_types = TM1Util.subArr(arr, 1, 4);
@@ -284,13 +213,13 @@ public class TM1Loader extends TM1BaseClient {
             } // FOR
             if (table.getRowCount() >= TM1Constants.BATCH_SIZE) {
                 if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_ACCESS_INFO, total, ai_types.length * subscriberSize));
-                loadTable(TM1Constants.TABLENAME_ACCESS_INFO, table);
+                loadVoltTable(TM1Constants.TABLENAME_ACCESS_INFO, table);
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
             if (d) LOG.debug(String.format("%s: %6d / %d", TM1Constants.TABLENAME_ACCESS_INFO, total, ai_types.length * subscriberSize));
-            loadTable(TM1Constants.TABLENAME_ACCESS_INFO, table);
+            loadVoltTable(TM1Constants.TABLENAME_ACCESS_INFO, table);
             table.clearRowData();
         }
     }
@@ -299,10 +228,11 @@ public class TM1Loader extends TM1BaseClient {
      * Populate Special_Facility table and CallForwarding table per benchmark
      * spec.
      */
-    void genSpeAndCal() {
+    void genSpeAndCal(Table catalog_spe, Table catalog_cal) {
+        VoltTable speTbl = CatalogUtil.getVoltTable(catalog_spe);
+        VoltTable calTbl = CatalogUtil.getVoltTable(catalog_cal);
+
         int s_id = 0;
-        VoltTable speTbl = initSpecialFacilityTable();
-        VoltTable calTbl = initCallForwardingTable();
         long speTotal = 0;
         long calTotal = 0;
         int[] arrSpe = { 1, 2, 3, 4 };
@@ -337,35 +267,24 @@ public class TM1Loader extends TM1BaseClient {
             
             if (calTbl.getRowCount() >= TM1Constants.BATCH_SIZE) {
                 if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_CALL_FORWARDING, calTotal));
-                loadTable(TM1Constants.TABLENAME_CALL_FORWARDING, calTbl);
+                loadVoltTable(TM1Constants.TABLENAME_CALL_FORWARDING, calTbl);
                 calTbl.clearRowData();
             }
             if (speTbl.getRowCount() >= TM1Constants.BATCH_SIZE) {
                 if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_SPECIAL_FACILITY, speTotal));
-                loadTable(TM1Constants.TABLENAME_SPECIAL_FACILITY, speTbl);
+                loadVoltTable(TM1Constants.TABLENAME_SPECIAL_FACILITY, speTbl);
                 speTbl.clearRowData();
             }
         } // WHILE
         if (calTbl.getRowCount() > 0) {
             if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_CALL_FORWARDING, calTotal));
-            loadTable(TM1Constants.TABLENAME_CALL_FORWARDING, calTbl);
+            loadVoltTable(TM1Constants.TABLENAME_CALL_FORWARDING, calTbl);
             calTbl.clearRowData();
         }
         if (speTbl.getRowCount() > 0) {
             if (d) LOG.debug(String.format("%s: %d", TM1Constants.TABLENAME_SPECIAL_FACILITY, speTotal));
-            loadTable(TM1Constants.TABLENAME_SPECIAL_FACILITY, speTbl);
+            loadVoltTable(TM1Constants.TABLENAME_SPECIAL_FACILITY, speTbl);
             speTbl.clearRowData();
-        }
-    }
-
-    private void loadTable(String tablename, VoltTable table) {
-        if (d) LOG.debug("Calling LoadMultipartitionTable for '" + tablename + "' with " + table.getRowCount() + " tuples");
-        try {
-            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tablename, table);
-            this.table_counts.put(tablename, this.table_counts.get(tablename) + table.getRowCount());
-        } catch (Exception e) {
-            LOG.fatal("Failed to load data for table " + tablename, e);
-            System.exit(1);
         }
     }
 }
