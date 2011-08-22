@@ -562,8 +562,9 @@ public abstract class BenchmarkComponent {
         long rowTotal = m_tableTuples.get(tableName, 0l);
         long byteCount = vt.getUnderlyingBufferSize();
         
-        LOG.info(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d]",
-                               tableName.toUpperCase(), rowCount, rowTotal, byteCount));
+        if (debug.get())
+            LOG.debug(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d]",
+                                   tableName.toUpperCase(), rowCount, rowTotal, byteCount));
         
         // Load up this dirty mess...
         ClientResponse cr = null;
@@ -606,7 +607,7 @@ public abstract class BenchmarkComponent {
      * @return
      */
     public final long getTableTupleCount(String tableName) {
-        return (m_tableTuples.get(tableName));
+        return (m_tableTuples.get(tableName, 0l));
     }
     /**
      * Get the number of bytes loaded into the given table thus far
@@ -614,7 +615,7 @@ public abstract class BenchmarkComponent {
      * @return
      */
     public final long getTableBytes(String tableName) {
-        return (m_tableBytes.get(tableName));
+        return (m_tableBytes.get(tableName, 0l));
     }
     
     /**

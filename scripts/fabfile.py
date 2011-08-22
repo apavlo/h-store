@@ -160,8 +160,24 @@ def start_cluster():
     instances_needed = env["site.count"] + env["client.count"]
     instances_count = instances_needed
     
+    ## At least one of the running nodes must be our nfs-node
+    nfs_inst = None
+    nfs_inst_online = False
+    for inst in env["ec2.running_instances"]:
+        if inst.tags["Type"] == "nfs-node":
+            assert nfs_inst == None, "Multiple NFS nodes are running"
+            nfs_inst = inst
+            nfs_inst_online = True
+        ## IF
+    ## FOR
+    
     ## Check whether we enough instances already running
-    instances_stopped = len(env["ec2.all_instances"]) - len(env["ec2.running_instances"])
+    instances_running = len(env["ec2.running_instances"])
+    instances_stopped = len(env["ec2.all_instances"]) - instances_running
+    instances_needed = max(0, instances_needed - instances_running)
+    if nfs_inst == None and instances_needed == 0:
+        instances_needed = 1
+    orig_running = env["ec2.running_instances"][:]
     
     LOG.info("AllInstances:%d / Running:%d / Stopped:%d / Needed:%d" % ( \
         len(env["ec2.all_instances"]), \
@@ -170,14 +186,32 @@ def start_cluster():
         instances_needed \
     ))
     
-    instances_needed = max(0, instances_needed - len(env["ec2.running_instances"]))
-    
     ## See whether we can restart a stopped instance
     if instances_needed > 0 and instances_stopped > 0:
         waiting = [ ]
+        
+        ## If we don't have an NFS node, then we need to make sure that we at least
+        ## start that one
+        if nfs_inst == None:
+            for inst in env["ec2.all_instances"]:
+                if inst.tags['Type'] == "nfs-node":
+                    nfs_inst = inst
+                    waiting.append(inst)
+                    instances_needed -= 1
+                    break
+            ## FOR
+        ## IF
+        
         for inst in env["ec2.all_instances"]:
+            ## If we've found our NFS node, then we're allowed to take as 
+            ## many more nodes that we need.
+            if nfs_inst != None and instances_needed == 0: break
+            ## If we haven't found our NFS node, then we need to leave one 
+            ## more reservation so that we can create it
+            elif nfs_inst == None and instances_needed == 1: break
+            
             if not inst in env["ec2.running_instances"]:
-                LOG.info("Restarting stopped node '%s'" % inst)
+                LOG.info("Restarting stopped node '%s'" % inst.tags['Name'])
                 
                 ## Check whether we need to change the instance type before we restart it
                 attr = inst.get_attribute("instanceType")
@@ -185,12 +219,12 @@ def start_cluster():
                 assert "instanceType" in attr
                 currentType = attr["instanceType"]
                 if currentType != env["ec2.type"]:
-                    LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, env["ec2.type"], inst))
+                    LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, env["ec2.type"], inst.tags['Name']))
                     inst.modify_attribute("instanceType", env["ec2.type"])
                 inst.start()
                 waiting.append(inst)
                 instances_needed -= 1
-            if instances_needed == 0: break
+        ## FOR
         if waiting:
             for inst in waiting:
                 __waitUntilStatus__(inst, 'running')
@@ -200,14 +234,27 @@ def start_cluster():
     
     ## Otherwise, we need to start some new motha truckas
     if instances_needed > 0:
-        LOG.info("Deploying %d new instances" % instances_needed)
+        ## Figure out what the next id should be. Not necessary, but just nice...
+        next_id = 0
+        for inst in env["ec2.all_instances"]:
+            if inst.tags['Name'].startswith("hstore-"):
+                next_id += 1
+        ## FOR
+
+        LOG.info("Deploying %d new instances [next_id=%d]" % (instances_needed, next_id))
         instance_tags = [ ]
+        marked_nfs = False
         for i in range(instances_needed):
             tags = { 
-                "Name": "hstore-%02d" % (len(env["ec2.running_instances"]) + i),
+                "Name": "hstore-%02d" % (next_id),
                 "Type": "nfs-client",
             }
+            if nfs_inst == None and not marked_nfs:
+                tags['Type'] = 'nfs-node'
+                marked_nfs = True
+            
             instance_tags.append(tags)
+            next_id += 1
         ## FOR
         assert instances_needed == len(instance_tags), "%d != %d" % (instances_needed, len(instance_tags))
         __startInstances__(instances_needed, instance_tags)
@@ -235,12 +282,13 @@ def start_cluster():
             
             ## The first instance will be our NFS head node
             if first:
-                setup_nfshead()
+                if not nfs_inst_online: setup_nfshead()
                 deploy_hstore()
             
             ## Othewise make the rest of the node NFS clients
             else:
-                setup_nfsclient()
+                reboot = (nfs_inst_online and inst in orig_running) == False
+                setup_nfsclient(reboot)
             first = False
         ## WITH
     ## FOR
@@ -263,10 +311,12 @@ def setup_env():
     output = run("cat /etc/lsb-release | grep DISTRIB_CODENAME")
     releaseName = output.split("=")[1]
     
-    append("/etc/apt/sources.list",
-           ["deb http://archive.canonical.com/ubuntu %s partner" % releaseName,
-            "deb-src http://archive.canonical.com/ubuntu %s partner" % releaseName ], use_sudo=True)
-    sudo("apt-get update")
+    with hide('running', 'stdout'):
+        append("/etc/apt/sources.list",
+               [ "deb http://archive.canonical.com/ubuntu %s partner" % releaseName,
+                 "deb-src http://archive.canonical.com/ubuntu %s partner" % releaseName ], use_sudo=True)
+        sudo("apt-get update")
+    ## WITH
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
     
@@ -326,7 +376,7 @@ def setup_nfshead():
 ## setup_nfsclient
 ## ----------------------------------------------
 @task
-def setup_nfsclient():
+def setup_nfsclient(reboot=True):
     """Deploy the NFS client node"""
     __getInstances__()
     
@@ -343,12 +393,15 @@ def setup_nfsclient():
     append("/etc/auto.hstore", "* hstore-nfs:/home/%s/hstore/&" % env.user, use_sudo=True)
     sudo("/etc/init.d/autofs start")
     
-    ## Reboot and wait until it comes back online
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
-    LOG.info("Rebooting " + env.host_string)
-    reboot(10)
-    __waitUntilStatus__(inst, 'running')
+    
+    ## Reboot and wait until it comes back online
+    if reboot:
+        LOG.info("Rebooting " + env.host_string)
+        reboot(10)
+        __waitUntilStatus__(inst, 'running')
+    ## IF
     LOG.info("NFS Client '%s' is online and ready" % inst)
     
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
@@ -507,7 +560,7 @@ def stop_cluster(terminate=False):
     waiting = [ ]
     for inst in env["ec2.running_instances"]:
         if inst.tags['Name'].startswith("hstore-") and inst.state == 'running':
-            LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", inst.public_dns_name))
+            LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", inst.tags['Name']))
             if terminate:
                 inst.terminate()
             else:
@@ -565,7 +618,7 @@ def __waitUntilStatus__(inst, status):
         tries -= 1
     if tries == 0:
         logging.error("Last %s status: %s" % (inst, inst.update()))
-        raise Exception("Timed out waiting for %s to get to status '%s'" % (inst, status))
+        raise Exception("Timed out waiting for %s to get to status '%s'" % (inst.tags['Name'], status))
     
     ## Just because it's running doesn't mean it's ready
     ## So we'll wait until we can SSH into it
@@ -575,7 +628,7 @@ def __waitUntilStatus__(inst, status):
         socket.setdefaulttimeout(10)
         host_status = False
         tries = 5
-        LOG.info("Testing whether instance '%s' is ready [tries=%d]" % (inst.public_dns_name, tries))
+        LOG.info("Testing whether instance '%s' is ready [tries=%d]" % (inst.tags['Name'], tries))
         while tries > 0:
             host_status = False
             try:
