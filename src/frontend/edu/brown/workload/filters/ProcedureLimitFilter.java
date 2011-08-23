@@ -13,6 +13,7 @@ public class ProcedureLimitFilter extends Filter {
     private long offset;
     private long count = 0;
     private long included_count = 0;
+    private boolean count_weights = false;
 
     public ProcedureLimitFilter(Long limit) {
         this(limit, 0l);
@@ -61,7 +62,7 @@ public class ProcedureLimitFilter extends Filter {
                 result = FilterResult.SKIP;
             }
             if (result == FilterResult.ALLOW) this.included_count++;
-            this.count++;
+            this.count += (this.count_weights ? ((TransactionTrace)element).getWeight() : 1); 
         }
         return (result);
     }

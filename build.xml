@@ -1796,6 +1796,24 @@ DESIGNER
     </java>
 </target>
 
+<target name='workload-compress'>
+    <java fork="yes" failonerror="true" classname="edu.brown.workload.WorkloadSummarizer">
+        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.output=${output}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
+
 <target name='stats'
         description="Generate workload statistics">
     <java fork="yes" classname="edu.brown.statistics.WorkloadStatistics" failonerror='true'>
@@ -1865,7 +1883,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=files/mappings/${project}.mappings" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
         <arg value="markov.thresholds.value=${markov.thresholds.value}" />
@@ -1897,7 +1915,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=./files/mappings/${project}.mappings" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1920,7 +1938,7 @@ DESIGNER
         <arg value="workload.xactoffset=${offset}" />
         <arg value="workload.procinclude=${procedure}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=./files/mappings/${project}.mappings" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <arg value="markov.split.training=${training}" />
         <arg value="markov.split.validation=${validation}" />
         <arg value="markov.split.testing=${testing}" />

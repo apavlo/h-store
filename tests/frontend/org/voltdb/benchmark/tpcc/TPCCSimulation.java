@@ -214,7 +214,11 @@ public class TPCCSimulation {
         } 
         // TEMPORAL SKEW
         else if (config.temporal_skew) {
-            w_id = (short)((this.temporal_skew_counter % parameters.warehouses) + parameters.starting_warehouse);
+            if (generator.number(1, 100) <= config.temporal_skew_mix) {
+                w_id = (short)((this.temporal_skew_counter % parameters.warehouses) + parameters.starting_warehouse);
+            } else {
+                w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
+            }
         }
         // ZIPFIAN SKEWED WAREHOUSE ID
         else if (config.neworder_skew_warehouse) {
