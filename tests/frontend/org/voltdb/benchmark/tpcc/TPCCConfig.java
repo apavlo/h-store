@@ -20,7 +20,9 @@ public final class TPCCConfig {
     public boolean neworder_all_multip = false;
     public boolean neworder_skew_warehouse = false;
 
+    /** Percentage of warehouse ids that will be temporally skewed during the benchmark run */
     public boolean temporal_skew = false;
+    public int temporal_skew_mix = 0;
     
     /** Percentage of neworder txns that are forced to be multi-partitioned */
     public int neworder_multip_mix = 0;
@@ -73,6 +75,10 @@ public final class TPCCConfig {
             // TEMPORAL SKEW
             else if (key.equalsIgnoreCase("temporal_skew") && !val.isEmpty()) {
                 temporal_skew = Boolean.parseBoolean(val);
+            }
+            // TEMPORAL SKEW MIX
+            else if (key.equalsIgnoreCase("temporal_skew_mix") && !val.isEmpty()) {
+                temporal_skew_mix = Integer.parseInt(val);
             }
         } // FOR
     }

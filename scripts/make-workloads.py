@@ -53,7 +53,7 @@ HSTORE_OPTS = {
     "client.txnrate":               10000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1000,
-    "client.scalefactor":           10,
+    "client.scalefactor":           50,
 }
 
 ## ==============================================
@@ -82,7 +82,7 @@ if __name__ == '__main__':
                          help='The number of transaction records needed')
     aparser.add_argument('--output-path', type=str, default="traces",
                          help='The output directory to store the traces')
-    aparser.add_argument('--overwrite', type=bool, default=False,
+    aparser.add_argument('--overwrite', action='store_true',
                          help='Overwrite existing trace files')
     aparser.add_argument('--debug', action='store_true',
                          help='Enable debug log messages')

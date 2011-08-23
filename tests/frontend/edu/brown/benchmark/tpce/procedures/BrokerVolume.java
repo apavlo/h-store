@@ -48,7 +48,7 @@ import edu.brown.benchmark.tpce.util.ProcedureUtil;
  * TPC-E Section 3.3.7
  */
 @ProcInfo (
-    partitionInfo = "TRADE.T_CA_ID: 0",
+    partitionInfo = "TRADE.T_CA_ID: 1",
     singlePartition = false
 )
 public class BrokerVolume extends VoltProcedure {

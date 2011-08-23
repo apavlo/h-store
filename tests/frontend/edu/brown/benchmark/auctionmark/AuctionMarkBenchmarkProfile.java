@@ -605,7 +605,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         m.put(QueueType.ENDING_SOON, this.items_endingSoon.size());
         m.put(QueueType.WAITING_FOR_PURCHASE, this.items_waitingForPurchase.size());
         m.put(QueueType.COMPLETED, this.items_completed.size());
-        LOG.info(String.format("Updated Item Queues [%s]:\n%s", currentTime, StringUtil.formatMaps(m)));
+        if (debug.get()) LOG.debug(String.format("Updated Item Queues [%s]:\n%s", currentTime, StringUtil.formatMaps(m)));
     }
     
     public QueueType addItemToProperQueue(ItemInfo itemInfo, boolean is_loader) {

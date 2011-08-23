@@ -106,11 +106,9 @@ def motivation2UpdateEnv(env, exp_factor):
     motivationBaseUpdate(env, exp_factor)
     if exp_factor == 0:
         env["benchmark.temporal_skew"] = False
-        env["client.tick_interval"] =  -1
     else:
         env["benchmark.temporal_skew"] = True
-        env["client.tick_interval"] =  int(250 * (exp_factor/10.0))
-    
+    env["benchmark.temporal_skew_mix"] = exp_factor
     LOG.info("client.tick_interval = %f [expFactor=%d]" % (env["client.tick_interval"], exp_factor))
 ## DEF
 
@@ -132,12 +130,17 @@ EXPERIMENT_SETTINGS = {
         },
         ## Settings #2 - Temporal Skew
         {
-            "client.tickinterval":               -1,
+            "client.tickinterval":               10000,
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         False,
             "benchmark.temporal_skew":           True,
+            "benchmark.temporal_skew_mix":       0,
             "updateEnvFunc":                     motivation2UpdateEnv,
         },
+    ],
+    "generate": [
+        
+        
     ],
 }
 
@@ -148,10 +151,50 @@ OPT_EXP_FACTOR_START = 0
 OPT_EXP_FACTOR_STOP = 110
 OPT_REPEAT_FAILED_TRIALS = 3
 
+#BENCHMARKS = [ 'tpcc', 'tm1', 'airline', 'auctionmark', 'tpce' ]
+#DESIGN_ALGORITHMS = {
+    #'LNS':  {
+        #'designer.partitioner': 'edu.brown.designer.partitioners.LNSPartitioner',
+    #}
+    ## The same as LNS without vertical partitioning / time intervals
+    #'SCH':  {
+        #'designer.partitioner': 'edu.brown.designer.partitioners.LNSPartitioner',
+    #}
+    ## The same as LNS but using a greedy search
+    #'GRD':  {
+        #'designer.partitioner': 'edu.brown.designer.partitioners.LNSPartitioner',
+        #'designer.hints.LIMIT_LOCAL_TIME': -1,
+        #'designer.hints.GREEDY_SEARCH': True,
+    #}
+    #'PKY':  {
+        #'designer.partitioner': 'edu.brown.designer.partitioners.PrimaryKeyPartitioner',
+    #}
+    #'MFA':  {
+        #'designer.partitioner': 'edu.brown.designer.partitioners.MostPopularPartitioner',
+    #}
+#}
+
 ## ==============================================
 ## parseResultsOutput
 ## ==============================================
 def parseResultsOutput(output):
+    # We always need to make sure that we clear out ant's [java] prefix
+    output = re.sub("[\s]+\[java\] ", "\n", output)
+    
+    # Find our <json> tag. The results will be inside of there
+    regex = re.compile("<json>(.*?)</json>", re.MULTILINE | re.IGNORECASE | re.DOTALL)
+    m = regex.search(output)
+    if not m: LOG.error("Invalid output:\n" + output)
+    assert m
+
+    json_results = json.loads(m.group(1))
+    return (json_results)
+## DEF
+
+## ==============================================
+## generateDesigns
+## ==============================================
+def generateDesigns():
     # We always need to make sure that we clear out ant's [java] prefix
     output = re.sub("[\s]+\[java\] ", "\n", output)
     
@@ -216,6 +259,10 @@ if __name__ == '__main__':
     for key,val in exp_opts.items():
         if type(val) != types.FunctionType: env[key] = val
     ## FOR
+
+    ## If the OPT_EXP_TYPE is "generate", then we actually don't
+    ## want to run on EC2. We instead want to locally create all the design files that 
+    ## we need
     
     ## Figure out what keys we need to remove to ensure that one experiment
     ## doesn't contaminate another
