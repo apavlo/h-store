@@ -62,7 +62,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
             workload = new Workload(catalog);
         
             // Workload Filter
-            ProcedureNameFilter filter = new ProcedureNameFilter();
+            ProcedureNameFilter filter = new ProcedureNameFilter(false);
             filter.include(TARGET_PROCEDURE);
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);

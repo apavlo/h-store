@@ -287,8 +287,8 @@ def start_cluster():
             
             ## Othewise make the rest of the node NFS clients
             else:
-                reboot = (nfs_inst_online and inst in orig_running) == False
-                setup_nfsclient(reboot)
+                rebootInst = (nfs_inst_online and inst in orig_running) == False
+                setup_nfsclient(rebootInst)
             first = False
         ## WITH
     ## FOR
@@ -376,7 +376,7 @@ def setup_nfshead():
 ## setup_nfsclient
 ## ----------------------------------------------
 @task
-def setup_nfsclient(reboot=True):
+def setup_nfsclient(rebootInst=True):
     """Deploy the NFS client node"""
     __getInstances__()
     
@@ -397,7 +397,7 @@ def setup_nfsclient(reboot=True):
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
     
     ## Reboot and wait until it comes back online
-    if reboot:
+    if rebootInst:
         LOG.info("Rebooting " + env.host_string)
         reboot(10)
         __waitUntilStatus__(inst, 'running')
@@ -519,7 +519,7 @@ def write_conf(project, removals=[ ]):
 ## ----------------------------------------------
 @task
 def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
-    LOG.debug("Updating configuration file '%s' - Updates=%d / Removals=%d", conf_file, len(updates), len(removals))
+    LOG.debug("Updating configuration file '%s' - Updates[%d] / Removals[%d]", conf_file, len(updates), len(removals))
     with hide('running', 'stdout'):
         first = True
         space = "" if noSpaces else " "
@@ -528,8 +528,8 @@ def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
         for key, val in updates.items():
             hstore_line = "%s%s=%s%s" % (key, space, space, val)
             try:
-                if contains(conf_file, key):
-                    sed(conf_file, "%s[ ]*=.*" % re.escape(key), hstore_line)
+                if contains(conf_file, key+" ="):
+                    sed(conf_file, "%s[ ]*=[ ]*.*" % re.escape(key), hstore_line)
                     LOG.debug("Updated '%s' in %s to be '%s'" % (key, conf_file, val))
                 else:
                     if first: hstore_line = "\n" + hstore_line

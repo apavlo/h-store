@@ -108,7 +108,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         assertFalse(vpc.isUpdateApplied());
 
         // Create a filter that only has the procedures that will be optimized by our VerticalPartitionColumn
-        ProcedureNameFilter filter = new ProcedureNameFilter();
+        ProcedureNameFilter filter = new ProcedureNameFilter(false);
         for (Statement catalog_stmt : vpc.getStatements()) {
             filter.include(catalog_stmt.getParent().getName(), 1);
         } // FOR
@@ -145,7 +145,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         assertFalse(vpc.isUpdateApplied());
 
         // Create a filter that only has the procedures that will be optimized by our VerticalPartitionColumn
-        ProcedureNameFilter filter = new ProcedureNameFilter();
+        ProcedureNameFilter filter = new ProcedureNameFilter(false);
         for (Statement catalog_stmt : vpc.getStatements()) {
             filter.include(catalog_stmt.getParent().getName(), 1);
         } // FOR

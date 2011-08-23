@@ -48,6 +48,8 @@ import edu.mit.hstore.HStoreConf;
 
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
+    
+    
     final TPCCSimulation m_tpccSim;
 //    final TPCCSimulation m_tpccSim2;
     final ScaleParameters m_scaleParams;

@@ -67,7 +67,7 @@ public class TestMarkovPathEstimator extends BaseTestCase {
             //  (3) Only include traces that execute on the BASE_PARTITION
             //  (4) Limit the total number of traces to WORKLOAD_XACT_LIMIT
             List<ProcParameter> array_params = CatalogUtil.getArrayProcParameters(this.catalog_proc);
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                   .include(TARGET_PROCEDURE.getSimpleName())
                   .attach(new NoAbortFilter())
                   .attach(new ProcParameterArraySizeFilter(array_params.get(0), 10, ExpressionType.COMPARE_EQUAL))

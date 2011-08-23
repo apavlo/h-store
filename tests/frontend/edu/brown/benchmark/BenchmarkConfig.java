@@ -26,9 +26,9 @@ package edu.brown.benchmark;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -99,8 +99,8 @@ public class BenchmarkConfig {
     
     public boolean jsonOutput;
     
-    public final Map<String, String> clientParameters = new HashMap<String, String>();
-    public final Map<String, String> siteParameters = new HashMap<String, String>();
+    public final Map<String, String> clientParameters = new TreeMap<String, String>();
+    public final Map<String, String> siteParameters = new TreeMap<String, String>();
 
     private PropertiesConfiguration config = null;
     
@@ -126,8 +126,9 @@ public class BenchmarkConfig {
             String f_value = this.config.getString(f_name); 
             
             // Always store whatever the property as a client parameter
-            LOG.debug(String.format("Passing benchmark parameter to clients: %s = %s", f_name, f_value));
-            clientParameters.put(f_name, f_value);
+            String paramName = (BenchmarkController.BENCHMARK_PARAM_PREFIX + f_name).toUpperCase();
+            LOG.debug(String.format("Passing benchmark parameter to clients: %s = %s", paramName, f_value));
+            clientParameters.put(paramName, f_value);
             
             Field f = null;
             try {

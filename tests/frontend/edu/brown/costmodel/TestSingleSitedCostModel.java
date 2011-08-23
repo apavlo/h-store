@@ -70,7 +70,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
             workload = new Workload(catalog);
             
             // Workload Filter
-            ProcedureNameFilter filter = new ProcedureNameFilter();
+            ProcedureNameFilter filter = new ProcedureNameFilter(false);
             long total = 0;
             for (String proc_name : TARGET_PROCEDURES) {
                 filter.include(proc_name, PROC_COUNT);

@@ -114,7 +114,8 @@ public class TPCCSimulation {
     
     private RandomDistribution.Zipf zipf;
     
-    private int temporal_skew_counter = 0;
+    private int tick_counter = 0;
+    private int temporal_counter = 0;
     private final Histogram<Short> lastWarehouseHistory = new Histogram<Short>();
     private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>();
 
@@ -174,7 +175,7 @@ public class TPCCSimulation {
         m.put("Items", parameters.items);
         m.put("Affine Warehouse", lastAssignedWarehouseId);
         m.put("Skew Factor", this.skewFactor);
-        if (this.zipf != null) {
+        if (this.zipf != null && this.zipf.isHistoryEnabled()) {
             m.put("Skewed Warehouses", this.zipf.getHistory());
         }
         return ("TPCC Simulator Options\n" + StringUtil.formatMaps(m, this.config.debugMap()));
@@ -191,15 +192,20 @@ public class TPCCSimulation {
         return (this.totalWarehouseHistory);
     }
     public synchronized void tick(int counter) {
-        this.temporal_skew_counter = counter;
+        this.tick_counter = counter;
         if (config.temporal_skew) {
             if (LOG.isDebugEnabled()) {
                 Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
-                m.put(String.format("LAST ROUND [sampleCount=%d]", this.lastWarehouseHistory.getSampleCount()),
+                m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
                       this.lastWarehouseHistory);
-                m.put(String.format("TOTAL [sampleCount=%d]", this.totalWarehouseHistory.getSampleCount()),
+                m.put(String.format("TOTAL\n - SampleCount=%d", this.totalWarehouseHistory.getSampleCount()),
                       this.totalWarehouseHistory);
-                LOG.debug(String.format("ROUND #%02d - Warehouse Temporal Skew\n%s", counter, StringUtil.formatMaps(m)));
+                
+                long total = this.totalWarehouseHistory.getSampleCount();
+                LOG.info(String.format("ROUND #%02d - Warehouse Temporal Skew - %d / %d [%.2f]\n%s",
+                        this.tick_counter, this.temporal_counter, total, (this.temporal_counter / (double)total), 
+                        StringUtil.formatMaps(m)));
+                LOG.info(StringUtil.SINGLE_LINE);
             }
             this.lastWarehouseHistory.clearValues();
         }
@@ -215,7 +221,8 @@ public class TPCCSimulation {
         // TEMPORAL SKEW
         else if (config.temporal_skew) {
             if (generator.number(1, 100) <= config.temporal_skew_mix) {
-                w_id = (short)((this.temporal_skew_counter % parameters.warehouses) + parameters.starting_warehouse);
+                w_id = (short)((this.tick_counter % parameters.warehouses) + parameters.starting_warehouse);
+                this.temporal_counter++;
             } else {
                 w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
             }
@@ -365,7 +372,8 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = force_multip || (config.neworder_multip && config.neworder_multip_mix > 0 && generator.number(1, 100) == 1);
+            boolean remote = (config.neworder_multip != false) &&
+                             (force_multip || (config.neworder_multip_mix > 0 && generator.number(1, 100) == 1));
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;

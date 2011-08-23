@@ -65,8 +65,10 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         PARAMS,
         // Aborted (true/false)
         ABORTED,
-        // Output
+        // Output (optional)
         OUTPUT,
+        // Weight (optional)
+        WEIGHT,
     };
     
     protected Long start_timestamp;
@@ -76,8 +78,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     protected boolean aborted = false;
     protected Object output[][][];
     protected VoltType output_types[][];
-    
-    protected transient int weight = 1;
+    protected short weight = 1;
     
     public AbstractTraceElement() {
         // Nothing to do...
@@ -108,7 +109,7 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
     public abstract <X> X cloneImpl();
     
     public void setWeight(int weight) {
-        this.weight = weight;
+        this.weight = (short)weight;
     }
     public void incrementWeight(int delta) {
         this.weight += delta;
@@ -294,6 +295,11 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         stringer.key(Members.START.name()).value(this.start_timestamp);
         stringer.key(Members.STOP.name()).value(this.stop_timestamp);
         stringer.key(Members.ABORTED.name()).value(this.aborted);
+        
+        // WEIGHT
+        if (this.weight > 1) {
+            stringer.key(Members.WEIGHT.name()).value(this.weight);
+        }
           
         // Output Tables
         stringer.key(Members.OUTPUT.name()).array();
@@ -461,6 +467,11 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         }
         this.catalog_item_name = object.getString(Members.NAME.name());
         this.aborted = object.getBoolean(Members.ABORTED.name());
+        
+        // WEIGHT
+        if (object.has(Members.WEIGHT.name())) {
+            this.weight = (short)object.getInt(Members.WEIGHT.name());
+        }
         
         // OUTPUT
         JSONArray output_arr = null;

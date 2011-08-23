@@ -178,7 +178,9 @@ public abstract class StringUtil {
                     } // FOR
                     map_titles[i] = true;
                 } else {
-                    max_key_size = Math.max(max_key_size, k_str.length());
+                    for (String line : LINE_SPLIT.split(k_str)) {
+                        max_key_size = Math.max(max_key_size, line.length());
+                    } // FOR
                     if (first) map_titles[i] = false;
                 }
                 first = false;

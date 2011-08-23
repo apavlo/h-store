@@ -34,6 +34,12 @@ public abstract class WorkloadUtil {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private static final int ELEMENT_CTR_IDX            = 0;
+    private static final int TXN_CTR_IDX                = ELEMENT_CTR_IDX + 1;
+    private static final int QUERY_CTR_IDX              = ELEMENT_CTR_IDX + 2;
+    private static final int WEIGHTED_TXN_CTR_IDX     = ELEMENT_CTR_IDX + 3;
+    private static final int WEIGHTED_QUERY_CTR_IDX     = ELEMENT_CTR_IDX + 4;
+    
     
     public static class LoadThread implements Runnable {
         final Workload workload;
@@ -56,9 +62,11 @@ public abstract class WorkloadUtil {
         
         @Override
         public void run() {
-            AtomicInteger xact_ctr = this.counters[0];
-            AtomicInteger query_ctr = this.counters[1];
-            AtomicInteger element_ctr = this.counters[2];
+            AtomicInteger element_ctr = this.counters[ELEMENT_CTR_IDX];
+            AtomicInteger xact_ctr = this.counters[TXN_CTR_IDX];
+            AtomicInteger query_ctr = this.counters[QUERY_CTR_IDX];
+            AtomicInteger weightedTxn_ctr = this.counters[WEIGHTED_TXN_CTR_IDX];
+            AtomicInteger weightedQuery_ctr = this.counters[WEIGHTED_QUERY_CTR_IDX];
             
             while (true) {
                 String line = null;
@@ -131,6 +139,10 @@ public abstract class WorkloadUtil {
                         if (trace.get() && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
                         query_ctr.addAndGet(xact.getQueryCount());
                         element_ctr.addAndGet(1 + xact.getQueries().size());
+                        weightedTxn_ctr.addAndGet(xact.weight);
+                        for (QueryTrace q : xact.getQueries()) {
+                            weightedQuery_ctr.addAndGet(q.weight);
+                        }
                         
                         // This call just updates the various other index structures 
                         this.workload.addTransaction(xact.getCatalogItem(catalog_db), xact, true);

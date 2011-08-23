@@ -67,7 +67,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             File f = this.getWorkloadFile(ProjectType.TM1); 
             
             // All Multi-Partition Txn Workload
-            ProcedureNameFilter multi_filter = new ProcedureNameFilter();
+            ProcedureNameFilter multi_filter = new ProcedureNameFilter(false);
             multi_filter.include(MULTIPARTITION_PROCEDURES);
             multi_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             multip_workload = new Workload(catalog);
@@ -75,7 +75,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             assert(multip_workload.getTransactionCount() > 0);
 
             // All Single-Partition Txn Workload
-            ProcedureNameFilter single_filter = new ProcedureNameFilter();
+            ProcedureNameFilter single_filter = new ProcedureNameFilter(false);
             single_filter.include(SINGLEPARTITION_PROCEDURES);
             single_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             singlep_workload = new Workload(catalog);

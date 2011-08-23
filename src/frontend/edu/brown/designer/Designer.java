@@ -216,6 +216,9 @@ public class Designer {
         }
         LOG.info("Partition Plan:\n" + this.pplan.toString());
         
+        this.design = new PhysicalDesign(info.catalog_db);
+        this.design.plan = this.pplan;
+        
         this.final_graph = new PartitionTree(this.info.catalog_db);
         new PartitionPlanTreeGenerator(this.info, this.pplan).generate(this.final_graph);
         //System.out.println(this.plan);
@@ -260,6 +263,14 @@ public class Designer {
         Designer designer = new Designer(info, hints, args);
         PhysicalDesign design = designer.process();
         LOG.info("STOP: " + (System.currentTimeMillis() - start) / 1000d);
+        
+//        if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
+//            String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
+//            LOG.info("Saving PartitionPlan to '" + output + "'");
+//            PartitionPlan pplan = design.plan;
+//            pplan.save(output);
+//        }
+        
         
 //        int total = 0;
 //        int singlesited = 0;

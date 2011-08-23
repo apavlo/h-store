@@ -562,9 +562,9 @@ public abstract class BenchmarkComponent {
         long rowTotal = m_tableTuples.get(tableName, 0l);
         long byteCount = vt.getUnderlyingBufferSize();
         
-        if (debug.get())
-            LOG.debug(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d]",
-                                   tableName.toUpperCase(), rowCount, rowTotal, byteCount));
+        if (trace.get())
+            LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d]",
+                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount));
         
         // Load up this dirty mess...
         ClientResponse cr = null;
@@ -734,6 +734,12 @@ public abstract class BenchmarkComponent {
         // Default is to do nothing
     }
     
+    
+    private final void invokeTick(int counter) {
+        if (debug.get()) LOG.info("New Tick Update: " + counter);
+        this.tick(counter);
+    }
+    
     /**
      * Is called every time the interval time is reached
      * @param counter TODO
@@ -829,11 +835,15 @@ public abstract class BenchmarkComponent {
             
         if (HStoreConf.isInitialized() == false) {
             assert(hstore_conf_path != null) : "Missing HStoreConf file";
-            HStoreConf.init(new File(hstore_conf_path), args);
+            File f = new File(hstore_conf_path);
+            if (debug.get()) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
+            HStoreConf.init(f, args);
         } else {
+            if (debug.get()) LOG.debug("Initializing HStoreConf only with input parameters");
             HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
+        if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true, true));
         
         int transactionRate = -1; // m_hstoreConf.client.txnrate;
         boolean blocking = m_hstoreConf.client.blocking;
@@ -867,13 +877,12 @@ public abstract class BenchmarkComponent {
                 state = ControlState.ERROR;
                 reason = "Invalid parameter: " + arg;
                 break;
-            } else if (parts[1].startsWith("${")) {
+            }
+            else if (parts[1].startsWith("${")) {
                 continue;
             }
-            // Strip out benchmark prefix  
-            if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
-                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
-                args[i] = parts[0] + "=" + parts[1]; // HACK
+            else if (parts[0].equalsIgnoreCase("CONF")) {
+                continue;
             }
             
             if (parts[0].equalsIgnoreCase("CATALOG")) {
@@ -923,8 +932,11 @@ public abstract class BenchmarkComponent {
 //                statsDatabaseURL = parts[1];
 //            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
 //                statsPollInterval = Integer.parseInt(parts[1]);
-            else {
-                m_extraParams.put(parts[0], parts[1]);
+            
+            // If it starts with "benchmark.", then it always goes to the implementing class
+            else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
+                m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
         }
         if (debug.get()) LOG.debug("Extra Client Parameters:\n" + StringUtil.formatMaps(m_extraParams));
@@ -1032,18 +1044,19 @@ public abstract class BenchmarkComponent {
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread
-        if (m_tickInterval > 0) {
-            LOG.info("Creating local thread that will call tick every " + (m_tickInterval / 1000) + " seconds");
+        if (m_tickInterval > 0 && is_loader == false) {
+            if (debug.get())
+                LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds", (m_tickInterval / 1000.0)));
             Runnable r = new Runnable() {
                 @Override
                 public void run() {
                     try {
                         while (true) {
-                            BenchmarkComponent.this.tick(m_tickCounter++);
+                            BenchmarkComponent.this.invokeTick(m_tickCounter++);
                             Thread.sleep(m_tickInterval);
                         } // WHILE
                     } catch (InterruptedException ex) {
-                        LOG.info("Tick thread was interrupted");
+                        LOG.warn("Tick thread was interrupted");
                     }
                 }
             };

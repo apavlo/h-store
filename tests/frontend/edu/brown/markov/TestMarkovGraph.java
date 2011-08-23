@@ -63,7 +63,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
+            Filter filter = new ProcedureNameFilter(false).include(TARGET_PROCEDURE.getSimpleName());
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
