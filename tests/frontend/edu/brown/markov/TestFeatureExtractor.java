@@ -39,7 +39,7 @@ public class TestFeatureExtractor extends BaseTestCase {
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file.getAbsolutePath(), catalog_db, filter);

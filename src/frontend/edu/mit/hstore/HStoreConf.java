@@ -3,7 +3,9 @@ package edu.mit.hstore;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -732,9 +734,10 @@ public final class HStoreConf {
         
         final Map<Field, ConfigProperty> properties;
         final String prefix;
+        final Class<? extends Conf> confClass; 
         
         {
-            Class<?> confClass = this.getClass();
+            this.confClass = this.getClass();
             this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
             HStoreConf.this.confHandles.put(this.prefix, this);
             
@@ -758,6 +761,18 @@ public final class HStoreConf {
             } // FOR   
         }
 
+        @SuppressWarnings("unchecked")
+        public <T> T getValue(String name) {
+            T val = null;
+            try {
+                Field f = this.confClass.getField(name);
+                val = (T)f.get(this);
+            } catch (Exception ex) {
+                throw new RuntimeException("Invalid field '" + name + "' for " + this.confClass.getSimpleName(), ex);
+            }
+            return (val);
+        }
+        
         @Override
         public String toString() {
             return (this.toString(false, false));
@@ -805,6 +820,8 @@ public final class HStoreConf {
      * Singleton Object
      */
     private static HStoreConf conf;
+    
+    private final Map<Conf, Set<String>> loaded_params = new HashMap<Conf, Set<String>>();
     
     // ----------------------------------------------------------------------------
     // METHODS
@@ -1041,18 +1058,19 @@ public final class HStoreConf {
             }
             assert(m != null);
 
-            Conf handle = confHandles.get(m.group(1));
-            Class<?> confClass = handle.getClass();
+            String confName = m.group(1);
+            Conf confHandle = confHandles.get(confName);
+            Class<?> confClass = confHandle.getClass();
             assert(confClass != null);
             Field f = null;
-            String f_name = m.group(2);
+            String f_name = m.group(2).toLowerCase();
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
                 if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
             }
-            ConfigProperty cp = handle.properties.get(f);
+            ConfigProperty cp = confHandle.properties.get(f);
             assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object value = null;
@@ -1072,12 +1090,30 @@ public final class HStoreConf {
                 continue;
             }
             try {
-                f.set(handle, value);
+                f.set(confHandle, value);
                 if (debug.get()) LOG.debug(String.format("PARAM SET %s = %s", k, value));
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+            } finally {
+                Set<String> s = this.loaded_params.get(confHandle);
+                if (s == null) {
+                    s = new HashSet<String>();
+                    this.loaded_params.put(confHandle, s);
+                }
+                s.add(f_name);
             }
         } // FOR
+    }
+    
+    public Map<String, String> getParametersLoadedFromArgs() {
+        Map<String, String> m = new HashMap<String, String>();
+        for (Conf confHandle : this.loaded_params.keySet()) {
+            for (String f_name : this.loaded_params.get(confHandle)) {
+                Object val = confHandle.getValue(f_name);
+                if (val != null) m.put(f_name, val.toString());
+            } // FOR
+        } // FOR
+        return (m);
     }
     
     

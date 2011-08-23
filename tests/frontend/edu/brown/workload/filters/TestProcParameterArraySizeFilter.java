@@ -38,7 +38,7 @@ public class TestProcParameterArraySizeFilter extends AbstractTestFilter {
     }
     
     private Filter makeFilter(ExpressionType exp_type) {
-        Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
+        Filter filter = new ProcedureNameFilter(false).include(TARGET_PROCEDURE)
             .attach(new ProcParameterArraySizeFilter(this.array_params.get(0), ARRAY_SIZE, exp_type));
         return (filter);
     }

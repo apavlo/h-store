@@ -16,7 +16,7 @@ public class PhysicalDesign {
     
     protected final Database catalog_db;
     public PartitionPlan plan;
-    public final IndexPlan indexes = new IndexPlan(null);
+    public final IndexPlan indexes = null; //  new IndexPlan(null);
     private final Map<String, PartitionEntry> table_partitions = new HashMap<String, PartitionEntry>();
     
     public PhysicalDesign(Database catalog_db) {

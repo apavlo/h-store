@@ -37,7 +37,7 @@ public class TestMappingCalculator extends BaseTestCase {
         if (workload == null) {
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new ProcParameterValueFilter().include(1, new Long(1))) // D_ID
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));

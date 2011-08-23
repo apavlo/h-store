@@ -19,6 +19,8 @@ public class ProcedureNameFilter extends Filter {
     public static final String INCLUDE_ALL = "*";
     public static final Integer INCLUDE_UNLIMITED = -1;
 
+    private final boolean weighted;
+    
     /**
      * Whitelist counters
      * When the finished set is the same size as the whitelist, then we will HALT
@@ -31,6 +33,11 @@ public class ProcedureNameFilter extends Filter {
      * Blacklist
      */
     private final Set<String> blacklist = new HashSet<String>();
+    
+    public ProcedureNameFilter(boolean weighted) {
+        super();
+        this.weighted = weighted;
+    }
     
     /**
      * Add the given catalog object names to this filter's whitelist
@@ -117,17 +124,18 @@ public class ProcedureNameFilter extends Filter {
                     
                 // Check whether this guy is allowed and keep count of how many we've added
                 } else if (this.whitelist.containsKey(name)) {
-                    int count = this.whitelist.get(name).getAndDecrement();
+                    int weight = (this.weighted ? element.getWeight() : 1);
+                    int count = this.whitelist.get(name).addAndGet(-1*weight);
                     
                     // If the counter goes to zero, then we have seen enough of this procedure
                     // Reset its counter back to 1 so that the next time we see it it will always get skipped
-                    if (count == 0) {
+                    if (count <= 0) {
                         result = FilterResult.SKIP;
                         this.whitelist.get(name).set(0);
                         this.whitelist_finished.add(name);
-                        if (trace) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping [count=" + count + "]");
+                        if (trace) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping...");
                     } else if (trace) {
-                        LOG.debug("Transaction '" + name + "' is allowed [count=" + count + "]");
+                        LOG.debug("Transaction '" + name + "' is allowed [remaining=" + count + "]");
                     }
                 // Not allowed. Just skip...
                 } else {

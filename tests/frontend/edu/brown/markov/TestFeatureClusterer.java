@@ -73,7 +73,7 @@ public class TestFeatureClusterer extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            edu.brown.workload.filters.Filter filter = new ProcedureNameFilter()
+            edu.brown.workload.filters.Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
 //                    .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID
 //                    .attach(new ProcParameterArraySizeFilter(CatalogUtil.getArrayProcParameters(catalog_proc).get(0), 10, ExpressionType.COMPARE_EQUAL))

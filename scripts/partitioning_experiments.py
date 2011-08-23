@@ -59,15 +59,23 @@ LOG.setLevel(logging.INFO)
 ## CONFIGURATION PARAMETERS
 ## ==============================================
 
+OPT_EXP_TYPE = "motivation"
+OPT_EXP_TRIALS = 3
+OPT_EXP_SETTINGS = 0
+OPT_EXP_FACTOR_START = 0
+OPT_EXP_FACTOR_STOP = 110
+OPT_REPEAT_FAILED_TRIALS = 3
+
 BASE_SETTINGS = {
     "client.blocking":                  False,
-    "client.blocking_concurrent":       10000,
-    "client.txnrate":                   1500,
+    "client.blocking_concurrent":       250,
+    "client.txnrate":                   1000,
     "client.count":                     2,
-    "client.processesperclient":        8,
+    "client.processesperclient":        10,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
+    "client.scalefactor":               100,
     
     "site.count":                       4,
     "site.partitions_per_site":         4,
@@ -80,37 +88,7 @@ BASE_SETTINGS = {
     "benchmark.neworder_all_multip":    False,
 }
 
-def motivationBaseUpdate(env, exp_factor):
-    num_warehouses = env["site.count"] * env["site.partitions_per_site"]
-    env["benchmark.warehouses"] = num_warehouses
-    env["benchmark.loadthreads"] = num_warehouses
-    if exp_factor > 0:
-        env["client.blocking"] = True # To prevent OutOfMemory
-## DEF
 
-## HACK
-def motivation0UpdateEnv(env, exp_factor):
-    motivationBaseUpdate(env, exp_factor)
-    env["benchmark.neworder_multip_mix"] = exp_factor
-## DEF
-def motivation1UpdateEnv(env, exp_factor):
-    motivationBaseUpdate(env, exp_factor)
-    if exp_factor == 0:
-        env["benchmark.neworder_skew_warehouse"] = False
-        env["client.skewfactor"] =  -1
-    else:
-        env["client.skewfactor"] = 1.00001 + (0.25 * (exp_factor - 10) / 10.0)
-    LOG.info("client.skewfactor = %f [exp_factor=%d]" % (env["client.skewfactor"], exp_factor))
-## DEF
-def motivation2UpdateEnv(env, exp_factor):
-    motivationBaseUpdate(env, exp_factor)
-    if exp_factor == 0:
-        env["benchmark.temporal_skew"] = False
-    else:
-        env["benchmark.temporal_skew"] = True
-    env["benchmark.temporal_skew_mix"] = exp_factor
-    LOG.info("client.tick_interval = %f [expFactor=%d]" % (env["client.tick_interval"], exp_factor))
-## DEF
 
 EXPERIMENT_SETTINGS = {
     "motivation": [
@@ -120,22 +98,19 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_multip":         True,
             "site.exec_neworder_cheat":          True,
             "site.exec_neworder_cheat_done_partitions": True,
-            "updateEnvFunc":                     motivation0UpdateEnv,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
         {
             "benchmark.neworder_skew_warehouse": True,
             "benchmark.neworder_multip":         False,
-            "updateEnvFunc":                     motivation1UpdateEnv,
         },
         ## Settings #2 - Temporal Skew
         {
-            "client.tickinterval":               10000,
+            "client.tick_interval":              10000,
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         False,
             "benchmark.temporal_skew":           True,
             "benchmark.temporal_skew_mix":       0,
-            "updateEnvFunc":                     motivation2UpdateEnv,
         },
     ],
     "generate": [
@@ -144,12 +119,35 @@ EXPERIMENT_SETTINGS = {
     ],
 }
 
-OPT_EXP_TYPE = "motivation"
-OPT_EXP_TRIALS = 3
-OPT_EXP_SETTINGS = 0
-OPT_EXP_FACTOR_START = 0
-OPT_EXP_FACTOR_STOP = 110
-OPT_REPEAT_FAILED_TRIALS = 3
+## ==============================================
+## updateEnv
+## ==============================================
+def updateEnv(env, exp_type, exp_setting, exp_factor):
+    if exp_type == "motivation":
+        num_warehouses = env["site.count"] * env["site.partitions_per_site"]
+        env["benchmark.warehouses"] = num_warehouses
+        env["benchmark.loadthreads"] = num_warehouses
+        #if exp_factor > 0:
+            #env["client.blocking"] = True # To prevent OutOfMemory
+
+        if exp_setting == 0:
+            env["benchmark.neworder_multip_mix"] = exp_factor
+        elif exp_setting == 1:
+            if exp_factor == 0:
+                env["benchmark.neworder_skew_warehouse"] = False
+                env["client.skewfactor"] =  -1
+            else:
+                env["client.skewfactor"] = 1.00001 + (0.25 * (exp_factor - 10) / 10.0)
+            LOG.info("client.skewfactor = %f [exp_factor=%d]" % (env["client.skewfactor"], exp_factor))
+        elif exp_setting == 2:
+            if exp_factor == 0:
+                env["benchmark.temporal_skew"] = False
+            else:
+                env["benchmark.temporal_skew"] = True
+            env["benchmark.temporal_skew_mix"] = exp_factor
+            LOG.info("benchmark.temporal_skew_mix = %d" % env["benchmark.temporal_skew_mix"])
+    ## IF
+## DEF
 
 #BENCHMARKS = [ 'tpcc', 'tm1', 'airline', 'auctionmark', 'tpce' ]
 #DESIGN_ALGORITHMS = {
@@ -285,7 +283,7 @@ if __name__ == '__main__':
     
     first = True
     for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 10):
-        if "updateEnvFunc" in exp_opts: exp_opts["updateEnvFunc"](env, exp_factor)
+        updateEnv(env, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
         
         results = [ ]
         for trial in range(OPT_EXP_TRIALS):

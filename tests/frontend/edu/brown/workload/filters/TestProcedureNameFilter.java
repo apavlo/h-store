@@ -25,7 +25,7 @@ public class TestProcedureNameFilter extends AbstractTestFilter {
     @Test
     public void testExclude() throws Exception {
         String exclude = neworder.class.getSimpleName();
-        ProcedureNameFilter filter = new ProcedureNameFilter().exclude(exclude);
+        ProcedureNameFilter filter = new ProcedureNameFilter(false).exclude(exclude);
         
         Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
@@ -47,7 +47,7 @@ public class TestProcedureNameFilter extends AbstractTestFilter {
     @Test
     public void testInclude() throws Exception {
         String include = slev.class.getSimpleName();
-        ProcedureNameFilter filter = new ProcedureNameFilter().include(include);
+        ProcedureNameFilter filter = new ProcedureNameFilter(false).include(include);
         
         Iterator<TransactionTrace> it = workload.iterator(filter);
         assertNotNull(it);
@@ -73,7 +73,7 @@ public class TestProcedureNameFilter extends AbstractTestFilter {
         expected.put(delivery.class.getSimpleName(), 15);
         expected.put(neworder.class.getSimpleName(), 20);
         
-        ProcedureNameFilter filter = new ProcedureNameFilter();
+        ProcedureNameFilter filter = new ProcedureNameFilter(false);
         Map<String, Integer> results = new HashMap<String, Integer>();
         for (Entry<String, Integer> e : expected.entrySet()) {
             filter.include(e.getKey(), e.getValue());

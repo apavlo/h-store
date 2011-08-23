@@ -68,7 +68,7 @@ public class TestTransactionEstimator extends BaseTestCase {
             correlations = new ParameterMappingsSet();
             correlations.load(file.getAbsolutePath(), catalog_db);
             
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new NoAbortFilter())
                     .attach(new ProcParameterValueFilter().include(1, new Long(5))) // D_ID

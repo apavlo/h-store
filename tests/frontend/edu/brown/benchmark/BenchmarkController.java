@@ -623,6 +623,7 @@ public class BenchmarkController {
             if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
         } // FOR
 
+        allLoaderArgs.add("CONF=" + m_config.hstore_conf_path);
         allLoaderArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + numClients);
@@ -1494,17 +1495,15 @@ public class BenchmarkController {
             } else {
                 clientParams.put(parts[0].toLowerCase(), parts[1]);
             }
-            
-            if (parts[0].startsWith(BENCHMARK_PARAM_PREFIX)) {
-                clientParams.put(parts[0].replace(BENCHMARK_PARAM_PREFIX, "").toLowerCase(), parts[1]);
-            }
-
         }
         assert(coordinatorHost != null) : "Missing CoordinatorHost";
 
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
-        HStoreConf.init(new File(hstore_conf_path), vargs);
+        File f = new File(hstore_conf_path);
+        HStoreConf hstore_conf = HStoreConf.init(f, vargs);
+        if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true, true));
+        
         
         if (duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
@@ -1637,7 +1636,8 @@ public class BenchmarkController {
             clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
         }
         clientParams.put("NUMCLIENTS", Integer.toString(clientCount * processesPerClient));
-
+        clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
+        
         config.clientParameters.putAll(clientParams);
         config.siteParameters.putAll(siteParams);
         

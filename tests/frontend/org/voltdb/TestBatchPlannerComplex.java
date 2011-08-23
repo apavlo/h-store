@@ -62,7 +62,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             // (2) Filter to only include multi-partition txns
             // (3) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))

@@ -84,6 +84,7 @@ public class ArgumentsParser {
     
     public static final String PARAM_WORKLOAD               = "workload";
     public static final String PARAM_WORKLOAD_XACT_LIMIT    = PARAM_WORKLOAD + ".xactlimit";
+    public static final String PARAM_WORKLOAD_XACT_WEIGHTS  = PARAM_WORKLOAD + ".xactweights";
     public static final String PARAM_WORKLOAD_XACT_OFFSET   = PARAM_WORKLOAD + ".xactoffset";
     public static final String PARAM_WORKLOAD_QUERY_LIMIT   = PARAM_WORKLOAD + ".querylimit";
     public static final String PARAM_WORKLOAD_REMOVE_DUPES  = PARAM_WORKLOAD + ".removedupes";
@@ -365,12 +366,15 @@ public class ArgumentsParser {
         if (val != null) ret = Double.valueOf(val);
         return (ret);
     }
-    
-    public Boolean getBooleanParam(String key) {
+
+    public Boolean getBooleanParam(String key, Boolean defaultValue) {
         String val = this.params.get(key);
-        Boolean ret = null;
+        Boolean ret = defaultValue;
         if (val != null) ret = Boolean.valueOf(val);
         return (ret);
+    }
+    public Boolean getBooleanParam(String key) {
+        return (this.getBooleanParam(key, null));
     }
     
     public File getFileParam(String key) {
@@ -460,6 +464,9 @@ public class ArgumentsParser {
             assert(this.catalog_db != null) : "Missing catalog!";
             String path = new File(this.params.get(PARAM_WORKLOAD)).getAbsolutePath();
             
+            boolean weightedTxns = this.getBooleanParam(PARAM_WORKLOAD_XACT_WEIGHTS, false);
+            if (debug) LOG.debug("Use Transaction Weights in Limits: " + weightedTxns);
+            
             // This will prune out duplicate trace records...
             if (params.containsKey(PARAM_WORKLOAD_REMOVE_DUPES)) {
                 this.workload_filter = new DuplicateTraceFilter();
@@ -468,7 +475,7 @@ public class ArgumentsParser {
             // TRANSACTION OFFSET
             if (params.containsKey(PARAM_WORKLOAD_XACT_OFFSET)) {
                 this.workload_xact_offset = Long.parseLong(params.get(PARAM_WORKLOAD_XACT_OFFSET));
-                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset);
+                ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset, weightedTxns);
                 // Important! The offset should go in the front!
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
             }
@@ -500,7 +507,7 @@ public class ArgumentsParser {
             
             // Include/exclude procedures from the traces
             if (params.containsKey(PARAM_WORKLOAD_PROC_INCLUDE) || params.containsKey(PARAM_WORKLOAD_PROC_EXCLUDE)) {
-                Filter filter = new ProcedureNameFilter();
+                Filter filter = new ProcedureNameFilter(weightedTxns);
                 
                 // INCLUDE
                 String temp = params.get(PARAM_WORKLOAD_PROC_INCLUDE);
@@ -590,7 +597,7 @@ public class ArgumentsParser {
             
             // TRANSACTION LIMIT
             if (this.workload_xact_limit != null) {
-                ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit);
+                ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit, weightedTxns);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
             }
             
