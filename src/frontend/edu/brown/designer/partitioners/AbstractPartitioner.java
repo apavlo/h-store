@@ -90,12 +90,22 @@ public abstract class AbstractPartitioner {
         pplan.apply(info.catalog_db);
         if (debug.get()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
-            info.getCostModel().estimateWorkloadCost(info.catalog_db, info.workload);
+            try {
+                info.getCostModel().estimateWorkloadCost(info.catalog_db, info.workload);
+            } catch (Throwable ex) {
+                LOG.warn("Failed to estimate workload cost", ex);
+                return;
+            }
             for (Entry<Procedure, ProcedureEntry> e : pplan.getProcedureEntries().entrySet()) {
-                Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
-                if (singlepartitioned != null) {
-                    if (trace.get()) LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
-                    e.getValue().setSinglePartition(singlepartitioned);
+                try {
+                    Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
+                    if (singlepartitioned != null) {
+                        if (trace.get()) LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
+                        e.getValue().setSinglePartition(singlepartitioned);
+                    }
+                } catch (Throwable ex) {
+                    LOG.warn("Failed to determine whether " + e.getKey() + " is always single-partitioned", ex);
+                    continue;
                 }
             } // FOR
         } else {
