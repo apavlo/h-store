@@ -64,12 +64,13 @@ OPT_EXP_TRIALS = 3
 OPT_EXP_SETTINGS = 0
 OPT_EXP_FACTOR_START = 0
 OPT_EXP_FACTOR_STOP = 110
-OPT_REPEAT_FAILED_TRIALS = 3
+OPT_EXP_ATTEMPTS = 3
+OPT_START_CLUSTER = False
 
 BASE_SETTINGS = {
     "client.blocking":                  False,
     "client.blocking_concurrent":       250,
-    "client.txnrate":                   1000,
+    "client.txnrate":                   1500,
     "client.count":                     2,
     "client.processesperclient":        10,
     "client.skewfactor":                -1,
@@ -77,18 +78,17 @@ BASE_SETTINGS = {
     "client.warmup":                    60000,
     "client.scalefactor":               100,
     
-    "site.count":                       4,
+    "site.sites_per_host":              1,
     "site.partitions_per_site":         4,
     "site.status_show_txn_info":        True,
     "site.exec_profiling":              True,
     "site.memory":                      6144,
+    #"site.txn_incoming_queue_max_per_partition": 1500,
     
     "benchmark.neworder_only":          True,
     "benchmark.neworder_abort":         False,
     "benchmark.neworder_all_multip":    False,
 }
-
-
 
 EXPERIMENT_SETTINGS = {
     "motivation": [
@@ -124,9 +124,8 @@ EXPERIMENT_SETTINGS = {
 ## ==============================================
 def updateEnv(env, exp_type, exp_setting, exp_factor):
     if exp_type == "motivation":
-        num_warehouses = env["site.count"] * env["site.partitions_per_site"]
-        env["benchmark.warehouses"] = num_warehouses
-        env["benchmark.loadthreads"] = num_warehouses
+        env["benchmark.warehouses"] = env["site.partitions"]
+        env["benchmark.loadthreads"] = env["site.partitions"]
         #if exp_factor > 0:
             #env["client.blocking"] = True # To prevent OutOfMemory
 
@@ -149,50 +148,10 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
     ## IF
 ## DEF
 
-#BENCHMARKS = [ 'tpcc', 'tm1', 'airline', 'auctionmark', 'tpce' ]
-#DESIGN_ALGORITHMS = {
-    #'LNS':  {
-        #'designer.partitioner': 'edu.brown.designer.partitioners.LNSPartitioner',
-    #}
-    ## The same as LNS without vertical partitioning / time intervals
-    #'SCH':  {
-        #'designer.partitioner': 'edu.brown.designer.partitioners.LNSPartitioner',
-    #}
-    ## The same as LNS but using a greedy search
-    #'GRD':  {
-        #'designer.partitioner': 'edu.brown.designer.partitioners.LNSPartitioner',
-        #'designer.hints.LIMIT_LOCAL_TIME': -1,
-        #'designer.hints.GREEDY_SEARCH': True,
-    #}
-    #'PKY':  {
-        #'designer.partitioner': 'edu.brown.designer.partitioners.PrimaryKeyPartitioner',
-    #}
-    #'MFA':  {
-        #'designer.partitioner': 'edu.brown.designer.partitioners.MostPopularPartitioner',
-    #}
-#}
-
 ## ==============================================
 ## parseResultsOutput
 ## ==============================================
 def parseResultsOutput(output):
-    # We always need to make sure that we clear out ant's [java] prefix
-    output = re.sub("[\s]+\[java\] ", "\n", output)
-    
-    # Find our <json> tag. The results will be inside of there
-    regex = re.compile("<json>(.*?)</json>", re.MULTILINE | re.IGNORECASE | re.DOTALL)
-    m = regex.search(output)
-    if not m: LOG.error("Invalid output:\n" + output)
-    assert m
-
-    json_results = json.loads(m.group(1))
-    return (json_results)
-## DEF
-
-## ==============================================
-## generateDesigns
-## ==============================================
-def generateDesigns():
     # We always need to make sure that we clear out ant's [java] prefix
     output = re.sub("[\s]+\[java\] ", "\n", output)
     
@@ -215,10 +174,13 @@ if __name__ == '__main__':
         "exp-type=",
         "exp-settings=",
         "exp-trials=",
+        "exp-attempts=",
         "exp-factor-start=",
         "exp-factor-stop=",
         
         "repeat-failed-trials=",
+        "partitions=",
+        "start-cluster",
         
         # Enable debug logging
         "debug",
@@ -276,57 +238,68 @@ if __name__ == '__main__':
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
     
-    client_inst = fabfile.__getClientInstance__()
-    LOG.debug("Client Instance: " + client_inst.public_dns_name)
-    all_results = [ ]
-    stop = False
-    
+
+    final_results = { }
+    totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
     first = True
-    for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 10):
-        updateEnv(env, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
+    stop = False
+    for partitions in map(int, options["partitions"]):
+        LOG.info("%s - %d Partitions - Experiment #%d" % (OPT_EXP_TYPE.upper(), partitions, OPT_EXP_SETTINGS))
+        env["site.partitions"] = partitions
+        all_results = [ ]
         
-        results = [ ]
-        for trial in range(OPT_EXP_TRIALS):
-            attempts = OPT_REPEAT_FAILED_TRIALS
-            while attempts > 0 and stop == False:
-                if first:
-                    env["hstore.exec_prefix"] = "compile"
-                else:
-                    env["hstore.exec_prefix"] = ""
+        client_inst = fabfile.__getClientInstance__()
+        LOG.debug("Client Instance: " + client_inst.public_dns_name)
+        
+        for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 20):
+            updateEnv(env, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
+            LOG.debug("Parameters:\n%s" % pformat(env))
+            
+            if first and OPT_START_CLUSTER:
+                fabfile.start_cluster
+
+            results = [ ]
+            attempts = 0
+            while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
+                ## Only compile for the very first invocation
+                env["hstore.exec_prefix"] = "compile" if first else ""
                 first = False
                 
-                if attempts == OPT_REPEAT_FAILED_TRIALS and trial == 0:
-                    LOG.debug("%s/%d - Experiment Parameters:\n%s" % (OPT_EXP_TYPE.title(), OPT_EXP_SETTINGS, pformat(env)))
-                
-                attempts -= 1
-                LOG.info("Executing trial #%d for factor %d [attempt=%d/%d]" % (trial, exp_factor, (OPT_REPEAT_FAILED_TRIALS-attempts), OPT_REPEAT_FAILED_TRIALS))
+                attempts += 1
+                LOG.info("Executing Trial #%d/%d for Factor %d [attempt=%d/%d]" % (len(results), OPT_EXP_TRIALS, exp_factor, attempts, totalAttempts))
                 try:
                     with settings(host_string=client_inst.public_dns_name):
                         output = fabfile.exec_benchmark(project="tpcc", removals=conf_remove, json=True)
                         results.append(parseResultsOutput(output))
                     ## WITH
-                    break
                 except KeyboardInterrupt:
                     stop = True
                     break
                 except SystemExit:
                     LOG.warn("Failed to complete trial succesfully")
                     pass
-            ## WHILE
+            ## FOR (TRIALS)
+            if results: all_results.append((exp_factor, results, attempts))
+            stop = stop or (attempts == totalAttempts)
             if stop: break
-        ## FOR
-        if results: all_results.append((exp_factor, results))
+        ## FOR (EXP_FACTOR)
+        if len(all_results) > 0: final_results[partitions] = all_results
         if stop: break
-    ## FOR
+    ## FOR (PARTITIONS)
     
+    LOG.info("Disconnecting and dumping results")
     try:
         disconnect_all()
     finally:
-        for exp_factor, results in all_results:
-            print "EXP FACTOR %d" % exp_factor
-            for trial in range(len(results)):
-                r = results[trial]
-                print "   TRIAL #%d: %s" % (trial, r["TXNPERSECOND"])
+        for partitions in sorted(final_results.keys()):
+            all_results = final_results[partitions]
+            print "%s - Partitions %d" % (OPT_EXP_TYPE.upper(), partitions)
+            for exp_factor, results, attempts in all_results:
+                print "   EXP FACTOR %d [Attempts:%d/%d]" % (exp_factor, attempts, totalAttempts)
+                for trial in range(len(results)):
+                    data = results[trial]
+                    print "      TRIAL #%d: %.4f" % (trial, float(data["TXNPERSECOND"]))
+                ## FOR
             ## FOR
             print
         ## FOR
