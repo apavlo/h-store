@@ -347,8 +347,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             LOG.trace("Initialization Information:\n" + StringUtil.formatMaps(maps));
         }
-        
-//        LOG.info("\n" + this.debug());
     }
 
     /* (non-Javadoc)

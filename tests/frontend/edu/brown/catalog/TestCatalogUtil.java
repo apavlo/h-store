@@ -261,19 +261,42 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
         Table catalog_tbl = this.getTable("DISTRICT");
-        Column expected[] = {
-            this.getColumn(catalog_tbl, "D_NEXT_O_ID"),
+        Column expectedReadOnly[] = {
             this.getColumn(catalog_tbl, "D_ID"),
             this.getColumn(catalog_tbl, "D_W_ID")
         };
+        Column expectedModified[] = {
+                this.getColumn(catalog_tbl, "D_NEXT_O_ID"),
+        };
+        Column expectedAll[] = new Column[expectedReadOnly.length + expectedModified.length];
+        int i = 0;
+        for (Column c : expectedReadOnly) expectedAll[i++] = c;
+        for (Column c : expectedModified) expectedAll[i++] = c;
         
-        Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
-//        AbstractPlanNode node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
-//        System.err.println(PlanNodeUtil.debug(node));
+        Collection<Column> columns = null;
+        
+        // READ-ONLY
+        columns = CatalogUtil.getReadOnlyColumns(catalog_stmt);
         assertNotNull(columns);
-        assertEquals(columns.toString(), expected.length, columns.size());
-        for (int i = 0; i < expected.length; i++) {
-            assert(columns.contains(expected[i])) : "Missing " + expected[i];
+        assertEquals(columns.toString(), expectedReadOnly.length, columns.size());
+        for (i = 0; i < expectedReadOnly.length; i++) {
+            assert(columns.contains(expectedReadOnly[i])) : "Missing " + expectedReadOnly[i];
+        } // FOR
+        
+        // MODIFIED
+        columns = CatalogUtil.getModifiedColumns(catalog_stmt);
+        assertNotNull(columns);
+        assertEquals(columns.toString(), expectedModified.length, columns.size());
+        for (i = 0; i < expectedModified.length; i++) {
+            assert(columns.contains(expectedModified[i])) : "Missing " + expectedModified[i];
+        } // FOR
+        
+        // ALL REFERENCED
+        columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+        assertNotNull(columns);
+        assertEquals(columns.toString(), expectedAll.length, columns.size());
+        for (i = 0; i < expectedAll.length; i++) {
+            assert(columns.contains(expectedAll[i])) : "Missing " + expectedAll[i];
         } // FOR
     }
     

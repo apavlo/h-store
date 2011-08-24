@@ -513,13 +513,23 @@ public abstract class PartitionerUtil {
            // Skip inserts for now...
            if (catalog_stmt.getQuerytype() == QueryType.INSERT.getValue()) continue;
            
-           Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+//           Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
+//           assert(columns != null) : catalog_stmt.fullName();
+//           Collection<Column> modified = CatalogUtil.getModifiedColumns(catalog_stmt);
+//           assert(modified != null) : catalog_stmt.fullName();
+           
+           // We only want to consider those columns that read-only
+           Collection<Column> columns = CatalogUtil.getReadOnlyColumns(catalog_stmt);
+           assert(columns != null) : catalog_stmt.fullName();
+
            // For now we only bother with two-column pairs
            for (Column catalog_col0 : columns) {
                Table catalog_tbl = catalog_col0.getParent();
                if (!multicolumns.containsKey(catalog_tbl)) {
                    multicolumns.put(catalog_tbl, new ArrayList<MultiColumn>());
                }
+               if (trace.get())
+                   LOG.trace(String.format("%s - MultiColumn Candidate: %s", catalog_stmt.fullName(), catalog_col0.fullName()));
                for (Column catalog_col1 : columns) {
                    if (catalog_col0.equals(catalog_col1) || !catalog_tbl.equals(catalog_col1.getParent())) continue;
                    MultiColumn mc = MultiColumn.get(catalog_col0, catalog_col1);
