@@ -9,35 +9,49 @@ import edu.brown.workload.*;
  *
  */
 public class ProcedureLimitFilter extends Filter {
+    /** How many txn we want to limit. We will halt when txnsAllowed is great than this */
     private final long limit;
+    
+    /** We can skip elements until txnsExamined is greater than this value */
     private long offset;
-    private long count = 0;
-    private long includedCount = 0;
-    private boolean weighted = false;
+    
+    /** The total number of txns we've examined */
+    private long txnExamined = 0;
+    
+    /** The total number of txns that we've allowed **/
+    private long txnsAllowed = 0;
+    
+    /** If set to true, then we will increase includedTxn by the txn's weights */
+    private final boolean weighted;
+    
+    /**
+     * Constructor
+     * @param limit
+     * @param offset
+     * @param weighted
+     * @param next
+     */
+    public ProcedureLimitFilter(Long limit, Long offset, boolean weighted, Filter next) {
+        super(next);
+        this.limit = (limit == null ? -1 : limit);
+        this.offset = offset;
+        this.weighted = weighted;
+    }
 
     public ProcedureLimitFilter(Long limit, boolean weighted) {
         this(limit, 0l, weighted);
     }
-    
     public ProcedureLimitFilter(long limit, boolean weighted) {
         this(limit, 0l, weighted);
     }
-    
     public ProcedureLimitFilter(long limit) {
         this(limit, 0l, false);
     }
-    
-    public ProcedureLimitFilter(Long limit, Long offset, boolean count_weights) {
-        this(limit, offset, count_weights, null);
+    public ProcedureLimitFilter(Long limit, Long offset, boolean weighted) {
+        this(limit, offset, weighted, null);
     }
     
-    public ProcedureLimitFilter(Long limit, Long offset, boolean count_weights, Filter next) {
-        super(next);
-        this.limit = (limit == null ? -1 : limit);
-        this.offset = offset;
-        this.weighted = count_weights;
-    }
-    
+
     public void setOffset(long offset) {
         this.offset = offset;
     }
@@ -49,8 +63,8 @@ public class ProcedureLimitFilter extends Filter {
     
     @Override
     protected void resetImpl() {
-        this.count = 0;
-        this.includedCount = 0;
+        this.txnExamined = 0;
+        this.txnsAllowed = 0;
     }
         
     @Override
@@ -58,16 +72,16 @@ public class ProcedureLimitFilter extends Filter {
         FilterResult result = FilterResult.ALLOW;
         if (element instanceof TransactionTrace) {
             if (this.limit >= 0) {
-                if (this.includedCount >= this.limit) {
+                if (this.txnsAllowed >= this.limit) {
                     result = FilterResult.HALT;    
-                } else if (this.count < this.offset) {
+                } else if (this.txnExamined < this.offset) {
                     result = FilterResult.SKIP;
                 }
-            } else if (this.offset > 0 && this.count < this.offset) {
+            } else if (this.offset > 0 && this.txnExamined < this.offset) {
                 result = FilterResult.SKIP;
             }
-            if (result == FilterResult.ALLOW) this.includedCount += (this.weighted ? ((TransactionTrace)element).getWeight() : 1);
-            this.count += 1;
+            if (result == FilterResult.ALLOW) this.txnsAllowed += (this.weighted ? ((TransactionTrace)element).getWeight() : 1);
+            this.txnExamined += 1;
         }
         return (result);
     }

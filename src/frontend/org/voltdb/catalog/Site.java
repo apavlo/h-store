@@ -29,7 +29,6 @@ public class Site extends CatalogType {
     int m_id;
     CatalogMap<Partition> m_partitions;
     boolean m_isUp;
-    int m_proc_port;
     int m_dtxn_port;
     int m_messenger_port;
 
@@ -40,7 +39,6 @@ public class Site extends CatalogType {
         m_partitions = new CatalogMap<Partition>(catalog, this, path + "/" + "partitions", Partition.class);
         m_childCollections.put("partitions", m_partitions);
         this.addField("isUp", m_isUp);
-        this.addField("proc_port", m_proc_port);
         this.addField("dtxn_port", m_dtxn_port);
         this.addField("messenger_port", m_messenger_port);
     }
@@ -48,7 +46,6 @@ public class Site extends CatalogType {
     public void update() {
         m_id = (Integer) m_fields.get("id");
         m_isUp = (Boolean) m_fields.get("isUp");
-        m_proc_port = (Integer) m_fields.get("proc_port");
         m_dtxn_port = (Integer) m_fields.get("dtxn_port");
         m_messenger_port = (Integer) m_fields.get("messenger_port");
     }
@@ -81,11 +78,6 @@ public class Site extends CatalogType {
         return m_isUp;
     }
 
-    /** GETTER: Port used by VoltProcedureListener */
-    public int getProc_port() {
-        return m_proc_port;
-    }
-
     /** GETTER: Port used by DTXN ProtoServer */
     public int getDtxn_port() {
         return m_dtxn_port;
@@ -109,11 +101,6 @@ public class Site extends CatalogType {
     /** SETTER: Is the site up? */
     public void setIsup(boolean value) {
         m_isUp = value; m_fields.put("isUp", value);
-    }
-
-    /** SETTER: Port used by VoltProcedureListener */
-    public void setProc_port(int value) {
-        m_proc_port = value; m_fields.put("proc_port", value);
     }
 
     /** SETTER: Port used by DTXN ProtoServer */

@@ -1197,6 +1197,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        } else if (!table_output) {
 //            System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
 //        }
+        if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
+            String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
+            if (output.equals("-")) output = pplan_path.getAbsolutePath();
+            pplan.save(output);
+            System.out.println("Saved PartitionPlan to '" + output + "'");
+        }
+            
         System.out.flush();
 
         long singlepartition = 0;
@@ -1264,6 +1271,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
         m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
+        m.put("PARTITIONS TOUCHED", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
         m.put("XXX", null);
 
         // Utilization

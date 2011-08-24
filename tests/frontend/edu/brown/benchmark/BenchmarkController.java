@@ -55,6 +55,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -173,9 +174,9 @@ public class BenchmarkController {
     ServerThread m_localserver = null;
     
     /**
-     * SiteId -> <Host, Port>
+     * SiteId -> Set<<Host, Port>>
      */
-    Map<Integer, Pair<String, Integer>> m_launchHosts;
+    Map<Integer, Set<Pair<String, Integer>>> m_launchHosts;
     
     private Catalog catalog;
     
@@ -406,22 +407,27 @@ public class BenchmarkController {
         Set<String> unique_hosts = new HashSet<String>();
         if (m_config.useCatalogHosts == false) {
             if (debug.get()) LOG.debug("Creating host information from BenchmarkConfig");
-            m_launchHosts = new HashMap<Integer, Pair<String,Integer>>();
+            m_launchHosts = new HashMap<Integer, Set<Pair<String,Integer>>>();
             int site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
                 if (trace.get()) LOG.trace(String.format("Creating host info for %s: %s:%d",
                                                          HStoreSite.formatSiteName(site_id), host, VoltDB.DEFAULT_PORT));
-                m_launchHosts.put(site_id, Pair.of(host, VoltDB.DEFAULT_PORT));
+                
+                Set<Pair<String, Integer>> s = new HashSet<Pair<String,Integer>>();
+                s.add(Pair.of(host, VoltDB.DEFAULT_PORT));
+                m_launchHosts.put(site_id, s);
                 unique_hosts.add(host);
                 site_id++;
             } // FOR
         } else {
             if (debug.get()) LOG.debug("Collecting host information from catalog");
             m_launchHosts = CatalogUtil.getExecutionSites(catalog);
-            for (Entry<Integer, Pair<String, Integer>> e : m_launchHosts.entrySet()) {
+            for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
+                Pair<String, Integer> p = CollectionUtil.first(e.getValue());
+                assert(p != null);
                 if (trace.get()) LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
-                                                         HStoreSite.formatSiteName(e.getKey()), e.getValue().getFirst(), e.getValue().getSecond()));
-                unique_hosts.add(e.getValue().getFirst());
+                                                         HStoreSite.formatSiteName(e.getKey()), p.getFirst(), p.getSecond()));
+                unique_hosts.add(p.getFirst());
             } // FOR
         }
 
@@ -512,19 +518,21 @@ public class BenchmarkController {
             siteBaseCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
         } // FOR
 
-        for (Entry<Integer, Pair<String, Integer>> e : m_launchHosts.entrySet()) {
+        for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
             Integer site_id = e.getKey();
-            String host = e.getValue().getFirst();
-            Integer port = e.getValue().getSecond();
+            Pair<String, Integer> p = CollectionUtil.first(e.getValue());
+            assert(p != null);
+            String host = p.getFirst();
             String host_id = String.format("site-%02d-%s", site_id, host);
             
             // Check whether this one of the sites that will be started externally
             if (m_config.profileSiteIds.contains(site_id)) {
-                LOG.info(String.format("Skipping HStoreSite %s because it will be started by profiler", HStoreSite.formatSiteName(site_id)));
+                LOG.info(String.format("Skipping HStoreSite %s because it will be started by profiler",
+                                       HStoreSite.formatSiteName(site_id)));
                 continue;
             }
             
-            LOG.info(String.format("Starting HStoreSite %s on %s:%d", HStoreSite.formatSiteName(site_id), host, port));
+            LOG.info(String.format("Starting HStoreSite %s on %s", HStoreSite.formatSiteName(site_id), host));
 
 //            String debugString = "";
 //            if (m_config.listenForDebugger) {
@@ -617,12 +625,7 @@ public class BenchmarkController {
         loaderCommand.add("-cp \"" + classpath + "\"");
         loaderCommand.add(m_loaderClass.getCanonicalName());
         
-        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
-            String address = String.format("%s:%d", catalog_site.getHost().getIpaddr(), catalog_site.getProc_port());
-            allLoaderArgs.add("HOST=" + address);
-            if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
-        } // FOR
-
+        this.addHostConnections(allLoaderArgs);
         allLoaderArgs.add("CONF=" + m_config.hstore_conf_path);
         allLoaderArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
@@ -663,6 +666,16 @@ public class BenchmarkController {
 //        }
     }
     
+    private void addHostConnections(Collection<String> params) {
+        for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
+            for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
+                String address = String.format("%s:%d", p.getFirst(), p.getSecond());
+                params.add("HOST=" + address);
+                if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
+            } // FOR
+        } // FOR
+    }
+    
     /**
      * 
      */
@@ -700,6 +713,7 @@ public class BenchmarkController {
             allClientArgs.add(userParam.getKey() + "=" + userParam.getValue());
         }
 
+        this.addHostConnections(allClientArgs);
         allClientArgs.add("CONF=" + m_config.hstore_conf_path);
         allClientArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
@@ -707,13 +721,8 @@ public class BenchmarkController {
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allClientArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
         allClientArgs.add("LOADER=false");
-        
-        for (Pair<String, Integer> p : m_launchHosts.values()) {
-            allClientArgs.add("HOST=" + p.getFirst() + ":" + p.getSecond());
-        } // FOR
 
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
-        
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (final String clientHost : m_config.clients) {
@@ -800,10 +809,10 @@ public class BenchmarkController {
     }
 
     protected Client getClientConnection() {
-        // Connect to the first host and tell them to dump out the database contents
+        // Connect to random host and using a random port that it's listening on
         Integer site_id = CollectionUtil.random(m_launchHosts.keySet());
         assert(site_id != null);
-        Pair<String, Integer> p = m_launchHosts.get(site_id);
+        Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
         assert(p != null);
         if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreSite.formatSiteName(site_id)));
         
@@ -963,8 +972,7 @@ public class BenchmarkController {
             m_clientPSM.prepareShutdown(clientName);
         }
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
-        for (String clientName : m_clients)
-            m_clientPSM.joinProcess(clientName);
+        m_clientPSM.joinAll();
 
         LOG.info("Waiting for status thread to finish");
         try {
@@ -1003,7 +1011,7 @@ public class BenchmarkController {
             File remote_path = new File(results[0].getString(2));
 //            boolean is_global = (results[0].getLong(3) == 1);
             
-            Pair<String, Integer> p = m_launchHosts.get(site_id);
+            Pair<String, Integer> p = CollectionUtil.first(m_launchHosts.get(site_id));
             assert(p != null) : "Invalid SiteId " + site_id;
             
             if (debug.get()) LOG.debug(String.format("Retrieving MarkovGraph file '%s' from %s", remote_path, HStoreSite.formatSiteName(site_id)));

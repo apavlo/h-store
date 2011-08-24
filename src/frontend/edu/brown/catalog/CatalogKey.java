@@ -248,6 +248,16 @@ public abstract class CatalogKey {
                 if (child_key.equals(ReplicatedColumn.COLUMN_NAME)) {
                     catalog_child = (T)ReplicatedColumn.get((Table)catalog_parent);
                     
+                // SPECIAL CASE: VerticalPartitionColumn
+                } else if (multiattribute_key != null && multiattribute_key.equalsIgnoreCase(VerticalPartitionColumn.PREFIX)) {
+                    JSONArray jsonArray = jsonObject.getJSONArray(orig_parent_key);
+                    Column params[] = new Column[jsonArray.length()];
+                    for (int i = 0; i < params.length; i++) {
+                        params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), Column.class); 
+                    } // FOR
+                    assert(params.length == 2) : "Invalid VerticalPartitionColumn Key: " + child_key;
+                    catalog_child = (T)VerticalPartitionColumn.get(params[0], (MultiColumn)params[1]);
+                    
                 // SPECIAL CASE: MultiColumn
                 } else if (multiattribute_key != null && multiattribute_key.equals(MultiColumn.PREFIX)) {
                     JSONArray jsonArray = jsonObject.getJSONArray(orig_parent_key);
@@ -257,16 +267,6 @@ public abstract class CatalogKey {
                     } // FOR
                     assert(params.length > 0) : "Invalid MultiColumn Key: " + child_key;
                     catalog_child = (T)MultiColumn.get(params);
-                    
-                // SPECIAL CASE: VerticalPartitionColumn
-                } else if (multiattribute_key != null && multiattribute_key.equalsIgnoreCase(VerticalPartitionColumn.PREFIX)) {
-                    JSONArray jsonArray = jsonObject.getJSONArray(orig_parent_key);
-                    Column params[] = new Column[jsonArray.length()];
-                    for (int i = 0; i < params.length; i++) {
-                        params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), Column.class); 
-                    } // FOR
-                    assert(params.length == 2) : "Invalid VerticalPartitionColumn Key: " + child_key;
-                    catalog_child = (T)VerticalPartitionColumn.get(params[0], params[1]);
                     
                 // Regular Columns
                 } else {
