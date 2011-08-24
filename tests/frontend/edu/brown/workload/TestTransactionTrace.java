@@ -171,7 +171,9 @@ public class TestTransactionTrace extends BaseTestCase {
         String json = xact.toJSONString(catalog_db);
         assertNotNull(json);
         for (AbstractTraceElement.Members element : AbstractTraceElement.Members.values()) {
-            assertTrue(json.indexOf(element.name()) != -1);
+            if (element != AbstractTraceElement.Members.WEIGHT) {
+                assertTrue(element.toString(), json.indexOf(element.name()) != -1);
+            }
         } // FOR
         for (TransactionTrace.Members element : TransactionTrace.Members.values()) {
             assertTrue(json.indexOf(element.name()) != -1);

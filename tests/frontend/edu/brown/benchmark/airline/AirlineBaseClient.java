@@ -32,6 +32,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
@@ -180,7 +181,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
             }
         } // FOR
         if (data_dir == null) {
-            throw new RuntimeException("Unable to start benchmark. Missing 'datadir' parameter"); 
+            throw new RuntimeException("Unable to start benchmark. Missing 'datadir' parameter\n" + StringUtil.formatMaps(m_extraParams)); 
         }
         this.airline_data_dir = new File(data_dir);
         if (this.airline_data_dir.exists() == false) {
