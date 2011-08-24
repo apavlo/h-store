@@ -74,6 +74,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         public final Map<Statement, Set<Column>> STATEMENT_MODIFIED_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
+         * The set of Columns that read-only in each Statement
+         * Statement -> Set<Column>
+         */
+        public final Map<Statement, Set<Column>> STATEMENT_READONLY_COLUMNS = new HashMap<Statement, Set<Column>>();
+        /**
          * Statement -> Set<Table>
          */
         private final Map<Statement, Set<Table>> STATEMENT_TABLES = new HashMap<Statement, Set<Table>>();
@@ -1112,7 +1117,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getReferencedColumns(Statement catalog_stmt) {
-        if (debug.get()) LOG.debug("Extracting table set from statement " + CatalogUtil.getDisplayName(catalog_stmt));
+        if (debug.get()) LOG.debug("Extracting referenced columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
         Set<Column> ret = cache.STATEMENT_ALL_COLUMNS.get(catalog_stmt);
@@ -1120,6 +1125,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
             ret = new ListOrderedSet<Column>();
             Set<Column> modified = new ListOrderedSet<Column>();
+            Set<Column> readOnly = new ListOrderedSet<Column>();
 
             // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments to figure out
             // what columns the query touches. It's more accurate because we will pick apart plan nodes
@@ -1128,7 +1134,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             Set<Column> columns = null;
             try {
                 node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
-                columns = CatalogUtil.getReferencedColumnsForTree(catalog_db, node, ret, modified);
+                columns = CatalogUtil.getReferencedColumnsForTree(catalog_db, node, ret, modified, readOnly);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get columns for " + catalog_stmt.fullName(), ex);
             }
@@ -1136,6 +1142,43 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             ret = Collections.unmodifiableSet(columns);
             cache.STATEMENT_ALL_COLUMNS.put(catalog_stmt, ret);
             cache.STATEMENT_MODIFIED_COLUMNS.put(catalog_stmt, Collections.unmodifiableSet(modified));
+            cache.STATEMENT_READONLY_COLUMNS.put(catalog_stmt, Collections.unmodifiableSet(readOnly));
+        }
+        return (ret);
+    }
+    
+    /**
+     * Returns all the columns access/modified in the given Statement's query
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    public static Collection<Column> getModifiedColumns(Statement catalog_stmt) {
+        if (debug.get()) LOG.debug("Extracting modified columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
+        
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
+        Set<Column> ret = cache.STATEMENT_MODIFIED_COLUMNS.get(catalog_stmt);
+        if (ret == null) {
+            CatalogUtil.getReferencedColumns(catalog_stmt);
+            ret = cache.STATEMENT_MODIFIED_COLUMNS.get(catalog_stmt);
+        }
+        return (ret);
+    }
+    
+    /**
+     * Returns all the columns that are not modified in the given Statement's query
+     * @param catalog_stmt
+     * @return
+     * @throws Exception
+     */
+    public static Collection<Column> getReadOnlyColumns(Statement catalog_stmt) {
+        if (debug.get()) LOG.debug("Extracting read-only columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
+        
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
+        Set<Column> ret = cache.STATEMENT_READONLY_COLUMNS.get(catalog_stmt);
+        if (ret == null) {
+            CatalogUtil.getReferencedColumns(catalog_stmt);
+            ret = cache.STATEMENT_READONLY_COLUMNS.get(catalog_stmt);
         }
         return (ret);
     }
@@ -1151,15 +1194,15 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @throws Exception
      */
     public static Collection<Column> getReferencedColumnsForTree(final Database catalog_db, AbstractPlanNode node) throws Exception {
-        return (getReferencedColumnsForTree(catalog_db, node, new ListOrderedSet<Column>(), null));
+        return (getReferencedColumnsForTree(catalog_db, node, new ListOrderedSet<Column>(), null, null));
     }
     
-    private static Set<Column> getReferencedColumnsForTree(final Database catalog_db, final AbstractPlanNode node, final Set<Column> columns, final Set<Column> modified) throws Exception {
+    private static Set<Column> getReferencedColumnsForTree(final Database catalog_db, final AbstractPlanNode node, final Set<Column> columns, final Set<Column> modified, final Set<Column> readOnly) throws Exception {
         new PlanNodeTreeWalker(true) {
             @Override
             protected void callback(final AbstractPlanNode node) {
                 try {
-                    CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, columns, modified);
+                    CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, columns, modified, readOnly);
                 } catch (Exception ex) {
                     LOG.fatal("Failed to extract columns from " + node, ex);
                     System.exit(1);
@@ -1180,29 +1223,51 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Column> getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
         final Set<Column> ret = new ListOrderedSet<Column>();
-        CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, ret, null);
+        CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, node, ret, null, null);
         return (ret);
     }
+    
+    private static void updateReferenceColumns(Collection<Column> cols, boolean is_readOnly, final Set<Column> ref_columns, final Set<Column> modified_cols, final Set<Column> readOnly) {
+        for (Column col : cols) {
+            updateReferenceColumns(col, is_readOnly, ref_columns, modified_cols, readOnly);
+        } // FOR
+    }
+    
+    private static void updateReferenceColumns(Column col, boolean isReadOnly, final Set<Column> allCols, final Set<Column> modifiedCols, final Set<Column> readOnlyCols) {
+        allCols.add(col);
+        if (modifiedCols != null) {
+            assert(readOnlyCols != null);
+            if (isReadOnly) {
+                if (modifiedCols.contains(col) == false) readOnlyCols.add(col);    
+            } else {
+                readOnlyCols.remove(col);
+                modifiedCols.add(col);
+            }
+        }
+    }
+
     
     /**
      * Returns all the columns referenced for the given PlanNode
      * If modified_cols is not null, then it will contain the Columns that are modified in the PlanNode
      * @param catalog_db
      * @param node
-     * @param ref_columns
-     * @param modified_cols
+     * @param allCols
+     * @param modifiedCols
      * @throws Exception
      */
-    private static void getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node, final Set<Column> ref_columns, final Set<Column> modified_cols) throws Exception {
+    private static void getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node, final Set<Column> allCols, final Set<Column> modifiedCols, final Set<Column> readOnlyCols) throws Exception {
         switch (node.getPlanNodeType()) {
             // SCANS
             case INDEXSCAN: {
                 IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
                 if (idx_node.getEndExpression() != null)
-                    ref_columns.addAll(ExpressionUtil.getReferencedColumns(catalog_db, idx_node.getEndExpression()));
+                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, idx_node.getEndExpression()), true,
+                                           allCols, modifiedCols, readOnlyCols);
                 for (AbstractExpression exp : idx_node.getSearchKeyExpressions()) {
-                    if (exp != null)
-                        ref_columns.addAll(ExpressionUtil.getReferencedColumns(catalog_db, exp));
+                    if (exp != null) 
+                        updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, exp), true,
+                                               allCols, modifiedCols, readOnlyCols);
                 } // FOR
 
                 // Fall through down into SEQSCAN....
@@ -1210,7 +1275,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             case SEQSCAN: {
                 AbstractScanPlanNode scan_node = (AbstractScanPlanNode) node;
                 if (scan_node.getPredicate() != null)
-                    ref_columns.addAll(ExpressionUtil.getReferencedColumns(catalog_db, scan_node.getPredicate()));
+                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, scan_node.getPredicate()), true,
+                                           allCols, modifiedCols, readOnlyCols);
                 break;
             }
             // JOINS
@@ -1218,12 +1284,15 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             case NESTLOOPINDEX: {
                 AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
                 if (cast_node.getPredicate() != null)
-                    ref_columns.addAll(ExpressionUtil.getReferencedColumns(catalog_db, cast_node.getPredicate()));
+                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, cast_node.getPredicate()), true,
+                                           allCols, modifiedCols, readOnlyCols);
 
                 // We always need to look at the inline scan nodes for joins 
                 for (AbstractPlanNode inline_node : cast_node.getInlinePlanNodes().values()) {
-                    if (inline_node instanceof AbstractScanPlanNode) CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, inline_node, ref_columns, modified_cols);
-                }
+                    if (inline_node instanceof AbstractScanPlanNode) {
+                        CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, inline_node, allCols, modifiedCols, readOnlyCols);
+                    }
+                } // FOR
                 break;
             }
             // INSERT
@@ -1232,8 +1301,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 InsertPlanNode ins_node = (InsertPlanNode) node;
                 Table catalog_tbl = catalog_db.getTables().get(ins_node.getTargetTableName());
                 assert (catalog_tbl != null) : "Missing table " + ins_node.getTargetTableName();
-                ref_columns.addAll(catalog_tbl.getColumns());
-                if (modified_cols != null) modified_cols.addAll(catalog_tbl.getColumns());
+                updateReferenceColumns(catalog_tbl.getColumns(), false,
+                                       allCols, modifiedCols, readOnlyCols);
                 break;
             }
             // UPDATE
@@ -1246,7 +1315,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 
                 AbstractScanPlanNode scan_node = CollectionUtil.first(PlanNodeUtil.getPlanNodes(up_node, AbstractScanPlanNode.class));
                 assert (scan_node != null) : "Failed to find underlying scan node for " + up_node;
-                ref_columns.addAll(PlanNodeUtil.getUpdatedColumnsForPlanNode(catalog_db, scan_node));
+                
+                updateReferenceColumns(PlanNodeUtil.getUpdatedColumnsForPlanNode(catalog_db, scan_node), false,
+                                       allCols, modifiedCols, readOnlyCols);
+                
+                // XXX: Why is this necessary?
                 if (scan_node.getInlinePlanNodeCount() > 0) {
                     ProjectionPlanNode proj_node = scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
                     assert(proj_node != null);
@@ -1261,8 +1334,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                         
                         Column catalog_col = catalog_tbl.getColumns().get(pc.displayName());
                         assert(catalog_col != null) : String.format("Missing %s.%s", catalog_tbl.getName(), pc.displayName());
-                        ref_columns.add(catalog_col);
-                        if (modified_cols != null) modified_cols.add(catalog_col);
+                        
+                        updateReferenceColumns(catalog_col, false, allCols, modifiedCols, readOnlyCols);
                     } // FOR
                 }
                 break;
