@@ -822,7 +822,7 @@ public class ArgumentsParser {
             if (path.exists()) {
                 this.param_mappings.load(path.getAbsolutePath(), this.catalog_db);
             } else {
-                LOG.warn("The parameter correlations file '" + path + "' does not exist");
+                LOG.warn("The ParameterMappings file '" + path + "' does not exist");
             }
         }
         if (this.params.containsKey(PARAM_MARKOV_THRESHOLDS_VALUE)) {

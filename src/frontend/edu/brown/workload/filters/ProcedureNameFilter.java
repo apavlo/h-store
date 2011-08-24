@@ -19,20 +19,21 @@ public class ProcedureNameFilter extends Filter {
     public static final String INCLUDE_ALL = "*";
     public static final Integer INCLUDE_UNLIMITED = -1;
 
+    /** If set to true, then we will increase includedTxn by the txn's weights */
     private final boolean weighted;
     
     /**
      * Whitelist counters
-     * When the finished set is the same size as the whitelist, then we will HALT
+     * When includeFinished set is the same size as the includeTotals, then we will HALT
      */
-    private final Map<String, AtomicInteger> whitelist = new HashMap<String, AtomicInteger>();
-    private final Set<String> whitelist_finished = new HashSet<String>();
-    private final Map<String, Integer> whitelist_orig_ctr = new HashMap<String, Integer>();
+    private final Map<String, AtomicInteger> includeCounters = new HashMap<String, AtomicInteger>();
+    private final Set<String> includeFinished = new HashSet<String>();
+    private final Map<String, Integer> includeTotals = new HashMap<String, Integer>();
     
     /**
      * Blacklist
      */
-    private final Set<String> blacklist = new HashSet<String>();
+    private final Set<String> exclude = new HashSet<String>();
     
     public ProcedureNameFilter(boolean weighted) {
         super();
@@ -58,13 +59,13 @@ public class ProcedureNameFilter extends Filter {
     }
     
     public ProcedureNameFilter include(String name, int limit) {
-        this.whitelist.put(name, new AtomicInteger(limit));
-        this.whitelist_orig_ctr.put(name, limit);
+        this.includeCounters.put(name, new AtomicInteger(limit));
+        this.includeTotals.put(name, limit);
         return (this);
     }
     
     public Map<String, Integer> getProcIncludes() {
-        return (Collections.unmodifiableMap(this.whitelist_orig_ctr));
+        return (Collections.unmodifiableMap(this.includeTotals));
     }
     
     /**
@@ -72,7 +73,7 @@ public class ProcedureNameFilter extends Filter {
      * @return
      */
     public Set<String> getProcedureNames() {
-        return (this.whitelist.keySet());
+        return (this.includeCounters.keySet());
     }
     
     /**
@@ -81,25 +82,25 @@ public class ProcedureNameFilter extends Filter {
      */
     public ProcedureNameFilter exclude(String...names) {
         for (String proc_name : names) {
-            this.blacklist.add(proc_name);
-            this.whitelist.remove(proc_name);
-            this.whitelist_orig_ctr.remove(proc_name);
+            this.exclude.add(proc_name);
+            this.includeCounters.remove(proc_name);
+            this.includeTotals.remove(proc_name);
         } // FOR
         return (this);
     }
     
     @Override
     protected String debug() {
-        return (this.getClass().getSimpleName() + "[include=" + this.whitelist + " exclude=" + this.blacklist + "]");
+        return (this.getClass().getSimpleName() + "[include=" + this.includeCounters + " exclude=" + this.exclude + "]");
     }
     
     @Override
     protected void resetImpl() {
-        for (Entry<String, AtomicInteger> e : this.whitelist.entrySet()) {
-            assert(this.whitelist_orig_ctr.containsKey(e.getKey())) : "Missing '" + e.getKey() + "'";
-            e.getValue().set(this.whitelist_orig_ctr.get(e.getKey()));
+        for (Entry<String, AtomicInteger> e : this.includeCounters.entrySet()) {
+            assert(this.includeTotals.containsKey(e.getKey())) : "Missing '" + e.getKey() + "'";
+            e.getValue().set(this.includeTotals.get(e.getKey()));
         } // FOR
-        this.whitelist_finished.clear();
+        this.includeFinished.clear();
     }
     
     @Override
@@ -110,29 +111,29 @@ public class ProcedureNameFilter extends Filter {
             final String name = element.getCatalogItemName();
             
             // BLACKLIST
-            if (this.blacklist.contains(name)) {
+            if (this.exclude.contains(name)) {
                 result = FilterResult.SKIP;
                 
             // WHITELIST
-            } else if (!this.whitelist.isEmpty()) {
-                if (trace) LOG.trace("Checking whether " + name + " is in whitelist [total=" + this.whitelist.size() + ", finished=" + this.whitelist_finished.size() + "]");
+            } else if (!this.includeCounters.isEmpty()) {
+                if (trace) LOG.trace("Checking whether " + name + " is in whitelist [total=" + this.includeCounters.size() + ", finished=" + this.includeFinished.size() + "]");
                 
                 // If the HALT countdown is zero, then we know that we have all of the procs that
                 // we want for this workload
-                if (this.whitelist_finished.size() == this.whitelist.size()) {
+                if (this.includeFinished.size() == this.includeCounters.size()) {
                     result = FilterResult.HALT;
                     
                 // Check whether this guy is allowed and keep count of how many we've added
-                } else if (this.whitelist.containsKey(name)) {
+                } else if (this.includeCounters.containsKey(name)) {
                     int weight = (this.weighted ? element.getWeight() : 1);
-                    int count = this.whitelist.get(name).addAndGet(-1*weight);
+                    int count = this.includeCounters.get(name).getAndAdd(-1*weight);
                     
                     // If the counter goes to zero, then we have seen enough of this procedure
                     // Reset its counter back to 1 so that the next time we see it it will always get skipped
-                    if (count <= 0) {
+                    if (count == 0) {
                         result = FilterResult.SKIP;
-                        this.whitelist.get(name).set(0);
-                        this.whitelist_finished.add(name);
+                        this.includeCounters.get(name).set(0);
+                        this.includeFinished.add(name);
                         if (trace) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping...");
                     } else if (trace) {
                         LOG.debug("Transaction '" + name + "' is allowed [remaining=" + count + "]");

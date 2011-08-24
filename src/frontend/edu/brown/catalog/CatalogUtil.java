@@ -98,9 +98,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         public final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
         /**
-         * SiteId -> <Host, Port>
+         * SiteId -> Set<<Host, Port>>
          */
-        public final Map<Integer, Pair<String, Integer>> EXECUTION_SITES = new HashMap<Integer, Pair<String, Integer>>();
+        public final Map<Integer, Set<Pair<String, Integer>>> EXECUTION_SITES = new HashMap<Integer, Set<Pair<String, Integer>>>();
         
         /**
          * Construct the internal PARTITION_XREF cache map
@@ -689,19 +689,31 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param catalog_item
      * @return
      */
-    public static Map<Integer, Pair<String, Integer>> getExecutionSites(CatalogType catalog_item) {
+    public static Map<Integer, Set<Pair<String, Integer>>> getExecutionSites(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
-        final Map<Integer, Pair<String, Integer>> sites = cache.EXECUTION_SITES;
+        final Map<Integer, Set<Pair<String, Integer>>> sites = cache.EXECUTION_SITES;
         
         if (sites.isEmpty()) {
             Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
             for (Site catalog_site : CatalogUtil.getSortedCatalogItems(catalog_clus.getSites(), "id")) {
                 Host catalog_host = catalog_site.getHost();
                 assert (catalog_host != null);
-                sites.put(catalog_site.getId(), Pair.of(catalog_host.getIpaddr(), catalog_site.getProc_port()));
+                Set<Pair<String, Integer>> s = new HashSet<Pair<String,Integer>>();
+                for (Integer port : CatalogUtil.getExecutionSitePorts(catalog_site)) {
+                    s.add(Pair.of(catalog_host.getIpaddr(), port));
+                } // FOR
+                sites.put(catalog_site.getId(), s);
             } // FOR
         }
         return (sites);
+    }
+    
+    public static Collection<Integer> getExecutionSitePorts(Site catalog_site) {
+        Set<Integer> ports = new HashSet<Integer>();
+        for (Partition catalog_part : catalog_site.getPartitions()) {
+            ports.add(catalog_part.getProc_port());
+        }
+        return (ports);
     }
     
     /**

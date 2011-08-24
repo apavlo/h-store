@@ -58,7 +58,7 @@ public class TestHStoreSite extends BaseTestCase {
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
         coordinator = new HStoreSite(catalog_site, executors, p_estimator);
-        coordinator.setDtxnCoordinator(dtxnCoordinator);
+        // FIXME coordinator.addDtxnCoordinator(dtxnCoordinator);
     }
     
     @Test

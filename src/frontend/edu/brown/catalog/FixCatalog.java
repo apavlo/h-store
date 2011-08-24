@@ -62,7 +62,6 @@ public abstract class FixCatalog {
                 assert(catalog_site != null);
                 catalog_site.setId(siteid);
                 catalog_site.setHost(catalog_host);
-                catalog_site.setProc_port(proc_port++);
                 catalog_site.setDtxn_port(dtxn_port++);
                 catalog_site.setMessenger_port(messenger_port++);
                 
@@ -77,6 +76,7 @@ public abstract class FixCatalog {
                     // one above. This second one is the one that the HStoreSite
                     catalog_part.setDtxn_port(partition_port++);
                     catalog_part.setEngine_port(partition_port++);
+                    catalog_part.setProc_port(proc_port++);
                     
                     partition_ctr++;
                 } // FOR

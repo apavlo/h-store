@@ -304,11 +304,15 @@ public class PartitionEstimator {
         } // FOR
         
         for (Table catalog_tbl : this.catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             Column catalog_col = catalog_tbl.getPartitioncolumn();
             if (catalog_col instanceof VerticalPartitionColumn) {
                 catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
+                assert((catalog_col instanceof VerticalPartitionColumn) == false) : catalog_col;
             }
             this.cache_tablePartitionColumns.put(catalog_tbl, catalog_col);
+            if (debug.get()) LOG.debug(String.format("%s Partition Column Cache: %s",
+                                                     catalog_tbl.getName(), catalog_col));
         } // FOR
         for (CacheEntry entry : this.cache_fragmentEntries.values()) {
             entry.cache_valid = false;

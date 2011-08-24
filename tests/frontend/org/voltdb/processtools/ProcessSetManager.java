@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
+import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.utils.EventObservable;
@@ -376,7 +377,25 @@ public class ProcessSetManager implements Shutdownable {
         }
     }
 
+    public synchronized Map<String, Integer> joinAll() {
+        Map<String, Integer> retvals = new HashMap<String, Integer>();
+        Long wait = 5000l;
+        for (String processName : m_processes.keySet()) {
+            Pair<Integer, Boolean> p = this.joinProcess(processName, wait);
+            if (p.getSecond() && wait != null) {
+                wait /= 2;
+                if (wait < 1) wait = null; 
+            }
+            retvals.put(processName, p.getFirst());
+        } // FOR
+        return (retvals);
+    }
+    
     public int joinProcess(String processName) {
+        return joinProcess(processName, null).getFirst();
+    }
+    
+    public Pair<Integer, Boolean> joinProcess(String processName, Long millis) {
         final ProcessData pd = m_processes.get(processName);
         assert(pd != null);
         pd.out.m_expectDeath.set(true);
@@ -396,12 +415,18 @@ public class ProcessSetManager implements Shutdownable {
         t.setDaemon(true);
         t.start();
         
+        boolean timeout = false;
         try {
-            latch.await(5, TimeUnit.SECONDS);
+            if (millis != null)
+                timeout = (latch.await(millis, TimeUnit.MILLISECONDS) == false);
+            else
+                latch.await();
         } catch (InterruptedException ex) {
             // Ignore...
         }
-        return killProcess(processName);
+        
+        int retval = killProcess(processName); 
+        return Pair.of(retval, timeout);
     }
 
     public int killProcess(String processName) {

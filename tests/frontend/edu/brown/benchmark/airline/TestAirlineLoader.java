@@ -73,8 +73,8 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
             "CLIENT.SCALEFACTOR=" + scale_factor, 
             "HOST=localhost",
             "NUMCLIENTS=1",
-            "DATADIR=" + AIRLINE_DATA_DIR,
             "NOCONNECTIONS=true",
+            "BENCHMARK.DATADIR=" + AIRLINE_DATA_DIR,
         };
         loader = new MockAirlineLoader(loaderArgs);
         assertNotNull(loader);
