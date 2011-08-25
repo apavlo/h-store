@@ -453,7 +453,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
      */
     @Override
     public PartitionPlan generate(final DesignerHints hints) throws Exception {
-        hints.startTimer();
+        hints.startGlobalSearchTimer();
         
         // Initialize our various data structures
         assert(this.info.getCostModel() != null);

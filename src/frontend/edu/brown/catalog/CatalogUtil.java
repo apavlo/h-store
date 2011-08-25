@@ -857,7 +857,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param exclude_inserts
      * @return
      */
-    public static Set<Column> getReadOnlyColumns(Table catalog_tbl, boolean exclude_inserts) {
+    public static Collection<Column> getReadOnlyColumns(Table catalog_tbl, boolean exclude_inserts) {
         assert(catalog_tbl != null);
         final CatalogUtil.Cache c = CatalogUtil.getCatalogCache(catalog_tbl);
         Set<Column> columns = (exclude_inserts ? c.READONLY_COLUMNS_NO_INSERTS : c.READONLY_COLUMNS_ALL).get(catalog_tbl);

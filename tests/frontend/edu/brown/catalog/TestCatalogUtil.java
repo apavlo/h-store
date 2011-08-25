@@ -158,7 +158,7 @@ public class TestCatalogUtil extends BaseTestCase {
                 }
             } // FOR (col)
             
-            Set<Column> readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, false);
+            Collection<Column> readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, false);
             assertNotNull(readOnly);
             assertEquals(readOnly.toString(), expected.size(), readOnly.size());
             assertEquals(expected, readOnly);
@@ -166,12 +166,12 @@ public class TestCatalogUtil extends BaseTestCase {
         
         // We want to also check that excluding INSERT queries works
         Table catalog_tbl = this.getTable("HISTORY");
-        Set<Column> all_readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, true);
+        Collection<Column> all_readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, true);
         assertNotNull(all_readOnly);
         assertEquals(catalog_tbl.getColumns().size(), all_readOnly.size());
         assert(catalog_tbl.getColumns().containsAll(all_readOnly));
         
-        Set<Column> noinsert_readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, false);
+        Collection<Column> noinsert_readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, false);
         assertNotNull(noinsert_readOnly);
         assertEquals(0, noinsert_readOnly.size());
     }

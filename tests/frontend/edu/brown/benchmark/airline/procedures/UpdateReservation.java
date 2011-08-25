@@ -22,6 +22,7 @@
  */
 package edu.brown.benchmark.airline.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -33,17 +34,17 @@ import edu.brown.benchmark.airline.AirlineConstants;
     partitionInfo = "RESERVATION.R_F_ID: 0"
 )    
 public class UpdateReservation extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(UpdateReservation.class);
     
     public final SQLStmt CheckSeat = new SQLStmt(
         "SELECT R_ID " +
         "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
-        " WHERE R_F_ID = ? and R_SEAT = ?"
-    );
+        " WHERE R_F_ID = ? and R_SEAT = ?");
 
     public final SQLStmt CheckCustomer = new SQLStmt(
         "SELECT R_ID " + 
         "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
-        " WHERE R_ID = ? and R_C_ID = ?");
+        " WHERE R_F_ID = ? AND R_C_ID = ?");
 
     private static final String BASE_SQL = "UPDATE " + AirlineConstants.TABLENAME_RESERVATION +
                                            "   SET R_SEAT = ?, %s = ? " +
@@ -63,6 +64,7 @@ public class UpdateReservation extends VoltProcedure {
     };
     
     public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, long attr_idx, long attr_val) {
+        final boolean debug = LOG.isDebugEnabled();
         assert(attr_idx >= 0);
         assert(attr_idx < ReserveSeats.length);
         
@@ -70,20 +72,35 @@ public class UpdateReservation extends VoltProcedure {
         // check if the customer has multiple seats on this flight
         voltQueueSQL(CheckSeat, f_id, seatnum);
         voltQueueSQL(CheckCustomer, f_id, c_id);
-        final VoltTable[] results = voltExecuteSQL();
+        final VoltTable[] checkResults = voltExecuteSQL();
         
-        assert(results.length == 2);
-        if (results[0].getRowCount() > 0) {
+        assert(checkResults.length == 2);
+        if (checkResults[0].getRowCount() > 0) {
             throw new VoltAbortException("Seat reservation conflict");
         }
-        if (results[1].getRowCount() > 1) {
+        if (checkResults[1].getRowCount() > 1) {
             throw new VoltAbortException("Customer owns multiple reservations");
         }
        
         // update the seat reservation for the customer
         voltQueueSQL(ReserveSeats[(int)attr_idx], seatnum, attr_val, r_id, c_id, f_id);
-        VoltTable[] updates = voltExecuteSQL();
-        assert updates.length == 1;
-        return updates;
+        final VoltTable[] results = voltExecuteSQL();
+        assert results.length == 1;
+        for (int i = 0; i < results.length - 1; i++) {
+            if (results[i].getRowCount() != 1) {
+                String msg = String.format("Failed to update reservation for flight %d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
+                if (debug) LOG.warn(msg);
+                throw new VoltAbortException(msg);
+            }
+            long updated = results[i].asScalarLong();
+            if (updated == 0) {
+                String msg = String.format("Failed to update reservation for flight %d - Did not update any records for %s", f_id, voltLastQueriesExecuted()[i]);
+                if (debug) LOG.warn(msg);
+                throw new VoltAbortException(msg);
+            }
+        } // FOR
+        
+        if (debug) LOG.debug(String.format("Updated reservation on flight %d for customer %d", f_id, c_id));
+        return results;
     } 
 }

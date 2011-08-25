@@ -39,6 +39,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableDataIterable;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -440,7 +441,7 @@ public class AirlineLoader extends AirlineBaseClient {
         }
         try {
             for (int i = 0; i < this.getNumClients(); i++) {
-                this.sendFileToClient(i, "BENCHMARKPROFILE", f);
+                this.sendFileToClient(i, "BENCHMARK.PROFILE", f);
             } // FOR
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -679,6 +680,7 @@ public class AirlineLoader extends AirlineBaseClient {
     // ----------------------------------------------------------------
     protected class CustomerIterable extends ScalingDataIterable {
         private final RandomDistribution.FlatHistogram<String> rand;
+        private final RandomDistribution.Flat randBalance;
         private String airport_code = null;
         private CustomerId last_id = null;
         
@@ -689,6 +691,8 @@ public class AirlineLoader extends AirlineBaseClient {
             Histogram<String> histogram = AirlineLoader.this.getHistogram(AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);  
             this.rand = new RandomDistribution.FlatHistogram<String>(rng, histogram);
             if (debug.get()) this.rand.enableHistory();
+            
+            this.randBalance = new RandomDistribution.Flat(rng, 1000, 10000);
         }
         
         @Override
@@ -721,6 +725,11 @@ public class AirlineLoader extends AirlineBaseClient {
                 case (2): {
                     assert(this.airport_code != null);
                     value = this.airport_code;
+                    break;
+                }
+                // BALANCE
+                case (3): {
+                    value = MathUtil.roundToDecimals(this.randBalance.nextLong(), 2);
                     break;
                 }
                 // BAD MOJO!
@@ -924,6 +933,7 @@ public class AirlineLoader extends AirlineBaseClient {
         private final RandomDistribution.FlatHistogram<String> airports;
         private final Map<String, RandomDistribution.FlatHistogram<String>> flights_per_airport = new HashMap<String, RandomDistribution.FlatHistogram<String>>();
         private final RandomDistribution.FlatHistogram<String> flight_times;
+        private final RandomDistribution.Flat prices = new RandomDistribution.Flat(rng, 100, 1000);
         
         private final Pattern time_pattern = Pattern.compile("([\\d]{2,2}):([\\d]{2,2})");
         private final ListOrderedMap<TimestampType, Integer> flights_per_day = new ListOrderedMap<TimestampType, Integer>();
@@ -943,7 +953,7 @@ public class AirlineLoader extends AirlineBaseClient {
         private int status;
         
         public FlightIterable(Table catalog_tbl, int days_past, int days_future) {
-            super(catalog_tbl, Long.MAX_VALUE, new int[]{ 0, 1, 2, 3, 4, 5, 6, 7 });
+            super(catalog_tbl, Long.MAX_VALUE, new int[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
             assert(days_past >= 0);
             assert(days_future >= 0);
             
@@ -1106,14 +1116,25 @@ public class AirlineLoader extends AirlineBaseClient {
                     value = this.status;
                     break;
                 }
-                // SEATS REMAINING
+                // BASE PRICE
                 case (7): {
+                    value = MathUtil.roundToDecimals(this.prices.nextLong(), 2);
+                    break;
+                }
+                // SEATS TOTAL
+                case (8): {
+                    value = AirlineConstants.NUM_SEATS_PER_FLIGHT;
+                    break;
+                }
+                // SEATS REMAINING
+                case (9): {
                     // We have to figure this out ahead of time since we need to populate the tuple now
                     for (int seatnum = 0; seatnum < AirlineConstants.NUM_SEATS_PER_FLIGHT; seatnum++) {
                         if (!this.seatIsOccupied()) continue;
                         AirlineLoader.this.decrementFlightSeat(this.flight_id);
                     } // FOR
                     value = new Long(AirlineLoader.this.getFlightRemainingSeats(this.flight_id));
+                    if (debug.get()) LOG.debug(this.flight_id.encode() + " SEATS REMAINING: " + value);
                     break;
                 }
                 // BAD MOJO!
@@ -1128,6 +1149,8 @@ public class AirlineLoader extends AirlineBaseClient {
     // RESERVATIONS
     // ----------------------------------------------------------------
     protected class ReservationIterable extends ScalingDataIterable {
+        private final RandomDistribution.Flat prices = new RandomDistribution.Flat(rng, 100, 1000);
+        
         /**
          * For each airport id, store a list of ReturnFlight objects that represent customers
          * that need return flights back to their home airport
@@ -1157,7 +1180,7 @@ public class AirlineLoader extends AirlineBaseClient {
          * @param total
          */
         public ReservationIterable(Table catalog_tbl, long total) {
-            // Special Columns: R_C_ID, R_F_ID, R_F_AL_ID, R_SEAT
+            // Special Columns: R_C_ID, R_F_ID, R_F_AL_ID, R_SEAT, R_PRICE
             super(catalog_tbl, total, new int[] { 1, 2, 3, 4 });
             
             for (long airport_id : AirlineLoader.this.getAirportIds()) {
@@ -1206,7 +1229,7 @@ public class AirlineLoader extends AirlineBaseClient {
 
                 if (trace.get()) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
-                    m.put("Flight Id", flight_id);
+                    m.put("Flight Id", flight_id + " / " + flight_id.encode());
                     m.put("Departure", String.format("%s / %s", getAirportCode(depart_airport_id), depart_time));
                     m.put("Arrival", String.format("%s / %s", getAirportCode(arrive_airport_id), arrive_time));
                     m.put("Booked Seats", booked_seats);
@@ -1297,7 +1320,7 @@ public class AirlineLoader extends AirlineBaseClient {
         protected boolean hasNext() {
             if (trace.get()) LOG.trace("hasNext() called");
             this.current = null;
-            while (this.done == false) {
+            while (this.done == false || this.queue.isEmpty() == false) {
                 if (this.error != null)
                     throw new RuntimeException("Failed to generate Reservation records", this.error);
                 
@@ -1337,8 +1360,9 @@ public class AirlineLoader extends AirlineBaseClient {
                     value = this.current[2];
                     break;
                 }
-                // STATUS
+                // PRICE
                 case (4): {
+                    value = MathUtil.roundToDecimals(this.prices.nextInt(), 2);
                     break;
                 }
                 // BAD MOJO!

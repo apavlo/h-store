@@ -36,6 +36,8 @@ public abstract class AirlineConstants {
     /** Number of seats available per flight */
     public static final int NUM_SEATS_PER_FLIGHT = 150;
     
+    public static final int FIRST_CLASS_SEATS_OFFSET = 10;
+    
     /**
      * The maximum number of days that we allow a customer to wait before needing
      * a reservation on a return to their original departure airport

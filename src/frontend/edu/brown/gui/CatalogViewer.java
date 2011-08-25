@@ -606,8 +606,14 @@ public class CatalogViewer extends AbstractViewer {
 	    // CONSTRAINT
 		else if (catalog_obj instanceof Constraint) {
             Constraint catalog_const = (Constraint)catalog_obj;
-            Collection<Column> cols = CatalogUtil.getColumns(catalog_const.getForeignkeycols());
-            map.put("foreignkeycols", CatalogUtil.getDisplayNames(cols));
+            Collection<Column> cols = null;
+            if (catalog_const.getType() == ConstraintType.FOREIGN_KEY.getValue()) {
+                cols = CatalogUtil.getColumns(catalog_const.getForeignkeycols());    
+            } else {
+                Index catalog_idx = catalog_const.getIndex();
+                cols = CatalogUtil.getColumns(catalog_idx.getColumns());
+            }
+            map.put("columns", CatalogUtil.getDisplayNames(cols));
 		}
         // COLUMN
         else if (catalog_obj instanceof Column) {

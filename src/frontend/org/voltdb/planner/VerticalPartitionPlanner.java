@@ -231,11 +231,25 @@ public class VerticalPartitionPlanner {
                 m.put("VerticalP Cols", view_cols);
                 LOG.debug(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
             }
-            if (output_cols.contains(partitioning_col) && view_cols.containsAll(output_cols) &&
-                predicate_cols.contains(partitioning_col) == false && CollectionUtils.intersection(view_cols, predicate_cols).isEmpty() == false) {
+            if (output_cols.contains(partitioning_col) == false) {
+                if (debug.get())
+                    LOG.warn("Output Columns do not contain horizontal partitioning column");
+            }
+            else if (view_cols.containsAll(output_cols) == false) {
+                if (debug.get())
+                    LOG.warn("Vertical Partition columns do not contain output columns");
+            }
+            else if (predicate_cols.contains(partitioning_col) == true) {
+                if (debug.get())
+                    LOG.warn("Predicate Columns contains horizontal partition column");
+            }
+            else if (CollectionUtils.intersection(view_cols, predicate_cols).isEmpty() == true) {
+                if (debug.get())
+                    LOG.warn("Intersection of Vertical Partition Columns and Predicate Columns is null");
+            }
+            else {
                 if (debug.get())
                     LOG.debug("Valid VP Candidate: " + catalog_tbl);
-
                 StatementRewrite rewrite = this.stmt_rewrites.get(catalog_stmt);
                 if (rewrite == null) {
                     rewrite = new StatementRewrite();
