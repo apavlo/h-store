@@ -131,11 +131,13 @@ public abstract class JSONUtil {
      */
     public static <T extends JSONSerializable> void save(T object, String output_path) throws IOException {
         if (debug.get()) LOG.debug("Writing out contents of " + object.getClass().getSimpleName() + " to '" + output_path + "'");
+        File f = new File(output_path);
         try {
+            FileUtil.makeDirIfNotExists(f.getParent());
             String json = object.toJSONString();
-            FileUtil.writeStringToFile(new File(output_path), format(json));
+            FileUtil.writeStringToFile(f, format(json));
         } catch (Exception ex) {
-            LOG.error("Failed to serialize the " + object.getClass().getSimpleName() + " file '" + output_path + "'", ex);
+            LOG.error("Failed to serialize the " + object.getClass().getSimpleName() + " file '" + f + "'", ex);
             throw new IOException(ex);
         }
     }

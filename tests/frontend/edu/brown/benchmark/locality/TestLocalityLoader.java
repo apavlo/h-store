@@ -8,6 +8,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
@@ -40,7 +41,7 @@ public class TestLocalityLoader extends BaseTestCase {
         this.loader = new LocalityLoader(args) {
             
             @Override
-            protected void loadTable(String tablename, VoltTable table) {
+            public ClientResponse loadVoltTable(String tablename, VoltTable table) {
                 LOG.debug("LOAD TABLE: " + tablename + " [" +
                           "tablesize="  + TestLocalityLoader.this.current_tablesize + "," +
                           "batchsize="  + TestLocalityLoader.this.current_batchsize + "," +
@@ -103,7 +104,7 @@ public class TestLocalityLoader extends BaseTestCase {
                 } // WHILE
                 // if (true || tablename.equals(LocalityConstants.TABLENAME_TABLEB)) LOG.info(table);
                 table.resetRowPosition();
-                
+                return (null);
             }
         };
         this.loader.setCatalog(catalog);
