@@ -666,6 +666,7 @@ public class ArgumentsParser {
                 try {
                     Field f = DesignerHints.class.getField(param);
                     this.hints_params.put(f.getName(), parts[1]);
+                    if (debug) LOG.debug(String.format("DesignerHints.%s = %s", param, parts[1]));
                 } catch (NoSuchFieldException ex) {
                     throw new Exception("Unknown DesignerHints parameter: " + param, ex);
                 }
@@ -773,7 +774,8 @@ public class ArgumentsParser {
         }
         if (this.params.containsKey(PARAM_DESIGNER_HINTS)) {
             String path = this.params.get(PARAM_DESIGNER_HINTS);
-            if (debug) LOG.debug("Loading in designer hints from '" + path + "'");
+            if (debug) 
+                LOG.debug("Loading in designer hints from '" + path + "'.\nForced Values:\n" + StringUtil.formatMaps(this.hints_params));
             this.designer_hints.load(path, catalog_db, this.hints_params);
         }
         if (this.params.containsKey(PARAM_DESIGNER_CHECKPOINT)) {

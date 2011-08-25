@@ -142,6 +142,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     protected transient final AbstractRandomGenerator rng;
     
+    protected transient File profile_file = null;
+    
     // ----------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------
@@ -154,7 +156,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         super(args);
         
         String data_dir = null;
-        String profile_file = null;
         int seed = 0;
         String randGenClassName = RandomGenerator.class.getName();
         String randGenProfilePath = null;
@@ -163,8 +164,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
             String value = m_extraParams.get(key);
 
             // Benchmark Profile File
-            if (key.equalsIgnoreCase("benchmarkprofile")) {
-                profile_file = value;
+            if (key.equalsIgnoreCase("profile")) {
+                this.profile_file = new File(value);
             // Random Generator Seed
             } else if (key.equalsIgnoreCase("randomseed")) {
                 seed = Integer.parseInt(value);
@@ -193,11 +194,11 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         
         // Create BenchmarkProfile
         this.setScaleFactor(hstore_conf.client.scalefactor);
-        if (profile_file != null) {
+        if (this.profile_file != null) {
             try {
-                this.load(profile_file, null);
+                this.load(this.profile_file.getAbsolutePath(), null);
             } catch (Exception ex) {
-                throw new RuntimeException("Failed to load benchmark profile '" + profile_file + "'", ex);
+                throw new RuntimeException("Failed to load benchmark profile '" + this.profile_file + "'", ex);
             }
         }
         

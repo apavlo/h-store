@@ -23,6 +23,7 @@ import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
+import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
@@ -96,6 +97,7 @@ public class ConstraintPropagator {
      */
     private final Map<Column, Counter> column_edge_ctrs = new HashMap<Column, Counter>();
     
+    private final Map<Table, ReplicatedColumn> repcolumns = new HashMap<Table, ReplicatedColumn>();
     private final Map<Column, Collection<MultiColumn>> multicolumns = new HashMap<Column, Collection<MultiColumn>>();
     private final Map<Procedure, Collection<ProcParameter>> multiparams = new HashMap<Procedure, Collection<ProcParameter>>();
     
@@ -123,16 +125,20 @@ public class ConstraintPropagator {
         this.init();
     }
     
+    /**
+     * Initialize internal data structures
+     */
     private void init() {
-        
+       
+        // PROCEDURES
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
 
+            // CACHED RETURN VALUE SETS
             this.retvals.put(catalog_proc, new HashSet<ProcParameter>());
             
             // Generate the multi-attribute partitioning candidates
             if (hints.enable_multi_partitioning) {
-            
                 // MultiProcParameters
                 this.multiparams.put(catalog_proc, new HashSet<ProcParameter>());
                 for (Set<MultiProcParameter> mpps : PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc).values()) {
@@ -160,7 +166,13 @@ public class ConstraintPropagator {
         for (DesignerVertex v : vertices) {
             Table catalog_tbl = v.getCatalogItem();
             if (this.retvals.containsKey(catalog_tbl) == false) {
+                // CACHE RETURN VALUE SETS
                 this.retvals.put(catalog_tbl, new HashSet<Column>());
+                
+                // REPLICATION
+                if (this.hints.enable_replication_readmostly || this.hints.enable_replication_readonly) {
+                    this.repcolumns.put(catalog_tbl, ReplicatedColumn.get(catalog_tbl));
+                }
             }
             
             for (DesignerEdge e : this.agraph.getIncidentEdges(v)) {
@@ -401,11 +413,18 @@ public class ConstraintPropagator {
         // ----------------------------------------------
         if (catalog_obj instanceof Table) {
             Table catalog_tbl = (Table)catalog_obj;
+            int total_cols = 0;
             DesignerVertex v = this.agraph.getVertex(catalog_tbl);
             if (v == null) {
                 throw new IllegalArgumentException("Missing vertex for " + catalog_tbl);
             }
-            int total_cols = 0;
+            
+            Column repcol = this.repcolumns.get(catalog_tbl);
+            if (repcol != null) {
+                ret.add((T)repcol);
+                total_cols++;
+            }
+            
             Collection<DesignerEdge> edges = this.agraph.getIncidentEdges(v); 
             for (DesignerEdge e : edges) {
                 if (this.marked_edges.contains(e)) continue;

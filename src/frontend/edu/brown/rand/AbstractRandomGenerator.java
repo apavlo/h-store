@@ -48,6 +48,15 @@ public abstract class AbstractRandomGenerator extends Random {
     public AbstractRandomGenerator(Integer seed) {
         super(seed);
     }
+    
+    public Set<Integer> getRandomIntSet(int cnt, int max) {
+        assert(cnt < max);
+        Set<Integer> ret = new HashSet<Integer>();
+        do { 
+            ret.add(this.nextInt(max));
+        } while (ret.size() < cnt);
+        return (ret);
+    }
 
     /**
      * 

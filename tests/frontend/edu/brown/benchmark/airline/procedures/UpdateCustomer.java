@@ -4,6 +4,7 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 
@@ -12,16 +13,16 @@ import edu.brown.benchmark.airline.AirlineConstants;
 )
 public class UpdateCustomer extends VoltProcedure {
     
-    public final SQLStmt GetCustomerId = new SQLStmt(
+    public final SQLStmt GetCustomerIdStr = new SQLStmt(
+        "SELECT C_ID " +
+        "  FROM " + AirlineConstants.TABLENAME_CUSTOMER +
+        " WHERE C_ID_STR = ? "
+    );
+    
+    public final SQLStmt GetCustomer = new SQLStmt(
         "SELECT * " +
         "  FROM " + AirlineConstants.TABLENAME_CUSTOMER +
         " WHERE C_ID = ? "
-    );
-    
-    public final SQLStmt GetCustomerIdStr = new SQLStmt(
-        "SELECT * " +
-        "  FROM " + AirlineConstants.TABLENAME_CUSTOMER +
-        " WHERE C_ID_STR = ? "
     );
     
     public final SQLStmt GetBaseAirport = new SQLStmt(
@@ -52,20 +53,29 @@ public class UpdateCustomer extends VoltProcedure {
     );
     
     public VoltTable[] run(long c_id, String c_id_str, long update_ff, long attr0, long attr1) {
-        if (c_id_str != null && c_id_str.isEmpty() == false) {
+        // Use C_ID_STR to get C_ID
+        if (c_id == VoltType.NULL_BIGINT) {
+            assert(c_id_str != null);
+            assert(c_id_str.isEmpty() == false);
             voltQueueSQL(GetCustomerIdStr, c_id_str);
-        } else {
-            voltQueueSQL(GetCustomerId, c_id);
+            VoltTable[] customerIdResults = voltExecuteSQL();
+            assert(customerIdResults.length == 1);
+            if (customerIdResults[0].getRowCount() == 1) {
+                c_id = customerIdResults[0].asScalarLong();
+            } else {
+                throw new VoltAbortException(String.format("No Customer information record found for string '%s'", c_id_str));
+            }
         }
+        
+        voltQueueSQL(GetCustomer, c_id);
         VoltTable[] results = voltExecuteSQL();
         assert (results.length == 1);
         if (results[0].getRowCount() == 0) {
-            throw new VoltAbortException(String.format("No Customer information record found [c_id=%d, c_id_str=%s]",
-                                                       c_id, c_id_str));
+            throw new VoltAbortException(String.format("No Customer information record found for id '%d'", c_id));
         }
         boolean adv = results[0].advanceRow();
         assert(adv);
-        c_id = results[0].getLong(0);
+        assert(c_id == results[0].getLong(0));
         long base_airport = results[0].getLong(2);
         
         // Get their airport information

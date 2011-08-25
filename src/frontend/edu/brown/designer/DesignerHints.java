@@ -313,10 +313,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     /**
      * Start the timer used to keep track of how long we are searching for solutions
      */
-    public void startTimer() {
+    public Long startGlobalSearchTimer() {
         if (this.start_time == null) {
             this.start_time = System.currentTimeMillis();
         }
+        return (this.start_time);
     }
     
     public Long getStartTime() {
@@ -425,7 +426,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         try {
             stringer.object();
             for (Entry<String, String> e : override.entrySet()) {
-                stringer.key(e.getKey()).value(e.getValue());
+                stringer.key(e.getKey().toUpperCase()).value(e.getValue());
             } // FOR
             stringer.endObject();
             this.fromJSON(new JSONObject(stringer.toString()), catalog_db);

@@ -53,7 +53,7 @@ HSTORE_OPTS = {
     "client.txnrate":               10000,
     "client.blocking":              True,
     "client.blocking_concurrent":   1000,
-    "client.scalefactor":           50,
+    "client.scalefactor":           25,
 }
 
 ## ==============================================
@@ -104,15 +104,15 @@ if __name__ == '__main__':
         # Check whether it already exists, then we can skip this round
         existing_file = trace + "-0"
         if args['overwrite'] == False and os.path.exists(existing_file) and txnCount(existing_file) > 0:
-            logging.info("Trace file '%s' already exists with %d lines. Skipping..." % (trace, txnCount(existing_file)))
+            cnt = txnCount(existing_file)
+            logging.info("Trace file '%s' already exists with %d lines. Skipping..." % (trace, cnt))
 
         ## Otherwise light 'em up!
         else:
             cmd = "ant hstore-benchmark -Dtrace=%s %s" % (trace, hstore_opts_cmd)
             subprocess.check_call(cmd, shell=True)
-        
-        ## After each run check whether we have enough transaction traces
-        cnt = txnCount(trace_base)
+            cnt = txnCount(trace_base)
+
         assert cnt > 0
         total_cnt += cnt
         logging.info("Number of transactions after round %d: %d" % (trace_ctr, total_cnt))

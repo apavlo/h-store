@@ -24,10 +24,14 @@
 package edu.brown.benchmark.airline;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
@@ -177,7 +181,7 @@ public class AirlineClient extends AirlineBaseClient {
             error_msg = "The benchmark profile does not have a valid flight start date.";
         }
         if (error_msg != null) {
-            throw new RuntimeException(error_msg + " Unable to start client.");
+            throw new RuntimeException(String.format("The benchmark profile '%s' is invalid - %s", this.profile_file, error_msg));
         }
         
         // Create xact lookup array
@@ -402,31 +406,38 @@ public class AirlineClient extends AirlineBaseClient {
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
+            assert (results.length == 1) : "Results is " + results.length;
             assert (results[0].getRowCount() < 150);
             // there is some tiny probability of an empty flight .. maybe
             // 1/(20**150)
             // if you hit this assert (with valid code), play the lottery!
-            assert (results[0].getRowCount() > 1);
+            int rowCount = results[0].getRowCount();
+            if (rowCount == 0) return;
             
-            // Store the pending reservation in our queue for a later transaction by using
-            // the first empty seat.
-            boolean adv = results[0].advanceRow();
-            assert(adv);
+            int insert = (rowCount == 1 ? 1 : rng.nextInt(rowCount-1) + 1);
+            Set<Integer> s = rng.getRandomIntSet(insert, rowCount);
+            List<Reservation> reservations = new ArrayList<Reservation>();
+            for (int i = 0; i < rowCount; i++) {
+                // Store pending reservations in our queue for a later transaction
+                boolean adv = results[0].advanceRow();
+                assert(adv);
+                if (s.contains(i) == false) continue;
                 
-            FlightId flight_id = new FlightId(results[0].getLong(0));
-            long seatnum = results[0].getLong(1);
-            long airport_depart_id = flight_id.getDepartAirportId();
-            CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
-            if (customer_id == null) {
-                customer_id = AirlineClient.this.getRandomCustomerId();
-            }
-            assert(customer_id != null);
-            
-            Reservation r = new Reservation(getNextReservationId(), flight_id, customer_id, seatnum);
-            if (rng.nextBoolean()) {
-                AirlineClient.this.pending_inserts.add(r);
+                FlightId flight_id = new FlightId(results[0].getLong(0));
+                long seatnum = results[0].getLong(1);
+                long airport_depart_id = flight_id.getDepartAirportId();
+                CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
+                if (customer_id == null) {
+                    customer_id = AirlineClient.this.getRandomCustomerId();
+                }
+                assert(customer_id != null);
+                
+                reservations.add(new Reservation(getNextReservationId(), flight_id, customer_id, seatnum));
                 if (debug.get()) LOG.info("QUEUED INSERT: " + flight_id + " / " + flight_id.encode());
+            } // FOR
+            if (reservations.isEmpty() == false) {
+                Collections.shuffle(reservations, rng);
+                AirlineClient.this.pending_inserts.addAll(reservations);
             }
         }
     }
@@ -479,6 +490,9 @@ public class AirlineClient extends AirlineBaseClient {
     private void executeNewReservation(Transaction txn) throws IOException {
         Reservation r = this.pending_inserts.remove();
         
+        // Generate a random price for now
+        double price = rng.nextInt(1000) * 2.0;
+        
         // Generate random attributes
         long attributes[] = new long[9];
         for (int i = 0; i < attributes.length; i++) {
@@ -487,7 +501,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         this.getClientHandle().callProcedure(new NewReservationCallback(r),
                                              txn.proc_class.getSimpleName(),
-                                             r.id, r.customer_id.encode(), r.flight_id.encode(), r.seatnum, attributes);
+                                             r.id, r.customer_id.encode(), r.flight_id.encode(), r.seatnum, price, attributes);
     }
 
     // ----------------------------------------------------------------

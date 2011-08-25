@@ -90,6 +90,10 @@ public abstract class VerticalPartitionerUtil {
         final Database catalog_db = catalog_tbl.getParent();
         Set<VerticalPartitionColumn> candidates = new ListOrderedSet<VerticalPartitionColumn>();
         
+        // Get all the read-only columns for this table
+        Collection<Column> readOnlyColumns = CatalogUtil.getReadOnlyColumns(catalog_tbl, true);
+        if (trace.get()) LOG.trace(catalog_tbl + " Read-Only Columns: " + CatalogUtil.debug(readOnlyColumns));
+        
         // For the given Column object, figure out what are the potential vertical partitioning candidates
         // if we assume that the Table is partitioned on that Column
         for (Procedure catalog_proc : CatalogUtil.getReferencingProcedures(catalog_tbl)) {
@@ -124,6 +128,11 @@ public abstract class VerticalPartitionerUtil {
                 } else {
                     all_cols.add(hp_col);
                 }
+                
+                // Include any read-only output columns
+                for (Column col : output_cols) {
+                    if (readOnlyColumns.contains(col)) all_cols.add(col);
+                } // FOR
                 
                 MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
                 VerticalPartitionColumn vpc = VerticalPartitionColumn.get(hp_col, vp_col);

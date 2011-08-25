@@ -397,7 +397,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         if (hints.enable_checkpoints) {
             if (this.checkpoint != null && this.checkpoint.exists()) {
                 this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
-                LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
+                LOG.info("Loaded checkpoint from '" + this.checkpoint + "'");
                 
                 // Important! We need to update the hints based on what's in the checkpoint
                 // We really need to link the hints and the checkpoints better...
@@ -407,13 +407,18 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
             }
             if (this.start_time == null && this.last_checkpoint == null) {
-                this.start_time = hints.getStartTime();
+                this.start_time = hints.startGlobalSearchTimer();
+                assert(this.start_time != null);
             } else {
                 LOG.info("Setting checkpoint offset times");
+                assert(hints != null);
+                assert(this.start_time != null) : "Start Time is null";
+                assert(this.last_checkpoint != null) : "Last CheckPoint is null";
                 hints.offsetCheckpointTime(this.start_time, this.last_checkpoint);
             }
         } else {
             LOG.info("Checkpoints disabled");
+            hints.startGlobalSearchTimer();
         }
         
         // Tell the costmodel about the hints.
@@ -452,7 +457,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
         final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
         
-        hints.startTimer();
         while (true) {
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
             // at the beginning of a restart (or the start of the search). We do *not* want to 
