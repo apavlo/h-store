@@ -45,6 +45,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.interfaces.Shutdownable;
@@ -249,6 +250,9 @@ public class ProcessSetManager implements Shutdownable {
         this.output_directory = (log_dir != null ? new File(log_dir) : null);
         this.initial_polling_delay = initial_polling_delay;
         this.failure_observable.addObserver(observer);
+        
+        if (this.output_directory != null)
+            FileUtil.makeDirIfNotExists(this.output_directory.getAbsolutePath());
     }
     
     public ProcessSetManager() {

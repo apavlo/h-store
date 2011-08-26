@@ -87,6 +87,7 @@ BASE_SETTINGS = {
     "site.memory":                      6144,
     "site.status_show_txn_info":        True,
     "site.status_kill_if_hung":         False,
+    "site.status_interval":             2000,
     #"site.txn_incoming_queue_max_per_partition": 1500,
     
     "benchmark.neworder_only":          True,
@@ -280,13 +281,18 @@ if __name__ == '__main__':
             while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
                 ## Only compile for the very first invocation
                 env["hstore.exec_prefix"] = "compile" if first else ""
+                updateSVN = first
                 first = False
                 
                 attempts += 1
                 LOG.info("Executing Trial #%d/%d for Factor %d [attempt=%d/%d]" % (len(results), OPT_EXP_TRIALS, exp_factor, attempts, totalAttempts))
                 try:
                     with settings(host_string=client_inst.public_dns_name):
-                        output, workloads = fabfile.exec_benchmark(project=OPT_BENCHMARK, removals=conf_remove, json=True, trace=OPT_TRACE)
+                        output, workloads = fabfile.exec_benchmark(project=OPT_BENCHMARK, \
+                                                                   removals=conf_remove, \
+                                                                   json=True, \
+                                                                   trace=OPT_TRACE, \
+                                                                   update=updateSVN)
                         results.append(parseResultsOutput(output))
                         
                         if OPT_TRACE and workloads != None:

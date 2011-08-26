@@ -1466,21 +1466,22 @@ BENCHMARKS
         <arg value="markov.recompute_warmup=${markov.recompute_warmup}" />
 
         <!-- Execution Options -->
-        <arg value="TXNRATE=${client.txnrate}" />
         <arg value="CLIENTCOUNT=${client.count}" />
-        <arg value="PROCESSESPERCLIENT=${client.processesperclient}" />
-        <arg value="INTERVAL=${client.interval}" />
-        <arg value="DURATION=${client.duration}" />
-        <arg value="WARMUP=${client.warmup}" />
-        <arg value="BLOCKING=${client.blocking}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
         <arg value="JSONOUTPUT=${jsonoutput}" />
-        
+
         <arg value="DUMPDATABASE=${client.dump_database}" />
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
 
-        <!-- Global Parameters -->
+        <!-- New Style -->
+        <arg value="client.txnrate=${client.txnrate}" />
+        <arg value="client.processesperclient=${client.processesperclient}" />
+        <arg value="client.warmup=${client.warmup}" />
+        <arg value="client.blocking=${client.blocking}" />
+        <arg value="client.blocking_concurrent=${client.blocking_concurrent}" />
+        <arg value="client.interval=${client.interval}" />
+        <arg value="client.duration=${client.duration}" />
         <arg value="client.scalefactor=${client.scalefactor}" />
         <arg value="client.skewfactor=${client.skewfactor}" />
         <arg value="client.temporalwindow=${client.temporalwindow}" />
