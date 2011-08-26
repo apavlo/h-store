@@ -664,6 +664,8 @@ public abstract class BenchmarkComponent {
                 continue;
             }
             
+            if (trace.get()) LOG.debug(String.format("Parameter: %s = %s", parts[0], parts[1])); 
+            
             if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
@@ -707,7 +709,7 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("NOCONNECTIONS")) {
                 noConnections = Boolean.parseBoolean(parts[1]);
             }
-            else if (parts[0].equalsIgnoreCase("NOLOADING")) {
+            else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
                 noUploading = Boolean.parseBoolean(parts[1]);
             }
 //            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
@@ -756,8 +758,8 @@ public abstract class BenchmarkComponent {
         m_txnsPerMillisecond = (is_loader ? -1 : transactionRate / 1000.0);
         m_blocking = blocking;
         m_tickInterval = tickInterval;
-        m_noConnections = noConnections;
         m_noUploading = noUploading;
+        m_noConnections = noConnections || (is_loader && m_noUploading);
         m_tableStats = tableStats;
         m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
         
@@ -907,24 +909,25 @@ public abstract class BenchmarkComponent {
         long rowCount = vt.getRowCount();
         long rowTotal = m_tableTuples.get(tableName, 0l);
         long byteCount = vt.getUnderlyingBufferSize();
+        long byteTotal = m_tableBytes.get(tableName, 0l);
         
         if (trace.get())
-            LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d]",
-                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount));
+            LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
+                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
         
         // Load up this dirty mess...
         ClientResponse cr = null;
         if (m_noUploading == false) {
             try {
                 cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
-                m_tableTuples.put(tableName, rowCount);
-                m_tableBytes.put(tableName, byteCount);
             } catch (Exception e) {
                 throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
             }
         } else {
             cr = m_dummyResponse;
         }
+        m_tableTuples.put(tableName, rowCount);
+        m_tableBytes.put(tableName, byteCount);
         
         // Keep track of table stats
         if (m_tableStats && cr.getStatus() == ClientResponse.SUCCESS) {
@@ -989,6 +992,9 @@ public abstract class BenchmarkComponent {
             }
         } // FOR
         
+        if (trace.get())
+            LOG.trace(String.format("Creating WorkloadStatistics for %d tables [totalRows=%d, totalBytes=%d",
+                                    m_tableStatsData.size(), m_tableTuples.getSampleCount(), m_tableBytes.getSampleCount()));
         WorkloadStatistics stats = new WorkloadStatistics(catalog_db);
         stats.apply(m_tableStatsData);
         return (stats);

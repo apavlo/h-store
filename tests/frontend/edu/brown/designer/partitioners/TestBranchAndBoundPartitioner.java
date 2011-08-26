@@ -124,6 +124,9 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
         assertNotNull(ub_pplan);
         this.partitioner.setUpperBounds(hints, ub_pplan, Double.MAX_VALUE, 1000l);
         
+        hints.enable_multi_partitioning = false;
+        hints.enable_replication_readmostly = false;
+        hints.enable_replication_readonly = false;
         hints.enable_procparameter_search = false;
         hints.max_memory_per_partition = Long.MAX_VALUE;
         this.partitioner.setParameters(agraph, table_visit_order, proc_visit_order);
