@@ -418,7 +418,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
         } else {
             LOG.info("Checkpoints disabled");
-            hints.startGlobalSearchTimer();
         }
         
         // Tell the costmodel about the hints.
@@ -456,7 +455,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
         final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
-        
+
+        hints.startGlobalSearchTimer();
         while (true) {
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
             // at the beginning of a restart (or the start of the search). We do *not* want to 

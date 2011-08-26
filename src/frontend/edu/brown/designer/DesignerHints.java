@@ -18,6 +18,7 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
@@ -284,11 +285,12 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         try {
             if (this.log_solutions_costs_writer == null) {
                 File file = new File(this.log_solutions_costs);
+                FileUtil.makeDirIfNotExists(file.getParent());
                 this.log_solutions_costs_writer = new FileWriter(file, true);
                 this.log_solutions_costs_writer.write("-- " + (new Date().toString()) + "\n");
                 LOG.info("Creating solution costs log file: " + file.getAbsolutePath());
             }
-            long offset = System.currentTimeMillis() - this.start_time;
+            long offset = System.currentTimeMillis() - this.startGlobalSearchTimer();
             this.log_solutions_costs_writer.write(String.format("%d\t%.05f\n", offset, cost));
             this.log_solutions_costs_writer.flush();
         } catch (Exception ex) {
