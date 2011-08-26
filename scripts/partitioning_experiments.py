@@ -68,13 +68,14 @@ OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_BENCHMARK = "tpcc"
+OPT_BASE_BLOCKING_CONCURRENT = 75
 
 BASE_SETTINGS = {
     "client.blocking":                  True,
-    "client.blocking_concurrent":       1,
+    "client.blocking_concurrent":       100,
     "client.txnrate":                   1500,
-    "client.count":                     1,
-    "client.processesperclient":        1,
+    "client.count":                     2,
+    "client.processesperclient":        10,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
@@ -153,6 +154,11 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
             env["benchmark.temporal_skew_mix"] = exp_factor
             LOG.info("benchmark.temporal_skew_mix = %d" % env["benchmark.temporal_skew_mix"])
     ## IF
+    
+    ## The number of concurrent blocked txns should be based on the number of partitions
+    delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(32))
+    env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
+    LOG.info("client.blocking_concurrent = %d" % env["client.blocking_concurrent"])
 ## DEF
 
 ## ==============================================

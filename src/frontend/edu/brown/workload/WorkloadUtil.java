@@ -260,7 +260,7 @@ public abstract class WorkloadUtil {
                 output.write(xact.toJSONString(catalog_db).getBytes());
                 output.write("\n".getBytes());
                 output.flush();
-                if (Workload.debug.get()) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
+                if (debug.get()) Workload.LOG.debug("Wrote out new trace record for " + xact + " with " + xact.getQueries().size() + " queries");
             } catch (IOException ex) {
                 Workload.LOG.fatal("Failed to write " + xact + " out to file", ex);
                 System.exit(1);
@@ -283,7 +283,7 @@ public abstract class WorkloadUtil {
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
         final Pattern p = Pattern.compile(regex);
 
-        if (LOG.isDebugEnabled()) LOG.debug("Generating Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
+        if (debug.get()) LOG.debug("Generating Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
         BufferedReader reader = FileUtil.getReader(workload_path.getAbsolutePath());
         int line_ctr = 0;
         while (reader.ready()) {
@@ -306,7 +306,7 @@ public abstract class WorkloadUtil {
         } // WHILE
         reader.close();
         
-        if (LOG.isDebugEnabled()) LOG.debug("Processed " + line_ctr + " workload trace records");
+        if (debug.get()) LOG.debug("Processed " + line_ctr + " workload trace records");
         return (h);
     }
     

@@ -831,12 +831,15 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s]",
+        boolean isBlocking = Boolean.valueOf(m_config.clientParameters.get("BLOCKING"));
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s/%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 m_config.processesPerClient,
                                 m_config.clientParameters.get("TXNRATE"),
-                                m_config.clientParameters.get("BLOCKING")
+                                isBlocking,
+                                (isBlocking ? m_config.clientParameters.get("BLOCKING_CONCURRENT") : "-")
+                                
         ));
         
         // HACK
