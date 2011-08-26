@@ -2037,6 +2037,7 @@ DESIGNER
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${type}" />
         <arg value="workload=${workload}" />
@@ -2262,6 +2263,7 @@ H-STORE REMIX
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
         <jvmarg value="-Dhstore.tag=site" />
+        <jvmarg value="-Xms${site.memory}m" />
         <jvmarg value="-Xmx${site.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />

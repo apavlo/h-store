@@ -493,7 +493,7 @@ class Distributer {
             int arenaSizes[],
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings) {
-        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 500);
+        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 100);
     }
 
     Distributer(

@@ -267,7 +267,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 Map<Table, Collection<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
                 for (Entry<Table, Collection<MultiColumn>> e : multicolumns.entrySet()) {
                     if (trace.get()) LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
-                    this.orig_table_attributes.get(e.getKey()).addAll(e.getValue());
+                    ListOrderedSet<Column> cols = this.orig_table_attributes.get(e.getKey()); 
+                    if (cols == null) {
+                        cols = new ListOrderedSet<Column>();
+                        this.orig_table_attributes.put(e.getKey(), cols);
+                    }
+                    cols.addAll(e.getValue());
                 } // FOR    
             }
         } // FOR

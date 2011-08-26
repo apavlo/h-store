@@ -61,10 +61,18 @@ import org.voltdb.types.TimestampType;
 
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class TPCCSimulation {
     private static final Logger LOG = Logger.getLogger(TPCCSimulation.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+
     
     // type used by at least VoltDBClient and JDBCClient
     public static enum Transaction {
@@ -133,7 +141,7 @@ public class TPCCSimulation {
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
 
         if (config.neworder_skew_warehouse) {
-            if (LOG.isDebugEnabled()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
+            if (debug.get()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
             this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, this.max_w_id+1, this.skewFactor);
         }
 
@@ -141,7 +149,7 @@ public class TPCCSimulation {
         if (lastAssignedWarehouseId > max_w_id)
             lastAssignedWarehouseId = 1;
         
-        if (LOG.isDebugEnabled()) {
+        if (debug.get()) {
             LOG.debug(this.toString());
         }
         
@@ -194,7 +202,7 @@ public class TPCCSimulation {
     public synchronized void tick(int counter) {
         this.tick_counter = counter;
         if (config.temporal_skew) {
-            if (LOG.isDebugEnabled()) {
+            if (debug.get()) {
                 Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
                 m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
                       this.lastWarehouseHistory);
@@ -350,10 +358,6 @@ public class TPCCSimulation {
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
 
-        // Whether to force all transactions to be multi-partitioned
-        boolean force_multip = config.neworder_all_multip || (generator.number(1, 100) <= config.neworder_multip_mix);
-        if (LOG.isTraceEnabled()) LOG.trace("Forcing Multi-Partition Transaction: " + force_multip);
-        
         // 1% of transactions roll back
         boolean rollback = (allow_rollback && generator.number(1, 100) == 1);
         int local_warehouses = 0;
@@ -372,8 +376,7 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = (config.neworder_multip != false) &&
-                             (force_multip || (config.neworder_multip_mix > 0 && generator.number(1, 100) == 1));
+            boolean remote = (config.neworder_multip != false) && (generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
@@ -385,11 +388,20 @@ public class TPCCSimulation {
 
             quantity[i] = generator.number(1, Constants.MAX_OL_QUANTITY);
         }
-//        if (remote_warehouses > 0) {
-//            System.err.println("newOrder(W_ID=" + warehouse_id + ") -> [" +
-//                               "local_warehouses=" + local_warehouses + ", " +
-//                               "remote_warehouses=" + remote_warehouses + "]");
-//        }
+        // Whether to force this transaction to be multi-partitioned
+        if (remote_warehouses == 0) {
+            if (config.neworder_all_multip || (generator.number(1, 100) <= config.neworder_multip_mix)) {
+                if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
+                // Flip a random one
+                int idx = generator.number(0, ol_cnt-1);
+                supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+            }
+        }
+
+        if (trace.get())
+            LOG.trace("newOrder(W_ID=" + warehouse_id + ") -> [" +
+                      "local_warehouses=" + local_warehouses + ", " +
+                      "remote_warehouses=" + remote_warehouses + "]");
 
         TimestampType now = clock.getDateTime();
         client.callNewOrder(rollback, config.noop, warehouse_id, generateDistrict(), generateCID(),

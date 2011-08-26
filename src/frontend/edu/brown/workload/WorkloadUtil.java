@@ -90,12 +90,13 @@ public abstract class WorkloadUtil {
                         if (debug.get()) LOG.debug("Queue is empty and we were told to stop!");
                         break;
                     }
-                    if (trace.get()) LOG.trace("Queue is empty but we haven't been told to stop yet");
+                    if (debug.get()) LOG.debug("Queue is empty but we haven't been told to stop yet");
                     continue;
                 }
                 
                 line_ctr = p.getFirst();
                 line = p.getSecond();
+                if (debug.get()) LOG.debug(String.format("Processing TransactionTrace on line %d [bytes=%d]", line_ctr, line.length()));
                 try {
                     try {
                         jsonObject = new JSONObject(line);
@@ -138,7 +139,7 @@ public abstract class WorkloadUtil {
                         // Keep track of how many trace elements we've loaded so that we can make sure
                         // that our element trace list is complete
                         int x = xact_ctr.incrementAndGet();
-                        if (trace.get() && x % 10000 == 0) LOG.trace("Read in " + xact_ctr + " transactions...");
+                        if (debug.get() && x % 10000 == 0) LOG.debug("Read in " + xact_ctr + " transactions...");
                         query_ctr.addAndGet(xact.getQueryCount());
                         element_ctr.addAndGet(1 + xact.getQueries().size());
                         weightedTxn_ctr.addAndGet(xact.weight);

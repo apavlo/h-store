@@ -743,7 +743,7 @@ public class PartitionEstimator {
 //            if (debug.get()) LOG.debug(catalog_proc + " is not marked as single-partitioned. Executing as multi-partition");
 //            return (null);
         }
-        int partition = -1;
+        Integer partition = null;
         boolean is_array = catalog_param.getIsarray();
         
         // Special Case: MultiProcParameter
