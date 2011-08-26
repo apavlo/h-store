@@ -406,7 +406,10 @@ public class AirlineClient extends AirlineBaseClient {
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1) : "Results is " + results.length;
+            if (results.length != 1) {
+                LOG.warn("Results is " + results.length);
+                return;
+            }
             assert (results[0].getRowCount() < 150);
             // there is some tiny probability of an empty flight .. maybe
             // 1/(20**150)
