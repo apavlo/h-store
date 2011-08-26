@@ -492,9 +492,9 @@ public class BenchmarkController {
         }
 
         final int numClients = (m_config.clients.length * m_config.processesPerClient);
-        if (m_loaderClass != null && m_config.noDataLoad == false) {
+        if (m_loaderClass != null && m_config.noLoader == false) {
             this.startLoader(catalog, numClients);
-        } else if (m_config.noDataLoad) {
+        } else if (m_config.noLoader) {
             LOG.info("Skipping data loading phase");
         }
         LOG.info("Completed loading phase");
@@ -627,7 +627,7 @@ public class BenchmarkController {
         
         this.addHostConnections(allLoaderArgs);
         allLoaderArgs.add("CONF=" + m_config.hstore_conf_path);
-        allLoaderArgs.add("BENCHMARK.NAME=" + m_projectBuilder.getProjectName());
+        allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + numClients);
         allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
@@ -1227,7 +1227,8 @@ public class BenchmarkController {
         String subApplicationName = null;
         
         boolean noCoordinator = false;
-        boolean noDataLoad = false;
+        boolean noLoader = false;
+        boolean noUploading = false;
         boolean noExecute = false;
         boolean noShutdown = false;
         
@@ -1441,9 +1442,12 @@ public class BenchmarkController {
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
             
-            /* Disable data loading */
-            } else if (parts[0].equalsIgnoreCase("NODATALOAD")) {
-                noDataLoad = Boolean.parseBoolean(parts[1]);
+            /* Disable executing the data loader */
+            } else if (parts[0].equalsIgnoreCase("NOLOADER")) {
+                noLoader = Boolean.parseBoolean(parts[1]);
+            /* Run the loader but disable uploading tuples */
+            } else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
+                noUploading = Boolean.parseBoolean(parts[1]);
             /* Disable workload execution */
             } else if (parts[0].equalsIgnoreCase("NOEXECUTE")) {
                 noExecute = Boolean.parseBoolean(parts[1]);
@@ -1621,7 +1625,8 @@ public class BenchmarkController {
                 compileBenchmark, 
                 compileOnly, 
                 useCatalogHosts,
-                noDataLoad,
+                noLoader,
+                noUploading,
                 noExecute,
                 noShutdown,
                 workloadTrace,

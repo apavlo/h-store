@@ -446,7 +446,7 @@ def deploy_hstore():
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -495,16 +495,35 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False):
         "hosts":                        ",".join(hosts),
     }
     if json: hstore_options["jsonoutput"] = True
+    if trace:
+        import time
+        hstore_options["trace"] = "traces/%s-%d" % (project, time.time())
     LOG.debug("H-Store Config:\n" + pformat(hstore_options))
     
     ## Any other option not listed in the above dict should be written to 
     ## a properties file
-    
+    workloads = None
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
     with cd(code_dir):
         output = run("ant %s hstore-prepare hstore-benchmark %s" % (env["hstore.exec_prefix"], hstore_opts_cmd))
+        
+        ## If they wanted a trace file, then we have to ship it back to ourselves
+        if trace:
+            output = "/tmp/hstore/workloads/%s.trace" % project
+            combine_opts = {
+                "project":              project,
+                "volt.server.memory":   5000,
+                "output":               output,
+                "workload":             hstore_options["trace"] + "*",
+            }
+            combine_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, combine_opts[x]), combine_opts.keys()))
+            run("ant workload-combine %s" % combine_opts_cmd)
+            workloads = get(output)
+        ## IF
+    ## WITH
+
     assert output
-    return output
+    return output, workloads
 ## DEF
 
 ## ----------------------------------------------

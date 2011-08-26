@@ -1514,7 +1514,8 @@ BENCHMARKS
         <arg value="COMPILEONLY=${compileonly}" />
         <arg value="CATALOGHOSTS=${cataloghosts}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
-        <arg value="NODATALOAD=${nodataload}" />
+        <arg value="NOLOADER=${noloader}" />
+        <arg value="NOUPLOADING=${nouploading}" />
         <arg value="NOEXECUTE=${noexecute}" />
         <arg value="NOSHUTDOWN=${noshutdown}" />
         
@@ -1794,6 +1795,7 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
+    <gzip src="${output}" destfile="${output}.gz" />
 </target>
 
 <target name='workload-compress'>

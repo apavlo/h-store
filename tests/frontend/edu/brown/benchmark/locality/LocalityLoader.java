@@ -36,6 +36,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 public class LocalityLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(LocalityLoader.class);
@@ -45,7 +47,7 @@ public class LocalityLoader extends BenchmarkComponent {
     private static final int COMPOSITE_ID_OFFSET = 32;
     
     // scale all table cardinalities by this factor
-    private int m_scalefactor = 1;
+    private final double m_scalefactor;
     
     // When set to true, all operations will run single-threaded
     private boolean debug = true;
@@ -69,15 +71,17 @@ public class LocalityLoader extends BenchmarkComponent {
     public LocalityLoader(String[] args) {
         super(args);
         
+        double scaleFactor = HStoreConf.singleton().client.scalefactor; 
         for (String key : m_extraParams.keySet()) {
             String value = m_extraParams.get(key);
 
             // Scale Factor
-            if (key.equalsIgnoreCase("SCALEFACTOR")) {
-                m_scalefactor = Integer.parseInt(value);
+            if (key.equalsIgnoreCase("CLIENT.SCALEFACTOR")) { // FIXME
+                scaleFactor = Double.parseDouble(value);
             }
         } // FOR
-//        System.err.println("m_scalefactor = " + m_scalefactor);
+        m_scalefactor = scaleFactor; 
+        System.err.println("m_scalefactor = " + m_scalefactor + "\n" + StringUtil.formatMaps(m_extraParams));
         
         // Histograms + Table Sizes + Generators
         for (String tableName : LocalityConstants.TABLENAMES) {
@@ -145,14 +149,14 @@ public class LocalityLoader extends BenchmarkComponent {
             generator.addRow();
             if (table.getRowCount() >= batchSize) {
                 if (table_ctr.get() % 100000 == 0) LOG.info(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
-                loadTable(tableName, table);
+                loadVoltTable(tableName, table);
                 table_ctr.addAndGet(table.getRowCount());
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
             LOG.info(tableName + ": loading final " + table.getRowCount() + " rows.");
-            loadTable(tableName, table);
+            loadVoltTable(tableName, table);
             this.table_sizes.get(tableName).addAndGet(table.getRowCount());
             table.clearRowData();
         }
@@ -207,7 +211,7 @@ public class LocalityLoader extends BenchmarkComponent {
                 String field_name = "TABLESIZE_" + tableName;
                 Field field_handle = LocalityConstants.class.getField(field_name);
                 assert(field_handle != null);
-                this.tableSize = (Long)field_handle.get(null) / LocalityLoader.this.m_scalefactor;
+                this.tableSize = Math.round((Long)field_handle.get(null) / LocalityLoader.this.m_scalefactor);
 
                 field_name = "BATCHSIZE_" + tableName;
                 field_handle = LocalityConstants.class.getField(field_name);
@@ -312,25 +316,5 @@ public class LocalityLoader extends BenchmarkComponent {
         	}
         }
     } // END CLASS
-        
-    /**
-     * 
-     * @param tablename
-     * @param table
-     */
-    protected void loadTable(String tablename, VoltTable table) {
-        // System.out.println("Loading " + table.getRowCount() + " tuples for table " + tablename + " [bytes=" + table.getUnderlyingBufferSize() + "]");
-    
-//    	System.err.println(table);
-//    	System.exit(1);
-    	
-        // Load up this dirty mess...
-        try {
-            this.getClientHandle().callProcedure("@LoadMultipartitionTable", tablename, table);
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-    }
 }
 
