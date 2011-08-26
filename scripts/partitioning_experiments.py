@@ -68,27 +68,33 @@ OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_BENCHMARK = "tpcc"
-OPT_BASE_BLOCKING_CONCURRENT = 75
+OPT_BASE_BLOCKING_CONCURRENT = 2000
+OPT_BASE_TXNRATE = 2000
 
 BASE_SETTINGS = {
-    "client.blocking":                  True,
-    "client.blocking_concurrent":       100,
-    "client.txnrate":                   1500,
+    "ec2.type":                         "m2.4xlarge",
+    
+    "client.blocking":                  False,
+    "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
+    "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     2,
     "client.processesperclient":        10,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
-    "client.scalefactor":               100,
+    "client.scalefactor":               50,
     
     "site.sites_per_host":              1,
     "site.partitions_per_site":         4,
     "site.exec_profiling":              True,
-    "site.memory":                      6144,
+    "site.memory":                      60020,
     "site.status_show_txn_info":        True,
     "site.status_kill_if_hung":         False,
-    "site.status_interval":             2000,
-    #"site.txn_incoming_queue_max_per_partition": 1500,
+    "site.status_interval":             None,
+    "site.txn_incoming_queue_max_per_partition": 3000,
+    "site.txn_incoming_queue_release_factor": 0.75,
+    "site.txn_redirect_queue_max_per_partition": 3000,
+    "site.txn_redirect_queue_release_factor": 0.75,
     
     "benchmark.neworder_only":          True,
     "benchmark.neworder_abort":         False,
@@ -160,6 +166,10 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
     delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(32))
     env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
     LOG.info("client.blocking_concurrent = %d" % env["client.blocking_concurrent"])
+    
+    delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(32))
+    env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
+    LOG.info("client.txnrate = %d" % env["client.txnrate"])
 ## DEF
 
 ## ==============================================
@@ -234,17 +244,19 @@ if __name__ == '__main__':
     ## Update Fabric env
     exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
     assert exp_opts
+    conf_remove = set()
     for key,val in exp_opts.items():
-        if type(val) != types.FunctionType: env[key] = val
+        if val == None: 
+            LOG.info("Removing '%s'" % key)
+            conf_remove.add(key)
+            del exp_opts[key]
+            assert not key in exp_opts
+        elif type(val) != types.FunctionType:
+            env[key] = val
     ## FOR
-
-    ## If the OPT_EXP_TYPE is "generate", then we actually don't
-    ## want to run on EC2. We instead want to locally create all the design files that 
-    ## we need
     
     ## Figure out what keys we need to remove to ensure that one experiment
     ## doesn't contaminate another
-    conf_remove = set()
     for other_type in EXPERIMENT_SETTINGS.keys():
         for i in range(len(EXPERIMENT_SETTINGS[other_type])):
             if other_type != OPT_EXP_TYPE or i != OPT_EXP_SETTINGS:
@@ -266,15 +278,18 @@ if __name__ == '__main__':
         env["site.partitions"] = partitions
         all_results = [ ]
         
-        client_inst = fabfile.__getClientInstance__()
-        LOG.debug("Client Instance: " + client_inst.public_dns_name)
-        
         for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 20):
             updateEnv(env, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
             LOG.debug("Parameters:\n%s" % pformat(env))
             
-            if first and OPT_START_CLUSTER:
-                fabfile.start_cluster
+            if first:
+                if OPT_START_CLUSTER:
+                    LOG.info("Starting cluster for experiments")
+                    fabfile.start_cluster()
+                
+                client_inst = fabfile.__getClientInstance__()
+                LOG.debug("Client Instance: " + client_inst.public_dns_name)
+            ## IF
 
             results = [ ]
             attempts = 0

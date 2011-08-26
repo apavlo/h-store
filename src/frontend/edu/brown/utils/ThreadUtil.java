@@ -18,7 +18,7 @@ public abstract class ThreadUtil {
     private static final Object lock = new Object();
     private static ExecutorService pool;
     
-    private static final int DEFAULT_NUM_THREADS = 4;
+    private static final int DEFAULT_NUM_THREADS = Runtime.getRuntime().availableProcessors();
     private static Integer OVERRIDE_NUM_THREADS = null;
     
     

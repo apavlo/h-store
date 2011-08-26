@@ -65,6 +65,8 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         hints.enable_vertical_partitioning = true;
         hints.max_memory_per_partition = Long.MAX_VALUE;
         hints.enable_costmodel_multipartition_penalty = true;
+        hints.enable_replication_readmostly = false;
+        hints.enable_replication_readonly = false;
         hints.weight_costmodel_multipartition_penalty = 100.0d;
         hints.relaxation_min_size = clone_db.getTables().size();
         hints.limit_local_time = 30;
