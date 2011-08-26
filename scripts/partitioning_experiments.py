@@ -67,13 +67,14 @@ OPT_EXP_FACTOR_STOP = 110
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
+OPT_BENCHMARK = "tpcc"
 
 BASE_SETTINGS = {
-    "client.blocking":                  False,
-    "client.blocking_concurrent":       250,
+    "client.blocking":                  True,
+    "client.blocking_concurrent":       1,
     "client.txnrate":                   1500,
-    "client.count":                     2,
-    "client.processesperclient":        10,
+    "client.count":                     1,
+    "client.processesperclient":        1,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
@@ -81,9 +82,10 @@ BASE_SETTINGS = {
     
     "site.sites_per_host":              1,
     "site.partitions_per_site":         4,
-    "site.status_show_txn_info":        True,
     "site.exec_profiling":              True,
     "site.memory":                      6144,
+    "site.status_show_txn_info":        True,
+    "site.status_kill_if_hung":         False,
     #"site.txn_incoming_queue_max_per_partition": 1500,
     
     "benchmark.neworder_only":          True,
@@ -107,11 +109,15 @@ EXPERIMENT_SETTINGS = {
         },
         ## Settings #2 - Temporal Skew
         {
-            "client.tick_interval":              10000,
+            "client.tick_interval":              5000,
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         False,
             "benchmark.temporal_skew":           True,
             "benchmark.temporal_skew_mix":       0,
+            
+            "benchmark.neworder_only":          False,
+            "benchmark.neworder_abort":         True,
+            "benchmark.neworder_all_multip":    False,
         },
     ],
     "generate": [
@@ -179,6 +185,7 @@ if __name__ == '__main__':
         "exp-factor-start=",
         "exp-factor-stop=",
         
+        "benchmark=",
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
@@ -214,6 +221,8 @@ if __name__ == '__main__':
             globals()[varname] = val
             LOG.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
+    if not "partitions" in options:
+        raise Exception("Missing 'partitions' parameter")
 
     ## Update Fabric env
     exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
@@ -271,7 +280,7 @@ if __name__ == '__main__':
                 LOG.info("Executing Trial #%d/%d for Factor %d [attempt=%d/%d]" % (len(results), OPT_EXP_TRIALS, exp_factor, attempts, totalAttempts))
                 try:
                     with settings(host_string=client_inst.public_dns_name):
-                        output, workloads = fabfile.exec_benchmark(project="tpcc", removals=conf_remove, json=True, trace=OPT_TRACE)
+                        output, workloads = fabfile.exec_benchmark(project=OPT_BENCHMARK, removals=conf_remove, json=True, trace=OPT_TRACE)
                         results.append(parseResultsOutput(output))
                         
                         if OPT_TRACE and workloads != None:

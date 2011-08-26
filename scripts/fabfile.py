@@ -498,6 +498,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False):
     if trace:
         import time
         hstore_options["trace"] = "traces/%s-%d" % (project, time.time())
+        LOG.debug("Enabling trace files that will be output to '%s'" % hstore_options["trace"])
     LOG.debug("H-Store Config:\n" + pformat(hstore_options))
     
     ## Any other option not listed in the above dict should be written to 
@@ -516,9 +517,10 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False):
                 "output":               output,
                 "workload":             hstore_options["trace"] + "*",
             }
+            LOG.debug("Combine %s workload traces into '%s'" % (project.upper(), output))
             combine_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, combine_opts[x]), combine_opts.keys()))
             run("ant workload-combine %s" % combine_opts_cmd)
-            workloads = get(output)
+            workloads = get(output + ".gz")
         ## IF
     ## WITH
 

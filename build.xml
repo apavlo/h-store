@@ -1982,7 +1982,7 @@ DESIGNER
     </condition>
     <property name="benchmark.tablestats" location="${global.temp_dir}/stats/${project}.stats" />
     
-<!--    <echo>Creating table stats file for ${project}...</echo>
+    <echo>Creating table stats file for ${project}...</echo>
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1991,7 +1991,7 @@ DESIGNER
         <arg value="stats.output=${benchmark.tablestats}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
-    </java>-->
+    </java>
     
     <echo>Creating stats file for workload '${target.workload}' using '${benchmark.tablestats}' as base</echo>
     <antcall target="stats">
@@ -2001,7 +2001,7 @@ DESIGNER
         <param name="output" value="${files.stats.dir}/${project}.stats" />
     </antcall>
     <gzip src="${files.stats.dir}/${project}.stats" destfile="${files.stats.dir}/${project}.stats.gz"/>
-<!--     <delete file="${benchmark.tablestats}" /> -->
+    <delete file="${files.stats.dir}/${project}.stats" />
     
     <echo>Creating mappings file for workload '${target.workload}'</echo>
     <antcall target="mappings-generate">

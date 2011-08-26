@@ -1448,6 +1448,7 @@ public class BenchmarkController {
             /* Run the loader but disable uploading tuples */
             } else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
                 noUploading = Boolean.parseBoolean(parts[1]);
+                clientParams.put(parts[0].toUpperCase(), parts[1]);
             /* Disable workload execution */
             } else if (parts[0].equalsIgnoreCase("NOEXECUTE")) {
                 noExecute = Boolean.parseBoolean(parts[1]);
