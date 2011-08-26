@@ -203,7 +203,7 @@ public class TestAirlineLoader extends AirlineBaseTestCase {
         String jsonString = loader.toJSONString();
         JSONObject jsonObject = new JSONObject(jsonString);
         
-        MockAirlineLoader clone = new MockAirlineLoader(new String[]{ "DATADIR=" + AIRLINE_DATA_DIR });
+        MockAirlineLoader clone = new MockAirlineLoader(new String[]{ "BENCHMARK.DATADIR=" + AIRLINE_DATA_DIR });
         clone.fromJSON(jsonObject, null);
         
         assertEquals(loader.getCustomerIdCount(), clone.getCustomerIdCount());

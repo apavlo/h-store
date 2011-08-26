@@ -12,6 +12,7 @@ import org.voltdb.types.PartitionMethodType;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.special.MultiColumn;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
@@ -60,13 +61,15 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
                 pentry = new TableEntry(PartitionMethodType.REPLICATION, null, null, null);
                 
             // Hash Primary Key
-            // If the table has multiple primary keys, just pick the first one for now
             } else {
                 total_memory_used += (size_ratio / (double)info.getNumPartitions());
-                for (Column catalog_col : pkey_columns) {
-                    pentry = new TableEntry(PartitionMethodType.HASH, catalog_col, null, null);
-                    break;
-                } // FOR
+                
+                if (hints.enable_multi_partitioning == false) {
+                    pentry = new TableEntry(PartitionMethodType.HASH, CollectionUtil.first(pkey_columns), null, null);
+                } else {
+                    MultiColumn multicol = MultiColumn.get(pkey_columns.toArray(new Column[0]));
+                    pentry = new TableEntry(PartitionMethodType.HASH, multicol, null, null);
+                }
             }
             pplan.getTableEntries().put(catalog_tbl, pentry);
         } // FOR

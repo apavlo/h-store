@@ -10,6 +10,7 @@ import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
@@ -169,6 +170,7 @@ public class TestConstraintPropagator extends BasePartitionerTestCase {
             //  (1) It does not have an unmarked edge to one of our target tables
             //  (2) If it is does have an edge to one of target tables then that edge uses the column that the table is partitioned on
             for (Column catalog_col : columns) {
+                if (catalog_col instanceof ReplicatedColumn) continue;
                 Collection<DesignerEdge> edges = agraph.findEdgeSet(v0, catalog_col);
                 assertNotNull(catalog_col.fullName(), edges);
                 assertFalse(catalog_col.fullName(), edges.isEmpty());

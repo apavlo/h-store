@@ -36,7 +36,7 @@ public class TestLocalityLoader extends BaseTestCase {
 //        TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
         
         String args[] = {
-            "scalefactor=" + SCALE_FACTOR,
+            "client.scalefactor=" + SCALE_FACTOR,
         };
         this.loader = new LocalityLoader(args) {
             
