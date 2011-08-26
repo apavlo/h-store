@@ -719,6 +719,7 @@ public class PartitionEstimator {
      */
     public Integer getBasePartition(final Procedure catalog_proc, Object params[], boolean force) throws Exception {
         assert(catalog_proc != null);
+        assert(params != null);
         ProcParameter catalog_param = this.cache_procPartitionParameters.get(catalog_proc);
         
         if (catalog_param == null) { 
@@ -763,8 +764,10 @@ public class PartitionEstimator {
             if (debug.get()) LOG.debug(Arrays.toString(hashes) + " => " + partition);
         // Single ProcParameter
         } else {
-            if (debug.get()) LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
-            partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
+            if (debug.get()) 
+                LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
+            Object value = params[catalog_param.getIndex()];
+            partition = (value != null ? this.calculatePartition(catalog_proc, value, is_array) : 0);
         }
         return (partition);
     }
