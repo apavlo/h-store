@@ -37,10 +37,12 @@ import org.apache.log4j.Logger;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 public class BenchmarkConfig {
     private static final Logger LOG = Logger.getLogger(BenchmarkConfig.class);
     
+    public HStoreConf hstore_conf;
     public String hstore_conf_path;
     public String benchmark_conf_path;
     
@@ -51,10 +53,6 @@ public class BenchmarkConfig {
     public int sitesPerHost;
     public int k_factor;
     public String[] clients;
-    public int processesPerClient;
-    public long interval;
-    public long duration;
-    public long warmup;
     public String sshOptions[];
     public String remotePath;
     public String remoteUser;
@@ -167,6 +165,7 @@ public class BenchmarkConfig {
     }
     
     public BenchmarkConfig(
+            HStoreConf hstore_conf,
             String hstore_conf_path,
             String benchmark_conf_path,
             String benchmarkClient,
@@ -177,10 +176,6 @@ public class BenchmarkConfig {
             int sitesPerHost,
             int kFactor,
             String[] clients,
-            int processesPerClient,
-            long interval,
-            long duration,
-            long warmup,
             String sshOptions,
             String remotePath,
             String remoteUser,
@@ -218,7 +213,7 @@ public class BenchmarkConfig {
             String dumpDatabaseDir,
             boolean jsonOutput
         ) {
-
+        
         this.projectBuilderClass = benchmarkClient;
         this.backend = backend;
         this.coordinatorHost = coordinatorHost;
@@ -231,10 +226,6 @@ public class BenchmarkConfig {
         this.clients = new String[clients.length];
         for (int i = 0; i < clients.length; i++)
             this.clients[i] = clients[i];
-        this.processesPerClient = processesPerClient;
-        this.interval = interval;
-        this.duration = duration;
-        this.warmup = warmup;
         this.sshOptions = sshOptions.split(" "); // HACK
         this.remotePath = remotePath;
         this.remoteUser = remoteUser;
@@ -275,6 +266,7 @@ public class BenchmarkConfig {
         
         this.jsonOutput = jsonOutput;
         
+        this.hstore_conf = hstore_conf;
         this.hstore_conf_path = hstore_conf_path;
         this.benchmark_conf_path = benchmark_conf_path;
         if (this.benchmark_conf_path.isEmpty() == false) {
@@ -307,7 +299,7 @@ public class BenchmarkConfig {
                 } catch (IllegalAccessException ex) {
                     val = ex.getMessage();
                 }
-                m2.put(key, val);
+                if ((val instanceof HStoreConf) == false) m2.put(key, val);
             }
         } // FOR
         return (StringUtil.formatMaps(m0, m1, this.clientParameters, this.siteParameters, m2));

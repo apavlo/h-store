@@ -22,7 +22,7 @@ public class QueryLimitFilter extends Filter {
     }
     
     @Override
-    protected String debug() {
+    public String debug() {
         return (this.getClass().getSimpleName() + ": limit=" + this.limit);
     }
     

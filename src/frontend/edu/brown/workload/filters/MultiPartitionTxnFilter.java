@@ -66,7 +66,7 @@ public class MultiPartitionTxnFilter extends Filter {
     }
     
     @Override
-    protected String debug() {
+    public String debug() {
         return null;
     }
 

@@ -37,7 +37,7 @@ public class TestWorkloadUtil extends BaseTestCase {
      */
     @Test
     public void testGetProcedureHistogram() throws Exception {
-        Histogram h = WorkloadUtil.getProcedureHistogram(workload_file);
+        Histogram<String> h = WorkloadUtil.getProcedureHistogram(workload_file);
         assertNotNull(h);
         assert(h.getSampleCount() > 0);
         

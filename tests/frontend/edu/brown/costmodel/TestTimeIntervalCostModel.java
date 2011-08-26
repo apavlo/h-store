@@ -166,7 +166,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 return (FilterResult.ALLOW);
             }
             @Override
-            protected String debug() {
+            public String debug() {
                 return null;
             }
         };
@@ -231,7 +231,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 return (FilterResult.ALLOW);
             }
             @Override
-            protected String debug() {
+            public String debug() {
                 return null;
             }
         };

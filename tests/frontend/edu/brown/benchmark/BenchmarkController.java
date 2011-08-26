@@ -491,7 +491,7 @@ public class BenchmarkController {
             m_localserver.waitForInitialization();
         }
 
-        final int numClients = (m_config.clients.length * m_config.processesPerClient);
+        final int numClients = (m_config.clients.length * hstore_conf.client.processesperclient);
         if (m_loaderClass != null && m_config.noLoader == false) {
             this.startLoader(catalog, numClients);
         } else if (m_config.noLoader) {
@@ -631,13 +631,10 @@ public class BenchmarkController {
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
         allLoaderArgs.add("NUMCLIENTS=" + numClients);
         allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allLoaderArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
+        allLoaderArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allLoaderArgs.add("LOADER=true");
 
         for (Entry<String,String> e : m_config.clientParameters.entrySet()) {
-            if (e.getKey().equals("TXNRATE")) {
-                continue;
-            }
             String arg = String.format("%s=%s", e.getKey(), e.getValue());
             allLoaderArgs.add(arg);
         } // FOR
@@ -719,7 +716,7 @@ public class BenchmarkController {
         allClientArgs.add("CHECKTRANSACTION=" + m_config.checkTransaction);
         allClientArgs.add("CHECKTABLES=" + m_config.checkTables);
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
-        allClientArgs.add("STATSPOLLINTERVAL=" + m_config.interval);
+        allClientArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allClientArgs.add("LOADER=false");
 
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
@@ -730,7 +727,7 @@ public class BenchmarkController {
                 @Override
                 public void run() {
                     
-                    for (int j = 0; j < m_config.processesPerClient; j++) {
+                    for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
                         int clientId = clientIndex.getAndIncrement();
                         String host_id = String.format("client-%02d-%s", clientId, clientHost);
                         List<String> client_args = new ArrayList<String>(allClientArgs);
@@ -831,14 +828,13 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        boolean isBlocking = Boolean.valueOf(m_config.clientParameters.get("BLOCKING"));
         LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s/%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
-                                m_config.processesPerClient,
-                                m_config.clientParameters.get("TXNRATE"),
-                                isBlocking,
-                                (isBlocking ? m_config.clientParameters.get("BLOCKING_CONCURRENT") : "-")
+                                hstore_conf.client.processesperclient,
+                                hstore_conf.client.txnrate,
+                                hstore_conf.client.blocking,
+                                (hstore_conf.client.blocking ? hstore_conf.client.blocking_concurrent : "-")
                                 
         ));
         
@@ -849,13 +845,13 @@ public class BenchmarkController {
             ThreadUtil.sleep(gdb_sleep*1000);
         }
         
-        m_currentResults = new BenchmarkResults(m_config.interval, m_config.duration, m_clients.size());
+        m_currentResults = new BenchmarkResults(hstore_conf.client.interval, hstore_conf.client.duration, m_clients.size());
         m_statusThread = new ClientStatusThread();
         m_statusThread.setDaemon(true);
-        m_pollCount = m_config.duration / m_config.interval;
+        m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         m_statusThread.start();
 
-        long nextIntervalTime = m_config.interval;
+        long nextIntervalTime = hstore_conf.client.interval;
         
         Client local_client = null;
 
@@ -868,11 +864,11 @@ public class BenchmarkController {
             m_clientPSM.writeToProcess(clientName, Command.START);
 
         // Warm-up
-        if (m_config.warmup > 0) {
-            LOG.info(String.format("Letting system warm-up for %.01f seconds", m_config.warmup / 1000.0));
+        if (hstore_conf.client.warmup > 0) {
+            LOG.info(String.format("Letting system warm-up for %.01f seconds", hstore_conf.client.warmup / 1000.0));
             
             try {
-                Thread.sleep(m_config.warmup);
+                Thread.sleep(hstore_conf.client.warmup);
             } catch (InterruptedException e) {
                 if (debug.get()) LOG.debug("Warm-up was interrupted!");
             }
@@ -919,7 +915,7 @@ public class BenchmarkController {
                     m_clientPSM.writeToProcess(clientName, Command.POLL);
 
                 // get ready for the next interval
-                nextIntervalTime = m_config.interval * (m_pollIndex.get() + 1) + startTime;
+                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex.get() + 1) + startTime;
             }
 
             // wait some time
@@ -1193,15 +1189,11 @@ public class BenchmarkController {
 
     public static void main(final String[] vargs) throws Exception {
         boolean jsonOutput = false;
-        long interval = 10000;
-        long duration = 60000;
-        long warmup = 0;
         int hostCount = 1;
         int sitesPerHost = 2;
         int k_factor = 0;
         int clientCount = 1;
         int clientInitialPollingDelay = 10000;
-        int processesPerClient = 1;
         String sshOptions = "";
         String remotePath = "voltbin/";
         String remoteUser = null; // null implies current local username
@@ -1249,11 +1241,6 @@ public class BenchmarkController {
         Double markov_thresholdsValue = null;
         boolean markov_recomputeAfterEnd = false;
         boolean markov_recomputeAfterWarmup = false;
-        
-        // Logging
-        String clientLogDir = "/tmp";
-        String siteLogDir = "/tmp";
-        String coordLogDir = "/tmp";
         
         boolean dumpDatabase = false;
         String dumpDatabaseDir = null;
@@ -1334,11 +1321,6 @@ public class BenchmarkController {
                  * The number of client hosts to place client processes on
                  */
                 clientCount = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("PROCESSESPERCLIENT")) {
-                /*
-                 * The number of client processes per client host
-                 */
-                processesPerClient = Integer.parseInt(parts[1]);
             } else if (parts[0].equalsIgnoreCase("CLIENTHEAP")) {
                 /*
                  * The number of client processes per client host
@@ -1349,21 +1331,6 @@ public class BenchmarkController {
                  * The number of client processes per client host
                  */
                 serverHeapSize = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("INTERVAL")) {
-                /*
-                 * The interval to poll for results in milliseconds
-                 */
-                interval = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("DURATION")) {
-                /*
-                 * Duration of the benchmark in milliseconds (not including warmup)
-                 */
-                duration = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("WARMUP")) {
-                /*
-                 * Amount of warmup time in milliseconds
-                 */
-                warmup = Integer.parseInt(parts[1]);
             } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "BUILDER")) {
                 /*
                  * Name of the ProjectBuilder class for this benchmark.
@@ -1399,14 +1366,6 @@ public class BenchmarkController {
                 snapshotPrefix = parts[1];
             } else if (parts[0].equalsIgnoreCase("SNAPSHOTRETAIN")) {
                 snapshotRetain = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase("TXNRATE")) {
-                clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equalsIgnoreCase("BLOCKING")) {
-                clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equalsIgnoreCase("BLOCKING_CONCURRENT")) {
-                clientParams.put(parts[0], parts[1]);
-            } else if (parts[0].equalsIgnoreCase("THROTTLING")) {
-                clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equalsIgnoreCase("NUMCONNECTIONS")) {
                 clientParams.put(parts[0], parts[1]);
             } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
@@ -1496,18 +1455,6 @@ public class BenchmarkController {
 
             } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "INITIAL_POLLING_DELAY")) {
                 clientInitialPollingDelay = Integer.parseInt(parts[1]);
-                
-            /** LOGGING **/
-            } else if (parts[0].equalsIgnoreCase("CLIENT.LOG_DIR")) {
-                clientLogDir = parts[1];
-                FileUtil.makeDirIfNotExists(clientLogDir);
-            } else if (parts[0].equalsIgnoreCase("COORDINATOR.LOG_DIR")) {
-                coordLogDir = parts[1];
-                FileUtil.makeDirIfNotExists(coordLogDir);
-            } else if (parts[0].equalsIgnoreCase("SITE.LOG_DIR")) {
-                siteLogDir = parts[1];
-                FileUtil.makeDirIfNotExists(siteLogDir);
-                
             } else {
                 clientParams.put(parts[0].toLowerCase(), parts[1]);
             }
@@ -1520,8 +1467,7 @@ public class BenchmarkController {
         HStoreConf hstore_conf = HStoreConf.init(f, vargs);
         if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true, true));
         
-        
-        if (duration < 1000) {
+        if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
             System.exit(-1);
         }
@@ -1593,6 +1539,7 @@ public class BenchmarkController {
 
         // create a config object, mostly for the results uploader at this point
         BenchmarkConfig config = new BenchmarkConfig(
+                hstore_conf,
                 hstore_conf_path,
                 benchmark_conf_path,
                 projectBuilderClassname,
@@ -1603,10 +1550,6 @@ public class BenchmarkController {
                 sitesPerHost, 
                 k_factor, 
                 clientNames, 
-                processesPerClient, 
-                interval, 
-                duration,
-                warmup,
                 sshOptions,
                 remotePath, 
                 remoteUser, 
@@ -1646,13 +1589,11 @@ public class BenchmarkController {
         );
         
         // Always pass these parameters
-        clientParams.put("INTERVAL", Long.toString(interval));
-        clientParams.put("DURATION", Long.toString(duration));
         if (catalogPath != null) {
             clientParams.put("CATALOG", catalogPath.getAbsolutePath());
             clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
         }
-        clientParams.put("NUMCLIENTS", Integer.toString(clientCount * processesPerClient));
+        clientParams.put("NUMCLIENTS", Integer.toString(clientCount * hstore_conf.client.processesperclient));
         clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         
         config.clientParameters.putAll(clientParams);

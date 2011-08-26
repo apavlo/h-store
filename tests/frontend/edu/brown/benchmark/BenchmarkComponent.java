@@ -61,9 +61,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
@@ -623,7 +625,7 @@ public abstract class BenchmarkComponent {
         m_hstoreConf = HStoreConf.singleton();
         if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true, true));
         
-        int transactionRate = -1; // m_hstoreConf.client.txnrate;
+        int transactionRate = m_hstoreConf.client.txnrate;
         boolean blocking = m_hstoreConf.client.blocking;
         boolean tableStats = m_hstoreConf.client.tablestats;
         String tableStatsDir = m_hstoreConf.client.tablestats_dir;
@@ -635,7 +637,7 @@ public abstract class BenchmarkComponent {
         ControlState state = ControlState.PREPARING; // starting state
         String reason = ""; // and error string
         int id = 0;
-        boolean is_loader = false;
+        boolean isLoader = false;
         int num_clients = 0;
         int num_partitions = 0;
         boolean exitOnCompletion = true;
@@ -649,6 +651,7 @@ public abstract class BenchmarkComponent {
         String projectName = null;
         
         // scan the inputs once to read everything but host names
+        Map<String, Object> componentParams = new TreeMap<String, Object>();
         for (int i = 0; i < args.length; i++) {
             final String arg = args[i];
             final String[] parts = arg.split("=", 2);
@@ -664,14 +667,15 @@ public abstract class BenchmarkComponent {
                 continue;
             }
             
-            if (trace.get()) LOG.debug(String.format("Parameter: %s = %s", parts[0], parts[1])); 
+            if (debug.get()) componentParams.put(parts[0], parts[1]);
             
             if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
                 assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
+                if (debug.get()) componentParams.put(parts[0], catalogPath);
             }
             else if (parts[0].equalsIgnoreCase("LOADER")) {
-                is_loader = Boolean.parseBoolean(parts[1]);
+                isLoader = Boolean.parseBoolean(parts[1]);
             }
             else if (parts[0].equalsIgnoreCase("NAME")) {
                 projectName = parts[1];
@@ -684,12 +688,6 @@ public abstract class BenchmarkComponent {
             }
             else if (parts[0].equalsIgnoreCase("EXITONCOMPLETION")) {
                 exitOnCompletion = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("TXNRATE")) {
-                transactionRate = Integer.parseInt(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("BLOCKING")) {
-                blocking = Boolean.parseBoolean(parts[1]);
             }
             else if (parts[0].equalsIgnoreCase("ID")) {
                 id = Integer.parseInt(parts[1]);
@@ -712,20 +710,19 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
                 noUploading = Boolean.parseBoolean(parts[1]);
             }
-//            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
-//                statsDatabaseURL = parts[1];
-//            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
-//                statsPollInterval = Integer.parseInt(parts[1]);
-            
             // If it starts with "benchmark.", then it always goes to the implementing class
             else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+                if (debug.get()) componentParams.remove(parts[0]);
                 parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
                 m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
         }
-        if (debug.get()) LOG.debug("Extra Client Parameters:\n" + StringUtil.formatMaps(m_extraParams));
-        
-
+        if (debug.get()) {
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put("BenchmarkComponent", componentParams);
+            m.put("Extra Client", m_extraParams);
+            LOG.debug("Input Parameters:\n" + StringUtil.formatMaps(m));
+        }
         
         // Thread.currentThread().setName(String.format("client-%02d", id));
         
@@ -754,12 +751,12 @@ public abstract class BenchmarkComponent {
         m_exitOnCompletion = exitOnCompletion;
         m_username = username;
         m_password = password;
-        m_txnRate = transactionRate;
-        m_txnsPerMillisecond = (is_loader ? -1 : transactionRate / 1000.0);
+        m_txnRate = (isLoader ? -1 : transactionRate);
+        m_txnsPerMillisecond = (isLoader ? -1 : transactionRate / 1000.0);
         m_blocking = blocking;
         m_tickInterval = tickInterval;
         m_noUploading = noUploading;
-        m_noConnections = noConnections || (is_loader && m_noUploading);
+        m_noConnections = noConnections || (isLoader && m_noUploading);
         m_tableStats = tableStats;
         m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
         
@@ -829,7 +826,7 @@ public abstract class BenchmarkComponent {
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread
-        if (m_tickInterval > 0 && is_loader == false) {
+        if (m_tickInterval > 0 && isLoader == false) {
             if (debug.get())
                 LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds", (m_tickInterval / 1000.0)));
             Runnable r = new Runnable() {

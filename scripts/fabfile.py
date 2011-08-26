@@ -429,7 +429,7 @@ def setup_nfsclient(rebootInst=True):
 ## deploy_hstore
 ## ----------------------------------------------
 @task
-def deploy_hstore():
+def deploy_hstore(build=True):
     code_dir = os.path.basename(env["hstore.svn"])
     with cd("hstore"):
         with settings(warn_only=True):
@@ -437,16 +437,19 @@ def deploy_hstore():
                 run("svn checkout %s %s %s" % (env["hstore.svn_options"], env["hstore.svn"], code_dir))
         with cd(code_dir):
             run("svn update %s" % env["hstore.svn_options"])
-            if env["hstore.clean"]:
-                run("ant clean-all")
-            run("ant build")
+            if build:
+                LOG.debug("Building H-Store from source code")
+                if env["hstore.clean"]:
+                    run("ant clean-all")
+                run("ant build")
+    ## WITH
 ## DEF
 
 ## ----------------------------------------------
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -483,6 +486,9 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False):
 
     ## Update H-Store Conf file
     write_conf(project, removals)
+    
+    ## Make sure the the checkout is up to date
+    if update: deploy_hstore(build=False)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {

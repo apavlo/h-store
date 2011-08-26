@@ -457,6 +457,10 @@ public class ArgumentsParser {
         return (au);
     }
     
+    /**
+     * 
+     * @throws Exception
+     */
     private void loadWorkload() throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         // Workload Trace
@@ -469,7 +473,9 @@ public class ArgumentsParser {
             
             // This will prune out duplicate trace records...
             if (params.containsKey(PARAM_WORKLOAD_REMOVE_DUPES)) {
-                this.workload_filter = new DuplicateTraceFilter();
+                DuplicateTraceFilter filter = new DuplicateTraceFilter();
+                this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
+                if (debug) LOG.debug("Attached " + filter.debug());
             }
 
             // TRANSACTION OFFSET
@@ -478,6 +484,7 @@ public class ArgumentsParser {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset, weightedTxns);
                 // Important! The offset should go in the front!
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
+                if (debug) LOG.debug("Attached " + filter.debug());
             }
             
             // BASE PARTITIONS
@@ -498,6 +505,7 @@ public class ArgumentsParser {
                 }
                 filter.addPartitions(workload_base_partitions);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
+                if (debug) LOG.debug("Attached " + filter.debug());
             }
 
             
@@ -539,7 +547,10 @@ public class ArgumentsParser {
                         }
                         
                         if (limit < 0) {
-                            if (proc_histogram == null) proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                            if (proc_histogram == null) {
+                                if (debug) LOG.debug("Generating procedure histogram from workload file");
+                                proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
+                            }
                             limit = (int)proc_histogram.get(proc_name, 0);
                             total_unlimited += limit;
                         } else {
@@ -593,12 +604,14 @@ public class ArgumentsParser {
 
                 // Attach our new filter to the chain (or make it the head if it's the first one)
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
+                if (debug) LOG.debug("Attached " + filter.debug());
             } 
             
             // TRANSACTION LIMIT
             if (this.workload_xact_limit != null) {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit, weightedTxns);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
+                if (debug) LOG.debug("Attached " + filter.debug());
             }
             
             // QUERY LIMIT
@@ -624,12 +637,8 @@ public class ArgumentsParser {
                 this.stats_path = new File(path).getAbsolutePath();
                 try {
                     this.stats.load(path, this.catalog_db);
-                } catch (AssertionError ex) {
-                    LOG.fatal("Failed to load stats file '" + this.stats_path + "'", ex);
-                    System.exit(1);
-                } catch (RuntimeException ex) {
-                    LOG.fatal("Failed to load stats file '" + this.stats_path + "'", ex);
-                    System.exit(1);
+                } catch (Throwable ex) {
+                    throw new RuntimeException("Failed to load stats file '" + this.stats_path + "'", ex);
                 }
             }
         }

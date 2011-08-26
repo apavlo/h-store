@@ -37,10 +37,12 @@ public abstract class WorkloadUtil {
     private static final int ELEMENT_CTR_IDX            = 0;
     private static final int TXN_CTR_IDX                = ELEMENT_CTR_IDX + 1;
     private static final int QUERY_CTR_IDX              = ELEMENT_CTR_IDX + 2;
-    private static final int WEIGHTED_TXN_CTR_IDX     = ELEMENT_CTR_IDX + 3;
+    private static final int WEIGHTED_TXN_CTR_IDX       = ELEMENT_CTR_IDX + 3;
     private static final int WEIGHTED_QUERY_CTR_IDX     = ELEMENT_CTR_IDX + 4;
     
-    
+    /**
+     * LOAD THREAD
+     */
     public static class LoadThread implements Runnable {
         final Workload workload;
         final File input_path;
@@ -85,7 +87,7 @@ public abstract class WorkloadUtil {
     
                 if (p == null) {
                     if (this.stop) {
-                        if (trace.get()) LOG.trace("Queue is empty and we were told to stop!");
+                        if (debug.get()) LOG.debug("Queue is empty and we were told to stop!");
                         break;
                     }
                     if (trace.get()) LOG.trace("Queue is empty but we haven't been told to stop yet");
@@ -158,10 +160,10 @@ public abstract class WorkloadUtil {
         }
         
         public void stop() {
-            LOG.trace("Told to stop [queue_size=" + this.reader.lines.size() + "]");
+            if (debug.get()) LOG.debug("Told to stop [queue_size=" + this.reader.lines.size() + "]");
             this.stop = true;
         }
-    }
+    } // END CLASS
 
     /**
      * READ THREAD
@@ -229,6 +231,9 @@ public abstract class WorkloadUtil {
     } // END CLASS
 
     
+    /**
+     * WRITE THREAD
+     */
     public static final class WriteThread implements Runnable {
         final Database catalog_db;
         final OutputStream output;
@@ -283,7 +288,7 @@ public abstract class WorkloadUtil {
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
         final Pattern p = Pattern.compile(regex);
 
-        if (debug.get()) LOG.debug("Generating Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
+        if (debug.get()) LOG.debug("Fast generation of Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
         BufferedReader reader = FileUtil.getReader(workload_path.getAbsolutePath());
         int line_ctr = 0;
         while (reader.ready()) {
@@ -306,7 +311,7 @@ public abstract class WorkloadUtil {
         } // WHILE
         reader.close();
         
-        if (debug.get()) LOG.debug("Processed " + line_ctr + " workload trace records");
+        if (debug.get()) LOG.debug("Processed " + line_ctr + " workload trace records for histogram\n" + h);
         return (h);
     }
     
