@@ -66,6 +66,7 @@ OPT_EXP_FACTOR_START = 0
 OPT_EXP_FACTOR_STOP = 110
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
+OPT_TRACE = False
 
 BASE_SETTINGS = {
     "client.blocking":                  False,
@@ -181,6 +182,7 @@ if __name__ == '__main__':
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
+        "trace",
         
         # Enable debug logging
         "debug",
@@ -269,8 +271,14 @@ if __name__ == '__main__':
                 LOG.info("Executing Trial #%d/%d for Factor %d [attempt=%d/%d]" % (len(results), OPT_EXP_TRIALS, exp_factor, attempts, totalAttempts))
                 try:
                     with settings(host_string=client_inst.public_dns_name):
-                        output = fabfile.exec_benchmark(project="tpcc", removals=conf_remove, json=True)
+                        output, workloads = fabfile.exec_benchmark(project="tpcc", removals=conf_remove, json=True, trace=OPT_TRACE)
                         results.append(parseResultsOutput(output))
+                        
+                        if OPT_TRACE and workloads != None:
+                            for f in workloads:
+                                LOG.info("Workload File: %s" % f)
+                            ## FOR
+                        
                     ## WITH
                 except KeyboardInterrupt:
                     stop = True

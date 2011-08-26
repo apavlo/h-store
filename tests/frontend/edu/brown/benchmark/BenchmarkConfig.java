@@ -84,7 +84,8 @@ public class BenchmarkConfig {
     public Set<Integer> profileSiteIds;
     
     public boolean noCoordinator;
-    public boolean noDataLoad;
+    public boolean noLoader;
+    public boolean noUploading;
     public boolean noExecute;
     public boolean noShutdown;
     
@@ -202,7 +203,8 @@ public class BenchmarkConfig {
             boolean compileBenchmark,
             boolean compileOnly,
             boolean useCatalogHosts,
-            boolean noDataLoad,
+            boolean noLoader,
+            boolean noUploading,
             boolean noExecute,
             boolean noShutdown,
             String workloadTrace,
@@ -255,7 +257,8 @@ public class BenchmarkConfig {
         this.compileBenchmark = compileBenchmark;
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
-        this.noDataLoad = noDataLoad;
+        this.noLoader = noLoader;
+        this.noUploading = noUploading;
         this.noExecute = noExecute;
         this.noShutdown = noShutdown;
         this.workloadTrace = workloadTrace;
