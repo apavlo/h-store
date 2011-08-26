@@ -128,7 +128,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public boolean enable_vertical_partitioning = false;
     
     /** Enable caching in cost models */
-    public boolean enable_costmodel_caching = true;
+    public boolean enable_costmodel_caching = false;
     
     /** Enable skew calculations in cost models */
     public boolean enable_costmodel_skew = true;
