@@ -8,9 +8,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -23,7 +21,6 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 
 public class TestVerticalPartitionPlanner extends BaseTestCase {
@@ -208,7 +205,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         for (Statement catalog_stmt : updated) {
             System.err.println(catalog_stmt.fullName());
         }
-        assertEquals(REWRITE_SQLS.length + 1, updated.size());
+        assertEquals(REWRITE_SQLS.length, updated.size());
     }
     
 }

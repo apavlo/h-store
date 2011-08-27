@@ -71,13 +71,13 @@ OPT_BENCHMARK = "tpcc"
 
 OPT_BASE_BLOCKING_CONCURRENT = 2000
 OPT_BASE_TXNRATE = 2000
-OPT_BASE_CLIENT_COUNT = 1
+OPT_BASE_CLIENT_COUNT = 2
 
 BASE_SETTINGS = {
-    "ec2.type":                         "m2.4xlarge", # "c1.xlarge",
+    "ec2.type":                         "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
     "ec2.node_type":                    "m2.4xlarge",
-    "ec2.change_type":                  True,
+    "ec2.change_type":                  False,
     
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -123,15 +123,16 @@ EXPERIMENT_SETTINGS = {
         },
         ## Settings #2 - Temporal Skew
         {
-            "client.tick_interval":              5000,
+            "client.tick_interval":              10000,
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         False,
             "benchmark.temporal_skew":           True,
             "benchmark.temporal_skew_mix":       0,
             
-            "benchmark.neworder_only":          False,
-            "benchmark.neworder_abort":         True,
+            "benchmark.neworder_only":          True,
+            "benchmark.neworder_abort":         False,
             "benchmark.neworder_all_multip":    False,
+            "benchmark.neworder_multip":        False,
         },
     ],
     "generate": [
@@ -178,7 +179,7 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
         delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(32))
         env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
         
-        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/4.0)) - 1
+        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/4.0)) - 2
         
         for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
             key = "client.%s" % key
@@ -196,8 +197,9 @@ def parseResultsOutput(output):
     # Find our <json> tag. The results will be inside of there
     regex = re.compile("<json>(.*?)</json>", re.MULTILINE | re.IGNORECASE | re.DOTALL)
     m = regex.search(output)
-    if not m: LOG.error("Invalid output:\n" + output)
-    assert m
+    if not m: 
+        LOG.error("Invalid output:\n" + output)
+        raise Exception("Invalid JSON results output")
 
     json_results = json.loads(m.group(1))
     return (json_results)
@@ -261,7 +263,7 @@ if __name__ == '__main__':
     conf_remove = set()
     for key,val in exp_opts.items():
         if val == None: 
-            LOG.info("Removing '%s'" % key)
+            LOG.debug("Parameter to Remove: %s" % key)
             conf_remove.add(key)
             del exp_opts[key]
             assert not key in exp_opts
@@ -337,6 +339,10 @@ if __name__ == '__main__':
                 except SystemExit:
                     LOG.warn("Failed to complete trial succesfully")
                     pass
+                except:
+                    LOG.warn("Failed to complete trial succesfully")
+                    stop = True
+                    break
             ## FOR (TRIALS)
             if results: all_results.append((exp_factor, results, attempts))
             stop = stop or (attempts == totalAttempts)

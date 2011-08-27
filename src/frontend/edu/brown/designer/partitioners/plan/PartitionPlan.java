@@ -176,6 +176,7 @@ public class PartitionPlan implements JSONSerializable {
         if (debug) LOG.debug("Applying PartitionPlan to catalog");
         
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             TableEntry pentry = this.table_entries.get(catalog_tbl);
             if (pentry != null) {
                 if (debug) LOG.debug("Applying PartitionEntry to " + catalog_tbl.getName() + ": " + pentry);

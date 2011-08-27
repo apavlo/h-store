@@ -130,6 +130,10 @@ public class VerticalPartitionColumn extends MultiColumn {
         Collection<Column> cols = this.getVerticalPartitionColumns();
         return (cols != null && cols.size() > 0);
     }
+    
+    public MaterializedViewInfo getViewCatalog() {
+        return (this.catalog_view);
+    }
 
     // --------------------------------------------------------------------------------------------
     // CATALOG UPDATING METHODS

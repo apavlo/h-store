@@ -28,6 +28,7 @@ import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.Workload;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -63,6 +64,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITIONS);
+        ThreadUtil.setMaxGlobalThreads(1);
         
         // Super hack! Walk back the directories and find out workload directory
         if (workload == null) {
