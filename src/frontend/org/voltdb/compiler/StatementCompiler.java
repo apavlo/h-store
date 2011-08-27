@@ -307,7 +307,7 @@ public abstract class StatementCompiler {
         // HACK
         AbstractPlanNode root = null;
         try {
-            root = PlanNodeUtil.getPlanNodeTreeForStatement(catalogStmt, true);
+            root = PlanNodeUtil.getRootPlanNodeForStatement(catalogStmt, true);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -336,7 +336,7 @@ public abstract class StatementCompiler {
         int index = 0;
         for (Integer colguid : plan.columns) {
             PlanColumn planColumn = planner.getPlannerContext().get(colguid);
-            Column catColumn = catalogStmt.getOutput_columns().add(planColumn.displayName()); // String.valueOf(index));
+            Column catColumn = catalogStmt.getOutput_columns().add(planColumn.getDisplayName()); // String.valueOf(index));
             catColumn.setNullable(false);
             catColumn.setIndex(index);
 //            catColumn.setName(planColumn.displayName());

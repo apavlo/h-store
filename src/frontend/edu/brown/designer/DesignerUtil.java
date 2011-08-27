@@ -182,7 +182,7 @@ public abstract class DesignerUtil {
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
             cset = new ColumnSet();
-            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+            AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         
             // WHERE Clause
             if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
@@ -225,7 +225,7 @@ public abstract class DesignerUtil {
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
             cset = new ColumnSet();
-            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+            AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
             DesignerUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
             CACHE_extractColumnSet.put(key, cset);
         }
@@ -469,8 +469,8 @@ public abstract class DesignerUtil {
                         PlanColumn column = PlannerContext.singleton().get(column_guid);
                         assert(column != null);
                         
-                        Column catalog_col = catalog_tbl.getColumns().get(column.displayName());
-                        assert(catalog_col != null) : "Invalid column name '" + column.displayName() + "' for " + catalog_tbl;
+                        Column catalog_col = catalog_tbl.getColumns().get(column.getDisplayName());
+                        assert(catalog_col != null) : "Invalid column name '" + column.getDisplayName() + "' for " + catalog_tbl;
                         
                         AbstractExpression exp = column.getExpression();
                         if (exp instanceof ParameterValueExpression) {
@@ -723,7 +723,7 @@ public abstract class DesignerUtil {
                         // Make a temporary expression where COL = Expression
                         // Har har har! I'm so clever!
                         //
-                        String column_name = (column.originColumnName() != null ? column.originColumnName() : column.displayName());
+                        String column_name = (column.originColumnName() != null ? column.originColumnName() : column.getDisplayName());
                         Column catalog_col = catalog_tbl.getColumns().get(column_name);
                         if (catalog_col == null) System.err.println(catalog_tbl + ": " + CatalogUtil.debug(catalog_tbl.getColumns()));
                         assert(catalog_col != null) : "Missing column '" + catalog_tbl.getName() + "." + column_name + "'";

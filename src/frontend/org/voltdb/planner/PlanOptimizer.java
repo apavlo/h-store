@@ -181,7 +181,7 @@ public class PlanOptimizer {
                     for (int i = 0; i < element.getOutputColumnGUIDCount(); i++) {
                         int guid = element.getOutputColumnGUID(i);
                         PlanColumn pc = m_context.get(guid);
-                        single_join_node_output.put(pc.displayName(), i);
+                        single_join_node_output.put(pc.getDisplayName(), i);
                     }
                     join_outputs.put(element, single_join_node_output);
                 }
@@ -627,7 +627,7 @@ public class PlanOptimizer {
         PlanColumn new_column = m_context.get(col_id);
         boolean exists = false;
         for (PlanColumn plan_col : proj_columns) {
-            if (new_column.displayName().equals(plan_col.displayName())) {
+            if (new_column.getDisplayName().equals(plan_col.getDisplayName())) {
                 exists = true;
                 break;
             }
@@ -643,10 +643,10 @@ public class PlanOptimizer {
         TupleValueExpression orig_tv_exp = (TupleValueExpression)orig_pc.getExpression();
         TupleValueExpression clone_tv_exp = (TupleValueExpression)orig_tv_exp.clone();
         clone_tv_exp.setColumnIndex(offset);
-        PlanColumn new_col = m_context.getPlanColumn(clone_tv_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+        PlanColumn new_col = m_context.getPlanColumn(clone_tv_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
         boolean exists = false;
         for (PlanColumn plan_col : proj_columns) {
-            if (new_col.displayName().equals(plan_col.displayName())) {
+            if (new_col.getDisplayName().equals(plan_col.getDisplayName())) {
                 exists = true;
                 break;
             }
@@ -693,7 +693,7 @@ public class PlanOptimizer {
                             clone_exp.setColumnIndex(i);
                             
                             PlanColumn new_col = m_context.getPlanColumn(clone_exp,
-                                                                         pc_col.displayName(),
+                                                                         pc_col.getDisplayName(),
                                                                          pc_col.getSortOrder(),
                                                                          pc_col.getStorage());
                             assert(new_col != null);
@@ -1169,7 +1169,7 @@ public class PlanOptimizer {
             // Always try make a new PlanColumn and update the
             // TupleValueExpresion index
             // This ensures that we always get the ordering correct
-            PlanColumn new_col = m_context.getPlanColumn(new_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+            PlanColumn new_col = m_context.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
             assert (new_col != null);
             node.getOutputColumnGUIDs().set(i, new_col.guid());
         } // FOR
@@ -1196,9 +1196,9 @@ public class PlanOptimizer {
             if (!(orig_pc_exp instanceof TupleValueExpression)) {
                 TupleValueExpression new_exp = new TupleValueExpression();
                 new_exp.setColumnIndex(i);
-                new_exp.setColumnAlias(orig_pc.displayName());
+                new_exp.setColumnAlias(orig_pc.getDisplayName());
                 new_exp.setValueType(VoltType.STRING);
-                PlanColumn new_col = m_context.getPlanColumn(new_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                PlanColumn new_col = m_context.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                 assert (new_col != null);
                 node.getOutputColumnGUIDs().set(i, new_col.guid());
             } else  {
@@ -1217,7 +1217,7 @@ public class PlanOptimizer {
                         System.exit(1);
                     }
                     clone_exp.setColumnIndex(i);
-                    PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                    PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
                     // DWU: set this to the orig plan column guid
                     node.getOutputColumnGUIDs().set(i, orig_pc.guid());
@@ -1299,7 +1299,7 @@ public class PlanOptimizer {
                     assert (new_idx != -1);
                     TupleValueExpression clone_exp = (TupleValueExpression) orig_pc.getExpression().clone();
                     clone_exp.setColumnIndex(new_idx);
-                    PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_pc.displayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                    PlanColumn new_col = m_context.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
                     outer_new_input_guids.set(new_idx, new_col.guid());
                     //new_output_guids.add(new_col.guid());
@@ -1554,7 +1554,7 @@ public class PlanOptimizer {
                 } else {
                     clone_exp.setColumnIndex(new_idx);                    
                 }
-                PlanColumn new_pc = m_context.getPlanColumn(clone_exp, pc.displayName(), pc.getSortOrder(), pc.getStorage());
+                PlanColumn new_pc = m_context.getPlanColumn(clone_exp, pc.getDisplayName(), pc.getSortOrder(), pc.getStorage());
                 assert (new_pc != null);
                 node.getOutputColumnGUIDs().set(new_idx, new_pc.guid());
             }

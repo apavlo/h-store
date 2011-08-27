@@ -104,6 +104,16 @@ public abstract class PlanNodeUtil {
     // UTILITY METHODS
     // ------------------------------------------------------------
     
+    public static void clearCache() {
+        CACHE_DESERIALIZE_FRAGMENT.clear();
+        CACHE_DESERIALIZE_MS_STATEMENT.clear();
+        CACHE_DESERIALIZE_SS_STATEMENT.clear();
+        CACHE_SORTED_MS_FRAGMENTS.clear();
+        CACHE_SORTED_SS_FRAGMENTS.clear();
+        CACHE_OUTPUT_COLUMNS.clear();
+        CACHE_STMTPARAMETER_COLUMN.clear();
+    }
+    
     /**
      * Returns the root node in the tree for the given node
      * @param node
@@ -254,7 +264,7 @@ public abstract class PlanNodeUtil {
         if (ret == null && catalog_stmt.getQuerytype() == QueryType.SELECT.getValue()) {
             // It's easier to figure things out if we use the single-partition query plan
             final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
-            final AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+            final AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
             assert(root != null);
             assert(root instanceof SendPlanNode) : "Unexpected PlanNode root " + root + " for " + catalog_stmt.fullName();
             
@@ -355,7 +365,7 @@ public abstract class PlanNodeUtil {
             PlanColumn column = PlannerContext.singleton().get(column_guid);
             assert(column != null);
             
-            final String column_name = column.displayName();
+            final String column_name = column.getDisplayName();
             String table_name = column.originTableName();
             
             // If there is no table name, then check whether this is a scan node.
@@ -504,7 +514,7 @@ public abstract class PlanNodeUtil {
             PlanColumn column = PlannerContext.singleton().get(column_guid);
             if (column != null) {
                 assert(column_guid == column.guid());
-                name = column.displayName();
+                name = column.getDisplayName();
                 inner = " : type=" + column.type() +
                         " : size=" + column.width() +
                         " : sort=" + column.getSortOrder() +
@@ -786,12 +796,12 @@ public abstract class PlanNodeUtil {
      * @return
      * @throws Exception
      */
-    public static AbstractPlanNode getPlanNodeTreeForStatement(Statement catalog_stmt, boolean singlesited) throws Exception {
+    public static AbstractPlanNode getRootPlanNodeForStatement(Statement catalog_stmt, boolean singlesited) throws Exception {
         if (singlesited && !catalog_stmt.getHas_singlesited()) {
             String msg = "No single-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_multisited()) {
                 LOG.debug(msg + "Going to try to use multi-site plan");
-                return (getPlanNodeTreeForStatement(catalog_stmt, false));
+                return (getRootPlanNodeForStatement(catalog_stmt, false));
             } else {
                 LOG.fatal(msg + "No other plan is available");
                 return (null);
@@ -800,7 +810,7 @@ public abstract class PlanNodeUtil {
             String msg = "No multi-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_singlesited()) {
                 if (LOG.isDebugEnabled()) LOG.warn(msg + "Going to try to use single-site plan");
-                return (getPlanNodeTreeForStatement(catalog_stmt, true));
+                return (getRootPlanNodeForStatement(catalog_stmt, true));
             } else {
                 LOG.fatal(msg + "No other plan is available");
                 return (null);
@@ -902,11 +912,11 @@ public abstract class PlanNodeUtil {
             if (catalog_proc.getSystemproc() || catalog_proc.getHasjava() == false) continue; 
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 if (catalog_stmt.getHas_singlesited()) {
-                    getPlanNodeTreeForStatement(catalog_stmt, true);
+                    getRootPlanNodeForStatement(catalog_stmt, true);
                     getSortedPlanFragments(catalog_stmt, true);
                 }
                 if (catalog_stmt.getHas_multisited()) {
-                    getPlanNodeTreeForStatement(catalog_stmt, false);
+                    getRootPlanNodeForStatement(catalog_stmt, false);
                     getSortedPlanFragments(catalog_stmt, false);
                 }
                 

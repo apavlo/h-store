@@ -300,7 +300,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected HStoreSite hstore_site;
     protected HStoreMessenger hstore_messenger;
     protected HStoreConf hstore_conf;
-    protected ExecutionSitePostProcessor processor = null;
     protected ExecutionSiteHelper helper = null;
     
     protected final transient Set<Integer> done_partitions = new HashSet<Integer>();
@@ -671,7 +670,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.helper = hstore_site.getExecutionSiteHelper();
 //        assert(this.helper != null) : "Missing ExecutionSiteHelper";
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        if (hstore_conf.site.exec_postprocessing_thread) this.processor = hstore_site.getExecutionSitePostProcessor();
         if (hstore_conf.site.exec_profiling) this.work_queue_wait.resetOnEvent(this.hstore_site.getWorkloadObservable());
     }
     
@@ -1052,7 +1050,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, spec_exec)) {
             if (hstore_conf.site.exec_postprocessing_thread) {
                 if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatusName()));
-                this.processor.processClientResponse(this, ts, cresponse);
+                hstore_site.queueClientResponse(this, ts, cresponse);
             } else {
                 if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatusName()));
                 this.processClientResponse(ts, cresponse);
@@ -2311,7 +2309,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             if (hstore_conf.site.exec_postprocessing_thread) {
                 if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatusName()));
-                this.processor.processClientResponse(this, ts, cr);
+                hstore_site.queueClientResponse(this, ts, cr);
             } else {
                 if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatusName()));
                 this.processClientResponse(ts, cr);

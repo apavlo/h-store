@@ -94,7 +94,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
         if (catalog_obj instanceof Statement) {
             Statement catalog_stmt = (Statement)catalog_obj;
             try {
-                AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+                AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
                 for (Integer guid : PlanNodeUtil.getAllPlanColumnGuids(root)) {
                     if (this.plannode_node_xref.containsKey(guid) == false) {
                         this.plannode_node_xref.put(guid, new HashSet<DefaultMutableTreeNode>());
@@ -241,7 +241,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             AbstractPlanNode node = null;
                             
                             try {
-                                node = PlanNodeUtil.getPlanNodeTreeForStatement(statement_cat, is_singlesited);
+                                node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlesited);
                             } catch (Exception e) {
                                 String msg = e.getMessage();
                                 if (msg == null || msg.length() == 0) {

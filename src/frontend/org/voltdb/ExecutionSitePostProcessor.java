@@ -2,19 +2,27 @@ package org.voltdb;
 
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(ExecutionSitePostProcessor.class);
-    private boolean d = LOG.isDebugEnabled();
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private final HStoreSite hstore_site;
+    
+    private final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
     
     /**
      * Whether we should stop processing our queue
@@ -24,8 +32,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     /**
      * ClientResponses that can be immediately returned to the client
      */
-    private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
-    private final AtomicInteger queue_size = new AtomicInteger(0);
+    private final LinkedBlockingDeque<Object[]> queue;
 
     /**
      * Handle to ourselves
@@ -36,36 +43,23 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
      * 
      * @param hstore_site
      */
-    public ExecutionSitePostProcessor(HStoreSite hstore_site) {
+    public ExecutionSitePostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<Object[]> queue) {
         this.hstore_site = hstore_site;
-    }
-    
-    public int getQueueSize() {
-        return (this.queue_size.get());
-    }
-    
-    /**
-     * 
-     * @param es
-     * @param ts
-     * @param cr
-     */
-    public void processClientResponse(ExecutionSite es, LocalTransactionState ts, ClientResponseImpl cr) {
-        if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
-                                       ts, es.getPartitionId(), cr.getStatusName(), this.ready_responses.size()));
-        this.queue_size.incrementAndGet();
-        this.ready_responses.add(new Object[]{es, ts, cr});
+        this.queue = queue;
     }
     
     @Override
     public void run() {
         this.self = Thread.currentThread();
         this.self.setName(this.hstore_site.getThreadName("post"));
+        LOG.info("Starting transaction post-processing thread");
         
         Object triplet[] = null;
         while (this.stop == false) {
             try {
-                triplet = this.ready_responses.takeFirst();
+                idleTime.start();
+                triplet = this.queue.takeFirst();
+                idleTime.stop();
                 assert(triplet != null);
                 assert(triplet.length == 3) : "Unexpected response: " + Arrays.toString(triplet);
             } catch (InterruptedException ex) {
@@ -75,7 +69,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
             ExecutionSite es = (ExecutionSite)triplet[0];
             LocalTransactionState ts = (LocalTransactionState)triplet[1];
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
-            if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
+            if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                            ts, es.getPartitionId(), cr.getStatusName()));
             try {
                 es.processClientResponse(ts, cr);
@@ -83,7 +77,6 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);
                 break;
             }
-            this.queue_size.decrementAndGet();
         } // WHILE
     }
     
@@ -94,11 +87,13 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     
     @Override
     public void prepareShutdown() {
-        this.ready_responses.clear();
+        this.queue.clear();
     }
     
     @Override
     public void shutdown() {
+        if (debug.get())
+            LOG.debug(String.format("Transaction Post-Processing Thread Idle Time: %.2fms", idleTime.getTotalThinkTimeMS()));
         this.stop = true;
         if (this.self != null) this.self.interrupt();
     }

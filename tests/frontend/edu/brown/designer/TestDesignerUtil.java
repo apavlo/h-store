@@ -133,7 +133,7 @@ public class TestDesignerUtil extends BaseTestCase {
         assertNotNull(catalog_proc);
         Statement catalog_stmt = catalog_proc.getStatements().get("GetStockCount");
         
-        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         // System.out.println(PlanNodeUtil.debug(root_node));
         

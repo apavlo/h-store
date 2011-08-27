@@ -48,6 +48,7 @@ import edu.brown.hstore.Hstore.MessageRequest;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
@@ -90,6 +91,8 @@ public class HStoreMessenger implements Shutdownable {
     
     private final Thread listener_thread;
     private final ProtoServer listener;
+    
+    private final Dispatcher forwardDispatcher = new Dispatcher();
     private final Thread forward_thread;
     private final Handler handler;
     private final FragmentCallback fragment_callback;
@@ -139,12 +142,16 @@ public class HStoreMessenger implements Shutdownable {
     }
     
     private class Dispatcher implements Runnable {
+        final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
+        
         @Override
         public void run() {
             Pair<byte[], ForwardTxnResponseCallback> p = null;
             while (HStoreMessenger.this.shutting_down == false) {
                 try {
+                    idleTime.start();
                     p = HStoreMessenger.this.forwardQueue.take();
+                    idleTime.stop();
                 } catch (InterruptedException ex) {
                     break;
                 }
@@ -185,7 +192,7 @@ public class HStoreMessenger implements Shutdownable {
         this.message_callback = new MessageCallback();
         
         // Special thread to handle forward requests
-        this.forward_thread = new Thread(new Dispatcher(), this.hstore_site.getThreadName("frwd"));
+        this.forward_thread = new Thread(forwardDispatcher, this.hstore_site.getThreadName("frwd"));
         this.forward_thread.setDaemon(true);
         
         // Wrap the listener in a daemon thread
@@ -431,6 +438,9 @@ public class HStoreMessenger implements Shutdownable {
                     // Send this now!
                     done.run(response);
                     LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), exit_status));
+                    if (debug.get())
+                        LOG.info(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
+                                               forwardDispatcher.idleTime.getTotalThinkTimeMS()));
                     ThreadUtil.sleep(1000); // HACK
                     LogManager.shutdown();
                     System.exit(exit_status);

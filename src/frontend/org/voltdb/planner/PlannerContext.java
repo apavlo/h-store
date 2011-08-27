@@ -100,7 +100,7 @@ public class PlannerContext {
 
     public PlanColumn clonePlanColumn(PlanColumn orig) {
         PlanColumn clone = this.getPlanColumn(orig.m_expression,
-                                              orig.displayName(),
+                                              orig.getDisplayName(),
                                               orig.getSortOrder(),
                                               orig.getStorage());
         return (clone);

@@ -79,6 +79,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          */
         public final Map<Statement, Set<Column>> STATEMENT_READONLY_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
+         * The set of Columns that are used in the ORDER BY clause of the query
+         * Statement -> Set<Column>
+         */
+        public final Map<Statement, Set<Column>> STATEMENT_ORDERBY_COLUMNS = new HashMap<Statement, Set<Column>>();
+        /**
          * Statement -> Set<Table>
          */
         private final Map<Statement, Set<Table>> STATEMENT_TABLES = new HashMap<Statement, Set<Table>>();
@@ -193,7 +198,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     
     public static void preload(CatalogType catalog_obj) {
         assert(catalog_obj != null);
-        
         Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
         List<PlanFragment> stmt_frags = new ArrayList<PlanFragment>();
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -216,6 +220,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 }
             } // STATEMENT
         } // PROCEDURE 
+    }
+    
+    public static void clearCache(CatalogType catalog_obj) {
+        assert(catalog_obj != null);
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        CACHE.remove(catalog_db);
     }
 
     // ------------------------------------------------------------
@@ -1105,7 +1115,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     public static Collection<Table> getAllTables(Statement catalog_stmt) throws Exception {
         final Database catalog_db = (Database) catalog_stmt.getParent().getParent();
-        AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         return (CatalogUtil.getReferencedTablesForTree(catalog_db, node));
     }
 
@@ -1133,7 +1143,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             AbstractPlanNode node = null;
             Set<Column> columns = null;
             try {
-                node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+                node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
                 columns = CatalogUtil.getReferencedColumnsForTree(catalog_db, node, ret, modified, readOnly);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get columns for " + catalog_stmt.fullName(), ex);
@@ -1179,6 +1189,38 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (ret == null) {
             CatalogUtil.getReferencedColumns(catalog_stmt);
             ret = cache.STATEMENT_READONLY_COLUMNS.get(catalog_stmt);
+        }
+        return (ret);
+    }
+
+    /**
+     * Return all the Columns used in ORDER BY clauses for the given Statement 
+     * @param catalog_stmt
+     * @return
+     */
+    public static Collection<Column> getOrderByColumns(Statement catalog_stmt) {
+        if (debug.get()) LOG.debug("Extracting order-by columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
+        
+        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
+        Set<Column> ret = cache.STATEMENT_ORDERBY_COLUMNS.get(catalog_stmt);
+        if (ret == null) {
+            Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
+            ret = new ListOrderedSet<Column>();
+            try {
+                AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+                assert(root != null);
+                PlannerContext context = PlannerContext.singleton();
+                for (OrderByPlanNode node : PlanNodeUtil.getPlanNodes(root, OrderByPlanNode.class)) {
+                    for (Integer guid : node.getSortColumnGuids()) {
+                        PlanColumn pcol = context.get(guid);
+                        assert(pcol != null);
+                        ret.addAll(ExpressionUtil.getReferencedColumns(catalog_db, pcol.getExpression()));
+                    } // FOR
+                } // FOR
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to retrieve ORDER BY columns for " + catalog_stmt.fullName());
+            }
+            cache.STATEMENT_ORDERBY_COLUMNS.put(catalog_stmt, ret);
         }
         return (ret);
     }
@@ -1332,8 +1374,8 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                         assert(pc != null);
                         if (pc.getExpression() instanceof TupleAddressExpression) continue;
                         
-                        Column catalog_col = catalog_tbl.getColumns().get(pc.displayName());
-                        assert(catalog_col != null) : String.format("Missing %s.%s", catalog_tbl.getName(), pc.displayName());
+                        Column catalog_col = catalog_tbl.getColumns().get(pc.getDisplayName());
+                        assert(catalog_col != null) : String.format("Missing %s.%s", catalog_tbl.getName(), pc.getDisplayName());
                         
                         updateReferenceColumns(catalog_col, false, allCols, modifiedCols, readOnlyCols);
                     } // FOR

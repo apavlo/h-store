@@ -37,7 +37,7 @@ public class TestPlanOptimizer4 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         System.err.println(PlanNodeUtil.debug(root));
 //        validateNodeColumnOffsets(root);
@@ -53,7 +53,7 @@ public class TestPlanOptimizer4 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         System.err.println(PlanNodeUtil.debug(root));
 //        validateNodeColumnOffsets(root);

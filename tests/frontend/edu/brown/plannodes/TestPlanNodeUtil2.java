@@ -109,7 +109,7 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
         
         // Pass the Statement off to get deserialized
         // We will inspect it to make sure that it has at least one scan node and a result
-        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root_node);
         List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
         expected.add(SendPlanNode.class);
@@ -144,7 +144,7 @@ public class TestPlanNodeUtil2 extends BaseTestCase {
         
         // Pass the Statement off to get deserialized
         // We will inspect it to make sure that it has at least one scan node and a result
-        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         List<Class<? extends AbstractPlanNode>> expected = new ArrayList<Class<? extends AbstractPlanNode>>();
         expected.add(SendPlanNode.class);

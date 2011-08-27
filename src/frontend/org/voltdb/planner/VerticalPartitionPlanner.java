@@ -27,6 +27,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
@@ -34,6 +35,9 @@ public class VerticalPartitionPlanner {
     private static final Logger LOG = Logger.getLogger(VerticalPartitionPlanner.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private static final Pattern SELECT_REGEX = Pattern.compile("SELECT[\\s]+(.*?)[\\s]+FROM[\\s]+(.*?)[\\s]+WHERE[\\s]+(.*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern FROM_SPLIT = Pattern.compile(",");
@@ -195,12 +199,13 @@ public class VerticalPartitionPlanner {
         }
 
         // Now check whether the columns referenced doesn't include what the
-        // table is horizontally partitioned
-        // but do include the columns that we have in our vertical partition
-        Collection<Column> predicate_cols = CatalogUtil.getReferencedColumns(catalog_stmt);
-        if (predicate_cols.isEmpty()) {
+        // table is horizontally partitioned but do include the columns that
+        // we have in our vertical partition
+        Collection<Column> stmt_cols = CollectionUtils.union(CatalogUtil.getReferencedColumns(catalog_stmt),
+                                                             CatalogUtil.getOrderByColumns(catalog_stmt));
+        if (stmt_cols.isEmpty()) {
             if (debug.get())
-                LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not reference any columns in its predicate.");
+                LOG.warn("Skipping " + catalog_stmt.fullName() + ": Query does not reference any columns in its predicate or order-by clause.");
             return (false);
         }
         Collection<Column> output_cols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
@@ -227,7 +232,7 @@ public class VerticalPartitionPlanner {
                 m.put("VerticalP", catalog_view.getName());
                 m.put("Partitioning Col", partitioning_col.fullName());
                 m.put("Output Cols", output_cols);
-                m.put("Predicate Cols", predicate_cols);
+                m.put("Statement Cols", stmt_cols);
                 m.put("VerticalP Cols", view_cols);
                 LOG.debug(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
             }
@@ -239,13 +244,13 @@ public class VerticalPartitionPlanner {
                 if (debug.get())
                     LOG.warn("Vertical Partition columns do not contain output columns");
             }
-            else if (predicate_cols.contains(partitioning_col) == true) {
+            else if (stmt_cols.contains(partitioning_col) == true) {
                 if (debug.get())
-                    LOG.warn("Predicate Columns contains horizontal partition column");
+                    LOG.warn("Statement Columns contains horizontal partition column");
             }
-            else if (CollectionUtils.intersection(view_cols, predicate_cols).isEmpty() == true) {
+            else if (view_cols.containsAll(stmt_cols) == false) {
                 if (debug.get())
-                    LOG.warn("Intersection of Vertical Partition Columns and Predicate Columns is null");
+                    LOG.warn("The Vertical Partition Columns does not contain all of the Statement Columns");
             }
             else {
                 if (debug.get())
