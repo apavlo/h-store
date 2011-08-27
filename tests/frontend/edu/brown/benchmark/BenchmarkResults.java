@@ -163,9 +163,15 @@ public class BenchmarkResults {
         
         public EntityResult(long totalTxnCount, long duration, long txnCount) {
             this.txnCount = txnCount;
-            this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
-            this.txnPerMilli = txnCount / (double)duration * 1000.0;
-            this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
+            if (totalTxnCount == 0) {
+                this.txnPercentage = 0;
+                this.txnPerMilli = 0;
+                this.txnPerSecond = 0;
+            } else {
+                this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
+                this.txnPerMilli = txnCount / (double)duration * 1000.0;
+                this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
+            }
         }
         
         public long getTxnCount() {
