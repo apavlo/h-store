@@ -77,8 +77,8 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(TradeResult.class, TPCEConstants.FREQUENCY_TRADE_RESULT);
         addTransactionFrequency(TradeStatus.class, TPCEConstants.FREQUENCY_TRADE_STATUS);
         addTransactionFrequency(TradeUpdate.class, TPCEConstants.FREQUENCY_TRADE_UPDATE);
-        addTransactionFrequency(DataMaintenance.class, -1); // TPCEConstants.FREQUENCY_DATA_MAINTENANCE);
-        addTransactionFrequency(TradeCleanup.class, -1); // TPCEConstants.FREQUENCY_TRADE_CLEANUP);
+        addTransactionFrequency(DataMaintenance.class, 0); // TPCEConstants.FREQUENCY_DATA_MAINTENANCE);
+        addTransactionFrequency(TradeCleanup.class, 0); // TPCEConstants.FREQUENCY_TRADE_CLEANUP);
     }
 	
     public static String PARTITIONING[][] = new String[][] {

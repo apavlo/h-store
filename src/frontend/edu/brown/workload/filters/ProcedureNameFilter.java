@@ -132,8 +132,10 @@ public class ProcedureNameFilter extends Filter {
                     // Reset its counter back to 1 so that the next time we see it it will always get skipped
                     if (count == 0) {
                         result = FilterResult.SKIP;
-                        this.includeCounters.get(name).set(0);
-                        this.includeFinished.add(name);
+                        synchronized (this) {
+                            this.includeCounters.get(name).set(0);
+                            this.includeFinished.add(name);
+                        } // SYNCH
                         if (trace) LOG.debug("Transaction '" + name + "' has exhausted count. Skipping...");
                     } else if (trace) {
                         LOG.debug("Transaction '" + name + "' is allowed [remaining=" + count + "]");

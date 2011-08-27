@@ -64,8 +64,6 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.brown.workload.WorkloadUtil.LoadThread;
-import edu.brown.workload.WorkloadUtil.ReadThread;
 import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.ProcedureNameFilter;
 
@@ -386,18 +384,18 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
         int num_threads = ThreadUtil.getMaxGlobalThreads();
         
         // Create the reader thread first
-        ReadThread rt = new ReadThread(this.input_path, pattern, num_threads);
+        WorkloadUtil.ReadThread rt = new WorkloadUtil.ReadThread(this.input_path, pattern, num_threads);
         all_runnables.add(rt);
         
-        // Then create all of our load threads
+        // Then create all of our processing threads
         for (int i = 0; i < num_threads; i++) {
-            LoadThread lt = new LoadThread(this, this.input_path, rt, catalog_db, filter, counters);
-            rt.load_threads.add(lt);
+            WorkloadUtil.ProcessingThread lt = new WorkloadUtil.ProcessingThread(this, this.input_path, rt, catalog_db, filter, counters);
+            rt.processingThreads.add(lt);
             all_runnables.add(lt);
         } // FOR
         
-        if (debug.get()) LOG.debug(String.format("Loading workload trace using %d LoadThreads", rt.load_threads.size())); 
-        ThreadUtil.runGlobalPool(all_runnables);
+        if (debug.get()) LOG.debug(String.format("Loading workload trace using %d ProcessThreads", rt.processingThreads.size())); 
+        ThreadUtil.runNewPool(all_runnables, all_runnables.size());
         VerifyWorkload.verify(catalog_db, this);
         
         long stop = System.currentTimeMillis();
@@ -620,6 +618,9 @@ public class Workload implements WorkloadTrace, Iterable<TransactionTrace> {
      * @param force_index_update
      */
     protected synchronized void addTransaction(Procedure catalog_proc, TransactionTrace txn_trace, boolean force_index_update) {
+        if (debug.get())
+            LOG.debug(String.format("Adding new %s [numTraces=%d]", txn_trace, this.xact_trace.size()));
+        
         long txn_id = txn_trace.getTransactionId();
         this.xact_trace.put(txn_id, txn_trace);
         this.xact_open_queries.put(txn_id, new HashMap<Integer, AtomicInteger>());

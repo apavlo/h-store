@@ -1595,16 +1595,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (catalog_item.fullName() + "\n" + StringUtil.formatMaps(m));
     }
     
-    public static String debug(CatalogMap<? extends CatalogType> map) {
-        String ret = "";
-        String add = "";
-        for (CatalogType item : map) {
-            ret += add + item;
-            add = ", ";
-        } // FOR
-        return ("[" + ret + "]");
-    }
-
     public static String debug(Collection<? extends CatalogType> items) {
         if (items == null) return (null);
         String ret = "";
