@@ -68,20 +68,25 @@ OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_BENCHMARK = "tpcc"
+
 OPT_BASE_BLOCKING_CONCURRENT = 2000
 OPT_BASE_TXNRATE = 2000
+OPT_BASE_CLIENT_COUNT = 1
 
 BASE_SETTINGS = {
-    "ec2.type":                         "m2.4xlarge",
+    "ec2.type":                         "c1.xlarge",
+    "ec2.client_type":                  "c1.xlarge",
+    "ec2.node_type":                    "m2.4xlarge",
+    "ec2.change_type":                  False,
     
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
     "client.txnrate":                   OPT_BASE_TXNRATE,
-    "client.count":                     2,
+    "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        10,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
-    "client.warmup":                    60000,
+    "client.warmup":                    30000,
     "client.scalefactor":               50,
     
     "site.sites_per_host":              1,
@@ -146,6 +151,7 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
 
         if exp_setting == 0:
             env["benchmark.neworder_multip_mix"] = exp_factor
+            env["benchmark.neworder_multip"] = (exp_factor > 0)
         elif exp_setting == 1:
             if exp_factor == 0:
                 env["benchmark.neworder_skew_warehouse"] = False
@@ -165,11 +171,16 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
     ## The number of concurrent blocked txns should be based on the number of partitions
     delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(32))
     env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
-    LOG.info("client.blocking_concurrent = %d" % env["client.blocking_concurrent"])
+    env["client.blocking"] = (exp_factor > 0)
     
     delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(32))
     env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
-    LOG.info("client.txnrate = %d" % env["client.txnrate"])
+    
+    env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/4.0)) + 1
+    
+    for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
+        key = "client.%s" % key
+        LOG.info("%s = %s" % (key, env[key]))
 ## DEF
 
 ## ==============================================

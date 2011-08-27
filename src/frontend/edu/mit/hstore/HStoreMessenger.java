@@ -148,7 +148,12 @@ public class HStoreMessenger implements Shutdownable {
                 } catch (InterruptedException ex) {
                     break;
                 }
-                HStoreMessenger.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+                try {
+                    HStoreMessenger.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+                } catch (Throwable ex) {
+                    LOG.warn("Failed to invoke forwarded transaction", ex);
+                    continue;
+                }
             } // WHILE
         }
     }

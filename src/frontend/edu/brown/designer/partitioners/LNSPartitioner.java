@@ -158,6 +158,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final Map<Procedure, Histogram<Column>> proc_column_histogram = new HashMap<Procedure, Histogram<Column>>();
     protected final Map<Procedure, Map<ProcParameter, Set<MultiProcParameter>>> proc_multipoc_map = new HashMap<Procedure, Map<ProcParameter,Set<MultiProcParameter>>>();
 
+    private final Set<Table> ignore_tables = new HashSet<Table>();
+    private final Set<Procedure> ignore_procs = new HashSet<Procedure>();
     
     /**
      * @param designer
@@ -210,6 +212,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             if (v == null) {
                 LOG.warn("No columns for " + catalog_tbl + ". Ignoring...");
+                this.ignore_tables.add(catalog_tbl);
                 continue;
             }
             
@@ -228,11 +231,12 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // We also need to know some things about the Procedures and their ProcParameters
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc) || this.ignore_procs.contains(catalog_proc)) continue;
             
             Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
                 if (debug.get()) LOG.warn("No columns for " + catalog_proc + ". Ignoring...");
+                this.ignore_procs.add(catalog_proc);
                 continue;
             }
             this.proc_columns.put(catalog_proc, columns);
@@ -266,6 +270,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (hints.enable_multi_partitioning) {
                 Map<Table, Collection<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
                 for (Entry<Table, Collection<MultiColumn>> e : multicolumns.entrySet()) {
+                    if (this.ignore_tables.contains(e.getKey())) continue;
                     if (trace.get()) LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
                     ListOrderedSet<Column> cols = this.orig_table_attributes.get(e.getKey()); 
                     if (cols == null) {
@@ -573,6 +578,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         assert(this.init_called);
         RandomDistribution.DiscreteRNG rand = new RandomDistribution.Flat(this.rng, 0, this.orig_table_attributes.size());
         int num_tables = this.orig_table_attributes.size();
+        
+        Table t = info.catalog_db.getTables().getIgnoreCase("WATCH_LIST");
+        assert(this.orig_table_attributes.containsKey(t) == false) : CatalogUtil.debug(this.orig_table_attributes.get(t));
         
         // If the last search was exhaustive and its relaxation size was the same as the total number of tables,
         // then we know that we're done! This won't happen too often...

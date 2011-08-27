@@ -228,16 +228,19 @@ def start_cluster():
             elif nfs_inst == None and instances_needed == 1: break
             
             if not inst in env["ec2.running_instances"]:
-                LOG.info("Restarting stopped node '%s'" % inst.tags['Name'])
-                
-                ## Check whether we need to change the instance type before we restart it
                 attr = inst.get_attribute("instanceType")
                 assert attr != None
                 assert "instanceType" in attr
                 currentType = attr["instanceType"]
-                if currentType != env["ec2.type"]:
+                
+                ## Check whether we need to change the instance type before we restart it
+                if env["ec2.change_type"] == True and currentType != env["ec2.type"]:
                     LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, env["ec2.type"], inst.tags['Name']))
                     inst.modify_attribute("instanceType", env["ec2.type"])
+                    currentType = env["ec2.type"]
+                ## IF
+                
+                LOG.info("Restarting stopped node '%s' / %s" % (inst.tags['Name'], currentType))
                 inst.start()
                 waiting.append(inst)
                 instances_needed -= 1
@@ -457,7 +460,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     hostCount, siteCount, partitionCount, clientCount = __getInstanceTypeCounts__()
     if (hostCount + clientCount) > len(env["ec2.running_instances"]):
         raise Exception("Needed %d instances but only %d are currently running [hosts=%d, clients=%d]" % (\
-                        hostCount, (hostCount + clientCount), hostcount, clients))
+                        hostCount, (hostCount + clientCount), hostCount, clients))
 
     hosts = [ ]
     clients = [ ]

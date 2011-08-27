@@ -766,8 +766,16 @@ public class PartitionEstimator {
         } else {
             if (debug.get()) 
                 LOG.debug("Calculating base partition using " + catalog_param.fullName() + ": " + params[catalog_param.getIndex()]);
-            Object value = params[catalog_param.getIndex()];
-            partition = (value != null ? this.calculatePartition(catalog_proc, value, is_array) : 0);
+//            try {
+                partition = this.calculatePartition(catalog_proc, params[catalog_param.getIndex()], is_array);
+//            } catch (NullPointerException ex) {
+//                LOG.error("catalog_proc = " + catalog_proc);
+//                LOG.error("catalog_param = " + CatalogUtil.debug(catalog_param));
+//                LOG.error("params = " + Arrays.toString(params));
+//                LOG.error("is_array = " + is_array);
+//                LOG.error("Busted!", ex);
+//                System.exit(1);
+//            }
         }
         return (partition);
     }
@@ -1188,14 +1196,16 @@ public class PartitionEstimator {
         if (is_array) {
             int num_elements = Array.getLength(partition_param_val);
             if (num_elements == 0) {
-                if (debug.get()) LOG.debug("Empty partitioning parameter array for " + catalog_proc);
-                return (null); // partition_param_val = rand.nextInt(); // Why??
+                if (debug.get()) 
+                    LOG.warn("Empty partitioning parameter array for " + catalog_proc);
+                return (null);
             } else {
                 partition_param_val = Array.get(partition_param_val, 0);
             }
         } else if (partition_param_val == null) {
-            if (debug.get()) LOG.warn("Null ProcParameter value: " + catalog_proc);
-            return (null); // partition_param_val = rand.nextInt();
+            if (debug.get()) 
+                LOG.warn("Null ProcParameter value: " + catalog_proc);
+            return (null);
         }
         return (this.hasher.hash(partition_param_val, catalog_proc));
     }
