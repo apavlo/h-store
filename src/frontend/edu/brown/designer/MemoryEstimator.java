@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
@@ -27,12 +28,17 @@ import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class MemoryEstimator {
     private static final Logger LOG = Logger.getLogger(MemoryEstimator.class);
-    private static final boolean d = LOG.isDebugEnabled();
-//    private static final boolean t = LOG.isTraceEnabled();
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private static final Map<String, Long> CACHE_TABLE_ESTIMATE = new HashMap<String, Long>();
     
@@ -75,10 +81,10 @@ public class MemoryEstimator {
      * @return
      */
     public long estimate(Database catalog_db, int partitions, Collection<Table> include_tables) {
-        Map<String, Long> m = null;
-        if (d) {
+        Map<String, Long> m0 = null;
+        if (debug.get()) {
             LOG.debug(String.format("Estimating total size of tables for %d partitions: %s", partitions, include_tables));
-            m = new HashMap<String, Long>();
+            m0 = new ListOrderedMap<String, Long>();
         }
 
         // Sanity Check: Make sure that we weren't given a table that doesn't exist
@@ -88,7 +94,11 @@ public class MemoryEstimator {
         for (Table catalog_tbl : catalog_db.getTables()) {
             if (!include_tables.contains(catalog_tbl)) continue;
             long table_bytes = this.estimate(catalog_tbl, partitions);
-            if (d) m.put(catalog_tbl.getName(), table_bytes);
+            if (debug.get()) {
+                Column catalog_col = (catalog_tbl.getIsreplicated() ?  ReplicatedColumn.get(catalog_tbl) : catalog_tbl.getPartitioncolumn());
+                assert(catalog_col != null) : catalog_tbl;
+                m0.put(catalog_col.fullName(), table_bytes);
+            }
             bytes += table_bytes;
             for (Index catalog_idx : catalog_tbl.getIndexes()) {
                 bytes += this.estimate(catalog_idx, partitions);
@@ -96,9 +106,10 @@ public class MemoryEstimator {
             remaining_tables.remove(catalog_tbl);
         } // FOR
         assert(remaining_tables.isEmpty()) : "Unknown Tables: " + remaining_tables;
-        if (d) {
-            m.put("Total Database Size", bytes);
-            LOG.debug(String.format("Memory Estimate for %d Partitions:\n%s", partitions, StringUtil.formatMaps(m)));
+        if (debug.get()) {
+            Map<String, Long> m1 = new ListOrderedMap<String, Long>();
+            m1.put("Total Database Size", bytes);
+            LOG.debug(String.format("Memory Estimate for %d Partitions:\n%s", partitions, StringUtil.formatMaps(m0, m1)));
         }
         return (bytes);
     }
@@ -150,7 +161,7 @@ public class MemoryEstimator {
         // tuples for all possible partitions
         TableStatistics table_stats = this.stats.getTableStatistics(catalog_tbl);
         assert(table_stats != null) : "Missing statistics for " + catalog_tbl;
-        if (d && table_stats.tuple_size_total == 0) {
+        if (debug.get() && table_stats.tuple_size_total == 0) {
             LOG.warn(this.stats.debug(CatalogUtil.getDatabase(catalog_tbl)));
         }
         // assert(table_stats.tuple_size_total != 0) : "Size estimate for " + catalog_tbl + " is zero!";
@@ -158,13 +169,13 @@ public class MemoryEstimator {
         Column catalog_col = null;
         if (catalog_tbl.getIsreplicated()) {
             estimate += table_stats.tuple_size_total;
-            if (d) catalog_col = ReplicatedColumn.get(catalog_tbl);
+            if (trace.get()) catalog_col = ReplicatedColumn.get(catalog_tbl);
         } else {
             // FIXME: Assume uniform distribution for now
             estimate += table_stats.tuple_size_total / partitions;
-            if (d) catalog_col = catalog_tbl.getPartitioncolumn();
+            if (trace.get()) catalog_col = catalog_tbl.getPartitioncolumn();
         }
-        if (d) LOG.debug(String.format("%-30s%d [total=%d]", catalog_col.fullName() + ":", estimate, table_stats.tuple_size_total));
+        if (trace.get()) LOG.debug(String.format("%-30s%d [total=%d]", catalog_col.fullName() + ":", estimate, table_stats.tuple_size_total));
         return (estimate);
     }
     
@@ -291,9 +302,7 @@ public class MemoryEstimator {
                     LOG.fatal("Unsupported VoltType: " + type);
             } // SWITCH
         } // FOR
-        //
         // If the table only has numerals, then we can store it in our cache
-        //
         if (numerals_only) CACHE_TABLE_ESTIMATE.put(table_key, bytes);
         
         return (bytes);

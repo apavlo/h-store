@@ -32,6 +32,11 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(UpdateReservation.class, AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
     }
     
+    // Vertical Partitions
+    {
+//        addVerticalPartitionInfo(AirlineConstants.TABLENAME_CUSTOMER, "C_ID", "C_ID_STR");
+    }
+    
     public static final String PARTITIONING[][] = 
         new String[][] {
             {AirlineConstants.TABLENAME_CUSTOMER,      "C_ID"},

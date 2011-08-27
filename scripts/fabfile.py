@@ -459,8 +459,8 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     ## Make sure we have enough instances
     hostCount, siteCount, partitionCount, clientCount = __getInstanceTypeCounts__()
     if (hostCount + clientCount) > len(env["ec2.running_instances"]):
-        raise Exception("Needed %d instances but only %d are currently running [hosts=%d, clients=%d]" % (\
-                        hostCount, (hostCount + clientCount), hostCount, clients))
+        raise Exception("Needed %d host + %d client instances but only %d are currently running" % (\
+                        hostCount, clientCount, len(env["ec2.running_instances"])))
 
     hosts = [ ]
     clients = [ ]
@@ -588,13 +588,12 @@ def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
         space = "" if noSpaces else " "
         
         ## Keys we want to update/insert
-        for key, val in updates.items():
+        for key in sorted(updates.keys()):
+            val = updates[key]
             hstore_line = "%s%s=%s%s" % (key, space, space, val)
             try:
-                if contains(conf_file, key+" ="):
-                    sed(conf_file, "%s[ ]*=[ ]*.*" % re.escape(key), hstore_line)
-                    LOG.debug("Updated '%s' in %s to be '%s'" % (key, conf_file, val))
-                else:
+                sed(conf_file, "%s[ ]*=[ ]*.*" % re.escape(key), hstore_line)
+                if not contains(conf_file, key+" ="):
                     if first: hstore_line = "\n" + hstore_line
                     append(conf_file, hstore_line + "\n")
                     first = False

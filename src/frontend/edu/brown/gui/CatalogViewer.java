@@ -70,6 +70,7 @@ import org.voltdb.catalog.Constraint;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Index;
+import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
@@ -463,47 +464,75 @@ public class CatalogViewer extends AbstractViewer {
 	 * @return
 	 */
 	protected String getSummaryText() {
-	    StringBuilder buffer = new StringBuilder();
-
-	    buffer.append("Catalog Summary\n")
-	          .append(StringUtil.repeat("=", 50)).append("\n")
-	          .append(FileUtil.realpath(this.catalog_path)).append("\n")
-	          .append(StringUtil.repeat("=", 50)).append("\n");
+	    Map<String, Integer> m[] = new Map[3];
+	    int idx = -1;
 	    
+	    // ----------------------
+	    // TABLE INFO
+	    // ----------------------
+	    m[++idx] = new ListOrderedMap<String, Integer>();
         int cols = 0;
         int fkeys = 0;
+        int tables = 0;
+        int systables = 0;
+        int views = 0;
+        Map<Table, MaterializedViewInfo> catalog_views = CatalogUtil.getVerticallyPartitionedTables(catalog);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         Database catalog_db = CatalogUtil.getDatabase(catalog);
         for (Table t : catalog_db.getTables()) {
-            cols += t.getColumns().size();
-            for (Column c : t.getColumns()) {
-                Column fkey = CatalogUtil.getForeignKeyParent(c);
-                if (fkey != null) fkeys++;
+            if (catalog_views.values().contains(t)) {
+                views++;
             }
-        }
-        int params = 0;
-        for (Procedure p : catalog_db.getProcedures()) {
-            params += p.getParameters().size();
-        }
-        
-        final String f = "%-24s%d";
-        Map<String, Integer> m = new ListOrderedMap<String, Integer>();
-        m.put("Tables", catalog_db.getTables().size());
-        m.put("Columns", cols);
-        m.put("FKeys", fkeys);
-        m.put("Params", params);
-        m.put("-", null);
-        m.put("Hosts", catalog_clus.getHosts().size());
-        m.put("Sites", catalog_clus.getSites().size());
-        m.put("Partitions", CatalogUtil.getNumberOfPartitions(catalog_db));
-        
-        for (Entry<String, Integer> e : m.entrySet()) {
-            if (e.getValue() != null) {
-                buffer.append(String.format(f, "Number of " + e.getKey() + ":", e.getValue()));
+            else if (t.getSystable()) {
+                systables++;
+            } else {
+                tables++;
+                cols += t.getColumns().size();
+                for (Column c : t.getColumns()) {
+                    Column fkey = CatalogUtil.getForeignKeyParent(c);
+                    if (fkey != null) fkeys++;
+                }
             }
-            buffer.append("\n");
         } // FOR
-	    
+        m[idx].put("Tables", tables);
+        m[idx].put("Columns", cols);
+        m[idx].put("Foreign Keys", fkeys);
+        m[idx].put("Vertical Replicas", systables);
+        m[idx].put("System Tables", systables);
+        
+        // ----------------------
+        // PROCEDURES INFO
+        // ----------------------
+        m[++idx] = new ListOrderedMap<String, Integer>();
+        int procs = 0;
+        int sysprocs = 0;
+        int params = 0;
+        int stmts = 0;
+        for (Procedure p : catalog_db.getProcedures()) {
+            if (p.getSystemproc()) {
+                sysprocs++;
+            } else {
+                procs++;
+                params += p.getParameters().size();
+                stmts += p.getStatements().size();
+            }
+        }
+        m[idx].put("Procedures", procs);
+        m[idx].put("Procedure Parameters", params);
+        m[idx].put("Statements", stmts);
+        m[idx].put("System Procedures", sysprocs);
+        
+        // ----------------------
+        // HOST INFO
+        // ----------------------
+        m[++idx] = new ListOrderedMap<String, Integer>();
+        m[idx].put("Hosts", catalog_clus.getHosts().size());
+        m[idx].put("Sites", catalog_clus.getSites().size());
+        m[idx].put("Partitions", CatalogUtil.getNumberOfPartitions(catalog_db));
+        
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(StringUtil.header("Catalog Summary", "-", 50) + "\n\n")
+              .append(StringUtil.formatMaps(m));
 	    return (buffer.toString());
 	}
 	

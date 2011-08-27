@@ -12,11 +12,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
@@ -554,6 +556,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         private final List<String> all_search_keys = new ArrayList<String>();
         private final Set<Table> previous_tables[];
         
+        private final Set<Table> current_vertical_partitions = new HashSet<Table>();
+        
         /** Total number of catalog elements that we're going to search against (tables+procedures) */
         private final int num_elements;
         /** Total number of search tables */
@@ -625,10 +629,13 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             // These tables aren't in our attributes but we still need to use them for estimating size
             final Set<Table> remaining_tables = new HashSet<Table>();
             
+            Map<Table, MaterializedViewInfo> vps = CatalogUtil.getVerticallyPartitionedTables(info.catalog_db);
+            
             // Mark all of our tables that we're not going to search against as updated in our ConstraintPropagator
             if (trace.get()) LOG.trace("All Tables: " + CatalogUtil.getDisplayNames(info.catalog_db.getTables()));
-            for (Table catalog_tbl : this.info.catalog_db.getTables()) {
-                if (catalog_tbl.getSystable() == false && this.search_tables.contains(catalog_tbl) == false) {
+            for (Table catalog_tbl : CatalogUtil.getDataTables(this.info.catalog_db)) {
+                assert(catalog_tbl.getSystable() == false );
+                if (this.search_tables.contains(catalog_tbl) == false) {
                     if (trace.get()) LOG.trace("Updating ConstraintPropagator for fixed " + catalog_tbl);
                     try {
                         this.cp.update(catalog_tbl);
@@ -637,19 +644,25 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     }
                     remaining_tables.add(catalog_tbl);
                 }
+                // Include the vertical partition for any table that is not in our search neighborhood
+                else if (hints.enable_vertical_partitioning && vps.containsKey(catalog_tbl)) {
+                    MaterializedViewInfo catalog_view = vps.get(catalog_tbl);
+                    assert(catalog_view != null);
+                    assert(catalog_view.getDest() != null);
+                    remaining_tables.add(catalog_view.getDest());
+                } 
             } // FOR
             if (debug.get()) LOG.debug(String.format("Tables: %d Searchable / %d Fixed", this.search_tables.size(), remaining_tables.size()));
             
             // HACK: If we are searching against all possible tables, then just
             // completely clear out the cost model
-            if ((true || remaining_tables.isEmpty()) && hints.enable_costmodel_caching) {
+            if ((remaining_tables.isEmpty()) && hints.enable_costmodel_caching) {
                 if (debug.get()) LOG.debug("Searching against all tables. Completely resetting cost model.");
                 this.cost_model.clear(true);
             }
 
             // For each level in the search tree, compute the sets of tables that have been bound
             // This is needed for when we calculate the total size of a solution
-            remaining_tables.addAll(CatalogUtil.getSysTables(info.catalog_db));
             for (int i = 0; i < this.num_elements; i++) {
                 this.previous_tables[i] = new HashSet<Table>(remaining_tables);
                 if (i < this.num_tables) remaining_tables.add(this.search_tables.get(i)); 
@@ -845,22 +858,33 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     if (search_col instanceof ReplicatedColumn) {
                         current_tbl.setIsreplicated(true);
                         current_col = ReplicatedColumn.get(current_tbl);
+                    }
                     // VerticalPartitionColumn
-                    } else if (search_col instanceof VerticalPartitionColumn) {
+                    else if (search_col instanceof VerticalPartitionColumn) {
                         // We need to update the statements that can use them using the pre-compiled query plans
                         current_tbl.setIsreplicated(false);
                         current_col = search_col;
                         vp_col = (VerticalPartitionColumn)search_col;
                         vp_col.applyUpdate();
-                        if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
-                        this.cost_model.invalidateCache(vp_col.getStatements());
+                        if (this.cost_model.isCachingEnabled()) {
+                            if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
+                            this.cost_model.invalidateCache(vp_col.getStatements());
+                        }
+                        // Add the vp's sys table to the list of tables that we need to estimate the memory
+                        MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
+                        assert(catalog_view != null) : vp_col;
+                        assert(catalog_view.getDest() != null) : vp_col + " / " + catalog_view;
+                        assert(this.current_vertical_partitions.contains(catalog_view.getDest()) == false) : vp_col;
+                        this.current_vertical_partitions.add(catalog_view.getDest());
+                    }    
                     // MultiColumn
-                    } else if (search_col instanceof MultiColumn) {
+                    else if (search_col instanceof MultiColumn) {
                         // Nothing special?
                         current_tbl.setIsreplicated(false);
                         current_col = search_col;
+                    }
                     // Otherwise partition on this particular column
-                    } else {
+                    else {
                         current_tbl.setIsreplicated(false);
                         current_col = current_tbl.getColumns().get(search_col.getName());
                     }
@@ -872,10 +896,22 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         "Unexpected " + current_col.fullName() + " != " + current_tbl.getPartitioncolumn().fullName();
                     
                     // Estimate memory size
-                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", current_col.fullName(), all_tables));                
-                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), all_tables);
+                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", current_col.fullName(), all_tables));
+                    
+                    Collection<Table> tablesToEstimate = null;
+                    if (hints.enable_vertical_partitioning && this.current_vertical_partitions.isEmpty() == false) {
+                        tablesToEstimate = CollectionUtils.union(all_tables, this.current_vertical_partitions);
+                    } else {
+                        tablesToEstimate = all_tables;
+                    }
+                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), tablesToEstimate);
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
-                    if (trace.get()) LOG.trace(String.format("%s Memory: %d [exceeded=%s]", current_col.fullName(), memory, memory_exceeded));
+                    if (memory_exceeded) {
+                        double ratio = memory / (double)hints.max_memory_per_partition;
+//                        if (trace.get()) 
+                            LOG.info(String.format("%s Memory: %d [ratio=%.2f, exceeded=%s]",
+                                                   current_col.fullName(), memory, ratio, memory_exceeded));
+                    }
                     
                     current_attribute = current_col;
                     
@@ -923,8 +959,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     if (vp_col != null) {
                         // Reset the catalog and optimized queries in the cost model
                         vp_col.revertUpdate();
-                        if (debug.get()) LOG.debug("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
-                        this.cost_model.invalidateCache(vp_col.getStatements());
+                        if (cost_model.isCachingEnabled()) {
+                            if (debug.get()) LOG.debug("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
+                            this.cost_model.invalidateCache(vp_col.getStatements());
+                        }
+                        MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
+                        assert(catalog_view != null) : vp_col;
+                        assert(catalog_view.getDest() != null) : vp_col;
+                        assert(this.current_vertical_partitions.contains(catalog_view.getDest())) : vp_col;
+                        this.current_vertical_partitions.remove(catalog_view.getDest());
                         vp_col = null;
                     }
                     continue;
@@ -1033,8 +1076,17 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 }
                 if (vp_col != null) {
                     vp_col.revertUpdate();
-                    if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
-                    this.cost_model.invalidateCache(vp_col.getStatements());
+                    if (this.cost_model.isCachingEnabled()) {
+                        if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
+                        this.cost_model.invalidateCache(vp_col.getStatements());
+                    }
+                    // Make sure we remove the sys table from the list of tables
+                    // that we need to estimate the memory from
+                    MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
+                    assert(catalog_view != null) : vp_col;
+                    assert(catalog_view.getDest() != null) : vp_col;
+                    assert(this.current_vertical_partitions.contains(catalog_view.getDest())) : vp_col;
+                    this.current_vertical_partitions.remove(catalog_view.getDest());
                     vp_col = null;
                 }
                 if (this.halt_search) break;
@@ -1092,13 +1144,13 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 debug.append("[----] ");
             }
             int spacing = 50 - spacer.length();
-            final String f = "%s %s%-" + spacing + "s %-7s (memory=%d, traverse=%d, backtracks=%d)";
+            final String f = "%s %s%-" + spacing + "s %-7s (memory=%.2f, traverse=%d, backtracks=%d)";
             debug.append(String.format(f,
-                    (memory_exceeded ? "E" : " "),
+                    (memory_exceeded ? "X" : " "),
                     spacer,
                     label,
                     (memory_exceeded ? "XXXXXX" : String.format("%.05f", state.cost)),
-                    state.memory,
+                    (state.memory / (double)hints.max_memory_per_partition),
                     this.traverse_ctr,
                     this.backtrack_ctr
             ));

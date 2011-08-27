@@ -804,6 +804,17 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     /**
+     * Return all of the userland data tables for the database 
+     */
+    public static Collection<Table> getDataTables(Database catalog_db) {
+        Set<Table> tables = new ListOrderedSet<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable() == false) tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+    
+    /**
      * For a given VoltTable object, return the matching Table catalog object
      * based on the column names.
      * @param catalog_db
