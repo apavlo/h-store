@@ -422,7 +422,7 @@ def setup_nfsclient(rebootInst=True):
         reboot(10)
         __waitUntilStatus__(inst, 'running')
     ## IF
-    LOG.info("NFS Client '%s' is online and ready" % inst)
+    LOG.info("NFS Client '%s' is online and ready" % inst.tags["Name"])
     
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     run("cd " + code_dir)

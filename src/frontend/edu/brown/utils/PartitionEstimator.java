@@ -426,7 +426,7 @@ public class PartitionEstimator {
                 if (frag_tables.isEmpty()) {
                     String msg = catalog_frag + " in " + catalog_stmt.fullName() + " does not reference any tables";
                     if (!catalog_frag.getNontransactional()) {
-                        LOG.warn(catalog_stmt.fullName() + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false)));
+                        LOG.warn(catalog_stmt.fullName() + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false)));
                         for (PlanFragment f : fragments) {
                             LOG.warn("singlePartiton=" + singlesited + " - " + f.fullName() + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getPlanNodeTreeForPlanFragment(f)));
                         }
@@ -578,7 +578,7 @@ public class PartitionEstimator {
                     update_cset.clear();
                     tables.clear();
                     tables.add(catalog_tbl);
-                    AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+                    AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
                     DesignerUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, update_cset, root_node, true, tables);
 
                     boolean found = false;

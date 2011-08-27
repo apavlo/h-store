@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -111,18 +112,19 @@ public abstract class VerticalPartitionerUtil {
                 
                 // Skip if this thing is just dumping out all columns
                 if (output_cols.size() == catalog_tbl.getColumns().size()) continue;
-                
-                // The referenced columns are the columns that are used in the predicate
-                Collection<Column> predicate_cols = CatalogUtil.getReferencedColumns(catalog_stmt);
-                if (predicate_cols.contains(hp_col)) continue;
-                
+
                 // We only support single-table queries now
                 Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
                 if (stmt_tables.size() > 1) continue;
                 
+                // The referenced columns are the columns that are used in the predicate and order bys
+                Collection<Column> stmt_cols = CollectionUtils.union(CatalogUtil.getReferencedColumns(catalog_stmt),
+                                                                     CatalogUtil.getOrderByColumns(catalog_stmt));
+                if (stmt_cols.contains(hp_col)) continue;
+                
                 // Vertical Partition Columns
                 Set<Column> all_cols = new TreeSet<Column>();
-                all_cols.addAll(predicate_cols);
+                all_cols.addAll(stmt_cols);
                 if (hp_col instanceof MultiColumn) {
                     all_cols.addAll(((MultiColumn)hp_col).getAttributes());    
                 } else {
@@ -143,7 +145,7 @@ public abstract class VerticalPartitionerUtil {
                 if (trace.get()) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
                     m.put("Output Columns", output_cols);
-                    m.put("Predicate Columns", predicate_cols);
+                    m.put("Predicate Columns", stmt_cols);
                     m.put("Horizontal Partitioning", hp_col.fullName());
                     m.put("Vertical Partitioning", vp_col.fullName());
                     LOG.trace(catalog_stmt.fullName() + "\n" + StringUtil.formatMaps(m));

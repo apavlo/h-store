@@ -8,6 +8,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
@@ -19,6 +23,7 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 
 public class TestVerticalPartitionPlanner extends BaseTestCase {
@@ -27,6 +32,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
     
     static final String REWRITE_SQLS[] = new String[]{
         "SELECT S.S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " AS S WHERE S.SUB_NBR = ?",
+        "SELECT S.S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " AS S WHERE S.SUB_NBR = ? ORDER BY S.MSC_LOCATION",
         "SELECT " + TM1Constants.TABLENAME_SUBSCRIBER + ".S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE " + TM1Constants.TABLENAME_SUBSCRIBER + ".SUB_NBR = ?",
         "SELECT " + TM1Constants.TABLENAME_SUBSCRIBER + "2.S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " AS " + TM1Constants.TABLENAME_SUBSCRIBER + "2  WHERE " + TM1Constants.TABLENAME_SUBSCRIBER + "2.SUB_NBR = ?",
 //        "SELECT " + TM1Constants.TABLENAME_SUBSCRIBER + ".S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " AS S WHERE S.SUB_NBR = ?",
@@ -36,6 +42,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
     static final Map<String, String> SQLS = new HashMap<String, String>();
     static {
         SQLS.put("TestSingleTable", "SELECT S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE SUB_NBR = ?");
+        SQLS.put("TestOrderBy", REWRITE_SQLS[1]);
         SQLS.put("TestInvalid", "SELECT S_ID FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE VLR_LOCATION = ?");
         for (int i = 0; i < REWRITE_SQLS.length; i++) {
             SQLS.put(String.format("TestRewrite%d", i), REWRITE_SQLS[i]);
@@ -45,7 +52,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
     
     private class MockProjectBuilder extends AbstractProjectBuilder {
 
-        public MockProjectBuilder() {
+        public MockProjectBuilder(String...vp_cols) {
             super("tm1-vp", MockProjectBuilder.class, null, null);
             File schema = getDDLPath(ProjectType.TM1);
             assert (schema.exists()) : "Schema: " + schema;
@@ -57,7 +64,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
             } // FOR
             
             // Add Vertical Partition
-            this.addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
+            this.addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, vp_cols);
             
             // Single Query Procedures
             for (Entry<String, String> e : SQLS.entrySet()) {
@@ -72,8 +79,8 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
     
     @Override
     protected void setUp() throws Exception {
-        MockProjectBuilder pb = new MockProjectBuilder();
-        super.setUp(pb);
+        MockProjectBuilder pb = new MockProjectBuilder("S_ID", "SUB_NBR");
+        super.setUp(pb, true);
         this.addPartitions(NUM_PARTITIONS);
         assert(catalog_db.getProcedures().size() > 0);
         vp_planner = new VerticalPartitionPlanner(catalog_db);
@@ -127,7 +134,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         Integer base_partition = new Random().nextInt(NUM_PARTITIONS);
         
         // Double check that this is always a distributed query
-        AbstractPlanNode orig = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode orig = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(orig);
         Set<Integer> orig_partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
         assertNotNull(orig_partitions);
@@ -142,6 +149,52 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
 //        System.err.println("NEW PARTITIONS: " + new_partitions);
         assertEquals(1, new_partitions.size());
         assertEquals(base_partition, CollectionUtil.first(new_partitions));
+    }
+    
+    /**
+     * testOrderByQuery
+     */
+    public void testOrderByQuery() throws Exception {
+        String vp_cols[] = { "S_ID", "SUB_NBR", "MSC_LOCATION" };
+        super.setUp(new MockProjectBuilder(vp_cols), true);
+        
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+        MaterializedViewInfo view = CatalogUtil.getVerticalPartition(catalog_tbl);
+        assertNotNull(view);
+        assertEquals(CatalogUtil.debug(view.getGroupbycols()), vp_cols.length, view.getGroupbycols().size());
+        
+        Procedure catalog_proc = this.getProcedure("TestOrderBy");
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assert(catalog_stmt != null) : catalog_proc.getStatements();
+        Object params[] = new Object[]{ "ABC" };
+        
+        Integer base_partition = new Random().nextInt(NUM_PARTITIONS);
+        
+        // We don't actually care whether this got turned to a single-partition txn
+        // We just care that it got optimized properly with the ORDER BY
+        VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db);
+        boolean ret = vp_planner.optimizeStatement(catalog_stmt);
+        assert(ret);
+        p_estimator.clear();
+        Set<Integer> new_partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
+        assertNotNull(new_partitions);
+//        System.err.println("NEW PARTITIONS: " + new_partitions);
+        assertEquals(1, new_partitions.size());
+        assertEquals(base_partition, CollectionUtil.first(new_partitions));
+        
+        // Make sure the ORDER BY column references the vertical partition table
+        CatalogUtil.clearCache(catalog_db);
+        PlanNodeUtil.clearCache();
+        Collection<Column> orderByCols = CatalogUtil.getOrderByColumns(catalog_stmt);
+        assertNotNull(orderByCols);
+        assertFalse(orderByCols.isEmpty());
+//        System.err.println(PlanNodeUtil.debug(PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false)));
+        for (Column catalog_col : orderByCols) {
+            Table parent = catalog_col.getParent();
+            assertNotNull(parent);
+            assertEquals(view.getDest(), parent);
+        } // FOR
+        
     }
     
     /**

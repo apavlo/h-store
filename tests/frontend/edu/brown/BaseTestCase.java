@@ -133,15 +133,19 @@ public abstract class BaseTestCase extends TestCase {
     }
     
     protected void setUp(AbstractProjectBuilder projectBuilder) throws Exception {
+        this.setUp(projectBuilder, false);
+    }
+    
+    protected void setUp(AbstractProjectBuilder projectBuilder, boolean force) throws Exception {
         super.setUp();
         is_first = (is_first == null ? true : false);
         this.last_type = ProjectType.TEST;
-        catalog = project_catalogs.get(this.last_type);
-        catalog_db = project_databases.get(this.last_type);
-        p_estimator = project_p_estimators.get(this.last_type);
-        
-        
-        if (catalog == null) {
+        if (force == false) {
+            catalog = project_catalogs.get(this.last_type);
+            catalog_db = project_databases.get(this.last_type);
+            p_estimator = project_p_estimators.get(this.last_type);
+        }
+        if (catalog == null || force) {
             String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
@@ -366,7 +370,7 @@ public abstract class BaseTestCase extends TestCase {
 
     protected Procedure getProcedure(Database catalog_db, String proc_name) {
         assertNotNull(catalog_db);
-        Procedure catalog_proc = catalog_db.getProcedures().get(proc_name);
+        Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null) : "Failed to retrieve '" + proc_name + "' Procedure from catalog"; 
         return (catalog_proc);
     }

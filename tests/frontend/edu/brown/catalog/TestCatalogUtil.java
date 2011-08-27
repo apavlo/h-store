@@ -12,6 +12,7 @@ import org.apache.commons.collections15.CollectionUtils;
 import org.voltdb.benchmark.tpcc.procedures.ResetWarehouse;
 import org.voltdb.benchmark.tpcc.procedures.delivery;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.slev;
 import org.voltdb.catalog.*;
 import org.voltdb.plannodes.AbstractPlanNode;
@@ -38,6 +39,25 @@ public class TestCatalogUtil extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
     }
+
+    /**
+     * testGetOrderByColumns
+     */
+    public void testGetOrderByColumns() throws Exception {
+        Procedure catalog_proc = this.getProcedure(ostatByCustomerId.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "getLastOrder");
+        Table catalog_tbl = this.getTable("ORDERS");
+        Column expected[] = {
+            this.getColumn(catalog_tbl, "O_ID")
+        };
+        
+        Collection<Column> cols = CatalogUtil.getOrderByColumns(catalog_stmt);
+        assertNotNull(cols);
+        assertEquals(cols.toString(), expected.length, cols.size());
+        for (Column col : expected) {
+            assert(cols.contains(col)) : "Unexpected " + col;
+        } // FOR
+    }
     
     /**
      * testCopyQueryPlans
@@ -45,7 +65,6 @@ public class TestCatalogUtil extends BaseTestCase {
     public void testCopyQueryPlans() throws Exception {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getWarehouseTaxRate");
-        assertNotNull(catalog_stmt);
         
         Map<String, Object> orig_values = new HashMap<String, Object>();
         for (String f : catalog_stmt.getFields()) {

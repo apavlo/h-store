@@ -42,6 +42,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -283,7 +284,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * ClientResponse Processor Thread
      */
-    private final ExecutionSitePostProcessor processor;
+    private final List<ExecutionSitePostProcessor> processors = new ArrayList<ExecutionSitePostProcessor>();
+    private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
     
     private final HStoreConf hstore_conf;
     
@@ -358,13 +360,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.executors[partition] = executors.get(partition);
             this.txnid_managers[partition] = new TransactionIdManager(partition);
             this.local_partitions.add(partition);
+            
+            if (hstore_conf.site.exec_postprocessing_thread) {
+                this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
+            }
         } // FOR
         this.num_local_partitions = this.local_partitions.size();
         this.voltListeners = new VoltProcedureListener[this.num_local_partitions];
         this.procEventLoops = new NIOEventLoop[this.num_local_partitions];
         
         this.messenger = new HStoreMessenger(this);
-        this.processor = new ExecutionSitePostProcessor(this);
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // Static Object Pools
@@ -422,11 +427,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(es != null) : "Unexpected null ExecutionSite for partition #" + partition + " on " + this.getSiteName();
         return (es);
     }
-    
-    public ExecutionSitePostProcessor getExecutionSitePostProcessor() {
-        return (this.processor);
-    }
-    
+
     public ExecutionSiteHelper getExecutionSiteHelper() {
         return (this.helper);
     }
@@ -487,6 +488,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     protected int getInflightTxnCount() {
         return (this.inflight_txns.size());
+    }
+    
+    protected int getQueuedResponseCount() {
+        return (this.ready_responses.size());
     }
     
     /**
@@ -563,7 +568,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Start the ExecutionSitePostProcessor
         if (hstore_conf.site.exec_postprocessing_thread) {
-            new Thread(this.processor).start();
+            for (ExecutionSitePostProcessor espp : this.processors) {
+                Thread t = new Thread(espp);
+                t.setDaemon(true);
+                t.start();    
+            } // FOR
         }
         
         // Schedule the ExecutionSiteHelper
@@ -672,7 +681,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public boolean checkDisableThrottling(long txn_id) {
         if (this.incoming_throttle || this.redirect_throttle) {
-            int queue_size = this.inflight_txns.size() - this.processor.getQueueSize() - 1; 
+            int queue_size = this.inflight_txns.size() - this.ready_responses.size(); 
             if (queue_size < hstore_conf.site.txn_incoming_queue_release) {
                 this.incoming_throttle = false;
                 if (d) LOG.debug(String.format("Disabling INCOMING throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
@@ -720,7 +729,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public void prepareShutdown() {
         this.shutdown_state = State.PREPARE_SHUTDOWN;
         this.messenger.prepareShutdown();
-        this.processor.prepareShutdown();
+        for (ExecutionSitePostProcessor espp : this.processors) {
+            espp.prepareShutdown();
+        } // FOR
         for (int p : this.local_partitions) {
             this.executors[p].prepareShutdown();
         } // FOR
@@ -744,7 +755,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Tell our local boys to go down too
-        if (this.processor != null) this.processor.shutdown();
+        for (ExecutionSitePostProcessor p : this.processors) {
+            p.shutdown();
+        }
         for (int p : this.local_partitions) {
             if (t) LOG.trace("Telling the ExecutionSite for partition " + p + " to shutdown");
             this.executors[p].shutdown();
@@ -1215,7 +1228,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
-        int queue_size = this.inflight_txns.size() - this.processor.getQueueSize();
+        int queue_size = this.inflight_txns.size() - this.ready_responses.size();
         if (this.incoming_throttle == false && queue_size > hstore_conf.site.txn_incoming_queue_max) {
             if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
                                            ts, queue_size, hstore_conf.site.txn_incoming_queue_release));
@@ -1513,6 +1526,20 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     // TRANSACTION FINISH/CLEANUP METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * 
+     * @param es
+     * @param ts
+     * @param cr
+     */
+    public void queueClientResponse(ExecutionSite es, LocalTransactionState ts, ClientResponseImpl cr) {
+        assert(hstore_conf.site.exec_postprocessing_thread);
+        if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
+                                       ts, es.getPartitionId(), cr.getStatusName(), this.ready_responses.size()));
+//        this.queue_size.incrementAndGet();
+        this.ready_responses.add(new Object[]{es, ts, cr});
+    }
+    
     /**
      * Request that the Dtxn.Coordinator finish our transaction
      * @param ts

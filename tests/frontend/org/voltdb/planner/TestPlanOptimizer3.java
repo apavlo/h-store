@@ -69,7 +69,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
 
         // Grab the root node of the multi-partition query plan tree for this Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
         //System.err.println(PlanNodeUtil.debug(root));
@@ -85,7 +85,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
         //System.err.println(PlanNodeUtil.debug(root));
@@ -101,7 +101,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -117,7 +117,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -133,7 +133,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -149,7 +149,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
 //        System.err.println(PlanNodeUtil.debug(root));
@@ -165,7 +165,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         //validateNodeColumnOffsets(root);
         assertNotNull(root);
 
@@ -199,7 +199,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         //validateNodeColumnOffsets(root);
         assertNotNull(root);
 
@@ -233,7 +233,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
 
         // System.err.println(PlanNodeUtil.debug(root));
         //validateNodeColumnOffsets(root);
@@ -250,7 +250,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         // //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
@@ -290,7 +290,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
 
@@ -405,7 +405,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         //validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
@@ -421,7 +421,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         //System.err.println(PlanNodeUtil.debug(root));
 //        validateNodeColumnOffsets(root);
@@ -437,7 +437,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
 
         // Grab the root node of the multi-partition query plan tree for this
         // Statement
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));

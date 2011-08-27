@@ -53,7 +53,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
     public void testClone() throws Exception {
         Procedure catalog_proc = this.getProcedure(GetNewDestination.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetData");
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         
         AbstractPlanNode clone = (AbstractPlanNode)root.clone();
@@ -108,7 +108,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(UpdateLocation.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "update");
 
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         Collection<ExpressionType> result = PlanNodeUtil.getScanExpressionTypes(catalog_db, root);
         assertNotNull(result);
@@ -130,7 +130,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "S_ID")
         };
         
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root);
         
         Collection<Column> columns = PlanNodeUtil.getOutputColumnsForPlanNode(catalog_db, root.getChild(0));
@@ -156,7 +156,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
             this.getColumn(catalog_tbl, "VLR_LOCATION")
         };
         
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         IndexScanPlanNode idx_node = CollectionUtil.first(PlanNodeUtil.getPlanNodes(root, IndexScanPlanNode.class));
         assertNotNull(idx_node);
@@ -190,7 +190,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
      * testGetTableReferences
      */
     public void testGetTableReferences() throws Exception {
-        AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, true);
+        AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         
         Collection<AbstractPlanNode> found = PlanNodeUtil.getPlanNodesReferencingTable(root_node, catalog_tbl);

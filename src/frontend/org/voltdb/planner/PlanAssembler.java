@@ -640,7 +640,7 @@ public class PlanAssembler {
             index++;
 
             // check if this column is an indexed column
-            if (affectedColumns.contains(colInfo.displayName()))
+            if (affectedColumns.contains(colInfo.getDisplayName()))
                 updateNode.setUpdateIndexes(true);
         }
 
@@ -850,7 +850,7 @@ public class PlanAssembler {
 
         // aggregate column name same as original dmlRoot name.
         int colGuid = dmlRoot.getOutputColumnGUIDs().get(0); // offset 0.
-        countColumnNames.add(m_context.get(colGuid).displayName());
+        countColumnNames.add(m_context.get(colGuid).getDisplayName());
         countColumnGuids.add(colGuid);
         countOutputColumns.add(0);
         countColumnTypes.add(ExpressionType.AGGREGATE_COUNT_STAR);
@@ -865,8 +865,8 @@ public class PlanAssembler {
         tve.setValueType(VoltType.BIGINT);
         tve.setValueSize(VoltType.BIGINT.getLengthInBytesForFixedTypes());
         tve.setColumnIndex(0);
-        tve.setColumnName(m_context.get(colGuid).displayName());
-        tve.setColumnAlias(m_context.get(colGuid).displayName());
+        tve.setColumnName(m_context.get(colGuid).getDisplayName());
+        tve.setColumnAlias(m_context.get(colGuid).getDisplayName());
         tve.setTableName("");
         PlanColumn countColInfo = m_context.getPlanColumn(tve, "modified_tuples");
         countNode.appendOutputColumn(countColInfo);
@@ -892,7 +892,7 @@ public class PlanAssembler {
 
         // aggregate column name same as original dmlRoot name.
         int colGuid = dmlRoot.getOutputColumnGUIDs().get(0); // offset 0.
-        countColumnNames.add(m_context.get(colGuid).displayName());
+        countColumnNames.add(m_context.get(colGuid).getDisplayName());
         countColumnGuids.add(colGuid);
         countOutputColumns.add(0);
         countColumnTypes.add(ExpressionType.AGGREGATE_SUM);
@@ -907,8 +907,8 @@ public class PlanAssembler {
         tve.setValueType(VoltType.BIGINT);
         tve.setValueSize(VoltType.BIGINT.getLengthInBytesForFixedTypes());
         tve.setColumnIndex(0);
-        tve.setColumnName(m_context.get(colGuid).displayName());
-        tve.setColumnAlias(m_context.get(colGuid).displayName());
+        tve.setColumnName(m_context.get(colGuid).getDisplayName());
+        tve.setColumnAlias(m_context.get(colGuid).getDisplayName());
         tve.setTableName("");
         PlanColumn colInfo = m_context.getPlanColumn(tve, "modified_tuples");
         countNode.appendOutputColumn(colInfo);
@@ -1007,7 +1007,7 @@ public class PlanAssembler {
                     /* System.out.printf("Expression: %s/%s. Candidate column: %s/%s\n",
                             tve.getColumnAlias(), tve.getTableName(),
                             plancol.originColumnName(), plancol.originTableName()); */
-                    if (outputCol.alias.equals(plancol.displayName()))
+                    if (outputCol.alias.equals(plancol.getDisplayName()))
                     {
                         found = true;
                         expression = (AbstractExpression) plancol.m_expression.clone();
@@ -1175,7 +1175,7 @@ public class PlanAssembler {
                     }
 
                     aggNode.getAggregateColumnGuids().add(aggregateColumn.guid());
-                    aggNode.getAggregateColumnNames().add(aggregateColumn.displayName());
+                    aggNode.getAggregateColumnNames().add(aggregateColumn.getDisplayName());
                     aggNode.getAggregateTypes().add(agg_expression_type);
 
                     // A bit of a hack: ProjectionNodes using PlanColumns after the

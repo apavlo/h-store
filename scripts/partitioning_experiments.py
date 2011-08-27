@@ -74,10 +74,10 @@ OPT_BASE_TXNRATE = 2000
 OPT_BASE_CLIENT_COUNT = 1
 
 BASE_SETTINGS = {
-    "ec2.type":                         "c1.xlarge",
+    "ec2.type":                         "m2.4xlarge", # "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
     "ec2.node_type":                    "m2.4xlarge",
-    "ec2.change_type":                  False,
+    "ec2.change_type":                  True,
     
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -96,10 +96,11 @@ BASE_SETTINGS = {
     "site.status_show_txn_info":        True,
     "site.status_kill_if_hung":         False,
     "site.status_interval":             None,
-    "site.txn_incoming_queue_max_per_partition": 3000,
+    "site.txn_incoming_queue_max_per_partition": 5000,
     "site.txn_incoming_queue_release_factor": 0.75,
-    "site.txn_redirect_queue_max_per_partition": 3000,
+    "site.txn_redirect_queue_max_per_partition": 5000,
     "site.txn_redirect_queue_release_factor": 0.75,
+    "site.exec_postprocessing_thread":  False,
     
     "benchmark.neworder_only":          True,
     "benchmark.neworder_abort":         False,
@@ -169,18 +170,20 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
     ## IF
     
     ## The number of concurrent blocked txns should be based on the number of partitions
-    delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(32))
-    env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
-    env["client.blocking"] = (exp_factor > 0)
-    
-    delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(32))
-    env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
-    
-    env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/4.0)) + 1
-    
-    for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
-        key = "client.%s" % key
-        LOG.info("%s = %s" % (key, env[key]))
+    if exp_factor == 0:
+        delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(32))
+        env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
+        env["client.blocking"] = (exp_factor > 0)
+        
+        delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(32))
+        env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
+        
+        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/4.0)) - 1
+        
+        for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
+            key = "client.%s" % key
+            LOG.info("%s = %s" % (key, env[key]))
+    ## IF
 ## DEF
 
 ## ==============================================
@@ -319,13 +322,14 @@ if __name__ == '__main__':
                                                                    json=True, \
                                                                    trace=OPT_TRACE, \
                                                                    update=updateSVN)
-                        results.append(parseResultsOutput(output))
-                        
+                        data = parseResultsOutput(output)
+                        results.append(float(data["TXNPERSECOND"]))
                         if OPT_TRACE and workloads != None:
                             for f in workloads:
                                 LOG.info("Workload File: %s" % f)
                             ## FOR
-                        
+                        ## IF
+                        LOG.info("Throughput: %.2f" % results[-1])
                     ## WITH
                 except KeyboardInterrupt:
                     stop = True
@@ -352,8 +356,7 @@ if __name__ == '__main__':
             for exp_factor, results, attempts in all_results:
                 print "   EXP FACTOR %d [Attempts:%d/%d]" % (exp_factor, attempts, totalAttempts)
                 for trial in range(len(results)):
-                    data = results[trial]
-                    print "      TRIAL #%d: %.4f" % (trial, float(data["TXNPERSECOND"]))
+                    print "      TRIAL #%d: %.4f" % (trial, results[trial])
                 ## FOR
             ## FOR
             print

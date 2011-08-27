@@ -210,7 +210,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
-        int processing_cur = hstore_site.getExecutionSitePostProcessor().getQueueSize();
+        int processing_cur = hstore_site.getQueuedResponseCount();
         if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
         if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
         

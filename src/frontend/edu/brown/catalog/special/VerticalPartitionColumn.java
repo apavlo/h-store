@@ -53,6 +53,7 @@ public class VerticalPartitionColumn extends MultiColumn {
     }
     
     public static VerticalPartitionColumn get(Column hp_cols, MultiColumn vp_cols) {
+        assert(vp_cols.size() > 0) : "Empty vertical partitioning columns";
         return InnerMultiAttributeCatalogType.get(VerticalPartitionColumn.class, hp_cols, (Column)vp_cols);
     }
 
@@ -146,8 +147,10 @@ public class VerticalPartitionColumn extends MultiColumn {
         Table catalog_tbl = this.getParent();
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
         if (catalog_view == null) {
+            Collection<Column> cols = this.getVerticalPartitionColumns();
+            assert(cols.size() > 0) : "No Vertical Partition columns for " + this;
             try {
-                catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, this.getVerticalPartitionColumns(), true);
+                catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, cols, true);
                 assert(catalog_view != null);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to create vertical partition for " + this, ex);

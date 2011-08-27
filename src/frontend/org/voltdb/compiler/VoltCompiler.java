@@ -43,6 +43,7 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
@@ -93,6 +94,7 @@ import org.xml.sax.SAXParseException;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.HStoreDtxnConf;
 import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -826,6 +828,7 @@ public class VoltCompiler {
     }
     
     public static MaterializedViewInfo addVerticalPartition(final Table catalog_tbl, final Collection<Column> catalog_cols, final boolean createIndex) throws Exception {
+        assert(catalog_cols.isEmpty() == false);
         String tableName = catalog_tbl.getName();
         String viewName = getVerticalPartitionName(tableName);
         compilerLog.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
@@ -845,7 +848,11 @@ public class VoltCompiler {
         catalog_view.setVerticalpartition(true);
         catalog_view.setDest(virtual_tbl);
         List<Column> indexColumns = new ArrayList<Column>();
+
         Column partition_col = catalog_tbl.getPartitioncolumn();
+        if (partition_col instanceof VerticalPartitionColumn) {
+            partition_col = ((VerticalPartitionColumn)partition_col).getHorizontalColumn();
+        }
         compilerLog.debug(catalog_tbl.getName() + " Partition Column: " + partition_col);
         
         int i = 0;
@@ -872,8 +879,9 @@ public class VoltCompiler {
             if (createIndex) {
                 boolean include = true;
                 if (partition_col instanceof MultiColumn) {
-                    include = ((MultiColumn)partition_col).contains(catalog_col);
-                } else if (catalog_col.equals(partition_col)) {
+                    include = (((MultiColumn)partition_col).contains(catalog_col) == false);
+                }
+                else if (catalog_col.equals(partition_col)) {
                     include = false;
                 }
                 if (include) indexColumns.add(virtual_col);
@@ -882,7 +890,12 @@ public class VoltCompiler {
         
         if (createIndex) {
             if (indexColumns.isEmpty()) {
-                throw new Exception("No columns selected for index on " + viewName);
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Partition Column", partition_col);
+                m.put("VP Table Columns", virtual_tbl.getColumns());
+                m.put("Passed-in Columns", CatalogUtil.debug(catalog_cols));
+                compilerLog.error("Failed to find index columns\n" + StringUtil.formatMaps(m));
+                throw new Exception(String.format("No columns selected for index on %s", viewName));
             }
             String idxName = "SYS_IDX_" + viewName;
             Index virtual_idx = virtual_tbl.getIndexes().get(idxName);

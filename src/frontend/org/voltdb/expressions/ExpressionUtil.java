@@ -383,7 +383,7 @@ public abstract class ExpressionUtil {
             for (Integer colGuid : outputColumns) {
                 PlanColumn info = context.get(colGuid);
                 if (info.originTableName().equals(exprTableName)) {
-                    if (info.displayName().equals(columnName)) {
+                    if (info.getDisplayName().equals(columnName)) {
                         expr.setColumnIndex(ii);
                         return;
                     }
@@ -419,7 +419,7 @@ public abstract class ExpressionUtil {
             for (Integer colGuid : outputColumns) {
                 PlanColumn info = context.get(colGuid);
                 if (info.originTableName().equals(tableName)) {
-                    if (info.displayName().equals(columnName)) {
+                    if (info.getDisplayName().equals(columnName)) {
                         expr.setColumnIndex(ii);
                         return;
                     }

@@ -113,7 +113,7 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
             PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
             // TupleValueExpression tv_expr =
             // (TupleValueExpression)plan_col.getExpression();
-            intermediate_offset_tbl.put(plan_col.displayName(), offset_cnt);
+            intermediate_offset_tbl.put(plan_col.getDisplayName(), offset_cnt);
             offset_cnt++;
         }
     }
@@ -126,7 +126,7 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
             PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
             // TupleValueExpression tv_expr =
             // (TupleValueExpression)plan_col.getExpression();
-            intermediate_GUID_tbl.put(plan_col.displayName(), plan_col.guid());
+            intermediate_GUID_tbl.put(plan_col.getDisplayName(), plan_col.guid());
         }
     }
 
@@ -207,7 +207,7 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
             // XXX boolean found = false;
             for (String int_name : intermediate_GUID_tbl.keySet()) {
                 Integer new_guid = intermediate_GUID_tbl.get(int_name); 
-                if (orig_pc.displayName().equals(int_name)) {
+                if (orig_pc.getDisplayName().equals(int_name)) {
                     assertEquals(plan_node + " Column name: " + int_name + " guid id: " + orig_guid + " doesn't match guid from child: ",
                                  orig_guid, new_guid);
                 }
@@ -274,7 +274,7 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
                         }
                         for (Integer col_guid : scan_node.getOutputColumnGUIDs()) {
                             PlanColumn plan_col = PlannerContext.singleton().get(col_guid);
-                            intermediate_GUID_tbl.put(plan_col.displayName(), plan_col.guid());
+                            intermediate_GUID_tbl.put(plan_col.getDisplayName(), plan_col.guid());
                         }
                         // check that expression column offsets + output column
                         // offsets match + GUIDs match with the original target
@@ -308,9 +308,9 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
                         for (int order_node_guid : ((OrderByPlanNode) element).getSortColumnGuids()) {
                             PlanColumn order_node_pc = PlannerContext.singleton().get(order_node_guid);
                             int int_order_node_guid = -1;
-                            int_order_node_guid = intermediate_GUID_tbl.get(order_node_pc.displayName());
-                            assert (int_order_node_guid != -1) : order_node_pc.displayName() + " doesn't exist in intermediate table";
-                            assert (order_node_guid == int_order_node_guid) : order_node_pc.displayName() + " sort column guid: " + order_node_guid + " doesn't match: " + int_order_node_guid;
+                            int_order_node_guid = intermediate_GUID_tbl.get(order_node_pc.getDisplayName());
+                            assert (int_order_node_guid != -1) : order_node_pc.getDisplayName() + " doesn't exist in intermediate table";
+                            assert (order_node_guid == int_order_node_guid) : order_node_pc.getDisplayName() + " sort column guid: " + order_node_guid + " doesn't match: " + int_order_node_guid;
                         }
                         // only want to check the expression here because the
                         // output will be different for aggregates

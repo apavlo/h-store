@@ -40,7 +40,7 @@ public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "getCustomer");
         
         // Grab the root node of the multi-partition query plan tree for this Statement 
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         
         // First check that our single scan node has an inline Projection
@@ -71,7 +71,7 @@ public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
             col_offset_xref.put(colName, catalog_col.getIndex());
         }
 
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         
         // Make sure the bottom-most IndexScan has an inline projection with the right columns
@@ -100,7 +100,7 @@ public class TestPlanOptimizer2 extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "GetStockCount");
 
         // Grab the root node of the multi-partition query plan tree for this Statement 
-        AbstractPlanNode root = PlanNodeUtil.getPlanNodeTreeForStatement(catalog_stmt, false);
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
         assertNotNull(root);
         
         // Check that our single scan node has a COUNT AggregatePlanNode above it.

@@ -210,7 +210,13 @@ public abstract class WorkloadUtil {
                         if (xact == null) {
                             throw new Exception("Failed to deserialize transaction trace on line " + xact_ctr);
                         } else if (filter != null) {
-                            FilterResult result = filter.apply(xact);
+                            FilterResult result = null;
+                            
+                            // It's ok to do this because the real CPU bottleneck is 
+                            // the JSON deserialization
+                            synchronized (filter) {
+                                result = filter.apply(xact);
+                            } // SYNCH
                             if (trace.get()) LOG.trace(xact + " Filter Result: " + result);
                             
                             if (result == FilterResult.HALT) {
