@@ -35,6 +35,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -803,8 +805,37 @@ public class VoltCompiler {
      * @param tableName
      * @return
      */
-    public static String getVerticalPartitionName(String tableName) {
-        return ("SYS_VP_" + tableName);
+    private static String getNextVerticalPartitionName(Table catalog_tbl, Collection<Column> catalog_cols) {
+        Database catalog_db = ((Database)catalog_tbl.getParent());
+        
+        Collection<String> colNames = new HashSet<String>();
+        for (Column catalog_col : catalog_cols) {
+            colNames.add(catalog_col.getName());
+        }
+        
+        // Figure out how many vertical partition tables already exist for this table
+        int next = 0;
+        String prefix = "SYS_VP_" + catalog_tbl.getName() + "_";
+        Pattern p = Pattern.compile(Pattern.quote(prefix) + "[\\d]+");
+        for (Table otherTable : CatalogUtil.getSysTables(catalog_db)) {
+            Matcher m = p.matcher(otherTable.getName());
+            if (m.matches() == false) continue;
+            
+            // Check to make sure it's not the same vertical partition
+            Collection<Column> otherColumns = otherTable.getColumns();
+            if (otherColumns.size() != colNames.size()) continue;
+            boolean fail = false;
+            for (Column otherCol : otherColumns) {
+                if (colNames.contains(otherCol.getName()) == false) {
+                    fail = true;
+                    break;
+                }
+            }
+            if (fail) continue;
+            
+            next++;
+        } // FOR
+        return (String.format("%s%02d", prefix, next));
     }
 
     public static MaterializedViewInfo addVerticalPartition(final Database catalog_db, final String tableName, final List<String> columnNames, final boolean createIndex) throws Exception {
@@ -829,14 +860,15 @@ public class VoltCompiler {
     
     public static MaterializedViewInfo addVerticalPartition(final Table catalog_tbl, final Collection<Column> catalog_cols, final boolean createIndex) throws Exception {
         assert(catalog_cols.isEmpty() == false);
-        String tableName = catalog_tbl.getName();
-        String viewName = getVerticalPartitionName(tableName);
+        Database catalog_db = ((Database)catalog_tbl.getParent()); 
+        
+        String viewName = getNextVerticalPartitionName(catalog_tbl, catalog_cols);
         compilerLog.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
         
         // Create a new virtual table
-        Table virtual_tbl = ((Database)catalog_tbl.getParent()).getTables().get(viewName);
+        Table virtual_tbl = catalog_db.getTables().get(viewName);
         if (virtual_tbl == null) {
-            virtual_tbl = ((Database)catalog_tbl.getParent()).getTables().add(viewName);
+            virtual_tbl = catalog_db.getTables().add(viewName);
         }
         virtual_tbl.setIsreplicated(true);
         virtual_tbl.setMaterializer(catalog_tbl);

@@ -71,7 +71,7 @@ OPT_BENCHMARK = "tpcc"
 
 OPT_BASE_BLOCKING_CONCURRENT = 2000
 OPT_BASE_TXNRATE = 2000
-OPT_BASE_CLIENT_COUNT = 2
+OPT_BASE_CLIENT_COUNT = 4
 
 BASE_SETTINGS = {
     "ec2.type":                         "c1.xlarge",
@@ -172,14 +172,14 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
     
     ## The number of concurrent blocked txns should be based on the number of partitions
     if exp_factor == 0:
-        delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(32))
+        delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(64))
         env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
         env["client.blocking"] = (exp_factor > 0)
         
-        delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(32))
+        delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(64))
         env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
         
-        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/4.0)) - 2
+        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/32.0)) - 2
         
         for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
             key = "client.%s" % key

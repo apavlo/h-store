@@ -211,7 +211,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 // IGNORE
             }
             if (v == null) {
-                LOG.warn("No columns for " + catalog_tbl + ". Ignoring...");
+                LOG.warn(String.format("Ignoring %s - No references in workload AccessGraph", catalog_tbl));
                 this.ignore_tables.add(catalog_tbl);
                 continue;
             }
@@ -230,12 +230,24 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         } // FOR
         
         // We also need to know some things about the Procedures and their ProcParameters
+        Histogram<String> workloadHistogram = info.workload.getProcedureHistogram();
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc) || this.ignore_procs.contains(catalog_proc)) continue;
+            // Skip if we're explicitly force to ignore this guy
+            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
+                LOG.warn(String.format("Ignoring %s - Set to be ignored by the DesignerHints.", catalog_proc));
+                this.ignore_procs.add(catalog_proc);
+                continue;
+            }
+            // Or if there are not transactions in the sample workload
+            else if (workloadHistogram.get(CatalogKey.createKey(catalog_proc), 0l) == 0) {
+                LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
+                this.ignore_procs.add(catalog_proc);
+                continue;
+            }
             
             Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
-                if (debug.get()) LOG.warn("No columns for " + catalog_proc + ". Ignoring...");
+                LOG.warn(String.format("Ignoring %s - Does not reference any columns in its queries.", catalog_proc));
                 this.ignore_procs.add(catalog_proc);
                 continue;
             }
@@ -578,9 +590,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         assert(this.init_called);
         RandomDistribution.DiscreteRNG rand = new RandomDistribution.Flat(this.rng, 0, this.orig_table_attributes.size());
         int num_tables = this.orig_table_attributes.size();
-        
-        Table t = info.catalog_db.getTables().getIgnoreCase("WATCH_LIST");
-        assert(this.orig_table_attributes.containsKey(t) == false) : CatalogUtil.debug(this.orig_table_attributes.get(t));
         
         // If the last search was exhaustive and its relaxation size was the same as the total number of tables,
         // then we know that we're done! This won't happen too often...

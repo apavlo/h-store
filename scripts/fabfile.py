@@ -403,15 +403,17 @@ def setup_nfsclient(rebootInst=True):
     ## Update the /etc/hosts files to make it easier for us to point
     ## to different NFS head nodes
     hosts_line = "%s hstore-nfs" % env["ec2.running_instances"][0].private_ip_address
-    if contains("/etc/hosts", "hstore-nfs"):
-        sed("/etc/hosts", ".* hstore-nfs", hosts_line, use_sudo=True)
-    else:
-        append("/etc/hosts", hosts_line, use_sudo=True)
+    if not contains("/etc/hosts", hosts_line):
+        if contains("/etc/hosts", "hstore-nfs"):
+            sed("/etc/hosts", ".* hstore-nfs", hosts_line, use_sudo=True)
+        else:
+            append("/etc/hosts", hosts_line, use_sudo=True)
     
-    sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
-    append("/etc/auto.master", "/home/%s/hstore /etc/auto.hstore" % env.user, use_sudo=True)
-    append("/etc/auto.hstore", "* hstore-nfs:/home/%s/hstore/&" % env.user, use_sudo=True)
-    sudo("/etc/init.d/autofs start")
+        sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
+        append("/etc/auto.master", "/home/%s/hstore /etc/auto.hstore" % env.user, use_sudo=True)
+        append("/etc/auto.hstore", "* hstore-nfs:/home/%s/hstore/&" % env.user, use_sudo=True)
+        sudo("/etc/init.d/autofs start")
+    ## IF
     
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
@@ -663,7 +665,7 @@ def __startInstances__(instances_count, instance_tags):
             logging.error(str(instance_tags))
             raise
         __waitUntilStatus__(inst, 'running')
-        LOG.info("READY [%s] %s" % (inst, instance_tags[i]))
+        LOG.info("New Instance '%s' / %s is ready" % (inst.tags['Name'], env["ec2.type"]))
         i += 1
     ## FOR
     time.sleep(20)
@@ -679,7 +681,7 @@ def __waitUntilStatus__(inst, status):
         time.sleep(5)
         tries -= 1
     if tries == 0:
-        logging.error("Last %s status: %s" % (inst, inst.update()))
+        logging.error("Last '%s' status: %s" % (inst.tags['Name'], inst.update()))
         raise Exception("Timed out waiting for %s to get to status '%s'" % (inst.tags['Name'], status))
     
     ## Just because it's running doesn't mean it's ready
@@ -705,7 +707,7 @@ def __waitUntilStatus__(inst, status):
         ## WHILE
         socket.setdefaulttimeout(original_timeout)
         if not host_status:
-            raise Exception("Failed to connect to '%s'" % inst.public_dns_name)
+            raise Exception("Failed to connect to '%s'" % inst.tags['Name'])
 ## DEF
 
 ## ----------------------------------------------
@@ -727,7 +729,7 @@ def __getInstances__():
 ## __getInstance__
 ## ----------------------------------------------        
 def __getInstance__(public_dns_name):
-    LOG.info("Looking for '%s'" % public_dns_name)
+    LOG.debug("Looking for instance with public_dns_name '%s'" % public_dns_name)
     __getInstances__()
     for inst in env["ec2.all_instances"]:
         LOG.debug("COMPARE '%s' <=> '%s'", inst.public_dns_name, public_dns_name)

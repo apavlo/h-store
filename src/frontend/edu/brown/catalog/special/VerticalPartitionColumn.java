@@ -153,15 +153,24 @@ public class VerticalPartitionColumn extends MultiColumn {
         if (catalog_view == null) {
             Collection<Column> cols = this.getVerticalPartitionColumns();
             assert(cols.size() > 0) : "No Vertical Partition columns for " + this;
+            if (debug.get()) LOG.debug("Creating VerticalPartition in catalog for " + catalog_tbl + ": " + cols);
             try {
                 catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, cols, true);
                 assert(catalog_view != null);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to create vertical partition for " + this, ex);
             }
+            if (debug.get()) LOG.debug(String.format("Created vertical partition %s.%s: %s",
+                                       catalog_tbl.getName(), catalog_view.getName(),
+                                       CatalogUtil.debug(catalog_view.getDest().getColumns())));            
+
+        } else if (debug.get()) {
+            LOG.debug(String.format("Using existing vertical partition %s.%s: %s",
+                      catalog_tbl.getName(), catalog_view.getName(),
+                      CatalogUtil.debug(catalog_view.getDest().getColumns())));            
         }
-        if (debug.get()) LOG.debug(String.format("Created vertical partition %s.%s: %s",
-                                                 catalog_tbl.getName(), catalog_view.getName(), CatalogUtil.debug(catalog_view.getDest().getColumns())));            
+        assert(catalog_view.getVerticalpartition());
+        assert(catalog_view.getDest() != null) : "MaterializedViewInfo for " + catalog_tbl + " is missing destination table!";
         return (catalog_view);
     }
     

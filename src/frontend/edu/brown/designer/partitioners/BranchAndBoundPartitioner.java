@@ -865,15 +865,14 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         current_tbl.setIsreplicated(false);
                         current_col = search_col;
                         vp_col = (VerticalPartitionColumn)search_col;
-                        vp_col.applyUpdate();
+                        MaterializedViewInfo catalog_view = vp_col.applyUpdate();
+                        assert(catalog_view != null) : "Unexpected null MaterializedViewInfo for " + current_tbl + " vertical partition:\n" + vp_col;
                         if (this.cost_model.isCachingEnabled()) {
                             if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
                             this.cost_model.invalidateCache(vp_col.getStatements());
                         }
                         // Add the vp's sys table to the list of tables that we need to estimate the memory
-                        MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
-                        assert(catalog_view != null) : vp_col;
-                        assert(catalog_view.getDest() != null) : vp_col + " / " + catalog_view;
+                        assert(catalog_view.getDest() != null) : "Missing parent table for " + catalog_view.fullName();
                         assert(this.current_vertical_partitions.contains(catalog_view.getDest()) == false) : vp_col;
                         this.current_vertical_partitions.add(catalog_view.getDest());
                     }    
@@ -904,11 +903,15 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     } else {
                         tablesToEstimate = all_tables;
                     }
-                    memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), tablesToEstimate);
+                    try {
+                        memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), tablesToEstimate);
+                    } catch (Throwable ex) {
+                        throw new RuntimeException("Failed to estimate memory using new attribute " + current_col.fullName(), ex);
+                    }
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
                     if (memory_exceeded) {
                         double ratio = memory / (double)hints.max_memory_per_partition;
-//                        if (trace.get()) 
+                        if (debug.get()) 
                             LOG.info(String.format("%s Memory: %d [ratio=%.2f, exceeded=%s]",
                                                    current_col.fullName(), memory, ratio, memory_exceeded));
                     }
@@ -1144,7 +1147,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 debug.append("[----] ");
             }
             int spacing = 50 - spacer.length();
-            final String f = "%s %s%-" + spacing + "s %-7s (memory=%.2f, traverse=%d, backtracks=%d)";
+            final String f = "%s %s%-" + spacing + "s %-7s (memory=%.2f, traverse=%d, backTracks=%d, vpTables=%d)";
             debug.append(String.format(f,
                     (memory_exceeded ? "X" : " "),
                     spacer,
@@ -1152,7 +1155,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     (memory_exceeded ? "XXXXXX" : String.format("%.05f", state.cost)),
                     (state.memory / (double)hints.max_memory_per_partition),
                     this.traverse_ctr,
-                    this.backtrack_ctr
+                    this.backtrack_ctr,
+                    this.current_vertical_partitions.size()
             ));
             return (debug);
         }
