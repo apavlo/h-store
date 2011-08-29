@@ -68,6 +68,8 @@ public abstract class VerticalPartitionerUtil {
             tbl_stats.tuple_size_max = tuple_size;
             tbl_stats.tuple_size_min = tuple_size;
             tbl_stats.tuple_size_total = tbl_stats.tuple_count_total * tuple_size;
+            
+            LOG.info("Added TableStatistics for vertical partition replica table " + view_tbl);
         }
         
         return (tbl_stats);
