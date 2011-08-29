@@ -146,8 +146,8 @@ public class NewBid extends VoltProcedure {
         VoltTable[] results = voltExecuteSQL();
         assert (results.length == 1);
         if (results[0].getRowCount() == 0) {
-//            if (debug) 
-                LOG.info("The auction for item " + item_id + " has ended - " + currentTime);
+            if (debug) 
+                LOG.debug("The auction for item " + item_id + " has ended - " + currentTime);
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
         boolean advRow = results[0].advanceRow();
@@ -161,8 +161,8 @@ public class NewBid extends VoltProcedure {
         long newBidMaxBuyerId = buyer_id;
         
         if (i_end_date.compareTo(currentTime) < 0 || i_status != AuctionMarkConstants.ITEM_STATUS_OPEN) {
-            LOG.info(String.format("The auction for item %d has ended [status=%d]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
-                                   item_id, i_status, currentTime, i_end_date, estimatedEndDate));
+            if (debug) LOG.debug(String.format("The auction for item %d has ended [status=%d]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
+                                               item_id, i_status, currentTime, i_end_date, estimatedEndDate));
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
         

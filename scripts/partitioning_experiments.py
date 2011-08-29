@@ -68,6 +68,7 @@ OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_BENCHMARK = "tpcc"
+OPT_NO_EXECUTE = False
 
 OPT_BASE_BLOCKING_CONCURRENT = 2000
 OPT_BASE_TXNRATE = 2000
@@ -222,6 +223,7 @@ if __name__ == '__main__':
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
+        "no-execute",
         "trace",
         
         # Enable debug logging

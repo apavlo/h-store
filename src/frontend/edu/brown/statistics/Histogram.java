@@ -653,7 +653,7 @@ public class Histogram<X> implements JSONSerializable {
         return (this.toString(max_chars, MAX_VALUE_LENGTH));
     }
         
-    public String toString(Integer max_chars, Integer max_length) {
+    public synchronized String toString(Integer max_chars, Integer max_length) {
         StringBuilder s = new StringBuilder();
         if (max_length == null) max_length = MAX_VALUE_LENGTH;
         

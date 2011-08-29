@@ -141,12 +141,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             public Object[] generateParams(AuctionMarkClient client) {
             	ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
                 return new Object[] { client.getTimestampParameterArray(),
-                                      itemInfo.id, itemInfo.getSellerId() };
+                                      itemInfo.itemId, itemInfo.getSellerId() };
             }
 
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getAvailableItemIdsCount() > 0);
+				return (client.profile.getAvailableItemsCount() > 0);
 			}
         }),
         // ====================================================================
@@ -195,13 +195,13 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
                 
-                ItemInfo itemInfo;
+                ItemInfo itemInfo = null;
                 UserId sellerId;
                 UserId buyerId;
                 double bid;
                 double maxBid;
                 
-                boolean has_available = (client.profile.getAvailableItemIdsCount() > 0);
+                boolean has_available = (client.profile.getAvailableItemsCount() > 0);
                 boolean has_ending = (client.profile.getEndingSoonItemsCount() > 0);
                 boolean has_waiting = (client.profile.getWaitForPurchaseItemsCount() > 0);
                 boolean has_completed = (client.profile.getCompleteItemsCount() > 0); 
@@ -210,8 +210,13 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 // This will simulate somebody trying to bid at the very end but failing
                 if ((has_waiting || has_completed) &&
                     (client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM || has_available == false)) {
-                    itemInfo = (has_waiting ? client.profile.getRandomWaitForPurchaseItem() :
-                                              client.profile.getRandomCompleteItem());
+                    if (has_waiting) {
+                        itemInfo = client.profile.getRandomWaitForPurchaseItem();
+                        assert(itemInfo != null) : "Failed to get WaitForPurchase itemInfo [" + client.profile.getWaitForPurchaseItemsCount() + "]";
+                    } else {
+                        itemInfo = client.profile.getRandomCompleteItem();
+                        assert(itemInfo != null) : "Failed to get Completed itemInfo [" + client.profile.getCompleteItemsCount() + "]";
+                    }
                     sellerId = itemInfo.getSellerId();
                     buyerId = client.profile.getRandomBuyerId(sellerId);
                     
@@ -227,8 +232,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     // 50% of NEW_BIDS will be for items that are ending soon
                     if ((has_ending && client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM) || has_available == false) {
                         itemInfo = client.profile.getRandomEndingSoonItem(true);
-                    } else {
-                        itemInfo = client.profile.getRandomAvailableItemId(true);    
+                    }
+                    if (itemInfo == null) {
+                        itemInfo = client.profile.getRandomAvailableItem(true);
+                    }
+                    if (itemInfo == null) {
+                        itemInfo = client.profile.getRandomItem();
                     }
                     
                     sellerId = itemInfo.getSellerId();
@@ -240,7 +249,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 }
 
                 return new Object[] { client.getTimestampParameterArray(),
-                                      itemInfo.id, sellerId, buyerId, maxBid, itemInfo.endDate };
+                                      itemInfo.itemId, sellerId, buyerId, maxBid, itemInfo.endDate };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -258,7 +267,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 UserId buyerId = client.profile.getRandomBuyerId(sellerId);
                 String question = client.rng.astring(10, 128);
                 return new Object[] { client.getTimestampParameterArray(),
-                                      itemInfo.id, sellerId, buyerId, question };
+                                      itemInfo.itemId, sellerId, buyerId, question };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -300,7 +309,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 long rating = (long) client.rng.number(-1, 1);
                 String feedback = client.rng.astring(10, 80);
                 return new Object[] { client.getTimestampParameterArray(),
-                                      itemInfo.id, sellerId, buyerId, rating, feedback };
+                                      itemInfo.itemId, sellerId, buyerId, rating, feedback };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -381,7 +390,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     }
                 }
                 return new Object[] { client.getTimestampParameterArray(),
-                                      itemInfo.id, sellerId, buyer_credit };
+                                      itemInfo.itemId, sellerId, buyer_credit };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
@@ -417,12 +426,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 }
                 
                 return new Object[] { client.getTimestampParameterArray(),
-                                      itemInfo.id, sellerId, description,
+                                      itemInfo.itemId, sellerId, description,
                                       delete_attribute, add_attribute };
             }
 			@Override
 			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getAvailableItemIdsCount() > 0);
+				return (client.profile.getAvailableItemsCount() > 0);
 			}
         }), 
         ;

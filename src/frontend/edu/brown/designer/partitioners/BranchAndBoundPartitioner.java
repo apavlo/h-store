@@ -871,6 +871,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                             if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getStatements());
                             this.cost_model.invalidateCache(vp_col.getStatements());
                         }
+                        VerticalPartitionerUtil.computeTableStatistics(info.stats, vp_col);
                         // Add the vp's sys table to the list of tables that we need to estimate the memory
                         assert(catalog_view.getDest() != null) : "Missing parent table for " + catalog_view.fullName();
                         assert(this.current_vertical_partitions.contains(catalog_view.getDest()) == false) : vp_col;
@@ -1146,7 +1147,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             } else {
                 debug.append("[----] ");
             }
-            int spacing = 50 - spacer.length();
+            int spacing = Math.max(0, 50 - spacer.length());
             final String f = "%s %s%-" + spacing + "s %-7s (memory=%.2f, traverse=%d, backTracks=%d, vpTables=%d)";
             debug.append(String.format(f,
                     (memory_exceeded ? "X" : " "),

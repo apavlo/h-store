@@ -150,7 +150,9 @@ public class VerticalPartitionColumn extends MultiColumn {
     public MaterializedViewInfo createMaterializedView() {
         Table catalog_tbl = this.getParent();
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
-        if (catalog_view == null) {
+        boolean created = false;
+        if (catalog_view == null || catalog_view.getDest() == null) {
+            created = true;
             Collection<Column> cols = this.getVerticalPartitionColumns();
             assert(cols.size() > 0) : "No Vertical Partition columns for " + this;
             if (debug.get()) LOG.debug("Creating VerticalPartition in catalog for " + catalog_tbl + ": " + cols);
@@ -170,7 +172,7 @@ public class VerticalPartitionColumn extends MultiColumn {
                       CatalogUtil.debug(catalog_view.getDest().getColumns())));            
         }
         assert(catalog_view.getVerticalpartition());
-        assert(catalog_view.getDest() != null) : "MaterializedViewInfo for " + catalog_tbl + " is missing destination table!";
+        assert(catalog_view.getDest() != null) : "MaterializedViewInfo for " + catalog_tbl + " is missing destination table! [created=" + created + "]";
         return (catalog_view);
     }
     
