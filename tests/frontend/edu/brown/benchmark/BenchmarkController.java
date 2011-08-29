@@ -776,6 +776,7 @@ public class BenchmarkController {
                                 		                                 param, local_file, remote_file, clientHost, clientId)); 
                                     SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
                                 }
+                                LOG.info(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
                                 client_args.add(param + "=" + remote_file.getPath());
                             } // FOR
                         }

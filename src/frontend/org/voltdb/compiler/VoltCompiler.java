@@ -835,7 +835,9 @@ public class VoltCompiler {
             
             next++;
         } // FOR
-        return (String.format("%s%02d", prefix, next));
+        String viewName = String.format("%s%02d", prefix, next);
+        assert(catalog_tbl.getViews().contains(viewName) == false);
+        return (viewName);
     }
 
     public static MaterializedViewInfo addVerticalPartition(final Database catalog_db, final String tableName, final List<String> columnNames, final boolean createIndex) throws Exception {

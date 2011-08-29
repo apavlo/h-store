@@ -311,7 +311,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         TimestampType now = new TimestampType();
         TimestampType time = AuctionMarkBenchmarkProfile.getScaledTimestamp(this.benchmarkStartTime, this.clientStartTime, now);
         if (debug.get())
-            LOG.info(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
+            LOG.debug(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
                                    time.getMSTime(), now.getMSTime(), this.benchmarkStartTime.getMSTime(), this.clientStartTime.getMSTime()));
         return (time);
     }
@@ -592,10 +592,17 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         
         // HACK
         Set<ItemInfo> all = new HashSet<ItemInfo>();
-        all.addAll(this.items_available);
-        all.addAll(this.items_endingSoon);
-        all.addAll(this.items_waitingForPurchase);
-        all.addAll(this.items_completed);
+        LinkedList<ItemInfo> itemSets[] = new LinkedList[]{
+            this.items_available,
+            this.items_endingSoon,
+            this.items_waitingForPurchase,
+            this.items_completed,
+        };
+        for (LinkedList<ItemInfo> list : itemSets) {
+            synchronized (list) {
+                all.addAll(list);
+            } // SYNCH
+        } // FOR
         for (ItemInfo itemInfo : all) {
             this.addItemToProperQueue(itemInfo, false);
         } // FOR
@@ -661,9 +668,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             int idx = -1;
             
             if (debug.get()) 
-                LOG.info(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
+                LOG.debug(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
                                        num_items, currentTime, needCurrentPrice));
-            while (num_items > 0 && seen.size() < num_items) {
+            long tries = 1000;
+            while (num_items > 0 && tries-- > 0 && seen.size() < num_items) {
                 partition = null;
                 idx = this.rng.nextInt(num_items);
                 ItemInfo temp = itemSet.get(idx);
@@ -696,7 +704,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 }
             } // WHILE
             if (itemInfo == null) {
-                if (debug.get()) LOG.debug("Failed to find ItemInfo [hasCurrentPrice=" + needCurrentPrice + "]");
+                if (debug.get()) LOG.debug("Failed to find ItemInfo [hasCurrentPrice=" + needCurrentPrice + ", needFutureEndDate=" + needFutureEndDate + "]");
                 return (null);
             }
             assert(idx >= 0);
@@ -725,10 +733,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public ItemInfo getRandomAvailableItemId() {
         return this.getRandomItem(this.items_available, false, false);
     }
-    public ItemInfo getRandomAvailableItemId(boolean hasCurrentPrice) {
+    public ItemInfo getRandomAvailableItem(boolean hasCurrentPrice) {
         return this.getRandomItem(this.items_available, hasCurrentPrice, false);
     }
-    public int getAvailableItemIdsCount() {
+    public int getAvailableItemsCount() {
         return this.items_available.size();
     }
 
@@ -778,7 +786,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * ALL ITEMS
      **********************************************************************************************/
     public int getAllItemsCount() {
-        return (this.getAvailableItemIdsCount() +
+        return (this.getAvailableItemsCount() +
                 this.getEndingSoonItemsCount() +
                 this.getWaitForPurchaseItemsCount() +
                 this.getCompleteItemsCount());

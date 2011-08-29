@@ -13,14 +13,14 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
 public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
-    public ItemId id;
+    public ItemId itemId;
     public Float currentPrice;
     public TimestampType endDate;
     public long numBids = 0;
     public long status = AuctionMarkConstants.ITEM_STATUS_OPEN;
     
     public ItemInfo(ItemId id, Double currentPrice, TimestampType endDate, int numBids) {
-        this.id = id;
+        this.itemId = id;
         this.currentPrice = (currentPrice != null ? currentPrice.floatValue() : null);
         this.endDate = endDate;
         this.numBids = numBids;
@@ -31,10 +31,10 @@ public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
     }
     
     public ItemId getItemId() {
-        return (this.id);
+        return (this.itemId);
     }
     public UserId getSellerId() {
-        return (this.id.getSellerId());
+        return (this.itemId.getSellerId());
     }
     public boolean hasCurrentPrice() {
         return (this.currentPrice != null);
@@ -51,20 +51,20 @@ public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
     
     @Override
     public int compareTo(ItemInfo o) {
-        return this.id.compareTo(o.id);
+        return this.itemId.compareTo(o.itemId);
     }
     @Override
     public String toString() {
-        return this.id.toString();
+        return this.itemId.toString();
     }
     @Override
     public int hashCode() {
-        return this.id.hashCode();
+        return this.itemId.hashCode();
     }
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ItemInfo) {
-            return (this.id.equals(((ItemInfo)obj).id));
+            return (this.itemId.equals(((ItemInfo)obj).itemId));
         }
         return (false);
     }

@@ -43,6 +43,7 @@ import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
@@ -97,7 +98,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
             String value = m_extraParams.get(key);
 
             // Benchmark Profile File
-            if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
+            if (key.equalsIgnoreCase("PROFILE")) {
                 profile_file = value;
             }
             // Random Generator Seed
@@ -139,6 +140,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         // Only load from the file for AuctionMarkClient
         this.profile = new AuctionMarkBenchmarkProfile(rng, getNumClients());
         if (child_class.equals(AuctionMarkClient.class)) {
+            assert(profile_file != null) : "Missing benchmark profile path\n" + StringUtil.formatMaps(m_extraParams);
             this.profile_path = new File(profile_file);
             if (this.profile_path.exists()) {
                 try {
@@ -211,7 +213,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         if (debug.get()) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
         try {
             this.profile.save(f.getAbsolutePath());
-            this.sendFileToAllClients("BENCHMARKPROFILE", f);
+            this.sendFileToAllClients("BENCHMARK.PROFILE", f);
         } catch (IOException ex) {
             throw new RuntimeException("Failed to save BenchmarkProfile", ex);
         }

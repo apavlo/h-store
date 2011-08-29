@@ -1034,7 +1034,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             profile.addItemToProperQueue(itemInfo, true);
 
             // I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // I_U_ID
             this.row[col++] = itemInfo.sellerId;
             // I_C_ID
@@ -1122,7 +1122,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // II_ID
             this.row[col++] = this.count;
             // II_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // II_U_ID
             this.row[col++] = itemInfo.sellerId;
 
@@ -1153,7 +1153,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IA_ID
             this.row[col++] = this.count;
             // IA_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // IA_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IA_GAV_ID
@@ -1185,7 +1185,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IC_ID
             this.row[col++] = new Integer((int) this.count);
             // IC_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // IC_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IC_BUYER_ID
@@ -1285,7 +1285,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IB_ID
             this.row[col++] = new Long(this.bid.id);
             // IB_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // IB_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IB_BUYER_ID
@@ -1329,13 +1329,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             assert(bid != null) : "No bids?\n" + itemInfo;
 
             // IMB_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // IMB_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IMB_IB_ID
             this.row[col++] = bid.id;
             // IMB_IB_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // IMB_IB_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IMB_CREATED
@@ -1372,7 +1372,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IP_IB_ID
             this.row[col++] = bid.id;
             // IP_IB_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // IP_IB_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IP_DATE
@@ -1421,7 +1421,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UF_ID
             this.row[col++] = this.count;
             // UF_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // UF_I_U_ID
             this.row[col++] = itemInfo.sellerId;
             // UF_TO_ID
@@ -1459,7 +1459,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UI_U_ID
             this.row[col++] = bid.bidderId;
             // UI_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // UI_I_U_ID
             this.row[col++] = itemInfo.sellerId;
             // UI_IP_ID
@@ -1507,7 +1507,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UW_U_ID
             this.row[col++] = buyerId;
             // UW_I_ID
-            this.row[col++] = itemInfo.id;
+            this.row[col++] = itemInfo.itemId;
             // UW_I_U_ID
             this.row[col++] = itemInfo.sellerId;
             // UW_CREATED

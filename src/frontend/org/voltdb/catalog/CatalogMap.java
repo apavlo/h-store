@@ -313,6 +313,10 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
         this.m_items.clear();
     }
 
+    public boolean containsKey(String key) {
+        return (this.m_items.containsKey(key));
+    }
+    
     @Override
     public boolean contains(Object o) {
         return (this.m_items.values().contains(o));

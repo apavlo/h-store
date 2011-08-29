@@ -69,9 +69,8 @@ public abstract class VerticalPartitionerUtil {
             tbl_stats.tuple_size_min = tuple_size;
             tbl_stats.tuple_size_total = tbl_stats.tuple_count_total * tuple_size;
             
-            LOG.info("Added TableStatistics for vertical partition replica table " + view_tbl);
+            if (debug.get()) LOG.debug("Added TableStatistics for vertical partition replica table " + view_tbl);
         }
-        
         return (tbl_stats);
         
     }
@@ -138,6 +137,16 @@ public abstract class VerticalPartitionerUtil {
                     if (readOnlyColumns.contains(col)) all_cols.add(col);
                 } // FOR
                 
+                if (hp_col instanceof MultiColumn) {
+                    MultiColumn mc = (MultiColumn)hp_col;
+                    if (mc.size() == all_cols.size()) {
+                        boolean foundAll = true;
+                        for (Column col : mc) {
+                            foundAll = all_cols.contains(col) && foundAll;
+                        } // FOR
+                        assert(foundAll) : mc + "\n" + all_cols;
+                    }
+                }
                 MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
                 VerticalPartitionColumn vpc = VerticalPartitionColumn.get(hp_col, vp_col);
                 assert(vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", hp_col, vp_col);
