@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +63,7 @@ public class ProcessSetManager implements Shutdownable {
     final File output_directory;
     final EventObservable failure_observable = new EventObservable();
     final LinkedBlockingQueue<OutputLine> m_output = new LinkedBlockingQueue<OutputLine>();
-    final Map<String, ProcessData> m_processes = new HashMap<String, ProcessData>();
+    final Map<String, ProcessData> m_processes = new ConcurrentHashMap<String, ProcessData>();
     final ProcessSetPoller poller = new ProcessSetPoller();
     boolean shutting_down = false;
     
@@ -259,18 +260,14 @@ public class ProcessSetManager implements Shutdownable {
         this(null, 10000, null);
     }
     
-    public void prepareShutdown(String name) {
-        ProcessData pd = this.m_processes.get(name);
-        assert(pd!= null) : "Invalid process name '" + name + "'";
-        pd.out.m_expectDeath.set(true);
-        pd.err.m_expectDeath.set(true);
-    }
-    
     @Override
     public synchronized void prepareShutdown() {
         this.shutting_down = true;
         for (String name : this.m_processes.keySet()) {
-            this.prepareShutdown(name);
+            ProcessData pd = this.m_processes.get(name);
+            assert(pd!= null) : "Invalid process name '" + name + "'";
+            pd.out.m_expectDeath.set(true);
+            pd.err.m_expectDeath.set(true);
         } // FOR
     }
     

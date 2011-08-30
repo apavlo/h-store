@@ -733,6 +733,14 @@ public final class HStoreConf {
             advanced=true
         )
         public boolean txn_hints = false;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=8,
+            experimental=false,
+            advanced=false
+        )
+        public int delay_threshold = 8;
     }
     
     /**

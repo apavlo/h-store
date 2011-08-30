@@ -233,9 +233,11 @@ public class MemoryEstimator {
                 break;
             case STRING: {
                 numerals_only = false;
-                if (params[catalog_col.getIndex()] != null) {
-                    bytes += 8 * ((String) params[catalog_col.getIndex()]).length();
-                }
+                //if (params[catalog_col.getIndex()] != null) {
+                //    bytes += 8 * ((String) params[catalog_col.getIndex()]).length();
+                //}
+                bytes += 8 * catalog_col.getSize(); // XXX
+                
                 /*
                  * AbstractExpression root_exp =
                  * mat_node.getOutputColumnExpressions

@@ -682,7 +682,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public int getBasePartition(StoredProcedureInvocation invocation) throws Exception {
+    public Integer getBasePartition(StoredProcedureInvocation invocation) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().get(invocation.getProcName());
         return (this.getBasePartition(catalog_proc, invocation.getParams().toArray()));
     }

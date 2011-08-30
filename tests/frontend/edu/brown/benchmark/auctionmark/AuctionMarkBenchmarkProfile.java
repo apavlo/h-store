@@ -69,7 +69,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AuctionMarkBenchmarkProfile implements JSONSerializable {
-    private static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
+    private static final Logger LOG = Logger.getLogger(AuctionMarkBenchmarkProfile.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -310,8 +310,8 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         assert(this.clientStartTime != null);
         TimestampType now = new TimestampType();
         TimestampType time = AuctionMarkBenchmarkProfile.getScaledTimestamp(this.benchmarkStartTime, this.clientStartTime, now);
-        if (debug.get())
-            LOG.debug(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
+        if (trace.get())
+            LOG.trace(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
                                    time.getMSTime(), now.getMSTime(), this.benchmarkStartTime.getMSTime(), this.clientStartTime.getMSTime()));
         return (time);
     }
@@ -587,9 +587,6 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     }
     
     public synchronized void updateItemQueues() {
-        TimestampType currentTime = this.updateAndGetCurrentTime();
-        assert(currentTime != null);
-        
         // HACK
         Set<ItemInfo> all = new HashSet<ItemInfo>();
         LinkedList<ItemInfo> itemSets[] = new LinkedList[]{
@@ -603,6 +600,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 all.addAll(list);
             } // SYNCH
         } // FOR
+        
+        TimestampType currentTime = this.updateAndGetCurrentTime();
+        assert(currentTime != null);
+        if (debug.get()) LOG.debug("CurrentTime: " + currentTime);
         for (ItemInfo itemInfo : all) {
             this.addItemToProperQueue(itemInfo, false);
         } // FOR
@@ -618,11 +619,11 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public QueueType addItemToProperQueue(ItemInfo itemInfo, boolean is_loader) {
         // Calculate how much time is left for this auction
         TimestampType baseTime = (is_loader ? this.getBenchmarkStartTime() : this.getCurrentTime());
-        long remaining = baseTime.getMSTime() - itemInfo.endDate.getMSTime();
+        long remaining = itemInfo.endDate.getMSTime() - baseTime.getMSTime();
         QueueType ret;
         
         // Already ended
-        if (remaining <= 10000) {
+        if (remaining <= 100000) {
             if (itemInfo.numBids > 0 && itemInfo.status != AuctionMarkConstants.ITEM_STATUS_CLOSED) {
                 if (this.previousWaitForPurchase.contains(itemInfo) == false) {
                     this.previousWaitForPurchase.add(itemInfo);
@@ -647,6 +648,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             this.addItem(this.items_available, itemInfo);
             ret = QueueType.AVAILABLE;
         }
+        
+        if (trace.get())
+            LOG.trace(String.format("%s - #%d [%s]", ret, itemInfo.itemId.encode(), itemInfo.getEndDate()));
+        
         return (ret);
     }
     
@@ -686,8 +691,13 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
                 
                 // If they want an item that is ending in the future, then we compare it with 
                 // the current timestamp
-                if (needFutureEndDate && (temp.hasEndDate() == false || temp.getEndDate().compareTo(currentTime) < 0)) {
-                    continue;
+                if (needFutureEndDate) {
+                    boolean compareTo = (temp.getEndDate().compareTo(currentTime) < 0);
+                    if (trace.get())
+                        LOG.trace("CurrentTime:" + currentTime + " / EndTime:" + temp.getEndDate() + " [compareTo=" + compareTo + "]");
+                    if (temp.hasEndDate() == false || compareTo) {
+                        continue;
+                    }
                 }
                 
                 // Uniform

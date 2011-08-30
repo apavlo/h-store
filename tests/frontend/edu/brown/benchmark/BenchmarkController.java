@@ -730,12 +730,12 @@ public class BenchmarkController {
                     for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
                         int clientId = clientIndex.getAndIncrement();
                         String host_id = String.format("client-%02d-%s", clientId, clientHost);
-                        List<String> client_args = new ArrayList<String>(allClientArgs);
+                        List<String> curClientArgs = new ArrayList<String>(allClientArgs);
                         
                         if (m_config.listenForDebugger) {
                             String arg = "-agentlib:jdwp=transport=dt_socket,address="
                                 + (8003 + j) + ",server=y,suspend=n ";
-                            client_args.set(1, arg);
+                            curClientArgs.set(1, arg);
                         }
                         
                         // Check whether we need to send files to this client
@@ -777,14 +777,18 @@ public class BenchmarkController {
                                     SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
                                 }
                                 LOG.info(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
-                                client_args.add(param + "=" + remote_file.getPath());
+                                curClientArgs.add(param + "=" + remote_file.getPath());
                             } // FOR
                         }
                         
-                        client_args.add("ID=" + clientId);
-                        client_args.add("NUMCLIENTS=" + numClients);
+                        curClientArgs.add("ID=" + clientId);
+                        curClientArgs.add("NUMCLIENTS=" + numClients);
+                        if (j > hstore_conf.client.delay_threshold) {
+                            long wait = 500 * (j - hstore_conf.client.delay_threshold);
+                            curClientArgs.add("WAIT=" + wait);
+                        }
         
-                        String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, client_args);
+                        String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
                         String fullCommand = StringUtil.join(" ", args);
         
                         resultsUploader.setCommandLineForClient(host_id, fullCommand);
@@ -969,8 +973,8 @@ public class BenchmarkController {
             } else {
                 m_clientPSM.writeToProcess(clientName, Command.STOP);
             }
-            m_clientPSM.prepareShutdown(clientName);
         }
+        m_clientPSM.prepareShutdown();
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 

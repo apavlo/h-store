@@ -128,7 +128,7 @@ public abstract class AuctionMarkConstants {
      * we maintain in the benchmark profile. For some procedures, the client will 
      * ItemIds out of this cache and use them as txn parameters 
      */
-    public static final int ITEM_ID_CACHE_SIZE  = 250;
+    public static final int ITEM_ID_CACHE_SIZE  = 1000;
     
     // ----------------------------------------------------------------
     // DEFAULT BATCH SIZES
@@ -243,7 +243,7 @@ public abstract class AuctionMarkConstants {
      * in the client. We will increase the likelihood that a users will bid on these
      * items as it gets closer to their end times
      */
-    public static final long ENDING_SOON = 3600000l; // 5 hours
+    public static final long ENDING_SOON = 7200000l; // 10 hours
     
     public static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
     public static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;

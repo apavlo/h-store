@@ -651,6 +651,7 @@ public abstract class BenchmarkComponent {
 //        int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
+        long startupWait = -1;
         
         // scan the inputs once to read everything but host names
         Map<String, Object> componentParams = new TreeMap<String, Object>();
@@ -712,6 +713,9 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
                 noUploading = Boolean.parseBoolean(parts[1]);
             }
+            else if (parts[0].equalsIgnoreCase("WAIT")) {
+                startupWait = Long.parseLong(parts[1]);
+            }
             // If it starts with "benchmark.", then it always goes to the implementing class
             else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
                 if (debug.get()) componentParams.remove(parts[0]);
@@ -761,6 +765,17 @@ public abstract class BenchmarkComponent {
         m_noConnections = noConnections || (isLoader && m_noUploading);
         m_tableStats = tableStats;
         m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
+        
+        // If we were told to sleep, do that here before we try to load in the catalog
+        // This is an attempt to keep us from overloading a single node all at once
+        if (startupWait > 0) {
+            if (debug.get()) LOG.debug(String.format("Delaying client start-up by %.2f sec", startupWait/1000d));
+            try {
+                Thread.sleep(startupWait);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException("Unexpected interruption", ex);
+            }
+        }
         
         if (m_catalogPath != null) {
             try {
@@ -1101,7 +1116,7 @@ public abstract class BenchmarkComponent {
     
     
     private final void invokeTick(int counter) {
-        if (debug.get()) LOG.info("New Tick Update: " + counter);
+        if (debug.get()) LOG.debug("New Tick Update: " + counter);
         this.tick(counter);
     }
     
