@@ -5,6 +5,8 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.PartitionMethodType;
 
+import edu.brown.catalog.special.ReplicatedColumn;
+
 public class TableEntry extends PartitionEntry<Column> {
     
     // Table Information
@@ -39,6 +41,7 @@ public class TableEntry extends PartitionEntry<Column> {
                 assert(this.parent_attribute == null) : this.method + " - Unexpected parent attribute: " + this.parent_attribute;
                 break;
             case REPLICATION:
+                if (this.attribute instanceof ReplicatedColumn) this.attribute = null;
             case NONE:
                 assert(this.attribute == null) : this.method + " - Unexpected attribute: " + this.attribute;
                 assert(this.parent == null) : this.method + " - Unexpected attribute: " + this.parent;

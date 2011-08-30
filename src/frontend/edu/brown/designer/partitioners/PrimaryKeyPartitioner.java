@@ -13,6 +13,7 @@ import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
@@ -46,6 +47,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             String table_key = CatalogKey.createKey(catalog_tbl);
             TableEntry pentry = null;
+            Column col = null;
             Collection<Column> pkey_columns = CatalogUtil.getPrimaryKeyColumns(catalog_tbl);
             
             TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
@@ -58,19 +60,23 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
                 pkey_columns.isEmpty()) {
                 total_memory_used += size_ratio;
                 if (debug.get()) LOG.debug("Choosing " + catalog_tbl.getName() + " for replication");
-                pentry = new TableEntry(PartitionMethodType.REPLICATION, null, null, null);
+                col = ReplicatedColumn.get(catalog_tbl);
+                pentry = new TableEntry(PartitionMethodType.REPLICATION, col, null, null);
                 
             // Hash Primary Key
             } else {
                 total_memory_used += (size_ratio / (double)info.getNumPartitions());
                 
-                if (hints.enable_multi_partitioning == false) {
-                    pentry = new TableEntry(PartitionMethodType.HASH, CollectionUtil.first(pkey_columns), null, null);
+                if (hints.enable_multi_partitioning == false || pkey_columns.size() == 1) {
+                    col = CollectionUtil.first(pkey_columns);
+                    pentry = new TableEntry(PartitionMethodType.HASH, col, null, null);
                 } else {
-                    MultiColumn multicol = MultiColumn.get(pkey_columns.toArray(new Column[0]));
-                    pentry = new TableEntry(PartitionMethodType.HASH, multicol, null, null);
+                    col = MultiColumn.get(pkey_columns.toArray(new Column[0]));
+                    pentry = new TableEntry(PartitionMethodType.HASH, col, null, null);
                 }
+                assert(pentry.attribute != null) : catalog_tbl;
             }
+            if (debug.get()) LOG.debug(String.format("[%02d] %s", pplan.getTableCount(), col.fullName()));
             pplan.getTableEntries().put(catalog_tbl, pentry);
         } // FOR
         assert(total_memory_used <= 100) : "Too much memory per partition: " + total_memory_used;
