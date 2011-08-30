@@ -133,7 +133,7 @@ public class RegressionSuite extends TestCase {
         final Random r = new Random();
         final String listener = listeners.get(r.nextInt(listeners.size()));
         final Client client = ClientFactory.createClient();
-        client.createConnection(listener, Client.VOLTDB_SERVER_PORT, m_username, m_password);
+        client.createConnection(null, listener, Client.VOLTDB_SERVER_PORT, m_username, m_password);
         m_clients.add(client);
         return client;
     }

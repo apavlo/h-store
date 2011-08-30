@@ -666,7 +666,7 @@ public class BenchmarkController {
     private void addHostConnections(Collection<String> params) {
         for (Site catalog_site : CatalogUtil.getCluster(catalog).getSites()) {
             for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
-                String address = String.format("%s:%d", p.getFirst(), p.getSecond());
+                String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
                 if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
             } // FOR
@@ -816,7 +816,7 @@ public class BenchmarkController {
         
         Client new_client = ClientFactory.createClient(128, null, false, null);
         try {
-            new_client.createConnection(p.getFirst(), p.getSecond(), "user", "password");
+            new_client.createConnection(null, p.getFirst(), p.getSecond(), "user", "password");
         } catch (Exception ex) {
             throw new RuntimeException(String.format("Failed to connect to HStoreSite %s at %s:%d",
                                                      HStoreSite.formatSiteName(site_id), p.getFirst(), p.getSecond()));
@@ -1123,7 +1123,7 @@ public class BenchmarkController {
         Client dumpClient = ClientFactory.createClient();
         for (String host : m_config.hosts) {
             try {
-                dumpClient.createConnection(host, Client.VOLTDB_SERVER_PORT, "program", "password");
+                dumpClient.createConnection(null, host, Client.VOLTDB_SERVER_PORT, "program", "password");
                 dumpClient.callProcedure("@dump");
             } catch (UnknownHostException e) {
                 e.printStackTrace();

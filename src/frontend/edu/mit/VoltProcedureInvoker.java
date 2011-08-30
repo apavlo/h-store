@@ -34,7 +34,7 @@ public class VoltProcedureInvoker {
         assert(catalog_host != null);
         Integer port = CollectionUtil.random(CatalogUtil.getExecutionSitePorts(catalog_site));
         assert(port != null);
-        client.createConnection(catalog_host.getIpaddr(), port, "user", "password");
+        client.createConnection(null, catalog_host.getIpaddr(), port, "user", "password");
         
         String procName = args.getOptParam(0);
         assert(procName != null && procName.isEmpty() == false) : "Invalid procedure name '" + procName + "'";

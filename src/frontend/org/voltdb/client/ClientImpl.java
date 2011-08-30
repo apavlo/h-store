@@ -19,15 +19,19 @@ package org.voltdb.client;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.PartitionEstimator;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -52,6 +56,13 @@ final class ClientImpl implements Client {
     private static final int m_defaultMaxArenaSize = 134217728;
     private volatile boolean m_isShutdown = false;
 
+    /**
+     * If we have a catalog, then we'll enable client-side hints
+     */
+    private Catalog m_catalog;
+    private PartitionEstimator m_pEstimator;
+    private Map<Integer, Integer> m_partitionSiteXref;
+    
     /** Create a new client without any initial connections. */
     ClientImpl() {
         this( 128, new int[] {
@@ -72,6 +83,7 @@ final class ClientImpl implements Client {
                 m_defaultMaxArenaSize//262144
         },
         false,
+        null,
         null);
     }
 
@@ -88,9 +100,17 @@ final class ClientImpl implements Client {
             int expectedOutgoingMessageSize,
             int maxArenaSizes[],
             boolean heavyweight,
-            StatsUploaderSettings statsSettings) {
+            StatsUploaderSettings statsSettings,
+            Catalog catalog) {
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
         m_backpressureWait = (HStoreConf.isInitialized() ? HStoreConf.singleton().client.throttle_backoff : 500);
+        
+        if (catalog != null) {
+            m_catalog = catalog;
+            m_pEstimator = new PartitionEstimator(CatalogUtil.getDatabase(m_catalog));
+            m_partitionSiteXref = CatalogUtil.getPartitionSiteXref(m_catalog);
+        }
+        
         m_distributer = new Distributer(
                 expectedOutgoingMessageSize,
                 maxArenaSizes,
@@ -108,7 +128,7 @@ final class ClientImpl implements Client {
      * @throws UnknownHostException
      * @throws IOException
      */
-    public void createConnection(String host, int port, String program, String password)
+    public void createConnection(Integer site_id, String host, int port, String program, String password)
         throws UnknownHostException, IOException
     {
         if (m_isShutdown) {
@@ -116,9 +136,9 @@ final class ClientImpl implements Client {
         }
         final String subProgram = (program == null) ? "" : program;
         final String subPassword = (password == null) ? "" : password;
-        m_distributer.createConnection(host, port, subProgram, subPassword);
+        m_distributer.createConnection(site_id, host, port, subProgram, subPassword);
     }
-
+    
     /**
      * Synchronously invoke a procedure call blocking until a result is available.
      * @param procName class name (not qualified by package) of the procedure to execute.
@@ -138,12 +158,22 @@ final class ClientImpl implements Client {
         final StoredProcedureInvocation invocation =
               new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
 
-
+        Integer site_id = null;
+        if (m_catalog != null && procName.startsWith("@") == false) {
+            try {
+                Integer partition = m_pEstimator.getBasePartition(invocation);
+                site_id = m_partitionSiteXref.get(partition);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to estimate base partition for client hints", ex);
+            }
+        }
+        
         m_distributer.queue(
                 invocation,
                 cb,
                 m_expectedOutgoingMessageSize,
-                true);
+                true,
+                site_id);
 
         try {
             cb.waitForResponse();
@@ -207,8 +237,18 @@ final class ClientImpl implements Client {
         StoredProcedureInvocation invocation =
             new StoredProcedureInvocation(m_handle.getAndIncrement(), procName, parameters);
 
+        Integer site_id = null;
+        if (m_catalog != null && procName.startsWith("@") == false) {
+            try {
+                Integer partition = m_pEstimator.getBasePartition(invocation);
+                site_id = m_partitionSiteXref.get(partition);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to estimate base partition for client hints", ex);
+            }
+        }
+        
         if (m_blockingQueue) {
-            while (!m_distributer.queue(invocation, callback, expectedSerializedSize, false)) {
+            while (!m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id)) {
                 try {
                     backpressureBarrier();
                 } catch (InterruptedException e) {
@@ -217,7 +257,7 @@ final class ClientImpl implements Client {
             }
             return true;
         } else {
-            return m_distributer.queue(invocation, callback, expectedSerializedSize, false);
+            return m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id);
         }
     }
 

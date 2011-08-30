@@ -725,6 +725,14 @@ public final class HStoreConf {
             advanced=true
         )
         public String tablestats_dir = HStoreConf.this.global.temp_dir + "/stats";
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=true,
+            advanced=true
+        )
+        public boolean txn_hints = false;
     }
     
     /**

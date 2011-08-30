@@ -64,6 +64,7 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -92,6 +93,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * Base class for clients that will work with the multi-host multi-process
@@ -770,12 +772,17 @@ public abstract class BenchmarkComponent {
             }
         }
 
-        Client new_client = ClientFactory.createClient(getExpectedOutgoingMessageSize(),
-                                                       null,
-                                                       useHeavyweightClient(),
-                                                       statsSettings);
+        Client new_client = ClientFactory.createClient(
+                getExpectedOutgoingMessageSize(),
+                null,
+                useHeavyweightClient(),
+                statsSettings,
+                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null)
+                                                       
+        );
         if (m_blocking) {
-            if (debug.get()) LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
+            if (debug.get()) 
+                LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
             m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
         } else {
             m_voltClient = new_client;
@@ -788,19 +795,24 @@ public abstract class BenchmarkComponent {
         // scan the inputs again looking for host connections
         if (m_noConnections == false) {
             boolean atLeastOneConnection = false;
+            Pattern p = Pattern.compile(":");
             for (final String arg : args) {
                 final String[] parts = arg.split("=", 2);
                 if (parts.length == 1) {
                     continue;
                 }
                 else if (parts[0].equals("HOST")) {
-                    final Pair<String, Integer> hostnport = StringUtil.getHostPort(parts[1]);
-                    m_host = hostnport.getFirst();
-                    m_port = hostnport.getSecond();
+                    String hostInfo[] = p.split(parts[1]);
+                    assert(hostInfo.length == 3) : parts[1];
+                    m_host = hostInfo[0];
+                    m_port = Integer.valueOf(hostInfo[1]);
+                    Integer site_id = (m_hstoreConf.client.txn_hints ? Integer.valueOf(hostInfo[2]) : null);
                     try {
-                        if (debug.get()) LOG.debug("Creating connection to " + hostnport);
-                        createConnection(m_host, m_port);
-                        if (debug.get()) LOG.debug("Created connection.");
+                        if (debug.get())
+                            LOG.debug(String.format("Creating connection to %s at %s:%d",
+                                                    (site_id != null ? HStoreSite.formatSiteName(site_id) : ""),
+                                                    m_host, m_port));
+                        createConnection(site_id, m_host, m_port);
                         atLeastOneConnection = true;
                     }
                     catch (final Exception ex) {
@@ -1212,10 +1224,12 @@ public abstract class BenchmarkComponent {
             m_reason = reason;
     }
 
-    private void createConnection(final String hostname, final int port)
+    private void createConnection(final Integer site_id, final String hostname, final int port)
         throws UnknownHostException, IOException {
-        if (debug.get()) LOG.debug(String.format("Requesting connection to %s:%d", hostname, port));
-        m_voltClient.createConnection(hostname, port, m_username, m_password);
+        if (debug.get())
+            LOG.debug(String.format("Requesting connection to %s %s:%d",
+                HStoreSite.formatSiteName(site_id), hostname, port));
+        m_voltClient.createConnection(site_id, hostname, port, m_username, m_password);
     }
 
     private boolean checkConstraints(String procName, ClientResponse response) {

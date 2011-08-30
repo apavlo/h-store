@@ -80,7 +80,7 @@ public class TPCCDebugTest extends TestCase {
 
         client = ClientFactory.createClient();
         // connect
-        client.createConnection("localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+        client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
     }
 
     public void waitUntilDone() throws InterruptedException {
