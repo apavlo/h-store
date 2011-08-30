@@ -683,6 +683,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         }
         return (sites);
     }
+
+    /**
+     * Get a reverse mapping from PartitionId -> SiteID
+     * @param catalog_item
+     * @return
+     */
+    public static Map<Integer, Integer> getPartitionSiteXref(CatalogType catalog_item) {
+        Map<Integer, Integer> m = new HashMap<Integer, Integer>();
+        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_item)) {
+            Site catalog_site = catalog_part.getParent();
+            m.put(catalog_part.getId(), catalog_site.getId());
+        } // FOR
+        return (m);
+    }
     
     /**
      * Return the list of Sites for a particular host

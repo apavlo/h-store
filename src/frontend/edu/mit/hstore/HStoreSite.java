@@ -173,7 +173,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (String.format("H%02d%s", site_id, suffix));
     }
     
-    public static final String formatSiteName(int site_id) {
+    public static final String formatSiteName(Integer site_id) {
+        if (site_id == null) return (null);
         return (HStoreSite.getThreadName(site_id, null, null));
     }
     

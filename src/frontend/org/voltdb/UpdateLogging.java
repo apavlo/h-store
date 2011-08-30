@@ -63,7 +63,7 @@ public class UpdateLogging {
             }
         }
 
-        client.createConnection(host, port, username, password);
+        client.createConnection(null, host, port, username, password);
 
         File configFile = new File(configFilePath);
 
