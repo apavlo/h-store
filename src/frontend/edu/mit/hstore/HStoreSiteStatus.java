@@ -244,6 +244,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getWaitingQueueSize()));
             
             // Execution Info
+            sb.append("Txns Executed:  ").append(es.getTransactionCounter()).append("\n");
             sb.append("Current DTXN:   ").append(ts == null ? "-" : ts).append("\n");
             sb.append("Execution Mode: ").append(es.getExecutionMode()).append("\n");
             

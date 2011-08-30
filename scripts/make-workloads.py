@@ -46,12 +46,12 @@ logging.basicConfig(level = logging.INFO,
                     stream = sys.stdout)
 
 HSTORE_OPTS = {
-    "client.duration":              180000,
+    "client.duration":              300000,
     "client.warmup":                0,
     "client.count":                 1,
     "client.processesperclient":    1,
-    "client.txnrate":               10000,
-    "client.blocking":              True,
+    "client.txnrate":               1000,
+    "client.blocking":              False,
     "client.blocking_concurrent":   1000,
     "client.scalefactor":           25,
 }

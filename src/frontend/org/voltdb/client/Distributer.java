@@ -680,13 +680,13 @@ class Distributer {
                 cxn = m_connectionSiteXref.get(site_id);
                 if (cxn == null) {
                     LOG.warn("No direct connection to " + HStoreSite.formatSiteName(site_id));
-                }
-                else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
-                    backpressure = false;
-                }
-                else {
-                    cxn = null;
-                }
+                } else backpressure = false; // XXX
+//                else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
+//                    backpressure = false;
+//                }
+//                else {
+//                    cxn = null;
+//                }
             }            
             if (cxn == null) {
                 for (int i=0; i < totalConnections; ++i) {

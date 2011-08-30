@@ -259,6 +259,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     protected int partitionId;
 
+    private long txn_count = 0;
+    
     /**
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
      */
@@ -754,6 +756,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Invoke Stored Procedure
                 // -------------------------------
                 } else if (work instanceof InitiateTaskMessage) {
+                    if (hstore_conf.site.exec_profiling) txn_count++;
                     InitiateTaskMessage itask = (InitiateTaskMessage)work;
                     this.processInitiateTaskMessage((LocalTransactionState)ts, itask);
                     
@@ -840,6 +843,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         return (this.partitionId);
     }
 
+    public long getTransactionCounter() {
+        return (this.txn_count);
+    }
+    
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
     }

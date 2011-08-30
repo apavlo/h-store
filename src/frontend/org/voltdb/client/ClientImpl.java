@@ -62,6 +62,7 @@ final class ClientImpl implements Client {
     private Catalog m_catalog;
     private PartitionEstimator m_pEstimator;
     private Map<Integer, Integer> m_partitionSiteXref;
+    private final HStoreConf m_hstoreConf;
     
     /** Create a new client without any initial connections. */
     ClientImpl() {
@@ -103,7 +104,9 @@ final class ClientImpl implements Client {
             StatsUploaderSettings statsSettings,
             Catalog catalog) {
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
-        m_backpressureWait = (HStoreConf.isInitialized() ? HStoreConf.singleton().client.throttle_backoff : 500);
+        
+        m_hstoreConf = HStoreConf.singleton();
+        m_backpressureWait = m_hstoreConf.client.throttle_backoff;
         
         if (catalog != null) {
             m_catalog = catalog;
@@ -162,9 +165,9 @@ final class ClientImpl implements Client {
         if (m_catalog != null && procName.startsWith("@") == false) {
             try {
                 Integer partition = m_pEstimator.getBasePartition(invocation);
-                site_id = m_partitionSiteXref.get(partition);
+                if (partition != null) site_id = m_partitionSiteXref.get(partition);
             } catch (Exception ex) {
-                throw new RuntimeException("Failed to estimate base partition for client hints", ex);
+                throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
             }
         }
         
@@ -241,14 +244,14 @@ final class ClientImpl implements Client {
         if (m_catalog != null && procName.startsWith("@") == false) {
             try {
                 Integer partition = m_pEstimator.getBasePartition(invocation);
-                site_id = m_partitionSiteXref.get(partition);
+                if (partition != null) site_id = m_partitionSiteXref.get(partition);
             } catch (Exception ex) {
-                throw new RuntimeException("Failed to estimate base partition for client hints", ex);
+                throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
             }
         }
         
         if (m_blockingQueue) {
-            while (!m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id)) {
+            while (!m_distributer.queue(invocation, callback, expectedSerializedSize, true, site_id)) {
                 try {
                     backpressureBarrier();
                 } catch (InterruptedException e) {

@@ -606,9 +606,6 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         // Always update the current timestamp
         profile.updateAndGetCurrentTime();
 
-        // And the queues that the profile maintains for us
-        profile.updateItemQueues();
-        
         // Find the next txn and its parameters that we will run. We want to wrap this
         // around a synchronization block so that nobody comes in and takes the parameters
         // from us before we actually run it
@@ -779,6 +776,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 assert(itemId != null);
             } // WHILE
             if (debug.get()) LOG.debug(super.toString());
+            profile.updateItemQueues();
         }
     } // END CLASS
     

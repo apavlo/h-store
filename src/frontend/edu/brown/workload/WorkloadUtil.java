@@ -312,10 +312,10 @@ public abstract class WorkloadUtil {
      */
     public static Histogram<String> getProcedureHistogram(File workload_path) throws Exception {
         final Histogram<String> h = new Histogram<String>();
-        final String regex = "^\\{.*?,[\\s]*\"" +
+        final String regex = "^\\{[\\s]*\"" +
                              AbstractTraceElement.Members.NAME.name() +
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
-        final Pattern p = Pattern.compile(regex);
+        final Pattern p = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
 
         if (debug.get()) LOG.debug("Fast generation of Procedure Histogram from Workload '" + workload_path.getAbsolutePath() + "'");
         BufferedReader reader = FileUtil.getReader(workload_path.getAbsolutePath());

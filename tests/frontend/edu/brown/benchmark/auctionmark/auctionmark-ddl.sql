@@ -319,7 +319,7 @@ CREATE TABLE USER_FEEDBACK (
     uf_rating           TINYINT NOT NULL,
     uf_date             TIMESTAMP,
     uf_sattr0           VARCHAR(80) NOT NULL,
-    FOREIGN KEY (uf_i_id, uf_u_id) REFERENCES ITEM (i_id, i_u_id)
+    FOREIGN KEY (uf_i_id, uf_i_u_id) REFERENCES ITEM (i_id, i_u_id)
 );
 
 -- ================================================================

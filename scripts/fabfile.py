@@ -40,6 +40,7 @@ import logging
 import traceback
 import paramiko
 import socket
+from StringIO import StringIO
 from fabric.api import *
 from fabric.contrib.files import *
 from pprint import pformat
@@ -296,6 +297,7 @@ def start_cluster():
         
     first = True
     for inst in env["ec2.running_instances"]:
+        LOG.info("Configuring instance '%s'" % (inst.tags["Name"]))
         with settings(host_string=inst.public_dns_name):
             ## Setup the basic environmnt that we need on each node
             setup_env()
@@ -585,33 +587,44 @@ def write_conf(project, removals=[ ]):
 @task
 def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
     LOG.info("Updating configuration file '%s' - Updates[%d] / Removals[%d]", conf_file, len(updates), len(removals))
-    with hide('running', 'stdout'):
-        first = True
-        space = "" if noSpaces else " "
-        
-        ## Keys we want to update/insert
-        for key in sorted(updates.keys()):
-            val = updates[key]
-            hstore_line = "%s%s=%s%s" % (key, space, space, val)
-            try:
-                sed(conf_file, "%s[ ]*=[ ]*.*" % re.escape(key), hstore_line)
-                if not contains(conf_file, key+" ="):
-                    if first: hstore_line = "\n" + hstore_line
-                    append(conf_file, hstore_line + "\n")
-                    first = False
-                    LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
-            except:
-                LOG.error("Failed to update '%s' with key '%s'" % (conf_file, key))
-                raise
+    sio = StringIO()
+    if get(conf_file, local_path=sio).failed:
+        raise Exception("Failed to retrieve conf file '%s'" % conf_file)
+    contents = sio.getvalue()
+    assert len(contents) > 0
+    
+    first = True
+    space = "" if noSpaces else " "
+    
+    ## Keys we want to update/insert
+    for key in sorted(updates.keys()):
+        val = updates[key]
+        hstore_line = "%s%s=%s%s" % (key, space, space, val)
+        regex = "%s[ ]*=[ ]*.*" % re.escape(key)
+        m = re.search(regex, contents)
+        if not m:
+            if first: contents += "\n"
+            contents += hstore_line + "\n"
+            first = False
+            LOG.debug("Added '%s' in %s with value '%s'" % (key, conf_file, val))
+        else:
+            contents = contents.replace(m.group(0), hstore_line)
+            LOG.debug("Updated '%s' in %s with value '%s'" % (key, conf_file, val))
+        ## IF
+    ## FOR
+    
+    ## Keys we need to completely remove from the file
+    for key in removals:
+        if contents.find(key) != -1:
+            regex = "%s[ ]*=.*" % re.escape(key)
+            contents = re.sub(regex, "", contents)
+            LOG.debug("Removed '%s' in %s" % (key, conf_file))
         ## FOR
-        
-        ## Keys we need to completely remove from the file
-        for key in removals:
-            if contains(conf_file, key):
-                sed(conf_file, "%s[ ]*=.*" % re.escape(key), "")
-                LOG.debug("Removed '%s' in %s" % (key, conf_file))
-        ## FOR
-    ## WITH
+    ## FOR
+    
+    sio = StringIO()
+    sio.write(contents)
+    put(local_path=sio, remote_path=conf_file)
 ## DEF
 
 ## ----------------------------------------------

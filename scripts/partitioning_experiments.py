@@ -63,32 +63,36 @@ OPT_EXP_TYPE = "motivation"
 OPT_EXP_TRIALS = 3
 OPT_EXP_SETTINGS = 0
 OPT_EXP_FACTOR_START = 0
-OPT_EXP_FACTOR_STOP = 110
+OPT_EXP_FACTOR_STOP = 125
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_BENCHMARK = "tpcc"
 OPT_NO_EXECUTE = False
 
-OPT_BASE_BLOCKING_CONCURRENT = 2000
-OPT_BASE_TXNRATE = 2000
-OPT_BASE_CLIENT_COUNT = 4
+OPT_BASE_BLOCKING_CONCURRENT = 1000
+OPT_BASE_TXNRATE = 160
+OPT_BASE_CLIENT_COUNT = 5
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 32
 
 BASE_SETTINGS = {
     "ec2.type":                         "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
     "ec2.node_type":                    "m2.4xlarge",
-    "ec2.change_type":                  False,
+    "ec2.change_type":                  True,
     
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
     "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     OPT_BASE_CLIENT_COUNT,
-    "client.processesperclient":        10,
+    "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
-    "client.warmup":                    30000,
+    "client.warmup":                    00000,
     "client.scalefactor":               50,
+    "client.txn_hints":                 True,
+    "client.throttle_backoff":          50,
+    "client.memory":                    256,
     
     "site.sites_per_host":              1,
     "site.partitions_per_site":         4,
@@ -97,11 +101,11 @@ BASE_SETTINGS = {
     "site.status_show_txn_info":        True,
     "site.status_kill_if_hung":         False,
     "site.status_interval":             None,
-    "site.txn_incoming_queue_max_per_partition": 5000,
+    "site.txn_incoming_queue_max_per_partition": 2500,
     "site.txn_incoming_queue_release_factor": 0.75,
     "site.txn_redirect_queue_max_per_partition": 5000,
     "site.txn_redirect_queue_release_factor": 0.75,
-    "site.exec_postprocessing_thread":  False,
+    "site.exec_postprocessing_thread":  True,
     
     "benchmark.neworder_only":          True,
     "benchmark.neworder_abort":         False,
@@ -175,12 +179,12 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
     if exp_factor == 0:
         delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(64))
         env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
-        env["client.blocking"] = (exp_factor > 0)
+        env["client.blocking"] = False # (exp_factor > 0)
         
         delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(64))
-        env["client.txnrate"] = int(OPT_BASE_TXNRATE + delta)
+        env["client.txnrate"] = OPT_BASE_TXNRATE # int(OPT_BASE_TXNRATE + delta)
         
-        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/32.0)) - 2
+        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/32.0))
         
         for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
             key = "client.%s" % key
@@ -296,7 +300,7 @@ if __name__ == '__main__':
         env["site.partitions"] = partitions
         all_results = [ ]
         
-        for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 20):
+        for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25):
             updateEnv(env, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
             LOG.debug("Parameters:\n%s" % pformat(env))
             
@@ -344,6 +348,7 @@ if __name__ == '__main__':
                 except:
                     LOG.warn("Failed to complete trial succesfully")
                     stop = True
+                    raise
                     break
             ## FOR (TRIALS)
             if results: all_results.append((exp_factor, results, attempts))
