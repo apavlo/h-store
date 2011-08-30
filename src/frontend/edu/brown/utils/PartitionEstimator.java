@@ -202,12 +202,15 @@ public class PartitionEstimator {
     }, 1000);
     
     /**
-     * Set<Integer>[2] pool used by calculatePartitionsForCache 
+     * Set<Integer>[4] pool used by calculatePartitionsForCache 
      */
     private final ObjectPool mcPartitionSetPool = new StackObjectPool(new BasePoolableObjectFactory() {
         @Override
         public Object makeObject() throws Exception {
-            return (new HashSet[]{ new HashSet<Integer>(), new HashSet<Integer>() });
+            return (new HashSet[]{ new HashSet<Integer>(),
+                                   new HashSet<Integer>(),
+                                   new HashSet<Integer>(),
+                                   new HashSet<Integer>() });
         }
         public void passivateObject(Object obj) throws Exception {
             @SuppressWarnings("unchecked")
@@ -1081,7 +1084,7 @@ public class PartitionEstimator {
                         
                         if (trace.get()) LOG.trace("Calculating columns for multi-partition colunmn: " + mc);
                         boolean is_valid = true;
-                        for (int i = 0; i < 2; i++) {
+                        for (int i = 0, mc_cnt = mc.size(); i < mc_cnt; i++) {
                             Column mc_column = mc.get(i);
                             String mc_column_key = CatalogKey.createKey(mc_column);
                             // assert(cache_entry.get(mc_column_key) != null) : "Null CacheEntry: " + mc_column_key;

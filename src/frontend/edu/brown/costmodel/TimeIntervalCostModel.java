@@ -8,6 +8,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -658,6 +659,13 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             pplan.apply(args.catalog_db);
             System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
             System.out.print(StringUtil.DOUBLE_LINE);
+            
+            if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
+                String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
+                if (output.equals("-")) output = pplan_path.getAbsolutePath();
+                pplan.save(output);
+                System.out.println("Saved PartitionPlan to '" + output + "'");
+            }
         } else {
             System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
         }
@@ -667,20 +675,30 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, num_intervals);
         if (args.hasParam(ArgumentsParser.PARAM_DESIGNER_HINTS)) costmodel.applyDesignerHints(args.designer_hints);
         double cost = costmodel.estimateWorkloadCost(args.catalog_db, args.workload);
-        System.out.println("PARTITIONS = " + CatalogUtil.getNumberOfPartitions(args.catalog_db));
-        System.out.println("INTERVALS  = " + args.num_intervals);
-        System.out.println("COST       = " + cost);
         
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("PARTITIONS", CatalogUtil.getNumberOfPartitions(args.catalog_db));
+        m.put("INTERVALS", args.num_intervals);
+        m.put("EXEC COST", costmodel.last_execution_cost);
+        m.put("SKEW COST", costmodel.last_skew_cost);
+        m.put("TOTAL COST", cost);
+        m.put("PARTITIONS TOUCHED", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
+        System.out.println(StringUtil.formatMaps(m));
+        
+        
+//        long total = 0;
 //        for (int i = 0; i < num_intervals; i++) {
-//            Histogram h = costmodel.getCostModel(i).histogram_txn_partitions;
-//            h.setKeepZeroEntries(true);
-//            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
-//                if (h.contains(partition) == false) h.put(partition, 0);
-//            }
-//            System.out.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
-//            System.out.println();
+//            Histogram<Integer> h = costmodel.getCostModel(i).getTxnPartitionAccessHistogram();
+//            System.out.println("[" + i + "] " + h.getSampleCount());
+//            total += h.getSampleCount();
+////            h.setKeepZeroEntries(true);
+////            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
+////                if (h.contains(partition) == false) h.put(partition, 0);
+////            }
+////            System.out.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
+////            System.out.println();
 //        } // FOR
-        //System.err.println(h);
+//        System.err.println("TOTAL: " + total);
         
     }
 }

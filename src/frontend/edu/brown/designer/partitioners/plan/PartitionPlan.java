@@ -191,7 +191,10 @@ public class PartitionPlan implements JSONSerializable {
                 }
                 if (catalog_tbl.getPartitioncolumn() instanceof VerticalPartitionColumn) {
                     VerticalPartitionColumn vp_col = (VerticalPartitionColumn)catalog_tbl.getPartitioncolumn();
-                    if (vp_col.isUpdateApplied() == false) vp_col.applyUpdate();
+                    if (vp_col.isUpdateApplied() == false) {
+                        // We actually have to make the optimized query plans, right?
+                        vp_col.applyUpdate();
+                    }
                 }
             } else {
                 if (debug) LOG.warn("Missing PartitionEntry for " + catalog_tbl);

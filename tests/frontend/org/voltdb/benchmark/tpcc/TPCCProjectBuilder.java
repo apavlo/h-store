@@ -89,6 +89,11 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(paymentByCustomerName.class, 17);
         addTransactionFrequency(slev.class, 4);
     }
+    
+    // Vertical Partitions
+    {
+//        addVerticalPartitionInfo("CUSTOMER", "C_ID", "C_LAST");
+    }
 
     public static String partitioning[][] = new String[][] {
         {"WAREHOUSE", "W_ID"},

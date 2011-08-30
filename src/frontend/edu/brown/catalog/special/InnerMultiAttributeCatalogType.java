@@ -146,6 +146,7 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
     }
     @Override
     public T get(int idx) {
+        assert(idx < this.attributes.size()) : "Invalid offset '" + idx + "' for " + this;
         return ((T)this.attributes.get(idx));
     }
     @Override
