@@ -68,12 +68,14 @@ OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_NO_EXECUTE = False
+OPT_STOP_ON_ERROR = False
 
 OPT_BASE_BLOCKING = False
 OPT_BASE_BLOCKING_CONCURRENT = 1000
-OPT_BASE_TXNRATE = 10000
+OPT_BASE_TXNRATE = 6000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1
+OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
     "ec2.type":                         "c1.xlarge",
@@ -87,11 +89,11 @@ BASE_SETTINGS = {
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
-    "client.duration":                  120000,
-    "client.warmup":                    00000,
+    "client.duration":                  60000,
+    "client.warmup":                    60000,
     "client.scalefactor":               50,
     "client.txn_hints":                 True,
-    "client.throttle_backoff":          50,
+    "client.throttle_backoff":          OPT_BASE_SCALE_FACTOR,
     "client.memory":                    512,
     
     "site.sites_per_host":                              1,
@@ -105,7 +107,7 @@ BASE_SETTINGS = {
     "site.txn_incoming_queue_release_factor":           0.90,
     "site.txn_redirect_queue_max_per_partition":        15000,
     "site.txn_redirect_queue_release_factor":           0.90,
-    "site.exec_postprocessing_thread":                  True,
+    "site.exec_postprocessing_thread":                  False,
     "site.pool_profiling":                              False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
@@ -159,12 +161,19 @@ OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 ## updateEnv
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
+    env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
+    
+    if benchmark == "tpcc":
+        env["benchmark.warehouses"] = env["site.partitions"]
+        env["benchmark.loadthreads"] = env["site.partitions"]
+    elif benchmark == "airline":
+        env["client.scalefactor"] = 100
+        env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
+    
     if exp_type == "motivation":
         env["benchmark.neworder_only"] = True
         env["benchmark.neworder_abort"] = False
         env["benchmark.neworder_all_multip"] = False
-        env["benchmark.warehouses"] = env["site.partitions"]
-        env["benchmark.loadthreads"] = env["site.partitions"]
         #if exp_factor > 0:
             #env["client.blocking"] = True # To prevent OutOfMemory
 
@@ -189,11 +198,13 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
         env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         
-        ## Schism has to use the DB2 redirects
-        if exp_factor == "schism":
+        base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
+        env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
+        
+        ## Everything but LNS has to use the DB2 redirects
+        if exp_factor != "lns":
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
-        
     ## IF
     
     ## The number of concurrent blocked txns should be based on the number of partitions
@@ -321,7 +332,6 @@ if __name__ == '__main__':
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
-        first = True
         stop = False
         updateJar = True
         for partitions in map(int, options["partitions"]):
@@ -336,6 +346,7 @@ if __name__ == '__main__':
             else:
                 assert False
                 
+            first = True
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
@@ -381,19 +392,24 @@ if __name__ == '__main__':
                                                                     updateConf=updateJar,
                                                                     updateSVN=updateSVN)
                             data = parseResultsOutput(output)
-                            results.append(float(data["TXNPERSECOND"]))
+                            txnrate = float(data["TXNPERSECOND"])
+                            if int(txnrate) == 0: pass
+                            results.append(txnrate)
                             if OPT_TRACE and workloads != None:
                                 for f in workloads:
                                     LOG.info("Workload File: %s" % f)
                                 ## FOR
                             ## IF
-                            LOG.info("Throughput: %.2f" % results[-1])
+                            LOG.info("Throughput: %.2f" % txnrate)
                         ## WITH
                     except KeyboardInterrupt:
                         stop = True
                         break
                     except SystemExit:
                         LOG.warn("Failed to complete trial succesfully")
+                        if OPT_STOP_ON_ERROR:
+                            stop = True
+                            break
                         pass
                     except:
                         LOG.warn("Failed to complete trial succesfully")

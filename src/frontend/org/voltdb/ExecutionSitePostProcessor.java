@@ -8,6 +8,7 @@ import org.apache.log4j.Logger;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;
@@ -54,12 +55,13 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
         this.self.setName(this.hstore_site.getThreadName("post"));
         LOG.info("Starting transaction post-processing thread");
         
+        HStoreConf hstore_conf = hstore_site.getHStoreConf();
         Object triplet[] = null;
         while (this.stop == false) {
             try {
-                idleTime.start();
+                if (hstore_conf.site.status_show_executor_info) idleTime.start();
                 triplet = this.queue.takeFirst();
-                idleTime.stop();
+                if (hstore_conf.site.status_show_executor_info) idleTime.stop();
                 assert(triplet != null);
                 assert(triplet.length == 3) : "Unexpected response: " + Arrays.toString(triplet);
             } catch (InterruptedException ex) {

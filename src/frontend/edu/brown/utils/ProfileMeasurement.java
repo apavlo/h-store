@@ -204,9 +204,13 @@ public class ProfileMeasurement {
      * @param to_start
      */
     public static void start(ProfileMeasurement...to_start) {
+        start(false, to_start);
+    }
+    
+    public static void start(boolean ignore_started, ProfileMeasurement...to_start) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_start) {
-            pm.start(time);
+            if (ignore_started == false || (ignore_started && pm.isStarted() == false)) pm.start(time);
         } // FOR
     }
     

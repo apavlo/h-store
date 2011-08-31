@@ -349,7 +349,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         // Now load in the histograms that we will need for generating the flight data
         for (String histogramName : AirlineConstants.HISTOGRAM_DATA_FILES) {
             if (this.histograms.containsKey(histogramName)) {
-                LOG.warn("Already loaded histogram '" + histogramName + "'. Skipping...");
+                if (debug.get()) LOG.warn("Already loaded histogram '" + histogramName + "'. Skipping...");
                 continue;
             }
             if (debug.get()) LOG.debug("Loading in histogram data file for '" + histogramName + "'");

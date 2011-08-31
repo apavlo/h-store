@@ -1650,7 +1650,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
         if (hstore_conf.site.status_show_executor_info && this.inflight_txns_ctr.decrementAndGet() == 0) {
-            idle_time.start();
+            ProfileMeasurement.start(true, idle_time);
         }
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();

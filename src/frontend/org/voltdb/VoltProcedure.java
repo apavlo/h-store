@@ -527,7 +527,12 @@ public abstract class VoltProcedure implements Poolable {
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {
             if (this.executor.isShuttingDown() == false) {
+                SQLStmt last[] = this.voltLastQueriesExecuted();
+                
                 LOG.fatal("Unexpected error while executing " + m_localTxnState, ex);
+                if (last.length > 0) {
+                    LOG.fatal("Last Queries Executed: " + Arrays.toString(last));
+                }
                 LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState.debug());
                 this.executor.crash(ex);
             }
@@ -655,16 +660,24 @@ public abstract class VoltProcedure implements Poolable {
                 ex.printStackTrace(pw);
                 String msg = sw.toString();
                 if (msg == null) msg = ex.toString();
+                String statusMsg = msg;
                 
-                String currentQueries = "Current queued queries:";
-                for (int i = 0; i < batchQueryStmtIndex; i++) {
-                    currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                if (batchQueryStmtIndex > 0) {
+                    msg += "\nCurrently Queued Queries:\n";
+                    for (int i = 0; i < batchQueryStmtIndex; i++) {
+                        msg += String.format("  [%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                    }
+                } else if (last_batchQueryStmtIndex > 0) {
+                    msg += "\nLast Executed Queries:\n";
+                    for (int i = 0; i < last_batchQueryStmtIndex; i++) {
+                        msg += String.format("  [%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                    }
                 }
                 if (executor.isShuttingDown() == false) {
-                    LOG.error(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s\n%s", procedure_name, this.txn_id, msg, currentQueries), ex);
+                    LOG.error(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s", procedure_name, this.txn_id, msg), ex);
                 }
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
-                status_msg = "UNEXPECTED ABORT: " + msg;
+                status_msg = "UNEXPECTED ABORT: " + statusMsg;
             }
         // -------------------------------
         // Something really bad happened. Just bomb out!
