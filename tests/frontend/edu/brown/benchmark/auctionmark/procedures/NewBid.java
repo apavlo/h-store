@@ -185,7 +185,16 @@ public class NewBid extends VoltProcedure {
             assert (advanceRow);
             long currentBidId = results[1].getLong(0);
             double currentBidAmount = results[1].getDouble(1);
-            double currentBidMax = results[1].getDouble(2);
+            double currentBidMax = 0.0d;
+            try {
+                currentBidMax = results[1].getDouble(2);
+            } catch (IllegalArgumentException ex) {
+                SQLStmt last[] = voltLastQueriesExecuted();
+                for (int i = 0; i < last.length; i++) {
+                    LOG.error(last[i].getText() + "\n" +  results[i]);    
+                } // FOR
+                throw ex;
+            }
             long currentBuyerId = results[1].getLong(3);
             assert((int)currentBidAmount == (int)i_current_price) : String.format("%.2f == %.2f", currentBidAmount, i_current_price);
             

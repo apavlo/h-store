@@ -167,15 +167,15 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 long get_comments = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_COMMENTS ? 1 : VoltType.NULL_BIGINT);
                 
                 // Seller ITEM records
-                rand = client.rng.number(0, 100);
+                rand = 100; // client.rng.number(0, 100);
                 long get_seller_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_SELLER_ITEMS ? 1 : VoltType.NULL_BIGINT); 
 
                 // Buyer ITEM records
-                rand = client.rng.number(0, 100);
+                rand = 100; // client.rng.number(0, 100);
                 long get_buyer_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_BUYER_ITEMS ? 1 : VoltType.NULL_BIGINT);
                 
                 // USER_WATCH records
-                rand = client.rng.number(0, 100);
+                rand = 100; // client.rng.number(0, 100);
                 long get_watched_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS ? 1 : VoltType.NULL_BIGINT); 
                 
                 return new Object[] { client.getTimestampParameterArray(),

@@ -39,6 +39,10 @@ public class PlanOptimizer {
         PlanNodeType.AGGREGATE,
         PlanNodeType.NESTLOOP,
     };
+    private static final String BROKEN_SQL[] = {
+        "FROM CUSTOMER, FLIGHT, RESERVATION",   // Airline DeleteReservation.GetCustomerReservation 
+        "SELECT imb_ib_id, ib_bid",             // AuctionMark NewBid.getMaxBidId
+    };
 
     /**
      * 
@@ -108,6 +112,11 @@ public class PlanOptimizer {
         this.sql = sql;
         this.new_root = null;
 
+        // HACK
+        for (String broken : BROKEN_SQL) {
+            if (sql.contains(broken)) return (null);
+        }
+        
         // check to see if the join nodes have the wrong offsets. If so fix them and propagate them.
         this.fixJoinColumnOffsets(root);
         

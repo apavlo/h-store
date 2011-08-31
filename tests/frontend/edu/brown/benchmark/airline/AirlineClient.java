@@ -441,6 +441,9 @@ public class AirlineClient extends AirlineBaseClient {
             if (reservations.isEmpty() == false) {
                 Collections.shuffle(reservations, rng);
                 AirlineClient.this.pending_inserts.addAll(reservations);
+                while (pending_inserts.size() > 1000) {
+                    pending_inserts.remove();
+                } // WHILE
             }
         }
     }
@@ -477,10 +480,12 @@ public class AirlineClient extends AirlineBaseClient {
 
                 // Queue this motha trucka up for a deletin'
                 if (rng.nextBoolean()) {
+                    if (pending_deletes.size() > 1000) pending_deletes.remove();
                     pending_deletes.add(this.reservation);
                 }
                 // Or queue it for an update
                 else if (rng.nextBoolean()) {
+                    if (pending_updates.size() > 1000) pending_updates.remove();
                     pending_updates.add(this.reservation);
                 }
             } else if (debug.get()) {

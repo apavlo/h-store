@@ -112,13 +112,13 @@ public class NewPurchase extends VoltProcedure{
         boolean adv = results[0].advanceRow();
         assert (adv);
         
-        long i_num_bids = results[0].getLong(0);
-        double i_current_price = results[0].getDouble(1);
-        TimestampType i_end_date = results[0].getTimestampAsTimestamp(2);
+        long i_num_bids = results[0].getLong("i_num_bids");
+        double i_current_price = results[0].getDouble("i_current_price");
+        TimestampType i_end_date = results[0].getTimestampAsTimestamp("i_end_date");
         long i_status = AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE;
-        long ib_id = results[0].getLong(3);
-        long ib_buyer_id = results[0].getLong(4);
-        double u_balance = results[0].getDouble(5);
+        long ib_id = results[0].getLong("ib_id");
+        long ib_buyer_id = results[0].getLong("ib_buyer_id");
+        double u_balance = results[0].getDouble("u_balance");
         
         // Make sure that the buyer has enough money to cover this charge
         // We can add in a credit for the buyer's account
