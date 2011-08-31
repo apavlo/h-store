@@ -24,6 +24,7 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -236,11 +237,12 @@ public class VerticalPartitionPlanner {
                 m.put("VerticalP Cols", view_cols);
                 LOG.debug(String.format("Checking whether %s can use vertical partition for %s\n%s", catalog_stmt.fullName(), catalog_tbl.getName(), StringUtil.formatMaps(m)));
             }
-            if (output_cols.contains(partitioning_col) == false) {
-                if (debug.get())
-                    LOG.warn("Output Columns do not contain horizontal partitioning column");
-            }
-            else if (view_cols.containsAll(output_cols) == false) {
+//            if (output_cols.contains(partitioning_col) == false) {
+//                if (debug.get())
+//                    LOG.warn("Output Columns do not contain horizontal partitioning column");
+//            }
+//            else 
+            if (view_cols.containsAll(output_cols) == false) {
                 if (debug.get())
                     LOG.warn("Vertical Partition columns do not contain output columns");
             }
@@ -250,7 +252,7 @@ public class VerticalPartitionPlanner {
             }
             else if (view_cols.containsAll(stmt_cols) == false) {
                 if (debug.get())
-                    LOG.warn("The Vertical Partition Columns does not contain all of the Statement Columns");
+                    LOG.warn("The Vertical Partition Columns does not contain all of the Statement Columns " + CollectionUtils.subtract(view_cols, stmt_cols));
             }
             else {
                 if (debug.get())
@@ -347,7 +349,7 @@ public class VerticalPartitionPlanner {
             for (Table catalog_tbl : catalog_db.getTables()) {
                 if (catalog_tbl.getSystable() || catalog_tbl.getIsreplicated())
                     continue;
-                this.addPartitionInfo(catalog_tbl.getName(), catalog_tbl.getPartitioncolumn().getName());
+                this.addPartitionInfo(catalog_tbl, catalog_tbl.getPartitioncolumn());
             } // FOR
             
             // Make sure that we disable VP optimizations otherwise we will get stuck

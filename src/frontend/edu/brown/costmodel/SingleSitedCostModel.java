@@ -1271,7 +1271,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
         m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
-        m.put("PARTITIONS TOUCHED", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
+        m.put("PARTITIONS TOUCHED (TXNS)", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
+        m.put("PARTITIONS TOUCHED (QUERIES)", costmodel.getQueryPartitionAccessHistogram().getSampleCount());
         m.put("XXX", null);
 
         // Utilization

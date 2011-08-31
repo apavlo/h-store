@@ -24,16 +24,18 @@ import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn.SortOrder;
 import org.voltdb.planner.PlanColumn.Storage;
 
 public class PlannerContext {
+    private static final Logger LOG = Logger.getLogger(PlannerContext.class);
 
     /**
      * Generator for PlanColumn.m_guid
      */
-    private final AtomicInteger s_nextId = new AtomicInteger();
+    private final AtomicInteger s_nextId = new AtomicInteger(-1);
 
     /**
      * Global hash of PlanColumn guid to PlanColumn reference
@@ -70,11 +72,16 @@ public class PlannerContext {
             retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
             assert(s_columnPool.get(guid) == null);
             s_columnPool.put(guid, retval);
+            LOG.debug("Added new " + retval);
         }
         return retval;
     }
 
     private synchronized int getNextPlanColumnGUID() {
+        if (s_nextId.get() == -1) {
+            s_nextId.set(s_columnPool.isEmpty() ? 0 : s_columnPool.lastKey());
+            LOG.debug("Initialized NextId = " + s_nextId);
+        }
         int guid = -1;
         while (true) {
             int new_guid = s_nextId.incrementAndGet();

@@ -23,9 +23,6 @@ import org.voltdb.types.QueryType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
-import edu.brown.designer.AccessGraph;
-import edu.brown.designer.DesignerHints;
-import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.MemoryEstimator;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.TableStatistics;
@@ -44,11 +41,11 @@ public abstract class VerticalPartitionerUtil {
     
     /**
      * 
-     * @param stats
      * @param vp_col
+     * @param stats
      * @return
      */
-    public static TableStatistics computeTableStatistics(WorkloadStatistics stats, VerticalPartitionColumn vp_col) {
+    public static TableStatistics computeTableStatistics(VerticalPartitionColumn vp_col, WorkloadStatistics stats) {
         MaterializedViewInfo catalog_view = vp_col.createMaterializedView();
         Table view_tbl = catalog_view.getDest();
         TableStatistics tbl_stats = stats.getTableStatistics(view_tbl);
@@ -79,14 +76,12 @@ public abstract class VerticalPartitionerUtil {
      * Generate all of the potential VerticalPartitionColumn candidates based on the given
      * horizontal partition column. Each VerticalPartitionColumn candidate will contain the
      * optimized queries that we compute with the VerticalPartitionPlanner.  
-     * @param info
-     * @param agraph
+     * @param stats
      * @param catalog_tbl
-     * @param hints
      * @return
      * @throws Exception
      */
-    public static Collection<VerticalPartitionColumn> generateCandidates(final DesignerInfo info, final AccessGraph agraph, final Column hp_col, final DesignerHints hints) throws Exception {
+    public static Collection<VerticalPartitionColumn> generateCandidates(final Column hp_col, final WorkloadStatistics stats) throws Exception {
         if (debug.get()) LOG.debug(String.format("Generating Vertical Partitioning candidates based on using %s as the horizontal partitioning attribute", hp_col.fullName()));
         final Table catalog_tbl = hp_col.getParent();
         final Database catalog_db = catalog_tbl.getParent();
@@ -167,38 +162,50 @@ public abstract class VerticalPartitionerUtil {
         if (debug.get() && candidates.size() > 0) LOG.debug("Computing vertical partition query plans for " + candidates.size() + " candidates");
         Set<VerticalPartitionColumn> final_candidates = new HashSet<VerticalPartitionColumn>();
         for (VerticalPartitionColumn c : candidates) {
+            // Make sure our WorkloadStatistics have something for this MaterializedViewInfo
+            if (stats != null) VerticalPartitionerUtil.computeTableStatistics(c, stats);
+            
             if (c.hasOptimizedQueries()) {
                 if (debug.get()) LOG.debug("Skipping candidate that already has optimized queries\n" + c);
                 final_candidates.add(c);
-            } else {
-                MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl); 
-                if (catalog_view == null) catalog_view = c.createMaterializedView();
-                assert(catalog_view != null);
-                assert(catalog_view.getGroupbycols().isEmpty() == false) : "Busted VerticalPartition view for " + c;
-                
-                // Make sure our WorkloadStatistics have something for this MaterializedViewInfo
-                VerticalPartitionerUtil.computeTableStatistics(info.stats, c);
-                
-                List<String> columnNames = c.getVerticalPartitionColumnNames();
-                VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db);
-                Map<Statement, Statement> optimized = null;
-                try {
-                    optimized = vp_planner.generateOptimizedStatements();
-                } catch (Exception ex) {
-                    throw new Exception("Failed to generate optimized query plans:\n" + c, ex);
-                }
-                if (optimized != null) {
-                    c.addOptimizedQueries(optimized);
-                    final_candidates.add(c);
-                    if (debug.get()) LOG.info(String.format("Generated %d optimized query plans using %s's vertical partition: %s",
-                                                            optimized.size(), catalog_tbl.getName(), columnNames));
-                } else if (debug.get()) {
-                    LOG.warn("No optimized queries were generated for " + c.fullName());
-                }
+            } else if (generateOptimizedQueries(catalog_db, c)) {
+                final_candidates.add(c);
             }
         } // FOR
         
         return (final_candidates);
         
+    }
+    
+    /**
+     * 
+     * @param catalog_db
+     * @param c
+     * @return
+     */
+    public static boolean generateOptimizedQueries(Database catalog_db, VerticalPartitionColumn c) {
+        boolean ret = false;
+        MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition((Table)c.getParent()); 
+        if (catalog_view == null) catalog_view = c.createMaterializedView();
+        assert(catalog_view != null);
+        assert(catalog_view.getGroupbycols().isEmpty() == false) : "Busted VerticalPartition view for " + c;
+        
+        List<String> columnNames = c.getVerticalPartitionColumnNames();
+        VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db);
+        Map<Statement, Statement> optimized = null;
+        try {
+            optimized = vp_planner.generateOptimizedStatements();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to generate optimized query plans:\n" + c, ex);
+        }
+        if (optimized != null) {
+            c.addOptimizedQueries(optimized);
+            ret = true;
+            if (debug.get()) LOG.info(String.format("Generated %d optimized query plans using %s's vertical partition: %s",
+                                                    optimized.size(), c.getParent().getName(), columnNames));
+        } else if (debug.get()) {
+            LOG.warn("No optimized queries were generated for " + c.fullName());
+        }
+        return (ret);
     }
 }

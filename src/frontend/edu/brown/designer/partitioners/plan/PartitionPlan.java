@@ -8,6 +8,8 @@ import org.apache.log4j.Logger;
 
 import org.json.*;
 import org.voltdb.catalog.*;
+import org.voltdb.planner.VerticalPartitionPlanner;
+import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.*;
 
 import edu.brown.catalog.CatalogUtil;
@@ -16,6 +18,8 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.*;
 import edu.brown.designer.partitioners.PartitionerUtil;
+import edu.brown.designer.partitioners.VerticalPartitionerUtil;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.*;
 
 /**
@@ -175,7 +179,9 @@ public class PartitionPlan implements JSONSerializable {
         final boolean debug = LOG.isDebugEnabled();
         if (debug) LOG.debug("Applying PartitionPlan to catalog");
         
-        for (Table catalog_tbl : catalog_db.getTables()) {
+        Set<VerticalPartitionColumn> vp_cols = new HashSet<VerticalPartitionColumn>();
+        Collection<Table> tables = new HashSet<Table>(catalog_db.getTables()); 
+        for (Table catalog_tbl : tables) {
             if (catalog_tbl.getSystable()) continue;
             TableEntry pentry = this.table_entries.get(catalog_tbl);
             if (pentry != null) {
@@ -191,15 +197,34 @@ public class PartitionPlan implements JSONSerializable {
                 }
                 if (catalog_tbl.getPartitioncolumn() instanceof VerticalPartitionColumn) {
                     VerticalPartitionColumn vp_col = (VerticalPartitionColumn)catalog_tbl.getPartitioncolumn();
-                    if (vp_col.isUpdateApplied() == false) {
-                        // We actually have to make the optimized query plans, right?
-                        vp_col.applyUpdate();
-                    }
+                    vp_cols.add(vp_col);
                 }
             } else {
                 if (debug) LOG.warn("Missing PartitionEntry for " + catalog_tbl);
             }
         } // FOR
+
+        // Create optimized queries
+        if (vp_cols.isEmpty() == false) {
+            for (VerticalPartitionColumn vc : vp_cols) {
+                boolean ret = VerticalPartitionerUtil.generateOptimizedQueries(catalog_db, vc);
+                if (ret == false) LOG.warn("Faild to generate optimized queries for " + vc);
+                else {
+                    assert(vc.hasOptimizedQueries()): vc;
+                    Statement catalog_stmt = CollectionUtil.first(vc.getOptimizedQueries());
+                    assert(catalog_stmt!= null);
+                    Procedure catalog_proc = catalog_stmt.getParent();
+                    String stmtName = catalog_stmt.getName();
+                    vc.applyUpdate();
+
+                    catalog_stmt = catalog_proc.getStatements().get(stmtName);
+                    AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+                    if (debug) LOG.debug(catalog_stmt.fullName() + "\n" + PlanNodeUtil.debug(root));
+                    CatalogUtil.clearCache(catalog_db);
+                    PlanNodeUtil.clearCache();
+                }
+            } // FOR
+        }
         
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             ProcedureEntry pentry = this.proc_entries.get(catalog_proc);

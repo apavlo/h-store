@@ -86,6 +86,9 @@ public class VerticalPartitionColumn extends MultiColumn {
     public Collection<Statement> getStatements() {
         return (this.catalog_stmts);
     }
+    public Collection<Statement> getOptimizedQueries() {
+        return (this.optimized.keySet());
+    }
     public Statement getOptimizedQuery(Statement catalog_stmt) {
         return (this.optimized.get(catalog_stmt));
     }

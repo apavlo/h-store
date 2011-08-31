@@ -196,7 +196,7 @@ public class ConstraintPropagator {
                 if (hints.enable_vertical_partitioning) {
                     Collection<VerticalPartitionColumn> vp_candidates = null;
                     try {
-                        vp_candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, catalog_col, hints);
+                        vp_candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
                     }

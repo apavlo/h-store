@@ -1,6 +1,7 @@
 package edu.brown.catalog.special;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,6 +63,10 @@ public class InnerMultiAttributeCatalogType<T extends CatalogType> extends Catal
             COMPARATORS.put((Class<? extends CatalogType>)clazz, (CatalogFieldComparator<CatalogType>)comparator);
         }
         // Collections.sort(attributes, comparator);
+        for (int i = 0; i < attrs.length; i++) {
+            assert(attrs[i] != null) : String.format("The catalog attribute at offset %d is null - %s",
+                                                     i, Arrays.toString(attrs));
+        } // FOR
      
         Database catalog_db = CatalogUtil.getDatabase(attrs[0]);
         if (!SINGLETONS.containsKey(catalog_db)) {

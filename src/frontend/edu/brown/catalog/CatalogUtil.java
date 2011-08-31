@@ -1400,7 +1400,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                         if (pc.getExpression() instanceof TupleAddressExpression) continue;
                         
                         Column catalog_col = catalog_tbl.getColumns().get(pc.getDisplayName());
-                        assert(catalog_col != null) : String.format("Missing %s.%s", catalog_tbl.getName(), pc.getDisplayName());
+                        if (catalog_col == null) {
+                            LOG.error("Invalid PlanNode:\n" + PlanNodeUtil.debug(up_node));
+                        }
+                        assert(catalog_col != null) : String.format("Missing %s.%s\n%s", catalog_tbl.getName(), pc.getDisplayName(), pc);
                         
                         updateReferenceColumns(catalog_col, false, allCols, modifiedCols, readOnlyCols);
                     } // FOR
