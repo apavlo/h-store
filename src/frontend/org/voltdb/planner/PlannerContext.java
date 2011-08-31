@@ -79,7 +79,7 @@ public class PlannerContext {
 
     private synchronized int getNextPlanColumnGUID() {
         if (s_nextId.get() == -1) {
-            s_nextId.set(s_columnPool.isEmpty() ? 0 : s_columnPool.lastKey());
+            s_nextId.set(s_columnPool.isEmpty() ? 0 : s_columnPool.lastKey() * 10); // HACK
             LOG.debug("Initialized NextId = " + s_nextId);
         }
         int guid = -1;
