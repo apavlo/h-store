@@ -1170,7 +1170,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             try {
                 node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
                 columns = CatalogUtil.getReferencedColumnsForTree(catalog_db, node, ret, modified, readOnly);
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 throw new RuntimeException("Failed to get columns for " + catalog_stmt.fullName(), ex);
             }
             assert (columns != null) : "Failed to get columns for " + catalog_stmt.fullName();
