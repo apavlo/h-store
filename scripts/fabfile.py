@@ -504,16 +504,15 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         host_id += 1
     ## FOR
     assert len(hosts) > 0
-    
-    ## Update H-Store Conf file
-    if updateConf:
-        LOG.info("Updating H-Store configuration files")
-        write_conf(project, removals)
-    
+
     ## Make sure the the checkout is up to date
     if updateSVN: 
         LOG.info("Updating H-Store SVN checkout")
         deploy_hstore(build=False)
+    ## Update H-Store Conf file
+    if updateConf:
+        LOG.info("Updating H-Store configuration files")
+        write_conf(project, removals)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {

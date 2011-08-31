@@ -227,16 +227,17 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
     private SynthesizedPlanFragment[] createVerticalPartitionPlan(MaterializedViewInfo catalog_view, VoltTable table) {
         Table virtual_tbl = catalog_view.getDest();
         VoltTable vt = CatalogUtil.getVoltTable(virtual_tbl);
-        Collection<ColumnRef> virtual_cols = catalog_view.getGroupbycols();
+        Collection<Column> virtual_cols = CatalogUtil.getColumns(catalog_view.getGroupbycols());
         
         table.resetRowPosition();
         while (table.advanceRow()) {
             int i = 0;
             Object row[] = new Object[virtual_cols.size()];
-            for (ColumnRef virtual_col : virtual_cols) {
-                Column catalog_col = virtual_col.getColumn();
-                if (trace.get()) LOG.trace(String.format("Adding %s [%d] to virtual column %d", table.getColumnName(catalog_col.getIndex()), virtual_col.getIndex(), i));
-                row[virtual_col.getIndex()] = table.get(catalog_col.getIndex());
+            for (Column catalog_col : CatalogUtil.getSortedCatalogItems(virtual_cols, "index")) {
+                if (trace.get())
+                    LOG.trace(String.format("Adding %s [%d] to virtual column %d",
+                                            table.getColumnName(catalog_col.getIndex()), catalog_col.getIndex(), i));
+                row[catalog_col.getIndex()] = table.get(catalog_col.getIndex());
             } // FOR
             vt.addRow(row);
         } // WHILE

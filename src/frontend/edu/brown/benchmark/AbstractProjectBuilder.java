@@ -100,7 +100,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * @param ddl
      */
     public void setDDLContents(String ddl) {
-        File f = FileUtil.writeStringToTempFile(ddl, "sql", false);
+        File f = FileUtil.writeStringToTempFile(ddl, "sql", true);
         try {
             this.ddlURL = f.toURI().toURL();
         } catch (MalformedURLException ex) {
