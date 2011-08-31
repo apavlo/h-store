@@ -69,8 +69,9 @@ OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_NO_EXECUTE = False
 
+OPT_BASE_BLOCKING = False
 OPT_BASE_BLOCKING_CONCURRENT = 1000
-OPT_BASE_TXNRATE = 40000
+OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1
 
@@ -80,7 +81,7 @@ BASE_SETTINGS = {
     "ec2.node_type":                    "m2.4xlarge",
     "ec2.change_type":                  False,
     
-    "client.blocking":                  False,
+    "client.blocking":                  OPT_BASE_BLOCKING,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
     "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     OPT_BASE_CLIENT_COUNT,
@@ -93,21 +94,22 @@ BASE_SETTINGS = {
     "client.throttle_backoff":          50,
     "client.memory":                    512,
     
-    "site.sites_per_host":              1,
-    "site.partitions_per_site":         4,
-    "site.exec_profiling":              True,
-    "site.memory":                      60020,
-    "site.status_show_txn_info":        True,
-    "site.status_kill_if_hung":         False,
-    "site.status_interval":             None,
-    "site.txn_incoming_queue_max_per_partition": 125000,
-    "site.txn_incoming_queue_release_factor":    0.90,
-    "site.txn_redirect_queue_max_per_partition": 15000,
-    "site.txn_redirect_queue_release_factor":    0.90,
-    "site.exec_postprocessing_thread":           True,
-    "site.pool_profiling":                       True,
-    "site.pool_localtxnstate_idle":              20000,
-    "site.pool_batchplan_idle":                  10000,
+    "site.sites_per_host":                              1,
+    "site.partitions_per_site":                         4,
+    "site.exec_profiling":                              True,
+    "site.memory":                                      60020,
+    "site.status_show_txn_info":                        True,
+    "site.status_kill_if_hung":                         False,
+    "site.status_interval":                             None,
+    "site.txn_incoming_queue_max_per_partition":        125000,
+    "site.txn_incoming_queue_release_factor":           0.90,
+    "site.txn_redirect_queue_max_per_partition":        15000,
+    "site.txn_redirect_queue_release_factor":           0.90,
+    "site.exec_postprocessing_thread":                  True,
+    "site.pool_profiling":                              False,
+    "site.pool_localtxnstate_idle":                     20000,
+    "site.pool_batchplan_idle":                         10000,
+    "site.exec_db2_redirects":                          False,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -187,13 +189,18 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
         env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         
+        ## Schism has to use the DB2 redirects
+        if exp_factor == "schism":
+            env["client.txn_hints"] = False
+            env["site.exec_db2_redirects"] = True
+        
     ## IF
     
     ## The number of concurrent blocked txns should be based on the number of partitions
     if exp_factor == 0:
         delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(64))
         env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
-        env["client.blocking"] = False # (exp_factor > 0)
+        #env["client.blocking"] = False # (exp_factor > 0)
         
         delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(64))
         env["client.txnrate"] = OPT_BASE_TXNRATE # int(OPT_BASE_TXNRATE + delta)
