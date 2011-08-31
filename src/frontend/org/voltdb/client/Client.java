@@ -22,6 +22,8 @@ import java.net.UnknownHostException;
 
 import org.voltdb.VoltTable;
 
+import edu.brown.utils.ProfileMeasurement;
+
 /**
  *  <p>
  *  A <code>Client</code> that connects to one or more nodes in a volt cluster
@@ -206,6 +208,8 @@ public interface Client {
      * @return Table containing procedure stats
      */
     public VoltTable getProcedureStatsInterval();
+    
+    public ProfileMeasurement getQueueTime();
 
     /**
      * Get an identifier for the cluster that this client is currently connected to.

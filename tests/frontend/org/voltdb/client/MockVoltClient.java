@@ -60,6 +60,8 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.VoltTable;
 
+import edu.brown.utils.ProfileMeasurement;
+
 /** Hack subclass of VoltClient that fakes callProcedure. */
 public class MockVoltClient implements Client {
     public MockVoltClient() {
@@ -183,7 +185,6 @@ public class MockVoltClient implements Client {
             @Override
             public void setServerTimestamp(int val) {
                 // TODO Auto-generated method stub
-                
             }
         };
     }
@@ -302,6 +303,10 @@ public class MockVoltClient implements Client {
     @Override
     public void configureBlocking(boolean blocking) {
         // TODO Auto-generated method stub
-
+    }
+    
+    @Override
+    public ProfileMeasurement getQueueTime() {
+        return null;
     }
 }

@@ -317,12 +317,18 @@ def start_cluster():
 ## DEF
 
 ## ----------------------------------------------
-## get_env
+## update_env
 ## ----------------------------------------------
 @task
-def get_env():
-    LOG.debug("Testing whether we can access remote node")
-    run("uname -a")
+def update_env():
+    LOG.info("Updating environment on all running instances")
+    __getInstances__()
+    for inst in env["ec2.running_instances"]:
+        with settings(host_string=inst.public_dns_name):
+            setup_env()
+        ## WITH
+    ## FOR
+## DEF
 
 ## ----------------------------------------------
 ## setup_env
@@ -351,6 +357,14 @@ def setup_env():
             if run("test -f " + remote_file).failed:
                 put(local_file, remote_file, mode=0600)
     ## WITH
+    
+    ## We may be running a large cluster, in which case we will have a lot of connections
+    handlesAllowed = 2048
+    for key in [ "soft", "hard" ]:
+        update_line = "* %s nofile %d" % (key, handlesAllowed)
+        if not contains("/etc/security/limits.conf", update_line):
+            append("/etc/security/limits.conf", update_line, use_sudo=True)
+    ## FOR
     
     # Bash Aliases
     code_dir = os.path.join("$HOME", "hstore", os.path.basename(env["hstore.svn"]))
@@ -456,7 +470,7 @@ def deploy_hstore(build=True):
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateSVN=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -490,12 +504,16 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         host_id += 1
     ## FOR
     assert len(hosts) > 0
-
+    
     ## Update H-Store Conf file
-    write_conf(project, removals)
+    if updateConf:
+        LOG.info("Updating H-Store configuration files")
+        write_conf(project, removals)
     
     ## Make sure the the checkout is up to date
-    if update: deploy_hstore(build=False)
+    if updateSVN: 
+        LOG.info("Updating H-Store SVN checkout")
+        deploy_hstore(build=False)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
@@ -519,7 +537,12 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     workloads = None
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, hstore_options[x]), hstore_options.keys()))
     with cd(code_dir):
-        output = run("ant %s hstore-prepare hstore-benchmark %s" % (env["hstore.exec_prefix"], hstore_opts_cmd))
+        prefix = env["hstore.exec_prefix"]
+        if updateJar:
+            LOG.info("Updating H-Store %s project jar file" % (project.upper()))
+            prefix += " hstore-prepare"
+        cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
+        output = run(cmd)
         
         ## If they wanted a trace file, then we have to ship it back to ourselves
         if trace:

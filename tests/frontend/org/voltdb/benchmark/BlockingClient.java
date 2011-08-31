@@ -229,5 +229,8 @@ public class BlockingClient extends Semaphore implements Client {
     public boolean removeClientStatusListener(ClientStatusListener listener) {
         return this.inner.removeClientStatusListener(listener);
     }
-
+    @Override
+    public ProfileMeasurement getQueueTime() {
+        return this.inner.getQueueTime();
+    }
 }

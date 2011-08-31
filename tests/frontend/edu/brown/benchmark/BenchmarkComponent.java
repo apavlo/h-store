@@ -85,6 +85,7 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
@@ -367,6 +368,10 @@ public abstract class BenchmarkComponent {
                             if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
                             BenchmarkComponent.this.tick(m_tickCounter++);
                         }
+                        if (debug.get())
+                            LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
+                                                    m_voltClient.getQueueTime().getTotalThinkTimeMS(),
+                                                    m_voltClient.getQueueTime().getAverageThinkTimeMS()));
                         break;
                     }
                     case CLEAR: {
@@ -395,7 +400,9 @@ public abstract class BenchmarkComponent {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
                             invokeCallbackStop();
                             try {
+                                m_voltClient.drain();
                                 m_voltClient.callProcedure("@Shutdown");
+                                m_voltClient.close();
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -651,6 +658,7 @@ public abstract class BenchmarkComponent {
 //        int statsPollInterval = 10000;
         File catalogPath = null;
         String projectName = null;
+        String partitionPlanPath = null;
         long startupWait = -1;
         
         // scan the inputs once to read everything but host names
@@ -715,6 +723,10 @@ public abstract class BenchmarkComponent {
             }
             else if (parts[0].equalsIgnoreCase("WAIT")) {
                 startupWait = Long.parseLong(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
+                partitionPlanPath = parts[1];
+                assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
             }
             // If it starts with "benchmark.", then it always goes to the implementing class
             else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
@@ -786,6 +798,18 @@ public abstract class BenchmarkComponent {
                 System.exit(1);
             }
         }
+        
+        if (partitionPlanPath != null) {
+            LOG.info("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
+            Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+            PartitionPlan pplan = new PartitionPlan();
+            try {
+                pplan.load(partitionPlanPath, catalog_db);
+                pplan.apply(catalog_db);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
+            }
+        }
 
         Client new_client = ClientFactory.createClient(
                 getExpectedOutgoingMessageSize(),
@@ -793,7 +817,6 @@ public abstract class BenchmarkComponent {
                 useHeavyweightClient(),
                 statsSettings,
                 (m_hstoreConf.client.txn_hints ? this.getCatalog() : null)
-                                                       
         );
         if (m_blocking) {
             if (debug.get()) 

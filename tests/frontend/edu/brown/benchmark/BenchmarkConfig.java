@@ -70,6 +70,7 @@ public class BenchmarkConfig {
     public String statsTag;//Identifies the result set
     public String applicationName;
     public String subApplicationName;
+    public String partitionPlanPath;
     
     public String coordinatorHost;
     
@@ -204,6 +205,7 @@ public class BenchmarkConfig {
             boolean noShutdown,
             String workloadTrace,
             Set<Integer> profileSiteIds,
+            String partitionPlanPath,
             String markovPath,
             String thresholdsPath,
             Double thresholdsValue,
@@ -255,6 +257,7 @@ public class BenchmarkConfig {
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
         
+        this.partitionPlanPath = partitionPlanPath;
         this.markovPath = markovPath;
         this.markov_thresholdsPath = thresholdsPath;
         this.markov_thresholdsValue = thresholdsValue;

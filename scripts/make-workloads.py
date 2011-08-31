@@ -46,14 +46,14 @@ logging.basicConfig(level = logging.INFO,
                     stream = sys.stdout)
 
 HSTORE_OPTS = {
-    "client.duration":              300000,
+    "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
     "client.processesperclient":    1,
     "client.txnrate":               1000,
     "client.blocking":              False,
     "client.blocking_concurrent":   1000,
-    "client.scalefactor":           25,
+    "client.scalefactor":           100,
 }
 
 ## ==============================================
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     
     HSTORE_OPTS = {
         "project":              args['benchmark'],
-        "volt.server.memory":   5000,
+        "volt.server.memory":   4096,
         "output":               output,
         "workload":             trace_base + "*",
     }

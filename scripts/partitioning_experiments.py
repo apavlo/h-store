@@ -67,19 +67,18 @@ OPT_EXP_FACTOR_STOP = 125
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
-OPT_BENCHMARK = "tpcc"
 OPT_NO_EXECUTE = False
 
 OPT_BASE_BLOCKING_CONCURRENT = 1000
-OPT_BASE_TXNRATE = 160
-OPT_BASE_CLIENT_COUNT = 5
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 32
+OPT_BASE_TXNRATE = 40000
+OPT_BASE_CLIENT_COUNT = 1
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1
 
 BASE_SETTINGS = {
     "ec2.type":                         "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
     "ec2.node_type":                    "m2.4xlarge",
-    "ec2.change_type":                  True,
+    "ec2.change_type":                  False,
     
     "client.blocking":                  False,
     "client.blocking_concurrent":       OPT_BASE_BLOCKING_CONCURRENT,
@@ -92,7 +91,7 @@ BASE_SETTINGS = {
     "client.scalefactor":               50,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
-    "client.memory":                    256,
+    "client.memory":                    512,
     
     "site.sites_per_host":              1,
     "site.partitions_per_site":         4,
@@ -101,15 +100,14 @@ BASE_SETTINGS = {
     "site.status_show_txn_info":        True,
     "site.status_kill_if_hung":         False,
     "site.status_interval":             None,
-    "site.txn_incoming_queue_max_per_partition": 2500,
-    "site.txn_incoming_queue_release_factor": 0.75,
-    "site.txn_redirect_queue_max_per_partition": 5000,
-    "site.txn_redirect_queue_release_factor": 0.75,
-    "site.exec_postprocessing_thread":  True,
-    
-    "benchmark.neworder_only":          True,
-    "benchmark.neworder_abort":         False,
-    "benchmark.neworder_all_multip":    False,
+    "site.txn_incoming_queue_max_per_partition": 125000,
+    "site.txn_incoming_queue_release_factor":    0.90,
+    "site.txn_redirect_queue_max_per_partition": 15000,
+    "site.txn_redirect_queue_release_factor":    0.90,
+    "site.exec_postprocessing_thread":           True,
+    "site.pool_profiling":                       True,
+    "site.pool_localtxnstate_idle":              20000,
+    "site.pool_batchplan_idle":                  10000,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -140,17 +138,29 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_multip":        False,
         },
     ],
-    "generate": [
-        
+    "throughput": [
+        {
+            "benchmark.neworder_only":          False,
+            "benchmark.neworder_abort":         True,
+            "benchmark.neworder_all_multip":    False,
+        }
         
     ],
 }
 
+# Thoughput Experiments
+OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
+OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'airline', 'auctionmark' ]
+OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
+
 ## ==============================================
 ## updateEnv
 ## ==============================================
-def updateEnv(env, exp_type, exp_setting, exp_factor):
+def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     if exp_type == "motivation":
+        env["benchmark.neworder_only"] = True
+        env["benchmark.neworder_abort"] = False
+        env["benchmark.neworder_all_multip"] = False
         env["benchmark.warehouses"] = env["site.partitions"]
         env["benchmark.loadthreads"] = env["site.partitions"]
         #if exp_factor > 0:
@@ -173,6 +183,10 @@ def updateEnv(env, exp_type, exp_setting, exp_factor):
                 env["benchmark.temporal_skew"] = True
             env["benchmark.temporal_skew_mix"] = exp_factor
             LOG.info("benchmark.temporal_skew_mix = %d" % env["benchmark.temporal_skew_mix"])
+    elif exp_type == "throughput":
+        pplan = "%s.%s.pplan" % (benchmark, exp_factor)
+        env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        
     ## IF
     
     ## The number of concurrent blocked txns should be based on the number of partitions
@@ -223,7 +237,8 @@ if __name__ == '__main__':
         "exp-factor-start=",
         "exp-factor-stop=",
         
-        "benchmark=",
+        "benchmarks=",
+        "partition-plans=",
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
@@ -255,6 +270,11 @@ if __name__ == '__main__':
             orig_type = type(globals()[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
+            elif orig_type == list:
+                if not varname+"_changed" in globals(): ## HACK
+                    globals()[varname] = [ ]
+                    globals()[varname+"_changed"] = True
+                val = globals()[varname] + [ options[key][0] ] # HACK    
             else: 
                 val = orig_type(options[key][0])
             globals()[varname] = val
@@ -289,75 +309,105 @@ if __name__ == '__main__':
         ## FOR
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
-    
 
-    final_results = { }
-    totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
-    first = True
-    stop = False
-    for partitions in map(int, options["partitions"]):
-        LOG.info("%s - %d Partitions - Experiment #%d" % (OPT_EXP_TYPE.upper(), partitions, OPT_EXP_SETTINGS))
-        env["site.partitions"] = partitions
-        all_results = [ ]
-        
-        for exp_factor in range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25):
-            updateEnv(env, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
-            LOG.debug("Parameters:\n%s" % pformat(env))
-            
-            if first:
-                if OPT_START_CLUSTER:
-                    LOG.info("Starting cluster for experiments")
-                    fabfile.start_cluster()
+    updateSVN = True
+    for benchmark in OPT_BENCHMARKS:
+        final_results = { }
+        totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
+        first = True
+        stop = False
+        updateJar = True
+        for partitions in map(int, options["partitions"]):
+            LOG.info("%s - %s - %d Partitions - Experiment #%d" % (OPT_EXP_TYPE.upper(), benchmark.upper(), partitions, OPT_EXP_SETTINGS))
+            env["site.partitions"] = partitions
+            all_results = [ ]
                 
-                client_inst = fabfile.__getClientInstance__()
-                LOG.debug("Client Instance: " + client_inst.public_dns_name)
-            ## IF
+            if OPT_EXP_TYPE == "motivation":
+                exp_factors = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25)
+            elif OPT_EXP_TYPE == "throughput":
+                exp_factors = OPT_PARTITION_PLANS
+            else:
+                assert False
+                
+            for exp_factor in exp_factors:
+                updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
+                LOG.debug("Parameters:\n%s" % pformat(env))
+                
+                if first:
+                    if OPT_START_CLUSTER:
+                        LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
+                        fabfile.start_cluster()
+                        if OPT_NO_EXECUTE: sys.exit(0)
+                    
+                    client_inst = fabfile.__getClientInstance__()
+                    LOG.debug("Client Instance: " + client_inst.public_dns_name)
+                ## IF
 
-            results = [ ]
-            attempts = 0
-            while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
-                ## Only compile for the very first invocation
-                env["hstore.exec_prefix"] = "compile" if first else ""
-                updateSVN = first
-                first = False
-                
-                attempts += 1
-                LOG.info("Executing Trial #%d/%d for Factor %d [attempt=%d/%d]" % (len(results), OPT_EXP_TRIALS, exp_factor, attempts, totalAttempts))
-                try:
-                    with settings(host_string=client_inst.public_dns_name):
-                        output, workloads = fabfile.exec_benchmark(project=OPT_BENCHMARK, \
-                                                                   removals=conf_remove, \
-                                                                   json=True, \
-                                                                   trace=OPT_TRACE, \
-                                                                   update=updateSVN)
-                        data = parseResultsOutput(output)
-                        results.append(float(data["TXNPERSECOND"]))
-                        if OPT_TRACE and workloads != None:
-                            for f in workloads:
-                                LOG.info("Workload File: %s" % f)
-                            ## FOR
-                        ## IF
-                        LOG.info("Throughput: %.2f" % results[-1])
-                    ## WITH
-                except KeyboardInterrupt:
-                    stop = True
-                    break
-                except SystemExit:
-                    LOG.warn("Failed to complete trial succesfully")
-                    pass
-                except:
-                    LOG.warn("Failed to complete trial succesfully")
-                    stop = True
-                    raise
-                    break
-            ## FOR (TRIALS)
-            if results: all_results.append((exp_factor, results, attempts))
-            stop = stop or (attempts == totalAttempts)
+                results = [ ]
+                attempts = 0
+                updateConf = True
+                while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
+                    ## Only compile for the very first invocation
+                    if first:
+                        if env["hstore.exec_prefix"].find("compile") == -1:
+                            env["hstore.exec_prefix"] += " compile"
+                    else:
+                        env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
+                    first = False
+                    
+                    attempts += 1
+                    LOG.info("Executing %s Trial #%d/%d for Factor %s [attempt=%d/%d]" % (\
+                                benchmark.upper(),
+                                len(results),
+                                OPT_EXP_TRIALS,
+                                exp_factor,
+                                attempts,
+                                totalAttempts
+                    ))
+                    try:
+                        with settings(host_string=client_inst.public_dns_name):
+                            output, workloads = fabfile.exec_benchmark(project=benchmark, \
+                                                                    removals=conf_remove, \
+                                                                    json=True, \
+                                                                    trace=OPT_TRACE, \
+                                                                    updateJar=updateJar,
+                                                                    updateConf=updateJar,
+                                                                    updateSVN=updateSVN)
+                            data = parseResultsOutput(output)
+                            results.append(float(data["TXNPERSECOND"]))
+                            if OPT_TRACE and workloads != None:
+                                for f in workloads:
+                                    LOG.info("Workload File: %s" % f)
+                                ## FOR
+                            ## IF
+                            LOG.info("Throughput: %.2f" % results[-1])
+                        ## WITH
+                    except KeyboardInterrupt:
+                        stop = True
+                        break
+                    except SystemExit:
+                        LOG.warn("Failed to complete trial succesfully")
+                        pass
+                    except:
+                        LOG.warn("Failed to complete trial succesfully")
+                        stop = True
+                        raise
+                        break
+                    finally:
+                        updateSVN = False
+                        updateJar = False
+                        updateConf = False
+                    ## TRY
+                    
+                ## FOR (TRIALS)
+                if results: all_results.append((exp_factor, results, attempts))
+                stop = stop or (attempts == totalAttempts)
+                if stop: break
+            ## FOR (EXP_FACTOR)
+            if len(all_results) > 0: final_results[partitions] = all_results
             if stop: break
-        ## FOR (EXP_FACTOR)
-        if len(all_results) > 0: final_results[partitions] = all_results
-        if stop: break
-    ## FOR (PARTITIONS)
+        ## FOR (PARTITIONS)
+    ## FOR (BENCHMARKS)
     
     LOG.info("Disconnecting and dumping results")
     try:
@@ -367,7 +417,7 @@ if __name__ == '__main__':
             all_results = final_results[partitions]
             print "%s - Partitions %d" % (OPT_EXP_TYPE.upper(), partitions)
             for exp_factor, results, attempts in all_results:
-                print "   EXP FACTOR %d [Attempts:%d/%d]" % (exp_factor, attempts, totalAttempts)
+                print "   EXP FACTOR %s [Attempts:%d/%d]" % (exp_factor, attempts, totalAttempts)
                 for trial in range(len(results)):
                     print "      TRIAL #%d: %.4f" % (trial, results[trial])
                 ## FOR

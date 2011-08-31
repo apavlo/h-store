@@ -432,8 +432,10 @@ public class ProcessSetManager implements Shutdownable {
 
     public int killProcess(String processName) {
         ProcessData pd = m_processes.get(processName);
-        pd.out.m_expectDeath.set(true);
-        pd.err.m_expectDeath.set(true);
+        if (pd != null) {
+            if (pd.out != null) pd.out.m_expectDeath.set(true);
+            if (pd.err != null) pd.err.m_expectDeath.set(true);
+        }
         int retval = -255;
 
         pd.process.destroy();

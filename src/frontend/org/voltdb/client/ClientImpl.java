@@ -32,6 +32,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -63,6 +64,7 @@ final class ClientImpl implements Client {
     private PartitionEstimator m_pEstimator;
     private Map<Integer, Integer> m_partitionSiteXref;
     private final HStoreConf m_hstoreConf;
+    private final ProfileMeasurement m_queueTime = new ProfileMeasurement("queue");
     
     /** Create a new client without any initial connections. */
     ClientImpl() {
@@ -171,12 +173,14 @@ final class ClientImpl implements Client {
             }
         }
         
+        long start = ProfileMeasurement.getTime();
         m_distributer.queue(
                 invocation,
                 cb,
                 m_expectedOutgoingMessageSize,
                 true,
                 site_id);
+        m_queueTime.addThinkTime(start, ProfileMeasurement.getTime());
 
         try {
             cb.waitForResponse();
@@ -251,6 +255,7 @@ final class ClientImpl implements Client {
         }
         
         if (m_blockingQueue) {
+            long start = ProfileMeasurement.getTime();
             while (!m_distributer.queue(invocation, callback, expectedSerializedSize, true, site_id)) {
                 try {
                     backpressureBarrier();
@@ -258,9 +263,13 @@ final class ClientImpl implements Client {
                     throw new java.io.InterruptedIOException("Interrupted while invoking procedure asynchronously");
                 }
             }
+            m_queueTime.addThinkTime(start, ProfileMeasurement.getTime());
             return true;
         } else {
-            return m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id);
+            long start = ProfileMeasurement.getTime();
+            boolean ret = m_distributer.queue(invocation, callback, expectedSerializedSize, false, site_id);
+            m_queueTime.addThinkTime(start, ProfileMeasurement.getTime());
+            return ret;
         }
     }
 
@@ -388,5 +397,10 @@ final class ClientImpl implements Client {
     @Override
     public boolean blocking() {
         return m_blockingQueue;
+    }
+
+    @Override
+    public ProfileMeasurement getQueueTime() {
+        return m_queueTime;
     }
 }
