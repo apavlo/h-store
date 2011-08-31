@@ -687,17 +687,20 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         
 //        long total = 0;
-//        for (int i = 0; i < num_intervals; i++) {
-//            Histogram<Integer> h = costmodel.getCostModel(i).getTxnPartitionAccessHistogram();
-//            System.out.println("[" + i + "] " + h.getSampleCount());
+        m.clear(); 
+        for (int i = 0; i < num_intervals; i++) {
+            SingleSitedCostModel cm = costmodel.getCostModel(i);
+            Histogram<Integer> h = cm.getTxnPartitionAccessHistogram();
+            m.put(String.format("Interval %02d", i), cm.getTxnPartitionAccessHistogram());
 //            total += h.getSampleCount();
-////            h.setKeepZeroEntries(true);
-////            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
-////                if (h.contains(partition) == false) h.put(partition, 0);
-////            }
-////            System.out.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
-////            System.out.println();
-//        } // FOR
+//            h.setKeepZeroEntries(true);
+//            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
+//                if (h.contains(partition) == false) h.put(partition, 0);
+//            }
+//            System.out.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
+//            System.out.println();
+        } // FOR
+        System.out.println(StringUtil.formatMaps(m));
 //        System.err.println("TOTAL: " + total);
         
     }

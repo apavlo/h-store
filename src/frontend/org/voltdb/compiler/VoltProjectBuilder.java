@@ -42,10 +42,15 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
+
+import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 
 /**
  * Alternate (programmatic) interface to VoltCompiler. Give the class all of
@@ -328,6 +333,17 @@ public class VoltProjectBuilder {
             m_supplementals.add(supplemental);
     }
 
+    public void addPartitionInfo(Table catalog_tbl, Column catalog_col) {
+        // TODO: Support special columns
+        if (catalog_col instanceof VerticalPartitionColumn) {
+            catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
+        }
+        else if (catalog_col instanceof MultiColumn) {
+            catalog_col = ((MultiColumn)catalog_col).get(0);
+        }
+        this.addPartitionInfo(catalog_tbl.getName(), catalog_col.getName());
+    }
+    
     public void addPartitionInfo(final String tableName, final String partitionColumnName) {
         assert(m_partitionInfos.containsKey(tableName) == false);
         m_partitionInfos.put(tableName, partitionColumnName);

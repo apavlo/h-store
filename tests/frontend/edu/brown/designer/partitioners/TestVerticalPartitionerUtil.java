@@ -100,7 +100,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
-        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
+        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(target_col, info.stats);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
         VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
@@ -137,7 +137,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
-        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
+        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(target_col, info.stats);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
         VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
@@ -216,7 +216,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
-        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
+        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(target_col, info.stats);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
         VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
@@ -265,7 +265,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         Table catalog_tbl = this.getTable(clone_db, TM1Constants.TABLENAME_SUBSCRIBER);
         Column target_col = this.getColumn(catalog_tbl, "S_ID");
-        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
+        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(target_col, info.stats);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
         VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
@@ -343,7 +343,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Set<VerticalPartitionColumn> candidates = new HashSet<VerticalPartitionColumn>();
         for (Column catalog_col : catalog_cols) {
             MultiColumn hp_col = MultiColumn.get(catalog_col);
-            Collection<VerticalPartitionColumn> col_candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, hp_col, hints);
+            Collection<VerticalPartitionColumn> col_candidates = VerticalPartitionerUtil.generateCandidates(hp_col, info.stats);
             assertNotNull(col_candidates);
             candidates.addAll(col_candidates);
         } // FOR
@@ -378,7 +378,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
         MultiColumn target_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"));
         
-        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, target_col, hints);
+        Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(target_col, info.stats);
         assertNotNull(candidates);
         assertFalse(candidates.isEmpty());
         VerticalPartitionColumn vpc = CollectionUtil.first(candidates);
@@ -405,7 +405,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         assertNotNull(target_col);
         
         for (Column catalog_col : catalog_tbl.getColumns()) {
-            Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(info, agraph, MultiColumn.get(catalog_col), hints);
+            Collection<VerticalPartitionColumn> candidates = VerticalPartitionerUtil.generateCandidates(MultiColumn.get(catalog_col), info.stats);
             assertEquals(candidates.toString(), catalog_col.equals(target_col), candidates.size() > 0);
         } // FOR
     }

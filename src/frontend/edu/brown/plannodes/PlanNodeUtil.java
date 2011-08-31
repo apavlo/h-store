@@ -796,7 +796,7 @@ public abstract class PlanNodeUtil {
      * @return
      * @throws Exception
      */
-    public static AbstractPlanNode getRootPlanNodeForStatement(Statement catalog_stmt, boolean singlesited) throws Exception {
+    public static AbstractPlanNode getRootPlanNodeForStatement(Statement catalog_stmt, boolean singlesited) {
         if (singlesited && !catalog_stmt.getHas_singlesited()) {
             String msg = "No single-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_multisited()) {
@@ -829,43 +829,47 @@ public abstract class PlanNodeUtil {
         Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
         String fullPlan = (singlesited ? catalog_stmt.getFullplan() : catalog_stmt.getMs_fullplan());
         if (fullPlan == null || fullPlan.isEmpty()) {
-            throw new Exception("Unable to deserialize full query plan tree for " + catalog_stmt + ": The plan attribute is empty");
+            throw new RuntimeException("Unable to deserialize full query plan tree for " + catalog_stmt + ": The plan attribute is empty");
         }
     
-        if (true) { 
-            String jsonString = Encoder.hexDecodeToString(fullPlan);
-            JSONObject jsonObject = new JSONObject(jsonString);
-            PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
-            ret = list.getRootPlanNode();
-        } else {
-            //
-            // FIXME: If it's an INSERT query, then we have to use the plan fragments instead of
-            // the full query plan tree because the full plan is missing the MaterializePlanNode
-            // part for some reason.
-            // NEVER TRUST THE FULL PLAN!
-            //
-            JSONObject jsonObject = null;
-            List<AbstractPlanNode> nodes = new ArrayList<AbstractPlanNode>();
-            CatalogMap<PlanFragment> fragments = (singlesited ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-            for (PlanFragment catalog_frag : fragments) {
-                String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
-                jsonObject = new JSONObject(jsonString);
+        try {
+            if (true) { 
+                String jsonString = Encoder.hexDecodeToString(fullPlan);
+                JSONObject jsonObject = new JSONObject(jsonString);
                 PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
-                nodes.add(list.getRootPlanNode());
-            } // FOR
-            if (nodes.isEmpty()) {
-                throw new Exception("Failed to retrieve query plan nodes from catalog for " + catalog_stmt + " in " + catalog_stmt.getParent());
+                ret = list.getRootPlanNode();
+            } else {
+                //
+                // FIXME: If it's an INSERT query, then we have to use the plan fragments instead of
+                // the full query plan tree because the full plan is missing the MaterializePlanNode
+                // part for some reason.
+                // NEVER TRUST THE FULL PLAN!
+                //
+                JSONObject jsonObject = null;
+                List<AbstractPlanNode> nodes = new ArrayList<AbstractPlanNode>();
+                CatalogMap<PlanFragment> fragments = (singlesited ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
+                for (PlanFragment catalog_frag : fragments) {
+                    String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
+                    jsonObject = new JSONObject(jsonString);
+                    PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+                    nodes.add(list.getRootPlanNode());
+                } // FOR
+                if (nodes.isEmpty()) {
+                    throw new Exception("Failed to retrieve query plan nodes from catalog for " + catalog_stmt + " in " + catalog_stmt.getParent());
+                }
+                try {
+                    ret = reconstructPlanNodeTree(catalog_stmt, nodes, true);
+                } catch (Exception ex) {
+                    System.out.println("ORIGINAL NODES: " + nodes);
+                    throw ex;
+                }
             }
-            try {
-                ret = reconstructPlanNodeTree(catalog_stmt, nodes, true);
-            } catch (Exception ex) {
-                System.out.println("ORIGINAL NODES: " + nodes);
-                throw ex;
-            }
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
         
         if (ret == null) {
-            throw new Exception("Unable to deserialize full query plan tree for " + catalog_stmt + ": The deserializer returned a null root node");
+            throw new RuntimeException("Unable to deserialize full query plan tree for " + catalog_stmt + ": The deserializer returned a null root node");
             //System.err.println(CatalogUtil.debugJSON(catalog_stmt));
             //System.exit(1);
         }

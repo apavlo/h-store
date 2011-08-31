@@ -195,6 +195,7 @@ public abstract class CatalogKey {
     
     @SuppressWarnings("unchecked")
     private static <T extends CatalogType> T getFromKey(Database catalog_db, JSONObject jsonObject, Class<T> catalog_class) throws JSONException {
+        if (debug.get()) LOG.debug("Retrieving catalog key for " + jsonObject);
         T catalog_child = null;
         CatalogType catalog_parent = null;
         
@@ -263,7 +264,8 @@ public abstract class CatalogKey {
                     JSONArray jsonArray = jsonObject.getJSONArray(orig_parent_key);
                     Column params[] = new Column[jsonArray.length()];
                     for (int i = 0; i < params.length; i++) {
-                        params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), Column.class); 
+                        params[i] = getFromKey(catalog_db, jsonArray.getJSONObject(i), Column.class);
+                        assert(params[i] !=null) : "Invalid catalog key " + jsonArray.getJSONObject(i); 
                     } // FOR
                     assert(params.length > 0) : "Invalid MultiColumn Key: " + child_key;
                     catalog_child = (T)MultiColumn.get(params);

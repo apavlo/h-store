@@ -592,8 +592,12 @@ public abstract class JSONUtil {
 
         // VoltDB Catalog Object
         if (ClassUtil.getSuperClasses(field_class).contains(CatalogType.class)) {
-            value = CatalogKey.getFromKey(catalog_db, json_value, (Class<? extends CatalogType>)field_class);
-            if (value == null) throw new JSONException("Failed to get catalog object from '" + json_value + "'");
+            try {
+                value = CatalogKey.getFromKey(catalog_db, json_value, (Class<? extends CatalogType>)field_class);
+            } catch (Throwable ex) {
+                throw new Exception("Failed to get catalog object from \"" + json_value + "\"", ex);
+            }
+            if (value == null) throw new JSONException("Failed to get catalog object from \"" + json_value + "\"");
         // Class
         } else if (field_class.equals(Class.class)) {
             value = ClassUtil.getClass(json_value);

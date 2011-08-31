@@ -92,7 +92,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
     
     // Vertical Partitions
     {
-//        addVerticalPartitionInfo("CUSTOMER", "C_ID", "C_LAST");
+//        addVerticalPartitionInfo("CUSTOMER", "C_W_ID", "C_D_ID", "C_ID", "C_FIRST", "C_LAST");
     }
 
     public static String partitioning[][] = new String[][] {
