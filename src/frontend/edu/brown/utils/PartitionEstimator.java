@@ -3,6 +3,7 @@ package edu.brown.utils;
 import java.lang.reflect.Array;
 import java.util.*;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
@@ -388,7 +389,7 @@ public class PartitionEstimator {
             if (fragment_sets[i] == null || fragment_sets[i].isEmpty()) continue;
             CatalogMap<PlanFragment> fragments = (CatalogMap<PlanFragment>)fragment_sets[i];
             boolean singlesited = (i == 0);
-            if (trace.get()) LOG.trace("Analyzing " + fragments.size() + " " + (singlesited ? "single" : "multi") + "-sited fragments for " + catalog_stmt);
+            if (trace.get()) LOG.trace("Analyzing " + fragments.size() + " " + (singlesited ? "single" : "multi") + "-sited fragments for " + catalog_stmt.fullName());
             
             // Examine each fragment and pick apart how the tables are referenced
             // The order doesn't matter here
@@ -1043,6 +1044,15 @@ public class PartitionEstimator {
         //            from other PlanFragments), then won't return anything because it is up to whoever 
         //            to figure out where to send this PlanFragment (it may be at the coordinator)
         List<Table> tables = cache_entry.getTables().asList();
+        if (trace.get()) {
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put("CacheEntry", cache_entry);
+            m.put("Tables", tables);
+            m.put("Params", Arrays.toString(params));
+            m.put("Base Partition", base_partition);
+            LOG.trace("Calculating partitions for " + cache_entry.query_type + "\n" + StringUtil.formatMaps(m));
+        }
+        
         for (int table_idx = 0, cnt = cache_entry.is_replicated.length; table_idx < cnt; table_idx++) {
             final Table catalog_tbl = tables.get(table_idx);
             final boolean is_replicated = cache_entry.is_replicated[table_idx];

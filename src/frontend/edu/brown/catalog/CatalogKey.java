@@ -227,9 +227,9 @@ public abstract class CatalogKey {
         } else if (catalog_class.equals(StmtParameter.class)) {
             String split[] = PARENT_DELIMITER_REGEX.split(parent_key);
             assert(split.length == 2);
-            Procedure catalog_proc = catalog_db.getProcedures().get(split[0]);
+            Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(split[0]);
             assert(catalog_proc != null);
-            catalog_parent = catalog_proc.getStatements().get(split[1]);
+            catalog_parent = catalog_proc.getStatements().getIgnoreCase(split[1]);
         }
         // Don't throw this error because it may be a dynamic catalog type that we use for the Markov stuff 
         //} else {
@@ -272,20 +272,20 @@ public abstract class CatalogKey {
                     
                 // Regular Columns
                 } else {
-                    catalog_child = (T)((Table)catalog_parent).getColumns().get(child_key);                    
+                    catalog_child = (T)((Table)catalog_parent).getColumns().getIgnoreCase(child_key);                    
                 }
                 
             // INDEX
             } else if (superclasses.contains(Index.class)) {
-                catalog_child = (T)((Table)catalog_parent).getIndexes().get(child_key);
+                catalog_child = (T)((Table)catalog_parent).getIndexes().getIgnoreCase(child_key);
                 
             // CONSTRAINT
             } else if (superclasses.contains(Constraint.class)) {
-                catalog_child = (T)((Table)catalog_parent).getConstraints().get(child_key);
+                catalog_child = (T)((Table)catalog_parent).getConstraints().getIgnoreCase(child_key);
                 
             // MATERIALIZEDVIEW
             } else if (superclasses.contains(MaterializedViewInfo.class)) {
-                catalog_child = (T)((Table)catalog_parent).getViews().get(child_key);
+                catalog_child = (T)((Table)catalog_parent).getViews().getIgnoreCase(child_key);
                 
             // PROCPARAMETER
             } else if (superclasses.contains(ProcParameter.class)) {
@@ -302,12 +302,12 @@ public abstract class CatalogKey {
                     
                 // Regular ProcParameter
                 } else {
-                    catalog_child = (T)((Procedure)catalog_parent).getParameters().get(child_key);
+                    catalog_child = (T)((Procedure)catalog_parent).getParameters().getIgnoreCase(child_key);
                 }
                 
             // STATEMENT
             } else if (superclasses.contains(Statement.class)) {
-                catalog_child = (T)((Procedure)catalog_parent).getStatements().get(child_key);
+                catalog_child = (T)((Procedure)catalog_parent).getStatements().getIgnoreCase(child_key);
                 
             // STMTPARAMETER
             } else if (superclasses.contains(StmtParameter.class)) {
@@ -315,18 +315,18 @@ public abstract class CatalogKey {
                 
             // TABLE
             } else if (superclasses.contains(Table.class)) {
-                catalog_child = (T)((Database)catalog_parent).getTables().get(child_key);
+                catalog_child = (T)((Database)catalog_parent).getTables().getIgnoreCase(child_key);
                 if (catalog_child == null) {
                     LOG.debug("TABLES: " + CatalogUtil.debug(((Database)catalog_parent).getTables()));
                 }
                 
             // PROCEDURE
             } else if (superclasses.contains(Procedure.class)) {
-                catalog_child = (T)((Database)catalog_parent).getProcedures().get(child_key);
+                catalog_child = (T)((Database)catalog_parent).getProcedures().getIgnoreCase(child_key);
                 
             // HOST
             } else if (superclasses.contains(Host.class)) {
-                catalog_child = (T)((Cluster)catalog_parent).getHosts().get(child_key);
+                catalog_child = (T)((Cluster)catalog_parent).getHosts().getIgnoreCase(child_key);
                 
             // UNKNOWN!
             } else {

@@ -911,8 +911,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
 
         if (trace.get())
-            LOG.trace(String.format("%s [totalQueries=%d, examinedQueries=%d]", 
-                                    txn_entry, txn_entry.getTotalQueryCount(), txn_entry.getExaminedQueryCount()));
+            LOG.trace(String.format("%s [totalQueries=%d, examinedQueries=%d]\n%s", 
+                                    txn_entry, txn_entry.getTotalQueryCount(), txn_entry.getExaminedQueryCount(), txn_trace.debug(catalog_db)));
 
         // For each table, we need to keep track of the values that was used
         // when accessing their partition columns. This allows us to determine
@@ -1038,7 +1038,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                         temp_stmtPartitions.get(e.getKey()).addAll(e.getValue());
                     }
                 } // FOR (Entry<TableKey, Set<Partitions>>
-                if (trace.get()) LOG.trace(sb.toString() + "\n" + StringUtil.SINGLE_LINE.trim());
+                if (trace.get()) 
+                    LOG.trace(sb.toString() + "\n" + query_trace.debug(catalog_db) + "\n" + StringUtil.SINGLE_LINE.trim());
 
                 // Lastly, update the various histogram that keep track of which partitions are accessed:
                 //  (1) The global histogram for the cost model of partitions touched by all queries

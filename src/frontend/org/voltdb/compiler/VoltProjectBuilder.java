@@ -338,7 +338,7 @@ public class VoltProjectBuilder {
         if (catalog_col instanceof VerticalPartitionColumn) {
             catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
         }
-        else if (catalog_col instanceof MultiColumn) {
+        if (catalog_col instanceof MultiColumn) {
             catalog_col = ((MultiColumn)catalog_col).get(0);
         }
         this.addPartitionInfo(catalog_tbl.getName(), catalog_col.getName());
