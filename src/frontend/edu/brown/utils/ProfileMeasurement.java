@@ -158,12 +158,13 @@ public class ProfileMeasurement {
         if (debug.get()) LOG.debug(String.format("STOP %s", this));
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
         long added = (timestamp - this.think_marker);
+        assert(added >= 0);
         this.think_time += added;
         this.think_marker = null;
 //        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
         return (this);
     }
-
+    
     public ProfileMeasurement stop() {
         return (this.stop(getTime()));
     }

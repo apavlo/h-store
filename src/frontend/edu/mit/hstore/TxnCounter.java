@@ -14,6 +14,8 @@ import edu.brown.utils.StringUtil;
 public enum TxnCounter {
     /** The number of transaction requests that have arrived at this site */
     RECEIVED,
+    /** */
+    REJECTED,
     /** Of the the received transactions, the number that we had to send somewhere else */
     REDIRECTED,
     /** The number of txns that we executed locally */
@@ -52,6 +54,10 @@ public enum TxnCounter {
     }
     public int get() {
         return ((int)this.h.getSampleCount());
+    }
+    public int inc(String procName) {
+        this.h.put(procName);
+        return (this.get());
     }
     public int inc(Procedure catalog_proc) {
         this.h.put(catalog_proc.getName());
@@ -93,6 +99,7 @@ public enum TxnCounter {
                 total = EXECUTED.get() - SYSPROCS.get();
                 break;
             case REDIRECTED:
+            case REJECTED:
             case RECEIVED:
             case EXECUTED:
                 total = RECEIVED.get();

@@ -444,9 +444,9 @@ public class ArgumentsParser {
      * @return
      * @throws Exception
      */
-    public static ArgumentsParser load(String args[]) throws Exception {
+    public static ArgumentsParser load(String args[], String...required) throws Exception {
         ArgumentsParser au = new ArgumentsParser();
-        au.process(args);
+        au.process(args, required);
         
 //        System.out.println("catalog: " + au.catalog);
 //        System.out.println("catalog_db: " + au.catalog_db);
@@ -650,7 +650,7 @@ public class ArgumentsParser {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    public void process(String[] args) throws Exception {
+    public void process(String[] args, String...required) throws Exception {
         final boolean debug = LOG.isDebugEnabled();
         
         if (debug) LOG.debug("Processing " + args.length + " parameters...");
@@ -753,6 +753,9 @@ public class ArgumentsParser {
             }
             this.catalog_type = type;
         }
+        
+        // Check the requirements after loading the catalog, because some of the above parameters will set the catalog one
+        if (required != null && required.length > 0) this.require(required);
         
         // -------------------------------------------------------
         // PHYSICAL DESIGN COMPONENTS

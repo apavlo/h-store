@@ -1458,6 +1458,7 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${coordinator.host}" />
+        <arg value="PARTITIONPLAN=${partitionplan}" />
         
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />

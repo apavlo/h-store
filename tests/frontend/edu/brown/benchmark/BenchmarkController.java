@@ -126,6 +126,10 @@ public class BenchmarkController {
                     LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
                     BenchmarkController.this.stop = true;
                     BenchmarkController.this.failed = true;
+                    m_clientPSM.prepareShutdown();
+                    m_sitePSM.prepareShutdown();
+                    m_coordPSM.prepareShutdown();
+                    
                     if (self != null) {
                         BenchmarkController.this.self.interrupt();
                     }
@@ -295,7 +299,7 @@ public class BenchmarkController {
         this.catalog = catalog;
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(null, 0, this.failure_observer);
         m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
         m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, config.client_initialPollingDelay, this.failure_observer);
 
@@ -1204,6 +1208,7 @@ public class BenchmarkController {
         String remoteUser = null; // null implies current local username
         String projectBuilderClassname = TPCCProjectBuilder.class.getCanonicalName();
         File catalogPath = null;
+        String partitionPlanPath = null;
         boolean listenForDebugger = false;
         int serverHeapSize = 2048;
         int clientHeapSize = 1024;
@@ -1388,10 +1393,15 @@ public class BenchmarkController {
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
-                
                 catalog = CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
                 assert(catalog != null);
                 num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
+                
+            } else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
+                partitionPlanPath = parts[1];
+                clientParams.put(parts[0].toUpperCase(), parts[1]);
+                siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
+                siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_APPLY, "true");
                 
             } else if (parts[0].equalsIgnoreCase("COMPILE")) {
                 /*
@@ -1583,6 +1593,7 @@ public class BenchmarkController {
                 noShutdown,
                 workloadTrace,
                 profileSiteIds,
+                partitionPlanPath,
                 markov_path,
                 markov_thresholdsPath,
                 markov_thresholdsValue,

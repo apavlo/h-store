@@ -728,14 +728,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Poll Work Queue
                 // -------------------------------
                 try {
-                    if (hstore_conf.site.exec_profiling) this.work_queue_wait.start();
-                    work = this.work_queue.takeFirst();
+                    work = this.work_queue.poll();
+                    if (work == null) {
+                        if (hstore_conf.site.exec_profiling) this.work_queue_wait.start();
+                        work = this.work_queue.takeFirst();
+                        if (hstore_conf.site.exec_profiling) this.work_queue_wait.stop();
+                    }
                 } catch (InterruptedException ex) {
                     if (d && this.isShuttingDown() == false) LOG.debug("Unexpected interuption while polling work queue. Halting ExecutionSite...", ex);
                     stop = true;
                     break;
-                } finally {
-                    if (hstore_conf.site.exec_profiling) this.work_queue_wait.stop();
                 }
 
                 ts = this.txn_states.get(work.getTxnId());
@@ -1643,9 +1645,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // If we're a multi-partition txn then queue this mofo immediately
         if (ts.isPredictSinglePartition() == false) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            synchronized (this.work_queue) {
+            // synchronized (this.work_queue) {
                 this.work_queue.addFirst(task);    
-            }
+            // }
 
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {

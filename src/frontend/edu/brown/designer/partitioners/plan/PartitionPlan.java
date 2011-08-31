@@ -8,7 +8,6 @@ import org.apache.log4j.Logger;
 
 import org.json.*;
 import org.voltdb.catalog.*;
-import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.*;
 
