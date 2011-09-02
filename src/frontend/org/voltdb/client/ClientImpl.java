@@ -107,7 +107,7 @@ final class ClientImpl implements Client {
             Catalog catalog) {
         m_expectedOutgoingMessageSize = expectedOutgoingMessageSize;
         
-        m_hstoreConf = HStoreConf.singleton();
+        m_hstoreConf = HStoreConf.singleton(true);
         m_backpressureWait = m_hstoreConf.client.throttle_backoff;
         
         if (catalog != null) {

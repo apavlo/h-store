@@ -24,6 +24,7 @@ import org.voltdb.utils.VoltTypeUtil;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
@@ -392,6 +393,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         Collection<Statement> expected_stmts = new HashSet<Statement>();
         expected_stmts.add(this.getStatement(this.getProcedure(DeleteCallForwarding.class), "query"));
         expected_stmts.add(this.getStatement(this.getProcedure(InsertCallForwarding.class), "query1"));
+        expected_stmts.add(this.getStatement(this.getProcedure(UpdateLocation.class), "getSubscriber"));
         assertEquals(expected_stmts.size(), vpc.getStatements().size());
         assert(expected_stmts.containsAll(vpc.getStatements()));
     }
