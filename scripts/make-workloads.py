@@ -142,9 +142,4 @@ if __name__ == '__main__':
     hstore_opts_cmd = " ".join(map(lambda x: "-D%s=%s" % (x, HSTORE_OPTS[x]), HSTORE_OPTS.keys()))
     cmd = "ant workload-combine %s" % hstore_opts_cmd
     subprocess.check_call(cmd, shell=True)
-    
-    ## Zip it up!
-    cmd = "gzip --best -v " + output
-    subprocess.check_call(cmd, shell=True)
-    
 ## MAIN

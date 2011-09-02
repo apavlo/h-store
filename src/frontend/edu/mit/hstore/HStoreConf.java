@@ -1306,6 +1306,11 @@ public final class HStoreConf {
     }
     
     public synchronized static HStoreConf singleton() {
+        return singleton(false);
+    }
+    
+    public synchronized static HStoreConf singleton(boolean init) {
+        if (conf == null && init == true) return init(null);
         if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
         return (conf);
     }

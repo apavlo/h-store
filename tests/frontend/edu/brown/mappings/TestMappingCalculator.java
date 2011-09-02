@@ -150,7 +150,7 @@ public class TestMappingCalculator extends BaseTestCase {
                 this.catalog_proc.getParameters().get(4),
                 this.catalog_proc.getParameters().get(5),
         };
-        int expected_index[] = { 0, 0 }; // ???
+        int expected_index[] = { 0, 14 }; // ???
         
         for (int i = 0, cnt = catalog_stmt.getParameters().size(); i < cnt; i++) {
             StmtParameter catalog_param = catalog_stmt.getParameters().get(i);
