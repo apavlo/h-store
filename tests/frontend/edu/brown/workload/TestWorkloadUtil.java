@@ -9,7 +9,6 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
-import edu.brown.benchmark.tm1.procedures.InsertSubscriber;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
 
@@ -19,7 +18,7 @@ public class TestWorkloadUtil extends BaseTestCase {
     private static Set<String> ignore = new HashSet<String>();
     static {
         ignore.add(GetTableCounts.class.getSimpleName());
-        ignore.add(InsertSubscriber.class.getSimpleName());
+//        ignore.add(InsertSubscriber.class.getSimpleName());
     }
     
     @Override

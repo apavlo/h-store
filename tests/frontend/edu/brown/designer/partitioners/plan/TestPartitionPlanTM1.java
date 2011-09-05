@@ -49,7 +49,7 @@ public class TestPartitionPlanTM1 extends BaseTestCase {
         m.put(this.getProcedure(GetAccessData.class), this.getProcParameter(GetAccessData.class, 0));
         m.put(this.getProcedure(GetSubscriberData.class), this.getProcParameter(GetSubscriberData.class, 0));
         m.put(this.getProcedure(InsertCallForwarding.class), this.getProcParameter(InsertCallForwarding.class, 0));
-        m.put(this.getProcedure(InsertSubscriber.class), this.getProcParameter(InsertSubscriber.class, 0));
+//        m.put(this.getProcedure(InsertSubscriber.class), this.getProcParameter(InsertSubscriber.class, 0));
         m.put(this.getProcedure(UpdateLocation.class), this.getProcParameter(UpdateLocation.class, 1));
         
         // MultiProcParameters!

@@ -1,5 +1,6 @@
 package org.voltdb.planner;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,7 +25,6 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
@@ -79,24 +79,47 @@ public class VerticalPartitionPlanner {
     // ======================================================================================
 
     /**
-     * @param catalogDb
+     * @param catalog_db
      *            Catalog info about schema, metadata and procedures
      */
-    public VerticalPartitionPlanner(Database catalogDb) {
-        this.catalog_db = catalogDb;
-        this.vp_views.putAll(CatalogUtil.getVerticallyPartitionedTables(catalogDb));
-        for (Table catalog_tbl : this.vp_views.keySet()) {
-            Collection<Column> columns = CatalogUtil.getColumns(this.vp_views.get(catalog_tbl).getGroupbycols());
-            assert(columns.isEmpty() == false) : "No vertical partition columns for " + catalog_tbl;
-            this.vp_columns.put(catalog_tbl, columns);
-        } // FOR
-
+    public VerticalPartitionPlanner(Database catalog_db, MaterializedViewInfo...catalog_views) {
+        this.catalog_db = catalog_db;
         // Construct a DDL that includes the vertical partitions
         this.ddl = CatalogUtil.toSchema(catalog_db, false);
 
         // We will use this ProjectBuilder to generate new query plans
         this.projectBuilder = new VPPlannerProjectBuilder();
+        
+        for (MaterializedViewInfo catalog_view : catalog_views) {
+            this.addVerticalPartition(catalog_view);
+        } // FOR
     }
+    
+    public VerticalPartitionPlanner(Database catalog_db, boolean addAll) {
+        this(catalog_db);
+        if (addAll) this.addAllVerticalPartitions();
+    }
+    
+    public VerticalPartitionPlanner addAllVerticalPartitions() {
+        for (MaterializedViewInfo catalog_view : CatalogUtil.getVerticallyPartitionedTables(catalog_db).values()) {
+            this.addVerticalPartition(catalog_view);
+        }
+        return (this);
+    }
+    
+    public VerticalPartitionPlanner addVerticalPartition(MaterializedViewInfo catalog_view) {
+        if (debug.get())
+            LOG.debug("Adding " + catalog_view + " for discovering query optimizations");
+        Table catalog_tbl = catalog_view.getParent();
+        this.vp_views.put(catalog_tbl, catalog_view);
+        
+        Collection<Column> columns = CatalogUtil.getColumns(catalog_view.getGroupbycols());
+        assert(columns.isEmpty() == false) : "No vertical partition columns for " + catalog_tbl;
+        this.vp_columns.put(catalog_tbl, columns);
+        
+        return (this);
+    }
+    
 
     // ======================================================================================
     // MAIN ENTRY POINTS
@@ -340,10 +363,11 @@ public class VerticalPartitionPlanner {
     protected class VPPlannerProjectBuilder extends AbstractProjectBuilder {
 
         private final Map<Statement, String> rewritten_queries = new HashMap<Statement, String>();
+        private final File tempDDL;
 
         public VPPlannerProjectBuilder() {
             super("vpplanner", VPPlannerProjectBuilder.class, null, null);
-            this.setDDLContents(VerticalPartitionPlanner.this.ddl);
+            this.tempDDL = this.setDDLContents(VerticalPartitionPlanner.this.ddl);
 
             // Add in all the table partitioning info
             for (Table catalog_tbl : catalog_db.getTables()) {
@@ -386,6 +410,8 @@ public class VerticalPartitionPlanner {
                 LOG.error("Failed to build compile vertical partitioning catalog");
                 LOG.error("Busted DDL:\n" + VerticalPartitionPlanner.this.ddl);
                 throw new Exception(ex);
+            } finally {
+                this.tempDDL.delete();
             }
             assert (catalog != null);
             Database catalog_db = CatalogUtil.getDatabase(catalog);

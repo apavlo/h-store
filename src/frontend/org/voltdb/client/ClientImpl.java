@@ -167,7 +167,10 @@ final class ClientImpl implements Client {
         if (m_catalog != null && procName.startsWith("@") == false) {
             try {
                 Integer partition = m_pEstimator.getBasePartition(invocation);
-                if (partition != null) site_id = m_partitionSiteXref.get(partition);
+                if (partition != null) {
+                    site_id = m_partitionSiteXref.get(partition);
+                    invocation.setBasePartition(partition.intValue());
+                }
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
             }
@@ -248,7 +251,10 @@ final class ClientImpl implements Client {
         if (m_catalog != null && procName.startsWith("@") == false) {
             try {
                 Integer partition = m_pEstimator.getBasePartition(invocation);
-                if (partition != null) site_id = m_partitionSiteXref.get(partition);
+                if (partition != null) {
+                    site_id = m_partitionSiteXref.get(partition);
+                    invocation.setBasePartition(partition.intValue());
+                }
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to estimate base partition for new invocation of '" + procName + "'", ex);
             }

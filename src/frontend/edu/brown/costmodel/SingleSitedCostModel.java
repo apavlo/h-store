@@ -1070,12 +1070,12 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // If we're not single-sited, well then that ruins it for everyone
             // else now doesn't it??
             if (query_entry.getAllPartitions().size() > 1) {
-                if (trace.get()) LOG.trace(query_trace + " is being marked as multi-partition: " + query_entry.getAllPartitions());
+                if (debug.get()) LOG.debug(query_trace + " is being marked as multi-partition: " + query_entry.getAllPartitions());
                 query_entry.singlesited = false;
                 txn_entry.singlesited = false;
                 txn_entry.multisite_queries += query_weight;
             } else {
-                if (trace.get()) LOG.trace(query_trace + " is marked as single-partition");
+                if (debug.get()) LOG.debug(query_trace + " is marked as single-partition");
                 query_entry.singlesited = true;
                 txn_entry.singlesite_queries += query_weight;
             }
@@ -1146,8 +1146,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
             temp_txnNewPartitions.addAll(txn_entry.touched_partitions.values());
             temp_txnNewPartitions.removeAll(temp_txnOrigPartitions);
             this.histogram_txn_partitions.putAll(temp_txnNewPartitions, txn_weight);
-            if (debug.get())
-                LOG.debug(String.format("Updating %s histogram_txn_partitions with %d new partitions [new_sample_count=%d, new_value_count=%d]\n%s",
+            if (trace.get())
+                LOG.trace(String.format("Updating %s histogram_txn_partitions with %d new partitions [new_sample_count=%d, new_value_count=%d]\n%s",
                                         txn_trace,
                                         temp_txnNewPartitions.size(),
                                         this.histogram_txn_partitions.getSampleCount(),

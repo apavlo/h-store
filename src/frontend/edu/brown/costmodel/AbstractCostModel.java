@@ -39,6 +39,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
@@ -599,28 +600,35 @@ public abstract class AbstractCostModel {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public String debugHistograms() {
+    public String debugHistograms(Database catalog_db) {
         int num_histograms = 6;
         Map<String, Object> maps[] = new Map[num_histograms];
-        int i = -1;
 
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Procedures", this.histogram_procs);
-
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Single Partition Txns", this.histogram_sp_procs);
+        Map<Object, String> debugMap = CatalogKey.getDebugMap(catalog_db, Table.class, Procedure.class);
         
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Multi Partition Txns", this.histogram_mp_procs);
+        String labels[] = {
+            "Procedures",
+            "Single Partition Txns",
+            "Multi Partition Txns",
+            "Java Execution Partitions",
+            "Txn Partition Access",
+            "Query Partition Access",
+        };
+        Histogram histograms[] = {
+            this.histogram_procs,
+            this.histogram_sp_procs,
+            this.histogram_mp_procs,
+            this.histogram_java_partitions,
+            this.histogram_txn_partitions,
+            this.histogram_query_partitions,
+        };
         
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Java Execution Partitions", this.histogram_java_partitions);
-        
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Txn Partition Access", this.histogram_txn_partitions);
-        
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Query Partition Access", this.histogram_query_partitions);
+        for (int i = 0; i < labels.length; i++) {
+            String l = String.format("%s\n  + SampleCount=%d\n  + ValueCount=%d",
+                                     labels[i], histograms[i].getSampleCount(), histograms[i].getValueCount());
+            maps[i] = new HashMap<String, Object>();
+            maps[i].put(l, histograms[i].setDebugLabels(debugMap));
+        } // FOR
         
         return (StringUtil.formatMaps(maps));
     }

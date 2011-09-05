@@ -91,6 +91,13 @@ public class ProfileMeasurement {
     public double getTotalThinkTimeMS() {
         return (this.think_time / 1000000d);
     }
+    /**
+     * Get the total amount of time spent in the profiled area in seconds
+     * @return
+     */
+    public double getTotalThinkTimeSeconds() {
+        return (this.think_time / 1000000d / 1000d);
+    }
     
     /**
      * Get the average think time per invocation in nanoseconds

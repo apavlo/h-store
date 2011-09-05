@@ -110,7 +110,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
 
         // Create a filter that only has the procedures that will be optimized by our VerticalPartitionColumn
         ProcedureNameFilter filter = new ProcedureNameFilter(false);
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             filter.include(catalog_stmt.getParent().getName(), 1);
         } // FOR
         
@@ -121,7 +121,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         // Now apply the update and get the new cost. It should be lower
         // We have to clear the cache for these queries first though
         vpc.applyUpdate();
-        costModel.invalidateCache(vpc.getStatements());
+        costModel.invalidateCache(vpc.getOptimizedQueries());
         double new_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
         System.err.println("NEW COST: " + new_cost);
         assert(new_cost < expected_cost) : String.format("%f < %f", new_cost, expected_cost);
@@ -147,7 +147,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
 
         // Create a filter that only has the procedures that will be optimized by our VerticalPartitionColumn
         ProcedureNameFilter filter = new ProcedureNameFilter(false);
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             filter.include(catalog_stmt.getParent().getName(), 1);
         } // FOR
         
@@ -167,7 +167,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             // System.err.println(StringUtil.SINGLE_LINE);
         } // FOR
         assertFalse(expected_entries.isEmpty());
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Collection<QueryCacheEntry> entries = costModel.getQueryCacheEntries(catalog_stmt);
             assertNotNull(entries);
             assertFalse(entries.isEmpty());
@@ -178,7 +178,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         // and not how many partition it actually touches 
         // We have to clear the cache for these queries first though
         vpc.applyUpdate();
-        costModel.invalidateCache(vpc.getStatements());
+        costModel.invalidateCache(vpc.getOptimizedQueries());
         double new_cost = costModel.estimateWorkloadCost(clone_db, workload, filter, null);
         System.err.println("NEW COST: " + new_cost);
         Collection<TransactionCacheEntry> new_entries = costModel.getTransactionCacheEntries();
@@ -226,7 +226,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         // Get the original partitions for the queries before we apply the optimizations
         Map<Statement, Object[]> stmt_params = new HashMap<Statement, Object[]>();
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             // We first need to generate random input parameters
             Object params[] = new Object[catalog_stmt.getParameters().size()];
             for (int i = 0; i < params.length; i++) {
@@ -247,7 +247,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         // The number of partitions that our Statements touch should be reduced to one
         vpc.applyUpdate();
         assert(vpc.isUpdateApplied());
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Object params[] = stmt_params.get(catalog_stmt);
             assertNotNull(params);
             Collection<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, base_partition);
@@ -274,7 +274,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         
         // BEFORE!
         Map<Statement, Map<String, Object>> fields_before = new ListOrderedMap<Statement, Map<String, Object>>();
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             fields_before.put(catalog_stmt, this.generateFieldMap(catalog_stmt));
         } // FOR
 //        System.err.println("BEFORE:\n" + StringUtil.formatMaps(fields_before));
@@ -283,7 +283,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         MaterializedViewInfo catalog_view = vpc.applyUpdate();
         assertNotNull(catalog_view);
         assertEquals(CatalogUtil.getVerticalPartition(catalog_tbl), catalog_view);
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Map<String, Object> before_m = fields_before.get(catalog_stmt);
             assertNotNull(before_m);
             Map<String, Object> after_m = this.generateFieldMap(catalog_stmt);
@@ -312,7 +312,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         // REVERT!
         vpc.revertUpdate();
         assertNull(CatalogUtil.getVerticalPartition(catalog_tbl));
-        for (Statement catalog_stmt : vpc.getStatements()) {
+        for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
             Map<String, Object> before_m = fields_before.get(catalog_stmt);
             assertNotNull(before_m);
             Map<String, Object> revert_m = this.generateFieldMap(catalog_stmt);
@@ -350,12 +350,12 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         } // FOR
         assertFalse(candidates.isEmpty());
         
-        for (VerticalPartitionColumn c : candidates) {
+        for (VerticalPartitionColumn vpc : candidates) {
             // HACK: Clear out the query plans that could have been generated from other tests
-            c.clear();
-            assertFalse(c.getStatements().isEmpty());
-            for (Statement catalog_stmt : c.getStatements()) {
-                assertNull(catalog_stmt.fullName(), c.getOptimizedQuery(catalog_stmt));
+            vpc.clear();
+            assertTrue(vpc.getOptimizedQueries().isEmpty());
+            for (Statement catalog_stmt : vpc.getOptimizedQueries()) {
+                assertNull(catalog_stmt.fullName(), vpc.getOptimizedQuery(catalog_stmt));
             } // FOR
         } // FOR
         
@@ -394,8 +394,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         expected_stmts.add(this.getStatement(this.getProcedure(DeleteCallForwarding.class), "query"));
         expected_stmts.add(this.getStatement(this.getProcedure(InsertCallForwarding.class), "query1"));
         expected_stmts.add(this.getStatement(this.getProcedure(UpdateLocation.class), "getSubscriber"));
-        assertEquals(expected_stmts.size(), vpc.getStatements().size());
-        assert(expected_stmts.containsAll(vpc.getStatements()));
+        assertEquals(expected_stmts.size(), vpc.getOptimizedQueries().size());
+        assert(expected_stmts.containsAll(vpc.getOptimizedQueries()));
     }
     
     /**

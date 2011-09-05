@@ -2,12 +2,36 @@ package edu.brown.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
 
 import junit.framework.TestCase;
 
 public class TestStringUtil extends TestCase {
 
+    Random rand = new Random();
+    
+    /**
+     * testFormatMaps
+     */
+    public void testFormatMaps() throws Exception {
+        String key[] = { "This", "is", "a", "key" };
+        
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put(StringUtil.join(" ", key), rand.nextDouble());
+        m.put(StringUtil.join("\n", key), rand.nextBoolean());
+        m.put(Double.toString(rand.nextDouble()), StringUtil.join(" ", key));
+        m.put(Boolean.toString(rand.nextBoolean()), StringUtil.join("\n", key));
+        m.put("XXX" + StringUtil.join("\n", key), StringUtil.join("\n", key));
+        
+        String formatted = StringUtil.formatMaps(m);
+        assertNotNull(formatted);
+        assertFalse(formatted.isEmpty());
+        System.out.println(formatted);
+    }
+    
     /**
      * testHeader
      */
@@ -24,7 +48,6 @@ public class TestStringUtil extends TestCase {
      */
     @SuppressWarnings("unchecked")
     public void testColumns() throws Exception {
-        Random rand = new Random();
         for (int num_cols = 1; num_cols < 5; num_cols++) {
             List<Integer> lists[] = new List[num_cols];
             int max_length = 0;
@@ -43,7 +66,7 @@ public class TestStringUtil extends TestCase {
             String columns = StringUtil.columns(strs);
             assertNotNull(columns);
             assertFalse(columns.isEmpty());
-            System.err.println(columns);
+            System.out.println(columns);
             
             String lines[] = StringUtil.splitLines(columns);
             assertEquals(max_length, lines.length);

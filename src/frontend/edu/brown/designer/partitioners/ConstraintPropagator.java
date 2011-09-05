@@ -2,11 +2,13 @@ package edu.brown.designer.partitioners;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -135,12 +137,12 @@ public class ConstraintPropagator {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
 
             // CACHED RETURN VALUE SETS
-            this.retvals.put(catalog_proc, new HashSet<ProcParameter>());
+            this.retvals.put(catalog_proc, new TreeSet<ProcParameter>(Collections.reverseOrder()));
             
             // Generate the multi-attribute partitioning candidates
             if (hints.enable_multi_partitioning) {
                 // MultiProcParameters
-                this.multiparams.put(catalog_proc, new HashSet<ProcParameter>());
+                this.multiparams.put(catalog_proc, new TreeSet<ProcParameter>(Collections.reverseOrder()));
                 for (Set<MultiProcParameter> mpps : PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc).values()) {
                     this.multiparams.get(catalog_proc).addAll(mpps);
                 } // FOR 
@@ -151,7 +153,7 @@ public class ConstraintPropagator {
                         for (Column catalog_col : mc.getAttributes()) {
                             Collection<MultiColumn> s = this.multicolumns.get(catalog_col);
                             if (s == null) {
-                                this.multicolumns.put(catalog_col, CollectionUtil.addAll(new HashSet<MultiColumn>(), mc));
+                                this.multicolumns.put(catalog_col, CollectionUtil.addAll(new TreeSet<MultiColumn>(), mc));
                             } else {
                                 s.add(mc);
                             }
@@ -163,11 +165,12 @@ public class ConstraintPropagator {
         
         // Pre-populate which column we can get back for a given vertex+edge
         Collection<DesignerVertex> vertices = this.agraph.getVertices();
+        Map<Column, Collection<VerticalPartitionColumn>> col_vps = new HashMap<Column, Collection<VerticalPartitionColumn>>();
         for (DesignerVertex v : vertices) {
             Table catalog_tbl = v.getCatalogItem();
             if (this.retvals.containsKey(catalog_tbl) == false) {
                 // CACHE RETURN VALUE SETS
-                this.retvals.put(catalog_tbl, new HashSet<Column>());
+                this.retvals.put(catalog_tbl, new TreeSet<Column>(Collections.reverseOrder()));
                 
                 // REPLICATION
                 if (this.hints.enable_replication_readmostly || this.hints.enable_replication_readonly) {
@@ -179,34 +182,45 @@ public class ConstraintPropagator {
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                 assert(cset != null);
                 Column catalog_col = CollectionUtil.first(cset.findAllForParent(Column.class, catalog_tbl));
+                Collection<Column> candidates = new TreeSet<Column>(Collections.reverseOrder());
+                
                 if (catalog_col == null) LOG.fatal("Failed to find column for " + catalog_tbl + " in ColumnSet:\n" + cset);
                 
-                // Always add the base column without any vertical partitioning
-                Collection<Column> candidates = CollectionUtil.addAll(new HashSet<Column>(), catalog_col);
-                
-                // Maintain a reverse index from Columns to DesignerEdges
-                Collection<DesignerEdge> col_edges = this.column_edge_xref.get(catalog_col);
-                if (col_edges == null) {
-                    col_edges = new HashSet<DesignerEdge>();
-                    this.column_edge_xref.put(catalog_col, col_edges);
-                }
-                col_edges.add(e);
-                
-                // Pre-generate all of the vertical partitions that we will need during the search
-                if (hints.enable_vertical_partitioning) {
-                    Collection<VerticalPartitionColumn> vp_candidates = null;
-                    try {
-                        vp_candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
-                    } catch (Exception ex) {
-                        throw new RuntimeException("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
+                if (catalog_col.getNullable()) {
+                    if (debug.get())
+                        LOG.warn("Ignoring nullable horizontal partition column candidate " + catalog_col.fullName());
+                } else {
+                    // Always add the base column without any vertical partitioning
+                    candidates.add(catalog_col);
+                    
+                    // Maintain a reverse index from Columns to DesignerEdges
+                    Collection<DesignerEdge> col_edges = this.column_edge_xref.get(catalog_col);
+                    if (col_edges == null) {
+                        col_edges = new TreeSet<DesignerEdge>();
+                        this.column_edge_xref.put(catalog_col, col_edges);
                     }
-                    assert(vp_candidates != null);
-                    candidates.addAll(vp_candidates);
-                }
-                
-                // Add in the MultiColumns
-                if (hints.enable_multi_partitioning && this.multicolumns.containsKey(catalog_col)) {
-                    candidates.addAll(this.multicolumns.get(catalog_col)); 
+                    col_edges.add(e);
+                    
+                    // Pre-generate all of the vertical partitions that we will need during the search
+                    if (hints.enable_vertical_partitioning) {
+                        Collection<VerticalPartitionColumn> vp_candidates = col_vps.get(catalog_col);
+                        if (vp_candidates == null) {
+                            try {
+                                vp_candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
+                            } catch (Exception ex) {
+                                throw new RuntimeException("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
+                            }
+                            col_vps.put(catalog_col, vp_candidates);
+                        }
+                        assert(vp_candidates != null);
+                        candidates.addAll(vp_candidates);
+                    }
+                    // Add in the MultiColumns
+                    if (hints.enable_multi_partitioning && this.multicolumns.containsKey(catalog_col)) {
+                        candidates.addAll(this.multicolumns.get(catalog_col)); 
+                    }
+                    
+
                 }
                 
                 assert(catalog_col != null);
@@ -428,7 +442,9 @@ public class ConstraintPropagator {
             Collection<DesignerEdge> edges = this.agraph.getIncidentEdges(v); 
             for (DesignerEdge e : edges) {
                 if (this.marked_edges.contains(e)) continue;
-                Collection<Column> columns = this.edge_cols_xref.get(e); 
+                Collection<Column> columns = this.edge_cols_xref.get(e);
+                if (columns == null) continue;
+                
                 if (trace.get() && columns.isEmpty() == false) {
                     LOG.trace(String.format("Examining %d candidate Columns for %s",
                                             columns.size(), e.toStringPath(agraph)));

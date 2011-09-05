@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -32,7 +31,6 @@ public class VerticalPartitionColumn extends MultiColumn {
     
     public static final String PREFIX = "*VerticalPartitionColumn*"; 
     
-    private transient final Collection<Statement> catalog_stmts = new TreeSet<Statement>();
     private transient final Map<Statement, Statement> optimized = new HashMap<Statement, Statement>();
     private transient final Map<Statement, Statement> backups = new HashMap<Statement, Statement>();
     private transient boolean applied = false;
@@ -64,9 +62,15 @@ public class VerticalPartitionColumn extends MultiColumn {
     @Override
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("VP Columns", super.toString());
-        m.put("Statements", CatalogUtil.debug(this.catalog_stmts));
-        m.put("Optimized Queries", StringUtil.join("\n", this.optimized.entrySet()));
+        m.put("Horizontal", CatalogUtil.debug(this.getHorizontalColumn()));
+        m.put("Vertical", CatalogUtil.debug(this.getVerticalPartitionColumns()));
+        
+        Map<String, String> inner = new HashMap<String, String>();
+        for (Entry<Statement, Statement> e : this.optimized.entrySet()) {
+            inner.put(e.getKey().fullName(), e.getValue().fullName());
+        } // FOR
+        m.put("Optimized Queries", inner);
+        
         return StringUtil.formatMaps(m);
     }
     
@@ -83,9 +87,6 @@ public class VerticalPartitionColumn extends MultiColumn {
         this.backups.clear();
     }
     
-    public Collection<Statement> getStatements() {
-        return (this.catalog_stmts);
-    }
     public Collection<Statement> getOptimizedQueries() {
         return (this.optimized.keySet());
     }
@@ -153,12 +154,11 @@ public class VerticalPartitionColumn extends MultiColumn {
     public MaterializedViewInfo createMaterializedView() {
         Table catalog_tbl = this.getParent();
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
-        boolean created = false;
         if (catalog_view == null || catalog_view.getDest() == null) {
-            created = true;
             Collection<Column> cols = this.getVerticalPartitionColumns();
             assert(cols.size() > 0) : "No Vertical Partition columns for " + this;
-            if (debug.get()) LOG.debug("Creating VerticalPartition in catalog for " + catalog_tbl + ": " + cols);
+            if (trace.get())
+                LOG.trace("Creating VerticalPartition in catalog for " + catalog_tbl + ": " + cols);
             try {
                 catalog_view = VoltCompiler.addVerticalPartition(catalog_tbl, cols, true);
                 assert(catalog_view != null);
@@ -174,8 +174,7 @@ public class VerticalPartitionColumn extends MultiColumn {
                       catalog_tbl.getName(), catalog_view.getName(),
                       CatalogUtil.debug(catalog_view.getDest().getColumns())));            
         }
-        assert(catalog_view.getVerticalpartition());
-        assert(catalog_view.getDest() != null) : "MaterializedViewInfo for " + catalog_tbl + " is missing destination table! [created=" + created + "]";
+        validate(catalog_view, catalog_tbl);
         return (catalog_view);
     }
     
@@ -184,17 +183,20 @@ public class VerticalPartitionColumn extends MultiColumn {
      */
     public MaterializedViewInfo applyUpdate() {
         assert(this.applied == false) : "Trying to apply " + this + " more than once";
+        Table catalog_tbl = this.getParent();
+        assert(catalog_tbl != null);
+        
         if (this.catalog_view == null) {
             this.catalog_view = this.createMaterializedView();    
         } else {
-            Table catalog_tbl = this.getParent();
             if (debug.get()) LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
-            catalog_tbl.getViews().add(this.catalog_view);
+            catalog_tbl.getViews().add(this.catalog_view, false);
         }
         assert(this.catalog_view != null);
+        validate(catalog_view, catalog_tbl);
             
         // Apply the new Statement query plans
-        if (this.optimized.isEmpty() && debug.get()) {
+        if (debug.get() && this.optimized.isEmpty()) {
             LOG.warn("There are no optimized query plans for " + this.fullName());
         }
         for (Entry<Statement, Statement> e : this.optimized.entrySet()) {
@@ -229,6 +231,9 @@ public class VerticalPartitionColumn extends MultiColumn {
         assert(this.applied) : "Trying to undo " + this + " before applying";
         
         Table catalog_tbl = this.getParent();
+        assert(catalog_tbl != null);
+        if (debug.get())
+            LOG.debug(String.format("Reverting catalog update on %s for %s", catalog_tbl, this.catalog_view));
         assert(catalog_tbl.getViews().contains(this.catalog_view));
         catalog_tbl.getViews().remove(this.catalog_view);
         
@@ -241,7 +246,21 @@ public class VerticalPartitionColumn extends MultiColumn {
             CatalogUtil.copyQueryPlans(backup, catalog_stmt);
         } // FOR
         this.applied = false;
+        
+        validate(catalog_view, catalog_tbl);
     }
     
-
+    private static void validate(MaterializedViewInfo catalog_view, Table catalog_tbl) {
+        assert(catalog_view.getVerticalpartition());
+        assert(catalog_view.getDest() != null) : 
+            String.format("MaterializedViewInfo %s for %s is missing destination table!", catalog_view.fullName(), catalog_tbl);
+        assert(catalog_view.getGroupbycols().isEmpty() == false) :
+            String.format("MaterializedViewInfo %s for %s is missing groupby columns!", catalog_view.fullName(), catalog_tbl);
+        assert(catalog_view.getDest().getColumns().isEmpty() == false) :
+            String.format("MaterializedViewInfo %s for %s is missing virtual columns!", catalog_view.getDest(), catalog_tbl);
+        assert(catalog_view.getParent().equals(catalog_tbl)) :
+            String.format("MaterializedViewInfo %s has parent %s, but it should be %s!",
+                          catalog_view.fullName(), catalog_view.getParent(), catalog_tbl);
+        
+    }
 }

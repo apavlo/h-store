@@ -82,19 +82,27 @@ public abstract class VerticalPartitionerUtil {
      * @throws Exception
      */
     public static Collection<VerticalPartitionColumn> generateCandidates(final Column hp_col, final WorkloadStatistics stats) throws Exception {
-        if (debug.get()) LOG.debug(String.format("Generating Vertical Partitioning candidates based on using %s as the horizontal partitioning attribute", hp_col.fullName()));
         final Table catalog_tbl = hp_col.getParent();
         final Database catalog_db = catalog_tbl.getParent();
-        Set<VerticalPartitionColumn> candidates = new ListOrderedSet<VerticalPartitionColumn>();
+        final Set<VerticalPartitionColumn> candidates = new ListOrderedSet<VerticalPartitionColumn>();
+        
+        // If the horizontal partition column is null, then there can't be any vertical partition columns
+        if (hp_col.getNullable()) {
+            if (debug.get())
+                LOG.warn("The horizontal partition column " + hp_col.fullName() + " is nullable. Skipping candidate generation");
+            return (candidates);
+        }
         
         // Get all the read-only columns for this table
         Collection<Column> readOnlyColumns = CatalogUtil.getReadOnlyColumns(catalog_tbl, true);
-        if (trace.get()) LOG.trace(catalog_tbl + " Read-Only Columns: " + CatalogUtil.debug(readOnlyColumns));
         
         // For the given Column object, figure out what are the potential vertical partitioning candidates
         // if we assume that the Table is partitioned on that Column
+        if (debug.get()) {
+            LOG.debug(String.format("Generating VerticalPartitionColumn candidates based on using %s as the horizontal partitioning attribute", hp_col.fullName()));
+            LOG.trace(catalog_tbl + " Read-Only Columns: " + CatalogUtil.debug(readOnlyColumns));
+        }
         for (Procedure catalog_proc : CatalogUtil.getReferencingProcedures(catalog_tbl)) {
-            
             // Look for a query on this table that does not use the target column in the predicate
             // But does return it in its output
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
@@ -145,31 +153,30 @@ public abstract class VerticalPartitionerUtil {
                 MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
                 VerticalPartitionColumn vpc = VerticalPartitionColumn.get(hp_col, vp_col);
                 assert(vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", hp_col, vp_col);
-                vpc.getStatements().add(catalog_stmt);
                 candidates.add(vpc);
                 
-                if (trace.get()) {
+                if (debug.get()) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
                     m.put("Output Columns", output_cols);
                     m.put("Predicate Columns", stmt_cols);
                     m.put("Horizontal Partitioning", hp_col.fullName());
                     m.put("Vertical Partitioning", vp_col.fullName());
-                    LOG.trace(catalog_stmt.fullName() + "\n" + StringUtil.formatMaps(m));
+                    LOG.debug("Vertical Partition Candidate: " + catalog_stmt.fullName() + "\n" + StringUtil.formatMaps(m));
                 }
             } // FOR (stmt)
         } // FOR (proc)
         
         if (debug.get() && candidates.size() > 0) LOG.debug("Computing vertical partition query plans for " + candidates.size() + " candidates");
         Set<VerticalPartitionColumn> final_candidates = new HashSet<VerticalPartitionColumn>();
-        for (VerticalPartitionColumn c : candidates) {
+        for (VerticalPartitionColumn vpc : candidates) {
             // Make sure our WorkloadStatistics have something for this MaterializedViewInfo
-            if (stats != null) VerticalPartitionerUtil.computeTableStatistics(c, stats);
+            if (stats != null) VerticalPartitionerUtil.computeTableStatistics(vpc, stats);
             
-            if (c.hasOptimizedQueries()) {
-                if (debug.get()) LOG.debug("Skipping candidate that already has optimized queries\n" + c);
-                final_candidates.add(c);
-            } else if (generateOptimizedQueries(catalog_db, c)) {
-                final_candidates.add(c);
+            if (vpc.hasOptimizedQueries()) {
+                if (debug.get()) LOG.debug("Skipping candidate that already has optimized queries\n" + vpc.toString());
+                final_candidates.add(vpc);
+            } else if (generateOptimizedQueries(catalog_db, vpc)) {
+                final_candidates.add(vpc);
             }
         } // FOR
         
@@ -188,10 +195,11 @@ public abstract class VerticalPartitionerUtil {
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition((Table)c.getParent()); 
         if (catalog_view == null) catalog_view = c.createMaterializedView();
         assert(catalog_view != null);
-        assert(catalog_view.getGroupbycols().isEmpty() == false) : "Busted VerticalPartition view for " + c;
+        assert(catalog_view.getGroupbycols().isEmpty() == false) :
+            String.format("Missing columns for VerticalPartition view %s\n%s", catalog_view.fullName(), c);
         
         List<String> columnNames = c.getVerticalPartitionColumnNames();
-        VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db);
+        VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db, catalog_view);
         Map<Statement, Statement> optimized = null;
         try {
             optimized = vp_planner.generateOptimizedStatements();
@@ -201,8 +209,14 @@ public abstract class VerticalPartitionerUtil {
         if (optimized != null) {
             c.addOptimizedQueries(optimized);
             ret = true;
-            if (debug.get()) LOG.info(String.format("Generated %d optimized query plans using %s's vertical partition: %s",
-                                                    optimized.size(), c.getParent().getName(), columnNames));
+            if (debug.get())
+                LOG.debug(String.format("Generated %d optimized query plans using %s's vertical partition: %s",
+                                        optimized.size(), c.getParent().getName(), columnNames));
+        } else if (c.hasOptimizedQueries()) {
+            ret = true;
+            if (debug.get())
+                LOG.debug(String.format("Using existing %d optimized query plans using %s's vertical partition",
+                                         c.getOptimizedQueries().size(), c.getParent().getName()));
         } else if (debug.get()) {
             LOG.warn("No optimized queries were generated for " + c.fullName());
         }

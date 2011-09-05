@@ -9,6 +9,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -507,8 +508,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getName() + "'");
             }
             
+            // Found search target
+            if (this.last_halt_reason == HaltReason.FOUND_TARGET) {
+                LOG.info("Found target PartitionPlan. Halting");
+                break;
+            }
             // Time Limit
-            if (this.last_checkpoint > hints.getGlobalStopTime()) {
+            else if (hints.limit_total_time != null && this.last_checkpoint > hints.getGlobalStopTime()) {
                 LOG.info("Time limit reached: " + hints.limit_total_time + " seconds");
                 break;
             }
@@ -664,7 +670,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         // Select which tables we want to relax on this restart
         // We will keep looking until we find one that we haven't processed before
-        Collection<Table> relaxed_tables = new HashSet<Table>();
+        Collection<Table> relaxed_tables = new TreeSet<Table>(Collections.reverseOrder());
         while (true) {
             relaxed_tables.clear();
             Collection<Integer> rand_idxs = rand.getRandomIntSet(relax_size);

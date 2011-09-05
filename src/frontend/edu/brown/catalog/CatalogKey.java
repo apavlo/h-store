@@ -20,13 +20,19 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class CatalogKey {
     private static final Logger LOG = Logger.getLogger(CatalogKey.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private static final String PARENT_DELIMITER = ".";
     private static final Pattern PARENT_DELIMITER_REGEX = Pattern.compile(Pattern.quote(PARENT_DELIMITER));
@@ -373,5 +379,36 @@ public abstract class CatalogKey {
     
     public static <T extends CatalogType> Collection<T> getFromKeys(Database catalog_db, Collection<String> keys, Class<T> catalog_class) {
         return (getFromKeys(catalog_db, keys, catalog_class, new ArrayList<T>()));
+    }
+    
+    /**
+     * CatalogKey -> CatalogType.fullName()
+     * @param catalog_db
+     * @param types
+     * @return
+     */
+    public static Map<Object, String> getDebugMap(Database catalog_db, final Class<? extends CatalogType>...types) {
+        final Map<Object, String> debugMap = new HashMap<Object, String>();
+        new AbstractTreeWalker<CatalogType>() {
+            @SuppressWarnings("unchecked")
+            @Override
+            protected void populate_children(AbstractTreeWalker.Children<CatalogType> children, CatalogType element) {
+                for (String field : element.getChildFields()) {
+                    Collection<CatalogType> m = (Collection<CatalogType>)element.getChildren(field);
+                    assert(m != null);
+                    children.addAfter(m);
+                } // FOR
+            }
+            @Override
+            protected void callback(CatalogType element) {
+                List<Class<?>> superclasses = ClassUtil.getSuperClasses(element.getClass());
+                for (Class<? extends CatalogType> t : types) {
+                    if (superclasses.contains(t)) {
+                        debugMap.put(CatalogKey.createKey(element), element.fullName());
+                    }
+                } // FOR
+            }
+        }.traverse(catalog_db);
+        return (debugMap);
     }
 }

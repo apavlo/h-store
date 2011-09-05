@@ -18,15 +18,22 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class DesignerHints implements Cloneable, JSONSerializable {
     private static final Logger LOG = Logger.getLogger(DesignerHints.class);
-
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     public static final Field[] MEMBERS;
     static {
         List<Field> fields = new ArrayList<Field>();
@@ -206,6 +213,14 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public double relaxation_factor_max = 0.5;
     public int relaxation_min_size = 5;
     
+    /**
+     * If we were given a target PartitionPlan, then we will check
+     * whether every new solution equals this plan. If it does, then we will halt.
+     * This is used to measure how long it takes us to find the optimal solution.
+     */
+    public String target_plan_path = "";
+    public transient PartitionPlan target_plan = null;
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
@@ -294,8 +309,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
             this.log_solutions_costs_writer.write(String.format("%d\t%.05f\n", offset, cost));
             this.log_solutions_costs_writer.flush();
         } catch (Exception ex) {
-            ex.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException("Failed to log solution cost to '" + this.log_solutions_costs + "'", ex);
         }
     }
     
@@ -424,16 +438,18 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         this.load(input_path, catalog_db);
         
         // Then construct a JSONObject from the map to override the parameters
-        JSONStringer stringer = new JSONStringer();
-        try {
-            stringer.object();
-            for (Entry<String, String> e : override.entrySet()) {
-                stringer.key(e.getKey().toUpperCase()).value(e.getValue());
-            } // FOR
-            stringer.endObject();
-            this.fromJSON(new JSONObject(stringer.toString()), catalog_db);
-        } catch (JSONException ex) {
-            throw new IOException("Failed to load override parameters: " + override, ex);
+        if (override.isEmpty() == false) {
+            JSONStringer stringer = new JSONStringer();
+            try {
+                stringer.object();
+                for (Entry<String, String> e : override.entrySet()) {
+                    stringer.key(e.getKey().toUpperCase()).value(e.getValue());
+                } // FOR
+                stringer.endObject();
+                this.fromJSON(new JSONObject(stringer.toString()), catalog_db);
+            } catch (JSONException ex) {
+                throw new IOException("Failed to load override parameters: " + override, ex);
+            }
         }
     }
     
@@ -474,8 +490,19 @@ public class DesignerHints implements Cloneable, JSONSerializable {
                 } // FOR
             } // FOR
             if (to_add.size() > 0) {
-                if (LOG.isDebugEnabled()) LOG.debug("Added ignore procedures: " + to_add);
+                if (debug.get()) LOG.debug("Added ignore procedures: " + to_add);
                 this.ignore_procedures.addAll(to_add);
+            }
+        }
+        
+        // Target PartitionPlan
+        if (this.target_plan_path != null && this.target_plan_path.isEmpty() == false) {
+            if (debug.get()) LOG.debug("Loading in target PartitionPlan from '" + this.target_plan_path + "'");
+            this.target_plan = new PartitionPlan();
+            try {
+                this.target_plan.load(this.target_plan_path, catalog_db);
+            } catch (IOException ex) {
+                throw new RuntimeException("Failed to load target PartitionPlan '" + this.target_plan_path + "'", ex);
             }
         }
     }

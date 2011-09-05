@@ -295,7 +295,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         } // FOR
         
         
-        System.err.println(cost_model.debugHistograms());
+        System.err.println(cost_model.debugHistograms(catalog_db));
         System.err.println("+++++++++++++++++++++++++++++++++++++++++++++++++");
         
         // Now invalidate the cache for the first query in the procedure
@@ -306,7 +306,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         try {
             cost_model.invalidateCache(catalog_tbl);
         } catch (Throwable ex) {
-            System.err.println(cost_model.debugHistograms());
+            System.err.println(cost_model.debugHistograms(catalog_db));
             throw ex;
         }
         assertEquals(0, cost_model.getMultiPartitionProcedureHistogram().getSampleCount());
@@ -346,7 +346,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         try {
             cost_model.invalidateCache(catalog_tbl);
         } catch (Throwable ex) {
-            System.err.println(cost_model.debugHistograms());
+            System.err.println(cost_model.debugHistograms(catalog_db));
             throw ex;
         }
         assertEquals(0, cost_model.getMultiPartitionProcedureHistogram().getSampleCount());
