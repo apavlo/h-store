@@ -310,7 +310,9 @@ public final class HStoreConf {
         public double markov_path_caching_threshold;
         
         @ConfigProperty(
-            description="TODO",
+            description="The minimum number of queries that must be in a batch for the TransactionEstimator " +
+                        "to cache the path segment in the procedure's MarkovGraph. Provides a minor speed improvement " +
+                        "for large batches with little variability in their execution paths.",
             defaultInt=3,
             advanced=false
         )
@@ -548,9 +550,6 @@ public final class HStoreConf {
             advanced=false
         )
         public int delay;
-
-
-        
     }
     
     // ============================================================================
@@ -679,7 +678,11 @@ public final class HStoreConf {
         public int temporaltotal;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If ${client.tick_interval} is greater than one, then it determines how often " +
+                        "(in ms) the BenchmarkComponent will execute tick(). " +
+                        "A client driver implementation can reliably use this to perform some " +
+                        "maintence operation or change data distributions. By default, tick() will be " +
+                        "invoked at the interval defined by ${client.interval}.",
             defaultInt=-1,
             advanced=true
         )
@@ -727,7 +730,8 @@ public final class HStoreConf {
         public String tablestats_dir = HStoreConf.this.global.temp_dir + "/stats";
         
         @ConfigProperty(
-            description="", // TODO
+            description="If set to true, then the client calculate the base partition needed by each transaction " +
+                        "request and send that request to the HStoreSite that has that partition.",
             defaultBoolean=false,
             experimental=true,
             advanced=true
@@ -735,7 +739,11 @@ public final class HStoreConf {
         public boolean txn_hints = false;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If a node is executing multiple client processes, then the node may become overloaded if " +
+                        "all the clients are started at the same time. This parameter defines the threshold for when " +
+                        "the BenchmarkController will stagger the start time of clients. For example, if a node will execute " +
+                        "ten clients and ${client.delay_threshold} is set to five, then the first five processes will start " +
+                        "right away and the remaining five will wait until the first ones finish before starting themselves.", 
             defaultInt=8,
             experimental=false,
             advanced=false
