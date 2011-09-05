@@ -477,6 +477,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     @Override
     public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
         JSONUtil.fieldsFromJSON(json_object, catalog_db, this, DesignerHints.class, true, DesignerHints.MEMBERS);
+
+        // HACK: Convert negatives to nulls
+        if (this.limit_back_tracks != null && this.limit_back_tracks < 0) this.limit_back_tracks = null;
+        if (this.limit_local_time != null && this.limit_local_time < 0) this.limit_local_time = null;
+        if (this.limit_total_time != null && this.limit_total_time < 0) this.limit_total_time = null;
         
         // HACK: Process wildcards
         if (this.ignore_procedures.size() > 0) {

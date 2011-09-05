@@ -180,17 +180,21 @@ public abstract class FileUtil {
         return tempFile;
     }
     
-    public static String readFile(File path) throws IOException {
+    public static String readFile(File path) {
         return (readFile(path.getAbsolutePath()));
     }
     
-    public static String readFile(String path) throws IOException {
+    public static String readFile(String path) {
         StringBuilder buffer = new StringBuilder();
-        BufferedReader in = FileUtil.getReader(path);
-        while (in.ready()) {
-            buffer.append(in.readLine()).append("\n");
-        } // WHILE
-        in.close();
+        try {
+            BufferedReader in = FileUtil.getReader(path);
+            while (in.ready()) {
+                buffer.append(in.readLine()).append("\n");
+            } // WHILE
+            in.close();
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read file contents from '" + path + "'", ex);
+        }
         return (buffer.toString());
     }
     
