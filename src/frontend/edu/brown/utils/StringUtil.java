@@ -159,26 +159,26 @@ public abstract class StringUtil {
         // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
         int max_title_size = 0;
-        final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
+        final Map<Object, String[]> map_keys[] = (Map<Object, String[]>[])new Map[maps.length];
         final boolean map_titles[] = new boolean[maps.length];
         for (int i = 0; i < maps.length; i++) {
             Map<?, ?> m = maps[i];
             if (m == null) continue;
-            Map<Object, String> keys = new HashMap<Object, String>();
+            Map<Object, String[]> keys = new HashMap<Object, String[]>();
             boolean first = true;
             for (Object k : m.keySet()) {
-                String k_str = (k != null ? k.toString() : "");
+                String k_str[] = LINE_SPLIT.split(k != null ? k.toString() : "");
                 keys.put(k, k_str);
                 
                 // If the first element has a null value, then we can let it be the title for this map
                 // It's length doesn't affect the other keys, but will affect the total size of the map
                 if (first && first_element_title && m.get(k) == null) {
-                    for (String line : LINE_SPLIT.split(k_str)) {
+                    for (String line : k_str) {
                         max_title_size = Math.max(max_title_size, line.length());    
                     } // FOR
                     map_titles[i] = true;
                 } else {
-                    for (String line : LINE_SPLIT.split(k_str)) {
+                    for (String line : k_str) {
                         max_key_size = Math.max(max_key_size, line.length());
                     } // FOR
                     if (first) map_titles[i] = false;
@@ -197,22 +197,23 @@ public abstract class StringUtil {
         // We do it in this way so that we can get the max length of the values
         int max_value_size = 0;
         StringBuilder blocks[] = new StringBuilder[maps.length];
-        for (int i = 0; i < maps.length; i++) {
-            blocks[i] = new StringBuilder();
-            Map<?, ?> m = maps[i];
+        for (int map_i = 0; map_i < maps.length; map_i++) {
+            blocks[map_i] = new StringBuilder();
+            Map<?, ?> m = maps[map_i];
             if (m == null) continue;
-            Map<?, ?> keys = map_keys[i];
+            Map<Object, String[]> keys = map_keys[map_i];
             
             boolean first = true;
             for (Entry<?, ?> e : m.entrySet()) {
-                String k = keys.get(e.getKey()).toString();
-                if (first && map_titles[i]) {
-                    blocks[i].append(k);
-                    if (k.endsWith("\n") == false) blocks[i].append("\n");
+                String key[] = keys.get(e.getKey());
+                
+                if (first && map_titles[map_i]) {
+                    blocks[map_i].append(StringUtil.join("\n", key));
+                    if (CollectionUtil.last(key).endsWith("\n") == false) blocks[map_i].append("\n");
                 } else {
                     Object v_obj = e.getValue();
                     String v = null;
-                    if (recursive && v_obj instanceof Map) {
+                    if (recursive && v_obj instanceof Map<?, ?>) {
                         v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, first_element_title, (Map<?,?>)v_obj).trim();
                     } else if (v_obj == null) {
                         v = "null";
@@ -220,18 +221,24 @@ public abstract class StringUtil {
                         v = v_obj.toString();
                     }
     
-                    if (upper) k = k.toUpperCase();
-                    if (first == false || (first && v.isEmpty() == false)) {
-                        if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
-                    }
                     
-                    // If the value is multiple lines, format them nicely!
-                    String lines[] = LINE_SPLIT.split(v);
-                    for (int line_i = 0; line_i < lines.length; line_i++) {
-                        blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
-                        if (need_divider) max_value_size = Math.max(max_value_size, lines[line_i].length());
+                    // If the key or value is multiple lines, format them nicely!
+                    String value[] = LINE_SPLIT.split(v);
+                    int total_lines = Math.max(key.length, value.length); 
+                    for (int line_i = 0; line_i < total_lines; line_i++) {
+                        String k_line = (line_i < key.length ? key[line_i] : ""); 
+                        if (upper) k_line = k_line.toUpperCase();
+                        
+                        String v_line = (line_i < value.length ? value[line_i] : "");
+                        
+                        if (line_i == 0 && (first == false || (first && v_line.isEmpty() == false))) {
+                            if (equalsDelimiter == false && k_line.trim().isEmpty() == false) k_line += ":";
+                        }
+                    
+                        blocks[map_i].append(String.format(f, k_line, v_line));
+                        if (need_divider) max_value_size = Math.max(max_value_size, v_line.length());
                     } // FOR
-                    if (v.endsWith("\n")) blocks[i].append("\n");
+                    if (v.endsWith("\n")) blocks[map_i].append("\n");
                 }
                 first = false;
             }

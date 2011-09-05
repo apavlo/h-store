@@ -80,7 +80,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         super.setUp(pb, true);
         this.addPartitions(NUM_PARTITIONS);
         assert(catalog_db.getProcedures().size() > 0);
-        vp_planner = new VerticalPartitionPlanner(catalog_db);
+        vp_planner = new VerticalPartitionPlanner(catalog_db, true);
     }
     
     /**
@@ -169,7 +169,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
         
         // We don't actually care whether this got turned to a single-partition txn
         // We just care that it got optimized properly with the ORDER BY
-        VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db);
+        VerticalPartitionPlanner vp_planner = new VerticalPartitionPlanner(catalog_db, true);
         boolean ret = vp_planner.optimizeStatement(catalog_stmt);
         assert(ret);
         p_estimator.clear();

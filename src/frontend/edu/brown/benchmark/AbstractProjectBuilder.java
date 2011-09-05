@@ -20,14 +20,20 @@ import org.voltdb.utils.JarReader;
 
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
- *
  */
 public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     private static final Logger LOG = Logger.getLogger(AbstractProjectBuilder.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     protected final Class<? extends AbstractProjectBuilder> base_class;
     protected final Class<?> procedures[];
@@ -99,14 +105,16 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
      * This will cause the ProjectBuilder to write DDL out to a temporary file
      * @param ddl
      */
-    public void setDDLContents(String ddl) {
+    public File setDDLContents(String ddl) {
         File f = FileUtil.writeStringToTempFile(ddl, "sql", true);
         try {
             this.ddlURL = f.toURI().toURL();
         } catch (MalformedURLException ex) {
             throw new RuntimeException(ex);
         }
-        LOG.debug("Wrote DDL contents to '" + f.getAbsolutePath() + "'");
+        if (debug.get())
+            LOG.debug("Wrote DDL contents to '" + f.getAbsolutePath() + "'");
+        return (f);
     }
     
     public final URL getDDLURL(boolean fkeys) {
@@ -214,7 +222,8 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     
     public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
         String pb_className = String.format("%s.%sProjectBuilder", type.getPackageName(), type.getBenchmarkPrefix());
-        LOG.debug("Dynamically creating project builder for " + type + ": " + pb_className);
+        if (debug.get())
+            LOG.debug("Dynamically creating project builder for " + type + ": " + pb_className);
         final AbstractProjectBuilder pb = (AbstractProjectBuilder)ClassUtil.newInstance(pb_className,
                                                    new Object[]{  }, new Class<?>[]{  });
         assert(pb != null) : "Invalid ProjectType " + type;

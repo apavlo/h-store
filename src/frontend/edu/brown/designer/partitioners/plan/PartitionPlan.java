@@ -138,9 +138,12 @@ public class PartitionPlan implements JSONSerializable {
                     Table parent = current_entry.getParent();
                     if (parent != null) {
                         TableEntry parent_entry = PartitionPlan.this.table_entries.get(parent);
-                        if (parent_entry == null) LOG.error("Failed to initialize dependencies:\n" + PartitionPlan.this);
-                        assert(parent_entry != null) : "Missing parent entry " + parent + " for " + element;
-                        if (!this.hasVisited(parent)) children.addAfter(parent);
+                        if (parent_entry == null) {
+                            LOG.warn("Failed to initialize dependencies:\n" + PartitionPlan.this);
+                        } else {
+                            // assert(parent_entry != null) : "Missing parent entry " + parent + " for " + element;
+                            if (!this.hasVisited(parent)) children.addAfter(parent);
+                        }
                     }
                 };
                 @Override
@@ -205,24 +208,29 @@ public class PartitionPlan implements JSONSerializable {
 
         // Create optimized queries
         if (vp_cols.isEmpty() == false) {
+            boolean clearCache = false;
             for (VerticalPartitionColumn vc : vp_cols) {
                 boolean ret = VerticalPartitionerUtil.generateOptimizedQueries(catalog_db, vc);
-                if (ret == false) LOG.warn("Faild to generate optimized queries for " + vc);
-                else {
+                if (ret == false) {
+                    LOG.warn(String.format("Failed to generate optimized queries for %s\n%s", vc.getClass().getSimpleName(), vc));
+                } else {
                     assert(vc.hasOptimizedQueries()): vc;
                     Statement catalog_stmt = CollectionUtil.first(vc.getOptimizedQueries());
                     assert(catalog_stmt!= null);
                     Procedure catalog_proc = catalog_stmt.getParent();
                     String stmtName = catalog_stmt.getName();
-                    vc.applyUpdate();
+                    if (vc.isUpdateApplied() == false) vc.applyUpdate();
 
                     catalog_stmt = catalog_proc.getStatements().get(stmtName);
                     AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
                     if (debug) LOG.debug(catalog_stmt.fullName() + "\n" + PlanNodeUtil.debug(root));
-                    CatalogUtil.clearCache(catalog_db);
-                    PlanNodeUtil.clearCache();
+                    clearCache = true;
                 }
             } // FOR
+            if (clearCache) {
+                CatalogUtil.clearCache(catalog_db);
+                PlanNodeUtil.clearCache();
+            }
         }
         
         for (Procedure catalog_proc : catalog_db.getProcedures()) {

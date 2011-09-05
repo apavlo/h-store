@@ -47,6 +47,7 @@ public abstract class AbstractPartitioner {
         GLOBAL_TIME_LIMIT,
         BACKTRACK_LIMIT,
         EXHAUSTED_SEARCH,
+        FOUND_TARGET,
     }
     
     protected final Designer designer;
@@ -86,7 +87,7 @@ public abstract class AbstractPartitioner {
      * @param hints
      * @throws Exception
      */
-    protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) throws Exception {
+    protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) {
         pplan.apply(info.catalog_db);
         if (debug.get()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
