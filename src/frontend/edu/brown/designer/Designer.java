@@ -11,6 +11,8 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.generators.PartitionPlanTreeGenerator;
 import edu.brown.designer.indexselectors.AbstractIndexSelector;
@@ -252,6 +254,11 @@ public class Designer {
             ArgumentsParser.PARAM_STATS,
             ArgumentsParser.PARAM_MAPPINGS
         );
+        
+        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+        }
         
         // Create the container object that will hold all the information that
         // the designer will need to use

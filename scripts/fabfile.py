@@ -522,7 +522,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         "client.processesperclient":    env["client.processesperclient"],
         "benchmark.warehouses":         partition_id,
         "project":                      project,
-        "hosts":                        ",".join(hosts),
+        "hosts":                        ";".join(hosts),
     }
     if json: hstore_options["jsonoutput"] = True
     if trace:

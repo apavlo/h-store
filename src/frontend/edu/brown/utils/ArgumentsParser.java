@@ -78,6 +78,15 @@ public class ArgumentsParser {
     public static final String PARAM_CATALOG_OUTPUT         = PARAM_CATALOG + ".output";
     public static final String PARAM_CATALOG_TYPE           = PARAM_CATALOG + ".type";
     public static final String PARAM_CATALOG_SCHEMA         = PARAM_CATALOG + ".schema";
+    public static final String PARAM_CATALOG_HOSTS           = PARAM_CATALOG + ".hosts";
+    public static final String PARAM_CATALOG_NUM_HOSTS      = PARAM_CATALOG + ".numhosts";
+    public static final String PARAM_CATALOG_HOST_CORES     = PARAM_CATALOG + ".hosts.cores";
+    public static final String PARAM_CATALOG_HOST_THREADS   = PARAM_CATALOG + ".hosts.threads";
+    public static final String PARAM_CATALOG_HOST_MEMORY    = PARAM_CATALOG + ".hosts.memory";
+    public static final String PARAM_CATALOG_PORT           = PARAM_CATALOG + ".port";
+    public static final String PARAM_CATALOG_PARTITION      = PARAM_CATALOG + ".partition";
+    public static final String PARAM_CATALOG_SITES_PER_HOST = PARAM_CATALOG + ".hosts.numsites";
+    public static final String PARAM_CATALOG_PARTITIONS_PER_SITE = PARAM_CATALOG + ".site.numpartitions";
     
     public static final String PARAM_CONF                   = "conf";
     public static final String PARAM_CONF_OUTPUT            = PARAM_CONF + ".output";
@@ -176,21 +185,6 @@ public class ArgumentsParser {
     public static final String PARAM_DTXN_CONF_OUTPUT       = PARAM_DTXN + ".conf.output";
     public static final String PARAM_DTXN_ENGINE            = PARAM_DTXN + ".engine";
     public static final String PARAM_DTXN_COORDINATOR       = PARAM_DTXN + ".coordinator";
-    
-    public static final String PARAM_SIMULATOR              = "simulator";
-    public static final String PARAM_SIMULATOR_CONF_OUTPUT  = PARAM_SIMULATOR + ".conf.output";
-    public static final String PARAM_SIMULATOR_HOST         = PARAM_SIMULATOR + ".host";
-    public static final String PARAM_SIMULATOR_NUM_HOSTS    = PARAM_SIMULATOR + ".numhosts";
-    public static final String PARAM_SIMULATOR_HOST_CORES   = PARAM_SIMULATOR + ".host.cores";
-    public static final String PARAM_SIMULATOR_HOST_THREADS = PARAM_SIMULATOR + ".host.threads";
-    public static final String PARAM_SIMULATOR_HOST_MEMORY  = PARAM_SIMULATOR + ".host.memory";
-    public static final String PARAM_SIMULATOR_PORT         = PARAM_SIMULATOR + ".port";
-    public static final String PARAM_SIMULATOR_ID           = PARAM_SIMULATOR + ".id";
-    public static final String PARAM_SIMULATOR_PARTITION    = PARAM_SIMULATOR + ".partition";
-    public static final String PARAM_SIMULATOR_CLIENT_THREADS = PARAM_SIMULATOR + ".client.threads";
-    public static final String PARAM_SIMULATOR_CLIENT_TIME  = PARAM_SIMULATOR + ".client.time";
-    public static final String PARAM_SIMULATOR_SITES_PER_HOST = PARAM_SIMULATOR + ".host.numsites";
-    public static final String PARAM_SIMULATOR_PARTITIONS_PER_SITE = PARAM_SIMULATOR + ".site.numpartitions";
     
     public static final List<String> PARAMS = new ArrayList<String>();
     static {
@@ -644,6 +638,12 @@ public class ArgumentsParser {
         }
     }
     
+    public void updateCatalog(Catalog catalog, File catalog_path) {
+        this.catalog = catalog;
+        this.catalog_db = CatalogUtil.getDatabase(catalog);
+        if (catalog_path != null) this.catalog_path = catalog_path;
+    }
+    
     /**
      * 
      * @param args
@@ -707,20 +707,19 @@ public class ArgumentsParser {
         if (this.params.containsKey(PARAM_CATALOG)) {
             String path = this.params.get(PARAM_CATALOG);
             if (debug) LOG.debug("Loading catalog from file '" + path + "'");
-            this.catalog = CatalogUtil.loadCatalog(path);
-            if (this.catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = new File(path);
+            Catalog catalog = CatalogUtil.loadCatalog(path);
+            if (catalog == null) throw new Exception("Failed to load catalog object from file '" + path + "'");
+            this.updateCatalog(catalog, new File(path));
+        }
         // Jar File
-        } else if (this.params.containsKey(PARAM_CATALOG_JAR)) {
+        else if (this.params.containsKey(PARAM_CATALOG_JAR)) {
             String path = this.params.get(PARAM_CATALOG_JAR);
             this.params.put(PARAM_CATALOG, path);
             File jar_file = new File(path);
-            this.catalog = CatalogUtil.loadCatalogFromJar(path);
-            if (this.catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
+            Catalog catalog = CatalogUtil.loadCatalogFromJar(path);
+            if (catalog == null) throw new Exception("Failed to load catalog object from jar file '" + path + "'");
             if (debug) LOG.debug("Loaded catalog from jar file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = jar_file;
+            this.updateCatalog(catalog, jar_file);
             
             if (!this.params.containsKey(PARAM_CATALOG_TYPE)) {
                 String jar_name = jar_file.getName();
@@ -734,14 +733,14 @@ public class ArgumentsParser {
                     }
                 }
             }
+        }
         // Schema File
-        } else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
+        else if (this.params.containsKey(PARAM_CATALOG_SCHEMA)) {
             String path = this.params.get(PARAM_CATALOG_SCHEMA); 
-            this.catalog = CompilerUtil.compileCatalog(path);
-            if (this.catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
+            Catalog catalog = CompilerUtil.compileCatalog(path);
+            if (catalog == null) throw new Exception("Failed to load schema from '" + path + "'");
             if (debug) LOG.debug("Loaded catalog from schema file '" + path + "'");
-            this.catalog_db = CatalogUtil.getDatabase(catalog);
-            this.catalog_path = new File(path);
+            this.updateCatalog(catalog, new File(path));
         }
         
         // Catalog Type

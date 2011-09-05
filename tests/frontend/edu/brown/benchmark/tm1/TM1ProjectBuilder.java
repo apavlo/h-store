@@ -69,7 +69,7 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(GetAccessData.class, TM1Constants.FREQUENCY_GET_ACCESS_DATA);
         addTransactionFrequency(GetNewDestination.class, TM1Constants.FREQUENCY_GET_NEW_DESTINATION);
         addTransactionFrequency(GetSubscriberData.class, TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA);
-//        addTransactionFrequency(InsertCallForwarding.class, TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING);
+        addTransactionFrequency(InsertCallForwarding.class, TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING);
         addTransactionFrequency(UpdateLocation.class, TM1Constants.FREQUENCY_UPDATE_LOCATION);
         addTransactionFrequency(UpdateSubscriberData.class, TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA);
     }

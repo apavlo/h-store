@@ -313,6 +313,8 @@ public class WorkloadSummarizer {
             ArgumentsParser.PARAM_MAPPINGS
         );
         
+        LOG.info("Compressing workload based on " + CatalogUtil.getNumberOfPartitions(args.catalog) + " partitions");
+        
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
         WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_mappings);
         Workload new_workload = ws.process(args.workload);

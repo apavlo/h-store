@@ -51,12 +51,12 @@ public abstract class HStoreDtxnConf {
     
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_SIMULATOR_CONF_OUTPUT);
+        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         String contents = HStoreDtxnConf.toHStoreDtxnConf(args.catalog);
         assert(!contents.isEmpty());
         
-        String output_path = args.getParam(ArgumentsParser.PARAM_SIMULATOR_CONF_OUTPUT);
+        String output_path = args.getParam(ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         FileUtil.writeStringToFile(output_path, contents);
     }
 }
