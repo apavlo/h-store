@@ -220,7 +220,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     
     private boolean incoming_throttle = false;
+    private int incoming_queue_max;
+    private int incoming_queue_release;
+    
     private boolean redirect_throttle = false;
+    private int redirect_queue_max;
+    private int redirect_queue_release;
 
     /**
      * Local ExecutionSite Stuff
@@ -374,6 +379,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.num_local_partitions = this.local_partitions.size();
         this.voltListeners = new VoltProcedureListener[this.num_local_partitions];
         this.procEventLoops = new NIOEventLoop[this.num_local_partitions];
+        
+        // Queue Sizes
+        this.incoming_queue_max = Math.round(this.num_local_partitions * hstore_conf.site.txn_incoming_queue_max_per_partition);
+        this.incoming_queue_release = Math.max((int)(this.incoming_queue_max * hstore_conf.site.txn_incoming_queue_release_factor), 1);
+        this.redirect_queue_max = Math.round(this.num_local_partitions * hstore_conf.site.txn_redirect_queue_max_per_partition);
+        this.redirect_queue_release = Math.max((int)(this.redirect_queue_max * hstore_conf.site.txn_redirect_queue_release_factor), 1);
         
         this.messenger = new HStoreMessenger(this);
         this.helper_pool = Executors.newScheduledThreadPool(1);
@@ -678,11 +689,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public boolean isIncomingThrottled() {
         return (this.incoming_throttle);
     }
+    public int getIncomingQueueMax() {
+        return (this.incoming_queue_max);
+    }
+    public int getIncomingQueueRelease() {
+        return (this.incoming_queue_release);
+    }
     /**
      * Returns true if this HStoreSite is throttling redirected transactions
      */
     public boolean isRedirectedThrottled() {
         return (this.redirect_throttle);
+    }
+    public int getRedirectQueueMax() {
+        return (this.redirect_queue_max);
+    }
+    public int getRedirectQueueRelease() {
+        return (this.redirect_queue_release);
     }
     
     /**
@@ -694,17 +717,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public boolean checkDisableThrottling(long txn_id) {
         if (this.incoming_throttle || this.redirect_throttle) {
             int queue_size = this.inflight_txns.size() - this.ready_responses.size(); 
-            if (this.incoming_throttle && queue_size < hstore_conf.site.txn_incoming_queue_release) {
+            if (this.incoming_throttle && queue_size < this.incoming_queue_release) {
                 this.incoming_throttle = false;
                 if (hstore_conf.site.status_show_executor_info) incoming_throttle_time.stop();
                 if (d) LOG.debug(String.format("Disabling INCOMING throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
-                                               txn_id, queue_size, hstore_conf.site.txn_incoming_queue_release));
+                                               txn_id, queue_size, this.incoming_queue_release));
             }
-            if (this.redirect_throttle && queue_size < hstore_conf.site.txn_redirect_queue_release) {
+            if (this.redirect_throttle && queue_size < this.redirect_queue_release) {
                 this.redirect_throttle = false;
                 if (hstore_conf.site.status_show_executor_info) redirect_throttle_time.stop();
                 if (d) LOG.debug(String.format("Disabling REDIRECT throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
-                                               txn_id, queue_size, hstore_conf.site.txn_redirect_queue_release));
+                                               txn_id, queue_size, this.redirect_queue_release));
             }
         }
         return (this.incoming_throttle);
@@ -1249,9 +1272,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
         int queue_size = this.inflight_txns.size() - this.ready_responses.size();
-        if (this.incoming_throttle == false && queue_size > hstore_conf.site.txn_incoming_queue_max) {
+        if (this.incoming_throttle == false && queue_size > this.incoming_queue_max) {
             if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, queue_size, hstore_conf.site.txn_incoming_queue_release));
+                                           ts, queue_size, this.incoming_queue_release));
             this.incoming_throttle = true;
             if (hstore_conf.site.status_show_executor_info) incoming_throttle_time.start();
             
@@ -1270,9 +1293,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 if (d && ctr > 0) LOG.debug("Pruned " + ctr + " queued distributed transactions to try to free up the queue");
             }
         }
-        if (this.redirect_throttle == false && queue_size > hstore_conf.site.txn_redirect_queue_max) {
+        if (this.redirect_throttle == false && queue_size > this.redirect_queue_max) {
             if (d) LOG.debug(String.format("REDIRECT overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, queue_size, hstore_conf.site.txn_redirect_queue_release));
+                                           ts, queue_size, this.redirect_queue_release));
             this.redirect_throttle = true;
             if (hstore_conf.site.status_show_executor_info) redirect_throttle_time.start();
         }

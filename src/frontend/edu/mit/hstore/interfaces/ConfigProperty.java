@@ -54,9 +54,4 @@ public @interface ConfigProperty {
      * @return
      */
     boolean experimental() default false;
-    /**
-     * 
-     * @return
-     */
-    boolean computed() default false;
 }

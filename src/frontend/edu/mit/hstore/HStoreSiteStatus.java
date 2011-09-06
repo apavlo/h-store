@@ -231,14 +231,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
         m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
                         this.hstore_site.isIncomingThrottled(),
-                        hstore_conf.site.txn_incoming_queue_max,
-                        hstore_conf.site.txn_incoming_queue_release,
+                        this.hstore_site.getIncomingQueueMax(),
+                        this.hstore_site.getIncomingQueueRelease(),
                         this.hstore_site.incoming_throttle_time.getTotalThinkTimeMS()
         ));
         m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]\n",
                         this.hstore_site.isRedirectedThrottled(),
-                        hstore_conf.site.txn_redirect_queue_max,
-                        hstore_conf.site.txn_redirect_queue_release,
+                        this.hstore_site.getRedirectQueueMax(),
+                        this.hstore_site.getRedirectQueueRelease(),
                         this.hstore_site.redirect_throttle_time.getTotalThinkTimeMS()                              
         ));
 
