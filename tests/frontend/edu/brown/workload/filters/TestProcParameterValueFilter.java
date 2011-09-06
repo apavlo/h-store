@@ -35,7 +35,7 @@ public class TestProcParameterValueFilter extends AbstractTestFilter {
      */
     @Test
     public void testFilter() throws Exception {
-        Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE)
+        Filter filter = new ProcedureNameFilter(false).include(TARGET_PROCEDURE)
             .attach(new ProcParameterValueFilter().include(this.catalog_param, PARAM_VALUE));
         
         Iterator<TransactionTrace> it = workload.iterator(filter);

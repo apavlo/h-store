@@ -12,6 +12,8 @@ import edu.brown.BaseTestCase;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.partitioners.plan.PartitionEntry;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.Workload;

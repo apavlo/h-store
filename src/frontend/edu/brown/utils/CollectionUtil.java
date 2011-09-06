@@ -1,6 +1,19 @@
 package edu.brown.utils;
 
-import java.util.*;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import org.apache.commons.collections15.set.ListOrderedSet;
 
 /**
  * 
@@ -110,7 +123,7 @@ public abstract class CollectionUtil {
      * @param <T>
      * @param items
      */
-    public static <T> T getRandomValue(Collection<T> items) {
+    public static <T> T random(Collection<T> items) {
         int idx = rand.nextInt(items.size());
         return (CollectionUtil.get(items, idx));
     }
@@ -121,12 +134,12 @@ public abstract class CollectionUtil {
      * @param it
      * @return
      */
-    public static <T> T getRandomValue(Iterable<T> it) {
+    public static <T> T random(Iterable<T> it) {
         List<T> list = new ArrayList<T>();
         for (T t : it) {
             list.add(t);
         }
-        return getRandomValue(list);
+        return random(list);
     }
     
     public static <E extends Enum<?>> Set<E> getAllExcluding(E elements[], E...excluding) {
@@ -219,14 +232,8 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getFirst(Iterable<T> items) {
-        if (items instanceof List<?>) {
-            return ((List<T>)items).get(0);
-        }
-        for (T t : items) {
-            return (t);
-        }
-        return (null);
+    public static <T> T first(Iterable<T> items) {
+        return (CollectionUtil.get(items, 0));
     }
     
     /**
@@ -235,11 +242,8 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getFirst(Iterator<T> items) {
-        while (items.hasNext()) {
-            return items.next();
-        }
-        return (null);
+    public static <T> T first(Iterator<T> items) {
+        return (items.hasNext() ? items.next() : null);
     }
     
     /**
@@ -248,9 +252,8 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getFirst(Enumeration<T> items) {
-        assert(items.hasMoreElements());
-        return items.nextElement();
+    public static <T> T first(Enumeration<T> items) {
+        return (items.hasMoreElements() ? items.nextElement() : null);
     }
     
     /**
@@ -263,6 +266,8 @@ public abstract class CollectionUtil {
     public static <T> T get(Iterable<T> items, int idx) {
         if (items instanceof AbstractList<?>) {
             return ((AbstractList<T>)items).get(idx);
+        } else if (items instanceof ListOrderedSet<?>) {
+            return ((ListOrderedSet<T>)items).get(idx);
         }
         int ctr = 0;
         for (T t : items) {
@@ -277,7 +282,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getLast(Iterable<T> items) {
+    public static <T> T last(Iterable<T> items) {
         T last = null;
         if (items instanceof AbstractList<?>) {
             AbstractList<T> list = (AbstractList<T>)items;
@@ -296,7 +301,7 @@ public abstract class CollectionUtil {
      * @param items
      * @return
      */
-    public static <T> T getLast(T...items) {
+    public static <T> T last(T...items) {
         if (items != null && items.length > 0) {
             return (items[items.length-1]);
         }
@@ -380,6 +385,16 @@ public abstract class CollectionUtil {
             }
         });
     }
+    
+    public static <T> T pop(Collection<T> items) {
+        T t = CollectionUtil.first(items);
+        if (t != null) {
+            boolean ret = items.remove(t);
+            assert(ret);
+        }
+        return (t);
+    }
+    
 //    
 //    /**
 //     * Create a set of all possible permutations of the given size for the elements in the data set

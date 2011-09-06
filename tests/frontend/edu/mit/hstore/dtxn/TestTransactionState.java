@@ -198,7 +198,7 @@ public class TestTransactionState extends BaseTestCase {
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
 //        System.err.println(this.ts.getBlockedFragmentTaskMessages());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.getFirst(this.ts.getBlockedFragmentTaskMessages()).getFragmentCount());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getFragmentCount());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how

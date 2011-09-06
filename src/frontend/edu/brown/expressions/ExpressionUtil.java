@@ -1,17 +1,43 @@
 package edu.brown.expressions;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.voltdb.expressions.*;
+import org.apache.log4j.Logger;
+import org.json.JSONObject;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.AggregateExpression;
+import org.voltdb.expressions.ComparisonExpression;
+import org.voltdb.expressions.ConjunctionExpression;
+import org.voltdb.expressions.ConstantValueExpression;
+import org.voltdb.expressions.InComparisonExpression;
+import org.voltdb.expressions.NullValueExpression;
+import org.voltdb.expressions.OperatorExpression;
+import org.voltdb.expressions.ParameterValueExpression;
+import org.voltdb.expressions.TupleAddressExpression;
+import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.types.ExpressionType;
+import org.voltdb.utils.Encoder;
+
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
  */
-public abstract class ExpressionUtil {
+public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUtil {
+    private static final Logger LOG = Logger.getLogger(ExpressionUtil.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     public static final Map<ExpressionType, String> EXPRESSION_STRING = new HashMap<ExpressionType, String>();
     static {
@@ -41,13 +67,72 @@ public abstract class ExpressionUtil {
                                     ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
     }
     
+
+    /**
+     * 
+     * @param catalog_db
+     * @param exptree
+     * @return
+     * @throws Exception
+     */
+    public static AbstractExpression deserializeExpression(Database catalog_db, String exptree) throws Exception {
+        AbstractExpression exp = null;
+        if (exptree != null && !exptree.isEmpty()) {
+            JSONObject json_obj = new JSONObject(Encoder.hexDecodeToString(exptree));
+            exp = AbstractExpression.fromJSONObject(json_obj, catalog_db);
+        }
+        return (exp);
+    }
+    
+
+    /**
+     * Returns all the tables access/modified in the Expression tree
+     * 
+     * @param catalog_db
+     * @param exp
+     * @return
+     * @throws Exception
+     */
+    public static Collection<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) {
+        final Set<Column> found_columns = new HashSet<Column>();
+        new ExpressionTreeWalker() {
+            @Override
+            protected void callback(AbstractExpression element) {
+                if (element instanceof TupleValueExpression) {
+                    String table_name = ((TupleValueExpression)element).getTableName();
+                    Table catalog_tbl = catalog_db.getTables().get(table_name);
+                    if (catalog_tbl == null) {
+                        // If it's a temp then we just ignore it. Otherwise throw an error!
+                        if (table_name.contains("VOLT_AGGREGATE_NODE_TEMP_TABLE") == false) {
+                            this.stop();
+                            throw new RuntimeException(String.format("Unknown table '%s' referenced in Expression node %s", table_name, element));
+                        } else if (debug.get()) {
+                            LOG.debug("Ignoring temporary table '" + table_name + "'");
+                        }
+                        return;
+                    }
+    
+                    String column_name = ((TupleValueExpression) element).getColumnName();
+                    Column catalog_col = catalog_tbl.getColumns().get(column_name);
+                    if (catalog_col == null) {
+                        this.stop();
+                        throw new RuntimeException(String.format("Unknown column '%s.%s' referenced in Expression node %s", table_name, column_name, element));
+                    }
+                    found_columns.add(catalog_col);
+                }
+                return;
+            }
+        }.traverse(exp);
+        return (found_columns);
+    }
+    
     
     /**
      * Get all of the ExpressionTypes used in the tree below the given root
      * @param root
      * @return
      */
-    public static Set<ExpressionType> getExpressionTypes(AbstractExpression root) {
+    public static Collection<ExpressionType> getExpressionTypes(AbstractExpression root) {
         final Set<ExpressionType> found = new HashSet<ExpressionType>();
         new ExpressionTreeWalker() {
             @Override
@@ -65,7 +150,7 @@ public abstract class ExpressionUtil {
      * @param search_class
      * @return
      */
-    public static <T extends AbstractExpression> Set<T> getExpressions(AbstractExpression root, final Class<? extends T> search_class) {
+    public static <T extends AbstractExpression> Collection<T> getExpressions(AbstractExpression root, final Class<? extends T> search_class) {
         final Set<T> found = new HashSet<T>();
         new ExpressionTreeWalker() {
             @SuppressWarnings("unchecked")
@@ -131,5 +216,4 @@ public abstract class ExpressionUtil {
         
         return (orig_spacer + "+ " + name  + "\n" + sb.toString()); 
     }
-
 }

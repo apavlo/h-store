@@ -147,7 +147,7 @@ public class OverheadClient extends BenchmarkComponent {
         try {
             while (true) {
                 // always execute the same boring transaction.
-                m_voltClient.backpressureBarrier();
+                this.getClientHandle().backpressureBarrier();
                 invokeOverhead();
             }
         } catch (InterruptedException e) {
@@ -162,7 +162,7 @@ public class OverheadClient extends BenchmarkComponent {
                 (transactionToInvoke == Transaction.MEASURE_OVERHEAD_MULTIPARTITION_NOFINAL) ||
                 (transactionToInvoke == Transaction.MEASURE_OVERHEAD_MULTIPARTITION_TWOSTMTS)) {
 
-                return m_voltClient.callProcedure( new MeasureOverheadCallback(),
+                return this.getClientHandle().callProcedure( new MeasureOverheadCallback(),
                         transactionToInvoke.callName, new Object[] { new Long(invocations++) });
             } else {
                 Object argObjects[] = new Object[42];
@@ -179,7 +179,7 @@ public class OverheadClient extends BenchmarkComponent {
                 else
                     assert(false);
 
-                return m_voltClient.callProcedure( new MeasureOverheadCallback(),
+                return this.getClientHandle().callProcedure( new MeasureOverheadCallback(),
                         transactionToInvoke.callName, argObjects);
         }
     }

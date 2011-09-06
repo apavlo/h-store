@@ -16,15 +16,12 @@ import org.voltdb.utils.Pair;
 import edu.brown.BaseTestCase;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
-import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
-import edu.brown.graphs.GraphvizExport;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
@@ -59,7 +56,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
             workload = new Workload(catalog);
         
             // Workload Filter
-            ProcedureNameFilter filter = new ProcedureNameFilter();
+            ProcedureNameFilter filter = new ProcedureNameFilter(false);
 //            filter.include(TARGET_PROCEDURE);
             filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
@@ -174,7 +171,7 @@ public class TestAccessGraphGenerator2 extends BaseTestCase {
                     ColumnSet e_cset = e.getAttribute(EdgeAttributes.COLUMNSET);
                     assertNotNull(e_cset);
                     assertEquals(e_cset.toString(), 1, e_cset.size());
-                    ColumnSet.Entry entry = CollectionUtil.getFirst(e_cset);
+                    ColumnSet.Entry entry = CollectionUtil.first(e_cset);
                     assertNotNull(entry);
                     assert(global_cset.contains(entry)) : "Missing " + entry;
                 } // FOR

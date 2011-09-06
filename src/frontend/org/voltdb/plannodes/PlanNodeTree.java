@@ -76,7 +76,7 @@ public class PlanNodeTree implements JSONString {
     public Boolean constructTree(AbstractPlanNode node) throws Exception {
         m_planNodes.add(node);
         m_idToNodeMap.put(node.getPlanNodeId(), node);
-        for (int i = 0; i < node.getChildCount(); i++) {
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
             AbstractPlanNode child = node.getChild(i);
             if (!constructTree(child)) {
                 return false;

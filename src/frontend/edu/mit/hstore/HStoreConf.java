@@ -3,7 +3,9 @@ package edu.mit.hstore;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -29,64 +31,6 @@ public final class HStoreConf {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
-    /**
-     * Base Configuration Class
-     */
-    private abstract class Conf {
-        
-        final Map<Field, ConfigProperty> properties;
-        final String prefix;
-        
-        {
-            Class<?> confClass = this.getClass();
-            this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
-            HStoreConf.this.confHandles.put(this.prefix, this);
-            
-            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
-            this.setDefaultValues();
-        }
-        
-        private void setDefaultValues() {
-            // Set the default values for the parameters based on their annotations
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
-                Field f = e.getKey();
-                ConfigProperty cp = e.getValue();
-                Object value = getDefaultValue(f, cp);
-                
-                try {
-                    if (value != null) f.set(this, value);
-                } catch (Exception ex) {
-                    throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
-                }
-//                System.err.println(String.format("%-20s = %s", f.getName(), value));
-            } // FOR   
-        }
-
-        @Override
-        public String toString() {
-            return (this.toString(false, false));
-        }
-        
-        public String toString(boolean advanced, boolean experimental) {
-            final Map<String, Object> m = new TreeMap<String, Object>();
-            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
-                ConfigProperty cp = e.getValue();
-                if (advanced == false && cp.advanced()) continue;
-                if (experimental == false && cp.experimental()) continue;
-                
-                Field f = e.getKey();
-                String key = f.getName().toUpperCase();
-                try {
-                    m.put(key, f.get(this));
-                } catch (IllegalAccessException ex) {
-                    m.put(key, ex.getMessage());
-                }
-            }
-            return (StringUtil.formatMaps(m));
-        }
-        
-    }
     
     // ============================================================================
     // GLOBAL
@@ -94,7 +38,7 @@ public final class HStoreConf {
     public final class GlobalConf extends Conf {
         
         @ConfigProperty(
-            description="Temporary directory used to store various artifacts",
+            description="Temporary directory used to store various artifacts related to H-Store.",
             defaultString="/tmp/hstore"
         )
         public String temp_dir = "/tmp/hstore";
@@ -119,7 +63,7 @@ public final class HStoreConf {
     public final class SiteConf extends Conf {
     
         @ConfigProperty(
-            description="Site log directory",
+            description="HStoreSite log directory on the host that the BenchmarkController is invoked from.",
             defaultString="${global.temp_dir}/logs/sites",
             advanced=false
         )
@@ -137,7 +81,9 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable execution site profiling.",
+            description="Enable execution site profiling. This will keep track of how busy each ExecutionSite thread" +
+                        "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
+                        "waiting for work to be added to its queue).",
             defaultBoolean=false,
             advanced=true
         )
@@ -269,59 +215,43 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
-            description="Max size of queued transactions before we stop accepting new requests and throttle clients",
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=1000,
             advanced=false
         )
         public int txn_incoming_queue_max_per_partition;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+                        "will not accept new requests until the number of queued transactions is less than " +
+                        "this percentage. " +
+                        "The incoming queue release is calculated as " +
+                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
             defaultDouble=0.25,
             advanced=false
         )
         public double txn_incoming_queue_release_factor;
         
         @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_incoming_queue_max;
-
-        @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_incoming_queue_release;  
-        
-        @ConfigProperty(
-            description="Max size of the total transaction queue per partition before we stop accepting redirected requests",
+            description="Max size of the total transaction queue per partition before an HStoreSite will stop " +
+                        "accepting redirected requests from other HStoreSites.",
             defaultInt=2000,
             advanced=false
         )
         public int txn_redirect_queue_max_per_partition;
         
         @ConfigProperty(
-            description="", // TODO
+            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
+                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
+                        "includes all transactions that are waiting to be executed, executing, and those that " +
+                        "have already executed and are waiting for their results to be sent back to the client. " +
+                        "The redirect queue release is calculated as " +
+                        "${site.txn_redirect_queue_max} * ${site.txn_redirect_queue_release_factor}",
             defaultDouble=0.50,
             advanced=false
         )
         public double txn_redirect_queue_release_factor;
-        
-        @ConfigProperty(
-            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
-                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
-                        "includes all transactions that are waiting to be executed, executing, and those that " +
-                        "have already executed and are waiting for their results to be sent back to the client.",
-            computed=true
-        )
-        public int txn_redirect_queue_max;
-
-        @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_redirect_queue_release;
         
         @ConfigProperty(
             description="Allow queued distributed transctions to be rejected.",
@@ -364,7 +294,9 @@ public final class HStoreConf {
         public double markov_path_caching_threshold;
         
         @ConfigProperty(
-            description="TODO",
+            description="The minimum number of queries that must be in a batch for the TransactionEstimator " +
+                        "to cache the path segment in the procedure's MarkovGraph. Provides a minor speed improvement " +
+                        "for large batches with little variability in their execution paths.",
             defaultInt=3,
             advanced=false
         )
@@ -576,7 +508,8 @@ public final class HStoreConf {
     public final class CoordinatorConf extends Conf {
         
         @ConfigProperty(
-            description="Dtxn.Coordinator Log Directory",
+            description="Dtxn.Coordinator log directory  on the host that the BenchmarkController " +
+                        "is invoked from.",
             defaultString="${global.temp_dir}/logs/coordinator",
             advanced=false
         )
@@ -602,9 +535,6 @@ public final class HStoreConf {
             advanced=false
         )
         public int delay;
-
-
-        
     }
     
     // ============================================================================
@@ -613,7 +543,8 @@ public final class HStoreConf {
     public final class ClientConf extends Conf {
         
         @ConfigProperty(
-            description="Benchmark client log directory",
+            description="Benchmark client log directory on the host that the BenchmarkController " +
+                        "is invoked from.",
             defaultString="${global.temp_dir}/logs/clients",
             advanced=false
         )
@@ -634,8 +565,10 @@ public final class HStoreConf {
         public String host = HStoreConf.this.global.defaulthost;
 
         @ConfigProperty(
-            description="The number of txns that client process submits (per ms). If ${client.blocking} " +
-                        "is disabled, then the total transaction rate for a benchmark run is " +
+            description="The number of txns that client process submits (per ms). The underlying " +
+                        "BenchmarkComponent will continue invoke the client driver's runOnce() method " +
+                        "until it has submitted enough transactions to satisfy ${client.txnrate}. " +
+                        "If ${client.blocking} is disabled, then the total transaction rate for a benchmark run is " +
                         "${client.txnrate} * ${client.processesperclient} * ${client.count}.",
             defaultInt=10000,
             advanced=false
@@ -688,6 +621,15 @@ public final class HStoreConf {
             advanced=false
         )
         public boolean blocking;
+        
+        @ConfigProperty(
+            description="When the BlockingClient is enabled with ${client.blocking}, this defines the number " +
+                        "of concurrent transactions that each client instance can submit to the H-Store cluster " +
+                        "before it will block.",
+            defaultInt=1,
+            advanced=false
+        )
+        public int blocking_concurrent;
 
         @ConfigProperty(
             description="The scaling factor determines how large to make the target benchmark's data set. " +
@@ -722,6 +664,17 @@ public final class HStoreConf {
             experimental=true
         )
         public int temporaltotal;
+        
+        @ConfigProperty(
+            description="If ${client.tick_interval} is greater than one, then it determines how often " +
+                        "(in ms) the BenchmarkComponent will execute tick(). " +
+                        "A client driver implementation can reliably use this to perform some " +
+                        "maintence operation or change data distributions. By default, tick() will be " +
+                        "invoked at the interval defined by ${client.interval}.",
+            defaultInt=-1,
+            advanced=true
+        )
+        public int tick_interval;
 
         @ConfigProperty(
             description="The amount of time (in ms) that the client will back-off from sending requests " +
@@ -746,6 +699,114 @@ public final class HStoreConf {
             advanced=false
         )
         public String dump_database_dir = HStoreConf.this.global.temp_dir + "/dumps";
+        
+        @ConfigProperty(
+            description="If set to true, then the benchmark data loader will generate a WorkloadStatistics " +
+                        "based on the data uploaded to the server. These stats will be written to the path " +
+                        "specified by ${client.tablestats_output}.",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean tablestats = false;
+        
+        @ConfigProperty(
+            description="If ${client.tablestats} is enabled, then the loader will write out a database statistics " +
+                        "file in the directory defined in this parameter.",
+            defaultString="${global.temp_dir}/stats",
+            advanced=true
+        )
+        public String tablestats_dir = HStoreConf.this.global.temp_dir + "/stats";
+        
+        @ConfigProperty(
+            description="If set to true, then the client calculate the base partition needed by each transaction " +
+                        "request and send that request to the HStoreSite that has that partition.",
+            defaultBoolean=false,
+            experimental=true,
+            advanced=true
+        )
+        public boolean txn_hints = false;
+        
+        @ConfigProperty(
+            description="If a node is executing multiple client processes, then the node may become overloaded if " +
+                        "all the clients are started at the same time. This parameter defines the threshold for when " +
+                        "the BenchmarkController will stagger the start time of clients. For example, if a node will execute " +
+                        "ten clients and ${client.delay_threshold} is set to five, then the first five processes will start " +
+                        "right away and the remaining five will wait until the first ones finish before starting themselves.", 
+            defaultInt=8,
+            experimental=false,
+            advanced=false
+        )
+        public int delay_threshold = 8;
+    }
+    
+    /**
+     * Base Configuration Class
+     */
+    private abstract class Conf {
+        
+        final Map<Field, ConfigProperty> properties;
+        final String prefix;
+        final Class<? extends Conf> confClass; 
+        
+        {
+            this.confClass = this.getClass();
+            this.prefix = confClass.getSimpleName().replace("Conf", "").toLowerCase();
+            HStoreConf.this.confHandles.put(this.prefix, this);
+            
+            this.properties =  ClassUtil.getFieldAnnotations(confClass.getFields(), ConfigProperty.class);
+            this.setDefaultValues();
+        }
+        
+        private void setDefaultValues() {
+            // Set the default values for the parameters based on their annotations
+            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+                Field f = e.getKey();
+                ConfigProperty cp = e.getValue();
+                Object value = getDefaultValue(f, cp);
+                
+                try {
+                    if (value != null) f.set(this, value);
+                } catch (Exception ex) {
+                    throw new RuntimeException(String.format("Failed to set default value '%s' for field '%s'", value, f.getName()), ex);
+                }
+//                System.err.println(String.format("%-20s = %s", f.getName(), value));
+            } // FOR   
+        }
+
+        @SuppressWarnings("unchecked")
+        public <T> T getValue(String name) {
+            T val = null;
+            try {
+                Field f = this.confClass.getField(name);
+                val = (T)f.get(this);
+            } catch (Exception ex) {
+                throw new RuntimeException("Invalid field '" + name + "' for " + this.confClass.getSimpleName(), ex);
+            }
+            return (val);
+        }
+        
+        @Override
+        public String toString() {
+            return (this.toString(false, false));
+        }
+        
+        public String toString(boolean advanced, boolean experimental) {
+            final Map<String, Object> m = new TreeMap<String, Object>();
+            for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
+                ConfigProperty cp = e.getValue();
+                if (advanced == false && cp.advanced()) continue;
+                if (experimental == false && cp.experimental()) continue;
+                
+                Field f = e.getKey();
+                String key = f.getName().toUpperCase();
+                try {
+                    m.put(key, f.get(this));
+                } catch (IllegalAccessException ex) {
+                    m.put(key, ex.getMessage());
+                }
+            }
+            return (StringUtil.formatMaps(m));
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -772,12 +833,14 @@ public final class HStoreConf {
      */
     private static HStoreConf conf;
     
+    private final Map<Conf, Set<String>> loaded_params = new HashMap<Conf, Set<String>>();
+    
     // ----------------------------------------------------------------------------
     // METHODS
     // ----------------------------------------------------------------------------
 
-    private HStoreConf(File f) {
-        this.loadFromFile(f);
+    private HStoreConf() {
+        // Empty configuration...
     }
     
     /**
@@ -856,23 +919,6 @@ public final class HStoreConf {
      * @param catalog_site
      */
     protected void computeDerivedValues(Site catalog_site) {
-        int local_partitions = 1;
-        
-        if (catalog_site != null) {
-            
-            // Partitions at this site
-            local_partitions = catalog_site.getPartitions().size();
-            
-        }
-        
-        // Compute Parameters
-        site.txn_incoming_queue_max = Math.round(local_partitions * site.txn_incoming_queue_max_per_partition);
-        site.txn_incoming_queue_release = Math.max((int)(site.txn_incoming_queue_max * site.txn_incoming_queue_release_factor), 1);
-
-        site.txn_redirect_queue_max = Math.round(local_partitions * site.txn_redirect_queue_max_per_partition);
-        site.txn_redirect_queue_release = Math.max((int)(site.txn_redirect_queue_max * site.txn_redirect_queue_release_factor), 1);
-
-        
         // Negate Parameters
         if (site.exec_neworder_cheat) {
             site.exec_force_singlepartitioned = false;
@@ -883,8 +929,6 @@ public final class HStoreConf {
     private Object getDefaultValue(Field f, ConfigProperty cp) {
         Class<?> f_class = f.getType();
         Object value = null;
-        
-        if (cp.computed()) return (null);
         
         if (f_class.equals(int.class)) {
             value = cp.defaultInt();
@@ -902,18 +946,22 @@ public final class HStoreConf {
         return (value);
     }
     
+    private Pattern makePattern() {
+        return Pattern.compile(String.format("(%s)\\.(.*)", StringUtil.join("|", this.confHandles.keySet())));
+    }
+    
     /**
      * 
      */
     @SuppressWarnings("unchecked")
-    protected void loadFromFile(File path) {
+    public void loadFromFile(File path) {
         try {
             this.config = new PropertiesConfiguration(path);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to load configuration file " + path);
         }
 
-        Pattern p = Pattern.compile("(global|site|coordinator|client)\\.(.*)");
+        Pattern p = this.makePattern();
         for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
             String k = obj_k.toString();
             Matcher m = p.matcher(k);
@@ -932,11 +980,11 @@ public final class HStoreConf {
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
-                LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
                 continue;
-//                throw new RuntimeException("Failed to retrieve field handle for '" + f_name + "'", ex);
             }
             ConfigProperty cp = handle.properties.get(f);
+            assert(cp != null) : "Missing ConfigProperty for " + f;
             Class<?> f_class = f.getType();
             Object defaultValue = (cp != null ? this.getDefaultValue(f, cp) : null);
             Object value = null;
@@ -964,6 +1012,103 @@ public final class HStoreConf {
             }
         } // FOR
     }
+    
+    public void loadFromArgs(String args[]) {
+        final Pattern split_p = Pattern.compile("=");
+        
+        final Map<String, String> argsMap = new ListOrderedMap<String, String>();
+        for (int i = 0, cnt = args.length; i < cnt; i++) {
+            final String arg = args[i];
+            final String[] parts = split_p.split(arg, 2);
+            String k = parts[0].toLowerCase();
+            String v = parts[1];
+            if (k.startsWith("-")) k = k.substring(1);
+            
+            if (parts.length == 1) {
+                continue;
+            } else if (k.equalsIgnoreCase("tag")) {
+                continue;
+            } else if (v.startsWith("${") || k.startsWith("#")) {
+                continue;
+            } else {
+                argsMap.put(k, v);
+            }
+        } // FOR
+        this.loadFromArgs(argsMap);
+    }
+    
+    public void loadFromArgs(Map<String, String> args) {
+        Pattern p = this.makePattern();
+        for (Entry<String, String> e : args.entrySet()) {
+            String k = e.getKey();
+            String v = e.getValue();
+            
+            Matcher m = p.matcher(k);
+            boolean found = m.matches();
+            if (m == null || found == false) {
+                if (debug.get()) LOG.warn("Invalid key '" + k + "'");
+                continue;
+            }
+            assert(m != null);
+
+            String confName = m.group(1);
+            Conf confHandle = confHandles.get(confName);
+            Class<?> confClass = confHandle.getClass();
+            assert(confClass != null);
+            Field f = null;
+            String f_name = m.group(2).toLowerCase();
+            try {
+                f = confClass.getField(f_name);
+            } catch (Exception ex) {
+                if (debug.get()) LOG.warn("Invalid configuration property '" + k + "'. Ignoring...");
+                continue;
+            }
+            ConfigProperty cp = confHandle.properties.get(f);
+            assert(cp != null) : "Missing ConfigProperty for " + f;
+            Class<?> f_class = f.getType();
+            Object value = null;
+            
+            if (f_class.equals(int.class)) {
+                value = Integer.parseInt(v);
+            } else if (f_class.equals(long.class)) {
+                value = Long.parseLong(v);
+            } else if (f_class.equals(double.class)) {
+                value = Double.parseDouble(v);
+            } else if (f_class.equals(boolean.class)) {
+                value = Boolean.parseBoolean(v);
+            } else if (f_class.equals(String.class)) {
+                value = v;
+            } else {
+                LOG.warn(String.format("Unexpected value type '%s' for property '%s'", f_class.getSimpleName(), f_name));
+                continue;
+            }
+            try {
+                f.set(confHandle, value);
+                if (debug.get()) LOG.debug(String.format("PARAM SET %s = %s", k, value));
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
+            } finally {
+                Set<String> s = this.loaded_params.get(confHandle);
+                if (s == null) {
+                    s = new HashSet<String>();
+                    this.loaded_params.put(confHandle, s);
+                }
+                s.add(f_name);
+            }
+        } // FOR
+    }
+    
+    public Map<String, String> getParametersLoadedFromArgs() {
+        Map<String, String> m = new HashMap<String, String>();
+        for (Conf confHandle : this.loaded_params.keySet()) {
+            for (String f_name : this.loaded_params.get(confHandle)) {
+                Object val = confHandle.getValue(f_name);
+                if (val != null) m.put(f_name, val.toString());
+            } // FOR
+        } // FOR
+        return (m);
+    }
+    
     
     public String makeHTML(String group) {
         StringBuilder inner = new StringBuilder();
@@ -1119,19 +1264,30 @@ public final class HStoreConf {
     // STATIC ACCESS METHODS
     // ----------------------------------------------------------------------------
 
-    public synchronized static HStoreConf init(File f) {
+    public synchronized static HStoreConf init(File f, String args[]) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
-        conf = new HStoreConf(f);
+        conf = new HStoreConf();
+        if (f != null && f.exists()) conf.loadFromFile(f);
+        if (args != null) conf.loadFromArgs(args);
         return (conf);
     }
     
-    public synchronized static HStoreConf init(ArgumentsParser args, Site catalog_site) {
+    public synchronized static HStoreConf init(File f) {
+        return HStoreConf.init(f, null);
+    }
+    
+    public synchronized static HStoreConf initArgumentsParser(ArgumentsParser args, Site catalog_site) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
         conf = new HStoreConf(args, catalog_site);
         return (conf);
     }
     
     public synchronized static HStoreConf singleton() {
+        return singleton(false);
+    }
+    
+    public synchronized static HStoreConf singleton(boolean init) {
+        if (conf == null && init == true) return init(null);
         if (conf == null) throw new RuntimeException("Requesting HStoreConf before it is initialized");
         return (conf);
     }

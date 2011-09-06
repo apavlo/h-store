@@ -37,8 +37,25 @@ public abstract class AbstractRandomGenerator extends Random {
      * 
      * @param seed
      */
+    public AbstractRandomGenerator() {
+        super();
+    }
+    
+    /**
+     * 
+     * @param seed
+     */
     public AbstractRandomGenerator(Integer seed) {
         super(seed);
+    }
+    
+    public Set<Integer> getRandomIntSet(int cnt, int max) {
+        assert(cnt <= max);
+        Set<Integer> ret = new HashSet<Integer>();
+        do { 
+            ret.add(this.nextInt(max));
+        } while (ret.size() < cnt);
+        return (ret);
     }
 
     /**
@@ -48,7 +65,7 @@ public abstract class AbstractRandomGenerator extends Random {
      * @returns a int in the range [minimum, maximum]. Note that this is inclusive.
      */
     public int number(int minimum, int maximum) {
-        assert minimum <= maximum;
+        assert minimum <= maximum : String.format("%d <= %d", minimum, maximum);
         int range_size = maximum - minimum + 1;
         int value = this.nextInt(range_size);
         value += minimum;
@@ -56,9 +73,20 @@ public abstract class AbstractRandomGenerator extends Random {
         return value;
     }
     
-    public long number(Long reservationUpcomingOffset, long reservationCount) {
-        // TODO Auto-generated method stub
-        return 0;
+    public long number(long minimum, long maximum) {
+        assert minimum <= maximum : String.format("%d <= %d", minimum, maximum);
+        long range_size = (maximum - minimum) + 1;
+        
+        // error checking and 2^x checking removed for simplicity.
+        long bits, val;
+        do {
+            bits = (this.nextLong() << 1) >>> 1;
+            val = bits % range_size;
+        } while (bits - val + range_size < 0L);
+        val += minimum;
+        assert(val >= minimum);
+        assert(val <= maximum);
+        return val;
     }
 
     
@@ -157,7 +185,7 @@ public abstract class AbstractRandomGenerator extends Random {
      */
     public double fixedPoint(int decimal_places, double minimum, double maximum) {
         assert decimal_places > 0;
-        assert minimum < maximum;
+        assert minimum < maximum : String.format("%f < %f", minimum, maximum);
 
         int multiplier = 1;
         for (int i = 0; i < decimal_places; ++i) {

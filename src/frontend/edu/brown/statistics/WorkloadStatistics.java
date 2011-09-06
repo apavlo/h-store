@@ -37,6 +37,7 @@ import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.CatalogKey.InvalidCatalogKey;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
 
@@ -85,6 +86,10 @@ public class WorkloadStatistics implements JSONSerializable {
     public TableStatistics getTableStatistics(String table_key) {
         return (this.table_stats.get(table_key));
     }
+    public void addTableStatistics(Table catalog_tbl, TableStatistics stats) {
+        TableStatistics orig = this.table_stats.put(CatalogKey.createKey(catalog_tbl), stats);
+        assert(orig == null) : "Duplicate TableStatistics for " + catalog_tbl;
+    }
     
     public Collection<ProcedureStatistics> getProcedureStatistics() {
         return (this.proc_stats.values());
@@ -108,6 +113,7 @@ public class WorkloadStatistics implements JSONSerializable {
         
         // Table Stats
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             this.table_stats.put(CatalogKey.createKey(catalog_tbl), new TableStatistics(catalog_tbl));
         } // FOR
     }
@@ -277,12 +283,17 @@ public class WorkloadStatistics implements JSONSerializable {
         
         // Table Statistics
         JSONObject jsonTableStats = json_object.getJSONObject(Members.TABLE_STATS.name());
-        keys = jsonTableStats.keys();
-        while (keys.hasNext()) {
-            String table_key = keys.next();
-            Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
+        for (String table_key : CollectionUtil.wrapIterator(jsonTableStats.keys())) {
+            // Ignore any missing tables
+            Table catalog_tbl = null;
+            try {
+                catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
+            } catch (InvalidCatalogKey ex) {
+                LOG.warn("Ignoring invalid table '" + CatalogKey.getNameFromKey(table_key));
+                continue;
+            }
             if (catalog_tbl == null) {
-                throw new JSONException("Invalid table name '" + table_key + "'");
+                throw new JSONException("Invalid table catalog key '" + table_key + "'");
             }
             TableStatistics table_stat = new TableStatistics(catalog_tbl);
             table_stat.fromJSONObject(jsonTableStats.getJSONObject(table_key), catalog_db);

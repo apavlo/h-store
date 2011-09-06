@@ -4,12 +4,14 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
+import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 /**
  * NewCommentResponse
- * Description goes here...
+ * @author pavlo
  * @author visawee
  */
 @ProcInfo (
@@ -18,14 +20,32 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 )
 public class NewCommentResponse extends VoltProcedure{
 	
-    public final SQLStmt update_comment = new SQLStmt(
-            "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " +
-            	"SET ic_response = ? " +
-            "WHERE ic_id = ? AND ic_i_id = ? AND ic_u_id = ? "
+    // -----------------------------------------------------------------
+    // STATEMENTS
+    // -----------------------------------------------------------------
+    
+    public final SQLStmt updateComment = new SQLStmt(
+        "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " +
+        	"SET ic_response = ?, " +
+        	"    ic_updated = ? " +
+        "WHERE ic_id = ? AND ic_i_id = ? AND ic_u_id = ? "
+    );
+    
+    public final SQLStmt updateUser = new SQLStmt(
+        "UPDATE " + AuctionMarkConstants.TABLENAME_USER + " " +
+           "SET u_comments = u_comments - 1, " +
+           "    u_updated = ? " +
+        " WHERE u_id = ?"
     );
 
-    public VoltTable[] run(long i_id, long ic_id, long seller_id, String response) {
-        voltQueueSQL(update_comment, response, ic_id, i_id, seller_id);
+    // -----------------------------------------------------------------
+    // RUN METHOD
+    // -----------------------------------------------------------------
+    
+    public VoltTable[] run(TimestampType benchmarkTimes[], long item_id, long seller_id, long comment_id, String response) {
+        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        voltQueueSQL(updateComment, response, currentTime, comment_id, item_id, seller_id);
+        voltQueueSQL(updateUser, currentTime, seller_id);
         return (voltExecuteSQL());
     }	
 }

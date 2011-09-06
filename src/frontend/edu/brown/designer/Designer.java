@@ -11,14 +11,16 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.generators.PartitionPlanTreeGenerator;
 import edu.brown.designer.indexselectors.AbstractIndexSelector;
 import edu.brown.designer.mappers.AbstractMapper;
 import edu.brown.designer.mappers.PartitionMapping;
 import edu.brown.designer.partitioners.AbstractPartitioner;
-import edu.brown.designer.partitioners.PartitionPlan;
 import edu.brown.designer.partitioners.RandomPartitioner;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.IGraph;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.workload.Workload;
@@ -216,6 +218,9 @@ public class Designer {
         }
         LOG.info("Partition Plan:\n" + this.pplan.toString());
         
+        this.design = new PhysicalDesign(info.catalog_db);
+        this.design.plan = this.pplan;
+        
         this.final_graph = new PartitionTree(this.info.catalog_db);
         new PartitionPlanTreeGenerator(this.info, this.pplan).generate(this.final_graph);
         //System.out.println(this.plan);
@@ -250,6 +255,11 @@ public class Designer {
             ArgumentsParser.PARAM_MAPPINGS
         );
         
+        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+        }
+        
         // Create the container object that will hold all the information that
         // the designer will need to use
         DesignerInfo info = new DesignerInfo(args);
@@ -260,6 +270,14 @@ public class Designer {
         Designer designer = new Designer(info, hints, args);
         PhysicalDesign design = designer.process();
         LOG.info("STOP: " + (System.currentTimeMillis() - start) / 1000d);
+        
+//        if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
+//            String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
+//            LOG.info("Saving PartitionPlan to '" + output + "'");
+//            PartitionPlan pplan = design.plan;
+//            pplan.save(output);
+//        }
+        
         
 //        int total = 0;
 //        int singlesited = 0;

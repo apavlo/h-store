@@ -91,6 +91,13 @@ public class ProfileMeasurement {
     public double getTotalThinkTimeMS() {
         return (this.think_time / 1000000d);
     }
+    /**
+     * Get the total amount of time spent in the profiled area in seconds
+     * @return
+     */
+    public double getTotalThinkTimeSeconds() {
+        return (this.think_time / 1000000d / 1000d);
+    }
     
     /**
      * Get the average think time per invocation in nanoseconds
@@ -158,12 +165,13 @@ public class ProfileMeasurement {
         if (debug.get()) LOG.debug(String.format("STOP %s", this));
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
         long added = (timestamp - this.think_marker);
+        assert(added >= 0);
         this.think_time += added;
         this.think_marker = null;
 //        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
         return (this);
     }
-
+    
     public ProfileMeasurement stop() {
         return (this.stop(getTime()));
     }
@@ -203,9 +211,13 @@ public class ProfileMeasurement {
      * @param to_start
      */
     public static void start(ProfileMeasurement...to_start) {
+        start(false, to_start);
+    }
+    
+    public static void start(boolean ignore_started, ProfileMeasurement...to_start) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_start) {
-            pm.start(time);
+            if (ignore_started == false || (ignore_started && pm.isStarted() == false)) pm.start(time);
         } // FOR
     }
     

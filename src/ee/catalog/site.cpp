@@ -37,7 +37,6 @@ Site::Site(Catalog *catalog, CatalogType *parent, const string &path, const stri
     m_fields["host"] = value;
     m_childCollections["partitions"] = &m_partitions;
     m_fields["isUp"] = value;
-    m_fields["proc_port"] = value;
     m_fields["dtxn_port"] = value;
     m_fields["messenger_port"] = value;
 }
@@ -46,7 +45,6 @@ void Site::update() {
     m_id = m_fields["id"].intValue;
     m_host = m_fields["host"].typeValue;
     m_isUp = m_fields["isUp"].intValue;
-    m_proc_port = m_fields["proc_port"].intValue;
     m_dtxn_port = m_fields["dtxn_port"].intValue;
     m_messenger_port = m_fields["messenger_port"].intValue;
 }
@@ -87,10 +85,6 @@ const CatalogMap<Partition> & Site::partitions() const {
 
 bool Site::isUp() const {
     return m_isUp;
-}
-
-int32_t Site::proc_port() const {
-    return m_proc_port;
 }
 
 int32_t Site::dtxn_port() const {

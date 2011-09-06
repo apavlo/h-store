@@ -23,8 +23,23 @@
 
 package edu.brown.benchmark;
 
-import java.util.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.Map.Entry;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
+
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
 public class BenchmarkResults {
 
@@ -48,6 +63,155 @@ public class BenchmarkResults {
         public final long transactionCount;
     }
 
+    public static class FinalResult implements JSONSerializable {
+        public long duration;
+        public long totalTxnCount;
+        public double txnPerSecond;
+        public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
+        public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
+        
+        public FinalResult(BenchmarkResults results) {
+            
+            this.duration = results.getTotalDuration();
+            this.totalTxnCount = 0;
+            for (String client : results.getClientNames()) {
+                for (String txn : results.getTransactionNames()) {
+                    Result[] rs = results.getResultsForClientAndTransaction(client, txn);
+                    for (Result r : rs)
+                        this.totalTxnCount += r.transactionCount;
+                } // FOR
+            } // FOR
+            this.txnPerSecond = totalTxnCount / (double)duration * 1000.0;
+            
+            // TRANSACTIONS
+            for (String transactionName : results.getTransactionNames()) {
+                long txnCount = 0;
+                for (String clientName : results.getClientNames()) {
+                    Result[] rs = results.getResultsForClientAndTransaction(clientName, transactionName);
+                    for (Result r : rs)
+                        txnCount += r.transactionCount;
+                }
+                EntityResult er = new EntityResult(this.totalTxnCount, this.duration, txnCount);
+                this.txnResults.put(transactionName, er);
+            }
+            
+            // CLIENTS
+            for (String clientName : results.getClientNames()) {
+                long txnCount = 0;
+                for (String txnName : results.getTransactionNames()) {
+                    Result[] rs = results.getResultsForClientAndTransaction(clientName, txnName);
+                    for (Result r : rs)
+                        txnCount += r.transactionCount;
+                }
+                clientName = clientName.replace("client-", "");
+                EntityResult er = new EntityResult(this.totalTxnCount, this.duration, txnCount);
+                this.clientResults.put(clientName, er);
+            } // FOR
+        }
+        
+        public long getDuration() {
+            return this.duration;
+        }
+        public long getTotalTxnCount() {
+            return this.totalTxnCount;
+        }
+        public double getTxnPerSecond() {
+            return this.txnPerSecond;
+        }
+        public Collection<String> getTransactionNames() {
+            return this.txnResults.keySet();
+        }
+        public EntityResult getTransactionResult(String txnName) {
+            return this.txnResults.get(txnName);
+        }
+        public Collection<String> getClientNames() {
+            return this.clientResults.keySet();
+        }
+        public EntityResult getClientResult(String clientName) {
+            return this.clientResults.get(clientName);
+        }
+        // ----------------------------------------------------------------------------
+        // SERIALIZATION METHODS
+        // ----------------------------------------------------------------------------
+        @Override
+        public void load(String input_path, Database catalog_db) throws IOException {
+            JSONUtil.load(this, catalog_db, input_path);
+        }
+        @Override
+        public void save(String output_path) throws IOException {
+            JSONUtil.save(this, output_path);
+        }
+        @Override
+        public String toJSONString() {
+            return (JSONUtil.toJSONString(this));
+        }
+        @Override
+        public void toJSON(JSONStringer stringer) throws JSONException {
+            JSONUtil.fieldsToJSON(stringer, this, FinalResult.class, JSONUtil.getSerializableFields(this.getClass()));
+        }
+        @Override
+        public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+            JSONUtil.fieldsFromJSON(json_object, catalog_db, this, FinalResult.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        }
+    }
+    
+    public static class EntityResult implements JSONSerializable {
+        public long txnCount;
+        public double txnPercentage;
+        public double txnPerMilli;
+        public double txnPerSecond;
+        
+        public EntityResult(long totalTxnCount, long duration, long txnCount) {
+            this.txnCount = txnCount;
+            if (totalTxnCount == 0) {
+                this.txnPercentage = 0;
+                this.txnPerMilli = 0;
+                this.txnPerSecond = 0;
+            } else {
+                this.txnPercentage = (txnCount / (double)totalTxnCount) * 100;
+                this.txnPerMilli = txnCount / (double)duration * 1000.0;
+                this.txnPerSecond = txnCount / (double)duration * 1000.0 * 60.0;
+            }
+        }
+        
+        public long getTxnCount() {
+            return this.txnCount;
+        }
+        public double getTxnPercentage() {
+            return this.txnPercentage;
+        }
+        public double getTxnPerMilli() {
+            return this.txnPerMilli;
+        }
+        public double getTxnPerSecond() {
+            return this.txnPerSecond;
+        }
+        
+        // ----------------------------------------------------------------------------
+        // SERIALIZATION METHODS
+        // ----------------------------------------------------------------------------
+        @Override
+        public void load(String input_path, Database catalog_db) throws IOException {
+            JSONUtil.load(this, catalog_db, input_path);
+        }
+        @Override
+        public void save(String output_path) throws IOException {
+            JSONUtil.save(this, output_path);
+        }
+        @Override
+        public String toJSONString() {
+            return (JSONUtil.toJSONString(this));
+        }
+        @Override
+        public void toJSON(JSONStringer stringer) throws JSONException {
+            JSONUtil.fieldsToJSON(stringer, this, EntityResult.class, JSONUtil.getSerializableFields(this.getClass()));
+        }
+        @Override
+        public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+            JSONUtil.fieldsFromJSON(json_object, catalog_db, this, EntityResult.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        }
+    }
+    
     private final HashMap<String, HashMap<String, ArrayList<Result>>> m_data =
         new HashMap<String, HashMap<String, ArrayList<Result>>>();
     private final Set<Error> m_errors = new HashSet<Error>();

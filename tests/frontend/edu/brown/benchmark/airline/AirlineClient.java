@@ -24,43 +24,61 @@
 package edu.brown.benchmark.airline;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ClientResponse;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.compiler.VoltProjectBuilder;
-import org.voltdb.benchmark.*;
+import org.voltdb.VoltType;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcedureCallback;
+import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.airline.procedures.*;
 import edu.brown.benchmark.airline.util.CustomerId;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AirlineClient extends AirlineBaseClient {
     private static final Logger LOG = Logger.getLogger(AirlineClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * Airline Benchmark Transactions
      */
     public static enum Transaction {
-        CHANGE_SEAT                     (AirlineConstants.FREQUENCY_CHANGE_SEAT),
-        FIND_FLIGHT_BY_AIRPORT          (AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT),
-        FIND_FLIGHT_BY_NEARBY_AIRPORT   (AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT),
-        FIND_OPEN_SEATS                 (AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
-        NEW_RESERVATION                 (AirlineConstants.FREQUENCY_NEW_RESERVATION),
-        UPDATE_FREQUENT_FLYER           (AirlineConstants.FREQUENCY_UPDATE_FREQUENT_FLYER),
-        UPDATE_RESERVATION              (AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
+        DELETE_RESERVATION          (DeleteReservation.class,   AirlineConstants.FREQUENCY_DELETE_RESERVATION),
+        FIND_FLIGHTS                (FindFlights.class,         AirlineConstants.FREQUENCY_FIND_FLIGHTS),
+        FIND_OPEN_SEATS             (FindOpenSeats.class,       AirlineConstants.FREQUENCY_FIND_OPEN_SEATS),
+        NEW_RESERVATION             (NewReservation.class,      AirlineConstants.FREQUENCY_NEW_RESERVATION),
+        UPDATE_CUSTOMER             (UpdateCustomer.class,      AirlineConstants.FREQUENCY_UPDATE_CUSTOMER),
+        UPDATE_RESERVATION          (UpdateReservation.class,   AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
         
-        private Transaction(int weight) {
+        private Transaction(Class<? extends VoltProcedure> proc_class, int weight) {
+            this.proc_class = proc_class;
             this.default_weight = weight;
             this.displayName = StringUtil.title(this.name().replace("_", " "));
         }
 
+        public final Class<? extends VoltProcedure> proc_class;
         public final int default_weight;
         public final String displayName;
         
@@ -95,10 +113,7 @@ public class AirlineClient extends AirlineBaseClient {
     // ADDITIONAL DATA MEMBERS
     // -----------------------------------------------------------------
     
-    private final Map<Transaction, Integer> weights = new HashMap<Transaction, Integer>();
-    private final Transaction xacts[] = new Transaction[100];
-    
-    private final RandomDistribution.FlatHistogram airport_rand;
+    private final RandomDistribution.FlatHistogram<Transaction> xacts;
     
     /**
      * When a customer looks for an open seat, they will then attempt to book that seat in
@@ -106,19 +121,22 @@ public class AirlineClient extends AirlineBaseClient {
      * represents a customer that is queued to change their seat. 
      */
     private class Reservation {
+        public final long id;
         public final FlightId flight_id;
         public final CustomerId customer_id;
         public final long seatnum;
         
-        public Reservation(FlightId flight_id, CustomerId customer_id, long seatnum) {
+        public Reservation(long id, FlightId flight_id, CustomerId customer_id, long seatnum) {
+            this.id = id;
             this.flight_id = flight_id;
             this.customer_id = customer_id;
             this.seatnum = seatnum;
         }
     } // END CLASS
     
-    private final Queue<Reservation> pending_reservations = new LinkedList<Reservation>();
-    private final Queue<Reservation> pending_seatchanges = new LinkedList<Reservation>();
+    private final Queue<Reservation> pending_inserts = new LinkedBlockingDeque<Reservation>();
+    private final Queue<Reservation> pending_updates = new LinkedBlockingDeque<Reservation>();
+    private final Queue<Reservation> pending_deletes = new LinkedBlockingDeque<Reservation>();
     
     // -----------------------------------------------------------------
     // REQUIRED METHODS
@@ -132,8 +150,9 @@ public class AirlineClient extends AirlineBaseClient {
         super(args);
 
         // Initialize Default Weights
+        final Histogram<Transaction> weights = new Histogram<Transaction>();
         for (Transaction t : Transaction.values()) {
-            this.weights.put(t, t.getDefaultWeight());
+            weights.put(t, t.getDefaultWeight());
         } // FOR
 
         // Process additional parameters
@@ -142,47 +161,37 @@ public class AirlineClient extends AirlineBaseClient {
             
             // Transaction Weights
             // Expected format: -Dxactweight=TRANSACTION_NAME:###
-            if (key.equals("xactweight")) {
+            if (key.equalsIgnoreCase("xactweight")) {
                 String parts[] = value.split(":");
                 Transaction t = Transaction.get(parts[0]);
                 assert(t == null) : "Invalid transaction name '" + parts[0] + "'";
                 Integer weight = Integer.parseInt(parts[1]);
                 assert(weight == null) : "Invalid weight '" + parts[1] + "' for transaction " + t;
-                this.weights.put(t, weight);
+                weights.set(t, weight);
             }
         } // FOR
         
         // Make sure we have the information we need in the BenchmarkProfile
         String error_msg = null;
-        if (this.profile.getFlightIdCount() == 0) {
+        if (this.getFlightIdCount() == 0) {
             error_msg = "The benchmark profile does not have any flight ids.";
-        } else if (this.profile.getCustomerIdCount() == 0) {
+        } else if (this.getCustomerIdCount() == 0) {
             error_msg = "The benchmark profile does not have any customer ids.";
-        } else if (this.profile.getFlightStartDate() == null) {
+        } else if (this.getFlightStartDate() == null) {
             error_msg = "The benchmark profile does not have a valid flight start date.";
         }
         if (error_msg != null) {
-            LOG.error(error_msg + " Unable to start client.");
-            System.exit(1);
+            throw new RuntimeException(String.format("The benchmark profile '%s' is invalid - %s", this.profile_file, error_msg));
         }
         
         // Create xact lookup array
-        int total = 0;
-        for (Transaction t : Transaction.values()) {
-            for (int i = 0, cnt = this.weights.get(t); i < cnt; i++) {
-                this.xacts[total++] = t;
-            } // FOR
-        } // FOR
-        assert(total == xacts.length) : "The total weight for the transactions is " + total + ". It needs to be " + xacts.length;
+        this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
+        assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
+        if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
         
-        //
         // Load Histograms
-        //
         LOG.info("Loading data files for histograms");
         this.loadHistograms();
-        
-        Histogram<String> histogram = this.getTotalAirportFlightsHistogram();
-        this.airport_rand = new RandomDistribution.FlatHistogram<String>(m_rng, histogram);
     }
 
     @Override
@@ -197,13 +206,13 @@ public class AirlineClient extends AirlineBaseClient {
 
     @Override
     public void runLoop() {
-        //
+        final Client client = this.getClientHandle();
+        
         // Execute Transactions
-        //
         try {
             while (true) {
-                executeTransaction();
-                m_voltClient.backpressureBarrier();
+                runOnce();
+                client.backpressureBarrier();
             } // WHILE
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -222,161 +231,169 @@ public class AirlineClient extends AirlineBaseClient {
         }
     }
 
-    
-    /**
-     * 
-     * @return
-     * @throws IOException
-     */
-    private void executeTransaction() throws IOException {
-        int idx = this.m_rng.number(0, this.xacts.length);
-        assert(idx >= 0);
-        assert(idx < this.xacts.length);
-        
-        LOG.info("Executing new invocation of transaction " + this.xacts[idx]);
-        switch (this.xacts[idx]) {
-            case CHANGE_SEAT: {
-                if (!this.pending_seatchanges.isEmpty()) this.executeChangeSeat();
+    @Override
+    protected boolean runOnce() throws IOException {
+        Transaction txn = this.xacts.nextValue();
+        if (debug.get()) LOG.info("Executing new invocation of transaction " + txn);
+        switch (txn) {
+            case DELETE_RESERVATION: {
+                if (this.pending_deletes.isEmpty() == false) this.executeDeleteReservation(txn);
                 break;
             }
-            case FIND_FLIGHT_BY_AIRPORT: {
-                this.executeFindFlightByAirport();
-                break;
-            }
-            case FIND_FLIGHT_BY_NEARBY_AIRPORT: {
+            case FIND_FLIGHTS: {
+                this.executeFindFlight(txn);
                 break;
             }
             case FIND_OPEN_SEATS: {
-                this.runFindOpenSeats();
+                this.executeFindOpenSeats(txn);
                 break;
             }
             case NEW_RESERVATION: {
-                if (!this.pending_reservations.isEmpty()) this.executeNewReservation();
+                if (this.pending_inserts.isEmpty() == false) this.executeNewReservation(txn);
                 break;
             }
-            case UPDATE_FREQUENT_FLYER: {
-                this.executeUpdateFrequentFlyer();
+            case UPDATE_CUSTOMER: {
+                this.executeUpdateCustomer(txn);
                 break;
             }
             case UPDATE_RESERVATION: {
-                this.executeUpdateReservation();
+                if (this.pending_updates.isEmpty() == false) this.executeUpdateReservation(txn);
                 break;
             }
             default:
-                assert(false) : "Unexpected transaction: " + this.xacts[idx]; 
+                assert(false) : "Unexpected transaction: " + txn; 
         } // SWITCH
-        return;
+        return (true);
     }
     
     // -----------------------------------------------------------------
-    // ChangeSeat
+    // DeleteReservation
     // -----------------------------------------------------------------
     
-    private class ChangeSeatCallback implements ProcedureCallback {
+    class DeleteReservationCallback implements ProcedureCallback {
+        
+        final Reservation reservation;
+        
+        public DeleteReservationCallback(Reservation r) {
+            this.reservation = r;
+        }
+        
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.CHANGE_SEAT.ordinal());
+            incrementTransactionCounter(Transaction.DELETE_RESERVATION.ordinal());
             if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
-                assert (clientResponse.getResults().length == 1);
-                assert (clientResponse.getResults()[0].getRowCount() == 1);
-                assert (clientResponse.getResults()[0].asScalarLong() == 1 ||
-                        clientResponse.getResults()[0].asScalarLong() == 0);
+                // TODO
+            } else if (debug.get()) {
+                LOG.info("DeleteReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
+                LOG.info("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
             }
         }
     }
 
-    private void executeChangeSeat() throws IOException {
-        // Pull off the first pending seat change and throw that ma at the server
-        Reservation r = this.pending_seatchanges.remove();
-        m_voltClient.callProcedure(new ChangeSeatCallback(), ChangeSeat.class.getSimpleName(), 
-                                   r.flight_id.encode(), r.customer_id.encode(), r.seatnum);
-    }
-    
-    // ----------------------------------------------------------------
-    // NewReservation
-    // ----------------------------------------------------------------
-    
-    class NewReservationCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
-            VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
-            assert (results[0].getRowCount() == 1);
-            assert (results[0].asScalarLong() == 1);
-        }
-    }
-
-    private void executeNewReservation() throws IOException {
-        Reservation r = this.pending_reservations.remove();
-        long r_id = this.profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION);
+    private void executeDeleteReservation(Transaction txn) throws IOException {
+        // Pull off the first cached reservation and drop it on the cluster...
+        Reservation r = this.pending_deletes.remove();
+        assert(r != null);
+        int rand = rng.number(1, 100);
         
-        // Generate random attributes
-        long attributes[] = new long[9];
-        for (int i = 0; i < attributes.length; i++) {
-            attributes[i] = m_rng.nextLong();
-        } // FOR
-
-        m_voltClient.callProcedure(new NewReservationCallback(),
-                                   NewReservation.class.getSimpleName(),
-                                   r_id, r.flight_id.encode(), r.customer_id.encode(), r.seatnum, attributes);
+        Object params[] = new Object[]{
+            r.flight_id.encode(),       // [0] f_id
+            VoltType.NULL_BIGINT,       // [1] c_id
+            "",                         // [2] c_id_str
+            "",                         // [3] ff_c_id_str
+            VoltType.NULL_BIGINT,       // [4] ff_al_id
+        };
+        
+        // Delete with the Customer's id as a string 
+        if (rand <= AirlineConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR) {
+            params[2] = Long.toString(r.customer_id.encode());
+        }
+        // Delete using their FrequentFlyer information
+        else if (rand <= AirlineConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR + AirlineConstants.PROB_DELETE_WITH_FREQUENTFLYER_ID_STR) {
+            params[3] = Long.toString(r.customer_id.encode());
+            params[4] = r.flight_id.getAirlineId();
+        }
+        // Delete using their Customer id
+        else {
+            params[1] = r.customer_id.encode();
+        }
+        
+        this.getClientHandle().callProcedure(new DeleteReservationCallback(r), txn.proc_class.getSimpleName(), params);
     }
     
-
     // ----------------------------------------------------------------
-    // UpdateFrequentFlyer
+    // FindFlights
     // ----------------------------------------------------------------
     
-    class UpdateFrequentFlyerCallback implements ProcedureCallback {
-
+    class FindFlightsCallback implements ProcedureCallback {
+        
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_FREQUENT_FLYER.ordinal());
+            incrementTransactionCounter(Transaction.FIND_FLIGHTS.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
-            assert (results[0].getRowCount() == 1);
-            assert (results[0].asScalarLong() == 1);
+            if (results.length > 1) {
+                // Convert the data into a FlightIds that other transactions can use
+                while (results[0].advanceRow()) {
+                    FlightId flight_id = new FlightId(results[0].getLong(0));
+                    assert(flight_id != null);
+                    AirlineClient.this.addFlightId(flight_id);
+                } // WHILE
+            }
         }
     }
 
-    private void executeUpdateFrequentFlyer() throws IOException {
-        // Pick a random customer and then have at it!
-        CustomerId customer_id = this.getRandomCustomerId(this.airport_rand.nextInt());
-        long airline_id = this.getRandomAirlineId();
-        long attr0 = this.m_rng.nextLong();
-        long attr1 = this.m_rng.nextLong();
-
-        m_voltClient.callProcedure(new UpdateFrequentFlyerCallback(),
-                                   UpdateFrequentFlyer.class.getSimpleName(),
-                                   customer_id.encode(), airline_id, attr0, attr1);
-    }
-
-    // ----------------------------------------------------------------
-    // UpdateReservation
-    // ----------------------------------------------------------------
-    
-    class UpdateReservationCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
-            VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
-            assert (results[0].getRowCount() == 1);
-            assert (results[0].asScalarLong() == 1);
+    /**
+     * Execute one of the FindFlight transactions
+     * @param txn
+     * @throws IOException
+     */
+    private void executeFindFlight(Transaction txn) throws IOException {
+        long depart_airport_id;
+        long arrive_airport_id;
+        TimestampType start_date;
+        TimestampType stop_date;
+        
+        // Select two random airport ids
+        if (rng.number(1, 100) <= 10) {
+            // Does it matter whether the one airport actually flies to the other one?
+            depart_airport_id = this.getRandomAirportId();
+            arrive_airport_id = this.getRandomOtherAirport(depart_airport_id);
+//        long arrive_airport_id = (long)rng.numberExcluding(1, (int)this.getAirportCount(), (int)depart_airport_id);
+            
+            // Select a random date from our upcoming dates
+            start_date = this.getRandomUpcomingDate();
+            stop_date = new TimestampType(start_date.getTime() + (AirlineConstants.MICROSECONDS_PER_DAY * 2));
         }
-    }
-
-    private void executeUpdateReservation() throws IOException {
-        // Pick a random reservation id
-        long r_id = this.m_rng.number(this.profile.getReservationUpcomingOffset(), this.profile.getRecordCount(AirlineConstants.TABLENAME_RESERVATION));
-        long value = m_rng.number(1, 1 << 20);
-        long attribute_idx = m_rng.number(0, UpdateReservation.NUM_UPDATES);
-
-        m_voltClient.callProcedure(new UpdateReservationCallback(),
-                                   UpdateReservation.class.getSimpleName(),
-                                   r_id, value, attribute_idx);
+        
+        // Use an existing flight so that we guaranteed to get back results
+        else {
+            FlightId f_id = this.getRandomFlightId();
+            depart_airport_id = f_id.getDepartAirportId();
+            arrive_airport_id = f_id.getArriveAirportId();
+            
+            TimestampType flightDate = f_id.getDepartDate(this.getFlightStartDate());
+            long range = Math.round(AirlineConstants.MICROSECONDS_PER_DAY * 0.5);
+            start_date = new TimestampType(flightDate.getTime() - range);
+            stop_date = new TimestampType(flightDate.getTime() + range);
+            
+            if (debug.get())
+                LOG.debug("Using FlightId " + f_id.encode() + " as look up: " + f_id + " / " + flightDate);
+        }
+        
+        // If distance is greater than zero, then we will also get flights from nearby airports
+        long distance = -1;
+        if (rng.number(1, 100) <= AirlineConstants.PROB_FIND_AIRPORT_NEARBY) {
+            distance = AirlineConstants.DISTANCES[rng.nextInt(AirlineConstants.DISTANCES.length)];
+        }
+        
+        Object params[] = new Object[] {
+            depart_airport_id,
+            arrive_airport_id,
+            start_date,
+            stop_date,
+            distance
+        };
+        this.getClientHandle().callProcedure(new FindFlightsCallback(), txn.proc_class.getSimpleName(), params);
     }
 
     // ----------------------------------------------------------------
@@ -389,87 +406,188 @@ public class AirlineClient extends AirlineBaseClient {
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
+            if (results.length != 1) {
+                LOG.warn("Results is " + results.length);
+                return;
+            }
             assert (results[0].getRowCount() < 150);
             // there is some tiny probability of an empty flight .. maybe
             // 1/(20**150)
             // if you hit this assert (with valid code), play the lottery!
-            assert (results[0].getRowCount() > 1);
+            int rowCount = results[0].getRowCount();
+            if (rowCount == 0) return;
             
-            // Store the pending reservation in our queue for a later transaction by using
-            // the first empty seat. With a certain probability, the customer will later ask
-            // to change their seat reservation, so we need to queue that up
-            int cnt = (m_rng.nextInt(100) < AirlineConstants.PROB_CHANGE_SEAT ? 2 : 1);
-            for (int i = 0; i < cnt; i++) {
-                results[0].advanceRow();
+            int insert = (rowCount == 1 ? 1 : rng.nextInt(rowCount-1) + 1);
+            Set<Integer> s = rng.getRandomIntSet(insert, rowCount);
+            List<Reservation> reservations = new ArrayList<Reservation>();
+            for (int i = 0; i < rowCount; i++) {
+                // Store pending reservations in our queue for a later transaction
+                boolean adv = results[0].advanceRow();
+                assert(adv);
+                if (s.contains(i) == false) continue;
                 
                 FlightId flight_id = new FlightId(results[0].getLong(0));
                 long seatnum = results[0].getLong(1);
                 long airport_depart_id = flight_id.getDepartAirportId();
                 CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
-                
-                Reservation r = new Reservation(flight_id, customer_id, seatnum);
-                if (i == 0) {
-                    AirlineClient.this.pending_reservations.add(r);
-                } else if (i == 1) {
-                    AirlineClient.this.pending_seatchanges.add(r);
-                } else {
-                    assert(false);
+                if (customer_id == null) {
+                    customer_id = AirlineClient.this.getRandomCustomerId();
                 }
+                assert(customer_id != null);
+                
+                reservations.add(new Reservation(getNextReservationId(), flight_id, customer_id, seatnum));
+                if (debug.get()) LOG.info("QUEUED INSERT: " + flight_id + " / " + flight_id.encode());
             } // FOR
+            if (reservations.isEmpty() == false) {
+                Collections.shuffle(reservations, rng);
+                AirlineClient.this.pending_inserts.addAll(reservations);
+                while (pending_inserts.size() > 1000) {
+                    pending_inserts.remove();
+                } // WHILE
+            }
         }
-
     }
 
     /**
      * Execute the FindOpenSeat procedure
      * @throws IOException
      */
-    private void runFindOpenSeats() throws IOException {
+    private void executeFindOpenSeats(Transaction txn) throws IOException {
         FlightId flight_id = this.getRandomFlightId();
         assert(flight_id != null);
-        m_voltClient.callProcedure(new FindOpenSeatsCallback(), FindOpenSeats.class.getSimpleName(), flight_id.encode());
+        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(), txn.proc_class.getSimpleName(), flight_id.encode());
     }
     
     // ----------------------------------------------------------------
-    // FindFlightByAirport
+    // NewReservation
     // ----------------------------------------------------------------
     
-    class FindFlightByAirportCallback implements ProcedureCallback {
+    class NewReservationCallback implements ProcedureCallback {
+        final Reservation reservation;
+        
+        public NewReservationCallback(Reservation r) {
+            this.reservation = r;
+        }
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
+            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            assert (results.length == 1);
-            assert (results[0].getRowCount() < 150);
-            // there is some tiny probability of an empty flight .. maybe
-            // 1/(20**150)
-            // if you hit this assert (with valid code), play the lottery!
-            assert (results[0].getRowCount() > 1);
-        }
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                assert(results.length > 1);
+                assert(results[0].getRowCount() == 1);
+                assert(results[0].asScalarLong() == 1);
 
+                // Queue this motha trucka up for a deletin'
+                if (rng.nextBoolean()) {
+                    if (pending_deletes.size() > 1000) pending_deletes.remove();
+                    pending_deletes.add(this.reservation);
+                }
+                // Or queue it for an update
+                else if (rng.nextBoolean()) {
+                    if (pending_updates.size() > 1000) pending_updates.remove();
+                    pending_updates.add(this.reservation);
+                }
+            } else if (debug.get()) {
+                LOG.debug("NewReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
+                LOG.debug("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
+            }
+        }
     }
 
-    private void executeFindFlightByAirport() throws IOException {
-        //
-        // Select two random airport ids
-        // Does it matter whether the one airport actually flies to the other one?
-        //
-        long depart_airport_id = this.getRandomAirportId();
-        long arrive_airport_id;
-        do {
-            arrive_airport_id = this.getRandomAirportId();
-        } while (arrive_airport_id == depart_airport_id);
+    private void executeNewReservation(Transaction txn) throws IOException {
+        Reservation r = this.pending_inserts.remove();
         
-        //
-        // Select a random date from our upcoming dates
-        //
-        Date start_date = this.getRandomUpcomingDate();
-        Date stop_date = new Date(start_date.getTime() + AirlineConstants.MILISECONDS_PER_DAY);
+        // Generate a random price for now
+        double price = rng.nextInt(1000) * 2.0;
         
-        m_voltClient.callProcedure(new FindFlightByAirportCallback(),
-                                   FindFlightByAirportCallback.class.getSimpleName(),
-                                   depart_airport_id, arrive_airport_id, start_date, stop_date);
+        // Generate random attributes
+        long attributes[] = new long[9];
+        for (int i = 0; i < attributes.length; i++) {
+            attributes[i] = rng.nextLong();
+        } // FOR
+
+        this.getClientHandle().callProcedure(new NewReservationCallback(r),
+                                             txn.proc_class.getSimpleName(),
+                                             r.id, r.customer_id.encode(), r.flight_id.encode(), r.seatnum, price, attributes);
+    }
+
+    // ----------------------------------------------------------------
+    // UpdateCustomer
+    // ----------------------------------------------------------------
+    
+    class UpdateCustomerCallback implements ProcedureCallback {
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.UPDATE_CUSTOMER.ordinal());
+            VoltTable[] results = clientResponse.getResults();
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                assert (results.length >= 1);
+                assert (results[0].getRowCount() == 1);
+//                assert (results[0].asScalarLong() == 1);
+            } else if (debug.get()) {
+                LOG.debug("UpdateCustomer " + ": " + clientResponse.getStatusString(), clientResponse.getException());
+            }
+        }
+    }
+
+    private void executeUpdateCustomer(Transaction txn) throws IOException {
+        // Pick a random customer and then have at it!
+        CustomerId customer_id = this.getRandomCustomerId();
+        long attr0 = this.rng.nextLong();
+        long attr1 = this.rng.nextLong();
+        long update_ff = (rng.number(1, 100) <= AirlineConstants.PROB_UPDATE_FREQUENT_FLYER ? 1 : 0);
+        
+        Object params[] = new Object[]{
+            VoltType.NULL_BIGINT,
+            "",
+            update_ff,
+            attr0,
+            attr1
+        };
+        
+        // Update with the Customer's id as a string 
+        int rand = rng.number(1, 100);
+        if (rand <= AirlineConstants.PROB_DELETE_WITH_CUSTOMER_ID_STR) {
+            params[1] = Long.toString(customer_id.encode());
+        }
+        // Update using their Customer id
+        else {
+            params[0] = customer_id.encode();
+        }
+
+        this.getClientHandle().callProcedure(new UpdateCustomerCallback(), txn.proc_class.getSimpleName(), params);
+    }
+
+    // ----------------------------------------------------------------
+    // UpdateReservation
+    // ----------------------------------------------------------------
+    
+    class UpdateReservationCallback implements ProcedureCallback {
+
+        @Override
+        public void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                assert (clientResponse.getResults().length == 1);
+                assert (clientResponse.getResults()[0].getRowCount() == 1);
+                assert (clientResponse.getResults()[0].asScalarLong() == 1 ||
+                        clientResponse.getResults()[0].asScalarLong() == 0);
+            }
+        }
+    }
+
+    private void executeUpdateReservation(Transaction txn) throws IOException {
+        // Pull off the first pending seat change and throw that ma at the server
+        Reservation r = this.pending_updates.remove();
+        assert(r != null);
+        
+        // Pick a random reservation id
+        long value = rng.number(1, 1 << 20);
+        long attribute_idx = rng.nextInt(UpdateReservation.NUM_UPDATES);
+
+        this.getClientHandle().callProcedure(new UpdateReservationCallback(),
+                                             txn.proc_class.getSimpleName(), 
+                                             r.id, r.flight_id.encode(), r.customer_id.encode(), r.seatnum, attribute_idx, value);
     }
 }

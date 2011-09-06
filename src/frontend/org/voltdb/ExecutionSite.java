@@ -76,6 +76,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SQLException;
@@ -258,6 +259,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     protected int partitionId;
 
+    private long txn_count = 0;
+    
     /**
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
      */
@@ -299,7 +302,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected HStoreSite hstore_site;
     protected HStoreMessenger hstore_messenger;
     protected HStoreConf hstore_conf;
-    protected ExecutionSitePostProcessor processor = null;
     protected ExecutionSiteHelper helper = null;
     
     protected final transient Set<Integer> done_partitions = new HashSet<Integer>();
@@ -670,7 +672,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.helper = hstore_site.getExecutionSiteHelper();
 //        assert(this.helper != null) : "Missing ExecutionSiteHelper";
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        if (hstore_conf.site.exec_postprocessing_thread) this.processor = hstore_site.getExecutionSitePostProcessor();
         if (hstore_conf.site.exec_profiling) this.work_queue_wait.resetOnEvent(this.hstore_site.getWorkloadObservable());
     }
     
@@ -727,14 +728,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Poll Work Queue
                 // -------------------------------
                 try {
-                    if (hstore_conf.site.exec_profiling) this.work_queue_wait.start();
-                    work = this.work_queue.takeFirst();
+                    work = this.work_queue.poll();
+                    if (work == null) {
+                        if (hstore_conf.site.exec_profiling) this.work_queue_wait.start();
+                        work = this.work_queue.takeFirst();
+                        if (hstore_conf.site.exec_profiling) this.work_queue_wait.stop();
+                    }
                 } catch (InterruptedException ex) {
                     if (d && this.isShuttingDown() == false) LOG.debug("Unexpected interuption while polling work queue. Halting ExecutionSite...", ex);
                     stop = true;
                     break;
-                } finally {
-                    if (hstore_conf.site.exec_profiling) this.work_queue_wait.stop();
                 }
 
                 ts = this.txn_states.get(work.getTxnId());
@@ -755,6 +758,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Invoke Stored Procedure
                 // -------------------------------
                 } else if (work instanceof InitiateTaskMessage) {
+                    if (hstore_conf.site.exec_profiling) txn_count++;
                     InitiateTaskMessage itask = (InitiateTaskMessage)work;
                     this.processInitiateTaskMessage((LocalTransactionState)ts, itask);
                     
@@ -767,7 +771,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
             } // WHILE
         } catch (final Throwable ex) {
-            if (this.isShuttingDown() == false) LOG.fatal("Unexpected error for ExecutionSite partition #" + this.partitionId, ex);
+            if (this.isShuttingDown() == false) {
+                LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
+                                        this.partitionId, (ts != null ? " - " + ts.toString() : "")), ex);
+                if (ts != null) LOG.fatal("TransactionState Dump:\n" + ts.debug());
+            }
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
 //            if (d) 
@@ -837,6 +845,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         return (this.partitionId);
     }
 
+    public long getTransactionCounter() {
+        return (this.txn_count);
+    }
+    
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
     }
@@ -1047,7 +1059,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, spec_exec)) {
             if (hstore_conf.site.exec_postprocessing_thread) {
                 if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatusName()));
-                this.processor.processClientResponse(this, ts, cresponse);
+                hstore_site.queueClientResponse(this, ts, cresponse);
             } else {
                 if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatusName()));
                 this.processClientResponse(ts, cresponse);
@@ -1160,6 +1172,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         try {
             result = this.executeFragmentTaskMessage(ts, ftask);
             fresponse.setStatus(FragmentResponseMessage.SUCCESS, null);
+        } catch (ConstraintFailureException ex) {
+            LOG.fatal("Hit an ConstraintFailureException for " + ts, ex);
+            fresponse.setStatus(FragmentResponseMessage.UNEXPECTED_ERROR, ex);
         } catch (EEException ex) {
             LOG.fatal("Hit an EE Error for " + ts, ex);
             this.crash(ex);
@@ -1379,6 +1394,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                      Arrays.toString(plan.getFragmentIds()), plan.getFragmentCount(), Arrays.toString(plan.getOutputDependencyIds()), Arrays.toString(plan.getInputDependencyIds())));
         }
         DependencySet result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
+        assert(result != null) : "Unexpected null DependencySet for " + ts; 
         if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
         
         ts.fastFinishRound();
@@ -1389,21 +1405,21 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Execute the given fragment tasks on this site's underlying EE
      * @param ts
      * @param undoToken
-     * @param fragmentIdIndex
+     * @param batchSize
      * @param fragmentIds
      * @param parameterSets
      * @param output_depIds
      * @param input_depIds
      * @return
      */
-    private DependencySet executePlanFragments(TransactionState ts, long undoToken, int fragmentIdIndex, long fragmentIds[], ParameterSet parameterSets[], int output_depIds[], int input_depIds[]) {
+    private DependencySet executePlanFragments(TransactionState ts, long undoToken, int batchSize, long fragmentIds[], ParameterSet parameterSets[], int output_depIds[], int input_depIds[]) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         long txn_id = ts.getTransactionId();
         
         if (d) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("Executing %d fragments for %s [lastTxnId=%d, undoToken=%d]",
-                      fragmentIdIndex, ts, this.lastCommittedTxnId, undoToken));
+                      batchSize, ts, this.lastCommittedTxnId, undoToken));
             if (t) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
@@ -1425,7 +1441,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Check whether this fragments are read-only
         if (ts.isExecReadOnly()) {
-            boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, fragmentIdIndex); 
+            boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, batchSize); 
             if (readonly == false) {
                 if (t) LOG.trace(String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
                 ts.markExecNotReadOnly();
@@ -1434,18 +1450,18 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         DependencySet result = null;
         try {
-            if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", fragmentIdIndex, this.partitionId, ts));
+            if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
                 ((LocalTransactionState)ts).profiler.startExecEE();
             }
             synchronized (this.ee) {
                 result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                                 fragmentIds,
-                                fragmentIdIndex,
+                                batchSize,
                                 input_depIds,
                                 output_depIds,
                                 parameterSets,
-                                fragmentIdIndex,
+                                batchSize,
                                 txn_id,
                                 this.lastCommittedTxnId,
                                 undoToken);
@@ -1453,6 +1469,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransactionState) {
                 ((LocalTransactionState)ts).profiler.stopExecEE();
             }
+        } catch (EEException ex) {
+            LOG.fatal("Unrecoverable error in the ExecutionEngine", ex);
+            System.exit(1);
         } catch (Throwable ex) {
             new RuntimeException(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
         }
@@ -1626,9 +1645,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // If we're a multi-partition txn then queue this mofo immediately
         if (ts.isPredictSinglePartition() == false) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            synchronized (this.work_queue) {
+            // synchronized (this.work_queue) {
                 this.work_queue.addFirst(task);    
-            }
+            // }
 
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {
@@ -1719,7 +1738,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // Make sure that we only tell partitions that we actually touched, otherwise they will
             // be stuck waiting for a finish request that will never come!
-            Set<Integer> ts_touched = ts.getTouchedPartitions().values();
+            Collection<Integer> ts_touched = ts.getTouchedPartitions().values();
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             this.done_partitions.clear();
@@ -1861,6 +1880,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // there is a race condition that a task with input dependencies will start running as soon as we
         // get one response back from another executor
         ts.initRound(this.getNextUndoToken());
+        assert(batch_size > 0);
         ts.setBatchSize(batch_size);
         boolean first = true;
         boolean read_only = ts.isExecReadOnly();
@@ -2298,7 +2318,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             if (hstore_conf.site.exec_postprocessing_thread) {
                 if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatusName()));
-                this.processor.processClientResponse(this, ts, cr);
+                hstore_site.queueClientResponse(this, ts, cr);
             } else {
                 if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatusName()));
                 this.processClientResponse(ts, cr);
@@ -2319,7 +2339,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * This won't return!
      */
     public synchronized void crash(Throwable ex) {
-        LOG.info(String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
+        LOG.warn(String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
         assert(this.hstore_messenger != null);
         this.hstore_messenger.shutdownCluster(ex); // This won't return
     }

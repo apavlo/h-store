@@ -42,6 +42,7 @@ import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.locality.LocalityConstants.ExecutionType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
+import edu.mit.hstore.HStoreConf;
 
 public class LocalityClient extends BenchmarkComponent {
     
@@ -49,20 +50,19 @@ public class LocalityClient extends BenchmarkComponent {
     // DATA MEMBERS
     // --------------------------------------------------------------------
 
-    private int m_scalefactor = 1;
     private ExecutionType m_type = LocalityConstants.ExecutionType.SAME_SITE;
     protected final AbstractRandomGenerator m_rng;
 
     /**
      * Number of Records Per Table
      */
-    protected final static Map<String, Long> table_sizes = new HashMap<String, Long>();
+    protected final Map<String, Long> table_sizes = new HashMap<String, Long>();
 
     // --------------------------------------------------------------------
     // TXN PARAMETER GENERATOR
     // --------------------------------------------------------------------
     public interface LocalityParamGenerator {
-        public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog);
+        public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes);
     }
     
     // --------------------------------------------------------------------
@@ -73,10 +73,10 @@ public class LocalityClient extends BenchmarkComponent {
         GetLocal(LocalityConstants.FREQUENCY_GET_LOCAL,
             new LocalityParamGenerator() {
                 @Override
-                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog) {
+                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
                 	int aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
                 	Object params[] = new Object[] {
-                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog)
+                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes)
                 	};
                     return (params);
                 }
@@ -84,7 +84,7 @@ public class LocalityClient extends BenchmarkComponent {
         SetLocal(LocalityConstants.FREQUENCY_SET_LOCAL,
             new LocalityParamGenerator() {
                 @Override
-                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog) {
+                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
                 	Object params[] = new Object[] {
                     		rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue()),
                     		rng.astring(5, 50),
@@ -96,11 +96,11 @@ public class LocalityClient extends BenchmarkComponent {
         GetRemote(LocalityConstants.FREQUENCY_GET_REMOTE,
             new LocalityParamGenerator() {
                 @Override
-                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog) {
+                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
                 	// pass the same local aid as the aid
                 	Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
                 	Object params[] = new Object[] {
-                		aid, getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog)
+                		aid, getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes)
                 	};
                     return (params);
                 }
@@ -108,14 +108,14 @@ public class LocalityClient extends BenchmarkComponent {
         SetRemote(LocalityConstants.FREQUENCY_SET_REMOTE,
             new LocalityParamGenerator() {
                 @Override
-                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog) {
+                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
                 	/**
                 	 * long local_a_id, long a_id, String a_value, long b_id, String b_value
                 	 */
                 	Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
                 	Object params[] = new Object[] {
                 		aid, 
-                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog),
+                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes),
                 		rng.astring(5, 50),
                 		rng.nextInt((int)LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER),                    		
                 		rng.astring(5, 50)                		
@@ -144,8 +144,8 @@ public class LocalityClient extends BenchmarkComponent {
             return (ret);
         }
         
-        public Object[] params(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog) {
-            return (this.generator.generate(rng, mtype, catalog));
+        public Object[] params(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
+            return (this.generator.generate(rng, mtype, catalog, table_sizes));
         }
         
         public int getWeight() {
@@ -163,7 +163,7 @@ public class LocalityClient extends BenchmarkComponent {
      * @param a_id
      * @return
      */
-    protected static long getDataId(long a_id,  AbstractRandomGenerator rng, ExecutionType type, Catalog catalog) {
+    protected static long getDataId(long a_id,  AbstractRandomGenerator rng, ExecutionType type, Catalog catalog, Map<String, Long> table_sizes) {
         long a_id2 = -1;
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         long temp = LocalityConstants.TABLESIZE_TABLEA / catalog_clus.getNum_partitions();
@@ -264,11 +264,6 @@ public class LocalityClient extends BenchmarkComponent {
         edu.brown.benchmark.BenchmarkComponent.main(LocalityClient.class, args, false);
     }
 
-    public void setType(ExecutionType type)
-    {
-    	m_type = type;
-    }
-    
     /**
      * Constructor
      * @param args
@@ -286,12 +281,9 @@ public class LocalityClient extends BenchmarkComponent {
         for (String key : m_extraParams.keySet()) {
             String value = m_extraParams.get(key);
 
-            // Scale Factor
-            if (key.equalsIgnoreCase("SCALEFACTOR")) {
-                m_scalefactor = Integer.parseInt(value);
             // Execution Type
-            } else if (key.equalsIgnoreCase("TYPE")) {
-                //m_type = ExecutionType.valueOf(value);
+            if (key.equalsIgnoreCase("TYPE")) {
+                m_type = ExecutionType.valueOf(value);
             }
         } // FOR
         
@@ -304,9 +296,12 @@ public class LocalityClient extends BenchmarkComponent {
             System.exit(1);
         }
         m_rng = rng;
+        
+        HStoreConf hstore_conf = this.getHStoreConf();
+        
         // Number of Records Per Table
-        this.table_sizes.put(LocalityConstants.TABLENAME_TABLEA, LocalityConstants.TABLESIZE_TABLEA / m_scalefactor);
-        this.table_sizes.put(LocalityConstants.TABLENAME_TABLEB, LocalityConstants.TABLESIZE_TABLEB / m_scalefactor);
+        this.table_sizes.put(LocalityConstants.TABLENAME_TABLEA, Math.round(LocalityConstants.TABLESIZE_TABLEA / hstore_conf.client.scalefactor));
+        this.table_sizes.put(LocalityConstants.TABLENAME_TABLEB, Math.round(LocalityConstants.TABLESIZE_TABLEB / hstore_conf.client.scalefactor));
         for (String tableName : LocalityConstants.TABLENAMES) {
             assert(this.table_sizes.containsKey(tableName)) : "Missing table size entry for " + tableName;
         } // FOR
@@ -326,7 +321,7 @@ public class LocalityClient extends BenchmarkComponent {
         try {
             while (true) {
             	runOnce();
-            	m_voltClient.backpressureBarrier();
+            	this.getClientHandle().backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {
             /*
@@ -348,8 +343,8 @@ public class LocalityClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         LocalityClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
         assert(txn_type != null);
-        Object params[] = txn_type.params(m_rng,m_type, this.getCatalog());
-        boolean ret = m_voltClient.callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
+        Object params[] = txn_type.params(m_rng,m_type, this.getCatalog(), this.table_sizes);
+        boolean ret = this.getClientHandle().callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
         return (ret);
     }
     

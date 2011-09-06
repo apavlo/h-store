@@ -25,26 +25,30 @@
  ***************************************************************************/
 package edu.brown.costmodel;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.DesignerHints;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
@@ -56,6 +60,11 @@ import edu.brown.workload.filters.Filter;
  */
 public abstract class AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(AbstractCostModel.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     /**
      * Child Class (keep this around just in case...)
@@ -69,26 +78,18 @@ public abstract class AbstractCostModel {
      */
     // protected PartitionPlan last_pplan = null;
     
-    /**
-     * Caching Parameter
-     */
+    /** Caching Parameter */
     protected boolean use_caching = true;
 
-    /**
-     * Enable Execution Calculation (if supported)
-     */
+    /** Enable Execution Calculation (if supported) */
     protected boolean use_execution = true;
     
-    /**
-     * Enable Entropy Calculations (if supported)
-     */
+    /** Enable Skew Calculations (if supported) */
     protected boolean use_skew = true;
-    protected boolean use_entropy_txns = true;
-    protected boolean use_entropy_java = false;
+    protected boolean use_skew_txns = true;
+    protected boolean use_skew_java = false;
     
-    /**
-     * Enable Multipartition Txn Penalty (if supported)
-     */
+    /** Enable Multipartition Txn Penalty (if supported) */
     protected boolean use_multitpartition_penalty = true;
     
     
@@ -98,7 +99,7 @@ public abstract class AbstractCostModel {
     protected double execution_weight = 1.0;
     protected double skew_weight = 1.0;
     protected double entropy_weight_txn = 1.0;
-    protected int entropy_weight_java = 1;
+    protected double java_exec_weight = 1.0;
     protected double multipartition_penalty = 1.0;
     
     /**
@@ -107,6 +108,8 @@ public abstract class AbstractCostModel {
      */
     protected final PartitionEstimator p_estimator;
     protected int num_partitions;
+    protected int num_tables;
+    protected int num_procedures;
     
     /**
      * Which partitions executed the actual the java of the VoltProcedure
@@ -149,66 +152,11 @@ public abstract class AbstractCostModel {
      * Debugging switch
      */
     private boolean enable_debugging = false;
-    private final Level orig_log_level;
+    private final List<StringBuilder> last_debug = new ArrayList<StringBuilder>();
     
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
-    
-    protected class DynamicLogger extends Logger {
-        private final Logger logger;
-        private StringBuilder sb;
-        
-        public DynamicLogger(Class<? extends AbstractCostModel> _class) {
-            super(_class.getSimpleName());
-            this.logger = Logger.getLogger(_class);
-            this.clear();
-        }
-        
-        public void clear() {
-            this.sb = new StringBuilder();
-        }
-        
-        @Override
-        public String toString() {
-            return this.sb.toString();
-        }
-        
-        @Override
-        public void debug(Object message) {
-            this.sb.append(message).append("\n");
-            this.logger.debug(message);
-        }
-        
-        @Override
-        public void info(Object message) {
-            this.sb.append(message).append("\n");
-            this.logger.info(message);
-        }
-        
-        @Override
-        public void warn(Object message) {
-            this.sb.append(message).append("\n");
-            this.logger.warn(message);
-        }
-        
-        @Override
-        public void error(Object message) {
-            this.sb.append(message).append("\n");
-            this.logger.error(message);
-        }
-        
-        @Override
-        public void fatal(Object message) {
-            this.sb.append(message).append("\n");
-            this.logger.fatal(message);
-        }
-        
-        @Override
-        public boolean isDebugEnabled() {
-            return this.logger.isDebugEnabled();
-        }
-    }
     
     /**
      * Constructor
@@ -216,7 +164,6 @@ public abstract class AbstractCostModel {
     public AbstractCostModel(final Class<? extends AbstractCostModel> child_class, final Database catalog_db, final PartitionEstimator p_estimator) {
         this.child_class = child_class;
         this.p_estimator = p_estimator;
-        this.orig_log_level = LOG.getLevel();
     }
     
     public final void clear() {
@@ -235,14 +182,29 @@ public abstract class AbstractCostModel {
         this.histogram_txn_partitions.clear();
         this.query_ctr.set(0);
         this.txn_ctr.set(0);
-        if (LOG instanceof DynamicLogger) ((DynamicLogger)LOG).clear();
+        this.last_debug.clear();
     }
     
+    public PartitionEstimator getPartitionEstimator() {
+        return p_estimator;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // PREPARE METHODS
+    // ----------------------------------------------------------------------------
+    
     /**
-     * 
+     * Must be called before the next round of cost estimations for a new catalog
      * @param catalog_db
      */
     public final void prepare(final Database catalog_db) {
+        // This is the start of a new run through the workload, so we need to
+        // reinit our PartitionEstimator so that we are getting the proper catalog objects back
+        this.p_estimator.initCatalog(catalog_db);
+        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
+        this.num_tables = catalog_db.getTables().size();
+        this.num_procedures = catalog_db.getProcedures().size();
+        
         // final boolean trace = LOG.isTraceEnabled();
         this.prepareImpl(catalog_db);
         
@@ -262,69 +224,11 @@ public abstract class AbstractCostModel {
         */
     }
     
-    public PartitionEstimator getPartitionEstimator() {
-        return p_estimator;
-    }
-    
-    // ----------------------------------------------------------------------------
-    // ABSTRACT METHODS
-    // ----------------------------------------------------------------------------
-    
     /**
-     * Must be called before the next round of cost estimations for a new catalog
+     * Additional initialization that is needed before beginning the next round of estimations
      */
     public abstract void prepareImpl(final Database catalog_db);
     
-    
-    /**
-     * 
-     * @param workload TODO
-     * @param xact
-     * @return
-     * @throws Exception
-     */
-    public abstract double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception;
-    
-    /**
-     * Invalidate cache entries for the given CatalogKey
-     * @param catalog_key
-     */
-    public abstract void invalidateCache(String catalog_key);
-    
-    /**
-     *  Invalidate the cache entries for all of the given CatalogKeys
-     * @param keys
-     */
-    public void invalidateCache(Iterable<String> keys) {
-        for (String catalog_key : keys) {
-            this.invalidateCache(catalog_key);
-        }
-    }
-    
-    // ----------------------------------------------------------------------------
-    // DEBUGGING METHODS
-    // ----------------------------------------------------------------------------
-
-    /**
-     * Dynamic switch to enable DEBUG log level
-     * If enable_debugging is false, then LOG's level will be set back to its original level
-     * @param enable_debugging
-     */
-    public void setDebuggingEnabled(boolean enable_debugging) {
-        this.enable_debugging = enable_debugging;
-        if (this.enable_debugging) {
-            LOG.setLevel(Level.DEBUG);
-            if (LOG.isDebugEnabled()) LOG.debug("Enabling dynamic logging in " + this.child_class.getSimpleName());
-        } else {
-            LOG.setLevel(this.orig_log_level);
-        }
-    }
-    
-    public String getLastDebugMessages() {
-        return (LOG.toString());
-    }
-
-
     // ----------------------------------------------------------------------------
     // BASE METHODS
     // ----------------------------------------------------------------------------
@@ -366,6 +270,29 @@ public abstract class AbstractCostModel {
         return (ret);
     }
     
+
+    /**
+     * Return the set of untouched partitions for the last costmodel estimate
+     * @param num_partitions
+     * @return
+     */
+    public Set<Integer> getUntouchedPartitions(int num_partitions) {
+        Set<Integer> untouched = new HashSet<Integer>();
+        for (int i = 0; i < num_partitions; i++) {
+            // For now only consider where the java executes. Ideally we will want to
+            // consider where the queries execute too, but we would need to isolate 
+            // the single-partition txns from the multi-partition txns that are always 
+            // going to touch every partition
+            if (!(this.histogram_java_partitions.contains(i))) {
+//                  this.histogram_txn_partitions.contains(i) ||
+//                  this.histogram_query_partitions.contains(i))) {
+                untouched.add(i);
+            }
+        } // FOR
+        return (untouched);
+    }
+    
+    
     public boolean isCachingEnabled() {
         return use_caching;
     }
@@ -374,7 +301,7 @@ public abstract class AbstractCostModel {
      * @param caching
      */
     public void setCachingEnabled(boolean caching) {
-        LOG.debug("Cost Model Caching: " + (caching ? "ENABLED" : "DISABLED"));
+        if (debug.get()) LOG.debug("Cost Model Caching: " + (caching ? "ENABLED" : "DISABLED"));
         this.use_caching = caching;
     }
     
@@ -386,11 +313,11 @@ public abstract class AbstractCostModel {
         return use_execution;
     }
     public void setExecutionCostEnabled(boolean execution) {
-        LOG.debug("Cost Model Execution: " + (execution ? "ENABLED" : "DISABLED"));
+        if (debug.get()) LOG.debug("Cost Model Execution: " + (execution ? "ENABLED" : "DISABLED"));
         this.use_execution = execution;
     }
     public void setExecutionWeight(double weight) {
-        LOG.debug("Execution Cost Weight: " + weight);
+        if (debug.get()) LOG.debug("Execution Cost Weight: " + weight);
         this.execution_weight = weight;
     }
     public double getExecutionWeight() {
@@ -405,11 +332,11 @@ public abstract class AbstractCostModel {
         return use_skew;
     }
     public void setEntropyEnabled(boolean entropy) {
-        LOG.debug("Cost Model Entropy: " + (entropy ? "ENABLED" : "DISABLED"));
+        if (debug.get()) LOG.debug("Cost Model Entropy: " + (entropy ? "ENABLED" : "DISABLED"));
         this.use_skew = entropy;
     }
     public void setEntropyWeight(double weight) {
-        LOG.debug("Entropy Cost Weight: " + weight);
+        if (debug.get()) LOG.debug("Entropy Cost Weight: " + weight);
         this.skew_weight = weight;
     }
     public double getEntropyWeight() {
@@ -424,11 +351,11 @@ public abstract class AbstractCostModel {
         return this.use_multitpartition_penalty;
     }
     public void setMultiPartitionPenaltyEnabled(boolean enable) {
-        LOG.debug("Cost Model MultiPartition Penalty: " + (enable ? "ENABLED" : "DISABLED"));
+        if (debug.get()) LOG.debug("Cost Model MultiPartition Penalty: " + (enable ? "ENABLED" : "DISABLED"));
         this.use_multitpartition_penalty = enable;
     }
     public void setMultiPartitionPenalty(double penalty) {
-        LOG.debug("MultiPartition Penalty: " + penalty);
+        if (debug.get()) LOG.debug("MultiPartition Penalty: " + penalty);
         this.multipartition_penalty = penalty;
     }
     public double getMultiPartitionPenalty() {
@@ -441,38 +368,38 @@ public abstract class AbstractCostModel {
     // ----------------------------------------------------------------------------
     
     public boolean isJavaExecutionWeightEnabled() {
-        return this.use_entropy_java;
+        return this.use_skew_java;
     }
     public void setJavaExecutionWeightEnabled(boolean enable) {
-        LOG.debug("Cost Model Java Execution: " + (enable ? "ENABLED" : "DISABLED"));
-        this.use_entropy_java = enable;
+        if (debug.get()) LOG.debug("Cost Model Java Execution: " + (enable ? "ENABLED" : "DISABLED"));
+        this.use_skew_java = enable;
     }
-    public void setJavaExecutionWeight(int weight) {
-        LOG.debug("Java Execution Weight: " + weight);
-        this.entropy_weight_java = weight;
+    public void setJavaExecutionWeight(double weight) {
+        if (debug.get()) LOG.debug("Java Execution Weight: " + weight);
+        this.java_exec_weight = weight;
     }
-    public int getJavaExecutionWeight() {
-        return (this.entropy_weight_java);
+    public double getJavaExecutionWeight() {
+        return (this.java_exec_weight);
     }
 
     // ----------------------------------------------------------------------------
     // PARTITION EXECUTION WEIGHT (SKEW)
     // ----------------------------------------------------------------------------
     
-    public boolean isEntropyTxnWeightEnabled() {
-        return this.use_entropy_java;
-    }
-    public void setEntropyTxnWeightEnabled(boolean enable) {
-        LOG.debug("Cost Model Entropy Txn: " + (enable ? "ENABLED" : "DISABLED"));
-        this.use_entropy_java = enable;
-    }
-    public void setEntropyTxnWeight(int weight) {
-        LOG.debug("Entropy Txn Weight: " + weight);
-        this.entropy_weight_java = weight;
-    }
-    public int getEntropyTxnWeight() {
-        return (this.entropy_weight_java);
-    }
+//    public boolean isEntropyTxnWeightEnabled() {
+//        return this.use_skew_java;
+//    }
+//    public void setEntropyTxnWeightEnabled(boolean enable) {
+//        if (debug.get()) LOG.debug("Cost Model Entropy Txn: " + (enable ? "ENABLED" : "DISABLED"));
+//        this.use_skew_java = enable;
+//    }
+//    public void setEntropyTxnWeight(int weight) {
+//        if (debug.get()) LOG.debug("Entropy Txn Weight: " + weight);
+//        this.java_exec_weight = weight;
+//    }
+//    public int getEntropyTxnWeight() {
+//        return (this.java_exec_weight);
+//    }
     
     
     public Histogram<String> getProcedureHistogram() {
@@ -511,6 +438,26 @@ public abstract class AbstractCostModel {
         return this.histogram_query_partitions;
     }
     
+    // ----------------------------------------------------------------------------
+    // CACHE INVALIDATION METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Invalidate cache entries for the given CatalogKey
+     * @param catalog_key
+     */
+    public abstract void invalidateCache(String catalog_key);
+    
+    /**
+     *  Invalidate the cache entries for all of the given CatalogKeys
+     * @param keys
+     */
+    public void invalidateCache(Iterable<String> keys) {
+        for (String catalog_key : keys) {
+            this.invalidateCache(catalog_key);
+        }
+    }
+    
     /**
      * Invalidate a table's cache entry
      * @param catalog_tbl
@@ -532,37 +479,17 @@ public abstract class AbstractCostModel {
     // ----------------------------------------------------------------------------
     // ESTIMATION METHODS
     // ----------------------------------------------------------------------------
-    
+
     /**
      * 
-     * @param workload
-     * @param upper_bound TODO
+     * @param workload TODO
+     * @param xact
      * @return
      * @throws Exception
      */
-    public double estimateCost(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
-        this.prepare(catalog_db);
-        double cost = 0.0d;
-        
-        Iterator<TransactionTrace> it = workload.iterator(filter);
-        while (it.hasNext()) {
-            TransactionTrace xact = it.next();
-            //System.out.println(xact.debug(this.catalog_db) + "\n");
-            try {
-                cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
-            } catch (Exception ex) {
-                LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
-                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
-                throw ex;
-            }
-            if (upper_bound != null && cost > upper_bound.doubleValue()) {
-                LOG.debug("Exceeded upper bound. Halting estimation early!");
-                break;
-            }
-        } // WHILE
-        return (cost);
-    }
-
+    public abstract double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace xact) throws Exception;
+    
+    
     /**
      * Estimate the cost of a single TransactionTrace object
      * @param catalog_db
@@ -577,32 +504,95 @@ public abstract class AbstractCostModel {
     /**
      * 
      * @param workload
+     * @param upper_bound TODO
      * @return
      * @throws Exception
      */
-    public final double estimateCost(Database catalog_db, Workload workload) throws Exception {
-        return (this.estimateCost(catalog_db, workload, null, null));
+    public final double estimateWorkloadCost(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
+        this.prepare(catalog_db);
+        // Always make sure that we reset the filter
+        if (filter != null) filter.reset();
+        return (this.estimateWorkloadCostImpl(catalog_db, workload, filter, upper_bound));
+    }
+    
+    /**
+     * Base implementation to estimate cost of a Workload
+     * @param catalog_db
+     * @param workload
+     * @param filter
+     * @param upper_bound
+     * @return
+     * @throws Exception
+     */
+    protected double estimateWorkloadCostImpl(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
+        double cost = 0.0d;
+        Iterator<TransactionTrace> it = workload.iterator(filter);
+        while (it.hasNext()) {
+            TransactionTrace xact = it.next();
+            //System.out.println(xact.debug(this.catalog_db) + "\n");
+            try {
+                cost += this.estimateTransactionCost(catalog_db, workload, filter, xact);
+            } catch (Exception ex) {
+                LOG.error("Failed to estimate cost for " + xact.getCatalogItemName());
+                CatalogUtil.saveCatalog(catalog_db.getCatalog(), "catalog.txt");
+                throw ex;
+            }
+            if (upper_bound != null && cost > upper_bound.doubleValue()) {
+                if (debug.get()) if (debug.get()) LOG.debug("Exceeded upper bound. Halting estimation early!");
+                break;
+            }
+        } // WHILE
+        return (cost);
     }
 
     /**
-     * Return the set of untouched partitions for the last costmodel estimate
-     * @param num_partitions
+     * 
+     * @param workload
      * @return
+     * @throws Exception
      */
-    public Set<Integer> getUntouchedPartitions(int num_partitions) {
-        Set<Integer> untouched = new HashSet<Integer>();
-        for (int i = 0; i < num_partitions; i++) {
-            // For now only consider where the java executes. Ideally we will want to
-            // consider where the queries execute too, but we would need to isolate 
-            // the single-partition txns from the multi-partition txns that are always 
-            // going to touch every partition
-            if (!(this.histogram_java_partitions.contains(i))) {
-//                  this.histogram_txn_partitions.contains(i) ||
-//                  this.histogram_query_partitions.contains(i))) {
-                untouched.add(i);
-            }
+    public final double estimateWorkloadCost(Database catalog_db, Workload workload) throws Exception {
+        return (this.estimateWorkloadCost(catalog_db, workload, null, null));
+    }
+    
+    // ----------------------------------------------------------------------------
+    // DEBUGGING METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Dynamic switch to enable DEBUG log level
+     * If enable_debugging is false, then LOG's level will be set back to its original level
+     * @param enable_debugging
+     */
+    public void setDebuggingEnabled(boolean enable_debugging) {
+        this.enable_debugging = enable_debugging;
+        if (debug.get()) LOG.debug("Setting Custom Debugging: " + this.enable_debugging);
+    }
+    
+    protected boolean isDebugEnabled() {
+        return (this.enable_debugging);
+    }
+    
+    protected void appendDebugMessage(String msg) {
+        this.appendDebugMessage(new StringBuilder(msg));
+
+    }
+    protected void appendDebugMessage(StringBuilder sb) {
+        this.last_debug.add(sb);
+    }
+    
+    public boolean hasDebugMessages() {
+        return (this.last_debug.size() > 0);
+    }
+    
+    public String getLastDebugMessage() {
+        StringBuilder sb = new StringBuilder();
+        for (StringBuilder inner : this.last_debug) {
+            if (inner.length() == 0) continue;
+            if (sb.length() > 0) sb.append(StringUtil.SINGLE_LINE);
+            sb.append(inner);
         } // FOR
-        return (untouched);
+        return (sb.toString());
     }
     
     /**
@@ -610,28 +600,35 @@ public abstract class AbstractCostModel {
      * @return
      */
     @SuppressWarnings("unchecked")
-    public String debugHistograms() {
+    public String debugHistograms(Database catalog_db) {
         int num_histograms = 6;
         Map<String, Object> maps[] = new Map[num_histograms];
-        int i = -1;
 
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Procedures", this.histogram_procs);
-
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Single Partition Txns", this.histogram_sp_procs);
+        Map<Object, String> debugMap = CatalogKey.getDebugMap(catalog_db, Table.class, Procedure.class);
         
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Multi Partition Txns", this.histogram_mp_procs);
+        String labels[] = {
+            "Procedures",
+            "Single Partition Txns",
+            "Multi Partition Txns",
+            "Java Execution Partitions",
+            "Txn Partition Access",
+            "Query Partition Access",
+        };
+        Histogram histograms[] = {
+            this.histogram_procs,
+            this.histogram_sp_procs,
+            this.histogram_mp_procs,
+            this.histogram_java_partitions,
+            this.histogram_txn_partitions,
+            this.histogram_query_partitions,
+        };
         
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Java Execution Partitions", this.histogram_java_partitions);
-        
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Txn Partition Access", this.histogram_txn_partitions);
-        
-        maps[++i] = new HashMap<String, Object>();
-        maps[i].put("Query Partition Access", this.histogram_query_partitions);
+        for (int i = 0; i < labels.length; i++) {
+            String l = String.format("%s\n  + SampleCount=%d\n  + ValueCount=%d",
+                                     labels[i], histograms[i].getSampleCount(), histograms[i].getValueCount());
+            maps[i] = new HashMap<String, Object>();
+            maps[i].put(l, histograms[i].setDebugLabels(debugMap));
+        } // FOR
         
         return (StringUtil.formatMaps(maps));
     }

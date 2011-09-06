@@ -210,22 +210,37 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
-        int processing_cur = hstore_site.getExecutionSitePostProcessor().getQueueSize();
-        if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
-        if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
-        
         Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
         m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
-        m_exec.put("InFlight Txns", String.format("%d [totalMin=%d, totalMax=%d]", inflight_cur, inflight_min, inflight_max));
-        m_exec.put("Processing Txns", String.format("%d [totalMin=%d, totalMax=%d]", processing_cur, processing_min, processing_max));
-        m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d]",
-                                                      this.hstore_site.isIncomingThrottled(),
-                                                      hstore_conf.site.txn_incoming_queue_max,
-                                                      hstore_conf.site.txn_incoming_queue_release));
-        m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d]\n",
-                                                      this.hstore_site.isRedirectedThrottled(),
-                                                      hstore_conf.site.txn_redirect_queue_max,
-                                                      hstore_conf.site.txn_redirect_queue_release));
+        m_exec.put("InFlight Txns", String.format("%-5d [totalMin=%d, totalMax=%d, idle=%.2fms]",
+                        inflight_cur,
+                        inflight_min,
+                        inflight_max,
+                        this.hstore_site.idle_time.getTotalThinkTimeMS()
+                        
+        ));
+        if (hstore_conf.site.exec_postprocessing_thread) {
+            int processing_cur = hstore_site.getQueuedResponseCount();
+            if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
+            if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
+            m_exec.put("Post-Processing Txns", String.format("%-5d [totalMin=%d, totalMax=%d]",
+                            processing_cur,
+                            processing_min,
+                            processing_max
+            ));
+        }
+        m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
+                        this.hstore_site.isIncomingThrottled(),
+                        this.hstore_site.getIncomingQueueMax(),
+                        this.hstore_site.getIncomingQueueRelease(),
+                        this.hstore_site.incoming_throttle_time.getTotalThinkTimeMS()
+        ));
+        m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]\n",
+                        this.hstore_site.isRedirectedThrottled(),
+                        this.hstore_site.getRedirectQueueMax(),
+                        this.hstore_site.getRedirectQueueRelease(),
+                        this.hstore_site.redirect_throttle_time.getTotalThinkTimeMS()                              
+        ));
 
         
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
@@ -244,6 +259,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getWaitingQueueSize()));
             
             // Execution Info
+            sb.append("Txns Executed:  ").append(es.getTransactionCounter()).append("\n");
             sb.append("Current DTXN:   ").append(ts == null ? "-" : ts).append("\n");
             sb.append("Execution Mode: ").append(es.getExecutionMode()).append("\n");
             

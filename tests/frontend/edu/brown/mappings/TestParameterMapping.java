@@ -28,7 +28,7 @@ public class TestParameterMapping extends BaseTestCase {
         assertNotNull(this.catalog_proc_param);
         
         this.catalog_other_proc = this.getProcedure("UpdateLocation");
-        this.catalog_other_stmt = CollectionUtil.getFirst(catalog_other_proc.getStatements());
+        this.catalog_other_stmt = CollectionUtil.first(catalog_other_proc.getStatements());
         assertNotNull(this.catalog_other_stmt);
         
         for (Statement stmt : this.catalog_proc.getStatements()) {

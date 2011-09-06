@@ -75,7 +75,7 @@ public class Fragmentizer {
         // the place to split is the send-recv node pairing
         if (currentNode instanceof ReceivePlanNode) {
             ReceivePlanNode recvNode = (ReceivePlanNode) currentNode;
-            assert(recvNode.getChildCount() == 1);
+            assert(recvNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode childNode = recvNode.getChild(0);
             assert(childNode instanceof SendPlanNode);
             SendPlanNode sendNode = (SendPlanNode) childNode;
@@ -115,7 +115,7 @@ public class Fragmentizer {
 
         // if not a recv node, just do a boring recursive call
         // stopping condition is when there are no children
-        for (int i = 0; i < currentNode.getChildCount(); i++) {
+        for (int i = 0; i < currentNode.getChildPlanNodeCount(); i++) {
             AbstractPlanNode childNode = currentNode.getChild(i);
             recursiveFindFragment(currentFragment, childNode, fragments);
         }

@@ -11,7 +11,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.catalog.CatalogKey;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
 import edu.brown.designer.AccessGraph;
@@ -19,6 +18,7 @@ import edu.brown.designer.Designer;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner.StateVertex;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner.TraverseThread;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 
@@ -47,7 +47,7 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
      * testHaltReason
      */
     public void testHaltReason() throws Exception {
-        List<Table> table_visit_order = (List<Table>)CatalogKey.getFromKeys(catalog_db, BranchAndBoundPartitioner.generateTableOrder(info, agraph, hints), Table.class);
+        List<Table> table_visit_order = PartitionerUtil.generateTableOrder(info, agraph, hints);
         assertFalse(table_visit_order.isEmpty());
         List<Procedure> proc_visit_order = (List<Procedure>)CollectionUtil.addAll(new ArrayList<Procedure>(), catalog_db.getProcedures());
         assertFalse(proc_visit_order.isEmpty());
@@ -124,6 +124,9 @@ public class TestBranchAndBoundPartitioner extends BasePartitionerTestCase {
         assertNotNull(ub_pplan);
         this.partitioner.setUpperBounds(hints, ub_pplan, Double.MAX_VALUE, 1000l);
         
+        hints.enable_multi_partitioning = false;
+        hints.enable_replication_readmostly = false;
+        hints.enable_replication_readonly = false;
         hints.enable_procparameter_search = false;
         hints.max_memory_per_partition = Long.MAX_VALUE;
         this.partitioner.setParameters(agraph, table_visit_order, proc_visit_order);

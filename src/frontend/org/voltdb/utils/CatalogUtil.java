@@ -128,7 +128,7 @@ public abstract class CatalogUtil {
      * @param sortFieldName The name of the field to sort on.
      * @return A list of catalog items, sorted on the specified field.
      */
-    public static <T extends CatalogType> List<T> getSortedCatalogItems(CatalogMap<T> items, String sortFieldName) {
+    public static <T extends CatalogType> List<T> getSortedCatalogItems(Collection<T> items, String sortFieldName) {
         assert(items != null);
         assert(sortFieldName != null);
 
@@ -200,6 +200,14 @@ public abstract class CatalogUtil {
         return (columns);
     }
 
+    public static String toSchema(Database catalog_db, boolean include_fkeys) {
+        StringBuilder sb = new StringBuilder();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            sb.append(toSchema(catalog_tbl, include_fkeys)).append("\n");
+        } // FOR
+        return (sb.toString());
+    }
+    
     /**
      * Convert a Table catalog object into the proper SQL DDL, including all indexes,
      * constraints, and foreign key references.
@@ -207,6 +215,9 @@ public abstract class CatalogUtil {
      * @return SQL Schema text representing the table.
      */
     public static String toSchema(Table catalog_tbl) {
+        return toSchema(catalog_tbl, true);
+    }
+    public static String toSchema(Table catalog_tbl, boolean include_fkeys) {
         assert(!catalog_tbl.getColumns().isEmpty());
         final String spacer = "   ";
 
@@ -228,24 +239,25 @@ public abstract class CatalogUtil {
                    (col_type == VoltType.STRING && catalog_col.getSize() > 0 ? "(" + catalog_col.getSize() + ")" : "");
 
             // Default value
-            String defaultvalue = catalog_col.getDefaultvalue();
-            //VoltType defaulttype = VoltType.get((byte)catalog_col.getDefaulttype());
-            boolean nullable = catalog_col.getNullable();
+            String defaultValue = catalog_col.getDefaultvalue();
+//            VoltType defaultType = VoltType.get(catalog_col.getDefaulttype());
             // TODO: Shouldn't have to check whether the string contains "null"
-            if (defaultvalue != null && defaultvalue.toLowerCase().equals("null") && nullable) {
-                defaultvalue = null;
-            }
-            else { // XXX: if (defaulttype != VoltType.VOLTFUNCTION) {
+            boolean isDefaultValueNull = (defaultValue == null || defaultValue.equalsIgnoreCase("null"));
+            boolean isNullable = catalog_col.getNullable();
+            
+            if (isDefaultValueNull) {
+                if (isNullable) ret += " DEFAULT NULL";
+            } else { // XXX: if (defaulttype != VoltType.VOLTFUNCTION) {
                 // TODO: Escape strings properly
-                defaultvalue = "'" + defaultvalue + "'";
+                ret += " DEFAULT '" + defaultValue + "'";
             }
-            ret += " DEFAULT " + (defaultvalue != null ? defaultvalue : "NULL") +
-                   (!nullable ? " NOT NULL" : "");
+            if (isNullable == false) ret += " NOT NULL";
 
             // Single-column constraints
             for (ConstraintRef catalog_const_ref : catalog_col.getConstraints()) {
                 Constraint catalog_const = catalog_const_ref.getConstraint();
                 ConstraintType const_type = ConstraintType.get(catalog_const.getType());
+                if (const_type == ConstraintType.FOREIGN_KEY && include_fkeys == false) continue;
 
                 // Check if there is another column in our table with the same constraint
                 // If there is, then we need to add it to the end of the table definition
@@ -285,6 +297,7 @@ public abstract class CatalogUtil {
         for (Constraint catalog_const : catalog_tbl.getConstraints()) {
             if (skip_constraints.contains(catalog_const)) continue;
             ConstraintType const_type = ConstraintType.get(catalog_const.getType());
+            if (const_type == ConstraintType.FOREIGN_KEY && include_fkeys == false) continue;
 
             // Primary Keys / Unique Constraints
             if (const_type == ConstraintType.PRIMARY_KEY || const_type == ConstraintType.UNIQUE) {

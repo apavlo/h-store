@@ -57,7 +57,7 @@ public class TestExecutionSite extends BaseTestCase {
         
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
-            Site catalog_site = CollectionUtil.getFirst(CatalogUtil.getCluster(catalog).getSites());
+            Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
             
             Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();

@@ -61,15 +61,22 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.benchmark.BlockingClient;
 import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
@@ -78,10 +85,16 @@ import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.statistics.Histogram;
+import edu.brown.statistics.TableStatistics;
+import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * Base class for clients that will work with the multi-host multi-process
@@ -89,10 +102,11 @@ import edu.mit.hstore.HStoreConf;
  */
 public abstract class BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(BenchmarkComponent.class);
-    
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
-        // log4j hack!
         LoggerUtil.setupLogging();
+        LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
     public static String CONTROL_PREFIX = "{HSTORE} ";
@@ -137,7 +151,7 @@ public abstract class BenchmarkComponent {
     /**
      * Client initialized here and made available for use in derived classes
      */
-    protected final Client m_voltClient;
+    private final Client m_voltClient;
 
     /**
      * Manage input and output to the framework
@@ -213,6 +227,12 @@ public abstract class BenchmarkComponent {
     private final int m_numClients;
     
     /**
+     * If set to true, don't try to make any connections to the cluster with this client
+     * This is just used for testing
+     */
+    private final boolean m_noConnections;
+    
+    /**
      * Total # of Partitions
      */
     private final int m_numPartitions;
@@ -241,12 +261,31 @@ public abstract class BenchmarkComponent {
     private final List<String> m_tableCheckOrder = new LinkedList<String>();
     protected VoltSampler m_sampler = null;
     
+    private final int m_tickInterval;
+    private final Thread m_tickThread;
+    private int m_tickCounter = 0;
+    
+    private final boolean m_noUploading;
+    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, ClientResponse.SUCCESS, new VoltTable[0], "");
+    
+    /**
+     * Keep track of the number of tuples loaded so that we can generate table statistics
+     */
+    private final boolean m_tableStats;
+    private final File m_tableStatsDir;
+    private final Histogram<String> m_tableTuples = new Histogram<String>();
+    private final Histogram<String> m_tableBytes = new Histogram<String>();
+    private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
+
+    /**
+     * 
+     */
+    private BenchmarkClientFileUploader uploader = null;
+    
     /**
      * Configuration
      */
-    protected final HStoreConf m_hstoreConf;
-    protected final BenchmarkConfig m_benchmarkConf;
-    
+    private final HStoreConf m_hstoreConf;
     
 
     public static void printControlMessage(ControlState state) {
@@ -288,19 +327,21 @@ public abstract class BenchmarkComponent {
             }
 
             while (true) {
-                final boolean debug = LOG.isDebugEnabled(); 
-                
                 try {
                     command = Command.get(in.readLine());
-                    if (debug) LOG.debug(String.format("Recieved Command: '%s'", command));
+                    if (debug.get()) LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
                     System.exit(-1);
                 }
                 if (command == null) continue;
-                if (debug) LOG.debug("Command = " + command);
+                if (debug.get()) LOG.debug("ControlPipe Command = " + command);
 
+                final ControlWorker worker = new ControlWorker();
+                final Thread t = new Thread(worker);
+                t.setDaemon(true);
+                
                 switch (command) {
                     case START: {
                         if (m_controlState != ControlState.READY) {
@@ -308,8 +349,10 @@ public abstract class BenchmarkComponent {
                             answerWithError();
                             continue;
                         }
-                        answerStart();
+                        t.start();
+                        if (m_tickThread != null) m_tickThread.start();
                         m_controlState = ControlState.RUNNING;
+                        answerOk();
                         break;
                     }
                     case POLL: {
@@ -320,9 +363,15 @@ public abstract class BenchmarkComponent {
                         }
                         answerPoll();
                         
-                        // Call tick on the client!
-                        // if (LOG.isDebugEnabled()) LOG.debug("Got poll message! Calling tick()!");
-                        BenchmarkComponent.this.tick();
+                        // Call tick on the client if we're not polling ourselves
+                        if (BenchmarkComponent.this.m_tickInterval < 0) {
+                            if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
+                            BenchmarkComponent.this.tick(m_tickCounter++);
+                        }
+                        if (debug.get())
+                            LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
+                                                    m_voltClient.getQueueTime().getTotalThinkTimeMS(),
+                                                    m_voltClient.getQueueTime().getAverageThinkTimeMS()));
                         break;
                     }
                     case CLEAR: {
@@ -349,8 +398,11 @@ public abstract class BenchmarkComponent {
                     }
                     case SHUTDOWN: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
+                            invokeCallbackStop();
                             try {
+                                m_voltClient.drain();
                                 m_voltClient.callProcedure("@Shutdown");
+                                m_voltClient.close();
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -360,6 +412,7 @@ public abstract class BenchmarkComponent {
                     }
                     case STOP: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
+                            invokeCallbackStop();
                             try {
                                 if (m_sampler != null) {
                                     m_sampler.setShouldStop();
@@ -404,11 +457,6 @@ public abstract class BenchmarkComponent {
             printControlMessage(m_controlState, txncounts.toString()); 
         }
 
-        public void answerStart() {
-            final ControlWorker worker = new ControlWorker();
-            new Thread(worker).start();
-        }
-        
         public void answerOk() {
             printControlMessage(m_controlState, "OK");
         }
@@ -421,27 +469,21 @@ public abstract class BenchmarkComponent {
     private class ControlWorker extends Thread {
         @Override
         public void run() {
-            if (m_txnRate == -1) {
-                if (m_sampler != null) {
-                    m_sampler.start();
-                }
-                try {
+            try {
+                if (m_txnRate == -1) {
+                    if (m_sampler != null) {
+                        m_sampler.start();
+                    }
                     runLoop();
+                } else {
+                    if (debug.get()) LOG.debug(String.format("Running rate controlled [m_txnRate=%d, m_txnsPerMillisecond=%f]", m_txnRate, m_txnsPerMillisecond));
+                    rateControlledRunLoop();
                 }
-                catch (final IOException e) {
-
-                }
-            }
-            else {
-                LOG.debug("Running rate controlled m_txnRate == "
-                    + m_txnRate + " m_txnsPerMillisecond == "
-                    + m_txnsPerMillisecond);
-                System.err.flush();
-                rateControlledRunLoop();
-            }
-
-            if (m_exitOnCompletion) {
+            } catch (Throwable ex) {
+                ex.printStackTrace();
                 System.exit(0);
+            } finally {
+                if (m_exitOnCompletion) System.exit(0);
             }
         }
 
@@ -520,12 +562,495 @@ public abstract class BenchmarkComponent {
         }
     }
     
-    private BenchmarkClientFileUploader uploader = null;
+    /**
+     * Increment the internal transaction counter. This should be invoked
+     * after the client has received a ClientResponse from the DBMS cluster
+     * The txn_index is the offset of the transaction that was executed. This offset
+     * is the same order as the array returned by getTransactionDisplayNames
+     * @param txn_idx
+     */
+    protected final void incrementTransactionCounter(int txn_idx) {
+        this.m_counts[txn_idx].incrementAndGet();
+    }
 
+    public BenchmarkComponent(final Client client) {
+        m_voltClient = client;
+        m_exitOnCompletion = false;
+        m_host = "localhost";
+        m_password = "";
+        m_username = "";
+        m_txnRate = -1;
+        m_blocking = false;
+        m_txnsPerMillisecond = 0;
+        m_catalogPath = null;
+        m_projectName = null;
+        m_id = 0;
+        m_numClients = 1;
+        m_noConnections = false;
+        m_numPartitions = 0;
+        m_counts = null;
+        m_countDisplayNames = null;
+        m_checkTransaction = 0;
+        m_checkTables = false;
+        m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
+        m_tickInterval = -1;
+        m_tickThread = null;
+        m_tableStats = false;
+        m_tableStatsDir = null;
+        m_noUploading = false;
+        
+        // FIXME
+        m_hstoreConf = null;
+    }
 
     /**
-     * Queue a local file to be sent to the client with the given client id. The file will be copied into
-     * the path specified by remote_file. When the client is started it will be passed argument <parameter>=<remote_file>
+     * Constructor that initializes the framework portions of the client.
+     * Creates a Volt client and connects it to all the hosts provided on the
+     * command line with the specified username and password
+     *
+     * @param args
+     */
+    public BenchmarkComponent(String args[]) {
+        // Initialize HStoreConf
+        String hstore_conf_path = null;
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
+            final String[] parts = arg.split("=", 2);
+            if (parts.length > 1 && parts[1].startsWith("${") == false && parts[0].equalsIgnoreCase("CONF")) {
+                hstore_conf_path = parts[1];
+                break;
+            }
+        } // FOR
+            
+        if (HStoreConf.isInitialized() == false) {
+            assert(hstore_conf_path != null) : "Missing HStoreConf file";
+            File f = new File(hstore_conf_path);
+            if (debug.get()) LOG.debug("Initializing HStoreConf from '" + f.getName() + "' along with input parameters");
+            HStoreConf.init(f, args);
+        } else {
+            if (debug.get()) LOG.debug("Initializing HStoreConf only with input parameters");
+            HStoreConf.singleton().loadFromArgs(args);
+        }
+        m_hstoreConf = HStoreConf.singleton();
+        if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true, true));
+        
+        int transactionRate = m_hstoreConf.client.txnrate;
+        boolean blocking = m_hstoreConf.client.blocking;
+        boolean tableStats = m_hstoreConf.client.tablestats;
+        String tableStatsDir = m_hstoreConf.client.tablestats_dir;
+        int tickInterval = m_hstoreConf.client.tick_interval;
+        
+        // default values
+        String username = "user";
+        String password = "password";
+        ControlState state = ControlState.PREPARING; // starting state
+        String reason = ""; // and error string
+        int id = 0;
+        boolean isLoader = false;
+        int num_clients = 0;
+        int num_partitions = 0;
+        boolean exitOnCompletion = true;
+        float checkTransaction = 0;
+        boolean checkTables = false;
+        boolean noConnections = false;
+        boolean noUploading = false;
+//        String statsDatabaseURL = null;
+//        int statsPollInterval = 10000;
+        File catalogPath = null;
+        String projectName = null;
+        String partitionPlanPath = null;
+        long startupWait = -1;
+        
+        // scan the inputs once to read everything but host names
+        Map<String, Object> componentParams = new TreeMap<String, Object>();
+        for (int i = 0; i < args.length; i++) {
+            final String arg = args[i];
+            final String[] parts = arg.split("=", 2);
+            if (parts.length == 1) {
+                state = ControlState.ERROR;
+                reason = "Invalid parameter: " + arg;
+                break;
+            }
+            else if (parts[1].startsWith("${")) {
+                continue;
+            }
+            else if (parts[0].equalsIgnoreCase("CONF")) {
+                continue;
+            }
+            
+            if (debug.get()) componentParams.put(parts[0], parts[1]);
+            
+            if (parts[0].equalsIgnoreCase("CATALOG")) {
+                catalogPath = new File(parts[1]);
+                assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
+                if (debug.get()) componentParams.put(parts[0], catalogPath);
+            }
+            else if (parts[0].equalsIgnoreCase("LOADER")) {
+                isLoader = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("NAME")) {
+                projectName = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("USER")) {
+                username = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("PASSWORD")) {
+                password = parts[1];
+            }
+            else if (parts[0].equalsIgnoreCase("EXITONCOMPLETION")) {
+                exitOnCompletion = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("ID")) {
+                id = Integer.parseInt(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("NUMCLIENTS")) {
+                num_clients = Integer.parseInt(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("NUMPARTITIONS")) {
+                num_partitions = Integer.parseInt(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
+                checkTransaction = Float.parseFloat(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
+                checkTables = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("NOCONNECTIONS")) {
+                noConnections = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
+                noUploading = Boolean.parseBoolean(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("WAIT")) {
+                startupWait = Long.parseLong(parts[1]);
+            }
+            else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
+                partitionPlanPath = parts[1];
+                assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
+            }
+            // If it starts with "benchmark.", then it always goes to the implementing class
+            else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+                if (debug.get()) componentParams.remove(parts[0]);
+                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
+                m_extraParams.put(parts[0].toUpperCase(), parts[1]);
+            }
+        }
+        if (debug.get()) {
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put("BenchmarkComponent", componentParams);
+            m.put("Extra Client", m_extraParams);
+            LOG.debug("Input Parameters:\n" + StringUtil.formatMaps(m));
+        }
+        
+        // Thread.currentThread().setName(String.format("client-%02d", id));
+        
+        StatsUploaderSettings statsSettings = null;
+//        if (statsDatabaseURL != null) {
+//            try {
+//                statsSettings =
+//                    new
+//                        StatsUploaderSettings(
+//                            statsDatabaseURL,
+//                            getApplicationName(),
+//                            getSubApplicationName(),
+//                            statsPollInterval);
+//            } catch (Exception e) {
+//                System.err.println(e.getMessage());
+//                //e.printStackTrace();
+//                statsSettings = null;
+//            }
+//        }
+
+        m_catalogPath = catalogPath;
+        m_projectName = projectName;
+        m_id = id;
+        m_numClients = num_clients;
+        m_numPartitions = num_partitions;
+        m_exitOnCompletion = exitOnCompletion;
+        m_username = username;
+        m_password = password;
+        m_txnRate = (isLoader ? -1 : transactionRate);
+        m_txnsPerMillisecond = (isLoader ? -1 : transactionRate / 1000.0);
+        m_blocking = blocking;
+        m_tickInterval = tickInterval;
+        m_noUploading = noUploading;
+        m_noConnections = noConnections || (isLoader && m_noUploading);
+        m_tableStats = tableStats;
+        m_tableStatsDir = (tableStatsDir.isEmpty() ? null : new File(tableStatsDir));
+        
+        // If we were told to sleep, do that here before we try to load in the catalog
+        // This is an attempt to keep us from overloading a single node all at once
+        if (startupWait > 0) {
+            if (debug.get()) LOG.debug(String.format("Delaying client start-up by %.2f sec", startupWait/1000d));
+            try {
+                Thread.sleep(startupWait);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException("Unexpected interruption", ex);
+            }
+        }
+        
+        if (m_catalogPath != null) {
+            try {
+                // HACK: This will instantiate m_catalog for us...
+                this.getCatalog();
+            } catch (Exception ex) {
+                LOG.fatal("Failed to load catalog", ex);
+                System.exit(1);
+            }
+        }
+        
+        if (partitionPlanPath != null) {
+            LOG.info("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
+            Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+            PartitionPlan pplan = new PartitionPlan();
+            try {
+                pplan.load(partitionPlanPath, catalog_db);
+                pplan.apply(catalog_db);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
+            }
+        }
+
+        Client new_client = ClientFactory.createClient(
+                getExpectedOutgoingMessageSize(),
+                null,
+                useHeavyweightClient(),
+                statsSettings,
+                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null)
+        );
+        if (m_blocking) {
+            if (debug.get()) 
+                LOG.debug(String.format("Using BlockingClient [concurrent=%d]", m_hstoreConf.client.blocking_concurrent));
+            m_voltClient = new BlockingClient(new_client, m_hstoreConf.client.blocking_concurrent);
+        } else {
+            m_voltClient = new_client;
+        }
+        
+        // report any errors that occurred before the client was instantiated
+        if (state != ControlState.PREPARING)
+            setState(state, reason);
+
+        // scan the inputs again looking for host connections
+        if (m_noConnections == false) {
+            boolean atLeastOneConnection = false;
+            Pattern p = Pattern.compile(":");
+            for (final String arg : args) {
+                final String[] parts = arg.split("=", 2);
+                if (parts.length == 1) {
+                    continue;
+                }
+                else if (parts[0].equals("HOST")) {
+                    String hostInfo[] = p.split(parts[1]);
+                    assert(hostInfo.length == 3) : parts[1];
+                    m_host = hostInfo[0];
+                    m_port = Integer.valueOf(hostInfo[1]);
+                    Integer site_id = (m_hstoreConf.client.txn_hints ? Integer.valueOf(hostInfo[2]) : null);
+                    try {
+                        if (debug.get())
+                            LOG.debug(String.format("Creating connection to %s at %s:%d",
+                                                    (site_id != null ? HStoreSite.formatSiteName(site_id) : ""),
+                                                    m_host, m_port));
+                        createConnection(site_id, m_host, m_port);
+                        atLeastOneConnection = true;
+                    }
+                    catch (final Exception ex) {
+                        setState(ControlState.ERROR, "createConnection to " + arg
+                            + " failed: " + ex.getMessage());
+                    }
+                }
+            }
+            if (!atLeastOneConnection) {
+                setState(ControlState.ERROR, "No HOSTS specified on command line.");
+                LOG.warn("NO HOSTS WERE PROVIDED!");
+            }
+        }
+        m_checkTransaction = checkTransaction;
+        m_checkTables = checkTables;
+        m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
+
+        m_countDisplayNames = getTransactionDisplayNames();
+        m_counts = new AtomicLong[m_countDisplayNames.length];
+        for (int ii = 0; ii < m_counts.length; ii++) {
+            m_counts[ii] = new AtomicLong(0);
+        }
+        
+        // If we need to call tick more frequently that when POLL is called,
+        // then we'll want to use a separate thread
+        if (m_tickInterval > 0 && isLoader == false) {
+            if (debug.get())
+                LOG.debug(String.format("Creating local thread that will call BenchmarkComponent.tick() every %.1f seconds", (m_tickInterval / 1000.0)));
+            Runnable r = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        while (true) {
+                            BenchmarkComponent.this.invokeTick(m_tickCounter++);
+                            Thread.sleep(m_tickInterval);
+                        } // WHILE
+                    } catch (InterruptedException ex) {
+                        LOG.warn("Tick thread was interrupted");
+                    }
+                }
+            };
+            m_tickThread = new Thread(r);
+            m_tickThread.setDaemon(true);
+        } else {
+            m_tickThread = null;
+        }
+    }
+
+    /**
+     * Derived classes implementing a main that will be invoked at the start of
+     * the app should call this main to instantiate themselves
+     *
+     * @param clientClass
+     *            Derived class to instantiate
+     * @param args
+     * @param startImmediately
+     *            Whether to start the client thread immediately or not.
+     */
+    public static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final String args[], final boolean startImmediately) {
+        return main(clientClass, null, args, startImmediately);
+    }
+        
+    protected static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
+        BenchmarkComponent clientMain = null;
+        try {
+            final Constructor<? extends BenchmarkComponent> constructor =
+                clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
+            clientMain = constructor.newInstance(new Object[] { args });
+            if (uploader != null) clientMain.uploader = uploader;
+            if (startImmediately) {
+                final ControlWorker worker = clientMain.new ControlWorker();
+                worker.start();
+                
+                // Wait for the worker to finish
+                if (debug.get()) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
+                worker.join();
+                clientMain.invokeCallbackStop();
+            }
+            else {
+                if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
+                clientMain.start();
+            }
+        }
+        catch (final Throwable e) {
+            String name = (clientMain != null ? clientMain.getProjectName()+"." : "") + clientClass.getSimpleName(); 
+            LOG.error("Unexpected error while invoking " + name, e);
+            System.exit(-1);
+        }
+        return (clientMain);
+    }
+    
+    /**
+     * This method will load a VoltTable into the database for the given tableName.
+     * The database will automatically split the tuples and send to the correct partitions
+     * The current thread will block until the the database cluster returns the result.
+     * Can be overridden for testing purposes.
+     * @param tableName
+     * @param vt
+     */
+    public ClientResponse loadVoltTable(String tableName, VoltTable vt) {
+        assert(vt != null) : "Null VoltTable for '" + tableName + "'";
+        
+        long rowCount = vt.getRowCount();
+        long rowTotal = m_tableTuples.get(tableName, 0l);
+        long byteCount = vt.getUnderlyingBufferSize();
+        long byteTotal = m_tableBytes.get(tableName, 0l);
+        
+        if (trace.get())
+            LOG.trace(String.format("%s: Loading %d new rows - TOTAL %d [bytes=%d/%d]",
+                                    tableName.toUpperCase(), rowCount, rowTotal, byteCount, byteTotal));
+        
+        // Load up this dirty mess...
+        ClientResponse cr = null;
+        if (m_noUploading == false) {
+            try {
+                cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
+            } catch (Exception e) {
+                throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
+            }
+        } else {
+            cr = m_dummyResponse;
+        }
+        m_tableTuples.put(tableName, rowCount);
+        m_tableBytes.put(tableName, byteCount);
+        
+        // Keep track of table stats
+        if (m_tableStats && cr.getStatus() == ClientResponse.SUCCESS) {
+            final Catalog catalog = this.getCatalog();
+            assert(catalog != null);
+            final Database catalog_db = CatalogUtil.getDatabase(catalog);
+            final Table catalog_tbl = catalog_db.getTables().getIgnoreCase(tableName);
+            assert(catalog_tbl != null) : "Invalid table name '" + tableName + "'";
+            
+            synchronized (m_tableStatsData) {
+                TableStatistics stats = m_tableStatsData.get(catalog_tbl);
+                if (stats == null) {
+                    stats = new TableStatistics(catalog_tbl);
+                    stats.preprocess(catalog_db);
+                    m_tableStatsData.put(catalog_tbl, stats);
+                }
+                vt.resetRowPosition();
+                while (vt.advanceRow()) {
+                    VoltTableRow row = vt.getRow();
+                    stats.process(catalog_db, row);
+                } // WHILE
+            } // SYNCH
+        }
+        return (cr);
+    }
+    
+    /**
+     * Get the number of tuples loaded into the given table thus far
+     * @param tableName
+     * @return
+     */
+    public final long getTableTupleCount(String tableName) {
+        return (m_tableTuples.get(tableName, 0l));
+    }
+    /**
+     * Get the number of bytes loaded into the given table thus far
+     * @param tableName
+     * @return
+     */
+    public final long getTableBytes(String tableName) {
+        return (m_tableBytes.get(tableName, 0l));
+    }
+    
+    /**
+     * Generate a WorkloadStatistics object based on the table stats that
+     * were collected using loadVoltTable()
+     * @return
+     */
+    private final WorkloadStatistics generateWorkloadStatistics() {
+        assert(m_tableStatsDir != null);
+        final Catalog catalog = this.getCatalog();
+        assert(catalog != null);
+        final Database catalog_db = CatalogUtil.getDatabase(catalog);
+
+        // Make sure we call postprocess on all of our friends
+        for (TableStatistics tableStats : m_tableStatsData.values()) {
+            try {
+                tableStats.postprocess(catalog_db);
+            } catch (Exception ex) {
+                String tableName = tableStats.getCatalogItem(catalog_db).getName();
+                throw new RuntimeException("Failed to process TableStatistics for '" + tableName + "'", ex);
+            }
+        } // FOR
+        
+        if (trace.get())
+            LOG.trace(String.format("Creating WorkloadStatistics for %d tables [totalRows=%d, totalBytes=%d",
+                                    m_tableStatsData.size(), m_tableTuples.getSampleCount(), m_tableBytes.getSampleCount()));
+        WorkloadStatistics stats = new WorkloadStatistics(catalog_db);
+        stats.apply(m_tableStatsData);
+        return (stats);
+    }
+
+    /**
+     * Queue a local file to be sent to the client with the given client id.
+     * The file will be copied into the path specified by remote_file.
+     * When the client is started it will be passed argument <parameter>=<remote_file>
      * @param client_id
      * @param parameter
      * @param local_file
@@ -536,11 +1061,31 @@ public abstract class BenchmarkComponent {
         this.uploader.sendFileToClient(client_id, parameter, local_file, remote_file);
         LOG.debug(String.format("Queuing local file '%s' to be sent to client %d as parameter '%s' to remote file '%s'", local_file, client_id, parameter, remote_file));
     }
+    
+    /**
+     * 
+     * @param client_id
+     * @param parameter
+     * @param local_file
+     * @throws IOException
+     */
     public void sendFileToClient(int client_id, String parameter, File local_file) throws IOException {
         String suffix = FileUtil.getExtension(local_file);
         String prefix = String.format("%s-%02d-", local_file.getName().replace("." + suffix, ""), client_id);
         File remote_file = FileUtil.getTempFile(prefix, suffix, false);
         sendFileToClient(client_id, parameter, local_file, remote_file);
+    }
+    
+    /**
+     * Queue a local file to be sent to all clients
+     * @param parameter
+     * @param local_file
+     * @throws IOException
+     */
+    public void sendFileToAllClients(String parameter, File local_file) throws IOException {
+        for (int i = 0, cnt = this.getNumClients(); i < cnt; i++) {
+            this.sendFileToClient(i, parameter, local_file);
+        } // FOR
     }
     
     protected void setBenchmarkClientFileUploader(BenchmarkClientFileUploader uploader) {
@@ -555,11 +1100,55 @@ public abstract class BenchmarkComponent {
     abstract protected void runLoop() throws IOException;
     
     /**
-     * Is called every time the interval time is reached
+     * Get the display names of the transactions that will be invoked by the
+     * dervied class. As a side effect this also retrieves the number of
+     * transactions that can be invoked.
+     *
+     * @return
      */
-    protected void tick() {
+    abstract protected String[] getTransactionDisplayNames();
+    
+    private final void invokeCallbackStop() {
+        // If we were generating stats, then get the final WorkloadStatistics object
+        // and write it out to a file for them to use
+        if (m_tableStats) {
+            WorkloadStatistics stats = this.generateWorkloadStatistics();
+            assert(stats != null);
+            
+            if (m_tableStatsDir.exists() == false) m_tableStatsDir.mkdirs();
+            String path = m_tableStatsDir.getAbsolutePath() + "/" + this.getProjectName() + ".stats";
+            LOG.info("Writing table statistics data to '" + path + "'");
+            try {
+                stats.save(path);
+            } catch (IOException ex) {
+                LOG.error("Failed to save table statistics to '" + path + "'", ex);
+                System.exit(1);
+            }
+        }
+        
+        this.callbackStop();
+    }
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been told to stop
+     * This is not a reliable callback and should only be used for testing
+     */
+    public void callbackStop() {
+        // Default is to do nothing
+    }
+    
+    
+    private final void invokeTick(int counter) {
+        if (debug.get()) LOG.debug("New Tick Update: " + counter);
+        this.tick(counter);
+    }
+    
+    /**
+     * Is called every time the interval time is reached
+     * @param counter TODO
+     */
+    public void tick(int counter) {
         // Default is to do nothing!
-//        System.out.println("BenchmarkComponent.tick()");
     }
     
 
@@ -588,308 +1177,9 @@ public abstract class BenchmarkComponent {
         return 128;
     }
 
-    /**
-     * Get the display names of the transactions that will be invoked by the
-     * dervied class. As a side effect this also retrieves the number of
-     * transactions that can be invoked.
-     *
-     * @return
-     */
-    abstract protected String[] getTransactionDisplayNames();
-    
-    /**
-     * Increment the internal transaction counter. This should be invoked
-     * after the client has received a ClientResponse from the DBMS cluster
-     * The txn_index is the offset of the transaction that was executed. This offset
-     * is the same order as the array returned by getTransactionDisplayNames
-     * @param txn_idx
-     */
-    protected final void incrementTransactionCounter(int txn_idx) {
-        this.m_counts[txn_idx].incrementAndGet();
-    }
-
-    public BenchmarkComponent(final Client client) {
-        m_voltClient = client;
-        m_exitOnCompletion = false;
-        m_host = "localhost";
-        m_password = "";
-        m_username = "";
-        m_txnRate = -1;
-        m_blocking = false;
-        m_txnsPerMillisecond = 0;
-        m_catalogPath = null;
-        m_projectName = null;
-        m_id = 0;
-        m_numClients = 1;
-        m_numPartitions = 0;
-        m_counts = null;
-        m_countDisplayNames = null;
-        m_checkTransaction = 0;
-        m_checkTables = false;
-        m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
-        
-        // FIXME
-        m_hstoreConf = null;
-        m_benchmarkConf = null;
-        
-    }
-
-    /**
-     * Constructor that initializes the framework portions of the client.
-     * Creates a Volt client and connects it to all the hosts provided on the
-     * command line with the specified username and password
-     *
-     * @param args
-     */
-    public BenchmarkComponent(String args[]) {
-        /*
-         * Input parameters: HOST=host:port (may occur multiple times)
-         * USER=username PASSWORD=password
-         */
-
-        // default values
-        String username = "user";
-        String password = "password";
-        ControlState state = ControlState.PREPARING; // starting state
-        String reason = ""; // and error string
-        int transactionRate = -1;
-        boolean blocking = false;
-        int id = 0;
-        int num_clients = 0;
-        int num_partitions = 0;
-        boolean exitOnCompletion = true;
-        float checkTransaction = 0;
-        boolean checkTables = false;
-//        String statsDatabaseURL = null;
-//        int statsPollInterval = 10000;
-        File catalogPath = null;
-        String projectName = null;
-
-        // HStoreConf Path
-        String hstore_conf_path = null;
-        
-        // Benchmark Conf Path
-        String benchmark_conf_path = null;
-        
-        // scan the inputs once to read everything but host names
-        for (int i = 0; i < args.length; i++) {
-            final String arg = args[i];
-            final String[] parts = arg.split("=", 2);
-            if (parts.length == 1) {
-                state = ControlState.ERROR;
-                reason = "Invalid parameter: " + arg;
-                break;
-            } else if (parts[1].startsWith("${")) {
-                continue;
-            }
-            
-            if (parts[0].equalsIgnoreCase("CONF")) {
-                hstore_conf_path = parts[1];
-            } else if (parts[0].equalsIgnoreCase(BenchmarkController.BENCHMARK_PARAM_PREFIX + "CONF")) {
-                benchmark_conf_path = parts[1];
-            }
-                
-            // Strip out benchmark prefix  
-            if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
-                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
-                args[i] = parts[0] + "=" + parts[1]; // HACK
-            }
-            
-            if (parts[0].equalsIgnoreCase("CATALOG")) {
-                catalogPath = new File(parts[1]);
-                assert(catalogPath.exists()) : "The catalog file '" + catalogPath.getAbsolutePath() + " does not exist";
-            }
-            else if (parts[0].equalsIgnoreCase("NAME")) {
-                projectName = parts[1];
-            }
-            else if (parts[0].equalsIgnoreCase("USER")) {
-                username = parts[1];
-            }
-            else if (parts[0].equalsIgnoreCase("PASSWORD")) {
-                password = parts[1];
-            }
-            else if (parts[0].equalsIgnoreCase("EXITONCOMPLETION")) {
-                exitOnCompletion = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("TXNRATE")) {
-                transactionRate = Integer.parseInt(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("BLOCKING")) {
-                blocking = Boolean.parseBoolean(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("ID")) {
-                id = Integer.parseInt(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("NUMCLIENTS")) {
-                num_clients = Integer.parseInt(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("NUMPARTITIONS")) {
-                num_partitions = Integer.parseInt(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
-                checkTransaction = Float.parseFloat(parts[1]);
-            }
-            else if (parts[0].equalsIgnoreCase("CHECKTABLES")) {
-                checkTables = Boolean.parseBoolean(parts[1]);
-//            } else if (parts[0].equalsIgnoreCase("STATSDATABASEURL")) {
-//                statsDatabaseURL = parts[1];
-//            } else if (parts[0].equalsIgnoreCase("STATSPOLLINTERVAL")) {
-//                statsPollInterval = Integer.parseInt(parts[1]);
-            } else {
-                m_extraParams.put(parts[0], parts[1]);
-            }
-        }
-        
-        // Initialize HStoreConf
-        if (HStoreConf.isInitialized() == false) {
-            assert(hstore_conf_path != null) : "Missing HStoreConf file";
-            HStoreConf.init(new File(hstore_conf_path));
-        }
-        m_hstoreConf = HStoreConf.singleton();
-        
-        if (benchmark_conf_path != null) {
-            m_benchmarkConf = new BenchmarkConfig(new File(benchmark_conf_path));
-        } else {
-            m_benchmarkConf = null;
-        }
-        
-        // Thread.currentThread().setName(String.format("client-%02d", id));
-        
-        StatsUploaderSettings statsSettings = null;
-//        if (statsDatabaseURL != null) {
-//            try {
-//                statsSettings =
-//                    new
-//                        StatsUploaderSettings(
-//                            statsDatabaseURL,
-//                            getApplicationName(),
-//                            getSubApplicationName(),
-//                            statsPollInterval);
-//            } catch (Exception e) {
-//                System.err.println(e.getMessage());
-//                //e.printStackTrace();
-//                statsSettings = null;
-//            }
-//        }
-        Client new_client =
-            ClientFactory.createClient(
-                getExpectedOutgoingMessageSize(),
-                null,
-                useHeavyweightClient(),
-                statsSettings);
-
-        m_catalogPath = catalogPath;
-        m_projectName = projectName;
-        m_id = id;
-        m_numClients = num_clients;
-        m_numPartitions = num_partitions;
-        m_exitOnCompletion = exitOnCompletion;
-        m_username = username;
-        m_password = password;
-        m_txnRate = transactionRate;
-        m_txnsPerMillisecond = transactionRate / 1000.0;
-        m_blocking = blocking;
-        
-        if (m_catalogPath != null) {
-            try {
-                // HACK: This will instantiate m_catalog for us...
-                this.getCatalog();
-            } catch (Exception ex) {
-                LOG.fatal("Failed to load catalog", ex);
-                System.exit(1);
-            }
-        }
-
-        if (m_blocking) {
-            LOG.debug("Using BlockingClient!");
-            m_voltClient = new BlockingClient(new_client);
-        } else {
-            m_voltClient = new_client;
-        }
-        
-        // report any errors that occurred before the client was instantiated
-        if (state != ControlState.PREPARING)
-            setState(state, reason);
-
-        // scan the inputs again looking for host connections
-        boolean atLeastOneConnection = false;
-        for (final String arg : args) {
-            final String[] parts = arg.split("=", 2);
-            if (parts.length == 1) {
-                continue;
-            }
-            else if (parts[0].equals("HOST")) {
-                final Pair<String, Integer> hostnport = StringUtil.getHostPort(parts[1]);
-                m_host = hostnport.getFirst();
-                m_port = hostnport.getSecond();
-                try {
-                    LOG.debug("Creating connection to " + hostnport);
-                    createConnection(m_host, m_port);
-                    LOG.debug("Created connection.");
-                    atLeastOneConnection = true;
-                }
-                catch (final Exception ex) {
-                    setState(ControlState.ERROR, "createConnection to " + arg
-                        + " failed: " + ex.getMessage());
-                }
-            }
-        }
-        if (!atLeastOneConnection) {
-            setState(ControlState.ERROR, "No HOSTS specified on command line.");
-            LOG.warn("NO HOSTS WERE PROVIDED!");
-        }
-        m_checkTransaction = checkTransaction;
-        m_checkTables = checkTables;
-        m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
-
-        m_countDisplayNames = getTransactionDisplayNames();
-        m_counts = new AtomicLong[m_countDisplayNames.length];
-        for (int ii = 0; ii < m_counts.length; ii++) {
-            m_counts[ii] = new AtomicLong(0);
-        }
-    }
-
-    /**
-     * Derived classes implementing a main that will be invoked at the start of
-     * the app should call this main to instantiate themselves
-     *
-     * @param clientClass
-     *            Derived class to instantiate
-     * @param args
-     * @param startImmediately
-     *            Whether to start the client thread immediately or not.
-     */
-    public static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final String args[], final boolean startImmediately) {
-        return main(clientClass, null, args, startImmediately);
-    }
-        
-    protected static BenchmarkComponent main(final Class<? extends BenchmarkComponent> clientClass, final BenchmarkClientFileUploader uploader, final String args[], final boolean startImmediately) {
-        BenchmarkComponent clientMain = null;
-        try {
-            final Constructor<? extends BenchmarkComponent> constructor =
-                clientClass.getConstructor(new Class<?>[] { new String[0].getClass() });
-            clientMain = constructor.newInstance(new Object[] { args });
-            if (uploader != null) clientMain.uploader = uploader;
-            if (startImmediately) {
-                final ControlWorker worker = clientMain.new ControlWorker();
-                worker.start();
-                // Wait for the worker to finish
-                worker.join();
-            }
-            else {
-                clientMain.start();
-            }
-        }
-        catch (final Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-        return (clientMain);
-    }
-
     // update the client state and start waiting for a message.
     private void start() {
-        m_controlPipe.run();
+        m_controlPipe.run(); // blocking
     }
 
     /**
@@ -936,6 +1226,10 @@ public abstract class BenchmarkComponent {
         return (m_projectName);
     }
 
+    public final int getCurrentTickCounter() {
+        return (m_tickCounter);
+    }
+    
     /**
      * Return the catalog used for this benchmark.
      * @return
@@ -948,9 +1242,16 @@ public abstract class BenchmarkComponent {
         }
         return (m_catalog);
     }
-    
     public void setCatalog(Catalog catalog) {
-    	m_catalog = catalog;
+        m_catalog = catalog;
+    }
+
+    /**
+     * Get the HStoreConf handle
+     * @return
+     */
+    public HStoreConf getHStoreConf() {
+        return (m_hstoreConf);
     }
 
     public void setState(final ControlState state, final String reason) {
@@ -961,10 +1262,12 @@ public abstract class BenchmarkComponent {
             m_reason = reason;
     }
 
-    private void createConnection(final String hostname, final int port)
+    private void createConnection(final Integer site_id, final String hostname, final int port)
         throws UnknownHostException, IOException {
-        if (LOG.isDebugEnabled()) LOG.debug(String.format("Requesting connection to %s:%d", hostname, port));
-        m_voltClient.createConnection(hostname, port, m_username, m_password);
+        if (debug.get())
+            LOG.debug(String.format("Requesting connection to %s %s:%d",
+                HStoreSite.formatSiteName(site_id), hostname, port));
+        m_voltClient.createConnection(site_id, hostname, port, m_username, m_password);
     }
 
     private boolean checkConstraints(String procName, ClientResponse response) {
@@ -995,7 +1298,7 @@ public abstract class BenchmarkComponent {
         }
 
         if (!isSatisfied)
-            System.err.println("Transaction " + procName + " failed check");
+            LOG.error("Transaction " + procName + " failed check");
 
         return isSatisfied;
     }

@@ -13,6 +13,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientFactory;
 import org.voltdb.client.ClientResponse;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
@@ -27,11 +28,13 @@ public class VoltProcedureInvoker {
         Client client = ClientFactory.createClient(128, null, false, null);
         
         Cluster catalog_clus = args.catalog_db.getParent(); 
-        Site catalog_site = CollectionUtil.getFirst(catalog_clus.getSites());
+        Site catalog_site = CollectionUtil.first(catalog_clus.getSites());
         assert(catalog_site != null);
         Host catalog_host = catalog_site.getHost();
         assert(catalog_host != null);
-        client.createConnection(catalog_host.getIpaddr(), catalog_site.getProc_port(), "user", "password");
+        Integer port = CollectionUtil.random(CatalogUtil.getExecutionSitePorts(catalog_site));
+        assert(port != null);
+        client.createConnection(null, catalog_host.getIpaddr(), port, "user", "password");
         
         String procName = args.getOptParam(0);
         assert(procName != null && procName.isEmpty() == false) : "Invalid procedure name '" + procName + "'";

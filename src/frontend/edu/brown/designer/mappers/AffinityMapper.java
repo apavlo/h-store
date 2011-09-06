@@ -15,6 +15,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.designer.*;
 import edu.brown.designer.partitioners.*;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.*;
@@ -78,7 +79,7 @@ public class AffinityMapper extends AbstractMapper {
         //
         SingleSitedCostModel cost_model = new SingleSitedCostModel(info.catalog_db);
         LOG.info("Generating cost model information for given PartitionPlan");
-        cost_model.estimateCost(info.catalog_db, this.info.workload);
+        cost_model.estimateWorkloadCost(info.catalog_db, this.info.workload);
         
         //
         // FIXME
@@ -87,7 +88,7 @@ public class AffinityMapper extends AbstractMapper {
 //        System.out.println("num_partitions="+num_partitions);
         AbstractHasher hasher = new DefaultHasher(info.catalog_db, num_partitions);
         
-        Set<Table> roots = pplan.getNonReplicatedRoots();
+        Collection<Table> roots = pplan.getNonReplicatedRoots();
         Map<Table, List<Integer>> table_partition_values = new HashMap<Table, List<Integer>>();
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             table_partition_values.put(catalog_tbl, new ArrayList<Integer>());

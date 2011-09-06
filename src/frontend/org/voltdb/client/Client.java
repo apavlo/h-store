@@ -22,6 +22,8 @@ import java.net.UnknownHostException;
 
 import org.voltdb.VoltTable;
 
+import edu.brown.utils.ProfileMeasurement;
+
 /**
  *  <p>
  *  A <code>Client</code> that connects to one or more nodes in a volt cluster
@@ -76,6 +78,7 @@ public interface Client {
 
      /**
      * Create a connection to another VoltDB node.
+     * @param siteId TODO
      * @param host hostname or IP address of the host to connect to
      * @param port TODO
      * @param username Username to authorize. Username is ignored if authentication is disabled.
@@ -83,7 +86,7 @@ public interface Client {
      * @throws UnknownHostException
      * @throws IOException
      */
-    public void createConnection(String host, int port, String username, String password)
+    public void createConnection(Integer siteId, String host, int port, String username, String password)
         throws UnknownHostException, IOException;
     
     /**
@@ -205,6 +208,8 @@ public interface Client {
      * @return Table containing procedure stats
      */
     public VoltTable getProcedureStatsInterval();
+    
+    public ProfileMeasurement getQueueTime();
 
     /**
      * Get an identifier for the cluster that this client is currently connected to.

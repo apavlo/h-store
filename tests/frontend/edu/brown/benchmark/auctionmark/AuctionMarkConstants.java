@@ -33,113 +33,70 @@ package edu.brown.benchmark.auctionmark;
 
 import java.util.*;
 
+
 public abstract class AuctionMarkConstants {
-    
-    public enum BidType {
-        AUCTION,
-        BUYNOW
-    } 
-
-    // ----------------------------------------------------------------
-    // DATA INFORMATION
-    // ----------------------------------------------------------------
-
-    public static final int STATUS_ITEM_OPEN                    = 0;
-    public static final int STATUS_ITEM_WAITING_FOR_PURCHASE    = 1;
-    public static final int STATUS_ITEM_CLOSED                  = 2;
     
     // ----------------------------------------------------------------
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
     
-    
-    // the maximum number of clients that this benchmark can handle
-    public static final int MAXIMUM_NUM_CLIENTS = 1000;
-    
-    // the maximum number of IDs that can be generated in each client (for each table)
-    public static final long MAXIMUM_CLIENT_IDS = 100000000000000l;
-    
-    
-    public static final long INTERVAL_CHECK_WINNING_BIDS = 10000; // Check winning bid's frequency in millisecond
-    public static final boolean ENABLE_CHECK_WINNING_BIDS   = true;
-    
     // Non-standard txns
-    public static final int FREQUENCY_CHECK_WINNING_BIDS    = -1; // called at regular intervals
-    public static final int FREQUENCY_POST_AUCTION          = -1; // called after CHECK_WINNING_BIDS
+    public static final int FREQUENCY_CLOSE_AUCTIONS    = -1; // called at regular intervals
+    public static final boolean ENABLE_CLOSE_AUCTIONS   = true;
     
     // Regular Txn Mix
+    public static final int FREQUENCY_GET_ITEM              = 25;
+    public static final int FREQUENCY_GET_USER_INFO         = 15;
+    public static final int FREQUENCY_NEW_BID               = 20;
+    public static final int FREQUENCY_NEW_COMMENT           = 5;  
+    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 5;
+    public static final int FREQUENCY_NEW_FEEDBACK          = 5;
+    public static final int FREQUENCY_NEW_ITEM              = 10;
+    public static final int FREQUENCY_NEW_PURCHASE          = 5;
+    public static final int FREQUENCY_UPDATE_ITEM           = 10;
     
-//    public static final int FREQUENCY_GET_ITEM              = 45;
-//    public static final int FREQUENCY_GET_USER_INFO         = 10;
-//    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 5;
-//    public static final int FREQUENCY_NEW_BID               = 18;
-//    public static final int FREQUENCY_NEW_COMMENT           = 2; // total FREQUENCY_GET_COMMENT = FREQUENCY_GET_COMMENT + FREQUENCY_NEW_COMMENT_RESPONSE because FREQUENCY_NEW_COMMENT_RESPONSE depend on FREQUENCY_GET_COMMENT 
-//    public static final int FREQUENCY_GET_COMMENT           = 2;
-//    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 1;
-//    public static final int FREQUENCY_NEW_FEEDBACK          = 3;
-//    public static final int FREQUENCY_NEW_ITEM              = 10;
-//    public static final int FREQUENCY_NEW_PURCHASE          = 2;
-//    public static final int FREQUENCY_NEW_USER              = 0;
-//    public static final int FREQUENCY_UPDATE_ITEM           = 2;
-    
-    public static final int FREQUENCY_GET_ITEM              = 35;
-    public static final int FREQUENCY_GET_USER_INFO         = 10;
-    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 5;
-    public static final int FREQUENCY_NEW_BID               = 15;
-    public static final int FREQUENCY_NEW_COMMENT           = 4; // total FREQUENCY_GET_COMMENT = FREQUENCY_GET_COMMENT + FREQUENCY_NEW_COMMENT_RESPONSE because FREQUENCY_NEW_COMMENT_RESPONSE depend on FREQUENCY_GET_COMMENT 
-    public static final int FREQUENCY_GET_COMMENT           = 0;
-    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
-    public static final int FREQUENCY_NEW_FEEDBACK          = 0;
-    public static final int FREQUENCY_NEW_ITEM              = 18;
-    public static final int FREQUENCY_NEW_PURCHASE          = 8;
-    public static final int FREQUENCY_NEW_USER              = 0;
-    public static final int FREQUENCY_UPDATE_ITEM           = 5;
-    
-//    public static final int FREQUENCY_GET_ITEM              = 0;
-//    public static final int FREQUENCY_GET_USER_INFO         = 100;
-//    public static final int FREQUENCY_GET_WATCHED_ITEMS     = 0;
-//    public static final int FREQUENCY_NEW_BID               = 0;
-//    public static final int FREQUENCY_NEW_COMMENT           = 0;
-//    public static final int FREQUENCY_GET_COMMENT           = 0;
+//    public static final int FREQUENCY_GET_ITEM              = 50;
+//    public static final int FREQUENCY_GET_USER_INFO         = 0;
+//    public static final int FREQUENCY_NEW_BID               = 50;
+//    public static final int FREQUENCY_NEW_COMMENT           = 0;  
 //    public static final int FREQUENCY_NEW_COMMENT_RESPONSE  = 0;
 //    public static final int FREQUENCY_NEW_FEEDBACK          = 0;
 //    public static final int FREQUENCY_NEW_ITEM              = 0;
 //    public static final int FREQUENCY_NEW_PURCHASE          = 0;
-//    public static final int FREQUENCY_NEW_USER              = 0;
 //    public static final int FREQUENCY_UPDATE_ITEM           = 0;
-
     
     // ----------------------------------------------------------------
     // DEFAULT TABLE SIZES
     // ----------------------------------------------------------------
-    public static final long TABLESIZE_REGION = 75;
-    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP = 100;
-    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE = TABLESIZE_GLOBAL_ATTRIBUTE_GROUP * 10;
-    public static final long TABLESIZE_USER = 100000;
-    public static final long TABLESIZE_ITEM = TABLESIZE_USER * 10;
+    
+    public static final long TABLESIZE_REGION                   = 75;
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP   = 100;
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE   = TABLESIZE_GLOBAL_ATTRIBUTE_GROUP * 10;
+    public static final long TABLESIZE_USER                     = 100000;
     
     // ----------------------------------------------------------------
     // USER PARAMETERS
     // ----------------------------------------------------------------
+    
     public static final int USER_MIN_ATTRIBUTES = 0;
     public static final int USER_MAX_ATTRIBUTES = 5;
-        
-    // ----------------------------------------------------------------
-    // SELLER PARAMETERS
-    // ---------------------------------------------------------------- 
-    public static final float SELLER_PERCENT = 10.0f;
-    public static final int SELLER_MAX_ITEM = 1000;
+    
+    public static final long USER_MIN_BALANCE   = 1000;
+    public static final long USER_MAX_BALANCE   = 100000;
+    
+    public static final long USER_MIN_RATING   = 0;
+    public static final long USER_MAX_RATING   = 10000;
     
     // ----------------------------------------------------------------
     // ITEM PARAMETERS
     // ----------------------------------------------------------------
+    
     public static final int ITEM_MIN_INITIAL_PRICE = 1;
-    public static final int ITEM_MAX_INITIAL_PRICE = 1000000;
-    public static final int ITEM_MAX_FINAL_PRICE = 10000000;
-    public static final int ITEM_MIN_ITEMS_PER_SELLER = 1;
+    public static final int ITEM_MAX_INITIAL_PRICE = 1000;
+    public static final int ITEM_MIN_ITEMS_PER_SELLER = 0;
     public static final int ITEM_MAX_ITEMS_PER_SELLER = 10000;
     public static final int ITEM_MIN_BIDS_PER_DAY = 0;
-    public static final int ITEM_MAX_BIDS_PER_DAY = 12;
+    public static final int ITEM_MAX_BIDS_PER_DAY = 10;
     public static final int ITEM_MIN_WATCHES_PER_DAY = 0;
     public static final int ITEM_MAX_WATCHES_PER_DAY = 20;
     public static final int ITEM_MIN_IMAGES = 1;
@@ -148,36 +105,53 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MAX_COMMENTS = 5;
     public static final int ITEM_MIN_GLOBAL_ATTRS = 1;
     public static final int ITEM_MAX_GLOBAL_ATTRS = 10;
-    public static final float ITEM_BID_PERCENT_STEP = 0.05f;
     
+    public static final int ITEM_STATUS_OPEN                    = 0;
+    public static final int ITEM_STATUS_WAITING_FOR_PURCHASE    = 1;
+    public static final int ITEM_STATUS_CLOSED                  = 2;
+    
+    /** When an item receives a bid we will increase its price by this amount */
+    public static final float ITEM_BID_PERCENT_STEP = 0.025f;
+    
+    /** How long should we wait before the buyer purchases an item that they won */
     public static final int ITEM_MAX_PURCHASE_DURATION_DAYS = 7;
     
-    //public static final int ITEM_PERCENT_SOLD = 20;
-    // Duration in days that expired bids are preserved
-    public static final int ITEM_PRESERVE_DAYS = 30;
-    // Maximum duration in days for each auction
-    public static final int ITEM_MAX_DURATION_DAYS = 7;
+    /** Duration in days that expired bids are preserved */
+    public static final int ITEM_PRESERVE_DAYS = 7;
+    
+    /** The duration in days for each auction */
+    public static final int ITEM_MAX_DURATION_DAYS = 10;
     public static final int ITEM_MAX_PURCHASE_DAY = 7;
+    
+    /**
+     * This defines the maximum size of a small cache of ItemIds that
+     * we maintain in the benchmark profile. For some procedures, the client will 
+     * ItemIds out of this cache and use them as txn parameters 
+     */
+    public static final int ITEM_ID_CACHE_SIZE  = 1000;
     
     // ----------------------------------------------------------------
     // DEFAULT BATCH SIZES
     // ----------------------------------------------------------------
+    
     public static final long BATCHSIZE_REGION                   = 5000;
     public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_GROUP   = 5000;
     public static final long BATCHSIZE_GLOBAL_ATTRIBUTE_VALUE   = 5000;
     public static final long BATCHSIZE_CATEGORY                 = 5000;
     public static final long BATCHSIZE_USER                     = 1000;
     public static final long BATCHSIZE_USER_ATTRIBUTES          = 5000;
-    public static final long BATCHSIZE_ITEM                     = 1000;
+    public static final long BATCHSIZE_USER_FEEDBACK            = 1000;
+    public static final long BATCHSIZE_USER_ITEM                = 5000;
+    public static final long BATCHSIZE_USER_WATCH               = 5000;
+    public static final long BATCHSIZE_ITEM                     = 2000;
     public static final long BATCHSIZE_ITEM_ATTRIBUTE           = 5000;
     public static final long BATCHSIZE_ITEM_IMAGE               = 5000;
     public static final long BATCHSIZE_ITEM_COMMENT             = 1000;
-    public static final long BATCHSIZE_ITEM_FEEDBACK            = 1000;
     public static final long BATCHSIZE_ITEM_BID                 = 5000;
     public static final long BATCHSIZE_ITEM_MAX_BID             = 5000;
     public static final long BATCHSIZE_ITEM_PURCHASE            = 5000;
-    public static final long BATCHSIZE_USER_ITEM                = 5000;
-    public static final long BATCHSIZE_USER_WATCH               = 5000;
+    
+    public static final long BATCHSIZE_CLOSE_AUCTIONS_UPDATES   = 50;
     
     // ----------------------------------------------------------------
     // TABLE NAMES
@@ -187,6 +161,7 @@ public abstract class AuctionMarkConstants {
     public static final String TABLENAME_USER_ATTRIBUTES        = "USER_ATTRIBUTES";
     public static final String TABLENAME_USER_ITEM              = "USER_ITEM";
     public static final String TABLENAME_USER_WATCH             = "USER_WATCH";
+    public static final String TABLENAME_USER_FEEDBACK          = "USER_FEEDBACK";
     public static final String TABLENAME_CATEGORY               = "CATEGORY";
     public static final String TABLENAME_GLOBAL_ATTRIBUTE_GROUP = "GLOBAL_ATTRIBUTE_GROUP";
     public static final String TABLENAME_GLOBAL_ATTRIBUTE_VALUE = "GLOBAL_ATTRIBUTE_VALUE";
@@ -194,7 +169,6 @@ public abstract class AuctionMarkConstants {
     public static final String TABLENAME_ITEM_ATTRIBUTE         = "ITEM_ATTRIBUTE";
     public static final String TABLENAME_ITEM_IMAGE             = "ITEM_IMAGE";
     public static final String TABLENAME_ITEM_COMMENT           = "ITEM_COMMENT";
-    public static final String TABLENAME_ITEM_FEEDBACK          = "ITEM_FEEDBACK";
     public static final String TABLENAME_ITEM_BID               = "ITEM_BID";
     public static final String TABLENAME_ITEM_MAX_BID           = "ITEM_MAX_BID";
     public static final String TABLENAME_ITEM_PURCHASE          = "ITEM_PURCHASE";
@@ -208,11 +182,11 @@ public abstract class AuctionMarkConstants {
         AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES,
         AuctionMarkConstants.TABLENAME_USER_ITEM,
         AuctionMarkConstants.TABLENAME_USER_WATCH,
+        AuctionMarkConstants.TABLENAME_USER_FEEDBACK,
         AuctionMarkConstants.TABLENAME_ITEM,
         AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE,
         AuctionMarkConstants.TABLENAME_ITEM_IMAGE,
         AuctionMarkConstants.TABLENAME_ITEM_COMMENT,
-        AuctionMarkConstants.TABLENAME_ITEM_FEEDBACK,
         AuctionMarkConstants.TABLENAME_ITEM_BID,
         AuctionMarkConstants.TABLENAME_ITEM_MAX_BID,
         AuctionMarkConstants.TABLENAME_ITEM_PURCHASE,
@@ -224,30 +198,81 @@ public abstract class AuctionMarkConstants {
     
     // If a table exists in this set, then the number of tuples loaded into the table
     // should not be modified by the scale factor
-    public static final Set<String> FIXED_TABLES = new HashSet<String>();
+    public static final Collection<String> FIXED_TABLES = new HashSet<String>();
     static {
-        AuctionMarkConstants.FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_REGION);
-        AuctionMarkConstants.FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
-        AuctionMarkConstants.FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_REGION);
+        FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        FIXED_TABLES.add(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
     }
     
-    public static final Set<String> DYNAMIC_TABLES = new HashSet<String>();
+    public static final Collection<String> DYNAMIC_TABLES = new HashSet<String>();
     static {
-    	AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
-    	AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_COMMENT);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_FEEDBACK);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_BID);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ITEM);
-        AuctionMarkConstants.DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_WATCH);
+    	DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
+    	DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_COMMENT);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_FEEDBACK);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_BID);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_MAX_BID);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_PURCHASE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ITEM);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_WATCH);
     }
     
     // These tables are loaded from static data files
-    public static final Set<String> DATAFILE_TABLES = new HashSet<String>();
+    public static final Collection<String> DATAFILE_TABLES = new HashSet<String>();
     static {
-    	AuctionMarkConstants.DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
+    	DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
     }
+
+    // ----------------------------------------------------------------
+    // TIME PARAMETERS
+    // ----------------------------------------------------------------
+    
+    /**
+     * 1 sec in real time equals this value in the benchmark's virtual time in seconds
+     */
+    public static final long TIME_SCALE_FACTOR = 3600l; //  * 1000000l; // one hour
+    
+    /** How often to execute CLOSE_AUCTIONS in virtual milliseconds */
+    public static final long INTERVAL_CLOSE_AUCTIONS    = 3600000l; // Check winning bid's frequency in millisecond
+    
+    /**
+     * If the amount of time (in milliseconds) remaining for an item auction
+     * is less than this parameter, then it will be added to a special queue
+     * in the client. We will increase the likelihood that a users will bid on these
+     * items as it gets closer to their end times
+     */
+    public static final long ENDING_SOON = 7200000l; // 10 hours
+    
+    public static final long SECONDS_IN_A_DAY = 24 * 60 * 60;
+    public static final long MILLISECONDS_IN_A_DAY = SECONDS_IN_A_DAY * 1000;
+    public static final long MICROSECONDS_IN_A_DAY = MILLISECONDS_IN_A_DAY * 1000;
+    
+    // ----------------------------------------------------------------
+    // PROBABILITIES
+    // ----------------------------------------------------------------
+    
+    /** The probability that a buyer will leave feedback for the seller (1-100)*/
+    public static final int PROB_PURCHASE_BUYER_LEAVES_FEEDBACK = 75;
+    /** The probability that a seller will leave feedback for the buyer (1-100)*/
+    public static final int PROB_PURCHASE_SELLER_LEAVES_FEEDBACK = 80;
+    
+    public static final int PROB_GETUSERINFO_INCLUDE_FEEDBACK = 33;
+    public static final int PROB_GETUSERINFO_INCLUDE_COMMENTS = 25;
+    public static final int PROB_GETUSERINFO_INCLUDE_SELLER_ITEMS = 25;
+    public static final int PROB_GETUSERINFO_INCLUDE_BUYER_ITEMS = 25;
+    public static final int PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS = 50;
+    
+    public static final int PROB_UPDATEITEM_DELETE_ATTRIBUTE = 25;
+    public static final int PROB_UPDATEITEM_ADD_ATTRIBUTE = -1; // 25;
+    
+    /** The probability that a buyer will not have enough money to purchase an item (1-100) */
+    public static final int PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY = 1;
+    
+    /** The probability that the NewBid txn will try to bid on a closed item (1-100) */
+    public static final int PROB_NEWBID_CLOSED_ITEM = 5;
+    
+    /** The probability that a NewBid txn will target an item whose auction is ending soon (1-100) */
+    public static final int PROB_NEWBID_ENDINGSOON_ITEM = 50;
 }

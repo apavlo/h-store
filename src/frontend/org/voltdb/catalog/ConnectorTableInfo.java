@@ -34,7 +34,7 @@ public class ConnectorTableInfo extends CatalogType {
         this.addField("appendOnly", m_appendOnly);
     }
 
-    void update() {
+    public void update() {
         m_appendOnly = (Boolean) m_fields.get("appendOnly");
     }
 

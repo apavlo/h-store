@@ -33,7 +33,7 @@ public class CatalogInteger extends CatalogType {
         this.addField("value", m_value);
     }
 
-    void update() {
+    public void update() {
         m_value = (Integer) m_fields.get("value");
     }
 

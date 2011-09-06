@@ -59,7 +59,7 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
         UpdateSubscriberData.class,
         
         // Testing Procedures
-        InsertSubscriber.class,
+//        InsertSubscriber.class,
         GetTableCounts.class,
     };
     
@@ -72,6 +72,11 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(InsertCallForwarding.class, TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING);
         addTransactionFrequency(UpdateLocation.class, TM1Constants.FREQUENCY_UPDATE_LOCATION);
         addTransactionFrequency(UpdateSubscriberData.class, TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA);
+    }
+
+    // Vertical Partitions
+    {
+//        addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
     }
     
     public static final String PARTITIONING[][] = 

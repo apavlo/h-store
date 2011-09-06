@@ -43,7 +43,7 @@ public class PlanFragment extends CatalogType {
         this.addField("nontransactional", m_nontransactional);
     }
 
-    void update() {
+    public void update() {
         m_id = (Integer) m_fields.get("id");
         m_hasdependencies = (Boolean) m_fields.get("hasdependencies");
         m_multipartition = (Boolean) m_fields.get("multipartition");

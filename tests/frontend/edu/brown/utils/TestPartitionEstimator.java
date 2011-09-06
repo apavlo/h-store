@@ -10,11 +10,11 @@ import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
-import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW;
 import org.voltdb.catalog.*;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
@@ -47,7 +47,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testMultiAttributePartitioning() throws Exception {
         // This checks that the ProcParameters and the StmtParameters get mapped to
         // the same partition for a multi-attribute partitioned Procedure+Table
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
         // Procedure
@@ -55,7 +55,6 @@ public class TestPartitionEstimator extends BaseTestCase {
         ProcParameter catalog_params[] = new ProcParameter[] {
             this.getProcParameter(clone_db, catalog_proc, 1),   // D_ID
             this.getProcParameter(clone_db, catalog_proc, 0),   // W_ID
-            
         };
         MultiProcParameter mpp = MultiProcParameter.get(catalog_params);
         assertNotNull(mpp);
@@ -88,14 +87,15 @@ public class TestPartitionEstimator extends BaseTestCase {
         Statement catalog_stmt = this.getStatement(clone_db, catalog_proc, "getDistrict");
         Long stmt_params[] = new Long[] {
             new Long(proc_params[0].longValue()), // W_ID
-            new Long(proc_params[1].longValue()),   // D_ID
+            new Long(proc_params[1].longValue()), // D_ID
         };
         Map<String, Set<Integer>> stmt_partitions = p_estimator.getTablePartitions(catalog_stmt, stmt_params, proc_partition);
+        System.err.println(StringUtil.formatMaps(stmt_partitions));
         assertNotNull(stmt_partitions);
         assertEquals(1, stmt_partitions.size());
         assert(stmt_partitions.containsKey(table_key));
         assertEquals(1, stmt_partitions.get(table_key).size());
-        assertEquals(proc_partition, CollectionUtil.getFirst(stmt_partitions.get(table_key)));
+        assertEquals(stmt_partitions.get(table_key).toString(), proc_partition, CollectionUtil.first(stmt_partitions.get(table_key)));
     }
     
     /**
@@ -103,7 +103,7 @@ public class TestPartitionEstimator extends BaseTestCase {
      */
     public void testMultiProcParameter() throws Exception {
         //  Try to partition TPC-C's neworder on W_ID and D_ID parameters
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         Procedure catalog_proc = this.getProcedure(clone_db, neworder.class);
         PartitionEstimator p_estimator = new PartitionEstimator(clone_db);
 
@@ -160,7 +160,7 @@ public class TestPartitionEstimator extends BaseTestCase {
     public void testMultiColumn() throws Exception {
         // Try to use multi-column partitioning on DISTRICT and see whether we can
         // actually get the right answer for neworder.getDistrict
-        Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
         Table catalog_tbl = this.getTable(clone_db, "DISTRICT");
         String table_key = CatalogKey.createKey(catalog_tbl);
         
@@ -184,7 +184,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         // Just check to make sure that we get back exactly one partition
         assert(p.containsKey(table_key));
         assertEquals("Unexpected result: " + p.get(table_key), 1, p.get(table_key).size());
-        int stmt_partition = CollectionUtil.getFirst(p.get(table_key));
+        int stmt_partition = CollectionUtil.first(p.get(table_key));
         assert(stmt_partition >= 0) : "Invalid Partition: " + p.get(table_key);
         
         // Now create VoltTable and test that
@@ -255,7 +255,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
             Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
-            assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
+            assertEquals(w_id, (int)CollectionUtil.first(partitions));
         } // FOR
     }
     
@@ -275,7 +275,7 @@ public class TestPartitionEstimator extends BaseTestCase {
             Object params[] = new Integer[]{ 2, w_id }; // d_id, d_w_id
             PartitionEstimator estimator = new PartitionEstimator(catalog_db, hasher);
             Collection<Integer> partitions = estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
-            assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
+            assertEquals(w_id, (int)CollectionUtil.first(partitions));
         } // FOR
     }
     
@@ -309,7 +309,7 @@ public class TestPartitionEstimator extends BaseTestCase {
 //        System.out.println(catalog_stmt.getName() + " Partitions: " + partitions);
         assertFalse(partitions.isEmpty());
         assertEquals(1, partitions.size());
-        assertEquals(w_id, (int)CollectionUtil.getFirst(partitions));
+        assertEquals(w_id, (int)CollectionUtil.first(partitions));
     }
     
     /**
@@ -343,7 +343,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
-        assertEquals(BASE_PARTITION, CollectionUtil.getFirst(partitions).intValue());
+        assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
     }
     
     /**
@@ -377,7 +377,7 @@ public class TestPartitionEstimator extends BaseTestCase {
         Set<Integer> partitions = p_estimator.getAllPartitions(catalog_stmt, params, BASE_PARTITION);
         assertNotNull(partitions);
         assertEquals(1, partitions.size());
-        assertEquals(BASE_PARTITION, CollectionUtil.getFirst(partitions).intValue());
+        assertEquals(BASE_PARTITION, CollectionUtil.first(partitions).intValue());
         
         // Then reset the catalog in p_estimator and run the estimation again
         // The new catalog has a different partition column for WAREHOUSE, so we should get

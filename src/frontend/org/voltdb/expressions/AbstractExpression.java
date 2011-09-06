@@ -57,9 +57,7 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
         m_right = right;
     }
     public AbstractExpression() {
-        //
         // This is needed for serialization
-        //
     }
 
     public void validate() throws Exception {
@@ -100,11 +98,11 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
     @Override
     public Object clone() throws CloneNotSupportedException {
         AbstractExpression clone = (AbstractExpression)super.clone();
-        clone.m_id = m_id;
-        clone.m_isJoiningClause = m_isJoiningClause;
-        clone.m_type = m_type;
-        clone.m_valueType = m_valueType;
-        clone.m_valueSize = m_valueSize;
+//        clone.m_id = m_id;
+//        clone.m_isJoiningClause = m_isJoiningClause;
+//        clone.m_type = m_type;
+//        clone.m_valueType = m_valueType;
+//        clone.m_valueSize = m_valueSize;
         if (m_left != null)
         {
             AbstractExpression left_clone = (AbstractExpression)m_left.clone();
@@ -121,9 +119,12 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
     /**
      * @return the id
      */
-    /*public String getId() {
+    public String getId() {
         return m_id;
-    }*/
+    }
+    public boolean isJoiningClause() {
+        return m_isJoiningClause;
+    }
 
     /**
      * @param id the id to set
@@ -231,7 +232,13 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
 
         if (m_type != expr.m_type)
             return false;
-
+        if (m_valueSize != expr.m_valueSize)
+            return false;
+        if (m_isJoiningClause != expr.m_isJoiningClause)
+            return false;
+        if (m_valueType != expr.m_valueType)
+            return false;
+        
         // this abstract base class gets here if the children verify local members
         return true;
     }

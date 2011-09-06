@@ -14,24 +14,27 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = AirlineLoader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
-        ChangeSeat.class,
-        FindFlightByAirport.class,
-        FindFlightByNearbyAirport.class,
+        DeleteReservation.class,
+        FindFlights.class,
         FindOpenSeats.class,
         NewReservation.class,
-        UpdateFrequentFlyer.class,
+        UpdateCustomer.class,
         UpdateReservation.class,
     };
     
     // Transaction Frequencies
     {
-        addTransactionFrequency(ChangeSeat.class, AirlineConstants.FREQUENCY_CHANGE_SEAT);
-        addTransactionFrequency(FindFlightByAirport.class, AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_AIRPORT);
-        addTransactionFrequency(FindFlightByNearbyAirport.class, AirlineConstants.FREQUENCY_FIND_FLIGHT_BY_NEARBY_AIRPORT);
+        addTransactionFrequency(DeleteReservation.class, AirlineConstants.FREQUENCY_DELETE_RESERVATION);
+        addTransactionFrequency(FindFlights.class, AirlineConstants.FREQUENCY_FIND_FLIGHTS);
         addTransactionFrequency(FindOpenSeats.class, AirlineConstants.FREQUENCY_FIND_OPEN_SEATS);
         addTransactionFrequency(NewReservation.class, AirlineConstants.FREQUENCY_NEW_RESERVATION);
-        addTransactionFrequency(UpdateFrequentFlyer.class, AirlineConstants.FREQUENCY_UPDATE_FREQUENT_FLYER);
+        addTransactionFrequency(UpdateCustomer.class, AirlineConstants.FREQUENCY_UPDATE_CUSTOMER);
         addTransactionFrequency(UpdateReservation.class, AirlineConstants.FREQUENCY_UPDATE_RESERVATION);
+    }
+    
+    // Vertical Partitions
+    {
+//        addVerticalPartitionInfo(AirlineConstants.TABLENAME_CUSTOMER, "C_ID", "C_ID_STR");
     }
     
     public static final String PARTITIONING[][] = 

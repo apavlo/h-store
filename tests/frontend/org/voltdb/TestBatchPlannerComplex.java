@@ -62,7 +62,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             // (2) Filter to only include multi-partition txns
             // (3) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new MultiPartitionTxnFilter(p_estimator))
@@ -71,7 +71,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             assert(workload.getTransactionCount() > 0);
             
             // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
-            txn_trace = CollectionUtil.getFirst(workload.getTransactions());
+            txn_trace = CollectionUtil.first(workload.getTransactions());
             assertNotNull(txn_trace);
             int num_batches = txn_trace.getBatchCount();
             query_batch = (List<QueryTrace>[])new List<?>[num_batches];

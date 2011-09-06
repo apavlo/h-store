@@ -40,7 +40,7 @@ public class StmtParameter extends CatalogType {
         this.addField("procparameteroffset", m_procparameteroffset);
     }
 
-    void update() {
+    public void update() {
         m_sqltype = (Integer) m_fields.get("sqltype");
         m_javatype = (Integer) m_fields.get("javatype");
         m_index = (Integer) m_fields.get("index");

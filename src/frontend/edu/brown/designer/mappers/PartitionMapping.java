@@ -8,7 +8,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.designer.MemoryEstimator;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.*;

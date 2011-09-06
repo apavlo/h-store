@@ -33,12 +33,14 @@ import java.util.Map.Entry;
 import org.voltdb.processtools.SSHTools;
 
 import edu.brown.benchmark.BenchmarkResults.Result;
+import edu.mit.hstore.HStoreConf;
 
 
 public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
 
     Connection m_conn = null;
     Statement m_stmt = null;
+    final HStoreConf hstore_conf;
     final BenchmarkConfig m_config;
     final String m_benchmarkName;
     String m_benchmarkOptions;
@@ -50,6 +52,7 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
     ResultsUploader(String benchmarkName, BenchmarkConfig config) {
         assert(config != null);
         m_config = config;
+        hstore_conf = config.hstore_conf; // XXX
         m_benchmarkName = benchmarkName;
 
         m_benchmarkOptions = "";
@@ -122,15 +125,15 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
             sql.append("'").append(getCurrentUserId()).append("', ");
             sql.append("'").append(m_benchmarkName).append("', ");
             sql.append("'").append(m_benchmarkOptions).append("', ");
-            sql.append(m_config.duration).append(", ");
-            sql.append(m_config.interval).append(", ");
+            sql.append(hstore_conf.client.duration).append(", ");
+            sql.append(hstore_conf.client.interval).append(", ");
             sql.append(m_config.sitesPerHost).append(", ");
             sql.append("'").append(m_config.remotePath).append("', ");
             sql.append(m_config.hosts.length).append(", ");
             sql.append(m_config.clients.length).append(", ");
             sql.append(m_config.hosts.length * m_config.sitesPerHost).append(", ");
-            sql.append(m_config.clients.length * m_config.processesPerClient).append(", ");
-            sql.append(m_config.processesPerClient).append(");");
+            sql.append(m_config.clients.length * hstore_conf.client.processesperclient).append(", ");
+            sql.append(hstore_conf.client.processesperclient).append(");");
             //System.out.println(sql.toString());
             m_stmt.executeUpdate(sql.toString());
 

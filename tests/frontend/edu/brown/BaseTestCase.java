@@ -44,7 +44,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -109,6 +108,10 @@ public abstract class BaseTestCase extends TestCase {
     protected static PartitionEstimator p_estimator;
     private static final Map<ProjectType, PartitionEstimator> project_p_estimators = new HashMap<ProjectType, PartitionEstimator>();
 
+    private static final Map<ProjectType, AbstractProjectBuilder> project_builders = new HashMap<ProjectType, AbstractProjectBuilder>();
+    
+    private static Boolean is_first = null;
+    
     /**
      * Setup the test case for the given project type
      * By default we don't include foreign keys in the catalog (I forget why we did this)
@@ -130,14 +133,19 @@ public abstract class BaseTestCase extends TestCase {
     }
     
     protected void setUp(AbstractProjectBuilder projectBuilder) throws Exception {
+        this.setUp(projectBuilder, false);
+    }
+    
+    protected void setUp(AbstractProjectBuilder projectBuilder, boolean force) throws Exception {
         super.setUp();
+        is_first = (is_first == null ? true : false);
         this.last_type = ProjectType.TEST;
-        catalog = project_catalogs.get(this.last_type);
-        catalog_db = project_databases.get(this.last_type);
-        p_estimator = project_p_estimators.get(this.last_type);
-        
-        
-        if (catalog == null) {
+        if (force == false) {
+            catalog = project_catalogs.get(this.last_type);
+            catalog_db = project_databases.get(this.last_type);
+            p_estimator = project_p_estimators.get(this.last_type);
+        }
+        if (catalog == null || force) {
             String catalogJar = new File(projectBuilder.getJarName(true)).getAbsolutePath();
             try {
                 boolean status = projectBuilder.compile(catalogJar);
@@ -170,6 +178,7 @@ public abstract class BaseTestCase extends TestCase {
      */
     protected void setUp(ProjectType type, boolean fkeys, boolean full_catalog) throws Exception {
         super.setUp();
+        is_first = (is_first == null ? true : false);
         this.last_type = type;
         catalog = project_catalogs.get(type);
         catalog_db = project_databases.get(type);
@@ -229,32 +238,50 @@ public abstract class BaseTestCase extends TestCase {
         project_p_estimators.put(type, p_estimator);
     }
 
-    public static File getCatalogJarPath(ProjectType type) {
-        AbstractProjectBuilder projectBuilder = null;
-        switch (type) {
-            case TPCC:
-                projectBuilder = new TPCCProjectBuilder();
-                break;
-            case TPCE:
-                projectBuilder = new TPCEProjectBuilder();
-                break;
-            case TM1:
-                projectBuilder = new TM1ProjectBuilder();
-                break;
-            case AIRLINE:
-                projectBuilder = new AirlineProjectBuilder();
-                break;
-            case AUCTIONMARK:
-                projectBuilder = new AuctionMarkProjectBuilder();
-                break;
-            case MARKOV:
-                projectBuilder = new MarkovProjectBuilder();
-                break;
-            default:
-                assert(false) : "Invalid project type - " + type;
-        } // SWITCH
+    public static AbstractProjectBuilder getProjectBuilder(ProjectType type) {
+        AbstractProjectBuilder projectBuilder = project_builders.get(type);
+        if (projectBuilder == null) {
+            switch (type) {
+                case TPCC:
+                    projectBuilder = new TPCCProjectBuilder();
+                    break;
+                case TPCE:
+                    projectBuilder = new TPCEProjectBuilder();
+                    break;
+                case TM1:
+                    projectBuilder = new TM1ProjectBuilder();
+                    break;
+                case AIRLINE:
+                    projectBuilder = new AirlineProjectBuilder();
+                    break;
+                case AUCTIONMARK:
+                    projectBuilder = new AuctionMarkProjectBuilder();
+                    break;
+                case MARKOV:
+                    projectBuilder = new MarkovProjectBuilder();
+                    break;
+                default:
+                    assert(false) : "Invalid project type - " + type;
+            } // SWITCH
+            project_builders.put(type, projectBuilder);
+        }
         assert(projectBuilder != null);
-        return (projectBuilder.getJarPath(true));
+        return (projectBuilder);
+    }
+    
+    public static File getCatalogJarPath(ProjectType type) {
+        return (getProjectBuilder(type).getJarPath(true));
+    }
+    public static File getDDLPath(ProjectType type) {
+        return (new File(getProjectBuilder(type).getDDLURL(true).getFile()));
+    }
+    /**
+     * Returns true if this is the first time setup() has been called
+     * Useful for updating the catalog
+     * @return
+     */
+    public static Boolean isFirstSetup() {
+        return (is_first);
     }
     
     /**
@@ -343,7 +370,7 @@ public abstract class BaseTestCase extends TestCase {
 
     protected Procedure getProcedure(Database catalog_db, String proc_name) {
         assertNotNull(catalog_db);
-        Procedure catalog_proc = catalog_db.getProcedures().get(proc_name);
+        Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
         assert(catalog_proc != null) : "Failed to retrieve '" + proc_name + "' Procedure from catalog"; 
         return (catalog_proc);
     }
@@ -425,7 +452,7 @@ public abstract class BaseTestCase extends TestCase {
     // --------------------------------------------------------------------------------------
     // FILE LOADING METHODS
     // --------------------------------------------------------------------------------------
-
+    
     /**
      * Find a trace file for a given project type
      * @param current
@@ -472,16 +499,16 @@ public abstract class BaseTestCase extends TestCase {
         return (this.getProjectFile(new File(".").getCanonicalFile(), type, "mappings", ".mappings"));
     }
     
-    /**
-     * Find a Markov file for a given project type
-     * @param current
-     * @param type
-     * @return
-     * @throws IOException
-     */
-    public File getMarkovFile(ProjectType type) throws IOException {
-        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
-    }
+//    /**
+//     * Find a Markov file for a given project type
+//     * @param current
+//     * @param type
+//     * @return
+//     * @throws IOException
+//     */
+//    public File getMarkovFile(ProjectType type) throws IOException {
+//        return (this.getProjectFile(new File(".").getCanonicalFile(), type, "markovs", ".markovs"));
+//    }
     
     /**
      * 

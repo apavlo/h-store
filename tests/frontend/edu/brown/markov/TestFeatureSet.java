@@ -47,14 +47,14 @@ public class TestFeatureSet extends BaseTestCase {
         if (workload == null) {
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
-            Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName())
+            Filter filter = new ProcedureNameFilter(false).include(TARGET_PROCEDURE.getSimpleName())
                                          .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             workload.load(file.getAbsolutePath(), catalog_db, filter);
         }
         
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         this.fset = new FeatureSet();
-        this.txn_trace = CollectionUtil.getFirst(workload.getTransactions());
+        this.txn_trace = CollectionUtil.first(workload.getTransactions());
     }
     
     /**

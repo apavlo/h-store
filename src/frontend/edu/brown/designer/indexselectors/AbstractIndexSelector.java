@@ -3,7 +3,7 @@ package edu.brown.designer.indexselectors;
 import org.apache.log4j.Logger;
 
 import edu.brown.designer.*;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 /**
  * 

@@ -29,6 +29,7 @@ import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
+import org.voltdb.planner.PlanAssembler;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlanStatistics;
 import org.voltdb.planner.PlannerContext;
@@ -38,7 +39,7 @@ import org.voltdb.types.*;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ClassUtil;
 
-public abstract class AbstractPlanNode implements JSONString, Comparable<AbstractPlanNode> {
+public abstract class AbstractPlanNode implements JSONString, Cloneable, Comparable<AbstractPlanNode> {
 
     public enum Members {
         ID,
@@ -51,17 +52,17 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     }
 
     protected int m_id = -1;
-    protected List<AbstractPlanNode> m_children = new Vector<AbstractPlanNode>();
-    protected List<AbstractPlanNode> m_parents = new Vector<AbstractPlanNode>();
-    protected HashSet<AbstractPlanNode> m_dominators = new HashSet<AbstractPlanNode>();
+    protected final List<AbstractPlanNode> m_children = new ArrayList<AbstractPlanNode>();
+    protected final List<AbstractPlanNode> m_parents = new ArrayList<AbstractPlanNode>();
+    protected final HashSet<AbstractPlanNode> m_dominators = new HashSet<AbstractPlanNode>();
 
     // PAVLO: We need this figure out how to reconstruct the tree
-    protected List<Integer> m_childrenIds = new ArrayList<Integer>();
-    protected List<Integer> m_parentIds = new ArrayList<Integer>();
+    protected final List<Integer> m_childrenIds = new ArrayList<Integer>();
+    protected final List<Integer> m_parentIds = new ArrayList<Integer>();
     
     // TODO: planner accesses this data directly. Should be protected.
-    public ArrayList<Integer> m_outputColumns = new ArrayList<Integer>();
-    protected List<ScalarValueHints> m_outputColumnHints = new ArrayList<ScalarValueHints>();
+    protected ArrayList<Integer> m_outputColumns = new ArrayList<Integer>();
+    protected final List<ScalarValueHints> m_outputColumnHints = new ArrayList<ScalarValueHints>();
     protected long m_estimatedOutputTupleCount = 0;
 
     /**
@@ -69,7 +70,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * certain additional tasks while performing their main operation, rather than
      * having to re-read tuples from intermediate results
      */
-    protected Map<PlanNodeType, AbstractPlanNode> m_inlineNodes = new HashMap<PlanNodeType, AbstractPlanNode>();
+    protected final Map<PlanNodeType, AbstractPlanNode> m_inlineNodes = new HashMap<PlanNodeType, AbstractPlanNode>();
     protected boolean m_isInline = false;
 
     protected final PlannerContext m_context;
@@ -86,6 +87,34 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         m_id = id;
     }
 
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        AbstractPlanNode clone = (AbstractPlanNode)super.clone();
+        clone.overrideId(PlanAssembler.getNextPlanNodeId());
+        
+        // Clone Children
+        clone.m_children.clear();
+        clone.m_childrenIds.clear();
+        for (AbstractPlanNode child_node : this.m_children) {
+            AbstractPlanNode child_clone = (AbstractPlanNode)child_node.clone();
+            child_clone.m_parents.clear();
+            child_clone.m_parentIds.clear();
+            child_clone.m_parents.add(clone);
+            child_clone.m_parentIds.add(clone.m_id);
+            clone.m_children.add(child_clone);
+            clone.m_childrenIds.add(child_clone.m_id);
+        } // FOR
+        
+        // Clone Inlines
+        clone.m_inlineNodes.clear();
+        for (Entry<PlanNodeType, AbstractPlanNode> e : this.m_inlineNodes.entrySet()) {
+            AbstractPlanNode inline_clone = (AbstractPlanNode)e.getValue().clone();
+            clone.m_inlineNodes.put(e.getKey(), inline_clone);
+        } // FOR
+        
+        return (clone);
+    }
+    
     public void overrideId(int newId) {
         m_id = newId;
     }
@@ -98,7 +127,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         for (Integer colGuid : m_outputColumns) {
             copy.m_outputColumns.add(colGuid);
         }
-        copy.m_outputColumnHints = m_outputColumnHints;
+        copy.m_outputColumnHints.addAll(m_outputColumnHints);
         copy.m_estimatedOutputTupleCount = m_estimatedOutputTupleCount;
 
         // clone is not yet implemented for every node.
@@ -168,7 +197,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * Get number of output columns for this node
      * @return
      */
-    public int getOutputColumnCount() {
+    public int getOutputColumnGUIDCount() {
         return (this.m_outputColumns.size());
     }
     
@@ -186,7 +215,8 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * @return
      */
     public List<Integer> getOutputColumnGUIDs() {
-        return (Collections.unmodifiableList(this.m_outputColumns));
+//        return (Collections.unmodifiableList(this.m_outputColumns));
+        return (this.m_outputColumns);
     }
     
     public PlanColumn findMatchingOutputColumn(String tableName,
@@ -300,7 +330,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * Gets the children.
      * @return the children
      */
-    public int getChildCount() {
+    public int getChildPlanNodeCount() {
         return m_children.size();
     }
 
@@ -332,7 +362,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * Gets the number of parents.
      * @return the parents
      */
-    public int getParentCount() {
+    public int getParentPlanNodeCount() {
         return m_parents.size();
     }
 
@@ -370,7 +400,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
         while (it.hasNext()) {
             AbstractPlanNode child = it.next();
             it.remove();                          // remove this.child from m_children
-            assert child.getParentCount() == 1;
+            assert child.getParentPlanNodeCount() == 1;
             child.clearParents();                 // and reset child's parents list
             node.addAndLinkChild(child);          // set node.child and child.parent
         }
@@ -482,7 +512,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
      * @param type plan node type to search for
      * @return a list of nodes that are eventual successors of this node of the desired type
      */
-    public ArrayList<AbstractPlanNode> findAllNodesOfType(PlanNodeType type) {
+    public List<AbstractPlanNode> findAllNodesOfType(PlanNodeType type) {
         HashSet<AbstractPlanNode> visited = new HashSet<AbstractPlanNode>();
         ArrayList<AbstractPlanNode> collected = new ArrayList<AbstractPlanNode>();
         findAllNodesOfType_recurse(type, collected, visited);
@@ -505,7 +535,7 @@ public abstract class AbstractPlanNode implements JSONString, Comparable<Abstrac
     }
 
     public void freeColumns(Set<Integer> skip) {
-        Set<Integer> guids = PlanNodeUtil.getAllPlanColumnGuids(this);
+        Collection<Integer> guids = PlanNodeUtil.getAllPlanColumnGuids(this);
         guids.removeAll(skip);
         for (Integer guid : guids) {
             m_context.freeColumn(guid);

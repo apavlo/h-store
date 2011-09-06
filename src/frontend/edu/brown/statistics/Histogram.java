@@ -173,7 +173,7 @@ public class Histogram<X> implements JSONSerializable {
             this.max_count = count;
             this.max_count_values.add(value);
         }
-        assert(count >= 0) : "Invalid negative count for '" + value + "' [count=" + count + "]";
+        assert(count >= 0) : "Invalid negative count for key '" + value + "' [count=" + count + "]";
         // If the new count is zero, then completely remove it if we're not allowed to have zero entries
         if (count == 0 && !this.keep_zero_entries) {
             this.histogram.remove(value);
@@ -266,7 +266,7 @@ public class Histogram<X> implements JSONSerializable {
     @Deprecated
     public <T> T getMinCountValue() {
         this.calculateInternalValues();
-        return ((T)CollectionUtil.getFirst(this.min_count_values));
+        return ((T)CollectionUtil.first(this.min_count_values));
     }
     /**
      * Return the set values with the smallest number of samples
@@ -293,7 +293,7 @@ public class Histogram<X> implements JSONSerializable {
     @Deprecated
     public <T> T getMaxCountValue() {
         this.calculateInternalValues();
-        return ((T)CollectionUtil.getFirst(this.max_count_values));
+        return ((T)CollectionUtil.first(this.max_count_values));
     }
     /**
      * Return the set values with the greatest number of samples
@@ -316,8 +316,8 @@ public class Histogram<X> implements JSONSerializable {
      * Return all the values stored in the histogram
      * @return
      */
-    public Set<X> values() {
-        return (Collections.unmodifiableSet(this.histogram.keySet()));
+    public Collection<X> values() {
+        return (Collections.unmodifiableCollection(this.histogram.keySet()));
     }
     
     /**
@@ -409,6 +409,19 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
+     * Set the number of occurrences of this particular value i
+     * @param value the value to be added to the histogram
+     * 
+     */
+    public synchronized void set(X value, long i) {
+        Long orig = this.get(value);
+        if (orig != null && orig != i) {
+            i = (orig > i ? -1*(orig - i) : i - orig);
+        }
+        this._put(value, i);
+    }
+    
+    /**
      * Increments the number of occurrences of this particular value i
      * @param value the value to be added to the histogram
      * 
@@ -469,12 +482,12 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
-     * Remove the entrie count for the given value
+     * Remove the entire count for the given value
      * @param value
      */
     public synchronized void removeAll(X value) {
-        long cnt = this.histogram.get(value);
-        if (cnt > 0) {
+        Long cnt = this.histogram.get(value);
+        if (cnt != null && cnt > 0) {
             this._put(value, cnt * -1);
 //            this.calculateInternalValues();
         }
@@ -640,14 +653,20 @@ public class Histogram<X> implements JSONSerializable {
         return (this.toString(max_chars, MAX_VALUE_LENGTH));
     }
         
-    public String toString(Integer max_chars, Integer max_length) {
+    public synchronized String toString(Integer max_chars, Integer max_length) {
         StringBuilder s = new StringBuilder();
         if (max_length == null) max_length = MAX_VALUE_LENGTH;
         
         this.calculateInternalValues();
         
+        // Figure out the max size of the counts
+        int max_ctr_length = 4;
+        for (Long ctr : this.histogram.values()) {
+            max_ctr_length = Math.max(max_ctr_length, ctr.toString().length());
+        } // FOR
+        
         // Don't let anything go longer than MAX_VALUE_LENGTH chars
-        String f = "%-" + max_length + "s [%5d] ";
+        String f = "%-" + max_length + "s [%" + max_ctr_length + "d] ";
         boolean first = true;
         boolean has_labels = this.hasDebugLabels();
         for (Object value : this.histogram.keySet()) {

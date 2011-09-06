@@ -8,6 +8,7 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.utils.*;
 
 public class TestCatalogKey extends BaseTestCase {
@@ -39,6 +40,23 @@ public class TestCatalogKey extends BaseTestCase {
         CatalogType clone = CatalogKey.getFromKey(catalog_db, key, catalog_item.getClass());
         assertNotNull(clone);
         assertEquals(catalog_item, clone);
+    }
+    
+    /**
+     * testCreateKeyFromStrings
+     */
+    public void testCreateKeyFromStrings() throws Exception {
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_CALL_FORWARDING);
+        Column catalog_col = this.getColumn(catalog_tbl, 0);
+        
+        String expected = CatalogKey.createKey(catalog_col);
+        assertNotNull(expected);
+        assertFalse(expected.isEmpty());
+        
+        String actual = CatalogKey.createKey(catalog_tbl.getName(), catalog_col.getName());
+        assertNotNull(actual);
+        assertFalse(actual.isEmpty());
+        assertEquals(expected, actual);
     }
     
     /**
@@ -139,14 +157,17 @@ public class TestCatalogKey extends BaseTestCase {
      */
     public void testMultiColumn() throws Exception {
         Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
-        Column col0 = this.getColumn(catalog_tbl, "S_ID");
-        Column col1 = this.getColumn(catalog_tbl, "SUB_NBR");
-        assertNotSame(col0, col1);
+        Column catalog_cols[] = {
+            this.getColumn(catalog_tbl, "S_ID"),
+            this.getColumn(catalog_tbl, "SUB_NBR"),
+            this.getColumn(catalog_tbl, "VLR_LOCATION"),
+        };
         
-        MultiColumn mc = MultiColumn.get(col0, col1);
-        assertNotNull(mc);
+        MultiColumn item0 = MultiColumn.get(catalog_cols);
+        assertNotNull(item0);
+        assertEquals(catalog_cols.length, item0.size());
         
-        String key = CatalogKey.createKey(mc);
+        String key = CatalogKey.createKey(item0);
         assertNotNull(key);
         assertFalse(key.isEmpty());
 //        System.err.println("----------------------------------");
@@ -154,9 +175,33 @@ public class TestCatalogKey extends BaseTestCase {
         
         MultiColumn clone = (MultiColumn)CatalogKey.getFromKey(catalog_db, key, Column.class);
         assertNotNull(clone);
-        for (int i = 0; i < mc.size(); i++) {
-            assertEquals(mc.get(i), mc.get(i));
+        assertEquals(catalog_cols.length, clone.size());
+        for (int i = 0; i < item0.size(); i++) {
+            assertEquals(item0.get(i), item0.get(i));
         } // FOR
+    }
+    
+    /**
+     * testVerticalPartitionColumn
+     */
+    public void testVerticalPartitionColumn() throws Exception {
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SUBSCRIBER);
+        MultiColumn orig_hp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"));
+        MultiColumn orig_vp_col = MultiColumn.get(this.getColumn(catalog_tbl, "S_ID"),
+                                                  this.getColumn(catalog_tbl, "SUB_NBR"),
+                                                  this.getColumn(catalog_tbl, "VLR_LOCATION"));
+        
+        VerticalPartitionColumn item0 = VerticalPartitionColumn.get(orig_hp_col, orig_vp_col);
+        assertNotNull(item0);
+        
+        String key = CatalogKey.createKey(item0);
+        assertNotNull(key);
+        assertFalse(key.isEmpty());
+//        System.err.println(item0 + "\n" + key);
+        
+        MultiColumn clone = (MultiColumn)CatalogKey.getFromKey(catalog_db, key, Column.class);
+        assertNotNull(clone);
+        assertEquals(item0.size(), clone.size());
     }
     
     /**
@@ -168,10 +213,10 @@ public class TestCatalogKey extends BaseTestCase {
             catalog_proc.getParameters().get(0),
             catalog_proc.getParameters().get(1),
         };
-        MultiProcParameter mpp = MultiProcParameter.get(params);
-        assertNotNull(mpp);
+        MultiProcParameter item0 = MultiProcParameter.get(params);
+        assertNotNull(item0);
         
-        String key = CatalogKey.createKey(mpp);
+        String key = CatalogKey.createKey(item0);
         assertNotNull(key);
         assertFalse(key.isEmpty());
 //        System.err.println("----------------------------------");
@@ -179,8 +224,8 @@ public class TestCatalogKey extends BaseTestCase {
         
         MultiProcParameter clone = (MultiProcParameter)CatalogKey.getFromKey(catalog_db, key, ProcParameter.class);
         assertNotNull(clone);
-        for (int i = 0; i < mpp.size(); i++) {
-            assertEquals(mpp.get(i), mpp.get(i));
+        for (int i = 0; i < item0.size(); i++) {
+            assertEquals(item0.get(i), item0.get(i));
         } // FOR
     }
 }

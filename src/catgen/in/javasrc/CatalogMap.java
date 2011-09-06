@@ -22,6 +22,7 @@
 package org.voltdb.catalog;
 
 import java.lang.reflect.Array;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.TreeMap;
 import java.util.Map.Entry;
@@ -37,7 +38,7 @@ import edu.brown.catalog.CatalogUtil;
  *
  * @param <T> The subclass of CatalogType that this map will contain.
  */
-public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
+public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Collection<T> {
 
     TreeMap<String, T> m_items = new TreeMap<String, T>();
     Class<T> m_cls;
@@ -58,15 +59,14 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         return (m_cls);
     }
     
-    /**
-     * Returns an array containing all of the elements in this collection;
-     * the runtime type of the returned array is that of the specified array.
-     * If the collection fits in the specified array, it is returned therein.
-     * Otherwise, a new array is allocated with the runtime type of the
-     * specified array and the size of this collection.
-     */
-    public T[] toArray(T arr[]) {
-        return (m_items.values().toArray(arr));
+    @Override
+    public <X> X[] toArray(X[] a) {
+        return (m_items.values().toArray(a));
+    }
+    
+    @Override
+    public Object[] toArray() {
+        return (m_items.values().toArray());
     }
     
     /**
@@ -167,10 +167,11 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
      */
     public T add(String name) {
         try {
-            if (m_items.containsKey(name))
-                throw new CatalogException("Catalog item '" + name + "' already exists for " + m_parent);
+            T x = m_items.get(name); 
+            if (x != null)
+                throw new CatalogException(x + " already exists for " + m_parent);
 
-            T x = m_cls.newInstance();
+            x = m_cls.newInstance();
             String childPath = m_path + "[" + name + "]";
             x.setBaseValues(m_catalog, m_parent, childPath, name);
             x.m_parentMap = this;
@@ -193,13 +194,25 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         }
     }
     
-    public void addObject(T x) {
+    @Override
+    public boolean add(T x) {
+        return this.add(x, true);
+    }
+        
+    /**
+     * Add a CatalogType object into this CatalogMap
+     * If initialize is set to true, then this will invoke CatalogType.setBaseValues() 
+     * @param x
+     * @param initialize
+     * @return
+     */
+    public boolean add(T x, boolean initialize) {
         String name = x.getName();
         if (m_items.containsKey(name))
             throw new CatalogException("Catalog item '" + name + "' already exists for " + m_parent);
         
         String childPath = m_path + "[" + name + "]";
-        x.setBaseValues(m_catalog, m_parent, childPath, name);
+        if (initialize) x.setBaseValues(m_catalog, m_parent, childPath, name);
         x.m_parentMap = this;
 
         m_items.put(name, x);
@@ -213,13 +226,14 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         for (Entry<String, T> e : m_items.entrySet()) {
             e.getValue().m_relativeIndex = index++;
         }
+        return (true);
     }
 
     /**
      * Remove a {@link CatalogType} object from this collection.
      * @param name The name of the object to remove.
      */
-    public void delete(String name) {
+    public boolean delete(String name) {
         try {
             if (m_items.containsKey(name) == false)
                 throw new CatalogException("Catalog item '" + name + "' doesn't exists in " + m_parent);
@@ -238,6 +252,7 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+        return (true);
     }
 
     void updateVersioning() {
@@ -309,6 +324,10 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
         this.m_items.clear();
     }
 
+    public boolean containsKey(String key) {
+        return (this.m_items.containsKey(key));
+    }
+    
     @Override
     public boolean contains(Object o) {
         return (this.m_items.values().contains(o));
@@ -340,11 +359,5 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T> {
     public boolean retainAll(Collection<?> c) {
         // TODO Auto-generated method stub
         return false;
-    }
-
-    @Override
-    public Object[] toArray() {
-        // TODO Auto-generated method stub
-        return null;
     }
 }

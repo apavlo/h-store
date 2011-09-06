@@ -25,32 +25,76 @@
  ***************************************************************************/
 package edu.brown.gui;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.tree.*;
-
-import java.awt.*;
-import java.awt.event.*;
-import java.util.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 
+import javax.swing.BoxLayout;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.JTree;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
+
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.json.JSONObject;
-import org.voltdb.catalog.*;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.plannodes.AbstractPlanNode;
-import org.voltdb.plannodes.PlanNodeList;
-import org.voltdb.plannodes.PlanNodeTree;
-import org.voltdb.types.*;
+import org.voltdb.types.ConstraintType;
+import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.Pair;
-import org.voltdb.*;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
-import edu.brown.gui.catalog.*;
+import edu.brown.gui.catalog.AttributesNode;
+import edu.brown.gui.catalog.CatalogTreeModel;
+import edu.brown.gui.catalog.PlanTreeCatalogNode;
+import edu.brown.gui.catalog.WrapperNode;
 import edu.brown.plannodes.PlanNodeUtil;
-import edu.brown.utils.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -323,9 +367,7 @@ public class CatalogViewer extends AbstractViewer {
             }
 		});
 		
-		//
 		// Putting it all together
-		//
 		JScrollPane scrollPane = new JScrollPane(this.catalogTree);
 		JPanel topPanel = new JPanel();
 		topPanel.setLayout(new BorderLayout());
@@ -383,9 +425,7 @@ public class CatalogViewer extends AbstractViewer {
             } // FOR
         }
         
-        //
         // Display found matches
-        //
         if (!found.isEmpty()) {
             this.highlight(found);
             this.searchField.requestFocus();
@@ -393,9 +433,7 @@ public class CatalogViewer extends AbstractViewer {
 	}
 	
 	protected void highlight(Collection<DefaultMutableTreeNode> nodes) {
-	    //
 	    // Collapse everything and then show the paths to each node
-	    //
 	    for (int ctr = this.catalogTree.getRowCount(); ctr >= 0; ctr--) {
 	        if (this.catalogTree.isExpanded(ctr)) {
 	            this.catalogTree.collapseRow(ctr);	            
@@ -426,47 +464,75 @@ public class CatalogViewer extends AbstractViewer {
 	 * @return
 	 */
 	protected String getSummaryText() {
-	    StringBuilder buffer = new StringBuilder();
-
-	    buffer.append("Catalog Summary\n")
-	          .append(StringUtil.repeat("=", 50)).append("\n")
-	          .append(FileUtil.realpath(this.catalog_path)).append("\n")
-	          .append(StringUtil.repeat("=", 50)).append("\n");
+	    Map<String, Integer> m[] = new Map[3];
+	    int idx = -1;
 	    
+	    // ----------------------
+	    // TABLE INFO
+	    // ----------------------
+	    m[++idx] = new ListOrderedMap<String, Integer>();
         int cols = 0;
         int fkeys = 0;
+        int tables = 0;
+        int systables = 0;
+        int views = 0;
+        Map<Table, MaterializedViewInfo> catalog_views = CatalogUtil.getVerticallyPartitionedTables(catalog);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         Database catalog_db = CatalogUtil.getDatabase(catalog);
         for (Table t : catalog_db.getTables()) {
-            cols += t.getColumns().size();
-            for (Column c : t.getColumns()) {
-                Column fkey = CatalogUtil.getForeignKeyParent(c);
-                if (fkey != null) fkeys++;
+            if (catalog_views.values().contains(t)) {
+                views++;
             }
-        }
-        int params = 0;
-        for (Procedure p : catalog_db.getProcedures()) {
-            params += p.getParameters().size();
-        }
-        
-        final String f = "%-24s%d";
-        Map<String, Integer> m = new ListOrderedMap<String, Integer>();
-        m.put("Tables", catalog_db.getTables().size());
-        m.put("Columns", cols);
-        m.put("FKeys", fkeys);
-        m.put("Params", params);
-        m.put("-", null);
-        m.put("Hosts", catalog_clus.getHosts().size());
-        m.put("Sites", catalog_clus.getSites().size());
-        m.put("Partitions", CatalogUtil.getNumberOfPartitions(catalog_db));
-        
-        for (Entry<String, Integer> e : m.entrySet()) {
-            if (e.getValue() != null) {
-                buffer.append(String.format(f, "Number of " + e.getKey() + ":", e.getValue()));
+            else if (t.getSystable()) {
+                systables++;
+            } else {
+                tables++;
+                cols += t.getColumns().size();
+                for (Column c : t.getColumns()) {
+                    Column fkey = CatalogUtil.getForeignKeyParent(c);
+                    if (fkey != null) fkeys++;
+                }
             }
-            buffer.append("\n");
         } // FOR
-	    
+        m[idx].put("Tables", tables);
+        m[idx].put("Columns", cols);
+        m[idx].put("Foreign Keys", fkeys);
+        m[idx].put("Vertical Replicas", systables);
+        m[idx].put("System Tables", systables);
+        
+        // ----------------------
+        // PROCEDURES INFO
+        // ----------------------
+        m[++idx] = new ListOrderedMap<String, Integer>();
+        int procs = 0;
+        int sysprocs = 0;
+        int params = 0;
+        int stmts = 0;
+        for (Procedure p : catalog_db.getProcedures()) {
+            if (p.getSystemproc()) {
+                sysprocs++;
+            } else {
+                procs++;
+                params += p.getParameters().size();
+                stmts += p.getStatements().size();
+            }
+        }
+        m[idx].put("Procedures", procs);
+        m[idx].put("Procedure Parameters", params);
+        m[idx].put("Statements", stmts);
+        m[idx].put("System Procedures", sysprocs);
+        
+        // ----------------------
+        // HOST INFO
+        // ----------------------
+        m[++idx] = new ListOrderedMap<String, Integer>();
+        m[idx].put("Hosts", catalog_clus.getHosts().size());
+        m[idx].put("Sites", catalog_clus.getSites().size());
+        m[idx].put("Partitions", CatalogUtil.getNumberOfPartitions(catalog_db));
+        
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(StringUtil.header("Catalog Summary", "-", 50) + "\n\n")
+              .append(StringUtil.formatMaps(m));
 	    return (buffer.toString());
 	}
 	
@@ -475,34 +541,24 @@ public class CatalogViewer extends AbstractViewer {
 	 * @param catalog_obj
 	 */
 	protected String getAttributesText(CatalogType catalog_obj) {
-	    StringBuilder buffer = new StringBuilder();
+	    final ListOrderedMap<String, Object> map = new ListOrderedMap<String, Object>();
+	    
+//	    StringBuilder buffer = new StringBuilder();
 		// buffer.append("guid: ").append(catalog_obj.getGuid()).append("\n");
-	    buffer.append("relativeIndex: ").append(catalog_obj.getRelativeIndex()).append("\n");
-	    buffer.append("nodeVersion: ").append(catalog_obj.getNodeVersion()).append("\n");
+	    map.put("relativeIndex", catalog_obj.getRelativeIndex());
+	    map.put("nodeVersion", catalog_obj.getNodeVersion());
 		
-		//
-		// Database
-		//
-		if (catalog_obj instanceof Database) {
-			buffer.append(Encoder.hexDecodeToString(((Database)catalog_obj).getSchema()));		    
-		//
-		// Default
-		//
-		} else {
-		    Set<String> skip_fields = new HashSet<String>();
-		    skip_fields.add("exptree");
-		    skip_fields.add("fullplan");
-		    skip_fields.add("ms_exptree");
-            skip_fields.add("ms_fullplan");
-		    skip_fields.add("plannodetree");
+		// Default Output
+		if ((catalog_obj instanceof Database) == false) {
+		    Collection<String> skip_fields = CollectionUtil.addAll(new HashSet<String>(),
+		            "exptree", "fullplan", "ms_exptree", "ms_fullplan", "plannodetree");
 		    
-		    Set<String> catalog_fields = new HashSet<String>();
-            catalog_fields.add("partition_column");
-            catalog_fields.add("partitioncolumn");
-            catalog_fields.add("foreignkeytable");
-            if (catalog_obj instanceof Constraint) catalog_fields.add("index");
+		    Collection<String> catalog_fields = CollectionUtil.addAll(new HashSet<String>(),
+                    "partition_column", "partitioncolumn", "foreignkeytable"); 
             
-            if (catalog_obj instanceof Site) {
+		    if (catalog_obj instanceof Constraint) {
+		        catalog_fields.add("index");
+		    } else if (catalog_obj instanceof Site) {
                 catalog_fields.add("host");
                 catalog_fields.add("partition");
             }
@@ -516,9 +572,11 @@ public class CatalogViewer extends AbstractViewer {
 			for (String field : catalog_obj.getFields()) {
 			    if (skip_fields.contains(field)) continue;
 			    
+			    // Default
 			    Object value = catalog_obj.getField(field);
-			    buffer.append(field).append(": ");
-			    boolean output = false;
+                map.put(field, value);
+                
+                // Specialized Output
 			    if (value != null && catalog_fields.contains(field)) {
 			        CatalogType catalog_item = null;
 			        if (value instanceof CatalogType) {
@@ -530,95 +588,91 @@ public class CatalogViewer extends AbstractViewer {
 			        }
 			        
 			        if (catalog_item != null) {
-			            if (show_type.contains(catalog_item.getClass())) buffer.append(catalog_item.getClass().getSimpleName());
-			            buffer.append(catalog_item.getName());
-			            output = true;
+			            boolean include_class = show_type.contains(catalog_item.getClass()); 
+			            map.put(field, CatalogUtil.getDisplayName(catalog_item, include_class));
 			        } else {
-			            buffer.append(catalog_item);
-			            output = true;
+			            map.put(field, catalog_item);
 			        }
-			    } else {
-			        // Constraint
-			        if (catalog_obj instanceof Constraint) {
-			            if (field == "type") {
-			                buffer.append(ConstraintType.get((Integer)value));
-			                output = true;
-			            }
-		            // Index
-			        } else if (catalog_obj instanceof Index) {
-			            if (field == "type") {
-			                buffer.append(IndexType.get((Integer)value));
-			                output = true;
-			            }
-		            // Column && ProcParameter
-			        } else if (catalog_obj instanceof Column || catalog_obj instanceof StmtParameter || catalog_obj instanceof ProcParameter) {
-			            String keys[] = { "type", "sqltype", "javatype", "defaultvaluetype" };
-			            for (String key : keys) {
-			                if (field == key) {
-			                    buffer.append(VoltType.get(((Integer)value).byteValue()).name());
-			                    output = true;
-			                    break;
-			                }
-			            } // FOR
-			            if (field.equals("procparameter")) {
-			                ProcParameter proc_param = ((StmtParameter)catalog_obj).getProcparameter();
-			                if (proc_param != null) {
-			                    buffer.append(value).append(" [Index #").append(proc_param.getIndex()).append("]"); 
-	                            output = true;
-			                }
-			            }
-			        }
-		            // Default
-			        if (!output) buffer.append(value);
+			    } 
+			    
+			    // Constraint
+			    else if (catalog_obj instanceof Constraint) {
+		            if (field == "type") {
+		                map.put(field, ConstraintType.get((Integer)value));
+		            }
 			    }
-			    buffer.append("\n");
+	            // Index
+			    else if (catalog_obj instanceof Index) {
+		            if (field == "type") {
+		                map.put(field, IndexType.get((Integer)value));
+		            }
+			    }
+	            // Column / StmtParameter / ProcParameter
+			    else if (catalog_obj instanceof Column || catalog_obj instanceof StmtParameter || catalog_obj instanceof ProcParameter) {
+		            String keys[] = { "type", "sqltype", "javatype", "defaultvaluetype" };
+		            for (String key : keys) {
+		                if (field == key) {
+		                    map.put(field, VoltType.get(((Integer)value).byteValue()).name());
+		                    break;
+		                }
+		            } // FOR
+		            if (field.equals("procparameter")) {
+		                ProcParameter proc_param = ((StmtParameter)catalog_obj).getProcparameter();
+		                if (proc_param != null) {
+		                    map.put(field, proc_param.fullName()); 
+		                }
+		            }
+			    }
 			} // FOR
 		}
-		String add = "";
 		
-		// Index
+		// INDEX
 		if (catalog_obj instanceof Index) {
 		    Index catalog_idx = (Index)catalog_obj;
-		    buffer.append("columns: ");
-		    for (ColumnRef catalog_col_ref : CatalogUtil.getSortedCatalogItems(catalog_idx.getColumns(), "index")) {
-		        buffer.append(add).append(catalog_col_ref.getColumn().getName());
-		        add = ", ";
-		    } // FOR
-		    buffer.append("\n");
-	    // Constraint
-		} else if (catalog_obj instanceof Constraint) {
+		    Collection<Column> cols = CatalogUtil.getColumns(CatalogUtil.getSortedCatalogItems(catalog_idx.getColumns(), "index"));
+		    map.put("columns", CatalogUtil.getDisplayNames(cols));
+		}
+	    // CONSTRAINT
+		else if (catalog_obj instanceof Constraint) {
             Constraint catalog_const = (Constraint)catalog_obj;
-            buffer.append("foreignkeycols: ");
-            for (ColumnRef catalog_col_ref : catalog_const.getForeignkeycols()) {
-                buffer.append(add).append(catalog_col_ref.getColumn().getName());
-                add = ", ";
-            } // FOR
-            buffer.append("\n");
-        // Table
-        } else if (catalog_obj instanceof Table) {
-            Table catalog_tbl = (Table)catalog_obj;
-            buffer.append(StringUtil.SINGLE_LINE);
-            buffer.append("\n").append(org.voltdb.utils.CatalogUtil.toSchema(catalog_tbl)).append("\n");
-        // Column
-        } else if (catalog_obj instanceof Column) {
-            Column catalog_col = (Column)catalog_obj;
-            buffer.append("constraints: ");
-            for (ConstraintRef catalog_const_ref : catalog_col.getConstraints()) {
-                buffer.append(add).append(catalog_const_ref.getConstraint().getName());
-                add = ", ";
+            Collection<Column> cols = null;
+            if (catalog_const.getType() == ConstraintType.FOREIGN_KEY.getValue()) {
+                cols = CatalogUtil.getColumns(catalog_const.getForeignkeycols());    
+            } else {
+                Index catalog_idx = catalog_const.getIndex();
+                cols = CatalogUtil.getColumns(catalog_idx.getColumns());
             }
-            buffer.append("\n");
-            
-        // PlanFragment
-        } else if (catalog_obj instanceof PlanFragment) {
+            map.put("columns", CatalogUtil.getDisplayNames(cols));
+		}
+        // COLUMN
+        else if (catalog_obj instanceof Column) {
+            Column catalog_col = (Column)catalog_obj;
+            Collection<Constraint> consts = CatalogUtil.getConstraints(catalog_col.getConstraints());
+            map.put("constraints", CatalogUtil.getDisplayNames(consts));
+        }
+		
+		StringBuilder buffer = new StringBuilder(StringUtil.formatMaps(map));
+		
+		// DATABASE
+		if (catalog_obj instanceof Database) {
+		    buffer.append(StringUtil.SINGLE_LINE);
+		    buffer.append(Encoder.hexDecodeToString(((Database)catalog_obj).getSchema()));
+		}
+        // PLANFRAGMENT
+		else if (catalog_obj instanceof PlanFragment) {
             PlanFragment catalog_frgmt = (PlanFragment)catalog_obj;
             try {
-                AbstractPlanNode node = QueryPlanUtil.deserializePlanFragment(catalog_frgmt);
+                AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frgmt);
                 buffer.append(StringUtil.SINGLE_LINE);
                 buffer.append(PlanNodeUtil.debug(node));
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+        // TABLE
+        else if (catalog_obj instanceof Table) {
+            buffer.append(StringUtil.SINGLE_LINE);
+            buffer.append("\n").append(CatalogUtil.toSchema((Table)catalog_obj)).append("\n");
         }
 
 		return (buffer.toString());

@@ -32,7 +32,7 @@ public class TestPlannerContext extends TestCase {
         assertNotNull(col1);
 //        System.err.println(col1 + " ==> " + col1.hashCode());
         assertEquals(col0.hashCode(), col1.hashCode());
-        assertEquals(col0.displayName(), col1.displayName());
+        assertEquals(col0.getDisplayName(), col1.getDisplayName());
         assertEquals(col0.getSortOrder(), col1.getSortOrder());
         assertEquals(col0.getStorage(), col1.getStorage());
         assert(ExpressionUtil.equals(col0.getExpression(), col1.getExpression()));
@@ -43,7 +43,7 @@ public class TestPlannerContext extends TestCase {
         assertNotNull(col2);
 //        System.err.println(col2 + " ==> " + col2.hashCode());
         assertNotSame(col0.hashCode(), col2.hashCode());
-        assertEquals(col0.displayName(), col2.displayName());
+        assertEquals(col0.getDisplayName(), col2.getDisplayName());
         assertEquals(col0.getSortOrder(), col2.getSortOrder());
         assertEquals(col0.getStorage(), col2.getStorage());
         assert(ExpressionUtil.equals(col0.getExpression(), col2.getExpression()));

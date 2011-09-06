@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
@@ -26,6 +27,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.Pair;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.ByteString;
@@ -46,6 +48,7 @@ import edu.brown.hstore.Hstore.MessageRequest;
 import edu.brown.hstore.Hstore.MessageAcknowledgement;
 import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
@@ -65,13 +68,16 @@ public class HStoreMessenger implements Shutdownable {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
 
+    private static final DBBPool buffer_pool = new DBBPool(true, false);
+    
     private final HStoreSite hstore_site;
     private final Site catalog_site;
     private final int local_site_id;
     private final Set<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     private final int num_sites;
-    private static final DBBPool buffer_pool = new DBBPool(true, false);
+    
+    private final LinkedBlockingDeque<Pair<byte[], ForwardTxnResponseCallback>> forwardQueue = new LinkedBlockingDeque<Pair<byte[], ForwardTxnResponseCallback>>();  
 
     /**
      * PartitionId -> SiteId
@@ -85,6 +91,9 @@ public class HStoreMessenger implements Shutdownable {
     
     private final Thread listener_thread;
     private final ProtoServer listener;
+    
+    private final Dispatcher forwardDispatcher = new Dispatcher();
+    private final Thread forward_thread;
     private final Handler handler;
     private final FragmentCallback fragment_callback;
     private final MessageCallback message_callback;
@@ -132,6 +141,30 @@ public class HStoreMessenger implements Shutdownable {
         }
     }
     
+    private class Dispatcher implements Runnable {
+        final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
+        
+        @Override
+        public void run() {
+            Pair<byte[], ForwardTxnResponseCallback> p = null;
+            while (HStoreMessenger.this.shutting_down == false) {
+                try {
+                    idleTime.start();
+                    p = HStoreMessenger.this.forwardQueue.take();
+                    idleTime.stop();
+                } catch (InterruptedException ex) {
+                    break;
+                }
+                try {
+                    HStoreMessenger.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+                } catch (Throwable ex) {
+                    LOG.warn("Failed to invoke forwarded transaction", ex);
+                    continue;
+                }
+            } // WHILE
+        }
+    }
+    
     /**
      * Constructor
      * @param site
@@ -158,6 +191,10 @@ public class HStoreMessenger implements Shutdownable {
         this.fragment_callback = new FragmentCallback();
         this.message_callback = new MessageCallback();
         
+        // Special thread to handle forward requests
+        this.forward_thread = new Thread(forwardDispatcher, this.hstore_site.getThreadName("frwd"));
+        this.forward_thread.setDaemon(true);
+        
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread(new Listener(), this.hstore_site.getThreadName("msg"));
         this.listener_thread.setDaemon(true);
@@ -176,6 +213,9 @@ public class HStoreMessenger implements Shutdownable {
         if (d) LOG.debug("Initializing connections");
         this.initConnections();
 
+        if (d) LOG.debug("Starting ForwardTxn dispatcher thread");
+        this.forward_thread.start();
+        
         if (d) LOG.debug("Starting listener thread");
         this.listener_thread.start();
     }
@@ -398,6 +438,9 @@ public class HStoreMessenger implements Shutdownable {
                     // Send this now!
                     done.run(response);
                     LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), exit_status));
+                    if (debug.get())
+                        LOG.info(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
+                                               forwardDispatcher.idleTime.getTotalThinkTimeMS()));
                     ThreadUtil.sleep(1000); // HACK
                     LogManager.shutdown();
                     System.exit(exit_status);
@@ -419,7 +462,7 @@ public class HStoreMessenger implements Shutdownable {
                     } catch (Exception ex) {
                         throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
                     }
-                    HStoreMessenger.this.hstore_site.procedureInvocation(serializedRequest, callback);
+                    HStoreMessenger.this.forwardQueue.add(Pair.of(serializedRequest, callback));
                     break;
                 }
                 // -----------------------------------------------------------------

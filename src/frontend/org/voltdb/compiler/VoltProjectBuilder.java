@@ -42,9 +42,15 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ProcInfoData;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
+import org.voltdb.utils.Pair;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
+
+import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.VerticalPartitionColumn;
 
 /**
  * Alternate (programmatic) interface to VoltCompiler. Give the class all of
@@ -173,11 +179,13 @@ public class VoltProjectBuilder {
     final LinkedHashSet<ProcedureInfo> m_procedures = new LinkedHashSet<ProcedureInfo>();
     final LinkedHashSet<Class<?>> m_supplementals = new LinkedHashSet<Class<?>>();
     final LinkedHashMap<String, String> m_partitionInfos = new LinkedHashMap<String, String>();
+    final LinkedHashMap<String, Pair<Boolean, Collection<String>>> m_verticalpartitionInfos = new LinkedHashMap<String, Pair<Boolean, Collection<String>>>();
 
     String m_elloader = null;         // loader package.Classname
     private boolean m_elenabled;      // true if enabled; false if disabled
     List<String> m_elAuthUsers;       // authorized users
     List<String> m_elAuthGroups;      // authorized groups
+    private boolean m_verticalPartitionOptimizations = true;
 
     BackendTarget m_target = BackendTarget.NATIVE_EE_JNI;
     PrintStream m_compilerDebugPrintStream = null;
@@ -223,6 +231,11 @@ public class VoltProjectBuilder {
         assert(schemaURL != null);
         addSchema(schemaURL.getPath());
     }
+    
+    public void addSchema(final File schemaFile) {
+        assert(schemaFile != null);
+        addSchema(schemaFile.getAbsolutePath());
+    }
 
     public void addSchema(String schemaPath) {
         try {
@@ -242,6 +255,15 @@ public class VoltProjectBuilder {
         m_schemas.add(schemaPath);
     }
 
+    protected String getStmtProcedureSQL(String name) {
+        for (ProcedureInfo pi : m_procedures) {
+            if (pi.name.equals(name)) {
+                return (pi.sql);
+            }
+        }
+        return (null);
+    }
+    
     public void addStmtProcedure(String name, String sql) {
         addStmtProcedure(name, sql, null);
     }
@@ -257,10 +279,12 @@ public class VoltProjectBuilder {
     }
 
     public void addProcedures(final Class<?>... procedures) {
-        final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
-        for (final Class<?> procedure : procedures)
-            procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
-        addProcedures(procArray);
+        if (procedures != null && procedures.length > 0) {
+            final ArrayList<ProcedureInfo> procArray = new ArrayList<ProcedureInfo>();
+            for (final Class<?> procedure : procedures)
+                procArray.add(new ProcedureInfo(new String[0], new String[0], procedure));
+            addProcedures(procArray);
+        }
     }
     
     /*
@@ -309,9 +333,41 @@ public class VoltProjectBuilder {
             m_supplementals.add(supplemental);
     }
 
+    public void addPartitionInfo(Table catalog_tbl, Column catalog_col) {
+        // TODO: Support special columns
+        if (catalog_col instanceof VerticalPartitionColumn) {
+            catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
+        }
+        if (catalog_col instanceof MultiColumn) {
+            catalog_col = ((MultiColumn)catalog_col).get(0);
+        }
+        this.addPartitionInfo(catalog_tbl.getName(), catalog_col.getName());
+    }
+    
     public void addPartitionInfo(final String tableName, final String partitionColumnName) {
         assert(m_partitionInfos.containsKey(tableName) == false);
         m_partitionInfos.put(tableName, partitionColumnName);
+    }
+    
+    public void addVerticalPartitionInfo(final String tableName, final String...partitionColumnNames) {
+        this.addVerticalPartitionInfo(tableName, true, partitionColumnNames);
+    }
+    
+    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final String...partitionColumnNames) {
+        ArrayList<String> columns = new ArrayList<String>();
+        for (String col : partitionColumnNames) {
+            columns.add(col);
+        }
+        this.addVerticalPartitionInfo(tableName, createIndex, columns);
+    }
+    
+    public void addVerticalPartitionInfo(final String tableName, final boolean createIndex, final Collection<String> partitionColumnNames) {
+        assert(m_verticalpartitionInfos.containsKey(tableName) == false);
+        m_verticalpartitionInfos.put(tableName, Pair.of(createIndex, partitionColumnNames));
+    }
+    
+    public void setEnableVerticalPartitionOptimizations(boolean val) { 
+        m_verticalPartitionOptimizations = val;
     }
 
     public void setSecurityEnabled(final boolean enabled) {
@@ -375,6 +431,7 @@ public class VoltProjectBuilder {
                            final int replication, final String leaderAddress)
     {
         VoltCompiler compiler = new VoltCompiler();
+        if (m_verticalPartitionOptimizations) compiler.enableVerticalPartitionOptimizations();
         return compile(compiler, jarPath, sitesPerHost, hostCount, replication,
                        leaderAddress);
     }
@@ -441,11 +498,10 @@ public class VoltProjectBuilder {
             return false;
         }
 
-        //String xml = result.getWriter().toString();
-        //System.out.println(xml);
+//        String xml = result.getWriter().toString();
+//        System.out.println(xml);
 
-        final File projectFile =
-            writeStringToTempFile(result.getWriter().toString());
+        final File projectFile = writeStringToTempFile(result.getWriter().toString());
         final String projectPath = projectFile.getPath();
         final ClusterConfig cluster_config =
             new ClusterConfig(hostCount, sitesPerHost, replication,
@@ -616,6 +672,30 @@ public class VoltProjectBuilder {
                 table.setAttribute("column", partitionInfo.getValue());
                 partitions.appendChild(table);
             }
+        }
+
+        // Vertical Partitions
+        if (m_verticalpartitionInfos.size() > 0) {
+            // /project/database/partitions
+            final Element verticalpartitions = doc.createElement("verticalpartitions");
+            database.appendChild(verticalpartitions);
+
+            // partitions/table
+            for (String tableName : m_verticalpartitionInfos.keySet()) {
+                Pair<Boolean, Collection<String>> p = m_verticalpartitionInfos.get(tableName);
+                Boolean createIndex = p.getFirst();
+                Collection<String> columnNames = p.getSecond(); 
+                
+                final Element vp = doc.createElement("verticalpartition");
+                vp.setAttribute("table", tableName);
+                vp.setAttribute("indexed", createIndex.toString());
+                for (final String columnName : columnNames) {
+                    final Element column = doc.createElement("column");
+                    column.setTextContent(columnName);
+                    vp.appendChild(column);
+                } // FOR (cols)
+                verticalpartitions.appendChild(vp);
+            } // FOR (tables)
         }
 
         // /project/database/classdependencies

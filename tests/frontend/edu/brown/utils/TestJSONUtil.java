@@ -206,7 +206,7 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.list_long.add(rand.nextLong());
             this.obj.list_double.add(rand.nextDouble());
             this.obj.list_boolean.add(rand.nextBoolean());
-            this.obj.list_catalog.add(CollectionUtil.getRandomValue(tables));
+            this.obj.list_catalog.add(CollectionUtil.random(tables));
             this.obj.list_enum.add(TestEnum.values()[rand.nextInt(TestEnum.values().length)]);
             this.obj.list_null.add(i % 2 == 0 ? VoltTypeUtil.getRandomValue(VoltType.STRING).toString() : null);
          
@@ -214,7 +214,7 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.set_long.add(rand.nextLong());
             this.obj.set_double.add(rand.nextDouble());
             this.obj.set_boolean.add(rand.nextBoolean());
-            this.obj.set_catalog.add(CollectionUtil.getRandomValue(tables));
+            this.obj.set_catalog.add(CollectionUtil.random(tables));
             this.obj.set_enum.add(TestEnum.values()[rand.nextInt(TestEnum.values().length)]);
             this.obj.set_null.add(i % 2 == 0 ? VoltTypeUtil.getRandomValue(VoltType.STRING).toString() : null);
             
@@ -222,7 +222,7 @@ public class TestJSONUtil extends BaseTestCase {
             this.obj.map_long.put(rand.nextLong(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_double.put(rand.nextDouble(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_string.put(VoltTypeUtil.getRandomValue(VoltType.STRING).toString(), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
-            this.obj.map_catalog.put(CollectionUtil.getRandomValue(tables), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
+            this.obj.map_catalog.put(CollectionUtil.random(tables), VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_enum.put(TestEnum.values()[rand.nextInt(TestEnum.values().length)], VoltTypeUtil.getRandomValue(VoltType.STRING).toString());
             this.obj.map_null.put(VoltTypeUtil.getRandomValue(VoltType.STRING).toString(),
                                   i % 2 == 0 ? VoltTypeUtil.getRandomValue(VoltType.STRING).toString() : null);

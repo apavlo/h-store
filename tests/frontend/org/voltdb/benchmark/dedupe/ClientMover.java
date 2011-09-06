@@ -72,7 +72,7 @@ public class ClientMover {
             try {
                 System.out.printf("Connecting to server: %s\n",thisServer);
 
-                voltclient.createConnection(thisServer, Client.VOLTDB_SERVER_PORT, "program", "none");
+                voltclient.createConnection(null, thisServer, Client.VOLTDB_SERVER_PORT, "program", "none");
             } catch (IOException e) {
                 e.printStackTrace();
                 System.exit(-1);

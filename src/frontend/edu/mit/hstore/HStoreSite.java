@@ -42,6 +42,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,7 +82,6 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.markov.MarkovEdge;
@@ -93,6 +93,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -125,8 +126,8 @@ import edu.mit.hstore.interfaces.Shutdownable;
  */
 public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureListener.Handler, Shutdownable, Loggable {
     private static final Logger LOG = Logger.getLogger(HStoreSite.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
     private static boolean t;
     static {
@@ -172,7 +173,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         return (String.format("H%02d%s", site_id, suffix));
     }
     
-    public static final String formatSiteName(int site_id) {
+    public static final String formatSiteName(Integer site_id) {
+        if (site_id == null) return (null);
         return (HStoreSite.getThreadName(site_id, null, null));
     }
     
@@ -214,11 +216,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /** ProtoServer EventLoop **/
     private final NIOEventLoop protoEventLoop = new NIOEventLoop();
     
-    private VoltProcedureListener voltListener;
+
     
     
     private boolean incoming_throttle = false;
+    private int incoming_queue_max;
+    private int incoming_queue_release;
+    
     private boolean redirect_throttle = false;
+    private int redirect_queue_max;
+    private int redirect_queue_release;
 
     /**
      * Local ExecutionSite Stuff
@@ -227,11 +234,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final Thread executor_threads[];
     
     /**
-     * Dtxn Stuff
-     * PartitionId -> Dtxn.ExecutionEngine
+     * Procedure Listener Stuff
      */
-    private Dtxn.Coordinator coordinator;
-    private final NIOEventLoop coordinatorEventLoop = new NIOEventLoop();
+    private final VoltProcedureListener voltListeners[];
+    private final NIOEventLoop procEventLoops[];
+
+    /** PartitionId -> Dtxn.ExecutionEngine */
+    private final Dtxn.Coordinator coordinators[];
     private final Dtxn.Partition engine_channels[];
     private final NIOEventLoop engineEventLoop = new NIOEventLoop();
 
@@ -247,8 +256,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * This flag is set to true when we receive the first non-sysproc stored procedure
      * Other components of the system can attach to the EventObservable to be told when this occurs 
      */
-    private boolean workload = false;
-    private final EventObservable workload_observable = new EventObservable();
+    private boolean startWorkload = false;
+    private final EventObservable startWorkload_observable = new EventObservable();
     
     /**
      * 
@@ -281,7 +290,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     /**
      * ClientResponse Processor Thread
      */
-    private final ExecutionSitePostProcessor processor;
+    private final List<ExecutionSitePostProcessor> processors = new ArrayList<ExecutionSitePostProcessor>();
+    private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
     
     private final HStoreConf hstore_conf;
     
@@ -300,6 +310,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * Keep track of which txns that we have in-flight right now
      */
     private final ConcurrentHashMap<Long, LocalTransactionState> inflight_txns = new ConcurrentHashMap<Long, LocalTransactionState>();
+    private final AtomicInteger inflight_txns_ctr = new AtomicInteger(0);
 
     /**
      * Helper Thread Stuff
@@ -322,13 +333,17 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     private final Random rand = new Random();
     
+    protected final ProfileMeasurement incoming_throttle_time = new ProfileMeasurement("incomingThrottle");
+    protected final ProfileMeasurement redirect_throttle_time = new ProfileMeasurement("redirectThrottle");
+    protected final ProfileMeasurement idle_time = new ProfileMeasurement("idle");
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
     
     /**
      * Constructor
-     * @param coordinator
+     * @param coordinators
      * @param p_estimator
      */
     public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) throws Exception {
@@ -349,17 +364,29 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         this.engine_channels = new Dtxn.Partition[num_partitions];
+        this.coordinators = new Dtxn.Coordinator[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
         
         for (int partition : executors.keySet()) {
             this.executors[partition] = executors.get(partition);
             this.txnid_managers[partition] = new TransactionIdManager(partition);
             this.local_partitions.add(partition);
+            
+            if (hstore_conf.site.exec_postprocessing_thread) {
+                this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
+            }
         } // FOR
         this.num_local_partitions = this.local_partitions.size();
+        this.voltListeners = new VoltProcedureListener[this.num_local_partitions];
+        this.procEventLoops = new NIOEventLoop[this.num_local_partitions];
+        
+        // Queue Sizes
+        this.incoming_queue_max = Math.round(this.num_local_partitions * hstore_conf.site.txn_incoming_queue_max_per_partition);
+        this.incoming_queue_release = Math.max((int)(this.incoming_queue_max * hstore_conf.site.txn_incoming_queue_release_factor), 1);
+        this.redirect_queue_max = Math.round(this.num_local_partitions * hstore_conf.site.txn_redirect_queue_max_per_partition);
+        this.redirect_queue_release = Math.max((int)(this.redirect_queue_max * hstore_conf.site.txn_redirect_queue_release_factor), 1);
         
         this.messenger = new HStoreMessenger(this);
-        this.processor = new ExecutionSitePostProcessor(this);
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // Static Object Pools
@@ -378,6 +405,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         cached_FragmentResponse = Dtxn.FragmentResponse.newBuilder().setStatus(Status.OK)
                                                                    .setOutput(ByteString.EMPTY)
                                                                    .build();
+        
+        if (hstore_conf.site.status_show_executor_info) {
+            this.incoming_throttle_time.resetOnEvent(this.startWorkload_observable);
+            this.redirect_throttle_time.resetOnEvent(this.startWorkload_observable);
+            this.idle_time.resetOnEvent(this.startWorkload_observable);
+        }
         
         // NewOrder Hack
         if (hstore_conf.site.exec_neworder_cheat) {
@@ -417,21 +450,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         assert(es != null) : "Unexpected null ExecutionSite for partition #" + partition + " on " + this.getSiteName();
         return (es);
     }
-    
-    public ExecutionSitePostProcessor getExecutionSitePostProcessor() {
-        return (this.processor);
-    }
-    
+
     public ExecutionSiteHelper getExecutionSiteHelper() {
         return (this.helper);
     }
     
     public int getExecutorCount() {
         return (this.local_partitions.size());
-    }
-    
-    protected void setDtxnCoordinator(Dtxn.Coordinator coordinator) {
-        this.coordinator = coordinator;
     }
     
     public HStoreMessenger getMessenger() {
@@ -486,6 +511,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     
     protected int getInflightTxnCount() {
         return (this.inflight_txns.size());
+    }
+    
+    protected int getQueuedResponseCount() {
+        return (this.ready_responses.size());
     }
     
     /**
@@ -562,7 +591,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Start the ExecutionSitePostProcessor
         if (hstore_conf.site.exec_postprocessing_thread) {
-            new Thread(this.processor).start();
+            for (ExecutionSitePostProcessor espp : this.processors) {
+                Thread t = new Thread(espp);
+                t.setDaemon(true);
+                t.start();    
+            } // FOR
         }
         
         // Schedule the ExecutionSiteHelper
@@ -593,7 +626,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug("Preloading cached objects");
         try {
             // Load up everything the QueryPlanUtil
-            QueryPlanUtil.preload(this.catalog_db);
+            PlanNodeUtil.preload(this.catalog_db);
             
             // Then load up everything in the PartitionEstimator
             this.p_estimator.preload();
@@ -623,10 +656,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             LOG.warn("Already told that we were ready... Ignoring");
             return;
         }
-        LOG.info(String.format("%s [site=%s, port=%d, #partitions=%d]",
+        Collection<Integer> ports = CatalogUtil.getExecutionSitePorts(catalog_site);
+        LOG.info(String.format("%s [site=%s, ports=%s, #partitions=%d]",
                                HStoreSite.SITE_READY_MSG,
                                this.getSiteName(),
-                               this.catalog_site.getProc_port(),
+                               ports,
                                this.getExecutorCount()));
         this.ready = true;
         this.ready_observable.notifyObservers();
@@ -655,11 +689,23 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public boolean isIncomingThrottled() {
         return (this.incoming_throttle);
     }
+    public int getIncomingQueueMax() {
+        return (this.incoming_queue_max);
+    }
+    public int getIncomingQueueRelease() {
+        return (this.incoming_queue_release);
+    }
     /**
      * Returns true if this HStoreSite is throttling redirected transactions
      */
     public boolean isRedirectedThrottled() {
         return (this.redirect_throttle);
+    }
+    public int getRedirectQueueMax() {
+        return (this.redirect_queue_max);
+    }
+    public int getRedirectQueueRelease() {
+        return (this.redirect_queue_release);
     }
     
     /**
@@ -670,16 +716,18 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     public boolean checkDisableThrottling(long txn_id) {
         if (this.incoming_throttle || this.redirect_throttle) {
-            int queue_size = this.inflight_txns.size() - this.processor.getQueueSize() - 1; 
-            if (queue_size < hstore_conf.site.txn_incoming_queue_release) {
+            int queue_size = this.inflight_txns.size() - this.ready_responses.size(); 
+            if (this.incoming_throttle && queue_size < this.incoming_queue_release) {
                 this.incoming_throttle = false;
+                if (hstore_conf.site.status_show_executor_info) incoming_throttle_time.stop();
                 if (d) LOG.debug(String.format("Disabling INCOMING throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
-                                               txn_id, queue_size, hstore_conf.site.txn_incoming_queue_release));
+                                               txn_id, queue_size, this.incoming_queue_release));
             }
-            if (queue_size < hstore_conf.site.txn_redirect_queue_release) {
+            if (this.redirect_throttle && queue_size < this.redirect_queue_release) {
                 this.redirect_throttle = false;
+                if (hstore_conf.site.status_show_executor_info) redirect_throttle_time.stop();
                 if (d) LOG.debug(String.format("Disabling REDIRECT throttling because txn #%d finished [queue_size=%d, release_threshold=%d]",
-                                               txn_id, queue_size, hstore_conf.site.txn_redirect_queue_release));
+                                               txn_id, queue_size, this.redirect_queue_release));
             }
         }
         return (this.incoming_throttle);
@@ -718,7 +766,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public void prepareShutdown() {
         this.shutdown_state = State.PREPARE_SHUTDOWN;
         this.messenger.prepareShutdown();
-        this.processor.prepareShutdown();
+        for (ExecutionSitePostProcessor espp : this.processors) {
+            espp.prepareShutdown();
+        } // FOR
         for (int p : this.local_partitions) {
             this.executors[p].prepareShutdown();
         } // FOR
@@ -742,7 +792,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Tell our local boys to go down too
-        if (this.processor != null) this.processor.shutdown();
+        for (ExecutionSitePostProcessor p : this.processors) {
+            p.shutdown();
+        }
         for (int p : this.local_partitions) {
             if (t) LOG.trace("Telling the ExecutionSite for partition " + p + " to shutdown");
             this.executors[p].shutdown();
@@ -756,8 +808,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.helper_pool.shutdown();
         
         // Tell all of our event loops to stop
-        if (t) LOG.trace("Telling Dtxn.Coordinator event loop to exit");
-        this.coordinatorEventLoop.exitLoop();
+        if (t) LOG.trace("Telling Procedure Listener event loops to exit");
+        for (NIOEventLoop l : this.procEventLoops) {
+            l.exitLoop();
+        }
 //        this.voltListener.close();
         if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
         this.engineEventLoop.exitLoop();
@@ -813,6 +867,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         ByteBuffer buffer = ByteBuffer.wrap(serializedRequest);
         boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
+        String procName = StoredProcedureInvocation.getProcedureName(buffer);
+        if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(procName);
         
         // Check whether we're throttled and should just reject this transaction
         //  (1) It's not a sysproc
@@ -824,8 +880,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             int request_ctr = this.getNextServerTimestamp();
             long clientHandle = StoredProcedureInvocation.getClientHandle(buffer);
             
-            if (d) LOG.debug(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, requestCtr=%d]",
-                                          clientHandle, request_ctr));
+            if (d)
+                LOG.debug(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, requestCtr=%d]",
+                                        clientHandle, request_ctr));
             
             synchronized (this.cached_ClientResponse) {
                 ClientResponseImpl.setServerTimestamp(this.cached_ClientResponse, request_ctr);
@@ -833,6 +890,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 ClientResponseImpl.setClientHandle(this.cached_ClientResponse, clientHandle);
                 done.run(this.cached_ClientResponse.array());
             } // SYNCH
+            if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(procName);
             return;
         }
         
@@ -855,7 +913,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final Object args[] = request.getParams().toArray(); 
         final Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(catalog_proc);
         if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
         
         // First figure out where this sucker needs to go
@@ -1047,13 +1104,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             }
         }
         
-        if (this.workload == false && sysproc == false) {
-            synchronized(this) {
-                if (this.workload == false) {
+        if (this.startWorkload == false && sysproc == false) {
+            synchronized (this) {
+                if (this.startWorkload == false) {
                     if (d) LOG.debug(String.format("First non-sysproc transaction request recieved. Notifying %d observers [proc=%s]",
-                                                   this.workload_observable.countObservers(), catalog_proc.getName()));
-                    this.workload = true;
-                    this.workload_observable.notifyObservers();
+                                                   this.startWorkload_observable.countObservers(), catalog_proc.getName()));
+                    this.startWorkload = true;
+                    this.startWorkload_observable.notifyObservers();
                 }
             } // SYNCH
         }
@@ -1067,6 +1124,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                                     ts, base_partition,
                                     predict_singlePartitioned, predict_readOnly, predict_abortable,
                                     request.getClientHandle()));
+        }
+        if (hstore_conf.site.status_show_executor_info && this.inflight_txns_ctr.getAndIncrement() == 0) {
+            ProfileMeasurement.stop(true, idle_time);
         }
         this.initializeInvocation(ts);
     }
@@ -1203,7 +1263,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
             if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-            this.coordinator.execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
+            this.coordinators[base_partition].execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
             
             if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for %s [bytes=%d]", ts, dtxn_request.getSerializedSize()));
             
@@ -1211,11 +1271,12 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
-        int queue_size = this.inflight_txns.size() - this.processor.getQueueSize();
-        if (this.incoming_throttle == false && queue_size > hstore_conf.site.txn_incoming_queue_max) {
+        int queue_size = this.inflight_txns.size() - this.ready_responses.size();
+        if (this.incoming_throttle == false && queue_size > this.incoming_queue_max) {
             if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, queue_size, hstore_conf.site.txn_incoming_queue_release));
+                                           ts, queue_size, this.incoming_queue_release));
             this.incoming_throttle = true;
+            if (hstore_conf.site.status_show_executor_info) incoming_throttle_time.start();
             
             // HACK: Randomly discard some distributed TransactionStates because we can't
             // tell the Dtxn.Coordinator to prune its queue.
@@ -1232,10 +1293,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 if (d && ctr > 0) LOG.debug("Pruned " + ctr + " queued distributed transactions to try to free up the queue");
             }
         }
-        if (this.redirect_throttle == false && queue_size > hstore_conf.site.txn_redirect_queue_max) {
+        if (this.redirect_throttle == false && queue_size > this.redirect_queue_max) {
             if (d) LOG.debug(String.format("REDIRECT overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, queue_size, hstore_conf.site.txn_redirect_queue_release));
+                                           ts, queue_size, this.redirect_queue_release));
             this.redirect_throttle = true;
+            if (hstore_conf.site.status_show_executor_info) redirect_throttle_time.start();
         }
     }
     
@@ -1388,11 +1450,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
-                redirect_partition = CollectionUtil.getFirst(most_touched);
+                redirect_partition = CollectionUtil.first(most_touched);
             } else if (most_touched.isEmpty() == false) {
-                redirect_partition = CollectionUtil.getRandomValue(most_touched);
+                redirect_partition = CollectionUtil.random(most_touched);
             } else {
-                redirect_partition = CollectionUtil.getRandomValue(this.all_partitions);
+                redirect_partition = CollectionUtil.random(this.all_partitions);
             }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
@@ -1498,17 +1560,31 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug(String.format("Asking the Dtxn.Coordinator to execute fragment for %s [bytes=%d, last=%s]",
                                        ts, fragment.getSerializedSize(), fragment.getLastFragment()));
         ts.rpc_request_work.reset();
-        this.coordinator.execute(ts.rpc_request_work, fragment, callback);
+        this.coordinators[ts.getBasePartition()].execute(ts.rpc_request_work, fragment, callback);
     }
 
     public EventObservable getWorkloadObservable() {
-        return (this.workload_observable);
+        return (this.startWorkload_observable);
     }
     
     // ----------------------------------------------------------------------------
     // TRANSACTION FINISH/CLEANUP METHODS
     // ----------------------------------------------------------------------------
 
+    /**
+     * 
+     * @param es
+     * @param ts
+     * @param cr
+     */
+    public void queueClientResponse(ExecutionSite es, LocalTransactionState ts, ClientResponseImpl cr) {
+        assert(hstore_conf.site.exec_postprocessing_thread);
+        if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
+                                       ts, es.getPartitionId(), cr.getStatusName(), this.ready_responses.size()));
+//        this.queue_size.incrementAndGet();
+        this.ready_responses.add(new Object[]{es, ts, cr});
+    }
+    
     /**
      * Request that the Dtxn.Coordinator finish our transaction
      * @param ts
@@ -1519,7 +1595,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.initializationBlock(ts);
         if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish %s [commit=%s, error=%s]", ts, request.getCommit(), ts.getPendingErrorMessage()));
         if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-        this.coordinator.finish(ts.rpc_request_finish, request, callback);
+        this.coordinators[ts.getBasePartition()].finish(ts.rpc_request_finish, request, callback);
     }
     
     /**
@@ -1596,6 +1672,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransactionState ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
+        if (hstore_conf.site.status_show_executor_info && this.inflight_txns_ctr.decrementAndGet() == 0) {
+            ProfileMeasurement.start(true, idle_time);
+        }
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         
@@ -1835,42 +1914,52 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         });
         
         // ----------------------------------------------------------------------------
-        // (4) Procedure Request Listener Thread (one per HStoreSite)
+        // (4) Procedure Request Listener Thread (one per Partition)
         // ----------------------------------------------------------------------------
-        runnables.add(new Runnable() {
-            public void run() {
-                final Thread self = Thread.currentThread();
-                self.setName(hstore_site.getThreadName("coord"));
-                
-                if (d) LOG.debug(String.format("Creating connection to coordinator at %s:%d",
-                                               coordinatorHost, coordinatorPort));
-                
-                InetSocketAddress[] addresses = {
-                        new InetSocketAddress(coordinatorHost, coordinatorPort),
-                };
-                ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(hstore_site.coordinatorEventLoop, addresses);
-                Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
-                hstore_site.setDtxnCoordinator(stub);
-                hstore_site.voltListener = new VoltProcedureListener(hstore_site.coordinatorEventLoop, hstore_site);
-                hstore_site.voltListener.bind(catalog_site.getProc_port());
-                
-                Throwable error = null;
-                try {
-                    hstore_site.coordinatorEventLoop.setExitOnSigInt(true);
-                    hstore_site.ready_latch.countDown();
-                    hstore_site.coordinatorEventLoop.run();
-                } catch (Throwable ex) {
-                    if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
-                        error = ex;
+        List<Partition> p = new ArrayList<Partition>(catalog_site.getPartitions());
+        for (int i = 0; i < hstore_site.voltListeners.length; i++) {
+            final int id = i;
+            final Partition catalog_part = p.get(id);
+            final int port = catalog_part.getProc_port();
+            
+            hstore_site.procEventLoops[id] = new NIOEventLoop();
+            hstore_site.voltListeners[id] = new VoltProcedureListener(hstore_site.procEventLoops[id], hstore_site); 
+            
+            runnables.add(new Runnable() {
+                public void run() {
+                    final Thread self = Thread.currentThread();
+                    self.setName(hstore_site.getThreadName("listen", id));
+                    
+                    // First connect to the coordinator and generate a handle
+                    if (d) LOG.debug(String.format("Creating connection to coordinator at %s:%d",
+                                                   coordinatorHost, coordinatorPort));
+                    InetSocketAddress[] addresses = {
+                            new InetSocketAddress(coordinatorHost, coordinatorPort),
+                    };
+                    ProtoRpcChannel[] channels = ProtoRpcChannel.connectParallel(hstore_site.procEventLoops[id], addresses);
+                    Dtxn.Coordinator stub = Dtxn.Coordinator.newStub(channels[0]);
+                    hstore_site.coordinators[catalog_part.getId()] = stub;
+                    
+                    // Then fire off this thread to have it do some work as it comes in 
+                    Throwable error = null;
+                    try {
+                        hstore_site.voltListeners[id].bind(port);
+                        hstore_site.procEventLoops[id].setExitOnSigInt(true);
+                        hstore_site.ready_latch.countDown();
+                        hstore_site.procEventLoops[id].run();
+                    } catch (Throwable ex) {
+                        if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
+                            error = ex;
+                        }
                     }
-                }
-                if (error != null && hstore_site.isShuttingDown() == false) {
-                    LOG.warn(String.format("Dtxn.Coordinator thread is stopping! [error=%s, hstore_shutdown=%s]",
-                                           (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
-                    hstore_site.messenger.shutdownCluster(error);
-                }
-            };
-        });
+                    if (error != null && hstore_site.isShuttingDown() == false) {
+                        LOG.warn(String.format("Procedure Listener #%d is stopping! [error=%s, hstore_shutdown=%s]",
+                                               id, (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
+                        hstore_site.messenger.shutdownCluster(error);
+                    }
+                };
+            });
+        } // FOR
         
         // ----------------------------------------------------------------------------
         // (5) HStoreSite Setup Thread
@@ -1913,14 +2002,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @throws Exception
      */
     public static void main(String[] vargs) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(ArgumentsParser.PARAM_CATALOG,
-                     ArgumentsParser.PARAM_COORDINATOR_HOST,
-                     ArgumentsParser.PARAM_COORDINATOR_PORT,
-                     ArgumentsParser.PARAM_SITE_ID,
-                     ArgumentsParser.PARAM_DTXN_CONF,
-                     ArgumentsParser.PARAM_DTXN_ENGINE,
-                     ArgumentsParser.PARAM_CONF
+        ArgumentsParser args = ArgumentsParser.load(vargs,
+                    ArgumentsParser.PARAM_CATALOG,
+                    ArgumentsParser.PARAM_COORDINATOR_HOST,
+                    ArgumentsParser.PARAM_COORDINATOR_PORT,
+                    ArgumentsParser.PARAM_SITE_ID,
+                    ArgumentsParser.PARAM_DTXN_CONF,
+                    ArgumentsParser.PARAM_DTXN_ENGINE,
+                    ArgumentsParser.PARAM_CONF
         );
         
         // HStoreSite Stuff
@@ -1931,7 +2020,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
-        HStoreConf.init(args, catalog_site);
+        HStoreConf.initArgumentsParser(args, catalog_site);
         if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true, true));
 
         // HStoreSite Stuff

@@ -80,7 +80,7 @@ public class TestColumnSet extends BaseTestCase {
         Set<Column> match = cset.findAll(Column.class, expected);
         assertNotNull(match);
         assertFalse(match.isEmpty());
-        Column catalog_col = CollectionUtil.getFirst(match);
+        Column catalog_col = CollectionUtil.first(match);
         assertNotNull(catalog_col);
         assertEquals(expected, catalog_col);
     }
@@ -136,7 +136,7 @@ public class TestColumnSet extends BaseTestCase {
         assertNotNull(match);
         assertFalse(match.isEmpty());
         
-        Column catalog_col = CollectionUtil.getFirst(match);
+        Column catalog_col = CollectionUtil.first(match);
         assertNotNull(catalog_col);
         assertEquals(this.getColumn(catalog_tbl0, "C_W_ID"), catalog_col);
     }

@@ -72,7 +72,7 @@ public class ProcParameterValueFilter extends Filter {
     }
     
     @Override
-    protected String debug() {
+    public String debug() {
         return (this.getClass().getSimpleName() + "[values=" + this.values + "]");
     }
 }

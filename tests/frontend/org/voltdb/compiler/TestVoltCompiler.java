@@ -28,23 +28,33 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import junit.framework.TestCase;
-
 import org.voltdb.ProcInfoData;
 import org.voltdb.benchmark.tpcc.TPCCClient;
+import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.Connector;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.ConstraintRef;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.SnapshotSchedule;
+import org.voltdb.catalog.Table;
 import org.voltdb.regressionsuites.TestSQLTypesSuite;
+import org.voltdb.types.ConstraintType;
 import org.voltdb.utils.JarReader;
 
-public class TestVoltCompiler extends TestCase {
+import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 
+public class TestVoltCompiler extends BaseTestCase {
+    
     public void testSnapshotSettings() throws IOException {
         String schemaPath = "";
         try {
@@ -707,9 +717,9 @@ public class TestVoltCompiler extends TestCase {
         jar.delete();
     }
 
-    /*public void testMaterializedView() throws IOException {
+    public void testMaterializedView() throws IOException {
         final String simpleSchema =
-            "create table books (cash integer default 23, title varchar default 'foo', PRIMARY KEY(cash));\n" +
+            "create table books (cash integer default 23, title varchar(32) default 'foo', PRIMARY KEY(cash));\n" +
             "create view matt (title, num, foo) as select title, count(*), sum(cash) from books group by title;";
 
         final File schemaFile = VoltProjectBuilder.writeStringToTempFile(simpleSchema);
@@ -746,12 +756,12 @@ public class TestVoltCompiler extends TestCase {
 
         final File jar = new File("testout.jar");
         jar.delete();
-    }*/
+    }
 
-    /*public void testForeignKeys() {
+    public void testForeignKeys() {
         String schemaPath = "";
         try {
-            final URL url = TPCCClient.class.getResource("tpcc-ddl-fkeys.sql");
+            final URL url = new TPCCProjectBuilder().getDDLURL(true);
             schemaPath = URLDecoder.decode(url.getPath(), "UTF-8");
         } catch (final UnsupportedEncodingException e) {
             e.printStackTrace();
@@ -823,5 +833,112 @@ public class TestVoltCompiler extends TestCase {
             }
         }
         assertTrue(found);
-    }*/
+    }
+    
+    public void testVerticalPartition() {
+        String schemaPath = "";
+        try {
+            final URL url = new TPCCProjectBuilder().getDDLURL(true);
+            schemaPath = URLDecoder.decode(url.getPath(), "UTF-8");
+        } catch (final UnsupportedEncodingException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+        
+        String targetTable = "CUSTOMER";
+        String targetColumns[] = { "C_ID", "C_FIRST", "C_LAST" };
+        String columns = "";
+        for (String col : targetColumns)
+            columns += String.format("<column>%s</column>", col);
+
+        final String simpleProject =
+            "<?xml version=\"1.0\"?>\n" +
+            "<project>" +
+            "<database name='database'>" +
+            "<schemas><schema path='" + schemaPath + "' /></schemas>" +
+            "<procedures><procedure class='org.voltdb.compiler.procedures.TPCCTestProc' /></procedures>" +
+            "<partitions><partition table='" + targetTable + "' column='" + targetColumns[0] + "' /></partitions>" +
+            "<verticalpartitions><verticalpartition table='" + targetTable + "'>" + columns + "</verticalpartition></verticalpartitions>" +
+            "</database>" +
+            "</project>";
+
+        //System.out.println(simpleProject);
+
+        final File projectFile = VoltProjectBuilder.writeStringToTempFile(simpleProject);
+        final String projectPath = projectFile.getPath();
+
+        final VoltCompiler compiler = new VoltCompiler();
+        final ClusterConfig cluster_config = new ClusterConfig(1, 1, 0, "localhost");
+
+        final Catalog catalog = compiler.compileCatalog(projectPath, cluster_config);
+        assertNotNull(catalog);
+
+        // Make sure that our target table has the columns that we specified
+        final Database catalog_db = catalog.getClusters().get("cluster").getDatabases().get("database");
+        assertNotNull(catalog_db);
+
+        final Table catalog_tbl = catalog_db.getTables().get(targetTable);
+        assertNotNull(catalog_tbl);
+        
+        boolean found = false;
+        for (MaterializedViewInfo catalog_view : catalog_tbl.getViews()) {
+            assertFalse(found);
+            if (catalog_view.getVerticalpartition() == false) continue;
+            found = true;
+            
+            Collection<Column> catalog_cols = CatalogUtil.getColumns(catalog_view.getGroupbycols());
+            assertNotNull(catalog_cols);
+            assertEquals(targetColumns.length, catalog_cols.size());
+            for (String columnName : targetColumns) {
+                Column catalog_col = catalog_tbl.getColumns().get(columnName);
+                assertNotNull(catalog_col);
+                assert(catalog_cols.contains(catalog_col)) : "Missing " + catalog_col.fullName();
+            } // FOR (cols)
+            
+            // Make sure the sys table for this vertical partition has an index
+            Table view_tbl = catalog_view.getDest();
+            assertNotNull(view_tbl);
+            assert(view_tbl.getSystable());
+            assertEquals(1, view_tbl.getIndexes().size());
+        } // FOR (views)
+        assertTrue(found);
+    }
+    
+    public void testInvalidVerticalPartition() {
+        String schemaPath = "";
+        try {
+            final URL url = new TPCCProjectBuilder().getDDLURL(true);
+            schemaPath = URLDecoder.decode(url.getPath(), "UTF-8");
+        } catch (final UnsupportedEncodingException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+        
+        String targetTable = "CUSTOMER";
+        String targetColumns[] = { "C_ID", "C_FIRST", "C_LAST", "C_FIRST" };
+        String columns = "";
+        for (String col : targetColumns)
+            columns += String.format("<column>%s</column>", col);
+
+        final String simpleProject =
+            "<?xml version=\"1.0\"?>\n" +
+            "<project>" +
+            "<database name='database'>" +
+            "<schemas><schema path='" + schemaPath + "' /></schemas>" +
+            "<procedures><procedure class='org.voltdb.compiler.procedures.TPCCTestProc' /></procedures>" +
+            "<verticalpartitions><verticalpartition table=\"" + targetTable + "\">" + columns + "</verticalpartition></verticalpartitions>" +
+            "</database>" +
+            "</project>";
+
+        //System.out.println(simpleProject);
+
+        final File projectFile = VoltProjectBuilder.writeStringToTempFile(simpleProject);
+        final String projectPath = projectFile.getPath();
+
+        final VoltCompiler compiler = new VoltCompiler();
+        final ClusterConfig cluster_config = new ClusterConfig(1, 1, 0, "localhost");
+
+        final Catalog catalog = compiler.compileCatalog(projectPath, cluster_config);
+        assert(catalog == null);
+    }
 }

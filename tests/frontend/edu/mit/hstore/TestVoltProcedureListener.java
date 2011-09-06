@@ -134,7 +134,7 @@ public class TestVoltProcedureListener extends TestCase {
     public void testBackupPressure() throws Exception {
         // Connect to listener and try to invoke something...
         Client client = ClientFactory.createClient();
-        client.createConnection(HOST, Client.VOLTDB_SERVER_PORT, USERNAME, PASSWORD);
+        client.createConnection(null, HOST, Client.VOLTDB_SERVER_PORT, USERNAME, PASSWORD);
 
         final CountDownLatch latch = new CountDownLatch(1);
         final Long expected = rand.nextLong();
@@ -162,7 +162,7 @@ public class TestVoltProcedureListener extends TestCase {
     public void testExecution() throws Exception {
         // Connect to listener and try to invoke something...
         Client client = ClientFactory.createClient();
-        client.createConnection(HOST, Client.VOLTDB_SERVER_PORT, USERNAME, PASSWORD);
+        client.createConnection(null, HOST, Client.VOLTDB_SERVER_PORT, USERNAME, PASSWORD);
         
         Long expected = rand.nextLong();
         VoltTable[] result = client.callProcedure(PROC_NAME, expected).getResults();

@@ -185,18 +185,4 @@ public class TPCELoader extends BenchmarkComponent {
         LOG.debug("Finished loading " + row_idx + " tuples for " + catalog_tbl.getName());
         return;
 	}
-
-	public void loadVoltTable(String tablename, VoltTable table) {
-		//Client.SyncCallback cb = new Client.SyncCallback();
-		try {
-		    String target_proc = "@LoadMultipartitionTable";
-		    LOG.debug("Loading VoltTable for " + tablename + " using " + target_proc);
-		    m_voltClient.callProcedure(target_proc, tablename, table); 
-			//m_voltClient.callProcedure(cb, target_proc, tablename, table);
-			//cb.waitForResponse();
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
 }

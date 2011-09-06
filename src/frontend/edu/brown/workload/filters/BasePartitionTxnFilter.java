@@ -50,13 +50,13 @@ public class BasePartitionTxnFilter extends Filter {
                 assert(false);
             }
             assert(partition >= 0);
-            return (this.base_partitions .contains(partition) ? FilterResult.ALLOW : FilterResult.SKIP);
+            return (this.base_partitions.contains(partition) ? FilterResult.ALLOW : FilterResult.SKIP);
         }
         return FilterResult.ALLOW;
     }
     
     @Override
-    protected String debug() {
+    public String debug() {
         return null;
     }
 

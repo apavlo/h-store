@@ -34,7 +34,7 @@ public class HardwareCore extends CatalogType {
         m_childCollections.put("threads", m_threads);
     }
 
-    void update() {
+    public void update() {
     }
 
     /** GETTER: The hardware threads for this core */

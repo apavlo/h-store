@@ -1,8 +1,11 @@
 package edu.brown.utils;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
@@ -15,8 +18,8 @@ import com.google.protobuf.ByteString;
 public abstract class StringUtil {
 
     public static final String SPACER       = "   ";
-    public static final String DOUBLE_LINE  = "============================================================================\n";
-    public static final String SINGLE_LINE  = "----------------------------------------------------------------------------\n";
+    public static final String DOUBLE_LINE  = StringUtil.repeat("=", 64) + "\n";
+    public static final String SINGLE_LINE  = StringUtil.repeat("-", 64) + "\n";
 
     private static final Pattern LINE_SPLIT = Pattern.compile("\n");
     private static final Pattern TITLE_SPLIT = Pattern.compile(" ");
@@ -25,8 +28,53 @@ public abstract class StringUtil {
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
 
+    /**
+     * 
+     * @param str
+     * @return
+     */
     public static String[] splitLines(String str) {
         return (str != null ? LINE_SPLIT.split(str) : null);
+    }
+    
+    public static String header(String msg) {
+        return StringUtil.header(msg, "-", 100);
+    }
+    
+    /**
+     * Create a nicely format header string where the given message is surround
+     * on both sides by the marker.
+     * Example:   "---------- MSG ----------"
+     * @param msg
+     * @param marker
+     * @param length
+     * @return
+     */
+    public static String header(String msg, String marker, int length) {
+        int msg_length = msg.length();
+        length = Math.max(msg_length, length);
+        int border_len = (length - msg_length - 2) / 2;
+        String border = StringUtil.repeat(marker, border_len);
+        return String.format("%s %s %s", border, msg, border);
+    }
+    
+    
+    /**
+     * Return the MD5 checksum of the given string
+     * @param input
+     * @return
+     */
+    public static String md5sum(String input) {
+        MessageDigest digest = null;
+        try {
+            digest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException("Unable to compute md5sum for string", ex);
+        }
+        assert(digest != null);
+        digest.update(input.getBytes());
+        BigInteger hash = new BigInteger(1, digest.digest());
+        return (hash.toString(16));
     }
     
     /**
@@ -43,12 +91,10 @@ public abstract class StringUtil {
         for (int i = 0; i < strs.length; i++) {
             lines[i] = LINE_SPLIT.split(strs[i]);
             prefixes[i] = (i == 0 ? "" : " \u2503 ");
-            if (i+1 < strs.length) {
-                for (String line : lines[i]) {
-                    max_length = Math.max(max_length, line.length());
-                } // FOR
-                max_lines = Math.max(max_lines, lines[i].length);
-            }
+            for (String line : lines[i]) {
+                max_length = Math.max(max_length, line.length());
+            } // FOR
+            max_lines = Math.max(max_lines, lines[i].length);
         } // FOR
         
         String f = "%-" + max_length + "s";
@@ -71,7 +117,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(Map<?, ?>...maps) {
-        return (formatMaps(":", false, false, false, false, maps));
+        return (formatMaps(":", false, false, false, false, true, true, maps));
     }
     
     /**
@@ -82,7 +128,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMaps(String delimiter, Map<?, ?>...maps) {
-        return (formatMaps(delimiter, false, false, false, false, maps));
+        return (formatMaps(delimiter, false, false, false, false, true, true, maps));
     }
 
     /**
@@ -101,23 +147,43 @@ public abstract class StringUtil {
      * @param box Box results
      * @param border_top TODO
      * @param border_bottom TODO
+     * @param recursive TODO
+     * @param first_element_title TODO
      * @param maps
      * @return
      */
-    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, Map<?, ?>...maps) {
+    @SuppressWarnings("unchecked")
+    public static String formatMaps(String delimiter, boolean upper, boolean box, boolean border_top, boolean border_bottom, boolean recursive, boolean first_element_title, Map<?, ?>...maps) {
         boolean need_divider = (maps.length > 1 || border_bottom || border_top);
         
         // Figure out the largest key size so we can get spacing right
         int max_key_size = 0;
-        final Map<?, ?> map_keys[] = new Map<?, ?>[maps.length];
+        int max_title_size = 0;
+        final Map<Object, String[]> map_keys[] = (Map<Object, String[]>[])new Map[maps.length];
+        final boolean map_titles[] = new boolean[maps.length];
         for (int i = 0; i < maps.length; i++) {
             Map<?, ?> m = maps[i];
             if (m == null) continue;
-            Map<Object, String> keys = new HashMap<Object, String>();
+            Map<Object, String[]> keys = new HashMap<Object, String[]>();
+            boolean first = true;
             for (Object k : m.keySet()) {
-                String k_str = (k != null ? k.toString() : "");
+                String k_str[] = LINE_SPLIT.split(k != null ? k.toString() : "");
                 keys.put(k, k_str);
-                max_key_size = Math.max(max_key_size, k_str.length());
+                
+                // If the first element has a null value, then we can let it be the title for this map
+                // It's length doesn't affect the other keys, but will affect the total size of the map
+                if (first && first_element_title && m.get(k) == null) {
+                    for (String line : k_str) {
+                        max_title_size = Math.max(max_title_size, line.length());    
+                    } // FOR
+                    map_titles[i] = true;
+                } else {
+                    for (String line : k_str) {
+                        max_key_size = Math.max(max_key_size, line.length());
+                    } // FOR
+                    if (first) map_titles[i] = false;
+                }
+                first = false;
             } // FOR
             map_keys[i] = keys;
         } // FOR
@@ -128,37 +194,59 @@ public abstract class StringUtil {
                          "%s\n";
         
         // Now make StringBuilder blocks for each map
-        // We do it in this way so that we can get the 
+        // We do it in this way so that we can get the max length of the values
         int max_value_size = 0;
         StringBuilder blocks[] = new StringBuilder[maps.length];
-        for (int i = 0; i < maps.length; i++) {
-            blocks[i] = new StringBuilder();
-            Map<?, ?> m = maps[i];
+        for (int map_i = 0; map_i < maps.length; map_i++) {
+            blocks[map_i] = new StringBuilder();
+            Map<?, ?> m = maps[map_i];
             if (m == null) continue;
-            Map<?, ?> keys = map_keys[i];
+            Map<Object, String[]> keys = map_keys[map_i];
             
             boolean first = true;
             for (Entry<?, ?> e : m.entrySet()) {
-                String k = keys.get(e.getKey()).toString();
-                String v = (e.getValue() != null ? e.getValue().toString() : "null");
-                if (upper) k = k.toUpperCase();
-                if (first == false || (first && v.isEmpty() == false)) {
-                    if (equalsDelimiter == false && k.trim().isEmpty() == false) k += ":";
-                }
+                String key[] = keys.get(e.getKey());
                 
-                // If the value is multiple lines, format them nicely!
-                String lines[] = LINE_SPLIT.split(v);
-                for (int line_i = 0; line_i < lines.length; line_i++) {
-                    blocks[i].append(String.format(f, (line_i == 0 ? k : ""), lines[line_i]));
-                    if (need_divider) max_value_size = Math.max(max_value_size, lines[line_i].length());
-                } // FOR
-                if (v.endsWith("\n")) blocks[i].append("\n");
+                if (first && map_titles[map_i]) {
+                    blocks[map_i].append(StringUtil.join("\n", key));
+                    if (CollectionUtil.last(key).endsWith("\n") == false) blocks[map_i].append("\n");
+                } else {
+                    Object v_obj = e.getValue();
+                    String v = null;
+                    if (recursive && v_obj instanceof Map<?, ?>) {
+                        v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, first_element_title, (Map<?,?>)v_obj).trim();
+                    } else if (v_obj == null) {
+                        v = "null";
+                    } else {
+                        v = v_obj.toString();
+                    }
+    
+                    
+                    // If the key or value is multiple lines, format them nicely!
+                    String value[] = LINE_SPLIT.split(v);
+                    int total_lines = Math.max(key.length, value.length); 
+                    for (int line_i = 0; line_i < total_lines; line_i++) {
+                        String k_line = (line_i < key.length ? key[line_i] : ""); 
+                        if (upper) k_line = k_line.toUpperCase();
+                        
+                        String v_line = (line_i < value.length ? value[line_i] : "");
+                        
+                        if (line_i == 0 && (first == false || (first && v_line.isEmpty() == false))) {
+                            if (equalsDelimiter == false && k_line.trim().isEmpty() == false) k_line += ":";
+                        }
+                    
+                        blocks[map_i].append(String.format(f, k_line, v_line));
+                        if (need_divider) max_value_size = Math.max(max_value_size, v_line.length());
+                    } // FOR
+                    if (v.endsWith("\n")) blocks[map_i].append("\n");
+                }
                 first = false;
             }
         } // FOR
         
         // Put it all together!
-        int total_width = max_key_size + max_value_size + delimiter.length() + 1;
+//        System.err.println("max_title_size=" + max_title_size + ", max_key_size=" + max_key_size + ", max_value_size=" + max_value_size + ", delimiter=" + delimiter.length());
+        int total_width = Math.max(max_title_size, (max_key_size + max_value_size + delimiter.length())) + 1;
         String dividing_line = (need_divider ? repeat("-", total_width) : "");
         StringBuilder sb = null;
         if (maps.length == 1) {
@@ -181,7 +269,7 @@ public abstract class StringUtil {
      * @return
      */
     public static String formatMapsBoxed(Map<?, ?>...maps) {
-        return (formatMaps(":", false, true, false, false, maps));
+        return (formatMaps(":", false, true, false, false, true, true, maps));
     }
 
     /**
@@ -362,13 +450,17 @@ public abstract class StringUtil {
         return (join(delimiter, Arrays.asList(items)));
     }
     
+    public static <T> String join(String delimiter, final Iterator<T> items) {
+        return (join("", delimiter, CollectionUtil.wrapIterator(items)));
+    }
+    
     /**
      * Python join()
      * @param delimiter
      * @param items
      * @return
      */
-    public static String join(String delimiter, Collection<?> items) {
+    public static String join(String delimiter, Iterable<?> items) {
         return (join("", delimiter, items));
     }
     
@@ -379,15 +471,18 @@ public abstract class StringUtil {
      * @param items
      * @return
      */
-    public static String join(String prefix, String delimiter, Collection<?> items) {
-        if (items == null || items.isEmpty()) return ("");
+    public static String join(String prefix, String delimiter, Iterable<?> items) {
+        if (items == null) return ("");
         if (prefix == null) prefix = "";
         
         StringBuilder sb = new StringBuilder();
+        int i = 0;
         for (Object x : items) {
             if (prefix.isEmpty() == false) sb.append(prefix);
             sb.append(x != null ? x.toString() : x).append(delimiter);
+            i++;
         }
+        if (i == 0) return ("");
         sb.delete(sb.length() - delimiter.length(), sb.length());
      
         return sb.toString();

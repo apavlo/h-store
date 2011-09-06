@@ -37,7 +37,7 @@ public class ProcParameter extends CatalogType {
         this.addField("index", m_index);
     }
 
-    void update() {
+    public void update() {
         m_type = (Integer) m_fields.get("type");
         m_isarray = (Boolean) m_fields.get("isarray");
         m_index = (Integer) m_fields.get("index");

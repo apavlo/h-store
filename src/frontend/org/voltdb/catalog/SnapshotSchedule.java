@@ -41,7 +41,7 @@ public class SnapshotSchedule extends CatalogType {
         this.addField("prefix", m_prefix);
     }
 
-    void update() {
+    public void update() {
         m_frequencyUnit = (String) m_fields.get("frequencyUnit");
         m_frequencyValue = (Integer) m_fields.get("frequencyValue");
         m_retain = (Integer) m_fields.get("retain");

@@ -17,7 +17,10 @@
 
 package org.voltdb.plannodes;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,7 +37,7 @@ public class PlanNodeList extends PlanNodeTree implements Comparable<PlanNodeLis
         EXECUTE_LIST;
     }
 
-    protected List<AbstractPlanNode> m_list = new Vector<AbstractPlanNode>();
+    private final List<AbstractPlanNode> m_list = new ArrayList<AbstractPlanNode>();
 
     public PlanNodeList() {
         super();
@@ -64,36 +67,28 @@ public class PlanNodeList extends PlanNodeTree implements Comparable<PlanNodeLis
     }
 
     public void constructList() throws Exception {
-        //
         // Create a counter for each node based on the # of children that it has
         // If any node has no children, put it in the execute list
-        //
-        Vector<AbstractPlanNode> execute_list = new Vector<AbstractPlanNode>();
+        List<AbstractPlanNode> execute_list = new ArrayList<AbstractPlanNode>();
         Map<AbstractPlanNode, Integer> child_cnts = new HashMap<AbstractPlanNode, Integer>();
         for (AbstractPlanNode node : m_planNodes) {
-            int num_of_children = node.getChildCount();
+            int num_of_children = node.getChildPlanNodeCount();
             if (num_of_children == 0) {
                 execute_list.add(node);
             } else {
                 child_cnts.put(node, num_of_children);
             }
         }
-        //
         // Now run through a simulation
         // Doing it this way maintains the nuances of the parent-child relationships
-        //
         m_list.clear();
         while (!execute_list.isEmpty()) {
             AbstractPlanNode node = execute_list.remove(0);
-            //
             // Add the node to our execution list
-            //
             m_list.add(node);
-            //
             // Then update all of this node's parents and reduce their wait counter by 1
             // If the counter is at zero, then we'll add it to end of our list
-            //
-            for (int i = 0; i < node.getParentCount(); i++) {
+            for (int i = 0; i < node.getParentPlanNodeCount(); i++) {
                 AbstractPlanNode parent = node.getParent(i);
                 int remaining = child_cnts.get(parent) - 1;
                 child_cnts.put(parent, remaining);
@@ -103,9 +98,7 @@ public class PlanNodeList extends PlanNodeTree implements Comparable<PlanNodeLis
             }
         }
 
-        //
         // Important! Make sure that our list has the same number of entries in our tree
-        //
         if (m_list.size() != m_planNodes.size()) {
             throw new Exception("ERROR: The execution list has '" + m_list.size() + "' PlanNodes but our original tree has '" + m_planNodes.size() + "' PlanNode entries");
         }

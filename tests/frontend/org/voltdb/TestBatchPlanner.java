@@ -125,7 +125,7 @@ public class TestBatchPlanner extends BaseTestCase {
         // Need to test that our short-cut methods for calculating the hash code works
         this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
         
-        PlanFragment catalog_frag = CollectionUtil.getFirst(CollectionUtil.getFirst(this.catalog_proc.getStatements()).getFragments());
+        PlanFragment catalog_frag = CollectionUtil.first(CollectionUtil.first(this.catalog_proc.getStatements()).getFragments());
         assertNotNull(catalog_frag);
         
         int round = 0;

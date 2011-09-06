@@ -30,7 +30,6 @@ public class Column extends CatalogType {
     int m_type;
     int m_size;
     boolean m_nullable;
-    String m_name = new String();
     String m_defaultvalue = new String();
     int m_defaulttype;
     CatalogMap<ConstraintRef> m_constraints;
@@ -42,7 +41,6 @@ public class Column extends CatalogType {
         this.addField("type", m_type);
         this.addField("size", m_size);
         this.addField("nullable", m_nullable);
-        this.addField("name", m_name);
         this.addField("defaultvalue", m_defaultvalue);
         this.addField("defaulttype", m_defaulttype);
         m_constraints = new CatalogMap<ConstraintRef>(catalog, this, path + "/" + "constraints", ConstraintRef.class);
@@ -52,12 +50,11 @@ public class Column extends CatalogType {
         this.addField("matviewsource", null);
     }
 
-    void update() {
+    public void update() {
         m_index = (Integer) m_fields.get("index");
         m_type = (Integer) m_fields.get("type");
         m_size = (Integer) m_fields.get("size");
         m_nullable = (Boolean) m_fields.get("nullable");
-        m_name = (String) m_fields.get("name");
         m_defaultvalue = (String) m_fields.get("defaultvalue");
         m_defaulttype = (Integer) m_fields.get("defaulttype");
         m_aggregatetype = (Integer) m_fields.get("aggregatetype");
@@ -81,11 +78,6 @@ public class Column extends CatalogType {
     /** GETTER: Is the column nullable? */
     public boolean getNullable() {
         return m_nullable;
-    }
-
-    /** GETTER: Name of column */
-    public String getName() {
-        return m_name;
     }
 
     /** GETTER: Default value of the column */
@@ -152,11 +144,6 @@ public class Column extends CatalogType {
     /** SETTER: Is the column nullable? */
     public void setNullable(boolean value) {
         m_nullable = value; m_fields.put("nullable", value);
-    }
-
-    /** SETTER: Name of column */
-    public void setName(String value) {
-        m_name = value; m_fields.put("name", value);
     }
 
     /** SETTER: Default value of the column */

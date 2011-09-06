@@ -26,29 +26,30 @@ public class Pair<T, U> implements Comparable<Pair<T, U>> {
 
     private final T m_first;
     private final U m_second;
-    private transient final int m_hash;
+    private transient Integer m_hash;
 
-    public Pair(T first, U second, final boolean hash) {
+    public Pair(T first, U second, boolean precomputeHash) {
         m_first = first;
         m_second = second;
-        if (hash) {
-            m_hash = (first == null ? 0 : first.hashCode() * 31) +
-                     (second == null ? 0 : second.hashCode());
-        } else {
-            m_hash = 0;
-        }
+        m_hash = (precomputeHash ? this.computeHashCode() : null);
     }
 
     public Pair(T first, U second) {
         this(first, second, true);
     }
 
-    public String toString() {
-        return "<" + m_first.toString() + ", " + m_second.toString() + ">";
+    private int computeHashCode() {
+        return (m_first == null ? 0 : m_first.hashCode() * 31) +
+               (m_second == null ? 0 : m_second.hashCode());
+    }
+    
+    public int hashCode() {
+        if (m_hash != null) return (m_hash.intValue());
+        return (this.computeHashCode());
     }
 
-    public int hashCode() {
-        return m_hash;
+    public String toString() {
+        return String.format("<%s, %s>", m_first, m_second);
     }
     
     @Override

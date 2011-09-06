@@ -44,7 +44,6 @@ protected:
     CatalogType* m_host;
     CatalogMap<Partition> m_partitions;
     bool m_isUp;
-    int32_t m_proc_port;
     int32_t m_dtxn_port;
     int32_t m_messenger_port;
 
@@ -63,8 +62,6 @@ public:
     const CatalogMap<Partition> & partitions() const;
     /** GETTER: Is the site up? */
     bool isUp() const;
-    /** GETTER: Port used by VoltProcedureListener */
-    int32_t proc_port() const;
     /** GETTER: Port used by DTXN ProtoServer */
     int32_t dtxn_port() const;
     /** GETTER: Port used by HStoreMessenger */

@@ -8,6 +8,7 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
@@ -35,13 +36,15 @@ public class TestLocalityLoader extends BaseTestCase {
 //        TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
         
         String args[] = {
-            "scalefactor=" + SCALE_FACTOR,
+            "client.scalefactor=" + SCALE_FACTOR,
+            "NOCONNECTIONS=true",
+            "NOUPLOADING=true",
         };
         this.loader = new LocalityLoader(args) {
             
             @Override
-            protected void loadTable(String tablename, VoltTable table) {
-                LOG.debug("LOAD TABLE: " + tablename + " [" +
+            public ClientResponse loadVoltTable(String tablename, VoltTable table) {
+                LOG.info("LOAD TABLE: " + tablename + " [" +
                           "tablesize="  + TestLocalityLoader.this.current_tablesize + "," +
                           "batchsize="  + TestLocalityLoader.this.current_batchsize + "," +
                           "num_rows="   + table.getRowCount() + "," + 
@@ -53,7 +56,8 @@ public class TestLocalityLoader extends BaseTestCase {
                 TestLocalityLoader.this.total_rows += num_rows;
                 assert(num_rows > 0);
                 assert(num_rows <= TestLocalityLoader.this.current_batchsize);
-                assert(TestLocalityLoader.this.total_rows <= TestLocalityLoader.this.current_tablesize);
+                assert(TestLocalityLoader.this.total_rows <= TestLocalityLoader.this.current_tablesize) :
+                    String.format("%d <= %d", total_rows, current_tablesize);
                 
                 // VARCHAR Column checks
                 Table catalog_tbl = TestLocalityLoader.this.getTable(tablename);
@@ -82,7 +86,7 @@ public class TestLocalityLoader extends BaseTestCase {
 //                              catalog_sites.get(0).getPartitions();
 //                              int a_id = 20;
 //                              TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
-    int length = catalog_col.getSize();
+                                int length = catalog_col.getSize();
                                 String value = table.getString(index);
                                 assertNotNull("The value in " + catalog_col + " at row " + row + " is null", value);
                                 assertTrue("The value in " + catalog_col + " at row " + row + " is " + value.length() + ". Max is " + length,
@@ -103,7 +107,7 @@ public class TestLocalityLoader extends BaseTestCase {
                 } // WHILE
                 // if (true || tablename.equals(LocalityConstants.TABLENAME_TABLEB)) LOG.info(table);
                 table.resetRowPosition();
-                
+                return (null);
             }
         };
         this.loader.setCatalog(catalog);

@@ -35,7 +35,7 @@ public class PushdownReceiveDominators implements MicroOptimization {
         AbstractPlanNode planGraph = plan.fragments.get(0).planGraph;
         planGraph.calculateDominators();
 
-        ArrayList<AbstractPlanNode> receiveNodes =
+        List<AbstractPlanNode> receiveNodes =
             planGraph.findAllNodesOfType(PlanNodeType.RECEIVE);
 
         for (AbstractPlanNode pn : receiveNodes) {
@@ -92,7 +92,7 @@ public class PushdownReceiveDominators implements MicroOptimization {
 
         // distinct must have a single parent.
         AbstractPlanNode distinct_parent = distinct.getParent(0);
-        if (distinct.getParentCount() > 1)
+        if (distinct.getParentPlanNodeCount() > 1)
             return false;
 
         // receive must have a send child

@@ -35,7 +35,6 @@ package edu.brown.benchmark.tm1.procedures;
 import org.voltdb.*;
 
 import edu.brown.benchmark.tm1.TM1Constants;
-import edu.brown.utils.ThreadUtil;
 
 @ProcInfo(
     singlePartition = false

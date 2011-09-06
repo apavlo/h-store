@@ -63,7 +63,7 @@ public class ClientDelete {
             try {
                 System.out.printf("Connecting to server: %s\n",thisServer);
                 Pair<String, Integer> p = StringUtil.getHostPort(thisServer);
-                voltclient.createConnection(p.getFirst(), p.getSecond(), "program", "none");
+                voltclient.createConnection(null, p.getFirst(), p.getSecond(), "program", "none");
             } catch (IOException e) {
                 e.printStackTrace();
                 System.exit(-1);

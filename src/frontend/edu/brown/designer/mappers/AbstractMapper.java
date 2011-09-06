@@ -29,7 +29,7 @@ package edu.brown.designer.mappers;
 import org.apache.log4j.Logger;
 
 import edu.brown.designer.*;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 public abstract class AbstractMapper {
     protected static final Logger LOG = Logger.getLogger(AbstractMapper.class.getName());

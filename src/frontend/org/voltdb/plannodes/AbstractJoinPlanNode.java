@@ -46,6 +46,13 @@ public abstract class AbstractJoinPlanNode extends AbstractPlanNode {
     }
 
     @Override
+    public Object clone() throws CloneNotSupportedException {
+        AbstractJoinPlanNode clone = (AbstractJoinPlanNode)super.clone();
+        clone.m_predicate = (AbstractExpression)this.m_predicate.clone();
+        return (clone);
+    }
+    
+    @Override
     public void validate() throws Exception {
         super.validate();
 
