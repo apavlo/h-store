@@ -26,9 +26,9 @@ package edu.brown.benchmark;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -37,10 +37,12 @@ import org.apache.log4j.Logger;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConf;
 
 public class BenchmarkConfig {
     private static final Logger LOG = Logger.getLogger(BenchmarkConfig.class);
     
+    public HStoreConf hstore_conf;
     public String hstore_conf_path;
     public String benchmark_conf_path;
     
@@ -51,10 +53,6 @@ public class BenchmarkConfig {
     public int sitesPerHost;
     public int k_factor;
     public String[] clients;
-    public int processesPerClient;
-    public long interval;
-    public long duration;
-    public long warmup;
     public String sshOptions[];
     public String remotePath;
     public String remoteUser;
@@ -72,6 +70,7 @@ public class BenchmarkConfig {
     public String statsTag;//Identifies the result set
     public String applicationName;
     public String subApplicationName;
+    public String partitionPlanPath;
     
     public String coordinatorHost;
     
@@ -84,7 +83,9 @@ public class BenchmarkConfig {
     public Set<Integer> profileSiteIds;
     
     public boolean noCoordinator;
-    public boolean noDataLoad;
+    public boolean noLoader;
+    public boolean noUploading;
+    public boolean noExecute;
     public boolean noShutdown;
     
     public String markovPath;
@@ -96,8 +97,10 @@ public class BenchmarkConfig {
     public boolean dumpDatabase;
     public String dumpDatabaseDir;
     
-    public final Map<String, String> clientParameters = new HashMap<String, String>();
-    public final Map<String, String> siteParameters = new HashMap<String, String>();
+    public boolean jsonOutput;
+    
+    public final Map<String, String> clientParameters = new TreeMap<String, String>();
+    public final Map<String, String> siteParameters = new TreeMap<String, String>();
 
     private PropertiesConfiguration config = null;
     
@@ -105,8 +108,12 @@ public class BenchmarkConfig {
      * 
      * @param benchmark_conf_path
      */
-    @SuppressWarnings("unchecked")
     public BenchmarkConfig(File benchmark_conf_path) {
+        this.loadConfigFile(benchmark_conf_path);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void loadConfigFile(File path) {
         try {
             this.config = new PropertiesConfiguration(benchmark_conf_path);
         } catch (Exception ex) {
@@ -115,8 +122,15 @@ public class BenchmarkConfig {
         
         Class<?> confClass = this.getClass();
         for (Object key : CollectionUtil.wrapIterator(this.config.getKeys())) {
-            Field f = null;
             String f_name = key.toString();
+            String f_value = this.config.getString(f_name); 
+            
+            // Always store whatever the property as a client parameter
+            String paramName = (BenchmarkController.BENCHMARK_PARAM_PREFIX + f_name).toUpperCase();
+            LOG.debug(String.format("Passing benchmark parameter to clients: %s = %s", paramName, f_value));
+            clientParameters.put(paramName, f_value);
+            
+            Field f = null;
             try {
                 f = confClass.getField(f_name);
             } catch (Exception ex) {
@@ -144,7 +158,7 @@ public class BenchmarkConfig {
             
             try {
                 f.set(this, value);
-                LOG.debug(String.format("SET %s = %s", f_name, value));
+                LOG.info(String.format("SET %s = %s", f_name, value));
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to set value '" + value + "' for field '" + f_name + "'", ex);
             }
@@ -152,6 +166,7 @@ public class BenchmarkConfig {
     }
     
     public BenchmarkConfig(
+            HStoreConf hstore_conf,
             String hstore_conf_path,
             String benchmark_conf_path,
             String benchmarkClient,
@@ -162,10 +177,6 @@ public class BenchmarkConfig {
             int sitesPerHost,
             int kFactor,
             String[] clients,
-            int processesPerClient,
-            long interval,
-            long duration,
-            long warmup,
             String sshOptions,
             String remotePath,
             String remoteUser,
@@ -188,21 +199,22 @@ public class BenchmarkConfig {
             boolean compileBenchmark,
             boolean compileOnly,
             boolean useCatalogHosts,
-            boolean noDataLoad,
+            boolean noLoader,
+            boolean noUploading,
+            boolean noExecute,
             boolean noShutdown,
             String workloadTrace,
             Set<Integer> profileSiteIds,
+            String partitionPlanPath,
             String markovPath,
             String thresholdsPath,
             Double thresholdsValue,
             boolean markovRecomputeAfterEnd,
             boolean markovRecomputeAfterWarmup,
             boolean dumpDatabase,
-            String dumpDatabaseDir
+            String dumpDatabaseDir,
+            boolean jsonOutput
         ) {
-
-        this.hstore_conf_path = hstore_conf_path;
-        this.benchmark_conf_path = benchmark_conf_path;
         
         this.projectBuilderClass = benchmarkClient;
         this.backend = backend;
@@ -216,10 +228,6 @@ public class BenchmarkConfig {
         this.clients = new String[clients.length];
         for (int i = 0; i < clients.length; i++)
             this.clients[i] = clients[i];
-        this.processesPerClient = processesPerClient;
-        this.interval = interval;
-        this.duration = duration;
-        this.warmup = warmup;
         this.sshOptions = sshOptions.split(" "); // HACK
         this.remotePath = remotePath;
         this.remoteUser = remoteUser;
@@ -242,11 +250,14 @@ public class BenchmarkConfig {
         this.compileBenchmark = compileBenchmark;
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
-        this.noDataLoad = noDataLoad;
+        this.noLoader = noLoader;
+        this.noUploading = noUploading;
+        this.noExecute = noExecute;
         this.noShutdown = noShutdown;
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
         
+        this.partitionPlanPath = partitionPlanPath;
         this.markovPath = markovPath;
         this.markov_thresholdsPath = thresholdsPath;
         this.markov_thresholdsValue = thresholdsValue;
@@ -255,6 +266,15 @@ public class BenchmarkConfig {
         
         this.dumpDatabase = dumpDatabase;
         this.dumpDatabaseDir = dumpDatabaseDir;
+        
+        this.jsonOutput = jsonOutput;
+        
+        this.hstore_conf = hstore_conf;
+        this.hstore_conf_path = hstore_conf_path;
+        this.benchmark_conf_path = benchmark_conf_path;
+        if (this.benchmark_conf_path.isEmpty() == false) {
+            this.loadConfigFile(new File(this.benchmark_conf_path));
+        }
     }
 
     @Override
@@ -282,7 +302,7 @@ public class BenchmarkConfig {
                 } catch (IllegalAccessException ex) {
                     val = ex.getMessage();
                 }
-                m2.put(key, val);
+                if ((val instanceof HStoreConf) == false) m2.put(key, val);
             }
         } // FOR
         return (StringUtil.formatMaps(m0, m1, this.clientParameters, this.siteParameters, m2));

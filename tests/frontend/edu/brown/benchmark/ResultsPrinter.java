@@ -23,12 +23,73 @@
 
 package edu.brown.benchmark;
 
+import java.util.Collection;
+
+import edu.brown.benchmark.BenchmarkResults.EntityResult;
+import edu.brown.benchmark.BenchmarkResults.FinalResult;
 import edu.brown.benchmark.BenchmarkResults.Result;
-
-
+import edu.brown.utils.TableUtil;
 
 public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
 
+    private static final String COL_FORMATS[] = {
+        "%23s:",
+        "%10d total",
+        "(%5.1f%%)",
+        "%8.2f txn/s",
+        "%10.2f txn/m",
+    };
+    
+    protected String formatFinalResults(BenchmarkResults results) {
+        StringBuilder sb = new StringBuilder();
+        FinalResult fr = new FinalResult(results);
+        
+        sb.append("\n================================== BENCHMARK RESULTS ==================================\n");
+        sb.append(String.format("Time: %d ms\n", fr.getDuration()));
+        sb.append(String.format("Total transactions: %d\n", fr.getTotalTxnCount()));
+        sb.append(String.format("Transactions per second: %.2f\n", fr.getTxnPerSecond()));
+        
+        Collection<String> txnNames = fr.getTransactionNames();
+        Collection<String> clientNames = fr.getClientNames();
+        int num_rows = txnNames.size() + clientNames.size() + 1;
+        Object rows[][] = new String[num_rows][COL_FORMATS.length];
+        int row_idx = 0;
+        
+        for (String txnName : txnNames) {
+            EntityResult er = fr.getTransactionResult(txnName);
+            assert(er != null);
+            int col_idx = 0;
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], txnName);
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
+            row_idx++;
+        } // FOR
+        
+        rows[row_idx][0] = "\nBreakdown by client:";
+        for (int i = 1; i < COL_FORMATS.length; i++) {
+            rows[row_idx][i] = "";
+        } // FOR
+        row_idx++;
+        
+        for (String clientName : clientNames) {
+            EntityResult er = fr.getClientResult(clientName);
+            assert(er != null);
+            int col_idx = 0;
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], clientName);
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
+            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
+            row_idx++;
+        } // FOR
+        sb.append(TableUtil.table(rows));
+        sb.append("\n=======================================================================================\n");
+        
+        return (sb.toString());
+    }
+    
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
 
@@ -68,54 +129,9 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
 
         if ((pollIndex * results.getIntervalDuration()) >= duration) {
             // print the final results
-            System.out.println("\n================================ BENCHMARK RESULTS ================================");
-            System.out.printf("Time: %d ms\n", duration);
-            System.out.printf("Total transactions: %d\n", totalTxnCount);
-            System.out.printf("Transactions per second: %.2f\n", totalTxnCount / (double)duration * 1000.0);
-            for (String transactionName : results.getTransactionNames()) {
-                final long txnCount = getTotalCountForTransaction(transactionName, results);
-                System.out.printf("%23s: %10d total %-6s %8.2f txn/s %10.2f txn/m\n",
-                        transactionName,
-                        txnCount,
-                        String.format("(%5.1f%%)", (txnCount / (double)totalTxnCount) * 100), 
-                        txnCount / (double)duration * 1000.0,
-                        txnCount / (double)duration * 1000.0 * 60.0);
-            }
-            System.out.println("Breakdown by client:");
-            for (String clientName : results.getClientNames()) {
-                final long txnCount = getTotalCountForClient(clientName, results);
-                clientName = clientName.replace("client-", "");
-                System.out.printf("%23s: %10d total %-8s %8.2f txn/s %10.2f txn/m\n",
-                        clientName,
-                        txnCount,
-                        "",
-                        txnCount / (double)duration * 1000.0,
-                        txnCount / (double)duration * 1000.0 * 60.0);
-            }
-            System.out.println("===================================================================================\n");
+            System.out.println(this.formatFinalResults(results));
         }
 
         System.out.flush();
     }
-
-    private long getTotalCountForClient(String clientName, BenchmarkResults results) {
-        long txnCount = 0;
-        for (String txnName : results.getTransactionNames()) {
-            Result[] rs = results.getResultsForClientAndTransaction(clientName, txnName);
-            for (Result r : rs)
-                txnCount += r.transactionCount;
-        }
-        return txnCount;
-    }
-
-    private long getTotalCountForTransaction(String txnName, BenchmarkResults results) {
-        long txnCount = 0;
-        for (String clientName : results.getClientNames()) {
-            Result[] rs = results.getResultsForClientAndTransaction(clientName, txnName);
-            for (Result r : rs)
-                txnCount += r.transactionCount;
-        }
-        return txnCount;
-    }
-
 }

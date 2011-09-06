@@ -8,6 +8,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -16,20 +17,25 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
@@ -39,13 +45,17 @@ import edu.brown.workload.filters.Filter;
  */
 public class TimeIntervalCostModel<T extends AbstractCostModel> extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(TimeIntervalCostModel.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * Internal cost models (one per interval)
      */
     private final int num_intervals;
     private final T cost_models[];
-    private final Class<? extends T> inner_class;
 
     /**
      * For testing
@@ -54,21 +64,35 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     protected double last_skew_cost;
     protected Double last_final_cost;
     
-    protected String last_debug;
     protected final Map<String, Histogram<?>> debug_histograms = new ListOrderedMap<String, Histogram<?>>();
 
     final ArrayList<Integer> tmp_touched = new ArrayList<Integer>();
-    final ArrayList<Long> tmp_potential = new ArrayList<Long>();
     final ArrayList<Long> tmp_total = new ArrayList<Long>();
     final ArrayList<Double> tmp_penalties = new ArrayList<Double>();
-    final Histogram<Integer> target_histogram = new Histogram<Integer>();
+    final ArrayList<Long> tmp_potential = new ArrayList<Long>();
     
+    final Histogram<Integer> target_histogram = new Histogram<Integer>();
+
+    /** The number of single-partition txns per interval */
     final int singlepartition_ctrs[];
+    
+    /**
+     * The number of single-partition txns with actual partitions that we calculated
+     * This differs from incomplete txns where we have to mark them as single-partition
+     * because we don't know what they're actually going to do 
+     */
     final int singlepartition_with_partitions_ctrs[];
+
+    /**
+     * 
+     */
     final int multipartition_ctrs[];
     final int incomplete_txn_ctrs[];
+    
     /** When the Java doesn't execute on the same machine as where the queries go **/
     final int exec_mismatch_ctrs[]; 
+    
+    /** The number of partitions touched per interval **/
     final int partitions_touched[];
     final double interval_weights[];
     final double total_interval_txns[];
@@ -98,7 +122,6 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         super(TimeIntervalCostModel.class, catalog_db, new PartitionEstimator(catalog_db));
         this.num_intervals = num_intervals;
         this.cost_models = (T[])(new AbstractCostModel[num_intervals]);
-        this.inner_class = inner_class;
         
         try {
             Constructor constructor = ClassUtil.getConstructor(inner_class, Database.class, PartitionEstimator.class);
@@ -110,7 +133,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             System.exit(1);
         }
         assert(this.num_intervals > 0);
-        LOG.debug("TimeIntervalCostModel: " + this.num_intervals + " intervals");
+        if (trace.get()) LOG.trace("TimeIntervalCostModel: " + this.num_intervals + " intervals");
         
         singlepartition_ctrs = new int[num_intervals];
         singlepartition_with_partitions_ctrs = new int[num_intervals];
@@ -150,10 +173,6 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         } // FOR
     }
     
-    public String getLastDebugMessages() {
-        return (this.last_debug);
-    }
-    
     public double getLastSkewCost() {
         return last_skew_cost;
     }
@@ -167,8 +186,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     @Override
     public void clear(boolean force) {
         super.clear(force);
-        if (force || !this.isCachingEnabled()) {
-            if (LOG.isDebugEnabled()) LOG.debug("Clearing out all interval cost models");
+        if (force || this.isCachingEnabled() == false) {
+            if (debug.get()) LOG.debug("Clearing out all interval cost models");
             for (int i = 0; i < this.num_intervals; i++) {
                 this.cost_models[i].clear(force);
             } // FOR
@@ -210,10 +229,14 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         for (int i = 0; i < num_intervals; i++) {
             this.cost_models[i].prepare(catalog_db);
             if (!this.use_caching) {
+                this.cost_models[i].clear(true);
                 assert(this.cost_models[i].getTxnPartitionAccessHistogram().isEmpty());
                 assert(this.cost_models[i].getQueryPartitionAccessHistogram().isEmpty());
             }
         } // FOR
+        
+        // Note that we want to clear our counters but not our internal cost model data structures
+        this.clear();
     }
     
     /* (non-Javadoc)
@@ -231,39 +254,26 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
      * 
      */
     @Override
-    public double estimateCost(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
-        final boolean trace = LOG.isTraceEnabled();
-        final boolean debug = LOG.isDebugEnabled();
-        this.last_debug = "";
-        
-        this.prepare(catalog_db);
-        int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
+    protected double estimateWorkloadCostImpl(Database catalog_db, Workload workload, Filter filter, Double upper_bound) throws Exception {
         Collection<Integer> all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         assert(all_partitions.isEmpty() == false) : "No partitions???";
         
-        if (debug) LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
-
-        // Note that we want to clear our counters but not our internal cost model data structures
-        this.clear();
+        if (debug.get()) LOG.debug("Calculating workload execution cost across " + num_intervals + " intervals for " + num_partitions + " partitions");
         
         // (1) Grab the costs at the different time intervals
         //     Also create the ratios that we will use to weight the interval costs
-        final Histogram<Integer> histogram_proc_intervals = workload.getTimeIntervalProcedureHistogram(this.num_intervals);
-        final Histogram<Integer> histogram_query_intervals = workload.getTimeIntervalQueryHistogram(this.num_intervals);
-        final long total_txns = workload.getTransactionCount();
+        long total_txns = 0;
 
 //        final HashSet<Long> trace_ids[] = new HashSet[num_intervals]; 
         for (int i = 0; i < num_intervals; i++) {
-//            trace_ids[i] = new HashSet<Long>();
+            total_interval_txns[i] = 0;
+            total_interval_queries[i] = 0;
             singlepartition_ctrs[i] = 0;
             singlepartition_with_partitions_ctrs[i] = 0;
             multipartition_ctrs[i] = 0;
             partitions_touched[i] = 0;
             incomplete_txn_ctrs[i] = 0;
             exec_mismatch_ctrs[i] = 0;
-            total_interval_txns[i] = histogram_proc_intervals.get(i, 0);
-            total_interval_queries[i] = histogram_query_intervals.get(i, 0);
-            interval_weights[i] = total_interval_txns[i] / (double)total_txns;
             incomplete_txn_histogram[i].clear();
             missing_txn_histogram[i].clear();
             exec_histogram[i].clear();
@@ -271,7 +281,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         // (2) Now go through the workload and estimate the partitions that each txn will touch
         //     for the given catalog setups
-        if (trace) {
+        if (trace.get()) {
             LOG.trace("Total # of Txns in Workload: " + workload.getTransactionCount());
             LOG.trace("Workload Filter Chain:       " + filter);
         }
@@ -281,23 +291,17 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             int i = workload.getTimeInterval(txn_trace, num_intervals);
             assert(i >= 0);
             assert(i < num_intervals) : "Invalid interval: " + i;
+            total_txns++;
+            total_interval_txns[i]++;
+            total_interval_queries[i] += txn_trace.getQueryCount();
             try {
-                /*
-                if (trace_ids[i].contains(txn_trace.getId())) {
-                    System.err.println(StringUtil.join("\n", trace_ids[i]));
-                    throw new RuntimeException("Duplicate " + txn_trace + " for interval #" + i);
-                }
-                assert(!trace_ids[i].contains(txn_trace.getId())) : "Duplicate " + txn_trace + " for interval #" + i;
-                trace_ids[i].add(txn_trace.getId());
-                */
-                
                 // Terrible Hack: Assume that we are using the SingleSitedCostModel and that
                 // it will return fixed values based on whether the txn is single-partitioned or not
                 this.cost_models[i].estimateTransactionCost(catalog_db, workload, filter, txn_trace);
                 SingleSitedCostModel singlesited_cost_model = (SingleSitedCostModel)this.cost_models[i]; 
                 TransactionCacheEntry txn_entry = singlesited_cost_model.getTransactionCacheEntry(txn_trace);
                 assert(txn_entry != null) : "No txn entry for " + txn_trace;
-                Set<Integer> partitions = txn_entry.getTouchedPartitions();
+                Collection<Integer> partitions = txn_entry.getTouchedPartitions();
                 
                 // If the txn runs on only one partition, then the cost is nothing
                 if (txn_entry.isSingleSited()) {
@@ -317,11 +321,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 } else {
                     assert(!partitions.isEmpty()) : "No touched partitions for " + txn_trace;
                     if (partitions.size() == 1 && txn_entry.getExecutionPartition() != null) {
-                        assert(CollectionUtil.getFirst(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
+                        assert(CollectionUtil.first(partitions) != txn_entry.getExecutionPartition()) : txn_entry.debug();
                         exec_mismatch_ctrs[i]++;
                         partitions_touched[i]++;
                     } else {
-                        assert(partitions.size() > 1) : txn_entry.debug();
+                        assert(partitions.size() > 1) : String.format("%s is not marked as single-partition but it only touches one partition\n%s", txn_trace, txn_entry.debug());
                     }
                     partitions_touched[i] += partitions.size(); // Txns
                     multipartition_ctrs[i]++;
@@ -333,11 +337,29 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 } else {
                     exec_histogram[i].putAll(all_partitions);
                 }
-                if (trace) LOG.trace(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
-                                     "singlep_ctrs=" + singlepartition_ctrs[i] + ", " +
-                                     "singlep_with_partitions_ctrs=" + singlepartition_with_partitions_ctrs[i] + ", " +
-                                     "p_touched=" + partitions_touched[i] + ", " +
-                                     "exec_mismatch=" + exec_mismatch_ctrs[i] + "]");
+                if (debug.get() && txn_trace.getCatalogItemName().equalsIgnoreCase("DeleteCallForwarding")) {
+                    Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+                    Map<String, Object> inner = new ListOrderedMap<String, Object>();
+                    for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                        inner.put(catalog_stmt.fullName(), CatalogUtil.getReferencedTables(catalog_stmt));
+                    }
+                    
+                    Map<String, Object> m = new ListOrderedMap<String, Object>();
+                    m.put(txn_trace.toString(), null);
+                    m.put("Single-Partition", txn_entry.isSingleSited());
+                    m.put("Base Partition", base_partition);
+                    m.put("Touched Partitions", partitions);
+                    m.put(catalog_proc.fullName(), inner);
+                    
+                    
+                    LOG.debug(StringUtil.formatMaps(m));
+                    
+//                    LOG.debug(txn_trace + ": " + (txn_entry.isSingleSited() ? "Single" : "Multi") + "-Sited [" +
+//                                     "singlep_ctrs=" + singlepartition_ctrs[i] + ", " +
+//                                     "singlep_with_partitions_ctrs=" + singlepartition_with_partitions_ctrs[i] + ", " +
+//                                     "p_touched=" + partitions_touched[i] + ", " +
+//                                     "exec_mismatch=" + exec_mismatch_ctrs[i] + "]");
+                }
 
                 // We need to keep a count of the number txns that didn't have all of its queries estimated
                 // completely so that we can update the access histograms down below for entropy calculations
@@ -350,8 +372,15 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                     // Update the histogram for this interval to keep track of how many times we need to
                     // increase the partition access histogram
                     incomplete_txn_histogram[i].putAll(tmp_missingPartitions);
-                    if (debug) LOG.debug(String.format("Marking %s as incomplete in interval #%d [examinedQ=%d, totalQ=%d, touchedP:%s, missingP: %s]",
-                                                        txn_trace, i, txn_entry.getExaminedQueryCount(), txn_entry.getTotalQueryCount(), txn_entry.getTouchedPartitions(), tmp_missingPartitions));
+                    if (trace.get()) {
+                        Map<String, Object> m = new ListOrderedMap<String, Object>();
+                        m.put(String.format("Marking %s as incomplete in interval #%d",txn_trace, i), null);
+                        m.put("Examined Queries", txn_entry.getExaminedQueryCount());
+                        m.put("Total Queries", txn_entry.getTotalQueryCount());
+                        m.put("Touched Partitions", txn_entry.getTouchedPartitions());
+                        m.put("Missing Partitions", tmp_missingPartitions);
+                        LOG.trace(StringUtil.formatMaps(m));
+                    }
                 }
             } catch (Exception ex) {
                 LOG.error("Failed to estimate cost for " + txn_trace.getCatalogItemName() + " at interval " + i);
@@ -364,12 +393,18 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         // For each interval, divide the number of partitions touched by the total number of partitions
         // that the interval could have touched (worst case scenario)
         final double execution_costs[] = new double[num_intervals];
-        StringBuilder sb = (debug ? new StringBuilder() : null);
-        if (debug) LOG.debug("Calculating execution cost for " + this.num_intervals + " intervals...");
+        StringBuilder sb = (this.isDebugEnabled() || debug.get() ? new StringBuilder() : null);
+        Map<String, Object> debug_m = null;
+        if (sb != null) {
+            debug_m = new ListOrderedMap<String, Object>();
+        }
+        
+        if (debug.get()) LOG.debug("Calculating execution cost for " + this.num_intervals + " intervals...");
         long total_multipartition_txns = 0;
         for (int i = 0; i < this.num_intervals; i++) {
-            long total_txns_in_interval = histogram_proc_intervals.get(i, 0);
-            long total_queries_in_interval = histogram_query_intervals.get(i, 0);
+            interval_weights[i] = total_interval_txns[i] / (double)total_txns;
+            long total_txns_in_interval = (long)total_interval_txns[i];
+            long total_queries_in_interval = (long)total_interval_queries[i];
             long num_txns = this.cost_models[i].txn_ctr.get();
             long potential_txn_touches = (total_txns_in_interval * num_partitions); // TXNS
             double penalty = 0.0d;
@@ -392,56 +427,57 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             
             // For each txn that wasn't even evaluated, add all of the partitions to the incomplete histogram
             if (num_txns < total_txns_in_interval) {
-                if (trace) LOG.trace("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
+                if (trace.get()) LOG.trace("Adding " + (total_txns_in_interval - num_txns) + " entries to the incomplete histogram for interval #" + i);
                 for (long ii = num_txns; ii < total_txns_in_interval; ii++) {
                     missing_txn_histogram[i].putAll(all_partitions);
                 } // WHILE
             }
             
-            tmp_penalties.add(penalty);
-            tmp_total.add(total_txns_in_interval);
-            tmp_touched.add(partitions_touched[i]);
-            tmp_potential.add(potential_txn_touches);
-            
-            if (debug) {
-                sb.append("Interval #" + i + ": ")
-                  .append("PartTouched=" + partitions_touched[i] + ", ")
-                  .append("PotentialTouched="  + potential_txn_touches + ", ")
-    //              .append("PotentialTouched="  + potential_query_touches + ", ")
-                  .append("MultiPartTxns=" + multipartition_ctrs[i] + ", ")
-                  .append("TotalTxns=" + total_txns_in_interval + ", ")
-                  .append("TotalQueries=" + total_queries_in_interval + ", ")
-                  .append("MissingTxns=" + (total_txns_in_interval - num_txns) + ", ")
-                  .append("Cost=" + String.format("%.05f", execution_costs[i]) + ", ")
-                  .append("ExecTxns: " + exec_histogram[i].getSampleCount())
-                  .append("\n");
+            if (sb != null) {
+                tmp_penalties.add(penalty);
+                tmp_total.add(total_txns_in_interval);
+                tmp_touched.add(partitions_touched[i]);
+                tmp_potential.add(potential_txn_touches);
+                
+                Map<String, Object> inner = new ListOrderedMap<String, Object>();
+                inner.put("Partitions Touched", partitions_touched[i]);
+                inner.put("Potential Touched", potential_txn_touches);
+                inner.put("Multi-Partition Txns", multipartition_ctrs[i]);
+                inner.put("Total Txns", total_txns_in_interval);
+                inner.put("Total Queries", total_queries_in_interval);
+                inner.put("Missing Txns", (total_txns_in_interval - num_txns));
+                inner.put("Cost", String.format("%.05f", execution_costs[i]));
+                inner.put("Exec Txns", exec_histogram[i].getSampleCount());
+                debug_m.put("Interval #" + i, inner);
             }
         } // FOR
         
-        if (debug) {
-            sb.append("SinglePartition Txns: ").append(total_txns - total_multipartition_txns).append("\n");
-            sb.append("MultiPartition Txns:  ").append(total_multipartition_txns).append("\n");
-            sb.append("Total Txns:           ").append(total_txns).append(" [").append(1.0d - (total_multipartition_txns / (double)total_txns)).append("]\n");
+        if (sb != null) {
+            Map<String, Object> m0 = new ListOrderedMap<String, Object>();
+            m0.put("SinglePartition Txns", (total_txns - total_multipartition_txns));
+            m0.put("MultiPartition Txns", total_multipartition_txns);
+            m0.put("Total Txns", String.format("%d [%.06f]", total_txns, (1.0d - (total_multipartition_txns / (double)total_txns))));
             
-            sb.append("\n");
-            sb.append("touched = " + tmp_touched.toString() + "\n");
-            sb.append("potential = " + tmp_potential.toString() + "\n");
-            sb.append("total = " + tmp_total.toString() + "\n");
-            sb.append("multipartition = " + Arrays.toString(multipartition_ctrs) + "\n");
-            sb.append("penalties = " + tmp_penalties + "\n");
-            LOG.debug("**** Execution Cost ****\n" + sb);
-            this.last_debug += sb.toString();
+            Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+            m1.put("Touched Partitions", tmp_touched);
+            m1.put("Potential Partitions", tmp_potential);
+            m1.put("Total Partitions", tmp_total);
+            m1.put("Penalties", tmp_penalties);
+            
+            sb.append(StringUtil.formatMaps(debug_m, m0, m1));
+            if (debug.get()) LOG.debug("**** Execution Cost ****\n" + sb);
+            this.appendDebugMessage(sb);
         }
         
         // LOG.debug("Execution By Intervals:\n" + sb.toString());
         
         // (3) We then need to go through and grab the histograms of partitions were accessed
-        if (debug) {
-            LOG.debug("Calculating skew factor for " + this.num_intervals + " intervals...");
+        if (sb != null) {
+            if (debug.get()) LOG.debug("Calculating skew factor for " + this.num_intervals + " intervals...");
             debug_histograms.clear();
             sb = new StringBuilder();
         }
-        for (int i = 0; i < num_intervals; i++) {
+        for (int i = 0; i < this.num_intervals; i++) {
             Histogram<Integer> histogram_txn = this.cost_models[i].getTxnPartitionAccessHistogram();
             Histogram<Integer> histogram_query = this.cost_models[i].getQueryPartitionAccessHistogram();
             this.histogram_query_partitions.putHistogram(histogram_query);
@@ -449,33 +485,32 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             this.query_ctr.addAndGet(num_queries);
 
             // DEBUG
-            SingleSitedCostModel singlesited_cost_model = (SingleSitedCostModel)this.cost_models[i];
+            SingleSitedCostModel inner_costModel = (SingleSitedCostModel)this.cost_models[i];
             boolean is_valid = (partitions_touched[i] + singlepartition_with_partitions_ctrs[i]) == (this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + exec_mismatch_ctrs[i]);
             if (!is_valid) {
-                System.err.println("Transaction Entries: " + singlesited_cost_model.getTransactionCacheEntries().size());
-                
+                LOG.error("Transaction Entries: " + inner_costModel.getTransactionCacheEntries().size());
                 Histogram<Integer> check = new Histogram<Integer>();
-                for (TransactionCacheEntry tce : singlesited_cost_model.getTransactionCacheEntries()) {
+                for (TransactionCacheEntry tce : inner_costModel.getTransactionCacheEntries()) {
                     check.putAll(tce.getTouchedPartitions());
-                    System.err.println(tce.debug() + "\n");
+//                    LOG.error(tce.debug() + "\n");
                 }
-                System.err.println("Check Touched Partitions: sample=" + check.getSampleCount() + ", value=" + check.getValueCount());
-                System.err.println("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", value=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());
+                LOG.error("Check Touched Partitions: sample=" + check.getSampleCount() + ", values=" + check.getValueCount());
+                LOG.error("Cache Touched Partitions: sample=" + this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount() + ", values=" + this.cost_models[i].getTxnPartitionAccessHistogram().getValueCount());
                 
-                int qtotal = singlesited_cost_model.getAllQueryCacheEntries().size();
+                int qtotal = inner_costModel.getAllQueryCacheEntries().size();
                 int ctr = 0;
                 int multip = 0;
-                for (QueryCacheEntry qce : singlesited_cost_model.getAllQueryCacheEntries()) {
+                for (QueryCacheEntry qce : inner_costModel.getAllQueryCacheEntries()) {
                     ctr += (qce.getAllPartitions().isEmpty() ? 0 : 1);
-                    multip += qce.getAllPartitions().size() > 1 ? 1 : 0;
+                    multip += (qce.getAllPartitions().size() > 1 ? 1 : 0);
                 }
-                System.err.println("# of QueryCacheEntries with Touched Partitions: " + ctr + " / " + qtotal);
-                System.err.println("# of MultiP QueryCacheEntries: " +  multip);
+                LOG.error("# of QueryCacheEntries with Touched Partitions: " + ctr + " / " + qtotal);
+                LOG.error("# of MultiP QueryCacheEntries: " +  multip);
             }
             assert(is_valid) :
                 String.format("Partitions Touched by Txns Mismatch in Interval #%d\n" +
-                              "  (partitions_touched[%d] + singlepartition_with_partitions_ctrs[%d]) != " +
-                              "  (histogram_txn[%d] + exec_mismatch_ctrs[%d])",
+                              "(partitions_touched[%d] + singlepartition_with_partitions_ctrs[%d]) != " +
+                              "(histogram_txn[%d] + exec_mismatch_ctrs[%d])",
                               i, partitions_touched[i], singlepartition_with_partitions_ctrs[i],
                               this.cost_models[i].getTxnPartitionAccessHistogram().getSampleCount(), exec_mismatch_ctrs[i]);
             
@@ -498,8 +533,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             // mark it as being broadcast to all partitions. That way the access histogram will
             // look uniform. Then as more information is added, we will
             // This is an attempt to make sure that the entropy cost never decreases but only increases
-            long total_txns_in_interval = histogram_proc_intervals.get(i, 0);
-            if (debug) {
+            long total_txns_in_interval = (long)total_interval_txns[i];
+            if (sb != null) {
                 debug_histograms.put("Incomplete Txns", incomplete_txn_histogram[i]);
                 debug_histograms.put("Missing Txns", missing_txn_histogram[i]);
                 debug_histograms.put("Target Partitions (BEFORE)", new Histogram<Integer>(target_histogram));
@@ -514,12 +549,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             long num_elements = target_histogram.getSampleCount();
             
             // The number of partition touches should never be greater than our potential touches
-            assert(num_elements <= tmp_potential.get(i)) : 
+            assert(num_elements <= (total_txns_in_interval * num_partitions)) : 
                 "New Partitions Touched Sample Count [" + num_elements + "] < " +
-                "Maximum Potential Touched Count [" + tmp_potential.get(i) + "]";
-
+                "Maximum Potential Touched Count [" + (total_txns_in_interval * num_partitions) + "]";
             
-            if (debug) {
+            if (sb != null) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 for (String key : debug_histograms.keySet()) {
                     Histogram<?> h = debug_histograms.get(key);
@@ -544,18 +578,18 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             }
             total_skews[i] = (0.5 * exec_skews[i]) + (0.5 * txn_skews[i]); 
             
-            if (trace) {
+            if (sb != null) {
                 sb.append("Txn Skew   = " + MathUtil.roundToDecimals(txn_skews[i], 6) + "\n");
                 sb.append("Exec Skew  = " + MathUtil.roundToDecimals(exec_skews[i], 6) + "\n");
                 sb.append("Total Skew = " + MathUtil.roundToDecimals(total_skews[i], 6) + "\n");
                 sb.append(StringUtil.DOUBLE_LINE);
             }
         } // FOR
-        if (debug && sb.length() > 0) {
-            LOG.debug("**** Skew Factor ****\n" + sb);
-            this.last_debug += sb.toString();
+        if (sb != null && sb.length() > 0) {
+            if (debug.get()) LOG.debug("**** Skew Factor ****\n" + sb);
+            this.appendDebugMessage(sb);
         }
-        if (trace) {
+        if (trace.get()) {
             for (int i = 0; i < num_intervals; i++) {
                 LOG.trace("Time Interval #" + i + "\n" +
                           "Total # of Txns: " + this.cost_models[i].txn_ctr.get() + "\n" +
@@ -574,44 +608,22 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         // The final entropy cost needs to be weighted by the percentage of txns running in that interval
         // This will cause the partitions with few txns 
-        
-        
         this.last_skew_cost = MathUtil.weightedMean(total_skews, total_interval_txns); // roundToDecimals(MathUtil.geometricMean(entropies, MathUtil.GEOMETRIC_MEAN_ZERO), 10);
         double new_final_cost = (this.use_execution ? (this.execution_weight * this.last_execution_cost) : 0) + 
                                 (this.use_skew ? (this.skew_weight * this.last_skew_cost) : 0);
 
-        String f = "%.06f";
-        if (debug) {
-            sb = new StringBuilder();
-            sb.append("Total Txns:      ").append(total_txns).append("\n");
-            
-            sb.append("Interval Txns:   [");
-            for (double e : total_interval_txns) sb.append((int)e + ", ");
-            sb.append("]\n");
-            
-            sb.append("Execution Costs: [");
-            for (Double e : execution_costs) sb.append(String.format(f + ", ", e));
-            sb.append("]\n");
-            
-            sb.append("Skew Factors:    [");
-            for (Double e : total_skews) sb.append(String.format(f + ", ", e));
-            sb.append("]\n");
-            
-            sb.append("Txn Skew:        [");
-            for (Double e : txn_skews) sb.append(String.format(f + ", ", e));
-            sb.append("]\n");
-            
-            sb.append("Exec Skew:       [");
-            for (Double e : exec_skews) sb.append(String.format(f + ", ", e));
-            sb.append("]\n");
-            
-            sb.append("Interval Weights:   [");
-            for (Double e : interval_weights) sb.append(String.format(f + ", ", e));
-            sb.append("]\n");
-            
-            sb.append(String.format("Final Cost " + f + " = " + f + " + " + f,  new_final_cost, this.last_execution_cost, this.last_skew_cost));
-            LOG.debug("\n" + sb);
-            this.last_debug += sb.toString();
+        if (sb != null) {
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put("Total Txns", total_txns);
+            m.put("Interval Txns", Arrays.toString(total_interval_txns));
+            m.put("Execution Costs", Arrays.toString(execution_costs));
+            m.put("Skew Factors", Arrays.toString(total_skews));
+            m.put("Txn Skew", Arrays.toString(txn_skews));
+            m.put("Exec Skew", Arrays.toString(exec_skews));
+            m.put("Interval Weights", Arrays.toString(interval_weights));
+            m.put("Final Cost", String.format("%f = %f + %f",  new_final_cost, this.last_execution_cost, this.last_skew_cost));
+            if (debug.get()) LOG.debug(StringUtil.formatMaps(m));
+            this.appendDebugMessage(StringUtil.formatMaps(m));
         }
         
         this.last_final_cost = new_final_cost;
@@ -647,6 +659,13 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             pplan.apply(args.catalog_db);
             System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
             System.out.print(StringUtil.DOUBLE_LINE);
+            
+            if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
+                String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
+                if (output.equals("-")) output = pplan_path.getAbsolutePath();
+                pplan.save(output);
+                System.out.println("Saved PartitionPlan to '" + output + "'");
+            }
         } else {
             System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
         }
@@ -655,13 +674,25 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         int num_intervals = args.num_intervals; // getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
         TimeIntervalCostModel<SingleSitedCostModel> costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, num_intervals);
         if (args.hasParam(ArgumentsParser.PARAM_DESIGNER_HINTS)) costmodel.applyDesignerHints(args.designer_hints);
-        double cost = costmodel.estimateCost(args.catalog_db, args.workload);
-        System.out.println("PARTITIONS = " + CatalogUtil.getNumberOfPartitions(args.catalog_db));
-        System.out.println("INTERVALS  = " + args.num_intervals);
-        System.out.println("COST       = " + cost);
+        double cost = costmodel.estimateWorkloadCost(args.catalog_db, args.workload);
         
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("PARTITIONS", CatalogUtil.getNumberOfPartitions(args.catalog_db));
+        m.put("INTERVALS", args.num_intervals);
+        m.put("EXEC COST", costmodel.last_execution_cost);
+        m.put("SKEW COST", costmodel.last_skew_cost);
+        m.put("TOTAL COST", cost);
+        m.put("PARTITIONS TOUCHED", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
+        System.out.println(StringUtil.formatMaps(m));
+        
+        
+//        long total = 0;
+        m.clear(); 
 //        for (int i = 0; i < num_intervals; i++) {
-//            Histogram h = costmodel.getCostModel(i).histogram_txn_partitions;
+//            SingleSitedCostModel cm = costmodel.getCostModel(i);
+//            Histogram<Integer> h = cm.getTxnPartitionAccessHistogram();
+//            m.put(String.format("Interval %02d", i), cm.getTxnPartitionAccessHistogram());
+//            total += h.getSampleCount();
 //            h.setKeepZeroEntries(true);
 //            for (Integer partition : CatalogUtil.getAllPartitionIds(args.catalog_db)) {
 //                if (h.contains(partition) == false) h.put(partition, 0);
@@ -669,7 +700,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 //            System.out.println(StringUtil.box("Interval #" + i, "+", 100) + "\n" + h);
 //            System.out.println();
 //        } // FOR
-        //System.err.println(h);
+//        System.out.println(StringUtil.formatMaps(m));
+//        System.err.println("TOTAL: " + total);
         
     }
 }

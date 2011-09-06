@@ -1,5 +1,6 @@
 package edu.brown.oltpgenerator.AbstractBenchmark;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -67,7 +68,7 @@ public abstract class AbstractLoader extends BenchmarkComponent
         Table t = TableEnv.getTable(sTblName);
         try
         {
-            Iterator<Object[]> iter = new TableDataIterable(t, sLinkPath).iterator();
+            Iterator<Object[]> iter = new TableDataIterable(t, new File(sLinkPath)).iterator();
             while (iter.hasNext())
             {
                 vt.addRow(iter.next());
@@ -122,7 +123,7 @@ public abstract class AbstractLoader extends BenchmarkComponent
     {
         try
         {
-            m_voltClient.callProcedure("@LoadMultipartitionTable", tablename, table);
+            getClientHandle().callProcedure("@LoadMultipartitionTable", tablename, table);
         }
         catch (Exception e)
         {

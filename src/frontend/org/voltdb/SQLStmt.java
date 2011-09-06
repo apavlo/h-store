@@ -94,4 +94,9 @@ public class SQLStmt {
     public int hashCode() {
         return (this.hashCode);
     }
+    
+    @Override
+    public String toString() {
+        return (catStmt != null ? catStmt.fullName() : super.toString());
+    }
 }

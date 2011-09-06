@@ -263,11 +263,11 @@ public class TestHStoreMessenger extends BaseTestCase {
     		Object[] testarray = new Object[]{"test", 10};
     		fragment.addRow(testarray);
     		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
-    		sender_partition_id = CollectionUtil.getFirst(sets);
+    		sender_partition_id = CollectionUtil.first(sets);
     		for (int j = i+1; j < NUM_SITES_PER_HOST; j++)
     		{
         		Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
-        		dest_partition_id = CollectionUtil.getFirst(sets2);
+        		dest_partition_id = CollectionUtil.first(sets2);
         		messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
         		System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
         		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);

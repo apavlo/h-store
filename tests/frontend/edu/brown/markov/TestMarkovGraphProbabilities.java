@@ -40,7 +40,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-            catalog_stmt = CollectionUtil.getFirst(catalog_proc.getStatements());
+            catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
             assertNotNull(catalog_stmt);
             
             File file = this.getParameterMappingsFile(ProjectType.TM1);
@@ -56,7 +56,7 @@ public class TestMarkovGraphProbabilities extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Filter filter = new ProcedureNameFilter()
+            Filter filter = new ProcedureNameFilter(false)
                     .include(TARGET_PROCEDURE.getSimpleName())
                     .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));

@@ -5,21 +5,19 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-import edu.brown.benchmark.auctionmark.model.AuctionMarkCategory;
 
 public class AuctionMarkCategoryParser {
 	
-	Map<String, AuctionMarkCategory> _categoryMap;
+	Map<String, Category> _categoryMap;
 	private int _nextCategoryID;
 	String _fileName;
 
 	public AuctionMarkCategoryParser(File file) {
 	
-		_categoryMap = new TreeMap<String, AuctionMarkCategory>();
+		_categoryMap = new TreeMap<String, Category>();
 		_nextCategoryID = 0;
 		
 		try {
@@ -58,9 +56,9 @@ public class AuctionMarkCategoryParser {
 		addNewCategory(categoryName, itemCount, true);
 	}
 	
-	public AuctionMarkCategory addNewCategory(String fullCategoryName, int itemCount, boolean isLeaf){
-		AuctionMarkCategory category = null;
-		AuctionMarkCategory parentCategory = null;
+	public Category addNewCategory(String fullCategoryName, int itemCount, boolean isLeaf){
+		Category category = null;
+		Category parentCategory = null;
 		
 		String categoryName = fullCategoryName;
 		String parentCategoryName = "";
@@ -85,7 +83,7 @@ public class AuctionMarkCategoryParser {
 			parentCategoryID = parentCategory.getCategoryID();	
 		}
 		
-		category = new AuctionMarkCategory(_nextCategoryID++,
+		category = new Category(_nextCategoryID++,
 		        categoryName,
 				parentCategoryID, 
 				itemCount, 
@@ -96,7 +94,7 @@ public class AuctionMarkCategoryParser {
 		return category;
 	}
 	
-	public Map<String, AuctionMarkCategory> getCategoryMap(){
+	public Map<String, Category> getCategoryMap(){
 		return _categoryMap;
 	}
 	

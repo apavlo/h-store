@@ -18,6 +18,7 @@
 package org.voltdb.planner;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -460,7 +461,7 @@ public class PlanAssembler {
                 limit.setLimitParameterIndex(parameterInfo.index);
             }
             limit.addAndLinkChild(root);
-            limit.setOutputColumns(root.m_outputColumns);
+            limit.setOutputColumns(root.getOutputColumnGUIDs());
             root = limit;
         }
         
@@ -470,7 +471,7 @@ public class PlanAssembler {
         
 //        System.err.println(m_parsedSelect.sql);
         PlanOptimizer po = new PlanOptimizer(m_context, m_catalogDb);
-        po.optimize(m_parsedSelect.sql, root);
+        AbstractPlanNode new_root = po.optimize(m_parsedSelect.sql, root);
         
 //        if (root.getPlanNodeType().equals(PlanNodeType.PROJECTION) && PlanNodeUtil.getDepth(root) == 0) {
 //            System.out.println("Root node type: " + root.getPlanNodeType());
@@ -482,12 +483,12 @@ public class PlanAssembler {
         
         SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
         // check if there is a new root + connect the nodes to build the graph
-        if (po.getNewRoot() != null) {
-            sendNode.addAndLinkChild(po.getNewRoot());
-            sendNode.setOutputColumns(po.getNewRoot().m_outputColumns);            
+        if (new_root != null) {
+            sendNode.addAndLinkChild(new_root);
+            sendNode.setOutputColumns(new_root.getOutputColumnGUIDs());            
         } else {
             sendNode.addAndLinkChild(root);
-            sendNode.setOutputColumns(root.m_outputColumns);                        
+            sendNode.setOutputColumns(root.getOutputColumnGUIDs());                        
         }
         
         return sendNode;
@@ -547,7 +548,7 @@ public class PlanAssembler {
                 SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
                 sendNode.setFake(true);
                 sendNode.addAndLinkChild(deleteNode);
-                sendNode.setOutputColumns(deleteNode.m_outputColumns);
+                sendNode.setOutputColumns(deleteNode.getOutputColumnGUIDs());
                 return sendNode;
             } else {
                 return deleteNode;
@@ -564,11 +565,11 @@ public class PlanAssembler {
             // get the recv node
             ReceivePlanNode recvNode = (ReceivePlanNode) subSelectRoot;
             // get the send node
-            assert (recvNode.getChildCount() == 1);
+            assert (recvNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode sendNode = recvNode.getChild(0);
 
             // get the scan node and unlink
-            assert (sendNode.getChildCount() == 1);
+            assert (sendNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode scanNode = sendNode.getChild(0);
             sendNode.unlinkChild(scanNode);
 
@@ -587,7 +588,7 @@ public class PlanAssembler {
              * recvNode.getOutputColumnNames().clear();
              * recvNode.getOutputColumnSizes().clear();
              * recvNode.getOutputColumnTypes().clear(); for (OutputColumnInfo
-             * oci : recvNode.m_outputColumns) {
+             * oci : recvNode.getOutputColumnGUIDs()) {
              * recvNode.getOutputColumnNames().add(oci.name);
              * recvNode.getOutputColumnSizes().add(oci.size);
              * recvNode.getOutputColumnTypes().add(oci.type); }
@@ -639,7 +640,7 @@ public class PlanAssembler {
             index++;
 
             // check if this column is an indexed column
-            if (affectedColumns.contains(colInfo.displayName()))
+            if (affectedColumns.contains(colInfo.getDisplayName()))
                 updateNode.setUpdateIndexes(true);
         }
 
@@ -658,7 +659,7 @@ public class PlanAssembler {
                 SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
                 sendNode.setFake(true);
                 sendNode.addAndLinkChild(updateNode);
-                sendNode.setOutputColumns(updateNode.m_outputColumns);
+                sendNode.setOutputColumns(updateNode.getOutputColumnGUIDs());
                 return sendNode;
             } else {
                 return updateNode;
@@ -676,11 +677,11 @@ public class PlanAssembler {
             // get the recv node
             ReceivePlanNode recvNode = (ReceivePlanNode) subSelectRoot;
             // get the send node
-            assert (recvNode.getChildCount() == 1);
+            assert (recvNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode sendNode = recvNode.getChild(0);
 
             // get the scan node and unlink
-            assert (sendNode.getChildCount() == 1);
+            assert (sendNode.getChildPlanNodeCount() == 1);
             AbstractPlanNode scanNode = sendNode.getChild(0);
             sendNode.unlinkChild(scanNode);
 
@@ -699,7 +700,7 @@ public class PlanAssembler {
              * recvNode.getOutputColumnNames().clear();
              * recvNode.getOutputColumnSizes().clear();
              * recvNode.getOutputColumnTypes().clear(); for (OutputColumnInfo
-             * oci : recvNode.m_outputColumns) {
+             * oci : recvNode.getOutputColumnGUIDs()) {
              * recvNode.getOutputColumnNames().add(oci.name);
              * recvNode.getOutputColumnSizes().add(oci.size);
              * recvNode.getOutputColumnTypes().add(oci.type); }
@@ -825,7 +826,7 @@ public class PlanAssembler {
             SendPlanNode sendNode = new SendPlanNode(m_context, getNextPlanNodeId());
             sendNode.setFake(true);
             sendNode.addAndLinkChild(insertNode);
-            sendNode.setOutputColumns(insertNode.m_outputColumns);
+            sendNode.setOutputColumns(insertNode.getOutputColumnGUIDs());
             rootNode = sendNode;
         }
 
@@ -848,8 +849,8 @@ public class PlanAssembler {
         List<Integer> countOutputColumns = countNode.getAggregateOutputColumns();
 
         // aggregate column name same as original dmlRoot name.
-        int colGuid = dmlRoot.m_outputColumns.get(0); // offset 0.
-        countColumnNames.add(m_context.get(colGuid).displayName());
+        int colGuid = dmlRoot.getOutputColumnGUIDs().get(0); // offset 0.
+        countColumnNames.add(m_context.get(colGuid).getDisplayName());
         countColumnGuids.add(colGuid);
         countOutputColumns.add(0);
         countColumnTypes.add(ExpressionType.AGGREGATE_COUNT_STAR);
@@ -864,8 +865,8 @@ public class PlanAssembler {
         tve.setValueType(VoltType.BIGINT);
         tve.setValueSize(VoltType.BIGINT.getLengthInBytesForFixedTypes());
         tve.setColumnIndex(0);
-        tve.setColumnName(m_context.get(colGuid).displayName());
-        tve.setColumnAlias(m_context.get(colGuid).displayName());
+        tve.setColumnName(m_context.get(colGuid).getDisplayName());
+        tve.setColumnAlias(m_context.get(colGuid).getDisplayName());
         tve.setTableName("");
         PlanColumn countColInfo = m_context.getPlanColumn(tve, "modified_tuples");
         countNode.appendOutputColumn(countColInfo);
@@ -890,8 +891,8 @@ public class PlanAssembler {
         List<Integer> countOutputColumns = countNode.getAggregateOutputColumns();
 
         // aggregate column name same as original dmlRoot name.
-        int colGuid = dmlRoot.m_outputColumns.get(0); // offset 0.
-        countColumnNames.add(m_context.get(colGuid).displayName());
+        int colGuid = dmlRoot.getOutputColumnGUIDs().get(0); // offset 0.
+        countColumnNames.add(m_context.get(colGuid).getDisplayName());
         countColumnGuids.add(colGuid);
         countOutputColumns.add(0);
         countColumnTypes.add(ExpressionType.AGGREGATE_SUM);
@@ -906,8 +907,8 @@ public class PlanAssembler {
         tve.setValueType(VoltType.BIGINT);
         tve.setValueSize(VoltType.BIGINT.getLengthInBytesForFixedTypes());
         tve.setColumnIndex(0);
-        tve.setColumnName(m_context.get(colGuid).displayName());
-        tve.setColumnAlias(m_context.get(colGuid).displayName());
+        tve.setColumnName(m_context.get(colGuid).getDisplayName());
+        tve.setColumnAlias(m_context.get(colGuid).getDisplayName());
         tve.setTableName("");
         PlanColumn colInfo = m_context.getPlanColumn(tve, "modified_tuples");
         countNode.appendOutputColumn(colInfo);
@@ -952,7 +953,7 @@ public class PlanAssembler {
             try {
                 AbstractExpression expressionWithRealOffsets =
                     generateProjectionColumnExpression(outputCol,
-                                                     rootNode.m_outputColumns);
+                                                     rootNode.getOutputColumnGUIDs());
                 colInfo = m_context.getPlanColumn(expressionWithRealOffsets, outputCol.alias);
                 projectionNode.appendOutputColumn(colInfo);
             } catch (CloneNotSupportedException ex) {
@@ -984,7 +985,7 @@ public class PlanAssembler {
      */
     private AbstractExpression generateProjectionColumnExpression(
             ParsedSelectStmt.ParsedColInfo outputCol,
-            ArrayList<Integer> sourceColumns) throws CloneNotSupportedException
+            List<Integer> sourceColumns) throws CloneNotSupportedException
     {
         Stack<AbstractExpression> stack = new Stack<AbstractExpression>();
         AbstractExpression expression = (AbstractExpression) outputCol.expression.clone();
@@ -1006,7 +1007,7 @@ public class PlanAssembler {
                     /* System.out.printf("Expression: %s/%s. Candidate column: %s/%s\n",
                             tve.getColumnAlias(), tve.getTableName(),
                             plancol.originColumnName(), plancol.originTableName()); */
-                    if (outputCol.alias.equals(plancol.displayName()))
+                    if (outputCol.alias.equals(plancol.getDisplayName()))
                     {
                         found = true;
                         expression = (AbstractExpression) plancol.m_expression.clone();
@@ -1165,7 +1166,7 @@ public class PlanAssembler {
                              rootExpr.getLeft() == null)
                     {
                         aggregateColumn =
-                            m_context.get(root.m_outputColumns.get(0));
+                            m_context.get(root.getOutputColumnGUIDs().get(0));
                         agg_expression_type = ExpressionType.AGGREGATE_COUNT_STAR;
                     }
                     else
@@ -1174,7 +1175,7 @@ public class PlanAssembler {
                     }
 
                     aggNode.getAggregateColumnGuids().add(aggregateColumn.guid());
-                    aggNode.getAggregateColumnNames().add(aggregateColumn.displayName());
+                    aggNode.getAggregateColumnNames().add(aggregateColumn.getDisplayName());
                     aggNode.getAggregateTypes().add(agg_expression_type);
 
                     // A bit of a hack: ProjectionNodes using PlanColumns after the
@@ -1248,8 +1249,8 @@ public class PlanAssembler {
                                     child.clearParents();
                                     //DistinctPlanNode distinct_plan_node = new DistinctPlanNode(m_context, getNextPlanNodeId());
                                     DistinctPlanNode distinct_clone = distinct_plan_node.produceCopyForTransformation();
-                                    distinct_clone.m_outputColumns.clear();
-                                    distinct_clone.m_outputColumns.addAll(child.m_outputColumns);
+                                    distinct_clone.getOutputColumnGUIDs().clear();
+                                    distinct_clone.getOutputColumnGUIDs().addAll(child.getOutputColumnGUIDs());
                                     distinct_clone.addAndLinkChild(child);
                                     element.addAndLinkChild(distinct_clone);
                                 }
@@ -1267,17 +1268,17 @@ public class PlanAssembler {
             }
             
             // Get the AbstractScanPlanNode that is directly below us
-            Set<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
+            Collection<AbstractScanPlanNode> scans = PlanNodeUtil.getPlanNodes(aggNode, AbstractScanPlanNode.class);
             if (scans.size() != 1) {
                 if (debug) LOG.debug("SKIP => Multiple scans!");
                 break;
             }
             
-            AbstractScanPlanNode scan_node = CollectionUtil.getFirst(scans);
+            AbstractScanPlanNode scan_node = CollectionUtil.first(scans);
             assert(scan_node != null);
             // For some reason we have to do this??
-            for (int col = 0, cnt = scan_node.m_outputColumns.size(); col < cnt; col++) {
-                int col_guid = scan_node.m_outputColumns.get(col);
+            for (int col = 0, cnt = scan_node.getOutputColumnGUIDs().size(); col < cnt; col++) {
+                int col_guid = scan_node.getOutputColumnGUIDs().get(col);
                 assert(m_context.get(col_guid) != null) : "Failed [" + col_guid + "]"; 
                 // PlanColumn retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
             } // FOR
@@ -1313,8 +1314,8 @@ public class PlanAssembler {
 //                clone_node.getAggregateOutputColumns().add(aggNode.getAggregateOutputColumns().get(col_idx));
 //            } // FOR
 //            
-//            for (int col_idx = 0, col_cnt = aggNode.m_outputColumns.size(); col_idx < col_cnt; col_idx++) {
-//                PlanColumn orig_col = m_context.get(aggNode.m_outputColumns.get(col_idx));
+//            for (int col_idx = 0, col_cnt = aggNode.getOutputColumnGUIDs().size(); col_idx < col_cnt; col_idx++) {
+//                PlanColumn orig_col = m_context.get(aggNode.getOutputColumnGUIDs().get(col_idx));
 //                assert(orig_col != null);
 //                clone_node.appendOutputColumn(m_context.clonePlanColumn(orig_col));
 //            } // FOR
@@ -1328,7 +1329,7 @@ public class PlanAssembler {
             clone_node.getAggregateColumnNames().addAll(aggNode.getAggregateColumnNames());
             clone_node.getAggregateTypes().addAll(aggNode.getAggregateTypes());
             clone_node.getAggregateOutputColumns().addAll(aggNode.getAggregateOutputColumns());
-            clone_node.m_outputColumns.addAll(aggNode.m_outputColumns); // HACK
+            clone_node.getOutputColumnGUIDs().addAll(aggNode.getOutputColumnGUIDs()); // HACK
             
             // set aggregate node to contain sum
             if (clone_node.getAggregateTypes().size() > 0) {
@@ -1352,22 +1353,22 @@ public class PlanAssembler {
             assert(clone_node.getAggregateColumnGuids().size() == aggNode.getAggregateColumnGuids().size());
             assert(clone_node.getAggregateColumnNames().size() == aggNode.getAggregateColumnNames().size());
             assert(clone_node.getAggregateOutputColumns().size() == aggNode.getAggregateOutputColumns().size());
-            assert(clone_node.m_outputColumns.size() == aggNode.m_outputColumns.size());
+            assert(clone_node.getOutputColumnGUIDs().size() == aggNode.getOutputColumnGUIDs().size());
 
             clone_node.addAndLinkChild(scan_node);
-            assert(scan_node.getParentCount() > 0);
+            assert(scan_node.getParentPlanNodeCount() > 0);
 
             // But this means we have to also update the RECEIVE to only expect the columns that
             // the AggregateNode will be sending along
             assert(aggNode.getChild(0) instanceof ReceivePlanNode);
             ReceivePlanNode recv_node = (ReceivePlanNode)aggNode.getChild(0);
-            recv_node.m_outputColumns.clear();
-            recv_node.m_outputColumns.addAll(clone_node.m_outputColumns);
+            recv_node.getOutputColumnGUIDs().clear();
+            recv_node.getOutputColumnGUIDs().addAll(clone_node.getOutputColumnGUIDs());
             
             assert(recv_node.getChild(0) instanceof SendPlanNode);
             SendPlanNode send_node = (SendPlanNode)recv_node.getChild(0);
-            send_node.m_outputColumns.clear();
-            send_node.m_outputColumns.addAll(clone_node.m_outputColumns);
+            send_node.getOutputColumnGUIDs().clear();
+            send_node.getOutputColumnGUIDs().addAll(clone_node.getOutputColumnGUIDs());
             
             if (debug) LOG.debug("Successfully applied optimization! Eat that John Hugg!");
             

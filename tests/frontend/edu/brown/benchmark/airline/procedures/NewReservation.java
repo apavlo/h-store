@@ -1,6 +1,8 @@
 package edu.brown.benchmark.airline.procedures;
 
+import org.apache.log4j.Logger;
 import org.voltdb.*;
+import org.voltdb.VoltProcedure.VoltAbortException;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 
@@ -8,13 +10,62 @@ import edu.brown.benchmark.airline.AirlineConstants;
     singlePartition = false
 )
 public class NewReservation extends VoltProcedure {
+    private static final Logger LOG = Logger.getLogger(NewReservation.class);
     
-    public final SQLStmt INSERT_RESERVATION = new SQLStmt(
+    public final SQLStmt GetFlight = new SQLStmt(
+            "SELECT F_AL_ID, F_SEATS_LEFT, " +
+                    AirlineConstants.TABLENAME_AIRLINE + ".* " +
+            "  FROM " + AirlineConstants.TABLENAME_FLIGHT + ", " +
+                        AirlineConstants.TABLENAME_AIRLINE +
+            " WHERE F_ID = ? AND F_AL_ID = AL_ID");
+    
+    public final SQLStmt GetCustomer = new SQLStmt(
+            "SELECT C_BASE_AP_ID, C_BALANCE, C_SATTR00 " +
+            "  FROM " + AirlineConstants.TABLENAME_CUSTOMER +
+            " WHERE C_ID = ? ");
+    
+    public final SQLStmt CheckSeat = new SQLStmt(
+            "SELECT R_ID " +
+            "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
+            " WHERE R_F_ID = ? and R_SEAT = ?");
+    
+    public final SQLStmt CheckCustomer = new SQLStmt(
+            "SELECT R_ID " + 
+            "  FROM " + AirlineConstants.TABLENAME_RESERVATION +
+            " WHERE R_F_ID = ? AND R_C_ID = ?");
+    
+    public final SQLStmt UpdateFlight = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_FLIGHT +
+            "   SET F_SEATS_LEFT = F_SEATS_LEFT - 1 " + 
+            " WHERE F_ID = ? ");
+    
+    public final SQLStmt UpdateCustomer = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
+            "   SET C_IATTR10 = C_IATTR10 + 1, " + 
+            "       C_IATTR11 = C_IATTR11 + 1, " +
+            "       C_IATTR12 = ?, " +
+            "       C_IATTR13 = ?, " +
+            "       C_IATTR14 = ?, " +
+            "       C_IATTR15 = ? " +
+            " WHERE C_ID = ? ");
+    
+    public final SQLStmt UpdateFrequentFlyer = new SQLStmt(
+            "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
+            "   SET FF_IATTR10 = FF_IATTR10 + 1, " + 
+            "       FF_IATTR11 = ?, " +
+            "       FF_IATTR12 = ?, " +
+            "       FF_IATTR13 = ?, " +
+            "       FF_IATTR14 = ? " +
+            " WHERE FF_C_ID = ? " +
+            "   AND FF_AL_ID = ?");
+    
+    public final SQLStmt InsertReservation = new SQLStmt(
             "INSERT INTO " + AirlineConstants.TABLENAME_RESERVATION + " (" +
             "   R_ID, " +
             "   R_C_ID, " +
             "   R_F_ID, " +
             "   R_SEAT, " +
+            "   R_PRICE, " +
             "   R_IATTR00, " +
             "   R_IATTR01, " +
             "   R_IATTR02, " +
@@ -29,6 +80,7 @@ public class NewReservation extends VoltProcedure {
             "   ?, " +  // R_C_ID
             "   ?, " +  // R_F_ID
             "   ?, " +  // R_SEAT
+            "   ?, " +  // R_PRICE
             "   ?, " +  // R_ATTR00
             "   ?, " +  // R_ATTR01
             "   ?, " +  // R_ATTR02
@@ -40,55 +92,66 @@ public class NewReservation extends VoltProcedure {
             "   ? " +   // R_ATTR08
             ")");
     
-    public final SQLStmt SELECT_FLIGHT = new SQLStmt(
-            "SELECT F_AL_ID, F_SEATS_LEFT FROM " + AirlineConstants.TABLENAME_FLIGHT + " WHERE F_ID = ?");
-    
-    public final SQLStmt UPDATE_FLIGHT = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_FLIGHT +
-            "   SET F_SEATS_LEFT = F_SEATS_LEFT - 1 " + 
-            " WHERE F_ID = ? ");
-    
-    public final SQLStmt UPDATE_CUSTOMER = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_CUSTOMER +
-            "   SET C_IATTR10 = ?, " + 
-            "       C_IATTR11 = ?, " +
-            "       C_IATTR12 = ?, " +
-            "       C_IATTR13 = ? " +
-            " WHERE C_ID = ? ");
-    
-    public final SQLStmt UPDATE_FREQUENTFLYER = new SQLStmt(
-            "UPDATE " + AirlineConstants.TABLENAME_FREQUENT_FLYER +
-            "   SET FF_IATTR10 = ?, " + 
-            "       FF_IATTR11 = ?, " +
-            "       FF_IATTR12 = ?, " +
-            "       FF_IATTR13 = ? " +
-            " WHERE FF_C_ID = ? " +
-            "   AND FF_AL_ID = ?");
-    
-    public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, long attrs[]) throws VoltAbortException {
-        voltQueueSQL(SELECT_FLIGHT, f_id);
-        final VoltTable[] flight_results = voltExecuteSQL();
-        assert(flight_results.length == 1);
+    public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[]) throws VoltAbortException {
+        final boolean debug = LOG.isDebugEnabled();
+        
+        voltQueueSQL(GetFlight, f_id);
+        voltQueueSQL(CheckSeat, f_id, seatnum);
+        voltQueueSQL(CheckCustomer, f_id, c_id);
+        voltQueueSQL(GetCustomer, c_id);
+        final VoltTable[] initialResults = voltExecuteSQL();
+        assert(initialResults.length == 4);
 
-        if (flight_results[0].getRowCount() != 1) {
+        // Flight Information
+        if (initialResults[0].getRowCount() != 1) {
             throw new VoltAbortException("Invalid flight id: " + f_id);
         }
-        flight_results[0].advanceRow();
-        if (flight_results[0].getLong(1) <= 0) {
+        initialResults[0].advanceRow();
+        if (initialResults[0].getLong(1) <= 0) {
             throw new VoltAbortException("No more seats available for flight id: " + f_id);
         }
-        long airline_id = flight_results[0].getLong(0);
+        long airline_id = initialResults[0].getLong(0);
+        long seats_left = initialResults[0].getLong(1);
         
-        voltQueueSQL(INSERT_RESERVATION, r_id, c_id, f_id, seatnum,
+        // Check for existing reservation
+        if (initialResults[1].getRowCount() > 0) {
+            throw new VoltAbortException("Seat reservation conflict");
+        }
+        // Or the customer trying to book themselves twice
+        else if (initialResults[2].getRowCount() > 1) {
+            throw new VoltAbortException("Customer owns multiple reservations");
+        }
+        // Customer Information
+        else if (initialResults[3].getRowCount() != 1) {
+            throw new VoltAbortException("Invalid customer id: " + c_id);
+        }
+        
+        voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
                             attrs[0], attrs[1], attrs[2], attrs[3],
                             attrs[4], attrs[5], attrs[6], attrs[7],
                             attrs[8]);
-        voltQueueSQL(UPDATE_FLIGHT, f_id);
-        voltQueueSQL(UPDATE_CUSTOMER, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
-        voltQueueSQL(UPDATE_FREQUENTFLYER, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
+        voltQueueSQL(UpdateFlight, f_id);
+        voltQueueSQL(UpdateCustomer, attrs[0], attrs[1], attrs[2], attrs[3], c_id);
+        voltQueueSQL(UpdateFrequentFlyer, attrs[4], attrs[5], attrs[6], attrs[7], c_id, airline_id);
         
+        // We don't care if we updated FrequentFlyer 
         final VoltTable[] results = voltExecuteSQL();
-        assert (results.length == 1);
+        for (int i = 0; i < results.length - 1; i++) {
+            if (results[i].getRowCount() != 1) {
+                String msg = String.format("Failed to add reservation for flight %d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
+                if (debug) LOG.warn(msg);
+                throw new VoltAbortException(msg);
+            }
+            long updated = results[i].asScalarLong();
+            if (updated != 1) {
+                String msg = String.format("Failed to add reservation for flight %d - Updated %d records for %s", f_id, updated, voltLastQueriesExecuted()[i]);
+                if (debug) LOG.warn(msg);
+                throw new VoltAbortException(msg);
+            }
+        } // FOR
+        
+        if (debug) LOG.debug(String.format("Reserved new seat on flight %d for customer %d [seatsLeft=%d]", f_id, c_id, seats_left-1));
+        
         return (results);
     }
 }

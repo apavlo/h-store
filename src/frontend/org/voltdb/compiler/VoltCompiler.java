@@ -29,10 +29,14 @@ import java.net.URLDecoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -41,13 +45,27 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.voltdb.ProcInfo;
 import org.voltdb.ProcInfoData;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Group;
+import org.voltdb.catalog.GroupRef;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.SnapshotSchedule;
+import org.voltdb.catalog.Table;
+import org.voltdb.catalog.User;
+import org.voltdb.catalog.UserRef;
 import org.voltdb.compiler.projectfile.DatabaseType;
 import org.voltdb.compiler.projectfile.GroupsType;
 import org.voltdb.compiler.projectfile.ProceduresType;
@@ -59,20 +77,28 @@ import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.ClassdependenciesType.Classdependency;
 import org.voltdb.compiler.projectfile.ExportsType.Connector;
 import org.voltdb.compiler.projectfile.ExportsType.Connector.Tables;
+import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
+import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
 import org.voltdb.sysprocs.RecomputeMarkovs;
 import org.voltdb.sysprocs.Shutdown;
+import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.StringInputStream;
-import org.voltdb.utils.VoltLoggerFactory;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.HStoreDtxnConf;
+import edu.brown.catalog.special.MultiColumn;
+import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Compiles a project XML file and some metadata into a Jarfile
@@ -80,6 +106,13 @@ import edu.brown.catalog.HStoreDtxnConf;
  *
  */
 public class VoltCompiler {
+    private static final Logger LOG = Logger.getLogger(VoltCompiler.class); // Logger.getLogger("COMPILER", VoltLoggerFactory.instance());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     /** Represents the level of severity for a Feedback message generated during compiling. */
     public static enum Severity { INFORMATIONAL, WARNING, ERROR, UNEXPECTED };
     public static final int NO_LINE_NUMBER = -1;
@@ -92,7 +125,7 @@ public class VoltCompiler {
 
     // set of annotations by procedure name
     Map<String, ProcInfoData> m_procInfoOverrides;
-
+    
     String m_projectFileURL = null;
     String m_jarOutputPath = null;
     PrintStream m_outputStream = null;
@@ -106,9 +139,12 @@ public class VoltCompiler {
 
     DatabaseEstimates m_estimates = new DatabaseEstimates();
 
-    private static final Logger compilerLog = Logger.getLogger("COMPILER", VoltLoggerFactory.instance());
-    @SuppressWarnings("unused")
-    private static final Logger Log = Logger.getLogger("org.voltdb.compiler.VoltCompiler", VoltLoggerFactory.instance());
+    boolean m_enableVerticalPartitionOptimizations = false;
+    VerticalPartitionPlanner m_verticalPartitionPlanner;
+    
+    
+//    @SuppressWarnings("unused")
+//    private static final Logger Log = Logger.getLogger("org.voltdb.compiler.VoltCompiler", VoltLoggerFactory.instance());
 
     /**
      * Represents output from a compile. This works similarly to Log4j; there
@@ -167,6 +203,11 @@ public class VoltCompiler {
         public String getMessage() {
             return message;
         }
+        
+        @Override
+        public String toString() {
+            return this.getStandardFeedbackLine();
+        }
     }
 
     class VoltCompilerException extends Exception {
@@ -185,6 +226,12 @@ public class VoltCompiler {
         VoltCompilerException(final String message) {
             addErr(message);
             this.message = message;
+        }
+        
+        VoltCompilerException(final String message, Exception e) {
+            super(message, e);
+            this.message = message;
+            addErr(message);
         }
 
         @Override
@@ -292,8 +339,7 @@ public class VoltCompiler {
     public boolean compile(final String projectFileURL,
                            final ClusterConfig clusterConfig,
                            final String jarOutputPath, final PrintStream output,
-                           final Map<String, ProcInfoData> procInfoOverrides)
-    {
+                           final Map<String, ProcInfoData> procInfoOverrides) {
         m_hsql = null;
         m_projectFileURL = projectFileURL;
         m_jarOutputPath = jarOutputPath;
@@ -301,15 +347,17 @@ public class VoltCompiler {
         // use this map as default annotation values
         m_procInfoOverrides = procInfoOverrides;
 
-        compilerLog.l7dlog( Level.DEBUG, LogKeys.compiler_VoltCompiler_LeaderAndHostCountAndSitesPerHost.name(),
+        LOG.l7dlog( Level.DEBUG, LogKeys.compiler_VoltCompiler_LeaderAndHostCountAndSitesPerHost.name(),
                 new Object[] { clusterConfig.getLeaderAddress(),
                                clusterConfig.getHostCount(),
                                clusterConfig.getSitesPerHost() }, null);
 
         // do all the work to get the catalog
         final Catalog catalog = compileCatalog(projectFileURL, clusterConfig);
-        if (catalog == null)
-            return false;
+        if (catalog == null) {
+            LOG.error("VoltCompiler had " + m_errors.size() + " errors\n" + StringUtil.join("\n", m_errors));
+            return (false);
+        }
 
         // WRITE CATALOG TO JAR HERE
         final String catalogCommands = catalog.serialize();
@@ -404,8 +452,8 @@ public class VoltCompiler {
         try {
             compileXMLRootNode(project);
         } catch (final VoltCompilerException e) {
-            compilerLog.l7dlog( Level.ERROR, LogKeys.compiler_VoltCompiler_FailedToCompileXML.name(), null);
-            compilerLog.error(e.getMessage(), e);
+//            compilerLog.l7dlog( Level.ERROR, LogKeys.compiler_VoltCompiler_FailedToCompileXML.name(), null);
+            LOG.error(e.getMessage(), e);
             //e.printStackTrace();
             return null;
         }
@@ -419,6 +467,19 @@ public class VoltCompiler {
         {
             addErr(e.getMessage());
             return null;
+        }
+        
+        // Optimization: Vertical Partitioning
+        if (m_enableVerticalPartitionOptimizations) {
+            if (m_verticalPartitionPlanner == null) {
+                m_verticalPartitionPlanner = new VerticalPartitionPlanner(CatalogUtil.getDatabase(m_catalog), true);
+            }
+            try {
+                m_verticalPartitionPlanner.optimizeDatabase();
+            } catch (Exception ex) {
+                LOG.warn("Unexpected error", ex);
+                addErr("Failed to apply vertical partition optimizations");
+            }
         }
 
         // add epoch info to catalog
@@ -443,6 +504,10 @@ public class VoltCompiler {
 
     public Catalog getCatalog() {
         return m_catalog;
+    }
+    
+    public void enableVerticalPartitionOptimizations() {
+        m_enableVerticalPartitionOptimizations = true;
     }
 
     void compileXMLRootNode(ProjectType project) throws VoltCompilerException {
@@ -549,7 +614,7 @@ public class VoltCompiler {
 
         // schemas/schema
         for (SchemasType.Schema schema : database.getSchemas().getSchema()) {
-            compilerLog.l7dlog( Level.DEBUG, LogKeys.compiler_VoltCompiler_CatalogPath.name(),
+            LOG.l7dlog( Level.DEBUG, LogKeys.compiler_VoltCompiler_CatalogPath.name(),
                                 new Object[] {schema.getPath()}, null);
             schemas.add(schema.getPath());
         }
@@ -693,12 +758,23 @@ public class VoltCompiler {
             }
         }
 
+        // add vertical partitions
+        if (database.getVerticalpartitions() != null) {
+            for (Verticalpartition vp : database.getVerticalpartitions().getVerticalpartition()) {
+                try {
+                    addVerticalPartition(db, vp.getTable(), vp.getColumn(), vp.isIndexed());
+                } catch (Exception ex) {
+                    throw new VoltCompilerException("Failed to create vertical partition for " + vp.getTable(), ex);
+                }
+            }
+        }
+        
         // this should reorder the tables and partitions all alphabetically
         String catData = m_catalog.serialize();
         m_catalog = new Catalog();
         m_catalog.execute(catData);
         db = m_catalog.getClusters().get("cluster").getDatabases().get(databaseName);
-
+        
         // add database estimates info
         addDatabaseEstimatesInfo(m_estimates, db);
         try {
@@ -721,8 +797,7 @@ public class VoltCompiler {
             final String procedureName = procedureDescriptor.m_className;
             m_currentFilename = procedureName.substring(procedureName.lastIndexOf('.') + 1);
             m_currentFilename += ".class";
-            ProcedureCompiler.compile(this, m_hsql, m_estimates,
-                    m_catalog, db, procedureDescriptor);
+            ProcedureCompiler.compile(this, m_hsql, m_estimates, m_catalog, db, procedureDescriptor);
         }
 
         // Add all the class dependencies to the output jar
@@ -732,7 +807,170 @@ public class VoltCompiler {
 
         m_hsql.close();
     }
+    
+    /**
+     * Return the name of the vertical partition for the given table name
+     * @param tableName
+     * @return
+     */
+    private static String getNextVerticalPartitionName(Table catalog_tbl, Collection<Column> catalog_cols) {
+        Database catalog_db = ((Database)catalog_tbl.getParent());
+        
+        Collection<String> colNames = new HashSet<String>();
+        for (Column catalog_col : catalog_cols) {
+            colNames.add(catalog_col.getName());
+        }
+        
+        // Figure out how many vertical partition tables already exist for this table
+        int next = 0;
+        String prefix = "SYS_VP_" + catalog_tbl.getName() + "_";
+        Pattern p = Pattern.compile(Pattern.quote(prefix) + "[\\d]+");
+        for (Table otherTable : CatalogUtil.getSysTables(catalog_db)) {
+            if (debug.get())
+                LOG.debug(String.format("Checking whether '%s' matches prefix '%s'", otherTable, prefix));
+            Matcher m = p.matcher(otherTable.getName());
+            if (m.matches() == false) continue;
+            
+            // Check to make sure it's not the same vertical partition
+            Collection<Column> otherColumns = otherTable.getColumns();
+            if (debug.get())
+                LOG.debug(String.format("%s.%s <-> %s.%s", catalog_tbl.getName(), catalog_cols, otherTable.getName(), otherColumns));
+            if (otherColumns.size() != colNames.size()) continue;
+            boolean fail = false;
+            for (Column otherCol : otherColumns) {
+                if (colNames.contains(otherCol.getName()) == false) {
+                    fail = true;
+                    break;
+                }
+            }
+            if (fail) continue;
+            
+            next++;
+        } // FOR
+        String viewName = String.format("%s%02d", prefix, next);
+        assert(catalog_tbl.getViews().contains(viewName) == false);
+        
+        if (debug.get()) 
+            LOG.debug(String.format("Next VerticalPartition name '%s' for %s", viewName, catalog_tbl)); 
+        return (viewName);
+    }
 
+    public static MaterializedViewInfo addVerticalPartition(final Database catalog_db, final String tableName, final List<String> columnNames, final boolean createIndex) throws Exception {
+        Table catalog_tbl = catalog_db.getTables().get(tableName);
+        if (catalog_tbl == null) {
+            throw new Exception("Invalid vertical partition table '" + tableName + "'");
+        } else if (catalog_tbl.getIsreplicated()) {
+            throw new Exception("Cannot create vertical partition for replicated table '" + tableName + "'");
+        }
+        ArrayList<Column> catalog_cols = new ArrayList<Column>();
+        for (String columnName : columnNames) {
+            Column catalog_col = catalog_tbl.getColumns().get(columnName);
+            if (catalog_tbl == null) {
+                throw new Exception("Invalid vertical partition column '" + columnName + "' for table '" + tableName + "'");
+            } else if (catalog_cols.contains(catalog_col)) {
+                throw new Exception("Duplicate vertical partition column '" + columnName + "' for table '" + tableName + "'");
+            }
+            catalog_cols.add(catalog_col);
+        } // FOR
+        return (addVerticalPartition(catalog_tbl, catalog_cols, createIndex));
+    }
+    
+    public static MaterializedViewInfo addVerticalPartition(final Table catalog_tbl, final Collection<Column> catalog_cols, final boolean createIndex) throws Exception {
+        assert(catalog_cols.isEmpty() == false);
+        Database catalog_db = ((Database)catalog_tbl.getParent()); 
+        
+        String viewName = getNextVerticalPartitionName(catalog_tbl, catalog_cols);
+        if (debug.get())
+            LOG.debug(String.format("Adding Vertical Partition %s for %s: %s", viewName, catalog_tbl, catalog_cols));
+        
+        // Create a new virtual table
+        Table virtual_tbl = catalog_db.getTables().get(viewName);
+        if (virtual_tbl == null) {
+            virtual_tbl = catalog_db.getTables().add(viewName);
+        }
+        virtual_tbl.setIsreplicated(true);
+        virtual_tbl.setMaterializer(catalog_tbl);
+        virtual_tbl.setSystable(true);
+        virtual_tbl.getColumns().clear();
+        
+        // Create MaterializedView and link it to the virtual table
+        MaterializedViewInfo catalog_view = catalog_tbl.getViews().add(viewName);
+        catalog_view.setVerticalpartition(true);
+        catalog_view.setDest(virtual_tbl);
+        List<Column> indexColumns = new ArrayList<Column>();
+
+        Column partition_col = catalog_tbl.getPartitioncolumn();
+        if (partition_col instanceof VerticalPartitionColumn) {
+            partition_col = ((VerticalPartitionColumn)partition_col).getHorizontalColumn();
+        }
+        if (debug.get())
+            LOG.debug(catalog_tbl.getName() + " Partition Column: " + partition_col);
+        
+        int i = 0;
+        assert(catalog_cols != null);
+        assert(catalog_cols.isEmpty() == false) : "No vertical partitioning columns for " + catalog_view.fullName();
+        for (Column catalog_col : catalog_cols) {
+            // MaterializedView ColumnRef
+            ColumnRef catalog_ref = catalog_view.getGroupbycols().add(catalog_col.getName());
+            catalog_ref.setColumn(catalog_col);
+            catalog_ref.setIndex(i++);
+            
+            // VirtualTable Column
+            Column virtual_col = virtual_tbl.getColumns().add(catalog_col.getName());
+            virtual_col.setDefaulttype(catalog_col.getDefaulttype());
+            virtual_col.setDefaultvalue(catalog_col.getDefaultvalue());
+            virtual_col.setIndex(catalog_col.getIndex());
+            virtual_col.setNullable(catalog_col.getNullable());
+            virtual_col.setSize(catalog_col.getSize());
+            virtual_col.setType(catalog_col.getType());
+            if (debug.get())
+                LOG.debug(String.format("Added VerticalPartition column %s", virtual_col.fullName()));
+            
+            // If they want an index, then we'll make one based on every column except for the column
+            // that the table is partitioned on
+            if (createIndex) {
+                boolean include = true;
+                if (partition_col instanceof MultiColumn) {
+                    include = (((MultiColumn)partition_col).contains(catalog_col) == false);
+                }
+                else if (catalog_col.equals(partition_col)) {
+                    include = false;
+                }
+                if (include) indexColumns.add(virtual_col);
+            }
+        } // FOR
+        
+        if (createIndex) {
+            if (indexColumns.isEmpty()) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Partition Column", partition_col);
+                m.put("VP Table Columns", virtual_tbl.getColumns());
+                m.put("Passed-in Columns", CatalogUtil.debug(catalog_cols));
+                LOG.error("Failed to find index columns\n" + StringUtil.formatMaps(m));
+                throw new Exception(String.format("No columns selected for index on %s", viewName));
+            }
+            String idxName = "SYS_IDX_" + viewName;
+            Index virtual_idx = virtual_tbl.getIndexes().get(idxName);
+            if (virtual_idx == null) {
+                virtual_idx = virtual_tbl.getIndexes().add(idxName);
+            }
+            virtual_idx.getColumns().clear();
+            
+            IndexType idxType = (indexColumns.size() == 1 ? IndexType.HASH_TABLE : IndexType.BALANCED_TREE);
+            virtual_idx.setType(idxType.getValue());
+            i = 0;
+            for (Column catalog_col : indexColumns) {
+                ColumnRef cref = virtual_idx.getColumns().add(catalog_col.getTypeName());
+                cref.setColumn(catalog_col);
+                cref.setIndex(i++);
+            } // FOR
+            
+            if (debug.get())
+                LOG.debug(String.format("Created %s index '%s' for vertical partition '%s'",
+                                        idxType, idxName, viewName)); 
+        }
+        return (catalog_view);
+    }
 
     static void addDatabaseEstimatesInfo(final DatabaseEstimates estimates, final Database db) {
         /*for (Table table : db.getTables()) {
@@ -841,7 +1079,7 @@ public class VoltCompiler {
         try {
             md = MessageDigest.getInstance("SHA-1");
         } catch (final NoSuchAlgorithmException e) {
-            compilerLog.l7dlog(Level.FATAL, LogKeys.compiler_VoltCompiler_NoSuchAlgorithm.name(), e);
+            LOG.l7dlog(Level.FATAL, LogKeys.compiler_VoltCompiler_NoSuchAlgorithm.name(), e);
             System.exit(-1);
         }
         final byte passwordHash[] = md.digest(md.digest(password.getBytes()));
@@ -861,7 +1099,7 @@ public class VoltCompiler {
         boolean adminstate = conn.isEnabled();
 
         if (!conn.isEnabled()) {
-            compilerLog.info("Export configuration is present and is " +
+            LOG.info("Export configuration is present and is " +
                              "configured to be disabled. Export will be disabled.");
         }
 
@@ -915,7 +1153,7 @@ public class VoltCompiler {
                 String tablename = xmltable.getName();
                 org.voltdb.catalog.Table tableref = catdb.getTables().get(tablename);
                 if (tableref == null) {
-                    compilerLog.warn("While configuring export, table " + tablename + " was not present in " +
+                    LOG.warn("While configuring export, table " + tablename + " was not present in " +
                     "the catalog. Export will be disabled for this table.");
                     continue;
                 }

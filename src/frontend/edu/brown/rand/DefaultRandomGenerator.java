@@ -10,9 +10,15 @@ public class DefaultRandomGenerator extends AbstractRandomGenerator {
     /**
      * @param seed
      */
+    public DefaultRandomGenerator() {
+        super();
+    }
+    
+    /**
+     * @param seed
+     */
     public DefaultRandomGenerator(Integer seed) {
         super(seed);
-        // TODO Auto-generated constructor stub
     }
 
     /* (non-Javadoc)

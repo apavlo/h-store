@@ -32,6 +32,7 @@ public class Table extends CatalogType {
     boolean m_isreplicated;
     int m_estimatedtuplecount;
     CatalogMap<MaterializedViewInfo> m_views;
+    boolean m_systable;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -47,11 +48,13 @@ public class Table extends CatalogType {
         m_views = new CatalogMap<MaterializedViewInfo>(catalog, this, path + "/" + "views", MaterializedViewInfo.class);
         m_childCollections.put("views", m_views);
         this.addField("materializer", null);
+        this.addField("systable", m_systable);
     }
 
-    void update() {
+    public void update() {
         m_isreplicated = (Boolean) m_fields.get("isreplicated");
         m_estimatedtuplecount = (Integer) m_fields.get("estimatedtuplecount");
+        m_systable = (Boolean) m_fields.get("systable");
     }
 
     /** GETTER: The set of columns in the table */
@@ -74,7 +77,7 @@ public class Table extends CatalogType {
         return m_isreplicated;
     }
 
-    /** GETTER: On which column is the table partitioned */
+    /** GETTER: On which column is the table horizontally partitioned */
     public Column getPartitioncolumn() {
         Object o = getField("partitioncolumn");
         if (o instanceof UnresolvedInfo) {
@@ -110,12 +113,17 @@ public class Table extends CatalogType {
         return (Table) o;
     }
 
+    /** GETTER: Is this table an internal system table? */
+    public boolean getSystable() {
+        return m_systable;
+    }
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
     }
 
-    /** SETTER: On which column is the table partitioned */
+    /** SETTER: On which column is the table horizontally partitioned */
     public void setPartitioncolumn(Column value) {
         m_fields.put("partitioncolumn", value);
     }
@@ -128,6 +136,11 @@ public class Table extends CatalogType {
     /** SETTER: If this is a materialized view, this field stores the source table */
     public void setMaterializer(Table value) {
         m_fields.put("materializer", value);
+    }
+
+    /** SETTER: Is this table an internal system table? */
+    public void setSystable(boolean value) {
+        m_systable = value; m_fields.put("systable", value);
     }
 
 }

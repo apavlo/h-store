@@ -40,7 +40,7 @@ public class Constraint extends CatalogType {
         m_childCollections.put("foreignkeycols", m_foreignkeycols);
     }
 
-    void update() {
+    public void update() {
         m_type = (Integer) m_fields.get("type");
         m_oncommit = (String) m_fields.get("oncommit");
     }

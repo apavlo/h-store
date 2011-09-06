@@ -107,7 +107,11 @@ public class DDLCompiler {
             throw m_compiler.new VoltCompilerException("Unable to open schema file for reading");
         }
 
-        this.loadSchema(path, reader);
+        try {
+            this.loadSchema(path, reader);
+        } catch (VoltCompilerException ex) {
+            throw m_compiler.new VoltCompilerException("Failed to load schema file '" + path + "'", ex);
+        }
     }
 
     /**
@@ -383,7 +387,7 @@ public class DDLCompiler {
 
         Column column = table.getColumns().add(name);
         // need to set other column data here (default, nullable, etc)
-        column.setName(name);
+        // column.setName(name);
         column.setIndex(index);
 
         column.setType(type.getValue());

@@ -70,7 +70,7 @@ public class SamplingFilter extends Filter {
     }
 
     @Override
-    protected String debug() {
+    public String debug() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClass().getSimpleName())
           .append("[");

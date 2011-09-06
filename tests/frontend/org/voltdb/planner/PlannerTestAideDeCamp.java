@@ -158,10 +158,10 @@ public class PlannerTestAideDeCamp {
         int index = 0;
         for (Integer plancol : plan.columns) {
             PlanColumn planColumn = planner.getPlannerContext().get(plancol);
-            Column column = catalogStmt.getOutput_columns().add(String.valueOf(index));
+            Column column = catalogStmt.getOutput_columns().add(planColumn.getDisplayName()); // String.valueOf(index));
             column.setNullable(false);
             column.setIndex(index);
-            column.setName(planColumn.displayName());
+//            column.setName(planColumn.displayName());
             column.setType(planColumn.type().getValue());
             column.setSize(planColumn.width());
             index++;

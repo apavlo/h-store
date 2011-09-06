@@ -55,10 +55,10 @@ public class TestHStoreSite extends BaseTestCase {
         invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
         invocation_bytes = FastSerializer.serialize(invocation);
         
-        Site catalog_site = CollectionUtil.getFirst(CatalogUtil.getCluster(catalog).getSites());
+        Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
         coordinator = new HStoreSite(catalog_site, executors, p_estimator);
-        coordinator.setDtxnCoordinator(dtxnCoordinator);
+        // FIXME coordinator.addDtxnCoordinator(dtxnCoordinator);
     }
     
     @Test

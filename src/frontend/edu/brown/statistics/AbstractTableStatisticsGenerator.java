@@ -207,7 +207,8 @@ public abstract class AbstractTableStatisticsGenerator {
      */
     public Map<Table, TableStatistics> generate() throws Exception {
         LOG.info("Generating TableStatistics for " + this.table_profiles.size() + " tables with scale factor " + this.scale_factor);
-        final String f = "%-30s %-15d [size=%d]"; // TableName -> TupleCount TableSize 
+        final String f = "%-30s %-15d [%.2fGB]"; // TableName -> TupleCount TableSize 
+        final double gb = 1073741824d;
         
         // First we need to generate a DependencyGraph
         final DependencyGraph dgraph = this.generateDependencyGraph();
@@ -229,10 +230,10 @@ public abstract class AbstractTableStatisticsGenerator {
             // If the table is not fixed, then modify the number of tuples by the scale factor
             TableStatistics ts = new TableStatistics(catalog_tbl);
             ts.tuple_count_total = Math.round(profile.tuple_count / (profile.is_fixed ? 1.0 : this.scale_factor));
-            ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateFromCatalog(catalog_tbl);
+            ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateTupleSize(catalog_tbl);
             ts.tuple_size_total = ts.tuple_size_avg * ts.tuple_count_total;
             stats.put(catalog_tbl, ts);
-            LOG.info(String.format(f, catalog_tbl.getName(), ts.tuple_count_total, ts.tuple_size_total));
+            LOG.info(String.format(f, catalog_tbl.getName(), ts.tuple_count_total, ts.tuple_size_total/gb));
         } // FOR
         
         // Now traverse the DependencyGraph and generate the rest of the tables
@@ -274,10 +275,10 @@ public abstract class AbstractTableStatisticsGenerator {
                     
                     // Final calculations
                     ts.tuple_count_total = Math.round(ts.tuple_count_total / (profile.is_fixed ? 1.0 : scale_factor));
-                    ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateFromCatalog(catalog_tbl);
+                    ts.tuple_size_max = ts.tuple_size_min = ts.tuple_size_avg = MemoryEstimator.estimateTupleSize(catalog_tbl);
                     ts.tuple_size_total = ts.tuple_size_avg * ts.tuple_count_total;
                     stats.put(catalog_tbl, ts);
-                    LOG.info(String.format(f, catalog_tbl.getName(), ts.tuple_count_total, ts.tuple_size_total));
+                    LOG.info(String.format(f, catalog_tbl.getName(), ts.tuple_count_total, ts.tuple_size_total/gb));
                 };
             }.traverse(root);
         } // FOR
@@ -292,7 +293,7 @@ public abstract class AbstractTableStatisticsGenerator {
             total_size += ts.tuple_size_total;
         } // FOR
         LOG.info(StringUtil.repeat("-", 60));
-        LOG.info(String.format(f, "TOTAL SIZE", total_tuples, total_size));
+        LOG.info(String.format(f, "TOTAL SIZE", total_tuples, total_size/gb));
         
         return (stats);
     }

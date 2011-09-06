@@ -65,7 +65,7 @@ public class IndexScanPlanNode extends AbstractScanPlanNode {
 
     // This list of expressions corresponds to the values that we will use
     // at runtime in the lookup on the index
-    protected List<AbstractExpression> m_searchkeyExpressions = new ArrayList<AbstractExpression>();
+    protected final List<AbstractExpression> m_searchkeyExpressions = new ArrayList<AbstractExpression>();
 
     // ???
     protected Boolean m_keyIterate = false;
@@ -83,6 +83,18 @@ public class IndexScanPlanNode extends AbstractScanPlanNode {
         super(context, id);
     }
 
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        IndexScanPlanNode clone = (IndexScanPlanNode)super.clone();
+        clone.m_endExpression = (AbstractExpression)this.m_endExpression.clone();
+        clone.m_searchkeyExpressions.clear();
+        for (AbstractExpression exp : this.m_searchkeyExpressions) {
+            AbstractExpression clone_exp = (AbstractExpression)exp.clone();
+            clone.m_searchkeyExpressions.add(clone_exp);
+        }
+        return (clone);
+    }
+    
     @Override
     public PlanNodeType getPlanNodeType() {
         return PlanNodeType.INDEXSCAN;

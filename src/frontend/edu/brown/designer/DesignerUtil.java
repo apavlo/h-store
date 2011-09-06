@@ -17,7 +17,6 @@ import org.voltdb.expressions.*;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.graphs.*;
@@ -183,11 +182,11 @@ public abstract class DesignerUtil {
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
             cset = new ColumnSet();
-            AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+            AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         
             // WHERE Clause
             if (catalog_stmt.getExptree() != null && !catalog_stmt.getExptree().isEmpty()) {
-                AbstractExpression root_exp = QueryPlanUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
+                AbstractExpression root_exp = ExpressionUtil.deserializeExpression(catalog_db, catalog_stmt.getExptree());
                 DesignerUtil.extractExpressionColumnSet(catalog_stmt, catalog_db, cset, root_exp, convert_params, tables);
             }
             // INSERT
@@ -226,7 +225,7 @@ public abstract class DesignerUtil {
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
             cset = new ColumnSet();
-            AbstractPlanNode root_node = QueryPlanUtil.deserializeStatement(catalog_stmt, true);
+            AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
             DesignerUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, cset, root_node, convert_params, tables);
             CACHE_extractColumnSet.put(key, cset);
         }
@@ -260,7 +259,7 @@ public abstract class DesignerUtil {
         Pair<String, Set<String>> key = Pair.of(CatalogKey.createKey(catalog_frag), table_keys);
         ColumnSet cset = CACHE_extractColumnSet.get(key);
         if (cset == null) {
-            AbstractPlanNode root_node = QueryPlanUtil.deserializePlanFragment(catalog_frag);
+            AbstractPlanNode root_node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frag);
             // LOG.debug("PlanFragment Node:\n" + PlanNodeUtil.debug(root_node));
             
             cset = new ColumnSet();
@@ -292,7 +291,7 @@ public abstract class DesignerUtil {
             protected void callback(final AbstractPlanNode node) {
                 // We should find the Materialize node before the Insert
                 if (node instanceof MaterializePlanNode) {
-                    for (Integer column_guid : node.m_outputColumns) {
+                    for (Integer column_guid : node.getOutputColumnGUIDs()) {
                         PlanColumn column = PlannerContext.singleton().get(column_guid);
                         assert(column != null);
                         AbstractExpression exp = column.getExpression();
@@ -464,14 +463,14 @@ public abstract class DesignerUtil {
                 } else if (node instanceof MaterializePlanNode) {
                     // Assume that if we're here, then they want the mappings from columns to StmtParameters
                     assert(tables.size() == 1);
-                    Table catalog_tbl = CollectionUtil.getFirst(tables);
-                    for (int ctr = 0, cnt = node.m_outputColumns.size(); ctr < cnt; ctr++) {
-                        int column_guid = node.m_outputColumns.get(ctr);
+                    Table catalog_tbl = CollectionUtil.first(tables);
+                    for (int ctr = 0, cnt = node.getOutputColumnGUIDs().size(); ctr < cnt; ctr++) {
+                        int column_guid = node.getOutputColumnGUIDs().get(ctr);
                         PlanColumn column = PlannerContext.singleton().get(column_guid);
                         assert(column != null);
                         
-                        Column catalog_col = catalog_tbl.getColumns().get(column.displayName());
-                        assert(catalog_col != null) : "Invalid column name '" + column.displayName() + "' for " + catalog_tbl;
+                        Column catalog_col = catalog_tbl.getColumns().get(column.getDisplayName());
+                        assert(catalog_col != null) : "Invalid column name '" + column.getDisplayName() + "' for " + catalog_tbl;
                         
                         AbstractExpression exp = column.getExpression();
                         if (exp instanceof ParameterValueExpression) {
@@ -645,7 +644,7 @@ public abstract class DesignerUtil {
                         int param_idx = ((ParameterValueExpression)exp).getParameterId();
                         element = catalog_stmt.getParameters().get(param_idx);
                         if (element == null) {
-                            LOG.warn("ERROR: Unable to find Parameter object in catalog [" + ((ParameterValueExpression)exp).getParameterId() + "]");
+                            LOG.warn("ERROR: Unable to find Parameter object in " + catalog_stmt.fullName() + " [" + ((ParameterValueExpression)exp).getParameterId() + "]");
                             this.stop();
                         }
                         // We want to use the ProcParameter instead of the StmtParameter
@@ -686,24 +685,20 @@ public abstract class DesignerUtil {
      * @throws Exception
      */
     public static void extractUpdateColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractPlanNode root_node, final boolean convert_params, final Collection<Table> tables) throws Exception {
-        //
         // Grab the columns that the plannode is going to update from the children feeding into us.
-        //
-        Set<UpdatePlanNode> update_nodes = PlanNodeUtil.getPlanNodes(root_node, UpdatePlanNode.class);
+        Collection<UpdatePlanNode> update_nodes = PlanNodeUtil.getPlanNodes(root_node, UpdatePlanNode.class);
         for (UpdatePlanNode update_node : update_nodes) {
             Table catalog_tbl = catalog_db.getTables().get(update_node.getTargetTableName());
-            //
             // Grab all the scan nodes that are feeding into us
-            //
-            Set<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root_node, AbstractScanPlanNode.class);
+            Collection<AbstractScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root_node, AbstractScanPlanNode.class);
             assert(!scan_nodes.isEmpty());
             for (AbstractScanPlanNode scan_node : scan_nodes) {
                 List<PlanColumn> output_cols = new ArrayList<PlanColumn>();
                 List<AbstractExpression> output_exps = new ArrayList<AbstractExpression>();
-                if (scan_node.m_outputColumns.isEmpty()) {
+                if (scan_node.getOutputColumnGUIDs().isEmpty()) {
                     if (scan_node.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
                         ProjectionPlanNode proj_node = (ProjectionPlanNode)scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
-                        for (int guid : proj_node.m_outputColumns) {
+                        for (int guid : proj_node.getOutputColumnGUIDs()) {
                             PlanColumn column = PlannerContext.singleton().get(guid);
                             assert(column != null);
                             output_cols.add(column);
@@ -711,7 +706,7 @@ public abstract class DesignerUtil {
                         } // FOR
                     }
                 } else {
-                    for (int guid : scan_node.m_outputColumns) {
+                    for (int guid : scan_node.getOutputColumnGUIDs()) {
                         PlanColumn column = PlannerContext.singleton().get(guid);
                         assert(column != null);
                         output_cols.add(column);
@@ -728,7 +723,7 @@ public abstract class DesignerUtil {
                         // Make a temporary expression where COL = Expression
                         // Har har har! I'm so clever!
                         //
-                        String column_name = (column.originColumnName() != null ? column.originColumnName() : column.displayName());
+                        String column_name = (column.originColumnName() != null ? column.originColumnName() : column.getDisplayName());
                         Column catalog_col = catalog_tbl.getColumns().get(column_name);
                         if (catalog_col == null) System.err.println(catalog_tbl + ": " + CatalogUtil.debug(catalog_tbl.getColumns()));
                         assert(catalog_col != null) : "Missing column '" + catalog_tbl.getName() + "." + column_name + "'";

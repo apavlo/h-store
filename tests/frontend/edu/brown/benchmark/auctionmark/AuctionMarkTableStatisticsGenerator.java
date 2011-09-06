@@ -91,7 +91,7 @@ public class AuctionMarkTableStatisticsGenerator extends AbstractTableStatistics
         this.addTableProfile(p);
         
         // ITEM_FEEDBACK 
-        p = new TableProfile(this.catalog_db, AuctionMarkConstants.TABLENAME_ITEM_FEEDBACK, true);
+        p = new TableProfile(this.catalog_db, AuctionMarkConstants.TABLENAME_USER_FEEDBACK, true);
         p.addMultiplicativeDependency(catalog_db, AuctionMarkConstants.TABLENAME_ITEM, 1.0); // TODO
         this.addTableProfile(p);
         

@@ -114,12 +114,18 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         this.catalog_stmts.addAll(catalog_stmts);
     }
 
-    public Set<Statement> getStatements() {
+    @Override
+    public void clear() {
+        super.clear();
+        this.catalog_stmts.clear();
+    }
+    
+    public Collection<Statement> getStatements() {
         return this.catalog_stmts;
     }
     
     public ColumnSet.Entry get(int idx) {
-        return (CollectionUtil.get(this, idx));
+        return (super.get(idx));
     }
     
     /**

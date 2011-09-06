@@ -94,7 +94,7 @@ public class TradeUpdate extends VoltProcedure {
     // Note: We can't use hardcoded strings in lookup against T_ST_ID. Must pass as parameter
     public final SQLStmt getTradeTradeTypeSecurity = new SQLStmt(
             "select T_CA_ID, T_EXEC_NAME, T_IS_CASH, T_TRADE_PRICE, T_QTY, TT_NAME, T_DTS, T_ID, "
-                    + "T_TT_ID, TT_NAME from TRADE, TRADE_TYPE, SECURITY "
+                    + "T_TT_ID from TRADE, TRADE_TYPE, SECURITY "
                     + "where T_S_SYMB = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? and " // T_ST_ID=\"CMPT\"
                     + "TT_ID = T_TT_ID and S_SYMB = T_S_SYMB order by T_DTS asc limit 20"); // limit ?
 

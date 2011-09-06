@@ -56,11 +56,12 @@
 <property name='depcache'                    value='.depcache' />
 
 <!-- Supplmental H-Store Files -->
-<property name='files.dir'                   location='${base.dir}/files' />
+<property name='files.dir'                   location='files' />
 <property name='files.stats.dir'             location='${files.dir}/stats' />
 <property name='files.workloads.dir'         location='${files.dir}/workloads' />
 <property name='files.markovs.dir'           location='${files.dir}/markovs' />
 <property name='files.hints.dir'             location='${files.dir}/designhints' />
+<property name='files.mappings.dir'          location='${files.dir}/mappings' />
 
 <!-- ProtocolBuffer Source -->
 <property name="src.protobuf.dir"            location="third_party/cpp/protobuf" />
@@ -919,6 +920,7 @@ TEST CASES
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
+                
                 <exclude name="**/TestMaliciousClientSuite.class" />
                 <exclude name='org/voltdb/regressionsuites/**'/>
                 <exclude name='org/voltdb/client/TestDistributer*'/>
@@ -930,12 +932,9 @@ TEST CASES
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
-                <include name='edu/brown/designer/**/Test*.class'/>
+                
                 <!-- We run out of memory on this one -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
-                <!-- Busted tests because of hacking -->
-                <exclude name='edu/brown/benchmark/airline/Test*'/>
-                <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
 
                 <!-- Canadian Tests -->
                 <include name='ca/evanjones/**/*Test.class'/>
@@ -1459,6 +1458,7 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${coordinator.host}" />
+        <arg value="PARTITIONPLAN=${partitionplan}" />
         
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -1467,24 +1467,29 @@ BENCHMARKS
         <arg value="markov.recompute_warmup=${markov.recompute_warmup}" />
 
         <!-- Execution Options -->
-        <arg value="TXNRATE=${client.txnrate}" />
         <arg value="CLIENTCOUNT=${client.count}" />
-        <arg value="PROCESSESPERCLIENT=${client.processesperclient}" />
-        <arg value="INTERVAL=${client.interval}" />
-        <arg value="DURATION=${client.duration}" />
-        <arg value="WARMUP=${client.warmup}" />
-        <arg value="BLOCKING=${client.blocking}" />
         <arg value="TRACE=${trace}" />
         <arg value="PROFILESITES=${profilesites}" />
-        
+        <arg value="JSONOUTPUT=${jsonoutput}" />
+
         <arg value="DUMPDATABASE=${client.dump_database}" />
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
 
-        <!-- Global Parameters -->
-        <arg value="scalefactor=${client.scalefactor}" />
-        <arg value="skewfactor=${client.skewfactor}" />
-        <arg value="temporalwindow=${client.temporalwindow}" />
-        <arg value="temporaltotal=${client.temporaltotal}" />
+        <!-- New Style -->
+        <arg value="client.txnrate=${client.txnrate}" />
+        <arg value="client.processesperclient=${client.processesperclient}" />
+        <arg value="client.warmup=${client.warmup}" />
+        <arg value="client.blocking=${client.blocking}" />
+        <arg value="client.blocking_concurrent=${client.blocking_concurrent}" />
+        <arg value="client.interval=${client.interval}" />
+        <arg value="client.duration=${client.duration}" />
+        <arg value="client.scalefactor=${client.scalefactor}" />
+        <arg value="client.skewfactor=${client.skewfactor}" />
+        <arg value="client.temporalwindow=${client.temporalwindow}" />
+        <arg value="client.temporaltotal=${client.temporaltotal}" />
+        <arg value="client.tickinterval=${client.tickinterval}" />
+        <arg value="client.tablestats=${client.tablestats}" />
+        <arg value="client.tablestats_dir=${client.tablestats_dir}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
@@ -1497,15 +1502,6 @@ BENCHMARKS
         <arg value="coordinator.log_dir=${coordinator.log_dir}" />
         <arg value="client.log_dir=${client.log_dir}" />
 
-        <!-- TPC-C parameters -->
-        <arg value="benchmark.warehouses=${benchmark.warehouses}" />
-        <arg value="benchmark.loadthreads=${benchmark.loadthreads}" />
-        <arg value="benchmark.noop=${benchmark.noop}" />
-        <arg value="benchmark.neworder_only=${benchmark.neworder_only}" />
-        <arg value="benchmark.neworder_abort=${benchmark.neworder_abort}" />
-        <arg value="benchmark.neworder_multip=${benchmark.neworder_multip}" />
-        <arg value="benchmark.neworder_all_multip=${benchmark.neworder_all_multip}" />
-        
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
         <arg value="HOST=${host1}" />
@@ -1520,7 +1516,9 @@ BENCHMARKS
         <arg value="COMPILEONLY=${compileonly}" />
         <arg value="CATALOGHOSTS=${cataloghosts}" />
         <arg value="NOCOORDINATOR=${nocoordinator}" />
-        <arg value="NODATALOAD=${nodataload}" />
+        <arg value="NOLOADER=${noloader}" />
+        <arg value="NOUPLOADING=${nouploading}" />
+        <arg value="NOEXECUTE=${noexecute}" />
         <arg value="NOSHUTDOWN=${noshutdown}" />
         
         <!-- Actual number of connections opened to cluster will be:
@@ -1723,14 +1721,14 @@ DESIGNER
         <arg value="catalog.output=${global.temp_dir}/fixcatalog/catalog.txt" />
         <arg value="dtxn.conf.output=${global.temp_dir}/fixcatalog/dtxn.conf" />
         <arg value="mappings=${mappings}" />
-        <arg value="simulator.host=${hosts}" />
-        <arg value="simulator.numhosts=${numhosts}" />
-        <arg value="simulator.host.numsites=${numsites}" />
-        <arg value="simulator.site.numpartitions=${numpartitions}" />
-        <arg value="simulator.host.cores=${cores}" />
-        <arg value="simulator.host.threads=${threads}" />
-        <arg value="simulator.host.memory=${memory}" />
-        <arg value="simulator.port=${port}" />
+        <arg value="catalog.hosts=${hosts}" />
+        <arg value="catalog.hosts.cores=${cores}" />
+        <arg value="catalog.hosts.threads=${threads}" />
+        <arg value="catalog.hosts.memory=${memory}" />
+        <arg value="catalog.numhosts=${numhosts}" />
+        <arg value="catalog.hosts.numsites=${numsites}" />
+        <arg value="catalog.site.numpartitions=${numpartitions}" />
+        <arg value="catalog.port=${port}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1799,6 +1797,26 @@ DESIGNER
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
+    <gzip src="${output}" destfile="${output}.gz" />
+</target>
+
+<target name='workload-compress'>
+    <java fork="yes" failonerror="true" classname="edu.brown.workload.WorkloadSummarizer">
+        <jvmarg value="-Xmx${volt.server.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.output=${output}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+    <gzip src="${output}" destfile="${output}.gz" />
 </target>
 
 <target name='stats'
@@ -1870,7 +1888,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=files/mappings/${project}.mappings" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
         <arg value="markov.thresholds.value=${markov.thresholds.value}" />
@@ -1902,7 +1920,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=./files/mappings/${project}.mappings" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1925,7 +1943,7 @@ DESIGNER
         <arg value="workload.xactoffset=${offset}" />
         <arg value="workload.procinclude=${procedure}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=./files/mappings/${project}.mappings" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <arg value="markov.split.training=${training}" />
         <arg value="markov.split.validation=${validation}" />
         <arg value="markov.split.testing=${testing}" />
@@ -1965,9 +1983,9 @@ DESIGNER
     <condition property="target.workload" value="${project}">
         <not><isset property="target.workload"/></not>
     </condition>
-    <property name="benchmark.tablestats" location="${global.temp_dir}/${project}.table.stats" />
+    <property name="benchmark.tablestats" location="${global.temp_dir}/stats/${project}.stats" />
     
-<!--    <echo>Creating table stats file for ${project}...</echo>
+    <echo>Creating table stats file for ${project}...</echo>
     <java fork="yes" classname="edu.brown.statistics.AbstractTableStatisticsGenerator" failonerror='true'>
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -1976,23 +1994,23 @@ DESIGNER
         <arg value="stats.output=${benchmark.tablestats}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
-    </java>-->
+    </java>
     
-    <echo>Creating stats file for ${target.workload}...</echo>
+    <echo>Creating stats file for workload '${target.workload}' using '${benchmark.tablestats}' as base</echo>
     <antcall target="stats">
         <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
         <param name="stats" value="${benchmark.tablestats}" />
-        <param name="output" value="${files.stats.dir}/${target.workload}.stats" />
+        <param name="output" value="${files.stats.dir}/${project}.stats" />
     </antcall>
-    <gzip src="${files.stats.dir}/${target.workload}.stats" destfile="${files.stats.dir}/${target.workload}.stats.gz"/>
-    <delete file="${benchmark.tablestats}" />
+    <gzip src="${files.stats.dir}/${project}.stats" destfile="${files.stats.dir}/${project}.stats.gz"/>
+    <delete file="${files.stats.dir}/${project}.stats" />
     
-    <echo>Creating mappings file for ${workload}...</echo>
+    <echo>Creating mappings file for workload '${target.workload}'</echo>
     <antcall target="mappings-generate">
         <param name="jar" value="${benchmark.jar}" />
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
-        <param name="output" value="${files.mappings.dir}/${target.workload}.mappings" />
+        <param name="output" value="${files.mappings.dir}/${project}.mappings" />
     </antcall>
 </target>
 
@@ -2007,7 +2025,7 @@ DESIGNER
         <param name="numhosts" value="25" />
         <param name="numsites" value="2" />
         <param name="numpartitions" value="2" />
-        <param name="simulator.site.numpartitions" value="partitionspersite" />
+        <param name="catalog.site.numpartitions" value="partitionspersite" />
     </antcall>
     <antcall target="catalog-info">
         <param name="jar" value="${project}-designer-benchmark.jar" />
@@ -2021,8 +2039,10 @@ DESIGNER
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <jvmarg value="-Dhstore.max_threads=${numcpus}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${type}" />
+        <arg value="catalog.hosts=${hosts}" />
         <arg value="workload=${workload}" />
         <arg value="workload.removedupes=true" />
         <arg value="workload.xactlimit=${limit}" />
@@ -2201,21 +2221,6 @@ H-STORE REMIX
    </java>
 </target>
 
-<!--<target name="hstore-conf" description="Converts catalog contents to hstore.conf file">
-    <condition property="jar" value="${benchmark.jar}">
-        <not><isset property="jar"/></not>
-    </condition>
-   <java fork="yes" classname="edu.brown.catalog.HStoreDtxnConf">
-      <jvmarg value="-Dlog4j.configuration=log4j.properties"/>
-      <jvmarg value="-client" />
-      <arg value="catalog.jar=${jar}" />
-      <arg value="simulator.conf.output=${build.dtxn.dir}/hstore.conf" />
-      <classpath refid='project.classpath' />
-      <assertions><enable /></assertions>
-   </java>
-   <echo>Created '${build.dtxn.dir}/hstore.conf'</echo>
-</target>-->
-
 <target name="hstore-prepare" description="Prepares a benchmark catalog">
     <!-- Compile + create benchmark project jar -->
     <antcall target="benchmark">
@@ -2246,6 +2251,7 @@ H-STORE REMIX
 
     <java fork="yes" classname="edu.mit.hstore.HStoreSite">
         <jvmarg value="-Dhstore.tag=site" />
+        <jvmarg value="-Xms${site.memory}m" />
         <jvmarg value="-Xmx${site.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-server" />
@@ -2315,7 +2321,7 @@ H-STORE REMIX
 <!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:1:1" /> -->
 <!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1,${global.defaulthost}:0:2,${global.defaulthost}:0:3,${global.defaulthost}:0:4" /> -->
 <!--         <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1" /> -->
-        <param name="hosts" value="${global.defaulthost}:0:0,${global.defaulthost}:0:1,${global.defaulthost}:1:2,${global.defaulthost}:1:3" />
+        <param name="hosts" value="${global.defaulthost}:0:0;${global.defaulthost}:0:1;${global.defaulthost}:1:2;${global.defaulthost}:1:3" />
     </antcall>
 <!--    <antcall target="hstore-conf">
         <param name="jar" value="${benchmark.jar}" />

@@ -2,7 +2,7 @@ package edu.brown.benchmark.airline.util;
 
 public class CustomerId {
 
-    private static final long BASE_ID_MASK = 281474976710655l; // 2^48-1
+    private static final long BASE_ID_MASK = 281474976710655l; // (2^48)-1
     private static final int AIRPORT_ID_OFFSET = 48;
     
     private final long id;
@@ -53,7 +53,7 @@ public class CustomerId {
     
     @Override
     public String toString() {
-        return ("CustomerId<" + this.getDepartAirportId() + "-" + this.getId() + ">");
+        return String.format("CustomerId{airport=%d,id=%d}", this.depart_airport_id, this.id);
     }
     
     @Override

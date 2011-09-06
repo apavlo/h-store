@@ -36,10 +36,12 @@ public class AggregateExpression extends AbstractExpression {
     }
 
     public AggregateExpression() {
-        //
         // This is needed for serialization
-        //
         super();
+    }
+    
+    public boolean isDistinct() {
+        return (m_distinct);
     }
 
     @Override

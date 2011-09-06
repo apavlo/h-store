@@ -37,7 +37,7 @@ public class ConstantValue extends CatalogType {
         this.addField("type", m_type);
     }
 
-    void update() {
+    public void update() {
         m_value = (String) m_fields.get("value");
         m_is_null = (Boolean) m_fields.get("is_null");
         m_type = (Integer) m_fields.get("type");

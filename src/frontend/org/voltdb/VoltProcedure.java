@@ -171,6 +171,7 @@ public abstract class VoltProcedure implements Poolable {
     private LocalTransactionState m_localTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
+    private int last_batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
     private int batchQueryArgsIndex = 0;
     private VoltTable[] results = EMPTY_RESULT;
@@ -526,7 +527,12 @@ public abstract class VoltProcedure implements Poolable {
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {
             if (this.executor.isShuttingDown() == false) {
+                SQLStmt last[] = this.voltLastQueriesExecuted();
+                
                 LOG.fatal("Unexpected error while executing " + m_localTxnState, ex);
+                if (last.length > 0) {
+                    LOG.fatal("Last Queries Executed: " + Arrays.toString(last));
+                }
                 LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState.debug());
                 this.executor.crash(ex);
             }
@@ -542,6 +548,7 @@ public abstract class VoltProcedure implements Poolable {
         // in case someone queues sql but never calls execute, clear the queue here.
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
+        last_batchQueryStmtIndex = -1;
 
         // Select a local_partition to use if we're on the coordinator, otherwise
         // just use the real partition. We shouldn't have to do this once Evan gets it
@@ -565,7 +572,7 @@ public abstract class VoltProcedure implements Poolable {
             } catch (Exception e) {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
-                LOG.fatal(msg, e);
+                LOG.error(msg, e);
                 status = ClientResponseImpl.GRACEFUL_FAILURE;
                 status_msg = msg;
                 return new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.client_handle);
@@ -653,17 +660,24 @@ public abstract class VoltProcedure implements Poolable {
                 ex.printStackTrace(pw);
                 String msg = sw.toString();
                 if (msg == null) msg = ex.toString();
+                String statusMsg = msg;
                 
-                String currentQueries = "";
-                for (int i = 0; i < batchQueryStmtIndex; i++) {
-                    currentQueries += String.format("[%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                if (batchQueryStmtIndex > 0) {
+                    msg += "\nCurrently Queued Queries:\n";
+                    for (int i = 0; i < batchQueryStmtIndex; i++) {
+                        msg += String.format("  [%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                    }
+                } else if (last_batchQueryStmtIndex > 0) {
+                    msg += "\nLast Executed Queries:\n";
+                    for (int i = 0; i < last_batchQueryStmtIndex; i++) {
+                        msg += String.format("  [%02d] %s\n", i, CatalogUtil.getDisplayName(batchQueryStmts[i].catStmt));
+                    }
                 }
                 if (executor.isShuttingDown() == false) {
-                    LOG.fatal(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s\n%s", procedure_name, this.txn_id, msg, currentQueries), ex);
+                    LOG.error(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s", procedure_name, this.txn_id, msg), ex);
                 }
-                
                 status = ClientResponseImpl.UNEXPECTED_FAILURE;
-                status_msg = "UNEXPECTED ABORT: " + msg;
+                status_msg = "UNEXPECTED ABORT: " + statusMsg;
             }
         // -------------------------------
         // Something really bad happened. Just bomb out!
@@ -924,6 +938,11 @@ public abstract class VoltProcedure implements Poolable {
         if (t) LOG.trace("Batching Statement: " + stmt.getText());
     }
 
+    public void voltClearQueue() {
+        batchQueryStmtIndex = 0;
+        batchQueryArgsIndex = 0;
+    }
+    
     /**
      * Execute the currently queued SQL {@link org.voltdb.SQLStmt statements} and return
      * the result tables.
@@ -950,7 +969,6 @@ public abstract class VoltProcedure implements Poolable {
             queryResults.clear();
             return batch_results;
         }
-        
         assert (batchQueryStmtIndex == batchQueryArgsIndex);
 
         // Workload Trace - Start Query
@@ -987,12 +1005,25 @@ public abstract class VoltProcedure implements Poolable {
             m_workloadQueryHandles.clear();
         }
 
+        last_batchQueryStmtIndex = batchQueryStmtIndex;
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
         return retval;
     }
 
+    /**
+     * Return the SQLStmt handles for the last batch of executed queries
+     * @return
+     */
+    public SQLStmt[] voltLastQueriesExecuted() {
+        if (last_batchQueryStmtIndex != -1) {
+            return Arrays.copyOf(batchQueryStmts, last_batchQueryStmtIndex);
+        }
+        return new SQLStmt[0];
+    }
+    
+    
     /**
      * 
      * @param batchSize

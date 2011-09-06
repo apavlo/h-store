@@ -68,7 +68,7 @@ public class MilestoneOneExecutionTest extends TestCase {
 
         // run the test
         client = ClientFactory.createClient();
-        client.createConnection("localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
+        client.createConnection(null, "localhost", Client.VOLTDB_SERVER_PORT, "program", "none");
     }
 
     @Override

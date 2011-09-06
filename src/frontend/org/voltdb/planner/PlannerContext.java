@@ -17,7 +17,7 @@
 
 package org.voltdb.planner;
 
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -29,15 +29,13 @@ import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlanColumn.SortOrder;
 import org.voltdb.planner.PlanColumn.Storage;
 
-import edu.brown.utils.ThreadUtil;
-
 public class PlannerContext {
     private static final Logger LOG = Logger.getLogger(PlannerContext.class);
 
     /**
      * Generator for PlanColumn.m_guid
      */
-    private final AtomicInteger s_nextId = new AtomicInteger();
+    private final AtomicInteger s_nextId = new AtomicInteger(-1);
 
     /**
      * Global hash of PlanColumn guid to PlanColumn reference
@@ -48,6 +46,14 @@ public class PlannerContext {
 
     public TreeMap<Integer, PlanColumn> getscolumnPool() {
         return s_columnPool;
+    }
+    
+    /**
+     * Return the Collection of all the PlanColumns managed under this PlannerContext instance
+     * @return
+     */
+    public Collection<PlanColumn> getAllPlanColumns() {
+        return s_columnPool.values();
     }
     
     public PlanColumn getPlanColumn(AbstractExpression expression, String columnName) {
@@ -62,19 +68,32 @@ public class PlannerContext {
         
         // We've never seen this one before, so we have to make a new one...
         if (retval == null) {
-            int guid = s_nextId.incrementAndGet();
+            int guid = this.getNextPlanColumnGUID();
             retval = new PlanColumn(guid, expression, columnName, sortOrder, storage);
-            if (s_columnPool.get(guid) != null) {
-                PlanColumn orig = s_columnPool.get(guid); 
-                LOG.warn(String.format("Trying to add PlanColumn GUID #%d more than once!\nORIG: %s\nNEW: %s", guid, orig, retval));
-            }
             assert(s_columnPool.get(guid) == null);
             s_columnPool.put(guid, retval);
+            LOG.debug("Added new " + retval);
         }
-
         return retval;
     }
 
+    private synchronized int getNextPlanColumnGUID() {
+        if (s_nextId.get() == -1) {
+            s_nextId.set(s_columnPool.isEmpty() ? 0 : s_columnPool.lastKey() * 10); // HACK
+            LOG.debug("Initialized NextId = " + s_nextId);
+        }
+        int guid = -1;
+        while (true) {
+            int new_guid = s_nextId.incrementAndGet();
+            if (s_columnPool.get(new_guid) == null) {
+                guid = new_guid; 
+                break;
+            }
+        } // WHILE
+        assert(guid > 0);
+        return (guid);
+    }
+    
     /**
      * Internal Registration
      * HashCode -> PlanColumn
@@ -88,7 +107,7 @@ public class PlannerContext {
 
     public PlanColumn clonePlanColumn(PlanColumn orig) {
         PlanColumn clone = this.getPlanColumn(orig.m_expression,
-                                              orig.displayName(),
+                                              orig.getDisplayName(),
                                               orig.getSortOrder(),
                                               orig.getStorage());
         return (clone);

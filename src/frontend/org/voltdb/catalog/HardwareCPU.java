@@ -34,7 +34,7 @@ public class HardwareCPU extends CatalogType {
         m_childCollections.put("cores", m_cores);
     }
 
-    void update() {
+    public void update() {
     }
 
     /** GETTER: The hardware cores for this CPU */

@@ -6,13 +6,17 @@ package edu.brown.designer.generators;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 
-import edu.brown.designer.*;
-import edu.brown.designer.partitioners.PartitionEntry;
-import edu.brown.designer.partitioners.PartitionPlan;
-import edu.brown.graphs.*;
-import edu.uci.ics.jung.graph.util.*;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.PartitionTree;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.designer.partitioners.plan.TableEntry;
+import edu.brown.graphs.VertexTreeWalker;
+import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**
  * @author pavlo
@@ -66,7 +70,7 @@ public class PartitionPlanTreeGenerator extends AbstractGenerator<PartitionTree>
                 
                 @Override
                 protected void callback(DesignerVertex element) {
-                    PartitionEntry entry = PartitionPlanTreeGenerator.this.pplan.getTableEntries().get((Table) element.getCatalogItem());
+                    TableEntry entry = PartitionPlanTreeGenerator.this.pplan.getTableEntries().get((Table) element.getCatalogItem());
                     // Bad Mojo!
                     if (entry == null) {
                         LOG.warn("ERROR: No PartitionPlan entry for '" + element + "'");

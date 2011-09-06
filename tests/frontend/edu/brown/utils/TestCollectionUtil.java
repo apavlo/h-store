@@ -1,7 +1,19 @@
 package edu.brown.utils;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
 import junit.framework.TestCase;
-import java.util.*;
+
+import org.apache.commons.collections15.set.ListOrderedSet;
+
+import edu.brown.rand.DefaultRandomGenerator;
 
 public class TestCollectionUtil extends TestCase {
     
@@ -72,7 +84,37 @@ public class TestCollectionUtil extends TestCase {
         list.add("a");
         list.add("b");
         list.add("c");
-        String key = CollectionUtil.getFirst(list);
+        String key = CollectionUtil.first(list);
         assertEquals("a", key);
+    }
+    
+    /**
+     * testPop
+     */
+    @SuppressWarnings("unchecked")
+    public void testPop() {
+        String expected[] = new String[11];
+        DefaultRandomGenerator rng = new DefaultRandomGenerator();
+        for (int i = 0; i < expected.length; i++) {
+            expected[i] = rng.astring(1, 32);
+        } // FOR
+        
+        Collection<String> collections[] = new Collection[] {
+            CollectionUtil.addAll(new ListOrderedSet<String>(), expected),
+            CollectionUtil.addAll(new HashSet<String>(), expected),
+            CollectionUtil.addAll(new ArrayList<String>(), expected),
+        };
+        for (Collection<String> c : collections) {
+            assertNotNull(c);
+            assertEquals(c.getClass().getSimpleName(), expected.length, c.size());
+            String pop = CollectionUtil.pop(c);
+            assertNotNull(c.getClass().getSimpleName(), pop);
+            assertEquals(c.getClass().getSimpleName(), expected.length-1, c.size());
+            assertFalse(c.getClass().getSimpleName(), c.contains(pop));
+            
+            if (c instanceof List || c instanceof ListOrderedSet) {
+                assertEquals(c.getClass().getSimpleName(), expected[0], pop);
+            }
+        } // FOR
     }
 }

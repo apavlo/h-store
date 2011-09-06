@@ -18,10 +18,11 @@
 package org.voltdb.compiler;
 
 import java.io.PrintStream;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
 import org.hsqldb.HSQLInterface;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -49,8 +50,8 @@ import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Compiles individual SQL statements and updates the given catalog.
@@ -58,8 +59,27 @@ import edu.brown.plannodes.PlanNodeUtil;
  *
  */
 public abstract class StatementCompiler {
+    private static final Logger LOG = Logger.getLogger(StatementCompiler.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
-    private static AtomicInteger NEXT_FRAGMENT_ID = new AtomicInteger(10000);
+    private static AtomicInteger NEXT_FRAGMENT_ID = null;
+    
+    public synchronized static int getNextFragmentId(Database catalog_db) {
+        // If this is the first time we are being called, figure out
+        // where our ids should start at
+        if (NEXT_FRAGMENT_ID == null) {
+            int max_id = 10000;
+            for (Statement catalog_stmt : CatalogUtil.getAllStatements(catalog_db)) {
+                for (PlanFragment catalog_frag : CatalogUtil.getAllPlanFragments(catalog_stmt)) {
+                    max_id = Math.max(max_id, catalog_frag.getId());
+                } // FOR
+            } // FOR
+            NEXT_FRAGMENT_ID = new AtomicInteger(max_id);
+            if (trace.get()) LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
+        }
+        return (NEXT_FRAGMENT_ID.incrementAndGet()); 
+    }
     
     public static void compile(VoltCompiler compiler, HSQLInterface hsql,
             Catalog catalog, Database db, DatabaseEstimates estimates,
@@ -119,7 +139,7 @@ public abstract class StatementCompiler {
         Exception first_exception = null;
         for (boolean _singleSited : new Boolean[] { true, false }) {
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
-            compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
+            compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited);
             // System.err.println("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
             catalogStmt.setSinglepartition(_singleSited);
 
@@ -133,28 +153,28 @@ public abstract class StatementCompiler {
                         catalogStmt.getSinglepartition(), null);
             } catch (Exception e) {
                 if (first_exception == null) {
-                    // System.err.println("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
+                    if (debug.get()) LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
                     first_exception = e;
                     continue;
                 }
                 e.printStackTrace();
-                throw compiler.new VoltCompilerException("Failed to plan for stmt: " + catalogStmt.getName());
+                throw compiler.new VoltCompilerException("Failed to plan for stmt: " + catalogStmt.fullName());
             }
 
             if (plan == null) {
-                String msg = "Failed to plan for stmt: " + catalogStmt.getName();
+                String msg = "Failed to plan for stmt: " + catalogStmt.fullName();
                 String plannerMsg = planner.getErrorMessage();
                 if (plannerMsg == null) plannerMsg = "PlannerMessage was empty!";
                 
                 // HACK: Ignore if they were trying to do a single-sited INSERT/UPDATE/DELETE
                 //       on a replicated table
                 if (plannerMsg.contains("replicated table") && _singleSited) {
-                    //System.err.println("Ignoring error: " + plannerMsg);
+                    if (debug.get()) LOG.warn("Ignoring error: " + plannerMsg);
                     continue;
                 // HACK: If we get an unknown error message on an multi-sited INSERT/UPDATE/DELETE, assume
                 //       that it's because we are trying to insert on a non-replicated table
                 } else if (!_singleSited && stmt_type == QueryType.INSERT && plannerMsg.contains("Error unknown")) {
-                    //System.err.println("Ignoring multi-sited " + stmt_type.name() + " on non-replicated table: " + plannerMsg);
+                    if (debug.get()) LOG.warn("Ignoring multi-sited " + stmt_type.name() + " on non-replicated table: " + plannerMsg);
                     continue;
                 // Otherwise, report the error
                 } else {
@@ -219,7 +239,7 @@ public abstract class StatementCompiler {
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
                 // Now update our catalog information
-                int id = NEXT_FRAGMENT_ID.getAndIncrement();
+                int id = getNextFragmentId(db);
                 String planFragmentName = Integer.toString(id);
                 PlanFragment planFragment = null;
                     
@@ -287,12 +307,12 @@ public abstract class StatementCompiler {
         // HACK
         AbstractPlanNode root = null;
         try {
-            root = QueryPlanUtil.deserializeStatement(catalogStmt, true);
+            root = PlanNodeUtil.getRootPlanNodeForStatement(catalogStmt, true);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
         assert(root != null);
-        Set<Table> tables_accessed = CatalogUtil.getReferencedTables(db, root);
+        Collection<Table> tables_accessed = CatalogUtil.getReferencedTablesForTree(db, root);
         assert(tables_accessed.isEmpty() == false) : "Failed to find accessed tables for " + catalogStmt + "-- Plan:\n" + PlanNodeUtil.debug(plan.fullWinnerPlan);
         boolean all_replicated = true;
         for (Table catalog_tbl : tables_accessed) {
@@ -316,10 +336,10 @@ public abstract class StatementCompiler {
         int index = 0;
         for (Integer colguid : plan.columns) {
             PlanColumn planColumn = planner.getPlannerContext().get(colguid);
-            Column catColumn = catalogStmt.getOutput_columns().add(String.valueOf(index));
+            Column catColumn = catalogStmt.getOutput_columns().add(planColumn.getDisplayName()); // String.valueOf(index));
             catColumn.setNullable(false);
             catColumn.setIndex(index);
-            catColumn.setName(planColumn.displayName());
+//            catColumn.setName(planColumn.displayName());
             catColumn.setType(planColumn.type().getValue());
             catColumn.setSize(planColumn.width());
             index++;
@@ -356,7 +376,7 @@ public abstract class StatementCompiler {
             return true;
 
         // recursively check out children
-        for (int i = 0; i < node.getChildCount(); i++) {
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
             AbstractPlanNode child = node.getChild(i);
             if (fragmentReferencesPersistentTable(child))
                 return true;
@@ -381,7 +401,7 @@ public abstract class StatementCompiler {
             return false;
 
         // recursively check out children
-        for (int i = 0; i < node.getChildCount(); i++) {
+        for (int i = 0; i < node.getChildPlanNodeCount(); i++) {
             if (fragmentReadOnly(node.getChild(i)) == false) return (false);
         }
 

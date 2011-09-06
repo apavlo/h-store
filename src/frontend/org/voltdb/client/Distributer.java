@@ -45,7 +45,10 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreSite;
 
 /**
  *   De/multiplexes transactions across a cluster
@@ -55,11 +58,17 @@ import edu.brown.utils.StringUtil;
  */
 class Distributer {
     private static final Logger LOG = Logger.getLogger(Distributer.class);
-    private final static boolean d = LOG.isDebugEnabled();
-    private final static boolean t = LOG.isTraceEnabled();
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     // collection of connections to the cluster
     private final ArrayList<NodeConnection> m_connections = new ArrayList<NodeConnection>();
+    
+    /** SiteId -> NodeConnection */
+    private final Map<Integer, NodeConnection> m_connectionSiteXref = new HashMap<Integer, NodeConnection>();
 
     private final ArrayList<ClientStatusListener> m_listeners = new ArrayList<ClientStatusListener>();
 
@@ -268,7 +277,7 @@ class Distributer {
                     cb = stuff.callback;
                     m_invocationsCompleted++;
                     
-                    if (d) {
+                    if (debug.get()) {
                         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
                         m0.put("Txn #", response.getTransactionId());
                         m0.put("Status", response.getStatusName());
@@ -295,12 +304,12 @@ class Distributer {
                         m_lastServerTimestamp = timestamp;
                         
                         if (should_throttle == false && m_hasBackPressure.compareAndSet(true, should_throttle)) {
-                            if (d) LOG.debug(String.format("Disabling throttling mode [counter=%d]", m_invocationsThrottled));
+                            if (debug.get()) LOG.debug(String.format("Disabling throttling mode [counter=%d]", m_invocationsThrottled));
                             m_connection.writeStream().setBackPressure(false);
                             
                         } else if (should_throttle == true && m_hasBackPressure.compareAndSet(false, true)) {
                             m_invocationsThrottled++;
-                            if (d) LOG.debug(String.format("Enabling throttling mode [counter=%d]", m_invocationsThrottled));
+                            if (debug.get()) LOG.debug(String.format("Enabling throttling mode [counter=%d]", m_invocationsThrottled));
                             m_connection.writeStream().setBackPressure(true);
                             m_hasBackPressureTimestamp = now;
                         }
@@ -349,10 +358,10 @@ class Distributer {
         }
 
         public boolean hadBackPressure(long now) {
-            if (t) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackPressure));
+            if (trace.get()) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackPressure));
             if (m_hasBackPressure.get()) {
                 if (now - m_hasBackPressureTimestamp > m_backpressureWait) {
-                    if (t) LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms", this, (now - m_hasBackPressureTimestamp)));
+                    if (trace.get()) LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms", this, (now - m_hasBackPressureTimestamp)));
 //                    assert(m_hasBackPressureTimestamp >= 0);
                     m_hasBackPressure.set(false);
                     m_hasBackPressureTimestamp = -1;
@@ -493,7 +502,7 @@ class Distributer {
             int arenaSizes[],
             boolean useMultipleThreads,
             StatsUploaderSettings statsSettings) {
-        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 500);
+        this(expectedOutgoingMessageSize, arenaSizes, useMultipleThreads, statsSettings, 100);
     }
 
     Distributer(
@@ -571,12 +580,12 @@ class Distributer {
 //        createConnection(host, program, password, port);
 //    }
 
-    public synchronized void createConnection(String host, int port, String program, String password) throws UnknownHostException, IOException {
-        final boolean debug = LOG.isDebugEnabled();
-        
-        if (debug) LOG.debug("Creating new connection [host=" + host + ", program=" + program + ", port=" + port + "]");
-            
-        if (debug) LOG.debug("Trying for an authenticated connection...");
+    public synchronized void createConnection(Integer site_id, String host, int port, String program, String password) throws UnknownHostException, IOException {
+        if (debug.get()) {
+            LOG.debug(String.format("Creating new connection [site=%s, host=%s, port=%d]",
+                                    HStoreSite.formatSiteName(site_id), host, port));
+            LOG.debug("Trying for an authenticated connection...");
+        }
         Object connectionStuff[] = null;
         try {
             connectionStuff =
@@ -585,7 +594,7 @@ class Distributer {
             LOG.error("Failed to get connection to " + host + ":" + port, ex);
             throw new IOException(ex);
         }
-        if (debug) LOG.debug("We now have an authenticated connection. Let's grab the socket...");
+        if (debug.get()) LOG.debug("We now have an authenticated connection. Let's grab the socket...");
         final SocketChannel aChannel = (SocketChannel)connectionStuff[0];
         final long numbers[] = (long[])connectionStuff[1];
         if (m_clusterInstanceId == null) {
@@ -611,11 +620,17 @@ class Distributer {
         m_buildString = (String)connectionStuff[2];
         NodeConnection cxn = new NodeConnection(numbers);
         m_connections.add(cxn);
+        if (site_id != null) {
+            if (debug.get())
+                LOG.debug(String.format("Created connection for Site %s: %s", HStoreSite.formatSiteName(site_id), cxn));
+            m_connectionSiteXref.put(site_id, cxn);
+        }
+        
         Connection c = m_network.registerChannel(aChannel, cxn);
         cxn.m_hostname = c.getHostname();
         cxn.m_port = port;
         cxn.m_connection = c;
-        if (debug) LOG.debug("From what I can tell, we have a connection: " + cxn);
+        if (debug.get()) LOG.debug("From what I can tell, we have a connection: " + cxn);
     }
 
 //    private HashMap<String, Long> reportedSizes = new HashMap<String, Long>();
@@ -636,32 +651,55 @@ class Distributer {
             int expectedSerializedSize,
             final boolean ignoreBackpressure)
         throws NoConnectionsException {
+        return this.queue(invocation, cb, expectedSerializedSize, ignoreBackpressure, null);
+    }
+    
+    boolean queue(
+            StoredProcedureInvocation invocation,
+            ProcedureCallback cb,
+            int expectedSerializedSize,
+            final boolean ignoreBackpressure,
+            final Integer site_id)
+        throws NoConnectionsException {
         NodeConnection cxn = null;
         boolean backpressure = true;
+        int queuedInvocations = 0;
+        long now = System.currentTimeMillis();
         
         /*
          * Synchronization is necessary to ensure that m_connections is not modified
          * as well as to ensure that backpressure is reported correctly
          */
-        long now = System.currentTimeMillis();
         synchronized (this) {
             final int totalConnections = m_connections.size();
 
             if (totalConnections == 0) {
                 throw new NoConnectionsException("No connections.");
             }
-
-            int queuedInvocations = 0;
-            for (int i=0; i < totalConnections; ++i) {
-                int idx = Math.abs(++m_nextConnection % totalConnections);
-                cxn = m_connections.get(idx);
-//                System.err.println("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
-                queuedInvocations += cxn.m_callbacks.size();
-                if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
-                    // serialize and queue the invocation
-                    backpressure = false;
-                    break;
-                }
+            if (site_id != null) {
+                cxn = m_connectionSiteXref.get(site_id);
+                if (cxn == null) {
+                    LOG.warn("No direct connection to " + HStoreSite.formatSiteName(site_id));
+                } else backpressure = false; // XXX
+//                else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
+//                    backpressure = false;
+//                }
+//                else {
+//                    cxn = null;
+//                }
+            }            
+            if (cxn == null) {
+                for (int i=0; i < totalConnections; ++i) {
+                    int idx = Math.abs(++m_nextConnection % totalConnections);
+                    cxn = m_connections.get(idx);
+    //                System.err.println("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
+                    queuedInvocations += cxn.m_callbacks.size();
+                    if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
+                        // serialize and queue the invocation
+                        backpressure = false;
+                        break;
+                    }
+                } // FOR
             }
 
             if (backpressure) {

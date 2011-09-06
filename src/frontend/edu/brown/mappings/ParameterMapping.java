@@ -6,7 +6,7 @@ import org.json.*;
 import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
@@ -69,7 +69,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         
         // Always grab the Column that the StmtParameter is mapped to in the Statement
         try {
-            this.statement_column = QueryPlanUtil.getColumnForStmtParameter(this.statement_parameter);
+            this.statement_column = PlanNodeUtil.getColumnForStmtParameter(this.statement_parameter);
         } catch (Exception ex) {
             ex.printStackTrace();
             System.exit(1);
@@ -197,7 +197,7 @@ public class ParameterMapping implements Comparable<ParameterMapping>, JSONSeria
         // Hack for the column
         if (this.statement_column == null) {
             try {
-                this.statement_column = QueryPlanUtil.getColumnForStmtParameter(this.statement_parameter);
+                this.statement_column = PlanNodeUtil.getColumnForStmtParameter(this.statement_parameter);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 System.exit(1);

@@ -127,7 +127,9 @@ public class paymentByCustomerName extends VoltProcedure {
 
     public final SQLStmt updateGCCustomer = new SQLStmt("UPDATE CUSTOMER SET C_BALANCE = ?, C_YTD_PAYMENT = ?, C_PAYMENT_CNT = ? WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?;"); //c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id
 
-    public final SQLStmt getCustomersByLastName = new SQLStmt("SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_LAST = ? AND C_D_ID = ? AND C_W_ID = ? ORDER BY C_FIRST;");// c_last, d_id, w_id
+    public final SQLStmt getCidByLastName = new SQLStmt("SELECT C_ID FROM CUSTOMER WHERE C_LAST = ? AND C_D_ID = ? AND C_W_ID = ? ORDER BY C_FIRST;");// c_last, d_id, w_id
+    public final SQLStmt getCustomersByCustomerId = new SQLStmt("SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?;");
+    // public final SQLStmt getCustomersByLastName = new SQLStmt("SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_LAST = ? AND C_D_ID = ? AND C_W_ID = ? ORDER BY C_FIRST;");// c_last, d_id, w_id
 
     public final SQLStmt insertHistory = new SQLStmt("INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?);");
 
@@ -219,17 +221,21 @@ public class paymentByCustomerName extends VoltProcedure {
     }
 
     public VoltTable[] run(short w_id, byte d_id, double h_amount, short c_w_id, byte c_d_id, String c_last, TimestampType timestamp) throws VoltAbortException {
-        voltQueueSQL(getCustomersByLastName, c_last, c_d_id, c_w_id);
-        final VoltTable customers = voltExecuteSQL()[0];
-        final int namecnt = customers.getRowCount();
+//        voltQueueSQL(getCustomersByLastName, c_last, c_d_id, c_w_id);
+        voltQueueSQL(getCidByLastName, c_last, c_d_id, c_w_id);
+        final VoltTable customersIds = voltExecuteSQL()[0];
+        final int namecnt = customersIds.getRowCount();
         if (namecnt == 0) {
             throw new VoltAbortException("no customers with last name: " + c_last + " in warehouse: "
                     + c_w_id + " and in district " + c_d_id);
         }
 
         final int index = (namecnt-1)/2;
-        final VoltTableRow customer = customers.fetchRow(index);
-        final int c_id = (int)customer.getLong(C_ID_IDX);
+        final VoltTableRow customerIdRow = customersIds.fetchRow(index);
+        final int c_id = (int)customerIdRow.getLong(C_ID_IDX);
+        
+        voltQueueSQL(getCustomersByCustomerId, c_id, c_d_id, c_w_id);
+        final VoltTableRow customer = voltExecuteSQL()[0].fetchRow(0);
         return processPayment(w_id, d_id, c_w_id, c_d_id, c_id, h_amount, customer, timestamp);
     }
 }

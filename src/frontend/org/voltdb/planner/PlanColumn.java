@@ -106,7 +106,7 @@ public class PlanColumn
     /**
      * Globally unique id identifying this column
      */
-    final int m_guid;
+    private final int m_guid;
 
     /**
      * Columns may be derived from other columns by expressions. For example,
@@ -207,7 +207,7 @@ public class PlanColumn
     // Accessors: all return copies or immutable values
     //
 
-    public String displayName() {
+    public String getDisplayName() {
         return new String(m_displayName);
     }
 
@@ -265,7 +265,7 @@ public class PlanColumn
     public String toString() {
         return ("PlanColumn(" + 
                 "guid=" + guid() + ", " +
-                "name=" + displayName() + ", " +
+                "name=" + getDisplayName() + ", " +
                 "type=" + type() + ", " +
                 "size=" + width() + ", " +
                 "sort=" + m_sortOrder + ", " +
@@ -276,7 +276,7 @@ public class PlanColumn
     {
         stringer.object();
         stringer.key(Members.GUID.name()).value(guid());
-        stringer.key(Members.NAME.name()).value(displayName());
+        stringer.key(Members.NAME.name()).value(getDisplayName());
         stringer.key(Members.TYPE.name()).value(type().name());
         stringer.key(Members.SIZE.name()).value(width());
         stringer.key(Members.SORT_ORDER.name()).value(m_sortOrder.name());

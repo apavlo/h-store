@@ -35,6 +35,7 @@ package edu.brown.benchmark.tm1;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
+import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
@@ -236,10 +237,12 @@ public class TM1Client extends TM1BaseClient {
     @Override
     public void runLoop() {
         LOG.debug("Starting runLoop()");
+        final Client client = this.getClientHandle();
+        
         try {
             while (true) {
                 this.runOnce();
-                m_voltClient.backpressureBarrier();
+                client.backpressureBarrier();
             } // WHILE
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -249,7 +252,7 @@ public class TM1Client extends TM1BaseClient {
     @Override
     protected boolean runOnce() throws IOException {
         final Transaction target = this.selectTransaction();
-        boolean ret = m_voltClient.callProcedure(
+        boolean ret = this.getClientHandle().callProcedure(
                                    this.callbacks[target.ordinal()],
                                    target.callName,
                                    target.ag.genArgs(subscriberSize));

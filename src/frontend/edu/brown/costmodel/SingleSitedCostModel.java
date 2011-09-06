@@ -29,7 +29,7 @@ import org.voltdb.catalog.*;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
@@ -59,7 +59,6 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        DEBUG_TRACE_IDS.add(1251416l);
     }
 
-    
     // ----------------------------------------------------
     // COST WEIGHTS
     // ----------------------------------------------------
@@ -75,41 +74,38 @@ public class SingleSitedCostModel extends AbstractCostModel {
     /**
      * TransactionTrace Id -> TransactionCacheEntry
      */
-    protected final Map<Long, TransactionCacheEntry> txn_entries = new LinkedHashMap<Long, TransactionCacheEntry>();
-
-    /**
-     * TransactionId -> List<QueryCacheEntry>
-     */
-    protected final Map<Long, List<QueryCacheEntry>> query_entries = new LinkedHashMap<Long, List<QueryCacheEntry>>();
-
+    private final Map<Long, TransactionCacheEntry> txn_entries = new LinkedHashMap<Long, TransactionCacheEntry>();
     /**
      * TableKeys that were replicated when we calculated them
      * It means that have to switch the partitions to be the base partition (if we have one)
      */
-    protected final Set<String> replicated_tables = new HashSet<String>();
-
+    private final Set<String> replicated_tables = new HashSet<String>();
     /**
      * For each procedure, the list of tables that are accessed in the 
      * ProcedureKey -> Set<TableKey>
      */
-    protected final Map<String, Set<String>> touched_tables = new HashMap<String, Set<String>>();
-    
-    
+    private final Map<String, Set<String>> touched_tables = new HashMap<String, Set<String>>();
     /**
      * Table Key -> Set<QueryCacheEntry>
      */
-    protected final Map<String, Set<QueryCacheEntry>> cache_tbl_xref = new LinkedHashMap<String, Set<QueryCacheEntry>>();
-
+    private final Map<String, Set<QueryCacheEntry>> cache_tableXref = new LinkedHashMap<String, Set<QueryCacheEntry>>();
     /**
      * Procedure Key -> Set<TransactionCacheEntry>
      */
-    protected final Map<String, Set<TransactionCacheEntry>> cache_proc_xref = new LinkedHashMap<String, Set<TransactionCacheEntry>>();
-
+    private final Map<String, Set<TransactionCacheEntry>> cache_procXref = new LinkedHashMap<String, Set<TransactionCacheEntry>>();
+    /**
+     * Query Key -> Set<QueryCacheEntry>
+     */
+    private final Map<String, Set<QueryCacheEntry>> cache_stmtXref = new HashMap<String, Set<QueryCacheEntry>>();
+    
+    private final Set<Long> last_invalidateTxns = new HashSet<Long>();
+    
     /**
      * Cost Estimate Explanation
      */
     public class TransactionCacheEntry implements Cloneable {
         private final String proc_key;
+        private final QueryCacheEntry query_entries[];
         private final long txn_id;
         private final int weight;
         private final int total_queries;
@@ -119,19 +115,28 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private int singlesite_queries = 0;
         private int multisite_queries = 0;
         private int unknown_queries = 0;
-        private final Histogram<Integer> touched_partitions = new Histogram<Integer>();
+        private Histogram<Integer> touched_partitions = new Histogram<Integer>();
 
         private TransactionCacheEntry(String proc_key, long txn_trace_id, int weight, int total_queries) {
             this.proc_key = proc_key;
             this.txn_id = txn_trace_id;
             this.weight = weight;
             this.total_queries = total_queries;
+            this.query_entries = new QueryCacheEntry[this.total_queries];
         }
         
         public TransactionCacheEntry(String proc_key, TransactionTrace txn_trace) {
             this(proc_key, txn_trace.getTransactionId(), txn_trace.getWeight(), txn_trace.getWeightedQueryCount());
         }
 
+        public QueryCacheEntry[] getQueryCacheEntries() {
+            return (this.query_entries);
+        }
+        
+        public long getTransactionId() {
+            return (this.txn_id);
+        }
+        
         private void resetQueryCounters() {
             this.examined_queries = 0;
             this.singlesite_queries = 0;
@@ -147,8 +152,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.touched_partitions.put(partition);
         }
         
-        public Set<Integer> getAllTouchedPartitions() {
-            Set<Integer> partitions = this.touched_partitions.values();
+        public Collection<Integer> getAllTouchedPartitions() {
+            Collection<Integer> partitions = this.touched_partitions.values();
             if (this.base_partition != null && !partitions.contains(this.base_partition)) {
                 partitions = new HashSet<Integer>();
                 for (Object o : this.touched_partitions.values())
@@ -219,20 +224,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
             this.unknown_queries = unknown_queries;
         }
 
-        public Set<Integer> getTouchedPartitions() {
+        public Collection<Integer> getTouchedPartitions() {
             return (this.touched_partitions.values());
         }
 
         @Override
-        protected TransactionCacheEntry clone() throws CloneNotSupportedException {
-            TransactionCacheEntry clone = new TransactionCacheEntry(this.proc_key, this.txn_id, this.weight, this.total_queries);
-            clone.base_partition = this.base_partition;
-            clone.singlesited = this.singlesited;
-            clone.examined_queries = this.examined_queries;
-            clone.singlesite_queries = this.singlesite_queries;
-            clone.multisite_queries = this.multisite_queries;
-            clone.unknown_queries = this.unknown_queries;
-            clone.touched_partitions.putHistogram(this.touched_partitions);
+        public Object clone() throws CloneNotSupportedException {
+            TransactionCacheEntry clone = (TransactionCacheEntry)super.clone();
+            clone.touched_partitions = new Histogram<Integer>(this.touched_partitions);
             return (clone);
         }
 
@@ -243,6 +242,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
 
         public String debug() {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put("HashCode", this.hashCode());
             m.put("Weight", this.weight);
             m.put("Base Partition", this.base_partition);
             m.put("Is SingleSited", this.singlesited);
@@ -267,11 +267,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         public boolean invalid = false;
         public boolean unknown = false;
 
-        // Table Key -> Set<Partition #>
-        private final Map<String, Set<Integer>> partitions = new HashMap<String, Set<Integer>>();
+        /** Table Key -> Set[PartitionId] **/
+        private Map<String, Set<Integer>> partitions = new HashMap<String, Set<Integer>>(SingleSitedCostModel.this.num_tables);
 
-        // All partitions
-        private final Set<Integer> all_partitions = new HashSet<Integer>();
+        /** All partitions **/
+        private Set<Integer> all_partitions = new HashSet<Integer>(SingleSitedCostModel.this.num_partitions);
 
         /**
          * Constructor
@@ -356,14 +356,12 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
 
         @Override
-        protected QueryCacheEntry clone() throws CloneNotSupportedException {
-            QueryCacheEntry clone = new QueryCacheEntry(this.txn_id, this.query_trace_idx, this.weight);
-            clone.singlesited = this.singlesited;
-            clone.invalid = this.invalid;
-            clone.all_partitions.addAll(this.all_partitions);
+        public Object clone() throws CloneNotSupportedException {
+            QueryCacheEntry clone = (QueryCacheEntry)super.clone();
+            clone.all_partitions = new HashSet<Integer>(this.all_partitions);
+            clone.partitions = new HashMap<String, Set<Integer>>();
             for (String key : this.partitions.keySet()) {
-                clone.partitions.put(key, new HashSet<Integer>());
-                clone.partitions.get(key).addAll(this.partitions.get(key));
+                clone.partitions.put(key, new HashSet<Integer>(this.partitions.get(key)));
             } // FOR
             return (clone);
         }
@@ -376,9 +374,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
             m.put("Weight", this.weight);
             m.put("Query Trace Idx#", this.query_trace_idx);
             m.put("Is SingleSited", this.singlesited);
-            m.put("Partition Values", this.partitions);
             m.put("Is Invalid", this.invalid);
             m.put("Is Unknown", this.unknown);
+            m.put("All Partitions", this.all_partitions);
+            m.put("Table Partitions", this.partitions);
             return "QueryCacheEntry:\n" + StringUtil.formatMaps(m);
         }
     } // CLASS
@@ -405,7 +404,10 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // Initialize cache data structures
         if (catalog_db != null) {
             for (String table_key : CatalogKey.createKeys(catalog_db.getTables())) {
-                this.cache_tbl_xref.put(table_key, new HashSet<QueryCacheEntry>());
+                this.cache_tableXref.put(table_key, new HashSet<QueryCacheEntry>());
+            } // FOR
+            for (String stmt_key : CatalogKey.createKeys(CatalogUtil.getAllStatements(catalog_db))) {
+                this.cache_stmtXref.put(stmt_key, new HashSet<QueryCacheEntry>());
             } // FOR
      
             // List of tables touched by each partition
@@ -427,10 +429,19 @@ public class SingleSitedCostModel extends AbstractCostModel {
     @Override
     public void clear(boolean force) {
         super.clear(force);
-        this.cache_proc_xref.clear();
-        this.cache_tbl_xref.clear();
-        this.query_entries.clear();
+
         this.txn_entries.clear();
+        this.last_invalidateTxns.clear();
+        
+        for (Collection<QueryCacheEntry> c : this.cache_tableXref.values()) {
+            c.clear();
+        }
+        for (Collection<QueryCacheEntry> c : this.cache_stmtXref.values()) {
+            c.clear();
+        }
+        for (Collection<TransactionCacheEntry> c : this.cache_procXref.values()) {
+            c.clear();
+        }
 
         assert(this.histogram_txn_partitions.getSampleCount() == 0);
         assert(this.histogram_txn_partitions.getValueCount() == 0);
@@ -451,37 +462,38 @@ public class SingleSitedCostModel extends AbstractCostModel {
     }
     public Collection<QueryCacheEntry> getAllQueryCacheEntries() {
         Set<QueryCacheEntry> all = new HashSet<QueryCacheEntry>();
-        for (List<QueryCacheEntry> q : this.query_entries.values()) {
-            if (q != null) all.addAll(q);
-        } // FOR
+        for (TransactionCacheEntry t : this.txn_entries.values()) {
+            for (QueryCacheEntry q : t.query_entries) {
+                if (q != null) all.add(q);
+            } // FOR (queries)
+        } // FOR (txns)
         return (all);
     }
 
-    protected TransactionCacheEntry getTransactionCacheEntry(TransactionTrace xact) {
-        return (this.txn_entries.get(xact.getTransactionId()));
+    protected TransactionCacheEntry getTransactionCacheEntry(TransactionTrace txn_trace) {
+        return (this.txn_entries.get(txn_trace.getTransactionId()));
     }
-    
     protected TransactionCacheEntry getTransactionCacheEntry(long txn_id) {
         return (this.txn_entries.get(txn_id));
     }
-    
-    public Collection<QueryCacheEntry> getQueryCacheEntries(TransactionTrace xact) {
-        return (this.query_entries.get(xact.getTransactionId()));
+    public Collection<QueryCacheEntry> getQueryCacheEntries(TransactionTrace txn_trace) {
+        return (this.getQueryCacheEntries(txn_trace.getTransactionId()));
     }
-    
     public Collection<QueryCacheEntry> getQueryCacheEntries(long txn_id) {
-        return (this.query_entries.get(txn_id));
+        TransactionCacheEntry txn_entry = this.txn_entries.get(txn_id);
+        if (txn_entry != null) {
+            return (CollectionUtil.addAll(new ArrayList<QueryCacheEntry>(), txn_entry.query_entries));
+        }
+        return (null);
+    }
+    public Collection<QueryCacheEntry> getQueryCacheEntries(Statement catalog_stmt) {
+        String stmt_key = CatalogKey.createKey(catalog_stmt);
+        return (this.cache_stmtXref.get(stmt_key));
     }
     
     @Override
     public void prepareImpl(final Database catalog_db) {
         if (trace.get()) LOG.trace("Prepare called!");
-        
-        // This is the start of a new run through the workload, so we need to
-        // reinit our PartitionEstimator
-        // so that we are getting the proper catalog objects back
-        this.p_estimator.initCatalog(catalog_db);
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
         
         // Recompute which tables have switched from Replicated to Non-Replicated
         this.replicated_tables.clear();
@@ -494,150 +506,160 @@ public class SingleSitedCostModel extends AbstractCostModel {
         } // FOR
     }
 
+    // --------------------------------------------------------------------------------------------
+    // INVALIDATION METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    protected Collection<Long> getLastInvalidateTransactionIds() {
+        return (this.last_invalidateTxns);
+    }
+    
     /**
-     * 
+     * Invalidate a single QueryCacheEntry
+     * Returns true if the query's TransactionCacheEntry parent needs to be invalidated as well
+     * @param txn_entry
+     * @param query_entry
+     * @param invalidate_removedTouchedPartitions
+     * @return
      */
-    @Override
-    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
-        // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
-        if (this.txn_entries.size() == 0) {
-            assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
-            assert(this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
+    private boolean invalidateQueryCacheEntry(TransactionCacheEntry txn_entry, QueryCacheEntry query_entry, Histogram<Integer> invalidate_removedTouchedPartitions) {
+        if (trace.get()) LOG.trace("Invalidate:" + query_entry);
+        boolean invalidate_txn = false;
+        
+        if (query_entry.isUnknown()) {
+            txn_entry.unknown_queries -= query_entry.weight;
+        } else {
+            txn_entry.examined_queries -= query_entry.weight;
+        }
+        if (query_entry.isSinglesited()) {
+            txn_entry.singlesite_queries -= query_entry.weight;
+        } else {
+            txn_entry.multisite_queries -= query_entry.weight;
         }
         
-        TransactionCacheEntry est = this.processTransaction(catalog_db, txn_trace, filter);
-        assert (est != null);
-        if (debug.get()) LOG.debug(txn_trace + ": " + (est.singlesited ? "Single" : "Multi") + "-Partition");
+        // DEBUG!
+        if (txn_entry.singlesite_queries < 0 || txn_entry.multisite_queries < 0) {
+            LOG.error("!!! NEGATIVE QUERY COUNTS - TRACE #" + txn_entry.getTransactionId() + " !!!");
+            LOG.error(txn_entry.debug());
+            LOG.error(StringUtil.SINGLE_LINE);
+            for (QueryCacheEntry q : txn_entry.query_entries) {
+                LOG.error(q);
+            }
+        }
+        assert(txn_entry.examined_queries >= 0) : txn_entry + " has negative examined queries!\n" +  txn_entry.debug();
+        assert(txn_entry.unknown_queries >= 0) : txn_entry + " has negative unknown queries!\n" +  txn_entry.debug();
+        assert(txn_entry.singlesite_queries >= 0) : txn_entry + " has negative singlesited queries!\n" +  txn_entry.debug();
+        assert(txn_entry.multisite_queries >= 0) : txn_entry + " has negative multisited queries!\n" +  txn_entry.debug();
+        
+        // Populate this histogram so that we know what to remove from the global histogram
+        invalidate_removedTouchedPartitions.putAll(query_entry.getAllPartitions(), query_entry.weight * txn_entry.weight);
+        
+        // Remove the partitions this query touches from the txn's touched partitions histogram
+        final String debugBefore = txn_entry.debug();
+        try {
+            txn_entry.touched_partitions.removeValues(query_entry.getAllPartitions(), query_entry.weight);
+        } catch (Throwable ex) {
+            LOG.error(debugBefore, ex);
+            throw new RuntimeException(ex);
+        }
 
-        if (!est.singlesited) {
-            return (COST_MULTISITE_QUERY * txn_trace.getWeight());
+        // If this transaction is out of queries, then we'll remove it completely
+        if (txn_entry.examined_queries == 0) {
+            invalidate_txn = true;
         }
-        if (est.unknown_queries > 0) {
-            return (COST_UNKNOWN_QUERY * txn_trace.getWeight());
-        }
-        return (COST_SINGLESITE_QUERY * txn_trace.getWeight());
+
+        // Make sure that we do this last so we can subtract values from the TranasctionCacheEntry
+        query_entry.invalid = true;
+        query_entry.singlesited = true;
+        query_entry.unknown = true;
+        for (Set<Integer> q_partitions : query_entry.partitions.values()) {
+            q_partitions.clear();
+        } // FOR
+        query_entry.all_partitions.clear();
+
+        this.query_ctr.addAndGet(-1 * query_entry.weight);
+        return (invalidate_txn);
     }
-
-    // Keep track of what Transactions were modified in this process so that 
-    // we can go back and clean-up their touched_partitions histograms
-    // This histogram will keep track of what partitions we need to remove from the
-    // query access histogram
-    // 2010-11-05: I moved this out because the profiler said that we were spending to much time allocating them over
-    //             and over again
-//    private final Set<TransactionCacheEntry> invalidate_modifiedTxns = new HashSet<TransactionCacheEntry>();
-//    private final Set<String> invalidate_targetKeys = new HashSet<String>();
-//    private final Histogram invalidate_removedTouchedPartitions = new Histogram();
+    
+    /**
+     * Invalidate a single TransactionCacheEntry
+     * @param txn_entry
+     */
+    private void invalidateTransactionCacheEntry(TransactionCacheEntry txn_entry) {
+        if (trace.get()) LOG.trace("Removing Transaction:" + txn_entry);
+        
+        // If we have a base partition value, then we have to remove an entry from the
+        // histogram that keeps track of where the java executes
+        if (txn_entry.base_partition != null) {
+            if (trace.get()) LOG.trace("Resetting base partition [" +  txn_entry.base_partition + "] and updating histograms");
+            // NOTE: We have to remove the base_partition from these histograms but not the
+            // histogram_txn_partitions because we will do that down below
+            this.histogram_java_partitions.remove(txn_entry.base_partition, txn_entry.weight);
+            if (this.isJavaExecutionWeightEnabled()) {
+                txn_entry.touched_partitions.remove(txn_entry.base_partition, Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
+            }
+            if (trace.get()) LOG.trace("Global Java Histogram:\n" + this.histogram_java_partitions);
+        }
+        
+        this.histogram_procs.remove(txn_entry.proc_key, txn_entry.weight);
+        this.txn_ctr.addAndGet(-1 * txn_entry.weight);
+        this.cache_procXref.get(txn_entry.proc_key).remove(txn_entry);
+        this.txn_entries.remove(txn_entry.getTransactionId());
+        this.last_invalidateTxns.add(txn_entry.getTransactionId());
+    }
     
     /**
      * Invalidate cache entries for the given CatalogKey
-     * 
      * @param catalog_key
      */
     @Override
     public synchronized void invalidateCache(String catalog_key) {
         if (!this.use_caching) return;
+        if (trace.get()) LOG.trace("Looking to invalidate cache records for: " + catalog_key);
         int query_ctr = 0;
         int txn_ctr = 0;
 
         Set<TransactionCacheEntry> invalidate_modifiedTxns = new HashSet<TransactionCacheEntry>();
         Set<String> invalidate_targetKeys = new HashSet<String>();
-        Histogram<Integer> invalidate_removedTouchedPartitions = new Histogram<Integer>();
+        Collection<QueryCacheEntry> invalidate_queries = null;
         
         // ---------------------------------------------
         // Table Key
         // ---------------------------------------------
-        if (this.cache_tbl_xref.containsKey(catalog_key)) {
-            if (trace.get()) LOG.trace("Invalidate Cache for Table '" + CatalogKey.getNameFromKey(catalog_key) + "'");
+        if (this.cache_tableXref.containsKey(catalog_key)) {
+            if (trace.get()) LOG.trace("Invalidate QueryCacheEntries for Table " + catalog_key);
+            invalidate_queries = this.cache_tableXref.get(catalog_key);
+        }
+        // ---------------------------------------------
+        // Statement Key
+        // ---------------------------------------------
+        else if (this.cache_stmtXref.containsKey(catalog_key)) {
+            if (trace.get()) LOG.trace("Invalidate QueryCacheEntries for Statement " + catalog_key);
+            invalidate_queries = this.cache_stmtXref.get(catalog_key);
+        }
 
-
-//            this.invalidate_modifiedTxns.clear();
-//            this.invalidate_targetKeys.clear();
-//            this.invalidate_removedTouchedPartitions.clear();
-            
-            for (QueryCacheEntry query_entry : this.cache_tbl_xref.get(catalog_key)) {
+        if (invalidate_queries != null && invalidate_queries.isEmpty() == false) {
+            if (debug.get()) LOG.debug(String.format("Invalidating %d QueryCacheEntries for %s", invalidate_queries.size(), catalog_key));
+            Histogram<Integer> invalidate_removedTouchedPartitions = new Histogram<Integer>();
+            for (QueryCacheEntry query_entry : invalidate_queries) {
                 if (query_entry.isInvalid()) continue;
-                if (trace.get()) LOG.trace("Invalidate QueryCacheEntry:" + query_entry);
                 
                 // Grab the TransactionCacheEntry and enable zero entries in its touched_partitions
                 // This will ensure that we know which partitions to remove from the costmodel's 
                 // global txn touched partitions histogram 
-                final long txn_trace_id = query_entry.getTransactionId();
                 TransactionCacheEntry txn_entry = this.txn_entries.get(query_entry.getTransactionId());
-                if (txn_entry == null) {
-                    LOG.warn("Missing Txn #Id: " + query_entry.getTransactionId());
-                    LOG.warn("Query Entries: " + this.query_entries.get(query_entry.getTransactionId()));
-                }
-                assert(txn_entry != null);
+                assert(txn_entry != null) : "Missing Txn #Id: " + query_entry.getTransactionId(); 
                 txn_entry.touched_partitions.setKeepZeroEntries(true);
                 
-                invalidate_modifiedTxns.add(txn_entry);
-                
-                if (query_entry.isUnknown()) {
-                    txn_entry.unknown_queries -= query_entry.weight;
-                } else {
-                    txn_entry.examined_queries -= query_entry.weight;
-                }
-                if (query_entry.isSinglesited()) {
-                    txn_entry.singlesite_queries -= query_entry.weight;
-                } else {
-                    txn_entry.multisite_queries -= query_entry.weight;
-                }
-                
-                // DEBUG!
-                if (txn_entry.singlesite_queries < 0 || txn_entry.multisite_queries < 0) {
-                    System.err.println("!!! NEGATIVE QUERY COUNTS - TRACE #" + txn_trace_id + " !!!");
-                    System.err.println(txn_entry.debug());
-                    System.err.println("-----------------------------");
-                    for (QueryCacheEntry q : this.getQueryCacheEntries(txn_trace_id)) {
-                        System.err.println(q + "\n");
-                    }
-                }
-                assert(txn_entry.examined_queries >= 0) : txn_entry + " has negative examined queries!\n" +  txn_entry.debug();
-                assert(txn_entry.unknown_queries >= 0) : txn_entry + " has negative unknown queries!\n" +  txn_entry.debug();
-                assert(txn_entry.singlesite_queries >= 0) : txn_entry + " has negative singlesited queries!\n" +  txn_entry.debug();
-                assert(txn_entry.multisite_queries >= 0) : txn_entry + " has negative multisited queries!\n" +  txn_entry.debug();
-                
-                // Populate this histogram so that we know what to remove from the global histogram
-                invalidate_removedTouchedPartitions.putAll(query_entry.getAllPartitions(), query_entry.weight * txn_entry.weight);
-                
-                // Remove the partitions this query touches from the txn's touched partitions histogram
-                txn_entry.touched_partitions.removeValues(query_entry.getAllPartitions(), query_entry.weight);
-
-                // If this transaction is out of queries, then we'll remove it completely
-                if (txn_entry.examined_queries == 0) {
-                    if (trace.get()) LOG.trace("Removing Transaction:" + txn_entry);
-                    
-                    // If we have a base partition value, then we have to remove an entry from the
-                    // histogram that keeps track of where the java executes
-                    if (txn_entry.base_partition != null) {
-                        if (trace.get()) LOG.trace("Resetting base partition [" +  txn_entry.base_partition + "] and updating histograms");
-                        // NOTE: We have to remove the base_partition from these histograms but not the
-                        // histogram_txn_partitions because we will do that down below
-                        this.histogram_java_partitions.remove(txn_entry.base_partition, txn_entry.weight);
-                        if (this.isJavaExecutionWeightEnabled()) {
-                            txn_entry.touched_partitions.remove(txn_entry.base_partition, txn_entry.weight * this.getJavaExecutionWeight());
-                        }
-                        if (trace.get()) LOG.trace("Global Java Histogram:\n" + this.histogram_java_partitions);
-                    }
-                    
-                    this.histogram_procs.remove(txn_entry.proc_key, txn_entry.weight);
-                    this.txn_ctr.addAndGet(-1 * txn_entry.weight);
-                    this.cache_proc_xref.get(txn_entry.proc_key).remove(txn_entry);
-                    this.txn_entries.remove(query_entry.getTransactionId());
+                boolean invalidate_txn = this.invalidateQueryCacheEntry(txn_entry, query_entry, invalidate_removedTouchedPartitions);
+                query_ctr++;
+                if (invalidate_txn) {
+                    this.invalidateTransactionCacheEntry(txn_entry);
                     txn_ctr++;
                 }
-
-                // Make sure that we do this last so we can subtract values from the TranasctionCacheEntry
-                query_entry.invalid = true;
-                query_entry.singlesited = true;
-                query_entry.unknown = true;
-                for (Set<Integer> q_partitions : query_entry.partitions.values()) {
-                    q_partitions.clear();
-                } // FOR
-                query_entry.all_partitions.clear();
-
-                this.query_ctr.addAndGet(-1 * query_entry.weight);
-                query_ctr++;
+                
+                // Always mark the txn as invalidated
+                invalidate_modifiedTxns.add(txn_entry);
             } // FOR
             
             // We can now remove the touched query partitions if we have any
@@ -645,28 +667,26 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 if (trace.get()) LOG.trace("Removing " + invalidate_removedTouchedPartitions.getSampleCount() + " partition touches for " + query_ctr + " queries");
                 this.histogram_query_partitions.removeHistogram(invalidate_removedTouchedPartitions);
             }
+        }
             
         // ---------------------------------------------
         // Procedure Key
         // ---------------------------------------------
-        } else if (this.cache_proc_xref.containsKey(catalog_key)) {
-            if (trace.get()) LOG.trace("Invalidate Cache for Procedure '" + CatalogKey.getNameFromKey(catalog_key) + "'");
+        if (this.cache_procXref.containsKey(catalog_key)) {
+            if (trace.get()) LOG.trace("Invalidate Cache for Procedure " + catalog_key);
 
-            invalidate_modifiedTxns.clear();
-            invalidate_targetKeys.clear();
-            
             // NEW: If this procedure accesses any table that is replicated, then we also need to invalidate
             // the cache for that table so that the tables are wiped 
                 
             // We just need to unset the base partition
-            for (TransactionCacheEntry txn_entry : this.cache_proc_xref.get(catalog_key)) {
+            for (TransactionCacheEntry txn_entry : this.cache_procXref.get(catalog_key)) {
                 assert (txn_entry != null);
                 if (txn_entry.base_partition != null) {
                     if (trace.get()) LOG.trace("Unset base_partition for " + txn_entry);
                     txn_entry.touched_partitions.setKeepZeroEntries(true);
                     this.histogram_java_partitions.remove(txn_entry.base_partition, txn_entry.weight);
                     if (this.isJavaExecutionWeightEnabled()) {
-                        txn_entry.touched_partitions.remove(txn_entry.base_partition, txn_entry.weight * this.getJavaExecutionWeight());
+                        txn_entry.touched_partitions.remove(txn_entry.base_partition, Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
                     }
                     txn_entry.base_partition = null;
                     invalidate_modifiedTxns.add(txn_entry);
@@ -743,6 +763,36 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // ESTIMATION METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    
+    private final Map<String, Set<Integer>> temp_stmtPartitions = new HashMap<String, Set<Integer>>();
+    private final Set<Integer> temp_txnOrigPartitions = new HashSet<Integer>();
+    private final Set<Integer> temp_txnNewPartitions = new HashSet<Integer>();
+    
+    @Override
+    public double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
+        // Sanity Check: If we don't have any TransactionCacheEntries, then the histograms should all be wiped out!
+        if (this.txn_entries.size() == 0) {
+            assert(this.histogram_txn_partitions.isEmpty()) : this.histogram_txn_partitions;
+            assert(this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
+        }
+        
+        TransactionCacheEntry est = this.processTransaction(catalog_db, txn_trace, filter);
+        assert (est != null);
+        if (debug.get()) LOG.debug(txn_trace + ": " + (est.singlesited ? "Single" : "Multi") + "-Partition");
+
+        if (!est.singlesited) {
+            return (COST_MULTISITE_QUERY * txn_trace.getWeight());
+        }
+        if (est.unknown_queries > 0) {
+            return (COST_UNKNOWN_QUERY * txn_trace.getWeight());
+        }
+        return (COST_SINGLESITE_QUERY * txn_trace.getWeight());
+    }
+    
     /**
      * Create a new TransactionCacheEntry and update our histograms appropriately
      * @param txn_trace
@@ -750,14 +800,14 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @return
      */
     protected TransactionCacheEntry createTransactionCacheEntry(TransactionTrace txn_trace, String proc_key) {
-        if (this.use_caching && !this.cache_proc_xref.containsKey(proc_key)) {
-            this.cache_proc_xref.put(proc_key, new HashSet<TransactionCacheEntry>());
+        if (this.use_caching && !this.cache_procXref.containsKey(proc_key)) {
+            this.cache_procXref.put(proc_key, new HashSet<TransactionCacheEntry>());
         }
 
         TransactionCacheEntry txn_entry = new TransactionCacheEntry(proc_key, txn_trace);
         this.txn_entries.put(txn_trace.getTransactionId(), txn_entry);
         if (this.use_caching) {
-            this.cache_proc_xref.get(proc_key).add(txn_entry);
+            this.cache_procXref.get(proc_key).add(txn_entry);
         }
         if (trace.get()) LOG.trace("New " + txn_entry);
 
@@ -791,25 +841,20 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // We'll throw the base_partition into the txn_entry's touched partitions histogram, but notice
         // that we can weight how much the java execution costs
         if (this.isJavaExecutionWeightEnabled()) {
-            txn_entry.touched_partitions.put(txn_entry.base_partition, txn_entry.weight * this.getJavaExecutionWeight());
+            txn_entry.touched_partitions.put(txn_entry.base_partition, Math.round(txn_entry.weight * this.getJavaExecutionWeight()));
         }
         this.histogram_java_partitions.put(txn_entry.base_partition, txn_entry.weight);
     }
     
-    private final Map<String, Set<Integer>> temp_stmtPartitions = new HashMap<String, Set<Integer>>();
-    private final Set<Integer> temp_txnOrigPartitions = new HashSet<Integer>();
-    private final Set<Integer> temp_txnNewPartitions = new HashSet<Integer>();
-    
     /**
      * Returns whether a transaction is single-sited for the given catalog, and
-     * the number of queries that were examined.
-     * 
+     * the number of queries that were examined. This is where all the magic happens
      * @param txn_trace
      * @param filter
      * @return
      * @throws Exception
      */
-    public TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
+    protected TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
         final long txn_id = txn_trace.getTransactionId(); 
         final int txn_weight = txn_trace.getWeight();
         final boolean debug_txn = DEBUG_TRACE_IDS.contains(txn_id);
@@ -817,31 +862,29 @@ public class SingleSitedCostModel extends AbstractCostModel {
         
         // Check whether we have a completed entry for this transaction already
         TransactionCacheEntry txn_entry = null;
-        List<QueryCacheEntry> txn_query_entries = null;
         if (this.isCachingEnabled()) {
             txn_entry = this.txn_entries.get(txn_id);
-            if (txn_entry != null && txn_entry.base_partition != null && txn_entry.examined_queries == txn_trace.getQueries().size()) { 
+            
+            // If we have a TransactionCacheEntry then we need to check that:
+            //  (1) It has a base partition
+            //  (2) All of its queries have been examined
+            if (txn_entry != null &&
+                txn_entry.base_partition != null &&
+                txn_entry.examined_queries == txn_trace.getQueries().size()) { 
                 if (trace.get()) LOG.trace("Using complete cached entry " + txn_entry);
                 return (txn_entry);
             }
-            txn_query_entries = this.query_entries.get(txn_id);
-            if (txn_query_entries == null) {
-                txn_query_entries = new ArrayList<QueryCacheEntry>();
-                this.query_entries.put(txn_id, txn_query_entries);
-            }
         }
 
-        this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
-        assert (catalog_proc != null);
-        String proc_key = CatalogKey.createKey(catalog_proc);
-        int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
+        final Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+        assert(catalog_proc != null);
+        final String proc_key = CatalogKey.createKey(catalog_proc);
 
         // Initialize a new Cache entry for this txn
         if (txn_entry == null) {
             txn_entry = this.createTransactionCacheEntry(txn_trace, proc_key);
         }
-
+        
         // We need to keep track of what partitions we have already added into the various histograms
         // that we are using to keep track of things so that we don't have duplicate entries
         // Make sure to use a new HashSet, otherwise our set will get updated when the Histogram changes
@@ -868,8 +911,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
 
         if (trace.get())
-            LOG.trace("Checking whether instance of " + catalog_proc.getName() + " is single-partition [" +
-                      "num_queries=" + txn_trace.getQueryCount() + ", partition_count=" + num_partitions + "]");
+            LOG.trace(String.format("%s [totalQueries=%d, examinedQueries=%d]\n%s", 
+                                    txn_entry, txn_entry.getTotalQueryCount(), txn_entry.getExaminedQueryCount(), txn_trace.debug(catalog_db)));
 
         // For each table, we need to keep track of the values that was used
         // when accessing their partition columns. This allows us to determine
@@ -900,11 +943,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         for (QueryTrace query_trace : txn_trace.getQueries()) {
             // We don't want to multiple the query's weight by the txn's weight because
             // we scale things appropriately for the txn outside of this loop
-            int query_weight = query_trace.getWeight(); //  * txn_weight;
+            int query_weight = query_trace.getWeight();
             query_idx++;
             if (debug.get()) LOG.debug("Examining " + query_trace + " from " + txn_trace);
-            Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
-            assert (catalog_stmt != null);
+            final Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
+            assert(catalog_stmt != null);
 
             // If we have a filter and that filter doesn't want us to look at
             // this query, then we will just skip it and check the other ones
@@ -915,8 +958,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             }
 
             // Check whether we have a cache entry for this QueryTrace
-            QueryCacheEntry query_entry = null;
-            if (txn_query_entries.size() > query_idx) query_entry = txn_query_entries.get(query_idx);
+            QueryCacheEntry query_entry = txn_entry.query_entries[query_idx];
             if (this.use_caching && query_entry != null && !query_entry.isInvalid()) {
                 if (trace.get()) LOG.trace("Got cached " + query_entry + " for " + query_trace);
 
@@ -940,8 +982,19 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 }
                 this.query_ctr.addAndGet(query_weight);
                 query_entry.invalid = false;
-                txn_query_entries.add(query_entry);
 
+                // QUERY XREF
+                if (this.use_caching) {
+                    txn_entry.query_entries[query_idx] = query_entry;
+                    String stmt_key = CatalogKey.createKey(catalog_stmt);
+                    Set<QueryCacheEntry> cache = this.cache_stmtXref.get(stmt_key);
+                    if (cache == null) {
+                        cache = new HashSet<QueryCacheEntry>();
+                        this.cache_stmtXref.put(stmt_key, cache);
+                    }
+                    cache.add(query_entry);
+                }
+                
                 // Give the QueryTrace to the PartitionEstimator to get back a mapping from TableKeys
                 // to sets of partitions that were touched by the query.
                 // XXX: What should we do if the TransactionCacheEntry's base partition hasn't been calculated yet?
@@ -964,10 +1017,12 @@ public class SingleSitedCostModel extends AbstractCostModel {
                     // This will allow us to quickly find the QueryCacheEntry in
                     // invalidate()
                     if (this.use_caching) {
-                        if (!this.cache_tbl_xref.containsKey(e.getKey())) {
-                            this.cache_tbl_xref.put(e.getKey(), new HashSet<QueryCacheEntry>());
+                        Set<QueryCacheEntry> cache = this.cache_tableXref.get(e.getKey());
+                        if (cache == null) {
+                            cache = new HashSet<QueryCacheEntry>();
+                            this.cache_tableXref.put(e.getKey(), cache);
                         }
-                        this.cache_tbl_xref.get(e.getKey()).add(query_entry);
+                        cache.add(query_entry);
                     }
 
                     // Ok, so now update the variables in our QueryCacheEntry
@@ -983,7 +1038,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                         temp_stmtPartitions.get(e.getKey()).addAll(e.getValue());
                     }
                 } // FOR (Entry<TableKey, Set<Partitions>>
-                if (trace.get()) LOG.trace(sb.toString() + "\n" + StringUtil.SINGLE_LINE.trim());
+                if (trace.get()) 
+                    LOG.trace(sb.toString() + "\n" + query_trace.debug(catalog_db) + "\n" + StringUtil.SINGLE_LINE.trim());
 
                 // Lastly, update the various histogram that keep track of which partitions are accessed:
                 //  (1) The global histogram for the cost model of partitions touched by all queries
@@ -1014,12 +1070,12 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // If we're not single-sited, well then that ruins it for everyone
             // else now doesn't it??
             if (query_entry.getAllPartitions().size() > 1) {
-                if (trace.get()) LOG.trace(query_trace + " is being marked as multi-partition: " + query_entry.getAllPartitions());
+                if (debug.get()) LOG.debug(query_trace + " is being marked as multi-partition: " + query_entry.getAllPartitions());
                 query_entry.singlesited = false;
                 txn_entry.singlesited = false;
                 txn_entry.multisite_queries += query_weight;
             } else {
-                if (trace.get()) LOG.trace(query_trace + " is marked as single-partition");
+                if (debug.get()) LOG.debug(query_trace + " is marked as single-partition");
                 query_entry.singlesited = true;
                 txn_entry.singlesite_queries += query_weight;
             }
@@ -1058,7 +1114,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 // Make sure that the partitioning ProcParameter hashes to the same site as the value
                 // used on the partitioning column for this table
                 } else if (!hashes.isEmpty() && txn_entry.base_partition != null) {
-                    int tbl_partition = CollectionUtil.getFirst(hashes);
+                    int tbl_partition = CollectionUtil.first(hashes);
                     if (txn_entry.base_partition != tbl_partition) {
                         if (trace.get()) LOG.trace(txn_trace + " executes on Partition #" + txn_entry.base_partition + " " +
                                              "but partitioning column " + CatalogUtil.getDisplayName(table_partition_col) + " " +
@@ -1090,8 +1146,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
             temp_txnNewPartitions.addAll(txn_entry.touched_partitions.values());
             temp_txnNewPartitions.removeAll(temp_txnOrigPartitions);
             this.histogram_txn_partitions.putAll(temp_txnNewPartitions, txn_weight);
-            if (debug.get())
-                LOG.debug(String.format("Updating %s histogram_txn_partitions with %d new partitions [new_sample_count=%d, new_value_count=%d]\n%s",
+            if (trace.get())
+                LOG.trace(String.format("Updating %s histogram_txn_partitions with %d new partitions [new_sample_count=%d, new_value_count=%d]\n%s",
                                         txn_trace,
                                         temp_txnNewPartitions.size(),
                                         this.histogram_txn_partitions.getSampleCount(),
@@ -1142,6 +1198,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        } else if (!table_output) {
 //            System.err.println("PartitionPlan file '" + pplan_path + "' does not exist. Ignoring...");
 //        }
+        if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT)) {
+            String output = args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN_OUTPUT);
+            if (output.equals("-")) output = pplan_path.getAbsolutePath();
+            pplan.save(output);
+            System.out.println("Saved PartitionPlan to '" + output + "'");
+        }
+            
         System.out.flush();
 
         long singlepartition = 0;
@@ -1209,6 +1272,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
         m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
+        m.put("PARTITIONS TOUCHED (TXNS)", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
+        m.put("PARTITIONS TOUCHED (QUERIES)", costmodel.getQueryPartitionAccessHistogram().getSampleCount());
         m.put("XXX", null);
 
         // Utilization
@@ -1229,30 +1294,12 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        double entropy = timecostmodel.getLastEntropyCost()
         m.put("UTILIZATION",  (costmodel.getJavaExecutionHistogram().getValueCount() / (double)all_partitions.size()));
 
-        if (false && table_output) {
-            String columns[] = {
-                "IDLE PARTITIONS",
-                "JAVA SKEW",
-                "TRANSACTION SKEW",
-                "SINGLE-PARTITION",
-                "MULTI-PARTITION",
-            };
-            String add = "";
-            for (String col : columns) {
-                System.out.print(col + add + m.get(col));
-                add = "\t";
+        final String f = "%-25s%s";
+        for (Entry<String, Object> e : m.entrySet()) {
+            if (e.getKey().startsWith("XXX")) System.out.print(StringUtil.DOUBLE_LINE);
+            else {
+                System.out.println(String.format(f, e.getKey().toUpperCase()+":", e.getValue().toString()));
             }
-            System.out.println();
-            
-            
-        } else {
-            final String f = "%-25s%s";
-            for (Entry<String, Object> e : m.entrySet()) {
-                if (e.getKey().startsWith("XXX")) System.out.print(StringUtil.DOUBLE_LINE);
-                else {
-                    System.out.println(String.format(f, e.getKey().toUpperCase()+":", e.getValue().toString()));
-                }
-            } // FOR
-        }
+        } // FOR
     }
 }

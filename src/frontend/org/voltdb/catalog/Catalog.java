@@ -175,7 +175,7 @@ public class Catalog extends CatalogType {
     }
 
     @Override
-    void update() {
+    public void update() {
         // does nothing
     }
 

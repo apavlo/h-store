@@ -96,6 +96,10 @@ public abstract class FileUtil {
         return getTempFile(null, ext, deleteOnExit);
     }
     
+    public static File getTempFile(String ext) {
+        return (FileUtil.getTempFile(null, ext, false));
+    }
+    
     public static File getTempFile(String prefix, String suffix, boolean deleteOnExit) {
         File tempFile;
         if (suffix != null && suffix.startsWith(".") == false) suffix = "." + suffix;
@@ -110,6 +114,20 @@ public abstract class FileUtil {
         return (tempFile);
     }
     
+    /**
+     * Unsafely create a temporary directory
+     * Yes I said that this was unsafe. I don't care...
+     * @return
+     */
+    public static File getTempDirectory() {
+        final File temp = FileUtil.getTempFile(null);
+        if (!(temp.delete())) {
+            throw new RuntimeException("Could not delete temp file: " + temp.getAbsolutePath());
+        } else if (!(temp.mkdir())) {
+            throw new RuntimeException("Could not create temp directory: " + temp.getAbsolutePath());
+        }
+        return (temp);
+    }
     
     public static File writeStringToFile(String file_path, String content) throws IOException {
         return (FileUtil.writeStringToFile(new File(file_path), content));
@@ -162,17 +180,21 @@ public abstract class FileUtil {
         return tempFile;
     }
     
-    public static String readFile(File path) throws IOException {
+    public static String readFile(File path) {
         return (readFile(path.getAbsolutePath()));
     }
     
-    public static String readFile(String path) throws IOException {
+    public static String readFile(String path) {
         StringBuilder buffer = new StringBuilder();
-        BufferedReader in = FileUtil.getReader(path);
-        while (in.ready()) {
-            buffer.append(in.readLine()).append("\n");
-        } // WHILE
-        in.close();
+        try {
+            BufferedReader in = FileUtil.getReader(path);
+            while (in.ready()) {
+                buffer.append(in.readLine()).append("\n");
+            } // WHILE
+            in.close();
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read file contents from '" + path + "'", ex);
+        }
         return (buffer.toString());
     }
     

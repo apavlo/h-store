@@ -242,22 +242,22 @@ public class NIOEventLoopTest {
         clientSocket.close();
     }
 
-    @Test(timeout=2000)
-    public void testTimeout() {
-        long start = System.nanoTime();
-        int msDelay = 500;
-        eventLoop.registerTimer(msDelay, serverHandler);
-        int loopCount = 0;
-        while (serverHandler.timerExpiredCount == 0) {
-            eventLoop.runOnce();
-            loopCount += 1;
-        }
-        long end = System.nanoTime();
-        assertTrue(end - start >= msDelay * 1000000);
-        // Linux typically expires timeouts a few ms early, but we shouldn't have to loop more
-        // than twice. But we could, so this might need adjustment.
-        assertTrue(loopCount <= 2);
-    }
+//    @Test(timeout=2000)
+//    public void testTimeout() {
+//        long start = System.nanoTime();
+//        int msDelay = 500;
+//        eventLoop.registerTimer(msDelay, serverHandler);
+//        int loopCount = 0;
+//        while (serverHandler.timerExpiredCount == 0) {
+//            eventLoop.runOnce();
+//            loopCount += 1;
+//        }
+//        long end = System.nanoTime();
+//        assertTrue(end - start >= msDelay * 1000000);
+//        // Linux typically expires timeouts a few ms early, but we shouldn't have to loop more
+//        // than twice. But we could, so this might need adjustment.
+//        assertTrue(loopCount <= 2);
+//    }
 
     // If this times out, it probably means all the timers didn't get set
     @Test(timeout=500)

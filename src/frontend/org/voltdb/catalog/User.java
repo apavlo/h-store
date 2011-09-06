@@ -37,7 +37,7 @@ public class User extends CatalogType {
         this.addField("shadowPassword", m_shadowPassword);
     }
 
-    void update() {
+    public void update() {
         m_sysproc = (Boolean) m_fields.get("sysproc");
         m_adhoc = (Boolean) m_fields.get("adhoc");
         m_shadowPassword = (String) m_fields.get("shadowPassword");

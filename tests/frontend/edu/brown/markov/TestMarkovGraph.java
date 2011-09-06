@@ -63,7 +63,7 @@ public class TestMarkovGraph extends BaseTestCase {
             // (3) Filter to only include multi-partition txns
             // (4) Another limit to stop after allowing ### txns
             // Where is your god now???
-            Filter filter = new ProcedureNameFilter().include(TARGET_PROCEDURE.getSimpleName());
+            Filter filter = new ProcedureNameFilter(false).include(TARGET_PROCEDURE.getSimpleName());
             filter.attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
             // .attach(new MultiPartitionTxnFilter(p_estimator))
                     .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
@@ -202,7 +202,7 @@ public class TestMarkovGraph extends BaseTestCase {
         MarkovVertex start = testGraph.getStartVertex();
         MarkovVertex stop = testGraph.getCommitVertex();
 
-        Statement catalog_stmt = CollectionUtil.getFirst(this.catalog_proc.getStatements());
+        Statement catalog_stmt = CollectionUtil.first(this.catalog_proc.getStatements());
         Set<Integer> all_previous = new HashSet<Integer>();
         for (int i = 0; i < 10; i++) {
             Set<Integer> partitions = new HashSet<Integer>();

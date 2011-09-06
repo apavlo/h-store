@@ -17,6 +17,8 @@
 
 package org.voltdb.client;
 
+import org.voltdb.catalog.Catalog;
+
 /**
  * Factory for constructing instances of the {@link Client} interface
  *
@@ -48,7 +50,23 @@ public abstract class ClientFactory {
                 expectedOutgoingMessageSize,
                 maxArenaSizes,
                 cores > 4 ? heavyweight : false,
-                statsSettings);
+                statsSettings,
+                null);
+    }
+    
+    public static Client createClient(
+            int expectedOutgoingMessageSize,
+            int maxArenaSizes[],
+            boolean heavyweight,
+            StatsUploaderSettings statsSettings,
+            Catalog catalog) {
+        final int cores = Runtime.getRuntime().availableProcessors();
+        return new ClientImpl(
+                expectedOutgoingMessageSize,
+                maxArenaSizes,
+                cores > 4 ? heavyweight : false,
+                statsSettings,
+                catalog);
     }
 
     /**

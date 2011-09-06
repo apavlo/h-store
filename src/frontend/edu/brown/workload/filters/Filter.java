@@ -74,7 +74,7 @@ public abstract class Filter {
     
     protected abstract void resetImpl();
     
-    protected abstract String debug();
+    public abstract String debug();
     
     public final String toString() {
         return (this.debug() + (this.next != null ? "\n" + this.next.toString() : ""));

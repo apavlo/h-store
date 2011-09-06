@@ -1,5 +1,10 @@
 package edu.brown.utils;
 
+import java.math.BigInteger;
+import java.util.Map;
+
+import org.apache.commons.collections15.map.LRUMap;
+
 /**
  * @author pavlo
  */
@@ -115,4 +120,20 @@ public abstract class MathUtil {
         return (float)Math.round(d * p) / p;
     }
 
+    /**
+     * Calculate n!
+     * Derived from http://chaosinmotion.com/blog/?p=622
+     * @param n
+     * @return
+     */
+    public static BigInteger factorial(int n) {
+        BigInteger ret;
+
+        if (n == 0) return BigInteger.ONE;
+        if (null != (ret = CACHE_FACTORIAL.get(n))) return ret;
+        ret = BigInteger.valueOf(n).multiply(factorial(n-1));
+        CACHE_FACTORIAL.put(n, ret);
+        return ret;
+    }
+    private static final Map<Integer, BigInteger> CACHE_FACTORIAL = new LRUMap<Integer, BigInteger>();
 }

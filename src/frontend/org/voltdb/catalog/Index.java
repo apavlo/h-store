@@ -38,7 +38,7 @@ public class Index extends CatalogType {
         m_childCollections.put("columns", m_columns);
     }
 
-    void update() {
+    public void update() {
         m_unique = (Boolean) m_fields.get("unique");
         m_type = (Integer) m_fields.get("type");
     }

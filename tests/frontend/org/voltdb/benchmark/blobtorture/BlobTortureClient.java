@@ -91,7 +91,7 @@ public class BlobTortureClient extends BenchmarkComponent {
 
     private void loadBlobs() {
         try {
-            m_partitionCount = m_voltClient.callProcedure("@Statistics", "PARTITIONCOUNT", 0).getResults()[0].asScalarLong();
+            m_partitionCount = this.getClientHandle().callProcedure("@Statistics", "PARTITIONCOUNT", 0).getResults()[0].asScalarLong();
             System.err.println("Partition count is " + m_partitionCount);
             final StringBuffer sb = new StringBuffer(m_blobSize);
             for (int ii = 0; ii < m_blobSize; ii++) {
@@ -101,7 +101,7 @@ public class BlobTortureClient extends BenchmarkComponent {
             for (long ii = 0; ii < m_partitionCount; ii++) {
                 System.err.println("Loading blob ID " + ii);
                 try {
-                    VoltTable vt = m_voltClient.callProcedure("InsertBlob", ii, blobBytes).getResults()[0];
+                    VoltTable vt = this.getClientHandle().callProcedure("InsertBlob", ii, blobBytes).getResults()[0];
                     vt.advanceRow();
                     final byte bytes[] = vt.getStringAsBytes(1);
                     if (bytes.length != m_blobSize) {
@@ -145,7 +145,7 @@ public class BlobTortureClient extends BenchmarkComponent {
 
     private boolean selectBlob() throws IOException {
         final long blobId = Math.abs(m_random.nextLong()) % m_partitionCount;
-        return m_voltClient.callProcedure( m_callback, "SelectBlob", blobId);
+        return this.getClientHandle().callProcedure( m_callback, "SelectBlob", blobId);
     }
 
 

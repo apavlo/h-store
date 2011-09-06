@@ -262,8 +262,8 @@ public class MarkovClient extends BenchmarkComponent {
                 MarkovClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
                 assert(txn_type != null);
                 Object params[] = txn_type.params(m_rng, this.table_sizes);
-                m_voltClient.callProcedure(new MarkovCallback(txn_type), txn_type.name(), params);
-                m_voltClient.backpressureBarrier();
+                this.getClientHandle().callProcedure(new MarkovCallback(txn_type), txn_type.name(), params);
+                this.getClientHandle().backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {
             /*

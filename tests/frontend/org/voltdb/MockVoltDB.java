@@ -139,7 +139,7 @@ public class MockVoltDB implements VoltDBInterface
         getColumnFromTable(tableName, columnName).setIndex(index);
         getColumnFromTable(tableName, columnName).setType(columnType.getValue());
         getColumnFromTable(tableName, columnName).setNullable(isNullable);
-        getColumnFromTable(tableName, columnName).setName(columnName);
+//        getColumnFromTable(tableName, columnName).setName(columnName);
         getColumnFromTable(tableName, columnName).setDefaultvalue(defaultValue);
         getColumnFromTable(tableName, columnName).setDefaulttype(defaultType.getValue());
     }

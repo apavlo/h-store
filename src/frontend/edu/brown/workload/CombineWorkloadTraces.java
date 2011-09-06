@@ -100,8 +100,6 @@ public class CombineWorkloadTraces {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_WORKLOAD_OUTPUT);
         
-        String output_path = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT);
-        
         List<File> workload_files = new ArrayList<File>();
         for (int i = 0, cnt = args.getOptParamCount(); i < cnt; i++) {
             File base_workload_path = new File(args.getOptParam(i));
@@ -118,6 +116,9 @@ public class CombineWorkloadTraces {
             }
         }
         Collections.sort(workload_files);
+        
+        File output_path = new File(args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT));
+        FileUtil.makeDirIfNotExists(output_path.getParent());
         
         int num_workloads = workload_files.size();
         assert(num_workloads > 0) : "No workloads specified";

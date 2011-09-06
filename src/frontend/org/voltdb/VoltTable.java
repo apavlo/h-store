@@ -376,6 +376,11 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         protected int getColumnIndex(String columnName) {
             return VoltTable.this.getColumnIndex(columnName);
         }
+        
+        @Override
+        protected boolean hasColumn(String columnName) {
+            return VoltTable.this.hasColumn(columnName);
+        }
 
         @Override
         protected VoltType getColumnType(int columnIndex) {
@@ -391,7 +396,12 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         protected int getRowStart() {
             return VoltTable.this.getRowStart();
         }
-
+        
+        @Override
+        public int getRowSize() {
+            return VoltTable.this.getRowSize();
+        }
+        
         @Override
         public VoltTableRow cloneRow() {
             Row retval = new Row(m_position);
@@ -450,6 +460,16 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
             msg += "[" + i + "]" + getColumnName(i) + ",";
         }
         throw new IllegalArgumentException(msg);
+    }
+    
+    @Override
+    public boolean hasColumn(String name) {
+        assert(verifyTableInvariants());
+        for (int i = 0; i < m_colCount; i++) {
+            if (getColumnName(i).equalsIgnoreCase(name))
+                return (true);
+        }
+        return false;
     }
 
     /**
@@ -1094,6 +1114,13 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
     @Override
     protected final int getRowStart() {
         return m_rowStart;
+    }
+    
+    @Override
+    public int getRowSize() {
+        // FIXME
+        int total_size = VoltTable.this.getUnderlyingBufferSize();
+        return (total_size / m_rowCount);
     }
 
     @Override

@@ -17,6 +17,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ProfileMeasurement;
 
 /**
  * @author pavlo
@@ -27,6 +28,11 @@ public class BlockingClient extends Semaphore implements Client {
     
     private static final long serialVersionUID = 1L;
     private final Client inner;
+    private final ProfileMeasurement idle = new ProfileMeasurement("CLIENT_IDLE");
+    
+    static {
+        LoggerUtil.setupLogging();
+    }
     
     private class BlockingCallback implements ProcedureCallback {
         private final ProcedureCallback inner_callback;
@@ -40,8 +46,13 @@ public class BlockingClient extends Semaphore implements Client {
             
             if (debug) LOG.debug("Created a new BlockingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
             try {
-                if (debug) LOG.debug("Trying to acquire procedure invocation lock");
+                if (debug) 
+                    LOG.debug("Trying to acquire procedure invocation lock: " + BlockingClient.this.availablePermits());
+                
+                idle.start();
                 BlockingClient.this.acquire();
+                idle.stop();
+                
                 if (debug) LOG.debug("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
             } catch (InterruptedException ex) {
                 LOG.fatal("Got interrupted while waiting for lock", ex);
@@ -64,10 +75,10 @@ public class BlockingClient extends Semaphore implements Client {
     /**
      * 
      */
-    public BlockingClient(Client inner) {
-        super(1);
+    public BlockingClient(Client inner, int max_concurrent) {
+        super(max_concurrent);
         this.inner = inner;
-        LoggerUtil.setupLogging();
+        if (LOG.isDebugEnabled()) LOG.debug("Created new BlockingClient [max_concurrent=" + max_concurrent + "]");
     }
 
     /* (non-Javadoc)
@@ -135,6 +146,7 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public void close() throws InterruptedException {
         this.inner.close();
+        LOG.info("Client Idle Time: " + this.idle.toString(true));
     }
 
     /* (non-Javadoc)
@@ -149,9 +161,9 @@ public class BlockingClient extends Semaphore implements Client {
      * @see org.voltdb.client.Client#createConnection(java.lang.String, java.lang.String, java.lang.String)
      */
     @Override
-    public void createConnection(String host, int port, String username, String password) throws UnknownHostException,
+    public void createConnection(Integer siteId, String host, int port, String username, String password) throws UnknownHostException,
             IOException {
-        this.inner.createConnection(host, port, username, password);
+        this.inner.createConnection(siteId, host, port, username, password);
     }
 
     /* (non-Javadoc)
@@ -217,5 +229,8 @@ public class BlockingClient extends Semaphore implements Client {
     public boolean removeClientStatusListener(ClientStatusListener listener) {
         return this.inner.removeClientStatusListener(listener);
     }
-
+    @Override
+    public ProfileMeasurement getQueueTime() {
+        return this.inner.getQueueTime();
+    }
 }

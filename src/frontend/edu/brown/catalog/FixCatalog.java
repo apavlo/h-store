@@ -34,7 +34,7 @@ public abstract class FixCatalog {
      */
     @SuppressWarnings("unchecked")
     public static Catalog addHostInfo(Catalog orig_catalog, ClusterConfiguration cc) {
-        Catalog catalog = CatalogUtil.cloneBaseCatalog(orig_catalog, Site.class, Host.class, Partition.class);
+        Catalog catalog = CatalogCloner.cloneBaseCatalog(orig_catalog, Site.class, Host.class, Partition.class);
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         
         // Add a bunch of hosts and partitions to this mofo
@@ -62,7 +62,6 @@ public abstract class FixCatalog {
                 assert(catalog_site != null);
                 catalog_site.setId(siteid);
                 catalog_site.setHost(catalog_host);
-                catalog_site.setProc_port(proc_port++);
                 catalog_site.setDtxn_port(dtxn_port++);
                 catalog_site.setMessenger_port(messenger_port++);
                 
@@ -77,6 +76,7 @@ public abstract class FixCatalog {
                     // one above. This second one is the one that the HStoreSite
                     catalog_part.setDtxn_port(partition_port++);
                     catalog_part.setEngine_port(partition_port++);
+                    catalog_part.setProc_port(proc_port++);
                     
                     partition_ctr++;
                 } // FOR
@@ -85,7 +85,7 @@ public abstract class FixCatalog {
             // LOG.debug("Added " + ctr + " partitions for " + catalog_host);
         } // FOR
         catalog_clus.setNum_partitions(partition_ctr);
-        LOG.debug("Updated host information in catalog with " + (host_id-1) + " new hosts and " + partition_ctr + " partitions");
+        LOG.info("Updated host information in catalog with " + (host_id-1) + " new hosts and " + partition_ctr + " partitions");
         return (catalog);
     }
     
@@ -180,14 +180,14 @@ public abstract class FixCatalog {
 
         // Populate host information
         Catalog new_catalog = args.catalog;
-        if (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS)) {
-            String host_format = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
+        if (args.hasIntParam(ArgumentsParser.PARAM_CATALOG_NUM_HOSTS)) {
+            String host_format = args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS);
             
-            int num_hosts = args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_NUM_HOSTS);
-            int num_sites_per_host = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_SITES_PER_HOST) ?
-                                      args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_SITES_PER_HOST) : 2);
-            int num_partitions_per_site = (args.hasIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) ?
-                                           args.getIntParam(ArgumentsParser.PARAM_SIMULATOR_PARTITIONS_PER_SITE) : 2);
+            int num_hosts = args.getIntParam(ArgumentsParser.PARAM_CATALOG_NUM_HOSTS);
+            int num_sites_per_host = (args.hasIntParam(ArgumentsParser.PARAM_CATALOG_SITES_PER_HOST) ?
+                                      args.getIntParam(ArgumentsParser.PARAM_CATALOG_SITES_PER_HOST) : 2);
+            int num_partitions_per_site = (args.hasIntParam(ArgumentsParser.PARAM_CATALOG_PARTITIONS_PER_SITE) ?
+                                           args.getIntParam(ArgumentsParser.PARAM_CATALOG_PARTITIONS_PER_SITE) : 2);
 
             if (host_format == null) {
                 new_catalog = FixCatalog.addHostInfo(new_catalog, num_hosts, num_sites_per_host, num_partitions_per_site);
@@ -197,50 +197,7 @@ public abstract class FixCatalog {
 
         // Use host list
         } else {
-            List<String> host_triplets = new ArrayList<String>();
-            
-            String hosts = args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST);
-            if (FileUtil.exists(hosts)) {
-                String contents = FileUtil.readFile(args.getParam(ArgumentsParser.PARAM_SIMULATOR_HOST));
-                CollectionUtil.addAll(host_triplets, contents.split("\n"));
-            } else {
-                CollectionUtil.addAll(host_triplets, hosts.split(","));
-            }
-                
-            ClusterConfiguration cc = new ClusterConfiguration();
-            Set<Integer> partitions = new HashSet<Integer>();
-            for (String host_info : host_triplets) {
-                host_info = host_info.trim();
-                if (host_info.isEmpty()) continue;
-                String data[] = host_info.split(":");
-                assert(data.length == 3) : "Invalid host information '" + host_info + "'";
-                
-                String host = data[0];
-                if (host.startsWith("#")) continue;
-                int site = Integer.parseInt(data[1]);
-                
-                // Partition Ranges
-                for (String p : data[2].split(",")) {
-                    int start = -1;
-                    int stop = -1;
-                    String range[] = p.split("-");
-                    if (range.length == 2) {
-                        start = Integer.parseInt(range[0]);
-                        stop = Integer.parseInt(range[1]);
-                    } else {
-                        start = Integer.parseInt(p);
-                        stop = start;
-                    }
-                    
-                    for (int partition = start; partition < stop+1; partition++) {
-                        if (partitions.contains(partition)) {
-                            throw new Exception("Duplicate partition id #" + partition + " for host '" + host + "'");
-                        }
-                        partitions.add(partition);
-                        cc.addPartition(host, site, partition);
-                    } // FOR
-                } // FOR
-            } // FOR
+            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
             new_catalog = FixCatalog.addHostInfo(new_catalog, cc);
         }
         

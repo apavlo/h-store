@@ -33,7 +33,9 @@ import org.voltdb.catalog.*;
 import org.voltdb.types.QueryType;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogKeyOldVersion;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.designer.MemoryEstimator;
 import edu.brown.utils.*;
 import edu.brown.workload.*;
 
@@ -205,7 +207,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         //
         // Get the tables used by this query
         //
-        Set<Table> catalog_tbls = CatalogUtil.getAllTables(catalog_stmt);
+        Collection<Table> catalog_tbls = CatalogUtil.getAllTables(catalog_stmt);
         if (catalog_tbls.isEmpty()) {
             LOG.fatal("Failed to get the target table for " + CatalogUtil.getDisplayName(catalog_stmt));
             System.exit(1);
@@ -227,9 +229,9 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
 
         LOG.debug("Looking at " + CatalogUtil.getDisplayName(catalog_stmt));
         try {
-            Table catalog_tbl = CollectionUtil.getFirst(catalog_tbls);
+            Table catalog_tbl = CollectionUtil.first(catalog_tbls);
             String table_key = CatalogKey.createKey(catalog_tbl);
-            Integer bytes = CatalogUtil.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
+            Integer bytes = MemoryEstimator.estimateTupleSize(catalog_tbl, catalog_stmt, query.getParams()).intValue();
             this.table_total_sizes.put(table_key, this.table_total_sizes.get(table_key) + bytes);
             this.table_tuple_counts.put(table_key, this.table_tuple_counts.get(table_key) + 1);
         } catch (ArrayIndexOutOfBoundsException ex) {
@@ -359,15 +361,31 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
      */
     @Override
     public void fromJSONObject(JSONObject object, Database catalog_db) throws JSONException {
-        LOG.debug("Populating workload statistics from JSON string");
+        if (LOG.isDebugEnabled()) LOG.debug("Populating workload statistics from JSON string");
         this.preprocess(catalog_db);
         
         JSONObject tblQueryObject = object.getJSONObject(Members.TABLE_QUERYTYPE_COUNTS.name());
         Map<String, String> name_xref = new HashMap<String, String>();
         for (Table catalog_tbl : catalog_db.getTables()) {
-            String table_key = CatalogKey.createKey(catalog_tbl);
-            this.readMap(this.table_querytype_counts.get(table_key), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
-            name_xref.put(table_key, table_key);
+            if (catalog_tbl.getSystable()) continue;
+            JSONException last_error = null;
+            String table_keys[] = { CatalogKey.createKey(catalog_tbl),
+                                    CatalogKeyOldVersion.createKey(catalog_tbl) };
+            for (String table_key : table_keys) {
+                try {
+                    this.readMap(this.table_querytype_counts.get(table_keys[0]), table_key, QueryType.getNameMap(), Integer.class, tblQueryObject);
+                } catch (JSONException ex) {
+                    last_error = ex;
+                    continue;
+                }
+                last_error = null;
+                name_xref.put(table_key, table_key);
+                break;
+            } // FOR
+            if (last_error != null) {
+                LOG.error("BUSTED: " + StringUtil.join(",", tblQueryObject.keys()));
+                throw last_error;
+            }
         } // FOR
         
         this.readMap(this.table_tuple_counts, Members.TABLE_TUPLE_COUNTS.name(), name_xref, Integer.class, object);

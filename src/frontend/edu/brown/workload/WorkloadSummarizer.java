@@ -1,6 +1,7 @@
 package edu.brown.workload;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,10 +24,10 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.QueryPlanUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
+import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -69,9 +70,12 @@ public class WorkloadSummarizer {
             List<T> new_elements = new ArrayList<T>();
             for (CT catalog_item : this.keySet()) {
                 for (Set<T> s : this.get(catalog_item).values()) {
-                    int weight = s.size();
+                    int weight = 0;
+                    for (T t : s) {
+                        weight += t.getWeight();
+                    }
                     if (weight == 0) continue;
-                    T t = CollectionUtil.getFirst(s);
+                    T t = CollectionUtil.first(s);
                     t.setWeight(weight);
                     new_elements.add(t);
                 } // FOR
@@ -142,7 +146,7 @@ public class WorkloadSummarizer {
             for (Statement catalog_stmt : catalog_proc.getStatements()) {
                 List<StmtParameter> stmt_params = new ArrayList<StmtParameter>();
                 for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
-                    Column catalog_col = QueryPlanUtil.getColumnForStmtParameter(catalog_param);
+                    Column catalog_col = PlanNodeUtil.getColumnForStmtParameter(catalog_param);
                     assert(catalog_col != null);
                     if (this.candidate_columns.contains(catalog_col)) {
                         stmt_params.add(catalog_param);
@@ -185,7 +189,7 @@ public class WorkloadSummarizer {
         } // FOR
         
         String signature = catalog_proc.getName() + "->";
-        signature += this.getParamSignature(txn_trace.getParams(), this.target_proc_params.get(catalog_proc));
+        signature += this.getParamSignature(txn_trace, this.target_proc_params.get(catalog_proc));
         
         for (String q : queries) {
             signature += "\n" + q;
@@ -195,26 +199,35 @@ public class WorkloadSummarizer {
     
     protected String getQueryTraceSignature(Statement catalog_stmt, QueryTrace query_trace) {
 //        int weight = (query_trace.hasWeight() ? query_trace.getWeight() : 1);
-        String param_signature = this.getParamSignature(query_trace.getParams(), this.target_stmt_params.get(catalog_stmt));
+        String param_signature = this.getParamSignature(query_trace, this.target_stmt_params.get(catalog_stmt));
 //        return String.format("%s[%.2f]%s", catalog_stmt.getName(), weight, param_signature);
         return String.format("%s->%s", catalog_stmt.getName(), param_signature);
     }
         
-    protected String getParamSignature(Object params[], List<? extends CatalogType> target_params) {
-        String sig = "";
+    protected String getParamSignature(AbstractTraceElement<? extends CatalogType> element, List<? extends CatalogType> target_params) {
+        Object params[] = element.getParams();
+        
+        String sig = (element.aborted ? "ABRT-" : "");
         if (target_params != null) {
             AbstractHasher hasher = p_estimator.getHasher();
             for (CatalogType catalog_param : target_params) {
-                int idx = -1;
+                Object val = null;
                 if (catalog_param instanceof StmtParameter) {
-                    idx = ((StmtParameter)catalog_param).getIndex();
+                    int idx = ((StmtParameter)catalog_param).getIndex();
+                    val = params[idx];
                 } else if (catalog_param instanceof ProcParameter) {
-                    idx = ((ProcParameter)catalog_param).getIndex();
+                    ProcParameter catalog_procparam = (ProcParameter)catalog_param;
+                    int idx = catalog_procparam.getIndex();
+                    if (catalog_procparam.getIsarray()) {
+                        val = Arrays.toString((Object[])params[idx]); // HACK
+                    } else {
+                        val = params[idx];
+                    }
                 } else {
                     assert(false) : "Unexpected: " + catalog_param;
                 }
-                assert(idx < params.length);
-                sig += (sig.isEmpty() ? "" : "|") + hasher.hash(params[idx]);
+//                assert(idx < params.length);
+                sig += (sig.isEmpty() ? "" : "|") + hasher.hash(val);
             } // FOR
         }
         return (sig);
@@ -296,13 +309,20 @@ public class WorkloadSummarizer {
         args.require(
             ArgumentsParser.PARAM_CATALOG,
             ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_WORKLOAD_OUTPUT,
             ArgumentsParser.PARAM_MAPPINGS
         );
+        
+        LOG.info("Compressing workload based on " + CatalogUtil.getNumberOfPartitions(args.catalog) + " partitions");
         
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
         WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_mappings);
         Workload new_workload = ws.process(args.workload);
         assert(new_workload != null);
+        
+        String output_path = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT);
+        LOG.info("Saving compressed workload '" + output_path + "'");
+        new_workload.save(output_path, args.catalog_db);
     }
     
 }

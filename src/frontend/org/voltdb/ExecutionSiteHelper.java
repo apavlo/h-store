@@ -109,7 +109,7 @@ public class ExecutionSiteHelper implements Runnable {
         assert(this.hstore_site != null) : "Missing HStoreSite!";
         
         assert(this.executors.size() > 0) : "No ExecutionSites for helper";
-        ExecutionSite executor = CollectionUtil.getFirst(this.executors);
+        ExecutionSite executor = CollectionUtil.first(this.executors);
         assert(executor != null);
         this.hstore_site.addShutdownObservable(this.shutdown_observer);
 

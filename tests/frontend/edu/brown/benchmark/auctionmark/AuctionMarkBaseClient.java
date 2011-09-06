@@ -42,12 +42,21 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 
 /**
  *
  */
 public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
-    protected final Logger LOG;
+    private static final Logger LOG = Logger.getLogger(AuctionMarkBaseClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     /**
      * Benchmark Profile
@@ -67,11 +76,6 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
     protected final Database catalog_db;
 
     /**
-     * Whether to enable debug information
-     */
-    protected boolean debug;
-    
-    /**
      * Path to directory with data files needed by the loader 
      */
     protected final String data_directory;
@@ -81,59 +85,78 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
      */
     public AuctionMarkBaseClient(Class<? extends AuctionMarkBaseClient> child_class, String[] args) {
         super(args);
-        LOG = Logger.getLogger(child_class);
-        this.debug = LOG.isDebugEnabled();
         
-        Double scale_factor = 1.0;
         String profile_file = null;
         int seed = 0;
         String randGenClassName = DefaultRandomGenerator.class.getName();
         String randGenProfilePath = null;
         String dataDir = null;
+        Integer temporal_window = null;
+        Integer temporal_total = null;
         
         for (String key : m_extraParams.keySet()) {
             String value = m_extraParams.get(key);
 
-            // Scale Factor
-            if (key.equalsIgnoreCase("SCALEFACTOR")) {
-                scale_factor = Double.parseDouble(value);
             // Benchmark Profile File
-            } else if (key.equalsIgnoreCase("BENCHMARKPROFILE")) {
+            if (key.equalsIgnoreCase("PROFILE")) {
                 profile_file = value;
+            }
             // Random Generator Seed
-            } else if (key.equalsIgnoreCase("RANDOMSEED")) {
+            else if (key.equalsIgnoreCase("RANDOMSEED")) {
                 seed = Integer.parseInt(value);
+            }
             // Random Generator Class
-            } else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
+            else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
                 randGenClassName = value;
+            }
             // Random Generator Profile File
-            } else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
+            else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
                 randGenProfilePath = value;
+            }
             // Data directory
-            } else if (key.equalsIgnoreCase("DATADIR")) {
+            else if (key.equalsIgnoreCase("DATADIR")) {
                 dataDir = value;
             }
+            // Temporal Skew
+            else if (key.equalsIgnoreCase("TEMPORALWINDOW")) {
+                assert(m_extraParams.containsKey("TEMPORALTOTAL")) : "Missing TEMPORALTOTAL parameter";
+                temporal_window = Integer.valueOf(m_extraParams.get("TEMPORALWINDOW"));
+                temporal_total = Integer.valueOf(m_extraParams.get("TEMPORALTOTAL"));
+            }
         } // FOR
-        assert(scale_factor != null);
+        
+        // Random Generator
+        AbstractRandomGenerator rng = null;
+        try {
+            rng = AbstractRandomGenerator.factory(randGenClassName, seed);
+            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
+        this.rng = rng;
         
         // BenchmarkProfile
         // Only load from the file for AuctionMarkClient
-        this.profile = new AuctionMarkBenchmarkProfile();
+        this.profile = new AuctionMarkBenchmarkProfile(rng, getNumClients());
         if (child_class.equals(AuctionMarkClient.class)) {
+            assert(profile_file != null) : "Missing benchmark profile path\n" + StringUtil.formatMaps(m_extraParams);
             this.profile_path = new File(profile_file);
             if (this.profile_path.exists()) {
                 try {
                     LOG.info("Loading Profile: " + this.profile_path.getAbsolutePath());
                     this.profile.load(this.profile_path.getAbsolutePath(), null);
+                    LOG.info("Profile loaded!");
                 } catch (Exception ex) {
-                    LOG.error("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
-                    System.exit(1);
+                    throw new RuntimeException("Failed to load benchmark profile file '" + this.profile_path + "'", ex);
                 }
             }
         } else {
             this.profile_path = null;
+            this.profile.setAndGetBenchmarkStartTime();
         }
-        if (scale_factor != null) this.profile.setScaleFactor(scale_factor);
+        HStoreConf hstore_conf = this.getHStoreConf();
+        this.profile.setScaleFactor(hstore_conf.client.scalefactor);
         
         // Data Directory Path
         if (dataDir == null) {
@@ -146,7 +169,7 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
                 File path = new File(tests_dir.getAbsolutePath() + File.separator + "frontend" + File.separator +
                                      AuctionMarkBaseClient.class.getPackage().getName().replace('.', File.separatorChar) +
                                      File.separator + "data").getCanonicalFile();
-                if (this.debug) LOG.debug("Default data directory path = " + path);
+                if (debug.get()) LOG.debug("Default data directory path = " + path);
                 if (!path.exists()) {
                     throw new RuntimeException("The default data directory " + path + " does not exist");
                 } else if (!path.isDirectory()) {
@@ -161,16 +184,11 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
         if (this.data_directory == null) LOG.warn("No data directory was set!");
         else LOG.debug("AuctionMark Data Directory: " + dataDir);
         
-        // Random Generator
-        AbstractRandomGenerator rng = null;
-        try {
-            rng = AbstractRandomGenerator.factory(randGenClassName, seed);
-            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            System.exit(1);
+        // Temporal Skew
+        if (temporal_window != null && temporal_window > 0) {
+            profile.enableTemporalSkew(temporal_window, temporal_total);
+            LOG.info(String.format("Enabling temporal skew [window=%d, total=%d]", temporal_window, temporal_total));
         }
-        this.rng = rng;
         
         // Catalog
         Catalog _catalog = null;
@@ -185,25 +203,19 @@ public abstract class AuctionMarkBaseClient extends BenchmarkComponent {
     }
     
     /**
-     * Save the information stored in the BenchmarkProfile out to a file 
+     * Save the information stored in the BenchmarkProfile out to a file
+     * and queue it to be sent to all of the clients
      * @throws IOException
      */
     public File saveProfile() {
         assert(this.profile != null);
-        File f = FileUtil.getTempFile("profile", false);
-        if (this.debug) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
+        File f = FileUtil.getTempFile("auctionmark", false);
+        if (debug.get()) LOG.debug("Saving BenchmarkProfile to '" + f + "'");
         try {
             this.profile.save(f.getAbsolutePath());
+            this.sendFileToAllClients("BENCHMARK.PROFILE", f);
         } catch (IOException ex) {
-            LOG.fatal("Failed to save BenchmarkProfile", ex);
-            System.exit(1);
-        }
-        try {
-            for (int i = 0; i < this.getNumClients(); i++) {
-                this.sendFileToClient(i, "BENCHMARKPROFILE", f);
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Failed to save BenchmarkProfile", ex);
         }
         return (f);
     }

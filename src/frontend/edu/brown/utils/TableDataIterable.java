@@ -3,18 +3,22 @@
  */
 package edu.brown.utils;
 
-import java.io.*;
-import java.text.*;
-import java.util.*;
-import java.util.regex.*;
+import java.io.File;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
-import org.voltdb.utils.VoltTypeUtil;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.CatalogUtil;
+import org.voltdb.utils.VoltTypeUtil;
 
-import edu.brown.utils.FileUtil;
+import au.com.bytecode.opencsv.CSVReader;
 
 /**
  * @author pavlo
@@ -24,18 +28,18 @@ public class TableDataIterable implements Iterable<Object[]> {
     private static final Logger LOG = Logger.getLogger(TableDataIterable.class.getName());
     
     private final Table catalog_tbl;
-    private final String table_file;
-    private final BufferedReader reader;
+    private final File table_file;
+    private final CSVReader reader;
     private final VoltType types[];
     private final boolean fkeys[];
     private final boolean nullable[];
+    private final boolean auto_generate_first_column;
     
     private final DateFormat timestamp_formats[] = new DateFormat[] {
         new SimpleDateFormat("yyyy-MM-dd"),
         new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"),
         new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS"),
     };
-    private final Pattern p = Pattern.compile("\\|");
     private Set<Column> truncate_warnings = new HashSet<Column>();
     private int line_ctr = 0;
     
@@ -44,16 +48,18 @@ public class TableDataIterable implements Iterable<Object[]> {
      * @param catalog_tbl
      * @param table_file
      * @param has_header whether we expect the data file to include a header in the first row
+     * @param auto_generate_first_column TODO
      * @throws Exception
      */
-    public TableDataIterable(Table catalog_tbl, String table_file, boolean has_header) throws Exception {
+    public TableDataIterable(Table catalog_tbl, File table_file, boolean has_header, boolean auto_generate_first_column) throws Exception {
         this.catalog_tbl = catalog_tbl;
         this.table_file = table_file;
-        this.reader = FileUtil.getReader(this.table_file);
+        this.auto_generate_first_column = auto_generate_first_column;
+        this.reader = new CSVReader(FileUtil.getReader(this.table_file));
         
         // Throw away the first row if there is a header
         if (has_header) {
-            this.reader.readLine();
+            this.reader.readNext();
             this.line_ctr++;
         }
         
@@ -77,8 +83,8 @@ public class TableDataIterable implements Iterable<Object[]> {
      * @param table_file
      * @throws Exception
      */
-    public TableDataIterable(Table catalog_tbl, String table_file) throws Exception {
-        this(catalog_tbl, table_file, false);
+    public TableDataIterable(Table catalog_tbl, File table_file) throws Exception {
+        this(catalog_tbl, table_file, false, false);
     }
     
     public Iterator<Object[]> iterator() {
@@ -86,98 +92,95 @@ public class TableDataIterable implements Iterable<Object[]> {
     }
     
     public class TableIterator implements Iterator<Object[]> {
+        String[] next = null;
+
+        private void getNext() {
+            if (next == null) {
+                try {
+                    next = reader.readNext();
+                } catch (Exception ex) {
+                    throw new RuntimeException("Unable to retrieve tuples from '" + table_file + "'", ex);
+                }
+            }
+        }
+        
         @Override
         public boolean hasNext() {
-            boolean ret = false;
-            try {
-                ret = reader.ready();
-            } catch (Exception ex) {
-                LOG.error("Unable to retrieve tuples from '" + table_file + "'", ex);
-                System.exit(1);
-            }
-            return (ret);
+            this.getNext();
+            return (next != null);
         }
         
         @Override
         public Object[] next() {
-            String line = null;
-            try {
-                line = reader.readLine();
-            } catch (Exception ex) {
-                LOG.error("Unable to retrieve tuples from '" + table_file + "'", ex);
-                System.exit(1);
-            }
-            //
-            // Split the record by the delimiter and then cast all the the columns
-            // to their proper type
-            //
-            String data[] = p.split(line);
-            // if (table_file.contains("airline")) System.out.println(line + " [" + data.length + "]");
+            this.getNext();
+            if (next == null) return (next);
+            String row[] = null;
+            synchronized (this) {
+                row = this.next;
+                this.next = null;
+            } // SYNCH
+            
             Object tuple[] = new Object[types.length];
-            for (int i = 0; i < types.length; i++) {
-                Column catalog_col = catalog_tbl.getColumns().get(i);
-                assert(catalog_col != null) : "The column at position " + i + " for " + catalog_tbl + " is null";
+            int row_idx = 0;
+            for (int col_idx = 0; col_idx < types.length; col_idx++) {
+                Column catalog_col = catalog_tbl.getColumns().get(col_idx);
+                assert(catalog_col != null) : "The column at position " + col_idx + " for " + catalog_tbl + " is null";
                 
-                //
+                // Auto-generate first column
+                if (col_idx == 0 && auto_generate_first_column) {
+                    tuple[col_idx] = new Long(line_ctr) ;
+                }
                 // Null Values
-                //
-                if (i >= data.length) {
-                    tuple[i] = null;
-                //
+                else if (row_idx >= row.length) {
+                    tuple[col_idx] = null;
+                }
                 // Foreign Keys
-                //
-                } else if (fkeys[i]) {
-                    tuple[i] = data[i];
-                //
+                else if (fkeys[col_idx]) {
+                    tuple[col_idx] = row[row_idx++];
+                }
                 // Timestamps
-                //
-                } else if (types[i] == VoltType.TIMESTAMP) {
+                else if (types[col_idx] == VoltType.TIMESTAMP) {
                     for (DateFormat f : timestamp_formats) {
                         try {
-                            tuple[i] = f.parse(data[i]);
+                            tuple[col_idx] = f.parse(row[row_idx]);
                         } catch (ParseException ex) {
                             // Ignore...
                         }
-                        if (tuple[i] != null) break;
+                        if (tuple[col_idx] != null) break;
                     } // FOR
-                    if (tuple[i] == null) {
-                        LOG.error("Line " + TableDataIterable.this.line_ctr + ": Invalid timestamp format '" + data[i] + "' for " + catalog_col);
-                        System.exit(1);
+                    if (tuple[col_idx] == null) {
+                        throw new RuntimeException("Line " + TableDataIterable.this.line_ctr + ": Invalid timestamp format '" + row[row_idx] + "' for " + catalog_col);
                     }
-                //
+                    row_idx++;
+                }
                 // Store string (truncate if necessary)
-                //
-                } else if (types[i] == VoltType.STRING) {
-                    //
+                else if (types[col_idx] == VoltType.STRING) {
                     // Clip columns that are larger than our limit
-                    //
                     int limit = catalog_col.getSize();
-                    if (data[i].length() > limit) {
+                    if (row[row_idx].length() > limit) {
                         if (!truncate_warnings.contains(catalog_col)) {
-                            LOG.warn("Line " + TableDataIterable.this.line_ctr + ": Truncating data for " + catalog_tbl.getName() + "." + catalog_col.getName() +
-                                     " because size " + data[i].length() + " > " + limit);
+                            LOG.warn("Line " + TableDataIterable.this.line_ctr + ": Truncating data for " + catalog_col.fullName() +
+                                     " because size " + row[row_idx].length() + " > " + limit);
                             truncate_warnings.add(catalog_col);
                         }
-                        data[i] = data[i].substring(0, limit);
+                        row[row_idx] = row[row_idx].substring(0, limit);
                     }
-                    tuple[i] = data[i];
-                    
-                //
+                    tuple[col_idx] = row[row_idx++];
+                }    
                 // Default: Cast the string into the proper type
-                //
-                } else {
-                    if (data[i].isEmpty() && nullable[i]) {
-                        tuple[i] = null;
+                else {
+                    if (row[row_idx].isEmpty() && nullable[col_idx]) {
+                        tuple[col_idx] = null;
                     } else {
                         try {
-                            tuple[i] = VoltTypeUtil.getObjectFromString(types[i], data[i]);
+                            tuple[col_idx] = VoltTypeUtil.getObjectFromString(types[col_idx], row[row_idx]);
                         } catch (Exception ex) {
-                            LOG.error("Line " + TableDataIterable.this.line_ctr + ": Invalid value for " + catalog_col, ex);
-                            System.exit(1);
+                            throw new RuntimeException("Line " + TableDataIterable.this.line_ctr + ": Invalid value for " + catalog_col, ex);
                         }
                     }
+                    row_idx++;
                 }
-                // System.out.println(i + ": " + tuple[i]);
+//                System.out.println(col_idx + ": " + tuple[col_idx]);
             } // FOR
             TableDataIterable.this.line_ctr++;
             return (tuple);

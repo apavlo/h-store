@@ -18,6 +18,7 @@
 package org.voltdb.plannodes;
 
 import java.util.*;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,13 +44,13 @@ public class OrderByPlanNode extends AbstractPlanNode {
      * Sort Columns Indexes
      * The column index in the table that we should sort on
      */
-    protected List<Integer> m_sortColumns = new Vector<Integer>();
-    protected List<Integer> m_sortColumnGuids = new Vector<Integer>();
-    protected List<String> m_sortColumnNames = new Vector<String>();
+    protected final List<Integer> m_sortColumns = new ArrayList<Integer>();
+    protected final List<Integer> m_sortColumnGuids = new ArrayList<Integer>();
+    protected final List<String> m_sortColumnNames = new ArrayList<String>();
     /**
      * Sort Directions
      */
-    protected List<SortDirectionType> m_sortDirections = new Vector<SortDirectionType>();
+    protected final List<SortDirectionType> m_sortDirections = new Vector<SortDirectionType>();
 
     /**
      * @param id
@@ -93,19 +94,11 @@ public class OrderByPlanNode extends AbstractPlanNode {
         return m_sortColumns;
     }
     /**
-     * @param sort_columns the sort_columns to set
-     */
-    public void setSortColumns(List<Integer> sort_columns) {
-        m_sortColumns = sort_columns;
-    }
-
-    /**
      * @return the sort_column_guids
      */
     public List<Integer> getSortColumnGuids() {
         return m_sortColumnGuids;
     }
-
     /**
      * @return the sort_column_names
      */
@@ -113,24 +106,12 @@ public class OrderByPlanNode extends AbstractPlanNode {
         return m_sortColumnNames;
     }
     /**
-     * @param sort_column_names the sort_column_names to set
-     */
-    public void setSortColumnNames(List<String> sort_column_names) {
-        m_sortColumnNames = sort_column_names;
-    }
-
-    /**
      * @return the sort_directions
      */
     public List<SortDirectionType> getSortDirections() {
         return m_sortDirections;
     }
-    /**
-     * @param sort_direction the sort_direction to set
-     */
-    public void setSortDirections(List<SortDirectionType> sort_direction) {
-        m_sortDirections = sort_direction;
-    }
+
 
     @Override
     public void toJSONString(JSONStringer stringer) throws JSONException {

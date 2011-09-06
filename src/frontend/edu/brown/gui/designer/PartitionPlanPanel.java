@@ -1,18 +1,24 @@
 package edu.brown.gui.designer;
 
-import java.awt.*;
-import java.util.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.util.ArrayList;
 
-import javax.swing.*;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
-import javax.swing.table.*;
+import javax.swing.table.AbstractTableModel;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Table;
 
-import edu.brown.designer.*;
-import edu.brown.designer.partitioners.PartitionEntry;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.graphs.IGraph;
 import edu.brown.gui.DesignerVisualization;
 import edu.brown.gui.common.GraphVisualizationPanel;
@@ -38,6 +44,7 @@ public class PartitionPlanPanel extends JPanel {
         tables.addAll(plan.getTableEntries().keySet());
         
         final JTable partitonTable = new JTable(new AbstractTableModel() {
+            private static final long serialVersionUID = 1L;
             protected final String columns[] = { "Table", "Method", "Partition Attribute", "Parent", "Parent Attribute" };
             
             public String getColumnName(int col) { return (this.columns[col]); }
@@ -47,7 +54,7 @@ public class PartitionPlanPanel extends JPanel {
                 String ret = null;
                 
                 Table catalog_tbl = tables.get(row);
-                PartitionEntry entry = plan.getTableEntries().get(catalog_tbl);
+                TableEntry entry = plan.getTableEntries().get(catalog_tbl);
                 switch (col) {
                     case 0:
                         ret = catalog_tbl.getName();

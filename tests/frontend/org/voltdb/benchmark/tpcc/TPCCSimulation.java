@@ -60,10 +60,19 @@ import org.voltdb.benchmark.Clock;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.rand.RandomDistribution;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class TPCCSimulation {
     private static final Logger LOG = Logger.getLogger(TPCCSimulation.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+
     
     // type used by at least VoltDBClient and JDBCClient
     public static enum Transaction {
@@ -103,55 +112,49 @@ public class TPCCSimulation {
     private final RandomGenerator generator;
     private final Clock clock;
     public ScaleParameters parameters;
-    private final boolean useWarehouseAffinity;
     private final long affineWarehouse;
-    private final double m_skewFactor;
-    private final boolean noop;
+    private final double skewFactor;
     private final int[] SAMPLE_TABLE = new int[100];
-    
-    private final boolean neworder_only;
-    private final boolean neworder_abort;
-    private final boolean neworder_multip;
-    private final boolean neworder_all_multip;
+    private final TPCCConfig config;
     
     private final int max_w_id;
     static long lastAssignedWarehouseId = 1;
     
     private RandomDistribution.Zipf zipf;
+    
+    private int tick_counter = 0;
+    private int temporal_counter = 0;
+    private final Histogram<Short> lastWarehouseHistory = new Histogram<Short>();
+    private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>();
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
-                          Clock clock, ScaleParameters parameters, boolean useWarehouseAffinity,
-                          double skewFactor, boolean noop,
-                          boolean neworder_only, boolean neworder_abort, boolean neworder_multip, boolean neworder_all_multip
-    ) {
+                          Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor) {
         assert parameters != null;
         this.client = client;
         this.generator = generator;
         this.clock = clock;
         this.parameters = parameters;
-        this.useWarehouseAffinity = useWarehouseAffinity;
         this.affineWarehouse = lastAssignedWarehouseId;
-        this.m_skewFactor = skewFactor;
-        this.noop = noop;
+        this.skewFactor = skewFactor;
+        this.config = config;
         this.initSampleTable();
-        
-        this.neworder_only = neworder_only;
-        this.neworder_abort = neworder_abort;
-        this.neworder_multip = neworder_multip;
-        this.neworder_all_multip = neworder_all_multip;
-        
         this.max_w_id = (parameters.warehouses + parameters.starting_warehouse - 1);
-        if (this.m_skewFactor > 0) {
-            LOG.info("Enabling W_ID Zipfian Skew: " + m_skewFactor);
-            this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, max_w_id+1, m_skewFactor);
-            this.zipf.enableHistory();
+
+        if (config.neworder_skew_warehouse) {
+            if (debug.get()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
+            this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, this.max_w_id+1, this.skewFactor);
         }
 
         lastAssignedWarehouseId += 1;
         if (lastAssignedWarehouseId > max_w_id)
             lastAssignedWarehouseId = 1;
         
-        if (LOG.isDebugEnabled()) LOG.debug(this.toString());
+        if (debug.get()) {
+            LOG.debug(this.toString());
+        }
+        
+        this.lastWarehouseHistory.setKeepZeroEntries(true);
+        this.totalWarehouseHistory.setKeepZeroEntries(true);
     }
     
     /**
@@ -171,43 +174,87 @@ public class TPCCSimulation {
     
     @Override
     public String toString() {
-        Map<String, Object> m0 = new ListOrderedMap<String, Object>();
-        m0.put("Use Warehouse Affinity", this.useWarehouseAffinity);
-        m0.put("Affine Warehouse", lastAssignedWarehouseId);
-        m0.put("Skew Factor", this.m_skewFactor);
-        m0.put("Enable NOOP", this.noop);
-        m0.put("NewOrder Only", this.neworder_only);
-        m0.put("NewOrder Abort", this.neworder_abort);
-        m0.put("NewOrder Remote Warehouses", this.neworder_multip);
-        m0.put("NewOrder Only Warehouses", this.neworder_all_multip);
-        
-        Map<String, Object> m1 = new ListOrderedMap<String, Object>();
-        m1.put("Warehouses", parameters.warehouses);
-        m1.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, this.max_w_id));
-        m1.put("Districts per Warehouse", parameters.districtsPerWarehouse);
-        m1.put("Custers per District", parameters.customersPerDistrict);
-        m1.put("Initial Orders per District", parameters.newOrdersPerDistrict);
-        m1.put("Items", parameters.items);
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Warehouses", parameters.warehouses);
+        m.put("W_ID Range", String.format("[%d, %d]", parameters.starting_warehouse, this.max_w_id));
+        m.put("Districts per Warehouse", parameters.districtsPerWarehouse);
+        m.put("Custers per District", parameters.customersPerDistrict);
+        m.put("Initial Orders per District", parameters.newOrdersPerDistrict);
+        m.put("Items", parameters.items);
+        m.put("Affine Warehouse", lastAssignedWarehouseId);
+        m.put("Skew Factor", this.skewFactor);
+        if (this.zipf != null && this.zipf.isHistoryEnabled()) {
+            m.put("Skewed Warehouses", this.zipf.getHistory());
+        }
+        return ("TPCC Simulator Options\n" + StringUtil.formatMaps(m, this.config.debugMap()));
+    }
     
-        return (String.format("TPCC Simulator Options\n%s", StringUtil.formatMaps(m0, m1)));
+    protected RandomDistribution.Zipf getWarehouseZipf() {
+        return (this.zipf);
+    }
+    
+    protected Histogram<Short> getLastRoundWarehouseHistory() {
+        return (this.lastWarehouseHistory);
+    }
+    protected Histogram<Short> getTotalWarehouseHistory() {
+        return (this.totalWarehouseHistory);
+    }
+    public synchronized void tick(int counter) {
+        this.tick_counter = counter;
+        if (config.temporal_skew) {
+            if (debug.get()) {
+                Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
+                m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
+                      this.lastWarehouseHistory);
+                m.put(String.format("TOTAL\n - SampleCount=%d", this.totalWarehouseHistory.getSampleCount()),
+                      this.totalWarehouseHistory);
+                
+                long total = this.totalWarehouseHistory.getSampleCount();
+                LOG.info(String.format("ROUND #%02d - Warehouse Temporal Skew - %d / %d [%.2f]\n%s",
+                        this.tick_counter, this.temporal_counter, total, (this.temporal_counter / (double)total), 
+                        StringUtil.formatMaps(m)));
+                LOG.info(StringUtil.SINGLE_LINE);
+            }
+            this.lastWarehouseHistory.clearValues();
+        }
     }
 
     private short generateWarehouseId() {
         short w_id = -1;
-        if (useWarehouseAffinity)
+        
+        // WAREHOUSE AFFINITY
+        if (config.warehouse_affinity) {
             w_id = (short)this.affineWarehouse;
-        else if (this.zipf != null) {
-            // long num_samples = this.zipf.getSampleCount();
-            // if (num_samples > 0 && num_samples % 10000 == 0) System.err.println("W_ID Distribution:\n" + this.zipf.getHistory());
+        } 
+        // TEMPORAL SKEW
+        else if (config.temporal_skew) {
+            if (generator.number(1, 100) <= config.temporal_skew_mix) {
+                w_id = (short)((this.tick_counter % parameters.warehouses) + parameters.starting_warehouse);
+                this.temporal_counter++;
+            } else {
+                w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
+            }
+        }
+        // ZIPFIAN SKEWED WAREHOUSE ID
+        else if (config.neworder_skew_warehouse) {
+            assert(this.zipf != null);
             w_id = (short)this.zipf.nextInt();
-        } else if (m_skewFactor > 0.0d) {
-            w_id = (short)generator.skewedNumber(parameters.starting_warehouse, max_w_id, m_skewFactor);
-        } else {
+        }
+        // GAUSSIAN SKEWED WAREHOUSE ID
+        else if (skewFactor > 0.0d) {
+            w_id = (short)generator.skewedNumber(parameters.starting_warehouse, max_w_id, skewFactor);
+        }
+        // UNIFORM DISTRIBUTION
+        else {
             w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);
         }
         
         assert(w_id >= parameters.starting_warehouse) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id); 
         assert(w_id <= this.max_w_id) : String.format("Invalid W_ID: %d [min=%d, max=%d]", w_id, parameters.starting_warehouse, max_w_id);
+        
+        this.lastWarehouseHistory.put(w_id);
+        this.totalWarehouseHistory.put(w_id);
+            
         return w_id;
     }
 
@@ -306,7 +353,7 @@ public class TPCCSimulation {
 
     /** Executes a new order transaction. */
     public void doNewOrder() throws IOException {
-        boolean allow_rollback = this.neworder_abort;
+        boolean allow_rollback = config.neworder_abort;
         
         short warehouse_id = generateWarehouseId();
         int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
@@ -329,7 +376,7 @@ public class TPCCSimulation {
             }
 
             // 1% of items are from a remote warehouse
-            boolean remote = (this.neworder_all_multip) || (this.neworder_multip && generator.number(1, 100) == 1);
+            boolean remote = (config.neworder_multip != false) && (generator.number(1, 100) == 1);
             if (parameters.warehouses > 1 && remote) {
                 supply_w_id[i] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
                 if (supply_w_id[i] != warehouse_id) remote_warehouses++;
@@ -341,14 +388,23 @@ public class TPCCSimulation {
 
             quantity[i] = generator.number(1, Constants.MAX_OL_QUANTITY);
         }
-//        if (remote_warehouses > 0) {
-//            System.err.println("newOrder(W_ID=" + warehouse_id + ") -> [" +
-//                               "local_warehouses=" + local_warehouses + ", " +
-//                               "remote_warehouses=" + remote_warehouses + "]");
-//        }
+        // Whether to force this transaction to be multi-partitioned
+        if (remote_warehouses == 0) {
+            if (config.neworder_all_multip || (generator.number(1, 100) <= config.neworder_multip_mix)) {
+                if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
+                // Flip a random one
+                int idx = generator.number(0, ol_cnt-1);
+                supply_w_id[idx] = (short)generator.numberExcluding(parameters.starting_warehouse, this.max_w_id, (int) warehouse_id);
+            }
+        }
+
+        if (trace.get())
+            LOG.trace("newOrder(W_ID=" + warehouse_id + ") -> [" +
+                      "local_warehouses=" + local_warehouses + ", " +
+                      "remote_warehouses=" + remote_warehouses + "]");
 
         TimestampType now = clock.getDateTime();
-        client.callNewOrder(rollback, this.noop, warehouse_id, generateDistrict(), generateCID(),
+        client.callNewOrder(rollback, config.noop, warehouse_id, generateDistrict(), generateCID(),
                             now, item_id, supply_w_id, quantity);
     }
 
@@ -363,7 +419,7 @@ public class TPCCSimulation {
         // This is not strictly accurate: The requirement is for certain
         // *minimum* percentages to be maintained. This is close to the right
         // thing, but not precisely correct. See TPC-C 5.2.4 (page 68).
-       if (this.noop || this.neworder_only) {
+       if (config.noop || config.neworder_only) {
            doNewOrder();
            return Transaction.NEW_ORDER.ordinal();
         }

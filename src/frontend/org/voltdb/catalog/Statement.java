@@ -73,7 +73,7 @@ public class Statement extends CatalogType {
         this.addField("cost", m_cost);
     }
 
-    void update() {
+    public void update() {
         m_sqltext = (String) m_fields.get("sqltext");
         m_querytype = (Integer) m_fields.get("querytype");
         m_readonly = (Boolean) m_fields.get("readonly");

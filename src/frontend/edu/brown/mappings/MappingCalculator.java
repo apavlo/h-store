@@ -534,7 +534,8 @@ public class MappingCalculator {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
             ArgumentsParser.PARAM_CATALOG,
-            ArgumentsParser.PARAM_WORKLOAD
+            ArgumentsParser.PARAM_WORKLOAD,
+            ArgumentsParser.PARAM_MAPPINGS_OUTPUT
         );
         LOG.info("Starting CorrelationCalculator...");
         
@@ -560,20 +561,15 @@ public class MappingCalculator {
 //            System.err.println(cc.getProcedureCorrelations(catalog_proc));
 //        } // FOR
         
-        if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT)) {
-            double threshold = 1.0d;
-            if (args.hasDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD)) {
-                threshold = args.getDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD);
-            }
-            
-            ParameterMappingsSet pc = cc.getParameterCorrelations(threshold);
-            String output_path = args.getParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT);
-            assert(!pc.isEmpty());
-            if (LOG.isDebugEnabled()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
-            pc.save(output_path);
-            LOG.info("Wrote Correlations to " + output_path);
-        } else {
-            LOG.info("No output!");
+        double threshold = 1.0d;
+        if (args.hasDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD)) {
+            threshold = args.getDoubleParam(ArgumentsParser.PARAM_MAPPINGS_THRESHOLD);
         }
+        ParameterMappingsSet pc = cc.getParameterCorrelations(threshold);
+        String output_path = args.getParam(ArgumentsParser.PARAM_MAPPINGS_OUTPUT);
+        assert(!pc.isEmpty());
+        if (LOG.isDebugEnabled()) LOG.debug("DEBUG DUMP:\n" + pc.debug());
+        pc.save(output_path);
+        LOG.info("Wrote Correlations to " + output_path);
     }
 }

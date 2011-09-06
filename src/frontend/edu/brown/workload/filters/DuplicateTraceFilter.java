@@ -19,7 +19,7 @@ public class DuplicateTraceFilter extends Filter {
     private long skip_ctr = 0;
     
     @Override
-    protected String debug() {
+    public String debug() {
         return (this.getClass().getSimpleName() + "[num_ids=" + this.txn_ids.size() + ", skip_ctr=" + this.skip_ctr + "]");
     }
     

@@ -13,12 +13,12 @@ import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
 import edu.brown.benchmark.tm1.procedures.GetAccessData;
 import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
-import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.CatalogCloner;
 import edu.brown.designer.Designer;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.BranchAndBoundPartitioner;
-import edu.brown.designer.partitioners.PartitionPlan;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
@@ -67,7 +67,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             File f = this.getWorkloadFile(ProjectType.TM1); 
             
             // All Multi-Partition Txn Workload
-            ProcedureNameFilter multi_filter = new ProcedureNameFilter();
+            ProcedureNameFilter multi_filter = new ProcedureNameFilter(false);
             multi_filter.include(MULTIPARTITION_PROCEDURES);
             multi_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             multip_workload = new Workload(catalog);
@@ -75,7 +75,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             assert(multip_workload.getTransactionCount() > 0);
 
             // All Single-Partition Txn Workload
-            ProcedureNameFilter single_filter = new ProcedureNameFilter();
+            ProcedureNameFilter single_filter = new ProcedureNameFilter(false);
             single_filter.include(SINGLEPARTITION_PROCEDURES);
             single_filter.attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
             singlep_workload = new Workload(catalog);
@@ -100,13 +100,13 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     public void testEstimateCost() throws Exception {
         // For now just check whether we get the same cost back for the same
         // workload... seems simple enough
-        double cost0 = this.cost_model.estimateCost(catalog_db, multip_workload);
-        double cost1 = this.cost_model.estimateCost(catalog_db, multip_workload);
+        double cost0 = this.cost_model.estimateWorkloadCost(catalog_db, multip_workload);
+        double cost1 = this.cost_model.estimateWorkloadCost(catalog_db, multip_workload);
         assertEquals(cost0, cost1);
         
         // Then make a new object and make sure that returns the same as well
         AbstractCostModel new_costmodel = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, NUM_INTERVALS);
-        cost1 = new_costmodel.estimateCost(catalog_db, multip_workload);
+        cost1 = new_costmodel.estimateWorkloadCost(catalog_db, multip_workload);
         assertEquals(cost0, cost1);
     }
     
@@ -114,7 +114,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
      * testIntervals
      */
     public void testIntervals() throws Exception {
-        this.cost_model.estimateCost(catalog_db, multip_workload);
+        this.cost_model.estimateWorkloadCost(catalog_db, multip_workload);
         for (int i = 0; i < NUM_INTERVALS; i++) {
             SingleSitedCostModel sub_model = this.cost_model.getCostModel(i);
             assertNotNull(sub_model);
@@ -166,13 +166,13 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 return (FilterResult.ALLOW);
             }
             @Override
-            protected String debug() {
+            public String debug() {
                 return null;
             }
         };
 
         // Estimate the cost and examine the state of the estimation
-        double cost = this.cost_model.estimateCost(catalog_db, singlep_workload, filter, null);
+        double cost = this.cost_model.estimateWorkloadCost(catalog_db, singlep_workload, filter, null);
 //        System.err.println(txn_for_partition);
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             assert(txn_for_partition.containsKey(i)) : "No txn in workload for partition #" + i;
@@ -231,14 +231,14 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
                 return (FilterResult.ALLOW);
             }
             @Override
-            protected String debug() {
+            public String debug() {
                 return null;
             }
         };
 
         // Estimate the cost and then check whether cost falls in our expected range
         // We expect that the entropy portion of the cost should be greater than 0.50
-        double cost = this.cost_model.estimateCost(catalog_db, singlep_workload, filter, null);
+        double cost = this.cost_model.estimateWorkloadCost(catalog_db, singlep_workload, filter, null);
 //        System.err.println("Final Cost: " + cost);
 //        System.err.println("Execution:  " + this.cost_model.last_execution_cost);
 //        System.err.println("Entropy:    " + this.cost_model.last_entropy_cost);
@@ -271,12 +271,12 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         
         Double last_cost = null;
         while (tries-- > 0) {
-            final Database clone_db = CatalogUtil.cloneDatabase(catalog_db);
+            final Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
             // final TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, NUM_INTERVALS);
 //            AbstractCostModel cm = new SingleSitedCostModel(catalog_db, p_estimator);
             AbstractCostModel cm = this.cost_model;
 
-            double cost0 = cm.estimateCost(clone_db, singlep_workload);
+            double cost0 = cm.estimateWorkloadCost(clone_db, singlep_workload);
             assert(cost0 > 0) : "[0] Invalid Cost: " + cost0;
             if (last_cost != null) {
                 assertEquals("[0] Try #" + tries, cost0, last_cost.doubleValue());
@@ -309,7 +309,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             // Which then means we should get the exact same cost back
             initial.apply(clone_db);
             cm.clear(true);
-            double cost1 = cm.estimateCost(clone_db, singlep_workload);
+            double cost1 = cm.estimateWorkloadCost(clone_db, singlep_workload);
             assert(cost1 > 0) : "[1] Invalid Cost: " + cost0;
             assertEquals("[1] Try #" + tries, cost0, cost1);
             

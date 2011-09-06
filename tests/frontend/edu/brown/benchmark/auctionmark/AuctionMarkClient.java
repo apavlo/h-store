@@ -33,26 +33,52 @@ package edu.brown.benchmark.auctionmark;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
-import edu.brown.rand.AbstractRandomGenerator;
-import edu.brown.rand.RandomDistribution.Flat;
-import edu.brown.rand.RandomDistribution.Zipf;
+import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile.QueueType;
+import edu.brown.benchmark.auctionmark.util.CompositeId;
+import edu.brown.benchmark.auctionmark.util.ItemId;
+import edu.brown.benchmark.auctionmark.util.ItemInfo;
+import edu.brown.benchmark.auctionmark.util.UserId;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AuctionMarkClient extends AuctionMarkBaseClient {
+    private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
+    
+    /**
+     * TODO
+     */
+    private final Map<UserId, Integer> seller_item_cnt = new HashMap<UserId, Integer>();
+
+    /**
+     * TODO
+     */
+    private final List<long[]> pending_commentResponse = Collections.synchronizedList(new ArrayList<long[]>());
+    
     // --------------------------------------------------------------------
     // TXN PARAMETER GENERATOR
     // --------------------------------------------------------------------
@@ -63,426 +89,369 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
          * you to invoke one txn using the output of a previously run txn.
          * Note that this is not thread safe, so you'll need to combine the call to this with generate()
          * in a single synchronization block.
-         * @param profile
-         * @param voltTable
+         * @param client
          * @return
          */
-    	public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable);
+    	public boolean canGenerateParam(AuctionMarkClient client);
     	/**
-    	 * Generate the parameters 
-    	 * @param rng
-    	 * @param profile
-    	 * @param voltTable
+    	 * Generate the parameters array
+    	 * Any elements that are CompositeIds will automatically be encoded before being
+    	 * shipped off to the H-Store cluster
+    	 * @param client
     	 * @return
     	 */
-    	public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable);
+    	public Object[] generateParams(AuctionMarkClient client);
     }
     
     // --------------------------------------------------------------------
     // BENCHMARK TRANSACTIONS
     // --------------------------------------------------------------------
-    public static enum Transaction {
+    public enum Transaction {
         // ====================================================================
-        // CHECK_WINNING_BIDS
+        // CLOSE_AUCTIONS
         // ====================================================================
-        CHECK_WINNING_BIDS(AuctionMarkConstants.FREQUENCY_CHECK_WINNING_BIDS, false, new AuctionMarkParamGenerator() {
+        CLOSE_AUCTIONS(AuctionMarkConstants.FREQUENCY_CLOSE_AUCTIONS, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	return null;
+            public Object[] generateParams(AuctionMarkClient client) {
+                return new Object[] { client.getTimestampParameterArray(),
+                                      client.profile.getLastCloseAuctionsTime(),
+                                      client.profile.updateAndGetLastCloseAuctionsTime() };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return true;
+			public boolean canGenerateParam(AuctionMarkClient client) {
+			    if (AuctionMarkConstants.ENABLE_CLOSE_AUCTIONS && client.getClientId() == 0) {
+			        // If we've never checked before, then we'll want to do that now
+			        if (client.profile.hasLastCloseAuctionsTime() == false) return (true);
+
+			        // Otherwise check whether enough time has passed since the last time we checked
+			        TimestampType lastCheckWinningBidTime = client.profile.getLastCloseAuctionsTime();
+			        TimestampType currentTime = client.profile.getCurrentTime();
+			        long time_elapsed = Math.round((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0);
+			        if (debug.get()) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.profile.getBenchmarkStartTime(), currentTime, time_elapsed));
+			        if (time_elapsed > AuctionMarkConstants.INTERVAL_CLOSE_AUCTIONS) return (true);
+			    }
+				return (false);
 			}
         }),
         // ====================================================================
         // GET_ITEM
         // ====================================================================
-        GET_ITEM(AuctionMarkConstants.FREQUENCY_GET_ITEM, false, new AuctionMarkParamGenerator() {
+        GET_ITEM(AuctionMarkConstants.FREQUENCY_GET_ITEM, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile clientProfile, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = clientProfile.getRandomAvailableItemIdSellerIdPair(rng);
-                return new Object[]{itemIdSellerIdPair[0],itemIdSellerIdPair[1]};
+            public Object[] generateParams(AuctionMarkClient client) {
+            	ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.itemId, itemInfo.getSellerId() };
             }
 
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_available_items_histogram.getSampleCount() > 0);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+				return (client.profile.getAvailableItemsCount() > 0);
 			}
+        }),
+        // ====================================================================
+        // GET_USER_INFO
+        // ====================================================================
+        GET_USER_INFO(AuctionMarkConstants.FREQUENCY_GET_USER_INFO, new AuctionMarkParamGenerator() {
+            @Override
+            public Object[] generateParams(AuctionMarkClient client) {
+                UserId userId = client.profile.getRandomBuyerId();
+                int rand;
+                
+                // USER_FEEDBACK records
+                rand = client.rng.number(0, 100);
+                long get_feedback = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_FEEDBACK ? 1 : VoltType.NULL_BIGINT); 
+
+                // ITEM_COMMENT records
+                rand = client.rng.number(0, 100);
+                long get_comments = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_COMMENTS ? 1 : VoltType.NULL_BIGINT);
+                
+                // Seller ITEM records
+                rand = 100; // client.rng.number(0, 100);
+                long get_seller_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_SELLER_ITEMS ? 1 : VoltType.NULL_BIGINT); 
+
+                // Buyer ITEM records
+                rand = 100; // client.rng.number(0, 100);
+                long get_buyer_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_BUYER_ITEMS ? 1 : VoltType.NULL_BIGINT);
+                
+                // USER_WATCH records
+                rand = 100; // client.rng.number(0, 100);
+                long get_watched_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS ? 1 : VoltType.NULL_BIGINT); 
+                
+                return new Object[] { client.getTimestampParameterArray(),
+                                      userId,
+                                      get_feedback, get_comments,
+                                      get_seller_items, get_buyer_items, get_watched_items };
+            }
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (true);
+            }
         }),
         // ====================================================================
         // NEW_BID
         // ====================================================================
-        NEW_BID(AuctionMarkConstants.FREQUENCY_NEW_BID, true, new AuctionMarkParamGenerator() {
+        NEW_BID(AuctionMarkConstants.FREQUENCY_NEW_BID, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long buyerId = profile.getRandomBuyerId(rng);
-            	assert(buyerId != null);
+            public Object[] generateParams(AuctionMarkClient client) {
+                
+                ItemInfo itemInfo = null;
+                UserId sellerId;
+                UserId buyerId;
+                double bid;
+                double maxBid;
+                
+                boolean has_available = (client.profile.getAvailableItemsCount() > 0);
+                boolean has_ending = (client.profile.getEndingSoonItemsCount() > 0);
+                boolean has_waiting = (client.profile.getWaitForPurchaseItemsCount() > 0);
+                boolean has_completed = (client.profile.getCompleteItemsCount() > 0); 
+                
+                // Some NEW_BIDs will be for items that have already ended.
+                // This will simulate somebody trying to bid at the very end but failing
+                if ((has_waiting || has_completed) &&
+                    (client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM || has_available == false)) {
+                    if (has_waiting) {
+                        itemInfo = client.profile.getRandomWaitForPurchaseItem();
+                        assert(itemInfo != null) : "Failed to get WaitForPurchase itemInfo [" + client.profile.getWaitForPurchaseItemsCount() + "]";
+                    } else {
+                        itemInfo = client.profile.getRandomCompleteItem();
+                        assert(itemInfo != null) : "Failed to get Completed itemInfo [" + client.profile.getCompleteItemsCount() + "]";
+                    }
+                    sellerId = itemInfo.getSellerId();
+                    buyerId = client.profile.getRandomBuyerId(sellerId);
+                    
+                    // The bid/maxBid do not matter because they won't be able to actually
+                    // update the auction
+                    bid = client.rng.nextDouble();
+                    maxBid = bid + 100;
+                }
+                
+                // Otherwise we want to generate information for a real bid
+                else {
+                    assert(has_available || has_ending);
+                    // 50% of NEW_BIDS will be for items that are ending soon
+                    if ((has_ending && client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM) || has_available == false) {
+                        itemInfo = client.profile.getRandomEndingSoonItem(true);
+                    }
+                    if (itemInfo == null) {
+                        itemInfo = client.profile.getRandomAvailableItem(true);
+                    }
+                    if (itemInfo == null) {
+                        itemInfo = client.profile.getRandomItem();
+                    }
+                    
+                    sellerId = itemInfo.getSellerId();
+                    buyerId = client.profile.getRandomBuyerId(sellerId);
+                    
+                    double currentPrice = itemInfo.getCurrentPrice();
+                    bid = client.rng.fixedPoint(2, currentPrice, currentPrice * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2)));
+                    maxBid = client.rng.fixedPoint(2, bid, (bid * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2))));
+                }
 
-            	voltTable.resetRowPosition();
-            	assert(1 == voltTable.getRowCount());
-        		
-            	boolean advanced = voltTable.advanceRow();
-            	assert(advanced);
-        		long itemId = -1;
-        		try {
-        		    itemId = voltTable.getLong(0); 
-        		} catch (Exception ex) {
-        		    ex.printStackTrace();
-        		    return (null);
-        		}
-        		
-        		long sellerId = voltTable.getLong(1);
-        		double initialPrice = voltTable.getDouble(2);
-        		double currentPrice = voltTable.getDouble(3);
-        		
-        		if(voltTable.wasNull()){
-        			currentPrice = initialPrice;
-        		}
-        		
-                double bid = rng.fixedPoint(2, currentPrice, currentPrice * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP/2)));
-                double maxBid = rng.fixedPoint(2, bid, (bid * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP/2))));
-
-                return new Object[]{itemId, sellerId, buyerId, bid, maxBid};
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.itemId, sellerId, buyerId, maxBid, itemInfo.endDate };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (null != voltTable && voltTable.getRowCount() > 0 && profile.getUserIdCount() > 0);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+			    return (client.profile.getAllItemsCount() > 0);
 			}
         }),
         // ====================================================================
         // NEW_COMMENT
         // ====================================================================
-        NEW_COMMENT(AuctionMarkConstants.FREQUENCY_NEW_COMMENT, true, new AuctionMarkParamGenerator() {
+        NEW_COMMENT(AuctionMarkConstants.FREQUENCY_NEW_COMMENT, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
-            	Long buyerId = profile.getRandomBuyerId(rng);
-            	assert(buyerId != null);
-            	String question = rng.astring(10, 128);
-                return new Object[]{itemIdSellerIdPair[0], itemIdSellerIdPair[1], buyerId, question};
+            public Object[] generateParams(AuctionMarkClient client) {
+                ItemInfo itemInfo = client.profile.getRandomCompleteItem();
+                UserId sellerId = itemInfo.getSellerId();
+                UserId buyerId = client.profile.getRandomBuyerId(sellerId);
+                String question = client.rng.astring(10, 128);
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.itemId, sellerId, buyerId, question };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_complete_items_histogram.getSampleCount() > 0 &&
-				        profile.getUserIdCount() > 0);
-			}
-        }),
-        // ====================================================================
-        // GET_COMMENT
-        // ====================================================================
-        GET_COMMENT(AuctionMarkConstants.FREQUENCY_GET_COMMENT, true, new AuctionMarkParamGenerator() {
-            @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
-                return new Object[]{itemIdSellerIdPair[1]};
-            }
-
-			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_complete_items_histogram.getSampleCount() > 0);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+				return (client.profile.getCompleteItemsCount() > 0);
 			}
         }),
         // ====================================================================
         // NEW_COMMENT_RESPONSE
         // ====================================================================
-        NEW_COMMENT_RESPONSE(AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE, true, new AuctionMarkParamGenerator() {
+        NEW_COMMENT_RESPONSE(AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	
-            	int randomCommentIndex;
-            	
-            	if(voltTable.getRowCount() > 1){
-            		randomCommentIndex = rng.number(0, voltTable.getRowCount() - 1);
-            	} else {
-            		randomCommentIndex = 0;
-            	}
-            	
-            	for(int i=0; i<=randomCommentIndex; i++){
-            		voltTable.advanceRow();
-            	}
-            	
-            	long itemId = voltTable.getLong("ic_i_id");
-            	long commentId = voltTable.getLong("ic_id");
-            	long sellerId = voltTable.getLong("ic_u_id");
-            	String response = rng.astring(10, 128);
-                return new Object[]{itemId, commentId, sellerId, response};
-            }
+            public Object[] generateParams(AuctionMarkClient client) {
+                Collections.shuffle(client.pending_commentResponse, client.rng);
+                long row[] = client.pending_commentResponse.remove(0);
+                assert(row != null);
+                
+                long commentId = row[0];
+                ItemId itemId = new ItemId(row[1]);
+                UserId sellerId = itemId.getSellerId();
+                String response = client.rng.astring(10, 128);
 
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemId, sellerId, commentId, response };
+            }
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (null != voltTable);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+				return (client.pending_commentResponse.isEmpty() == false);
 			}
         }),
         // ====================================================================
         // NEW_FEEDBACK
         // ====================================================================
-        NEW_FEEDBACK(AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK, true, new AuctionMarkParamGenerator() {
+        NEW_FEEDBACK(AuctionMarkConstants.FREQUENCY_NEW_FEEDBACK, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = profile.getRandomCompleteItemIdSellerIdPair(rng);
-            	Long buyerId = profile.getRandomBuyerId(rng);
-            	assert(buyerId != null);
-            	Long rating = (long)rng.number(0, 10);
-            	String feedback = rng.astring(10, 128);
-                return new Object[]{itemIdSellerIdPair[0], itemIdSellerIdPair[1], buyerId, rating, feedback};
+            public Object[] generateParams(AuctionMarkClient client) {
+                ItemInfo itemInfo = client.profile.getRandomCompleteItem();
+                UserId sellerId = itemInfo.getSellerId();
+                UserId buyerId = client.profile.getRandomBuyerId(sellerId);
+                long rating = (long) client.rng.number(-1, 1);
+                String feedback = client.rng.astring(10, 80);
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.itemId, sellerId, buyerId, rating, feedback };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_complete_items_histogram.getSampleCount() > 0 &&
-				        profile.getUserIdCount() > 0);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+				return (client.profile.getCompleteItemsCount() > 0);
 			}
         }),
         // ====================================================================
         // NEW_ITEM
         // ====================================================================
-        NEW_ITEM(AuctionMarkConstants.FREQUENCY_NEW_ITEM, false, new AuctionMarkParamGenerator() {
+        NEW_ITEM(AuctionMarkConstants.FREQUENCY_NEW_ITEM, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long sellerId = profile.getRandomSellerId(rng);
-            	assert(sellerId != null);
-            	
-            	Long itemId = profile.getNextItemId();
-            	
-            	Long categoryId = profile.getRandomCategoryId(rng);
-            	String name = rng.astring(6, 32);
-                String description = rng.astring(50, 255);
-                Zipf randomInitialPrice = new Zipf(rng, AuctionMarkConstants.ITEM_MIN_INITIAL_PRICE,
-                        AuctionMarkConstants.ITEM_MAX_INITIAL_PRICE, 1.001);
-                Double initial_price = (double)randomInitialPrice.nextInt();
-                String attributes = rng.astring(50, 255);
-                
-                Zipf randomNumAttributes = new Zipf(rng, 0, 10, 1.001);
-                int numAttributes = randomNumAttributes.nextInt();
-                
+            public Object[] generateParams(AuctionMarkClient client) {
+                UserId sellerId = client.profile.getRandomSellerId(client.getClientId());
+                ItemId itemId = client.getNextItemId(sellerId);
+
+                String name = client.rng.astring(6, 32);
+                String description = client.rng.astring(50, 255);
+                long categoryId = client.profile.getRandomCategoryId();
+
+                Double initial_price = (double) client.profile.randomInitialPrice.nextInt();
+                String attributes = client.rng.astring(50, 255);
+
+                int numAttributes = client.profile.randomNumAttributes.nextInt();
                 List<Long> gagList = new ArrayList<Long>(numAttributes);
                 List<Long> gavList = new ArrayList<Long>(numAttributes);
-                
-                for(int i=0; i<numAttributes; i++){
-                	Long[] GAGIdGAVIdPair = profile.getRandomGAGIdGAVIdPair(rng);
-                	if(!gavList.contains(GAGIdGAVIdPair[1])){
-                		gagList.add(GAGIdGAVIdPair[0]);
-                		gavList.add(GAGIdGAVIdPair[1]);
-                	}
-                }
-                
+                for (int i = 0; i < numAttributes; i++) {
+                    Pair<Long, Long> GAGIdGAVIdPair = client.profile.getRandomGAGIdGAVIdPair();
+                    if (!gavList.contains(GAGIdGAVIdPair.getSecond())) {
+                        gagList.add(GAGIdGAVIdPair.getFirst());
+                        gavList.add(GAGIdGAVIdPair.getSecond());
+                    }
+                } // FOR
+
                 long[] gag_ids = new long[gagList.size()];
                 for (int i = 0, cnt = gag_ids.length; i < cnt; i++) {
                     gag_ids[i] = gagList.get(i);
-                }
+                } // FOR
                 long[] gav_ids = new long[gavList.size()];
                 for (int i = 0, cnt = gav_ids.length; i < cnt; i++) {
                     gav_ids[i] = gavList.get(i);
-                }
-                
-                Zipf randomNumImages = new Zipf(rng, AuctionMarkConstants.ITEM_MIN_IMAGES, AuctionMarkConstants.ITEM_MAX_IMAGES, 1.001);
-                int numImages = randomNumImages.nextInt();
+                } // FOR
+
+                int numImages = client.profile.randomNumImages.nextInt();
                 String[] images = new String[numImages];
-                for(int i=0; i<numImages; i++){
-                	images[i] = rng.astring(20, 100);
-                }
-                
-                TimestampType start_date = new TimestampType();
+                for (int i = 0; i < numImages; i++) {
+                    images[i] = client.rng.astring(20, 100);
+                } // FOR
 
-                TimestampType end_date = new TimestampType(start_date.getTime() + (long)10 * (long)1000000);
-            	
-            	return new Object[]{
-            			itemId, sellerId, categoryId, name, description, initial_price, attributes, gag_ids, gav_ids, images, start_date, end_date
-            	};
+                long duration = client.profile.randomDuration.nextInt();
+
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemId, sellerId, categoryId,
+                                      name, description, duration, initial_price, attributes,
+                                      gag_ids, gav_ids, images };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-			    return (profile.getUserIdCount() > 0);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+			    return (true);
 			}
         }),
         // ====================================================================
         // NEW_PURCHASE
         // ====================================================================
-        NEW_PURCHASE(AuctionMarkConstants.FREQUENCY_NEW_PURCHASE, true, new AuctionMarkParamGenerator() {
+        NEW_PURCHASE(AuctionMarkConstants.FREQUENCY_NEW_PURCHASE, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile clientProfile, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = clientProfile.getRandomWaitForPurchaseItemIdSellerIdPair(rng);
-            	long bidId = clientProfile.getBidId(itemIdSellerIdPair[0]);
-            	long buyerId = clientProfile.getBuyerId(itemIdSellerIdPair[0]);
-            	long sellerId = itemIdSellerIdPair[1];
-            	long itemId = itemIdSellerIdPair[0];
-                return new Object[]{
-                		bidId, itemId, sellerId, buyerId
-                };
+            public Object[] generateParams(AuctionMarkClient client) {
+                ItemInfo itemInfo = client.profile.getRandomWaitForPurchaseItem();
+                UserId sellerId = itemInfo.getSellerId();
+                double buyer_credit = 0d;
+                
+                // Whether the buyer will not have enough money
+                if (itemInfo.hasCurrentPrice()) {
+                    if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY) {
+                        buyer_credit = -1 * itemInfo.getCurrentPrice();
+                    } else {
+                        buyer_credit = itemInfo.getCurrentPrice();
+                        client.profile.removeWaitForPurchaseItem(itemInfo);
+                    }
+                }
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.itemId, sellerId, buyer_credit };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_wait_for_purchase_items_histogram.getSampleCount() > 0);
-			}
-        }),
-        // ====================================================================
-        // NEW_USER
-        // ====================================================================
-        NEW_USER(AuctionMarkConstants.FREQUENCY_NEW_USER, false, new AuctionMarkParamGenerator() {
-            @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	long u_id = profile.getNextUserId();
-            	
-            	Flat randomRegion = new Flat(rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION); 	
-            	long u_r_id = randomRegion.nextLong();
-            	
-            	String[] attributes = new String[8];
-            	for(int i=0; i < attributes.length; i++){
-            		attributes[i] = rng.astring(10, 64);
-            	}
-                return new Object[]{
-                		u_id, u_r_id, attributes
-                };
-            }
-
-			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return true;
-			}
-        }),
-        // ====================================================================
-        // POST_AUCTION
-        // ====================================================================
-        POST_AUCTION(AuctionMarkConstants.FREQUENCY_POST_AUCTION, true, new AuctionMarkParamGenerator() {
-            @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	voltTable.resetRowPosition();
-            	
-            	final int num_rows = voltTable.getRowCount();
-    			long[] i_ids = new long[num_rows];
-    			long[] seller_ids = new long[num_rows];
-    			long[] buyer_ids = new long[num_rows];
-    			long[] ib_ids = new long[num_rows];
-    			
-    			for(int i=0; i < i_ids.length; i++){
-    				voltTable.advanceRow();
-    				i_ids[i] = voltTable.getLong("i_id");
-    	    		seller_ids[i] = voltTable.getLong("i_u_id");
-    	    		buyer_ids[i] = voltTable.getLong("ib_buyer_id");
-    	    		if(voltTable.wasNull()){
-    	    		    buyer_ids[i] = -1;
-    	    		}
-    	    		ib_ids[i] = voltTable.getLong("imb_ib_id");
-    	    		if(voltTable.wasNull()){
-    	    			ib_ids[i] = -1;
-    	    		}
-    			}
-
-    			Object[] params = new Object[]{
-    					i_ids, seller_ids, buyer_ids, ib_ids
-    			};
-
-                return params;
-            }
-
-			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (null != voltTable);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+				return (client.profile.getWaitForPurchaseItemsCount() > 0);
 			}
         }),
         // ====================================================================
         // UPDATE_ITEM
         // ====================================================================
-        UPDATE_ITEM(AuctionMarkConstants.FREQUENCY_UPDATE_ITEM, true, new AuctionMarkParamGenerator() {
+        UPDATE_ITEM(AuctionMarkConstants.FREQUENCY_UPDATE_ITEM, new AuctionMarkParamGenerator() {
             @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long[] itemIdSellerIdPair = profile.getRandomAvailableItemIdSellerIdPair(rng);
-            	String description = rng.astring(50, 255);
-                return new Object[]{
-                		itemIdSellerIdPair[0], itemIdSellerIdPair[1], description
+            public Object[] generateParams(AuctionMarkClient client) {
+                ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
+                UserId sellerId = itemInfo.getSellerId();
+                String description = client.rng.astring(50, 255);
+                
+                long delete_attribute = VoltType.NULL_BIGINT;
+                long add_attribute[] = {
+                    VoltType.NULL_BIGINT,
+                    VoltType.NULL_BIGINT
                 };
+                
+                // Delete ITEM_ATTRIBUTE
+                if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_DELETE_ATTRIBUTE) {
+                    delete_attribute = 1;
+                }
+                // Add ITEM_ATTRIBUTE
+                else if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_ADD_ATTRIBUTE) {
+                    Pair<Long, Long> gag_gav = client.profile.getRandomGAGIdGAVIdPair();
+                    assert(gag_gav != null);
+                    add_attribute[0] = gag_gav.getFirst();
+                    add_attribute[1] = gag_gav.getSecond();
+                }
+                
+                return new Object[] { client.getTimestampParameterArray(),
+                                      itemInfo.itemId, sellerId, description,
+                                      delete_attribute, add_attribute };
             }
-
 			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_available_items_histogram.getSampleCount() > 0);
+			public boolean canGenerateParam(AuctionMarkClient client) {
+				return (client.profile.getAvailableItemsCount() > 0);
 			}
         }), 
-        // ====================================================================
-        // GET_USER_INFO
-        // ====================================================================
-        GET_USER_INFO(AuctionMarkConstants.FREQUENCY_GET_USER_INFO, true, new AuctionMarkParamGenerator() {
-            @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	long userId = profile.getRandomAvailableItemIdSellerIdPair(rng)[1];
-            	long get_seller_items = 0;
-            	long get_buyer_items = 0;
-            	long get_feedback = 0;
-            	
-                // 33% of the time they're going to ask for additional information
-            	if (rng.number(0, 100) <= 33) {
-            	    if (rng.number(0, 100) <= 75) {
-            	        get_seller_items = 1;
-            	    } else {
-            	        get_buyer_items = 1;
-            	    }
-            	}
-            	// 33% of the time we'll also get the feedback information
-            	if (rng.number(0, 100) <= 33) {
-            	    get_feedback = 1;
-            	}
-
-            	return new Object[]{
-                	userId, get_seller_items, get_buyer_items, get_feedback
-                };
-            }
-
-			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.user_available_items_histogram.getSampleCount() > 0);
-			}
-        }),
-        // ====================================================================
-        // GET_WATCHED_ITEMS
-        // ====================================================================
-        GET_WATCHED_ITEMS(AuctionMarkConstants.FREQUENCY_GET_WATCHED_ITEMS, true, new AuctionMarkParamGenerator() {
-            @Override
-            public Object[] generate(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-            	Long userId = profile.getRandomBuyerId(rng);
-            	assert(userId != null);
-                return new Object[]{
-                	userId
-                };
-            }
-
-			@Override
-			public boolean canGenerateParam(AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-				return (profile.getUserIdCount() > 0);
-			}
-        })
         ;
         
         /**
          * Constructor
          * @param weight The execution frequency weight for this txn 
-         * @param needs_next_id If true, then this txn can only be called when next_id is populated
          * @param generator
          */
-        private Transaction(int weight, boolean needs_next_id, AuctionMarkParamGenerator generator) {
+        private Transaction(int weight, AuctionMarkParamGenerator generator) {
             this.default_weight = weight;
             this.displayName = StringUtil.title(this.name().replace("_", " "));
             this.callName = this.displayName.replace(" ", "");
             this.generator = generator;
-            this.needs_next_id = needs_next_id;
         }
 
         public final int default_weight;
         public final String displayName;
         public final String callName;
         public final AuctionMarkParamGenerator generator;
-        
-        /**
-         * Some transactions need to be told by somebody else what id to use the next
-         * time we want to call it
-         */
-        public final boolean needs_next_id;
-        public final ConcurrentLinkedQueue<VoltTable> next_params = new ConcurrentLinkedQueue<VoltTable>();
         
         protected static final Map<Integer, Transaction> idx_lookup = new HashMap<Integer, Transaction>();
         protected static final Map<String, Transaction> name_lookup = new HashMap<String, Transaction>();
@@ -519,25 +488,24 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
          * A txn can be called if we can generate all of the parameters we need
          * @return
          */
-        public boolean canExecute(AuctionMarkClientBenchmarkProfile clientProfile) {
-            //return (!this.needs_next_id || !this.next_params.isEmpty());
-        	return this.generator.canGenerateParam(clientProfile, this.next_params.peek());
+        public boolean canExecute(AuctionMarkClient client) {
+            if (debug.get()) LOG.debug("Checking whether we can execute " + this + " now");
+        	return this.generator.canGenerateParam(client);
         }
         
         /**
          * Given a BenchmarkProfile object, call the AuctionMarkParamGenerator object for a given
          * transaction type to generate a set of parameters for a new txn invocation 
-         * @param rng
          * @param profile
          * @return
          */
-        public Object[] params(AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile, VoltTable voltTable) {
-        	/*
-        	if(!next_params.isEmpty()){
-        		voltTable = next_params.remove();
-        	}
-        	*/
-        	return (this.generator.generate(rng, profile, voltTable));
+        public Object[] generateParams(AuctionMarkClient client) {
+            Object vals[] = this.generator.generateParams(client);
+            // Automatically encode any CompositeIds
+            for (int i = 0; i < vals.length; i++) {
+                if (vals[i] instanceof CompositeId) vals[i] = ((CompositeId)vals[i]).encode();
+            } // FOR
+        	return (vals);
         }
     }
 
@@ -547,9 +515,6 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     
     private final Map<Transaction, Integer> weights = new HashMap<Transaction, Integer>();
     private final Transaction xacts[] = new Transaction[100];
-    
-    private AuctionMarkClientBenchmarkProfile clientProfile;
-    private int _clientId;
     
     // -----------------------------------------------------------------
     // REQUIRED METHODS
@@ -565,27 +530,6 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
      */
     public AuctionMarkClient(String[] args) {
         super(AuctionMarkClient.class, args);
-        
-        _clientId = getClientId();
-        
-        clientProfile = new AuctionMarkClientBenchmarkProfile(profile, getClientId(), AuctionMarkConstants.MAXIMUM_CLIENT_IDS);
-        if (LOG.isTraceEnabled()) LOG.trace("constructor : histogram size = " + this.clientProfile.user_available_items_histogram.getSampleCount());
-               
-        // Enable temporal skew
-        if (m_extraParams.containsKey("TEMPORALWINDOW") && m_extraParams.containsKey("TEMPORALTOTAL")) {
-            try {
-                int temporal_window = Integer.valueOf(m_extraParams.get("TEMPORALWINDOW"));
-                int temporal_total = Integer.valueOf(m_extraParams.get("TEMPORALTOTAL"));
-                if (temporal_window > 0) {
-                    this.clientProfile.enableTemporalSkew(temporal_window, temporal_total);
-                    System.err.println(String.format("Enabling temporal skew [window=%d, total=%d]", temporal_window, temporal_total));
-                }
-            } catch (Exception ex) {
-                System.err.println(ex.getLocalizedMessage());
-                ex.printStackTrace();
-                System.exit(1);
-            }
-        }
         
         // Initialize Default Weights
         for (Transaction t : Transaction.values()) {
@@ -606,19 +550,25 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     @Override
     public String[] getTransactionDisplayNames() {
         String names[] = new String[Transaction.values().length];
-        int ii = 0;
         for (Transaction t : Transaction.values()) {
-            names[ii++] = t.getDisplayName();
+            names[t.ordinal()] = t.getDisplayName();
         }
         return names;
     }
     
     @Override
     public void runLoop() {
+        final Client client = this.getClientHandle();
+        
+        // Execute Transactions
         try {
             while (true) {
-                this.runOnce();
+                runOnce();
+                client.backpressureBarrier();
             } // WHILE
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return;
         } catch (NoConnectionsException e) {
             /*
              * Client has no clean mechanism for terminating with the DB.
@@ -634,226 +584,370 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     }
     
     @Override
-    protected boolean runOnce() throws IOException {
-        try {
-            executeTransaction();
-            m_voltClient.backpressureBarrier();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-            return (false);
-        } catch (ProcCallException e) {
-			e.printStackTrace();
-		}
-        return (true);
+    public void tick(int counter) {
+        super.tick(counter);
+        profile.tick();
     }
     
     @Override
-    protected void tick() {
-        super.tick();
-        this.clientProfile.tick();
-        this.debug = LOG.isDebugEnabled();
-    }
-    
-    /**
-     * 
-     * @return
-     * @throws IOException
-     * @throws ProcCallException 
-     * @throws InterruptedException 
-     */
-    private void executeTransaction() throws IOException, ProcCallException, InterruptedException {
+    protected boolean runOnce() throws IOException {
+        // We need to subtract the different between this and the profile's start time,
+        // since that accounts for the time gap between when the loader started and when the client start.
+        // Otherwise, all of our cache date will be out dated if it took a really long time
+        // to load everything up. Again, in order to keep things in synch, we only want to
+        // set this on the first call to runOnce(). This will account for start a bunch of
+        // clients on multiple nodes but then having to wait until they're all up and running
+        // before starting the actual benchmark run.
+        if (profile.hasClientStartTime() == false) profile.setAndGetClientStartTime();
+        
         Transaction txn = null;
         Object[] params = null;
-        int safety = 1000;
-        
-        if (this.debug) LOG.debug("Execute Transaction [client_id=" + this.getClientId() + "]");
-        
-        if (Transaction.POST_AUCTION.canExecute(clientProfile) && this.getClientId() == 0) {
-        	txn = Transaction.POST_AUCTION;
-        	if (this.debug) LOG.trace("Executing new invocation of transaction " + txn);
-        	
-        	if(txn.next_params.peek().getRowCount() > 0){
-        	    params = txn.params(this.rng, this.clientProfile, txn.next_params.remove());
-	        	if (this.debug) LOG.debug("EXECUTING POST_AUCTION ------------------------");
-	            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
-	            return;
-        	} else {
-        		if (this.debug) LOG.trace("POST_AUCTION ::: no executiong (rows to process = " + txn.next_params.remove().getRowCount() + ") ");
-        	}
-        }
-        
-        // Update the current timestamp and check whether it's time to run the CheckWinningBids txn
-        TimestampType currentTime = this.clientProfile.updateAndGetCurrentTime();
-        TimestampType lastCheckWinningBidTime = this.clientProfile.getLastCheckWinningBidTime();
-        if (AuctionMarkConstants.ENABLE_CHECK_WINNING_BIDS && (lastCheckWinningBidTime == null ||
-        	(((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0) > AuctionMarkConstants.INTERVAL_CHECK_WINNING_BIDS))) {
-        	txn = Transaction.CHECK_WINNING_BIDS;
-        	if (this.debug) LOG.trace("Executing new invocation of transaction " + txn);
-        	
-        	int clientId = 1;
-        	
-        	params = new Object[] { 
-        	        clientProfile.getLastCheckWinningBidTime(), 
-        			clientProfile.updateAndGetLastCheckWinningBidTime(), 
-        			clientId,
-        			AuctionMarkConstants.MAXIMUM_CLIENT_IDS
-        	};
-            if (this.debug) LOG.trace("EXECUTING CHECK_WINNING BID------------------------");
-            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
-            return;
-        }
-        
+
+        // Always update the current timestamp
+        profile.updateAndGetCurrentTime();
+
         // Find the next txn and its parameters that we will run. We want to wrap this
         // around a synchronization block so that nobody comes in and takes the parameters
         // from us before we actually run it
-        synchronized (this.clientProfile) {
-    		while (true) {
-    			int idx = this.rng.number(0, this.xacts.length - 1);
-    			if (this.debug) {
-    			    LOG.trace("idx = " + idx);
-    				LOG.trace("random txn = " + this.xacts[idx].getDisplayName());
-    			}
-    			assert(idx >= 0);
-    			assert(idx < this.xacts.length);
-    
-    			// Only execute this txn if it is ready
-    			// Example: NewBid can only be executed if there are item_ids retrieved by an earlier call by GetItem
-    			if (this.xacts[idx].canExecute(clientProfile)) {
-    				if (debug) LOG.trace("can execute");
-    				try {
-        				txn = this.xacts[idx];
-        				params = txn.params(rng, clientProfile, txn.next_params.peek());
-    				} catch (AssertionError ex) {
-    				    LOG.error("Failed to generate parameters for " + txn, ex);
-    				}
-    				if (params != null) break;
-    			}
-    			assert(safety-- > 0) : "Too many loops looking for a txn to execute!";
-    		} // WHILE
-    		assert (txn != null);
-    		
-    		if(!txn.next_params.isEmpty()){
-    			txn.next_params.remove();
-    		}
-        } // SYNC
-		if (params != null) {
-            if (debug) LOG.debug("Executing new invocation of transaction " + txn + " : callname = " + txn.getCallName());
-            m_voltClient.callProcedure(new AuctionMarkCallback(txn, this.rng, this.clientProfile), txn.getCallName(), params);
-		} else {
-		    LOG.warn("Failed to execute " + txn + " because the parameters were null?");
-		}
-        return;
+        int safety = 1000;
+        while (safety-- > 0) {
+            Transaction tempTxn = null;
+            
+            // Always check if we need to want to run CLOSE_AUCTIONS
+            // We only do this from the first client
+            if (Transaction.CLOSE_AUCTIONS.canExecute(this)) {
+                tempTxn = Transaction.CLOSE_AUCTIONS;
+            }
+            // Otherwise randomly pick a transaction based on their distribution weights
+            else {
+                int idx = this.rng.number(0, this.xacts.length - 1);
+                if (trace.get()) {
+                    LOG.trace("idx = " + idx);
+                    LOG.trace("random txn = " + this.xacts[idx].getDisplayName());
+                }
+                assert (idx >= 0);
+                assert (idx < this.xacts.length);
+                tempTxn = this.xacts[idx];
+            }
+
+            // Only execute this txn if it is ready
+            // Example: NewBid can only be executed if there are item_ids retrieved by an earlier call by GetItem
+            if (tempTxn.canExecute(this)) {
+                txn = tempTxn;
+                if (trace.get()) LOG.trace("CAN EXECUTE: " + txn);
+                try {
+                    params = txn.generateParams(this);
+                } catch (Throwable ex) {
+                    throw new RuntimeException("Failed to generate parameters for " + txn, ex);
+                }
+                break;
+            }
+        } // WHILE
+        assert (txn != null);
+        
+        if (params == null) {
+            LOG.warn("Unable to execute " + txn + " because the parameters were null?");
+            return (false);
+        } else if (debug.get()) {
+            LOG.info("Executing new invocation of transaction " + txn);
+        }
+        
+        BaseCallback callback = null;
+        switch (txn) {
+            case CLOSE_AUCTIONS:
+                callback = new CloseAuctionsCallback(params);
+                break;
+            case GET_ITEM:
+                callback = new GetItemCallback(params);
+                break;
+            case GET_USER_INFO:
+                callback = new GetUserInfoCallback(params);
+                break;
+            case NEW_COMMENT:
+                callback = new NewCommentCallback(params);
+                break;
+            case NEW_ITEM:
+                callback = new NewItemCallback(params);
+                break;
+            case NEW_PURCHASE:
+                callback = new NewPurchaseCallback(params);
+                break;
+            default:
+                callback = new NullCallback(txn, params);
+        } // SWITCH
+        this.getClientHandle().callProcedure(callback, txn.getCallName(), params);
+        return (true);
     }
     
-    
-    //Basic Callback Class
-    protected class AuctionMarkCallback implements ProcedureCallback {
-        private final Transaction txn;
-        private final AbstractRandomGenerator rng; 
-        private final AuctionMarkClientBenchmarkProfile profile;
+    /**********************************************************************************************
+     * Base Callback
+     **********************************************************************************************/
+    protected abstract class BaseCallback implements ProcedureCallback {
+        final Transaction txn;
+        final Object params[];
+        final Histogram<QueueType> updated = new Histogram<QueueType>();
         
-        public AuctionMarkCallback(Transaction txn, AbstractRandomGenerator rng, AuctionMarkClientBenchmarkProfile profile) {
-            super();
+        public BaseCallback(Transaction txn, Object params[]) {
             this.txn = txn;
-            this.rng = rng;
-            this.profile = profile;
+            this.params = params;
         }
+        
+        public abstract void process(VoltTable results[]);
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            final boolean trace = LOG.isTraceEnabled(); 
-        	if (trace) LOG.trace("clientCallback(cid = " + _clientId + "):: txn = " + txn.getDisplayName());
-        	
-        	incrementTransactionCounter(this.txn.ordinal());
-        	VoltTable[] results = clientResponse.getResults();
-        	
-        	// Update the next_id lists for any txn that depends on the output of this txn
-        	switch (this.txn) {
-        		case CHECK_WINNING_BIDS: {
-        			assert(null != results && results.length > 0);
-        			
-        			while(results[0].advanceRow()){
-        				long itemId = results[0].getLong("i_id");
-        				long sellerId = results[0].getLong("i_u_id");
-        				long itemStatus = results[0].getLong("i_status");
-        				long buyerId = results[0].getLong("ib_buyer_id");
-        				
-        				if(itemStatus == 0){
-	        				profile.removeAvailableItem(sellerId, itemId);
-	        				
-	        				long bidId = results[0].getLong("imb_ib_id");
-	        				if(results[0].wasNull()){
-	        					// No winning bid
-	        					profile.addCompleteItem(sellerId, itemId);
-	        				} else {
-	        					// Has winning bid
-	        					profile.addWaitForPurchaseItem(sellerId, itemId, bidId, buyerId);
-	        				}
-        				}
-        			}
-        			
-        			results[0].resetRowPosition();
-    	        	Transaction.POST_AUCTION.next_params.add(results[0]);
-        			break;
-        		}
-        		case GET_ITEM: {
-        	        if (this.rng.nextInt(100) < Math.round(((float)AuctionMarkConstants.FREQUENCY_NEW_BID * 100)/((float)AuctionMarkConstants.FREQUENCY_GET_ITEM))) {
-        	        	if(results.length > 0){
-        	        		Transaction.NEW_BID.next_params.add(results[0]);
-        	        	}
-        	        }
-        	        break;
-        	    }
-        		case NEW_BID: {
-        			break;
-        		}
-        		case NEW_COMMENT: break;
-        		case GET_COMMENT: {
-        			if (this.rng.nextInt(100) < Math.round(((float)AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE * 100)/((float)AuctionMarkConstants.FREQUENCY_NEW_COMMENT))) {
-        				if(null != results && results.length > 0 && results[0].getRowCount() > 0){
-        					Transaction.NEW_COMMENT_RESPONSE.next_params.add(results[0]);
-        				}
-        	        }
-        			break;
-        		}
-        		case NEW_COMMENT_RESPONSE: break;
-        		case NEW_FEEDBACK: {
-        			break;
-        		}
-        		case NEW_ITEM: {
-        			if(results.length > 0 && results[0].advanceRow()){
-	        			long itemId = results[0].getLong("i_id");
-	        			long sellerId = results[0].getLong("i_u_id");        			
-	        			profile.addAvailableItem(sellerId, itemId);
-        			}
-        			break;
-        		}
-        		case NEW_PURCHASE: {
-        			if(results.length > 0 && results[0].advanceRow()){
-	        			long itemId = results[0].getLong("ip_ib_i_id");
-	        			long sellerId = results[0].getLong("u_id");
-	        			if (trace) LOG.trace("clientCallback:: NEW_PURCHASE itemId = " + itemId);
-	        			if (trace) LOG.trace("clientCallback:: NEW_PURCHASE sellerId = " + sellerId);
-	        			profile.removeWaitForPurchaseItem(sellerId, itemId);
-	        			profile.addCompleteItem(sellerId, itemId);
-	        			if (trace) LOG.trace("clientCallback:: NEW_PURCHASE END");
-        			}
-        			break;
-        		}
-        		case NEW_USER: {
-        			break;
-        		}
-        		case POST_AUCTION: {
-        			break;
-        		}
-        		case UPDATE_ITEM: {
-        			break;
-        		}
-        		case GET_USER_INFO: {
-        		    if (trace) LOG.trace("GOT USER INFO:::::");
-        			break;
-        		}
-        	} // SWITCH
+            if (trace.get()) LOG.trace("clientCallback(cid = " + getClientId() + "):: txn = " + txn.getDisplayName());
+            incrementTransactionCounter(this.txn.ordinal());
+            VoltTable[] results = clientResponse.getResults();
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+                try {
+                    this.process(results);
+                } catch (Throwable ex) {
+                    LOG.error("PARAMS: " + Arrays.toString(this.params));
+                    for (int i = 0; i < results.length; i++) {
+                        LOG.info(String.format("[%02d] RESULT\n%s", i, results[i]));
+                    } // FOR
+                    throw new RuntimeException("Failed to process results for " + this.txn, ex);
+                }
+                    
+            } else {
+                if (debug.get()) LOG.debug(String.format("%s: %s", this.txn, clientResponse.getStatusString()), clientResponse.getException());
+            }
+        }
+        /**
+         * For the given VoltTable that contains ITEM records, process the current
+         * row of that table and update the benchmark profile based on item information
+         * stored in that row. 
+         * @param vt
+         * @return
+         */
+        public ItemId processItemRecord(VoltTable vt) {
+            ItemId itemId = new ItemId(vt.getLong("i_id"));
+            TimestampType endDate = vt.getTimestampAsTimestamp("i_end_date");
+            short numBids = (short)vt.getLong("i_num_bids");
+            double currentPrice = vt.getDouble("i_current_price");
+            ItemInfo itemInfo = new ItemInfo(itemId, currentPrice, endDate, numBids);
+            if (vt.hasColumn("ip_id")) itemInfo.status = AuctionMarkConstants.ITEM_STATUS_CLOSED;
+            if (vt.hasColumn("i_status")) itemInfo.status = vt.getLong("i_status");
+            
+            UserId sellerId = new UserId(vt.getLong("i_u_id"));
+            assert (itemId.getSellerId().equals(sellerId));
+            
+            QueueType qtype = profile.addItemToProperQueue(itemInfo, false);
+            this.updated.put(qtype);
+
+            return (itemId);
+        }
+        @Override
+        public String toString() {
+            String cnts[] = new String[QueueType.values().length];
+            for (QueueType qtype : QueueType.values()) {
+                cnts[qtype.ordinal()] = String.format("%s=+%d", qtype, updated.get(qtype, 0));
+            }
+            return String.format("%s :: %s", this.txn, StringUtil.join(", ", cnts));
         }
     } // END CLASS
+    
+    /**********************************************************************************************
+     * NULL Callback
+     **********************************************************************************************/
+    protected class NullCallback extends BaseCallback {
+        public NullCallback(Transaction txn, Object params[]) {
+            super(txn, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            // Nothing to do...
+        }
+    } // END CLASS
+    
+    /**********************************************************************************************
+     * CLOSE_AUCTIONS Callback
+     **********************************************************************************************/
+    protected class CloseAuctionsCallback extends BaseCallback {
+        public CloseAuctionsCallback(Object params[]) {
+            super(Transaction.CLOSE_AUCTIONS, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            assert (null != results && results.length > 0);
+            while (results[0].advanceRow()) {
+                ItemId itemId = this.processItemRecord(results[0]);
+                assert(itemId != null);
+            } // WHILE
+            if (debug.get()) LOG.debug(super.toString());
+            profile.updateItemQueues();
+        }
+    } // END CLASS
+    
+    /**********************************************************************************************
+     * NEW_COMMENT Callback
+     **********************************************************************************************/
+    protected class NewCommentCallback extends BaseCallback {
+        public NewCommentCallback(Object params[]) {
+            super(Transaction.NEW_COMMENT, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            assert(results.length == 1);
+            while (results[0].advanceRow()) {
+                long vals[] = {
+                    results[0].getLong("ic_id"),
+                    results[0].getLong("ic_i_id"),
+                    results[0].getLong("ic_u_id")
+                };
+                pending_commentResponse.add(vals);
+            } // WHILE
+        }
+    } // END CLASS
+        
+    /**********************************************************************************************
+     * GET_ITEM Callback
+     **********************************************************************************************/
+    protected class GetItemCallback extends BaseCallback {
+        public GetItemCallback(Object params[]) {
+            super(Transaction.GET_ITEM, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            assert (null != results && results.length > 0);
+            while (results[0].advanceRow()) {
+                ItemId itemId = this.processItemRecord(results[0]);
+                assert(itemId != null);
+            } // WHILE
+            if (debug.get()) LOG.debug(super.toString());
+        }
+    } // END CLASS
+    
+    /**********************************************************************************************
+     * GET_USER_INFO Callback
+     **********************************************************************************************/
+    protected class GetUserInfoCallback extends BaseCallback {
+        final boolean expect_user;
+        final boolean expect_feedback;
+        final boolean expect_comments;
+        final boolean expect_seller;
+        final boolean expect_buyer;
+        final boolean expect_watched;
+        
+        public GetUserInfoCallback(Object params[]) {
+            super(Transaction.GET_USER_INFO, params);
+            
+            int idx = 2;
+            this.expect_user     = true;
+            this.expect_feedback = ((Long)params[idx++] != VoltType.NULL_BIGINT);
+            this.expect_comments = ((Long)params[idx++] != VoltType.NULL_BIGINT);
+            this.expect_seller   = ((Long)params[idx++] != VoltType.NULL_BIGINT);
+            this.expect_buyer    = ((Long)params[idx++] != VoltType.NULL_BIGINT);
+            this.expect_watched  = ((Long)params[idx++] != VoltType.NULL_BIGINT);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            int idx = 0;
+            
+            // USER
+            if (expect_user) {
+                VoltTable vt = results[idx++];
+                assert(vt != null);
+                assert(vt.getRowCount() > 0);
+            }
+            // USER_FEEDBACK
+            if (expect_feedback) {
+                VoltTable vt = results[idx++];
+                assert(vt != null);
+            }
+            // ITEM_COMMENT
+            if (expect_comments) {
+                VoltTable vt = results[idx++];
+                assert(vt != null);
+                while (vt.advanceRow()) {
+                    long vals[] = {
+                        vt.getLong("ic_id"),
+                        vt.getLong("ic_i_id"),
+                        vt.getLong("ic_u_id")
+                    };
+                    pending_commentResponse.add(vals);
+                } // WHILE
+            }
+            
+            // ITEM Result Tables
+            for (int i = idx; i < results.length; i++) {
+                VoltTable vt = results[i];
+                assert(vt != null);
+                while (vt.advanceRow()) {
+                    ItemId itemId = this.processItemRecord(vt);
+                    assert(itemId != null);
+                } // WHILE
+            } // FOR
+        }
+    } // END CLASS
+    
+    /**********************************************************************************************
+     * NEW_BID Callback
+     **********************************************************************************************/
+    protected class NewBidCallback extends BaseCallback {
+        public NewBidCallback(Object params[]) {
+            super(Transaction.NEW_BID, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            assert(results.length == 1);
+            while (results[0].advanceRow()) {
+                ItemId itemId = this.processItemRecord(results[0]);
+                assert(itemId != null);
+            } // WHILE
+            if (debug.get()) LOG.debug(super.toString());
+        }
+    } // END CLASS
+
+    /**********************************************************************************************
+     * NEW_ITEM Callback
+     **********************************************************************************************/
+    protected class NewItemCallback extends BaseCallback {
+        public NewItemCallback(Object params[]) {
+            super(Transaction.NEW_ITEM, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            assert(results.length == 1);
+            while (results[0].advanceRow()) {
+                ItemId itemId = this.processItemRecord(results[0]);
+                assert(itemId != null);
+            } // WHILE
+            if (debug.get()) LOG.debug(super.toString());
+        }
+    } // END CLASS
+    
+    /**********************************************************************************************
+     * NEW_PURCHASE Callback
+     **********************************************************************************************/
+    protected class NewPurchaseCallback extends BaseCallback {
+        public NewPurchaseCallback(Object params[]) {
+            super(Transaction.NEW_PURCHASE, params);
+        }
+        @Override
+        public void process(VoltTable[] results) {
+            assert(results.length == 1);
+            while (results[0].advanceRow()) {
+                ItemId itemId = this.processItemRecord(results[0]);
+                assert(itemId != null);
+            } // WHILE
+            if (debug.get()) LOG.debug(super.toString());
+        }
+    } // END CLASS
+  
+    
+    public ItemId getNextItemId(UserId seller_id) {
+        Integer cnt = this.seller_item_cnt.get(seller_id);
+        if (cnt == null || cnt == 0) {
+            cnt = (int)seller_id.getItemCount();
+        }
+        this.seller_item_cnt.put(seller_id, ++cnt);
+        return (new ItemId(seller_id, cnt));
+    }
+    
+    public TimestampType[] getTimestampParameterArray() {
+        return new TimestampType[] { profile.getBenchmarkStartTime(),
+                                     profile.getClientStartTime() };
+    }
 }

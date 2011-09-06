@@ -4,16 +4,35 @@
 package edu.brown.designer.partitioners;
 
 import java.io.IOException;
-import java.util.*;
+import java.lang.reflect.Field;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
@@ -25,12 +44,11 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.Designer;
-import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
-import edu.brown.graphs.GraphvizExport;
+import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.rand.RandomDistribution;
@@ -58,6 +76,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
     private static final String DEBUG_COST_FORMAT = "%.04f";
     
+    /**
+     * Checkpoint Values
+     */
     enum Members {
         INITIAL_SOLUTION,
         INITIAL_COST,
@@ -81,7 +102,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final AbstractCostModel costmodel;
     protected final ParameterMappingsSet correlations;
     protected AccessGraph agraph;
-    protected AccessGraph single_agraph;
 
     // ----------------------------------------------------------------------------
     // STATE INFORMATION
@@ -107,6 +127,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public Double last_entropy_weight = null;
     public Integer restart_ctr = null;
     
+    /**
+     * Keep track of our sets of relaxed tables
+     * When we've processed all combinations for the current relaxation size, we can
+     * then automatically jump to the next size without waiting for the timeout
+     */
+    protected final Set<Collection<Table>> relaxed_sets = new HashSet<Collection<Table>>();
+    protected transient BigInteger relaxed_sets_max = null;
+    
     // ----------------------------------------------------------------------------
     // PRE-COMPUTED CATALOG INFORMATION
     // ----------------------------------------------------------------------------
@@ -118,19 +146,21 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected final Map<Table, Long> table_replicated_size = new HashMap<Table, Long>();
     
     /** Mapping from Table to the set of Procedures that has a Statement that references that Table */
-    protected final Map<Table, Set<Procedure>> table_procedures = new HashMap<Table, Set<Procedure>>();
+    protected final Map<Table, Collection<Procedure>> table_procedures = new HashMap<Table, Collection<Procedure>>();
     
     /** Mapping from Column to the set of Procedures that has a Statement that references that Column */
-    protected final Map<Column, Set<Procedure>> column_procedures = new HashMap<Column, Set<Procedure>>();
+    protected final Map<Column, Collection<Procedure>> column_procedures = new HashMap<Column, Collection<Procedure>>();
     
     
     protected final Map<Column, Map<Column, Set<Procedure>>> columnswap_procedures = new HashMap<Column, Map<Column,Set<Procedure>>>();
 
     protected final ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>> orig_proc_attributes = new ListOrderedMap<Procedure, ListOrderedSet<ProcParameter>>();
-    protected final Map<Procedure, Set<Column>> proc_columns = new HashMap<Procedure, Set<Column>>();
+    protected final Map<Procedure, Collection<Column>> proc_columns = new HashMap<Procedure, Collection<Column>>();
     protected final Map<Procedure, Histogram<Column>> proc_column_histogram = new HashMap<Procedure, Histogram<Column>>();
     protected final Map<Procedure, Map<ProcParameter, Set<MultiProcParameter>>> proc_multipoc_map = new HashMap<Procedure, Map<ProcParameter,Set<MultiProcParameter>>>();
 
+    private final Set<Table> ignore_tables = new HashSet<Table>();
+    private final Set<Procedure> ignore_procs = new HashSet<Procedure>();
     
     /**
      * @param designer
@@ -152,8 +182,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      */
     protected void init(DesignerHints hints) throws Exception {
         this.init_called = true;
-        this.agraph = this.generateAccessGraph();
-        this.single_agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.agraph);
+        this.agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, this.generateAccessGraph());
         
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
@@ -173,22 +202,23 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //        System.err.println("SINGLE GRAPH:" + gv.writeToTempFile());
         
         // Gather all the information we need about each table
-        for (Table catalog_tbl : CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateTableOrder(info, this.agraph, hints), Table.class)) {
+        for (Table catalog_tbl : PartitionerUtil.generateTableOrder(info, this.agraph, hints)) {
             
             // Ignore this table if it's not used in the AcessGraph
             DesignerVertex v = null;
             try {
-                v = this.single_agraph.getVertex(catalog_tbl);
+                v = this.agraph.getVertex(catalog_tbl);
             } catch (IllegalArgumentException ex) {
                 // IGNORE
             }
             if (v == null) {
-                LOG.warn("No columns for " + catalog_tbl + ". Ignoring...");
+                LOG.warn(String.format("Ignoring %s - No references in workload AccessGraph", catalog_tbl));
+                this.ignore_tables.add(catalog_tbl);
                 continue;
             }
             
             // Potential Partitioning Attributes
-            Collection<Column> columns = CatalogKey.getFromKeys(info.catalog_db, AbstractPartitioner.generateColumnOrder(info, agraph, catalog_tbl, hints, false, true), Column.class);
+            Collection<Column> columns = PartitionerUtil.generateColumnOrder(info, this.agraph, catalog_tbl, hints, false, true);
             assert(!columns.isEmpty()) : "No potential partitioning columns selected for " + catalog_tbl;
             this.orig_table_attributes.put(catalog_tbl, (ListOrderedSet<Column>)CollectionUtil.addAll(new ListOrderedSet<Column>(), columns));
             
@@ -201,12 +231,25 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         } // FOR
         
         // We also need to know some things about the Procedures and their ProcParameters
+        Histogram<String> workloadHistogram = info.workload.getProcedureHistogram();
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            if (AbstractPartitioner.shouldIgnoreProcedure(hints, catalog_proc)) continue;
+            // Skip if we're explicitly force to ignore this guy
+            if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
+                LOG.warn(String.format("Ignoring %s - Set to be ignored by the DesignerHints.", catalog_proc));
+                this.ignore_procs.add(catalog_proc);
+                continue;
+            }
+            // Or if there are not transactions in the sample workload
+            else if (workloadHistogram.get(CatalogKey.createKey(catalog_proc), 0l) == 0) {
+                LOG.warn(String.format("Ignoring %s - No transaction records in sample workload.", catalog_proc));
+                this.ignore_procs.add(catalog_proc);
+                continue;
+            }
             
-            Set<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
+            Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_proc);
             if (columns.isEmpty()) {
-                if (debug.get()) LOG.warn("No columns for " + catalog_proc + ". Ignoring...");
+                LOG.warn(String.format("Ignoring %s - Does not reference any columns in its queries.", catalog_proc));
+                this.ignore_procs.add(catalog_proc);
                 continue;
             }
             this.proc_columns.put(catalog_proc, columns);
@@ -217,20 +260,20 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 //            if (catalog_proc.getName().equals("GetAccessData")) {
 //                GraphVisualizationPanel.createFrame(proc_agraph).setVisible(true);
 //            }
-            this.proc_column_histogram.put(catalog_proc, AbstractPartitioner.generateProcedureColumnAccessHistogram(info, hints, proc_agraph, catalog_proc));
+            this.proc_column_histogram.put(catalog_proc, PartitionerUtil.generateProcedureColumnAccessHistogram(info, hints, proc_agraph, catalog_proc));
             
             // Gather the list ProcParameters we should even consider for partitioning each procedure
             // TODO: For now we'll just put all the parameters in there plus the null one
             HashMap<ProcParameter, Set<MultiProcParameter>> multiparams = new HashMap<ProcParameter, Set<MultiProcParameter>>();
             if (hints.enable_multi_partitioning) {
-                multiparams.putAll(AbstractPartitioner.generateMultiProcParameters(info, hints, catalog_proc));
+                multiparams.putAll(PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc));
                 if (trace.get()) LOG.trace(catalog_proc + " MultiProcParameters:\n" + multiparams);
             }
             this.proc_multipoc_map.put(catalog_proc, multiparams);
             
             ListOrderedSet<ProcParameter> params = new ListOrderedSet<ProcParameter>();
             CollectionUtil.addAll(params, CatalogUtil.getSortedCatalogItems(catalog_proc.getParameters(), "index"));
-            if (hints.allow_array_procparameter_candidates == false) {
+            if (hints.enable_array_procparameter_candidates == false) {
                 params.removeAll(CatalogUtil.getArrayProcParameters(catalog_proc));
             }
             params.add(NullProcParameter.getNullProcParameter(catalog_proc));
@@ -238,10 +281,16 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             
             // Add multi-column partitioning parameters for each table
             if (hints.enable_multi_partitioning) {
-                Map<Table, Set<MultiColumn>> multicolumns = AbstractPartitioner.generateMultiColumns(info, hints, catalog_proc);
-                for (Entry<Table, Set<MultiColumn>> e : multicolumns.entrySet()) {
+                Map<Table, Collection<MultiColumn>> multicolumns = PartitionerUtil.generateMultiColumns(info, hints, catalog_proc);
+                for (Entry<Table, Collection<MultiColumn>> e : multicolumns.entrySet()) {
+                    if (this.ignore_tables.contains(e.getKey())) continue;
                     if (trace.get()) LOG.trace(e.getKey().getName() + " MultiColumns:\n" + multicolumns);
-                    this.orig_table_attributes.get(e.getKey()).addAll(e.getValue());
+                    ListOrderedSet<Column> cols = this.orig_table_attributes.get(e.getKey()); 
+                    if (cols == null) {
+                        cols = new ListOrderedSet<Column>();
+                        this.orig_table_attributes.put(e.getKey(), cols);
+                    }
+                    cols.addAll(e.getValue());
                 } // FOR    
             }
         } // FOR
@@ -258,7 +307,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // We actually can be a bit more fine-grained in our costmodel cache invalidation if we know 
             // which columns are actually referenced in each of the procedures
             for (Column catalog_col : this.orig_table_attributes.get(catalog_tbl)) {
-                Set<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
+                Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
                 procedures.retainAll(this.orig_proc_attributes.keySet());
                 this.column_procedures.put(catalog_col, procedures);
             } // FOR
@@ -266,11 +315,11 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // And also pre-compute the intersection of the procedure sets for each Column pair 
             for (Column catalog_col0 : this.orig_table_attributes.get(catalog_tbl)) {
                 Map<Column, Set<Procedure>> intersections = new HashMap<Column, Set<Procedure>>();
-                Set<Procedure> procs0 = this.column_procedures.get(catalog_col0);
+                Collection<Procedure> procs0 = this.column_procedures.get(catalog_col0);
                 
                 for (Column catalog_col1 : this.orig_table_attributes.get(catalog_tbl)) {
                     if (catalog_col0.equals(catalog_col1)) continue;
-                    Set<Procedure> procs1 = this.column_procedures.get(catalog_col1);
+                    Collection<Procedure> procs1 = this.column_procedures.get(catalog_col1);
                     intersections.put(catalog_col1, new HashSet<Procedure>(procs0));
                     intersections.get(catalog_col1).retainAll(procs1);
                 } // FOR
@@ -321,8 +370,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             LOG.trace("Initialization Information:\n" + StringUtil.formatMaps(maps));
         }
-        
-//        LOG.info("\n" + this.debug());
     }
 
     /* (non-Javadoc)
@@ -333,25 +380,36 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // DEBUG HEADER ---------------------------------------------------------
         
-        StringBuilder sb = new StringBuilder();
-        sb.append("Starting Large-Neighborhood Search\n");
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("partitions",       CatalogUtil.getNumberOfPartitions(info.catalog_db));
-        m.put("intervals",        info.getArgs().num_intervals);
-        m.put("total_bytes",      info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
-        m.put("checkpoints",      hints.enable_checkpoints);
-        m.put("greedy",           hints.greedy_search);
-        m.put("relax_factor_min", hints.relaxation_factor_min);
-        m.put("relax_factor_max", hints.relaxation_factor_max);
-        m.put("relax_min",        hints.relaxation_factor_min);
-        m.put("backtrack_mp",     hints.back_tracks_multiplier);
-        m.put("localtime_mp",     hints.local_time_multiplier);
-        m.put("total_time",       hints.limit_total_time);
-        m.put("total_txns",       info.workload.getTransactionCount());
-        sb.append(StringUtil.formatMaps(m));
-        sb.append(StringUtil.repeat("-", 65)).append("\n");
-        sb.append(info.workload.getProcedureHistogram());
-        LOG.info("\n" + StringUtil.box(sb.toString(), "+"));
+        Map<String, Object> m[] = new Map[3];
+        m[0] = new ListOrderedMap<String, Object>();
+        m[0].put("# of Transactions",   info.workload.getTransactionCount());
+        m[0].put("Partitions",          CatalogUtil.getNumberOfPartitions(info.catalog_db));
+        m[0].put("Cost Model",          info.getCostModel().getClass().getSimpleName());
+        m[0].put("Intervals",           info.getArgs().num_intervals);
+        m[0].put("Database Total Size", info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
+        m[0].put("Cluster Total Size",  CatalogUtil.getNumberOfPartitions(info.catalog_db) * hints.max_memory_per_partition);
+        m[0].put("Checkpoints Enabled", hints.enable_checkpoints);
+        m[0].put("Greedy Search",       hints.greedy_search);
+        
+        m[1] = new ListOrderedMap<String, Object>();
+        String fields[] = {
+            "relaxation_factor_min",
+            "relaxation_factor_max",
+            "relaxation_factor_min",
+            "back_tracks_multiplier",
+            "local_time_multiplier",
+            "limit_total_time"
+        };     
+        for (String f_name : fields) {
+            Field f = DesignerHints.class.getField(f_name);
+            assert(f != null);
+            m[1].put("hints." + f_name, f.get(hints));
+        } // FOR
+        
+        m[2] = new ListOrderedMap<String, Object>();
+        m[2].put(info.workload.getProcedureHistogram().toString(), null);
+        
+        LOG.info("Starting Large-Neighborhood Search\n" + StringUtil.box(StringUtil.formatMaps(m), "+"));
 
         // DEBUG HEADER ---------------------------------------------------------
         
@@ -362,7 +420,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         if (hints.enable_checkpoints) {
             if (this.checkpoint != null && this.checkpoint.exists()) {
                 this.load(this.checkpoint.getAbsolutePath(), info.catalog_db);
-                LOG.info("Loaded checkpoint from '" + this.checkpoint.getName() + "'");
+                LOG.info("Loaded checkpoint from '" + this.checkpoint + "'");
                 
                 // Important! We need to update the hints based on what's in the checkpoint
                 // We really need to link the hints and the checkpoints better...
@@ -372,9 +430,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Not loading non-existent checkpoint file: " + this.checkpoint);
             }
             if (this.start_time == null && this.last_checkpoint == null) {
-                this.start_time = hints.getStartTime();
+                this.start_time = hints.startGlobalSearchTimer();
+                assert(this.start_time != null);
             } else {
                 LOG.info("Setting checkpoint offset times");
+                assert(hints != null);
+                assert(this.start_time != null) : "Start Time is null";
+                assert(this.last_checkpoint != null) : "Last CheckPoint is null";
                 hints.offsetCheckpointTime(this.start_time, this.last_checkpoint);
             }
         } else {
@@ -399,7 +461,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // Sanity Check!
             this.best_solution.apply(info.catalog_db);
             this.costmodel.clear(true);
-            double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
+            double cost = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
             
             boolean valid = MathUtil.equals(this.best_cost, cost, 2, 0.5);
             LOG.info(String.format("Checkpoint Cost [" + DEBUG_COST_FORMAT + "] <-> Reloaded Cost [" + DEBUG_COST_FORMAT + "] ==> %s",
@@ -411,11 +473,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // Relax and begin the new search!
         this.costmodel.clear(true);
+        this.costmodel.setDebuggingEnabled(true);
         if (this.restart_ctr == null) this.restart_ctr = 0;
         
         final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
         final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
-        
+
+        hints.startGlobalSearchTimer();
         while (true) {
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
             // at the beginning of a restart (or the start of the search). We do *not* want to 
@@ -432,10 +496,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (this.restart_ctr % 3 == 0) {
                 LOG.info("Running sanity check on best solution...");
                 this.costmodel.clear(true);
-                double cost2 = this.costmodel.estimateCost(info.catalog_db, info.workload);
+                double cost2 = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
                 LOG.info(String.format("Before[" + DEBUG_COST_FORMAT + "] <=> After[" + DEBUG_COST_FORMAT + "]", this.best_cost, cost2));
-                boolean valid = MathUtil.equals(this.best_cost, cost2, 2, 0.2);
-                assert(valid) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessages();
+                assert(MathUtil.equals(this.best_cost, cost2, 2, 0.2)) : cost2 + " == " + this.best_cost + "\n" + PartitionPlan.createFromCatalog(info.catalog_db) + "\n" + this.costmodel.getLastDebugMessage();
             }
             
             // Save checkpoint
@@ -445,8 +508,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getName() + "'");
             }
             
+            // Found search target
+            if (this.last_halt_reason == HaltReason.FOUND_TARGET) {
+                LOG.info("Found target PartitionPlan. Halting");
+                break;
+            }
             // Time Limit
-            if (this.last_checkpoint > hints.getGlobalStopTime()) {
+            else if (hints.limit_total_time != null && this.last_checkpoint > hints.getGlobalStopTime()) {
                 LOG.info("Time limit reached: " + hints.limit_total_time + " seconds");
                 break;
             }
@@ -472,15 +540,18 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
 
         // Check whether we have enough memory for the initial solution
         if (hints.max_memory_per_partition > 0) {
-            this.initial_memory = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions) /
-                                  (double)hints.max_memory_per_partition;
+            long total_size = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions);
+            this.initial_memory =  total_size / (double)hints.max_memory_per_partition;
+            if (this.initial_memory > 1.0) {
+                LOG.error("Invalid initial solution. Total size = " + total_size + "\n" + this.initial_solution);
+            }
             assert(this.initial_memory <= 1.0) : "Not enough memory: " + this.initial_memory; // Never should happen!
         } else {
             hints.max_memory_per_partition = 0;
         }
         
         // Now calculate the cost. We do this after the memory estimation so that we don't waste our time if it won't fit
-        this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+        this.initial_cost = this.costmodel.estimateWorkloadCost(this.info.catalog_db, this.info.workload);
         
         // We need to examine whether the solution utilized all of the partitions. If it didn't, then
         // we need to increase the entropy weight in the costmodel. This will help steer us towards 
@@ -501,7 +572,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 
                 LOG.info("Initial Solution has " + untouched_partitions.size() + " unused partitions. New Entropy Weight: " + entropy_weight);
                 this.costmodel.applyDesignerHints(hints);
-                this.initial_cost = this.costmodel.estimateCost(this.info.catalog_db, this.info.workload);
+                this.initial_cost = this.costmodel.estimateWorkloadCost(this.info.catalog_db, this.info.workload);
             }
         }
         
@@ -541,30 +612,50 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         
         // Figure out what how far along we are in the search and use that to determine how many to relax
         int relax_min = (int)Math.round(hints.relaxation_factor_min * num_tables);
-        int relax_max = (int)Math.max(hints.relaxation_min_size, (int)Math.round(hints.relaxation_factor_max * num_tables));
-        
+        int relax_max = (int)Math.round(hints.relaxation_factor_max * num_tables);
+
         // We should probably try to do something smart here, but for now we can just be random
 //        int relax_size = (int)Math.round(RELAXATION_FACTOR_MIN * num_tables) + (restart_ctr / 2);
         double elapsed_ratio = hints.getElapsedGlobalPercent();
-        int relax_size = (int)Math.max(this.last_relax_size, (int)Math.round(((relax_max - relax_min) * elapsed_ratio) + relax_min));
+        int relax_size = Math.max(hints.relaxation_min_size, (int)Math.max(this.last_relax_size, (int)Math.round(((relax_max - relax_min) * elapsed_ratio) + relax_min)));
+
+        if (relax_size > num_tables) relax_size = num_tables;
+//        if (relax_size > relax_max) relax_size = relax_max;
+
+        
+        // Check whether we've already examined all combinations of the tables at this relaxation size
+        // That means we should automatically increase our size
+        if (restart_ctr > 0 && ((relax_size != this.last_relax_size) || (this.relaxed_sets_max != null && this.relaxed_sets_max.intValue() == this.relaxed_sets.size()))) {
+            LOG.info(String.format("Already processed all %s relaxation sets of size %d. Increasing relaxation set size",
+                                   this.relaxed_sets_max, relax_size));
+            this.relaxed_sets_max = null;
+            relax_size++;
+            if (relax_size > num_tables) return (false);
+        }
+        
+        if (this.relaxed_sets_max == null) {
+            // n! / k!(n - k)!
+            BigInteger nFact = MathUtil.factorial(num_tables);
+            BigInteger kFact = MathUtil.factorial(relax_size);
+            BigInteger nminuskFact = MathUtil.factorial(num_tables - relax_size);
+            this.relaxed_sets_max = nFact.divide(kFact.multiply(nminuskFact));
+            this.relaxed_sets.clear();
+        }
         
         // If we exhausted our last search, then we want to make sure we increase our
         // relaxation size... 
 //        if (this.last_halt_reason == HaltReason.EXHAUSTED_SEARCH && relax_size < relax_max) relax_size = this.last_relax_size + 1;
 
-        if (relax_size > num_tables) relax_size = num_tables;
-        if (relax_size > relax_max) relax_size = relax_max;
         
         assert(relax_size >= relax_min)  : "Invalid Relax Size: " + relax_size;
-        assert(relax_size <= relax_max)  : "Invalid Relax Size: " + relax_size;
+        // assert(relax_size <= relax_max)  : "Invalid Relax Size: " + relax_size;
         assert(relax_size > 0)           : "Invalid Relax Size: " + relax_size;
         assert(relax_size <= num_tables) : "Invalid Relax Size: " + relax_size;
         
         if (LOG.isInfoEnabled()) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("LNS RESTART #%03d  [relax_size=%d]\n", restart_ctr, relax_size));
-            
             Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put(" - relaxed_sets", this.relaxed_sets.size());
+            m.put(" - relaxed_sets_max", this.relaxed_sets_max);
             m.put(" - last_relax_size", this.last_relax_size);
             m.put(" - last_halt_reason", this.last_halt_reason);
             m.put(" - last_elapsed_time", this.last_elapsed_time);
@@ -574,27 +665,43 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             m.put(" - limit_back_track", String.format("%.02f", this.last_backtrack_limit));
             m.put(" - best_cost", String.format(DEBUG_COST_FORMAT, this.best_cost));
             m.put(" - best_memory", this.best_memory);
-            sb.append(StringUtil.formatMaps(m));
-            LOG.info("\n" + StringUtil.box(sb.toString(), "+", 125));
+            LOG.info("\n" + StringUtil.box(String.format("LNS RESTART #%03d  [relax_size=%d]\n%s", restart_ctr, relax_size, StringUtil.formatMaps(m)), "+", 125));
         }
 
         // Select which tables we want to relax on this restart
-        List<Table> nonrelaxed_tables = new ArrayList<Table>(this.orig_table_attributes.asList());
-        List<Table> relaxed_tables = new ArrayList<Table>();
-        SortedSet<Integer> rand_idxs = new TreeSet<Integer>(rand.getRandomIntSet(relax_size));
-        LOG.debug("Relaxed Table Identifiers: " + rand_idxs);
-        for (int idx : rand_idxs) {
-            assert(idx < this.orig_table_attributes.size()) : "Random Index is too large: " + idx + " " + this.orig_table_attributes.keySet();
-            Table catalog_tbl = this.orig_table_attributes.get(idx);
-            relaxed_tables.add(catalog_tbl);
-            nonrelaxed_tables.remove(catalog_tbl);
-            this.costmodel.invalidateCache(catalog_tbl);
-        } // FOR
+        // We will keep looking until we find one that we haven't processed before
+        Collection<Table> relaxed_tables = new TreeSet<Table>(Collections.reverseOrder());
+        while (true) {
+            relaxed_tables.clear();
+            Collection<Integer> rand_idxs = rand.getRandomIntSet(relax_size);
+            if (trace.get()) LOG.trace("Relaxed Table Identifiers: " + rand_idxs);
+            for (int idx : rand_idxs) {
+                assert(idx < this.orig_table_attributes.size()) : "Random Index is too large: " + idx + " " + this.orig_table_attributes.keySet();
+                Table catalog_tbl = this.orig_table_attributes.get(idx);
+                relaxed_tables.add(catalog_tbl);    
+            } // FOR (table)
+            if (this.relaxed_sets.contains(relaxed_tables) == false) {
+                break;
+            }
+        } // WHILE
         assert(relaxed_tables.size() == relax_size) : relax_size + " => " + relaxed_tables;
-        LOG.info("Relaxed Tables: " + relaxed_tables);
+        LOG.info("Relaxed Tables: " + CatalogUtil.getDisplayNames(relaxed_tables));
+        this.relaxed_sets.add(relaxed_tables);
         
-        // Shuffle the list
-        Collections.shuffle(relaxed_tables, this.rng);
+        // Now for each of the relaxed tables, figure out what columns we want to consider for swaps
+        table_attributes.clear();
+        proc_attributes.clear();
+        Collection<Table> nonrelaxed_tables = new ArrayList<Table>(this.orig_table_attributes.asList());
+        for (Table catalog_tbl : relaxed_tables) {
+            this.costmodel.invalidateCache(catalog_tbl);
+            
+            nonrelaxed_tables.remove(catalog_tbl);
+            table_attributes.add(catalog_tbl);
+            for (Procedure catalog_proc : this.table_procedures.get(catalog_tbl)) {
+                proc_attributes.add(catalog_proc);
+            } // FOR
+
+        } // FOR
         
         // Now estimate the size of a partition for the non-relaxed tables
         double nonrelaxed_memory = this.info.getMemoryEstimator().estimate(info.catalog_db, this.num_partitions, nonrelaxed_tables) /
@@ -606,17 +713,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // (0) We think we actually need to relax very first time too...
         // (1) Make it less likely that we are going to relax a small/read-only table
         //
-        
-        // Now for each of the relaxed tables, figure out what columns we want to consider for swaps
-        table_attributes.clear();
-        proc_attributes.clear();
-        Collections.shuffle(relaxed_tables);
-        for (Table catalog_tbl : relaxed_tables) {
-            table_attributes.add(catalog_tbl);
-            for (Procedure catalog_proc : this.table_procedures.get(catalog_tbl)) {
-                proc_attributes.add(catalog_proc);
-            } // FOR
-        } // FOR
         
         this.last_relax_size = relax_size;
         return (true);
@@ -675,7 +771,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // -------------------------------
         // GO GO LOCAL SEARCH!!
         // -------------------------------
-        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.single_agraph, table_attributes, proc_attributes);
+        Pair<PartitionPlan, BranchAndBoundPartitioner.StateVertex> pair = this.executeLocalSearch(hints, this.agraph, table_attributes, proc_attributes);
         assert(pair != null);
         PartitionPlan result = pair.getFirst();
         BranchAndBoundPartitioner.StateVertex state = pair.getSecond();
@@ -684,9 +780,10 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Validation
         // -------------------------------
         for (Table catalog_tbl : info.catalog_db.getTables()) {
-            if (orig_solution.containsKey(catalog_tbl)) {
-                assert(catalog_tbl.getPartitioncolumn().equals(orig_solution.get(catalog_tbl))) :
-                    catalog_tbl + " got changed: " + orig_solution.get(catalog_tbl) + " => " + catalog_tbl.getPartitioncolumn();
+            if (catalog_tbl.getSystable() == false && orig_solution.containsKey(catalog_tbl)) {
+                assert(orig_solution.get(catalog_tbl).equals(catalog_tbl.getPartitioncolumn())) :
+                    String.format("%s got changed: %s => %s",
+                                  catalog_tbl, orig_solution.get(catalog_tbl), catalog_tbl.getPartitioncolumn());
             }
         } // FOR
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
@@ -754,7 +851,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     protected Pair<Double, Double> recalculateCost(final DesignerHints hints) throws Exception {
         long memory = info.getMemoryEstimator().estimate(info.catalog_db, this.num_partitions, this.orig_table_attributes.keySet());
         double memory_ratio = memory / (double)hints.max_memory_per_partition;
-        double cost = this.costmodel.estimateCost(info.catalog_db, info.workload);
+        double cost = this.costmodel.estimateWorkloadCost(info.catalog_db, info.workload);
         return (Pair.of(cost, memory_ratio));
     }
     
@@ -810,7 +907,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             // Now loop through the ProcParameters and figure out which ones are correlated to the Column
             for (ProcParameter catalog_proc_param : catalog_proc.getParameters()) {
                 // Skip if this is an array
-                if (hints.allow_array_procparameter_candidates == false && catalog_proc_param.getIsarray()) continue;
+                if (hints.enable_array_procparameter_candidates == false && catalog_proc_param.getIsarray()) continue;
                 
                 if (!param_weights.containsKey(catalog_proc_param)) {
                     param_weights.put(catalog_proc_param, new ArrayList<Double>());
@@ -840,7 +937,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         }
         Map<ProcParameter, Double> sorted = CollectionUtil.sortByValues(final_param_weights, true);
         assert(sorted != null);
-        ProcParameter best_param = CollectionUtil.getFirst(sorted.keySet());
+        ProcParameter best_param = CollectionUtil.first(sorted.keySet());
         if (debug.get()) LOG.debug("Best Param: " + best_param  + " " + sorted);
         return (best_param);
     }

@@ -20,7 +20,7 @@ import org.voltdb.catalog.*;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.BaseTestCase;
-import edu.brown.benchmark.auctionmark.procedures.GetWatchedItems;
+import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
 import edu.mit.hstore.dtxn.DependencyInfo;
@@ -35,8 +35,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
     
-    private static final String TARGET_PROCEDURE = GetWatchedItems.class.getSimpleName();
-    private static final String TARGET_STATEMENT = "select_watched_items";
+    private static final String TARGET_PROCEDURE = GetUserInfo.class.getSimpleName();
+    private static final String TARGET_STATEMENT = "getWatchedItems";
     private static final int NUM_DUPLICATE_STATEMENTS = 1;
     
     private static final int NUM_PARTITIONS = 10;
@@ -152,7 +152,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // and make sure that the things get unblocked at the right time
         // (1) Add a result for the first output dependency
         assertEquals(1, this.first_tasks.size());
-        FragmentTaskMessage first_ftask = CollectionUtil.getFirst(this.first_tasks);
+        FragmentTaskMessage first_ftask = CollectionUtil.first(this.first_tasks);
         assertNotNull(first_ftask);
         int partition = first_ftask.getDestinationPartitionId();
         int first_output_dependency_id = first_ftask.getOutputDepId(0);
@@ -164,7 +164,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
-        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.getFirst(first_dinfo.getBlockedFragmentTaskMessages()).getOutputDepId(0));
+        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.first(first_dinfo.getBlockedFragmentTaskMessages()).getOutputDepId(0));
         for (FragmentTaskMessage ftask : first_dinfo.getBlockedFragmentTaskMessages()) {
             assertFalse(second_dinfo.hasTasksReady());
             partition = ftask.getDestinationPartitionId();   
