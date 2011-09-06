@@ -33,7 +33,7 @@ public class TestHStoreConf extends BaseTestCase {
      * testMakeHTML
      */
     public void testMakeHTML() throws Exception {
-        for (String prefix : new String[]{ "global", "site", "coordinator", "client" }) {
+        for (String prefix : new String[]{ "global", "client", "site", "coordinator" }) {
             String contents = hstore_conf.makeHTML(prefix);
             assertNotNull(contents);
             System.err.println(contents);

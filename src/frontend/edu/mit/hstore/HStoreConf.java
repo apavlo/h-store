@@ -38,7 +38,7 @@ public final class HStoreConf {
     public final class GlobalConf extends Conf {
         
         @ConfigProperty(
-            description="Temporary directory used to store various artifacts",
+            description="Temporary directory used to store various artifacts related to H-Store.",
             defaultString="/tmp/hstore"
         )
         public String temp_dir = "/tmp/hstore";
@@ -63,7 +63,7 @@ public final class HStoreConf {
     public final class SiteConf extends Conf {
     
         @ConfigProperty(
-            description="Site log directory",
+            description="HStoreSite log directory on the host that the BenchmarkController is invoked from.",
             defaultString="${global.temp_dir}/logs/sites",
             advanced=false
         )
@@ -215,59 +215,43 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
-            description="Max size of queued transactions before we stop accepting new requests and throttle clients",
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=1000,
             advanced=false
         )
         public int txn_incoming_queue_max_per_partition;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+                        "will not accept new requests until the number of queued transactions is less than " +
+                        "this percentage. " +
+                        "The incoming queue release is calculated as " +
+                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
             defaultDouble=0.25,
             advanced=false
         )
         public double txn_incoming_queue_release_factor;
         
         @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_incoming_queue_max;
-
-        @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_incoming_queue_release;  
-        
-        @ConfigProperty(
-            description="Max size of the total transaction queue per partition before we stop accepting redirected requests",
+            description="Max size of the total transaction queue per partition before an HStoreSite will stop " +
+                        "accepting redirected requests from other HStoreSites.",
             defaultInt=2000,
             advanced=false
         )
         public int txn_redirect_queue_max_per_partition;
         
         @ConfigProperty(
-            description="", // TODO
+            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
+                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
+                        "includes all transactions that are waiting to be executed, executing, and those that " +
+                        "have already executed and are waiting for their results to be sent back to the client. " +
+                        "The redirect queue release is calculated as " +
+                        "${site.txn_redirect_queue_max} * ${site.txn_redirect_queue_release_factor}",
             defaultDouble=0.50,
             advanced=false
         )
         public double txn_redirect_queue_release_factor;
-        
-        @ConfigProperty(
-            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
-                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
-                        "includes all transactions that are waiting to be executed, executing, and those that " +
-                        "have already executed and are waiting for their results to be sent back to the client.",
-            computed=true
-        )
-        public int txn_redirect_queue_max;
-
-        @ConfigProperty(
-            description="", // TODO
-            computed=true
-        )
-        public int txn_redirect_queue_release;
         
         @ConfigProperty(
             description="Allow queued distributed transctions to be rejected.",
@@ -524,7 +508,8 @@ public final class HStoreConf {
     public final class CoordinatorConf extends Conf {
         
         @ConfigProperty(
-            description="Dtxn.Coordinator Log Directory",
+            description="Dtxn.Coordinator log directory  on the host that the BenchmarkController " +
+                        "is invoked from.",
             defaultString="${global.temp_dir}/logs/coordinator",
             advanced=false
         )
@@ -558,7 +543,8 @@ public final class HStoreConf {
     public final class ClientConf extends Conf {
         
         @ConfigProperty(
-            description="Benchmark client log directory",
+            description="Benchmark client log directory on the host that the BenchmarkController " +
+                        "is invoked from.",
             defaultString="${global.temp_dir}/logs/clients",
             advanced=false
         )
@@ -579,8 +565,10 @@ public final class HStoreConf {
         public String host = HStoreConf.this.global.defaulthost;
 
         @ConfigProperty(
-            description="The number of txns that client process submits (per ms). If ${client.blocking} " +
-                        "is disabled, then the total transaction rate for a benchmark run is " +
+            description="The number of txns that client process submits (per ms). The underlying " +
+                        "BenchmarkComponent will continue invoke the client driver's runOnce() method " +
+                        "until it has submitted enough transactions to satisfy ${client.txnrate}. " +
+                        "If ${client.blocking} is disabled, then the total transaction rate for a benchmark run is " +
                         "${client.txnrate} * ${client.processesperclient} * ${client.count}.",
             defaultInt=10000,
             advanced=false
@@ -931,23 +919,6 @@ public final class HStoreConf {
      * @param catalog_site
      */
     protected void computeDerivedValues(Site catalog_site) {
-        int local_partitions = 1;
-        
-        if (catalog_site != null) {
-            
-            // Partitions at this site
-            local_partitions = catalog_site.getPartitions().size();
-            
-        }
-        
-        // Compute Parameters
-        site.txn_incoming_queue_max = Math.round(local_partitions * site.txn_incoming_queue_max_per_partition);
-        site.txn_incoming_queue_release = Math.max((int)(site.txn_incoming_queue_max * site.txn_incoming_queue_release_factor), 1);
-
-        site.txn_redirect_queue_max = Math.round(local_partitions * site.txn_redirect_queue_max_per_partition);
-        site.txn_redirect_queue_release = Math.max((int)(site.txn_redirect_queue_max * site.txn_redirect_queue_release_factor), 1);
-
-        
         // Negate Parameters
         if (site.exec_neworder_cheat) {
             site.exec_force_singlepartitioned = false;
@@ -958,8 +929,6 @@ public final class HStoreConf {
     private Object getDefaultValue(Field f, ConfigProperty cp) {
         Class<?> f_class = f.getType();
         Object value = null;
-        
-        if (cp.computed()) return (null);
         
         if (f_class.equals(int.class)) {
             value = cp.defaultInt();

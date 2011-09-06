@@ -269,10 +269,12 @@ public class VerticalPartitionPlanner {
                 if (debug.get())
                     LOG.warn("Vertical Partition columns do not contain output columns");
             }
+            /** Is this needed?
             else if (stmt_cols.contains(partitioning_col) == true) {
                 if (debug.get())
                     LOG.warn("Statement Columns contains horizontal partition column");
             }
+            **/
             else if (view_cols.containsAll(stmt_cols) == false) {
                 if (debug.get())
                     LOG.warn("The Vertical Partition Columns does not contain all of the Statement Columns " + CollectionUtils.subtract(view_cols, stmt_cols));
