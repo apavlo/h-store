@@ -7,7 +7,6 @@ import org.junit.Test;
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 
 public class TestWorkloadFile extends BaseTestCase {
@@ -15,7 +14,7 @@ public class TestWorkloadFile extends BaseTestCase {
     protected static final int WORKLOAD_XACT_LIMIT = 5000;
     protected static final int NUM_PARTITIONS = 10;
     protected static final int BASE_PARTITION = 0;
-    protected static final int NUM_INTERVALS  = 50;
+    protected static final int NUM_INTERVALS  = 40;
     
     // Reading the workload takes a long time, so we only want to do it once
     protected static Workload workload;
@@ -30,7 +29,9 @@ public class TestWorkloadFile extends BaseTestCase {
             workload_file = this.getWorkloadFile(ProjectType.TPCC); 
             workload = new Workload(catalog);
             
-            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
+            ProcedureLimitFilter filter = new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT);
+            filter.setOffset(2000);
+            ((Workload)workload).load(workload_file.getAbsolutePath(), catalog_db, filter);
             assert(workload.getTransactionCount() > 0) : "No transaction loaded from workload";
             assertEquals(WORKLOAD_XACT_LIMIT, workload.getTransactionCount());
         }

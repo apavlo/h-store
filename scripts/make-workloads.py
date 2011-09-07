@@ -53,7 +53,7 @@ HSTORE_OPTS = {
     "client.txnrate":               1000,
     "client.blocking":              False,
     "client.blocking_concurrent":   1000,
-    "client.scalefactor":           20,
+    "client.scalefactor":           100,
 }
 
 ## ==============================================

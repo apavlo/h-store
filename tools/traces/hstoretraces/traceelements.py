@@ -235,14 +235,12 @@ class QueryTrace(AbstractTraceElement):
     
     def toJSON(self):
         data = AbstractTraceElement.toJSON(self)
-        data["PROC_NAME"] = self.proc_name
         data["BATCH_ID"] = self.batch_id
         return (data)
     ## DEF
     
     def fromJSON(self, data):
         super(QueryTrace, self).fromJSON(data)
-        self.proc_name = data["PROC_NAME"]
         self.batch_id = data["BATCH_ID"]
         return (self)
     ## DEF

@@ -1,7 +1,6 @@
 package edu.brown.workload;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -210,24 +209,39 @@ public class WorkloadSummarizer {
         String sig = (element.aborted ? "ABRT-" : "");
         if (target_params != null) {
             AbstractHasher hasher = p_estimator.getHasher();
+            boolean first = true;
             for (CatalogType catalog_param : target_params) {
-                Object val = null;
+                if (first == false) sig += "|";
+                
+                // StmtParameter
                 if (catalog_param instanceof StmtParameter) {
                     int idx = ((StmtParameter)catalog_param).getIndex();
-                    val = params[idx];
+                    sig += hasher.hash(params[idx]);
+                // ProcParameter
                 } else if (catalog_param instanceof ProcParameter) {
                     ProcParameter catalog_procparam = (ProcParameter)catalog_param;
                     int idx = catalog_procparam.getIndex();
+                    
+                    // ARRAY
                     if (catalog_procparam.getIsarray()) {
-                        val = Arrays.toString((Object[])params[idx]); // HACK
+                        Set<Integer> hashes = new TreeSet<Integer>();
+                        for (Object o : (Object[])params[idx]) {
+                            hashes.add(hasher.hash(o));
+                        } // FOR
+                        boolean first_hash = true;
+                        for (Integer hash : hashes) {
+                            if (first_hash == false) sig += ","; 
+                            sig += hash;
+                            first_hash = false;
+                        } // FOR
+                    // SCALAR
                     } else {
-                        val = params[idx];
+                        sig += hasher.hash(params[idx]);
                     }
                 } else {
                     assert(false) : "Unexpected: " + catalog_param;
                 }
-//                assert(idx < params.length);
-                sig += (sig.isEmpty() ? "" : "|") + hasher.hash(val);
+                first = false;
             } // FOR
         }
         return (sig);
