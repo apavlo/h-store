@@ -312,7 +312,10 @@ public abstract class WorkloadUtil {
      */
     public static Histogram<String> getProcedureHistogram(File workload_path) throws Exception {
         final Histogram<String> h = new Histogram<String>();
-        final String regex = "^\\{[\\s]*\"" +
+        final String regex = "^\\{[\\s]*" +
+                             // Old Format: Start with an ID#
+                             "(\"ID\":[\\d]+,)?" +
+                             "\"" +
                              AbstractTraceElement.Members.NAME.name() +
                              "\":[\\s]*\"([\\w\\d]+)\"[\\s]*,[\\s]*.*";
         final Pattern p = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
@@ -327,7 +330,7 @@ public abstract class WorkloadUtil {
             assert(m.matches()) : "Invalid Line #" + line_ctr + " [" + workload_path + "]\n" + line;
             if (m.groupCount() > 0) {
                 try {
-                    h.put(m.group(1));
+                    h.put(m.group(2));
                 } catch (IllegalStateException ex) {
                     LOG.error("Invalud Workload Line: " + line, ex);
                     System.exit(1);
