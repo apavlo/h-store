@@ -386,8 +386,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m[0].put("Partitions",          CatalogUtil.getNumberOfPartitions(info.catalog_db));
         m[0].put("Cost Model",          info.getCostModel().getClass().getSimpleName());
         m[0].put("Intervals",           info.getArgs().num_intervals);
-        m[0].put("Database Total Size", info.getMemoryEstimator().estimateTotalSize(info.catalog_db));
-        m[0].put("Cluster Total Size",  CatalogUtil.getNumberOfPartitions(info.catalog_db) * hints.max_memory_per_partition);
+        m[0].put("Database Total Size", StringUtil.formatSize(info.getMemoryEstimator().estimateTotalSize(info.catalog_db)));
+        m[0].put("Cluster Total Size",  StringUtil.formatSize(CatalogUtil.getNumberOfPartitions(info.catalog_db) * hints.max_memory_per_partition));
         m[0].put("Checkpoints Enabled", hints.enable_checkpoints);
         m[0].put("Greedy Search",       hints.greedy_search);
         
@@ -543,7 +543,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             long total_size = this.info.getMemoryEstimator().estimate(this.info.catalog_db, this.num_partitions);
             this.initial_memory =  total_size / (double)hints.max_memory_per_partition;
             if (this.initial_memory > 1.0) {
-                LOG.error("Invalid initial solution. Total size = " + total_size + "\n" + this.initial_solution);
+                LOG.error("Invalid initial solution. Total size = " + StringUtil.formatSize(total_size) + "\n" + this.initial_solution);
             }
             assert(this.initial_memory <= 1.0) : "Not enough memory: " + this.initial_memory; // Never should happen!
         } else {

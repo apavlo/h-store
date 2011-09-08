@@ -3,6 +3,7 @@ package edu.brown.utils;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -28,6 +29,27 @@ public abstract class StringUtil {
     private static Integer CACHE_REPEAT_SIZE = null;
     private static String CACHE_REPEAT_RESULT = null;
 
+    private static final double BASE = 1024, KB = BASE, MB = KB*BASE, GB = MB*BASE;
+    private static final DecimalFormat df = new DecimalFormat("#.##");
+
+    /**
+     * http://ubuntuforums.org/showpost.php?p=10215516&postcount=5
+     * @param bytes
+     * @return
+     */
+    public static String formatSize(double bytes) {
+        if (bytes >= GB) {
+            return df.format(bytes / GB) + " GB";
+        }
+        else if (bytes >= MB) {
+            return df.format(bytes / MB) + " MB";
+        }
+        else if (bytes >= KB) {
+            return df.format(bytes / KB) + " KB";
+        }
+        return "" + (int) bytes + " bytes";
+    }
+    
     /**
      * 
      * @param str

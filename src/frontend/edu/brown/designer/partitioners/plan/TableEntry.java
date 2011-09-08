@@ -52,6 +52,10 @@ public class TableEntry extends PartitionEntry<Column> {
         } // SWITCH
     }
     
+    public TableEntry(PartitionMethodType method, Column catalog_col) {
+        this(method, catalog_col, null, null);
+    }
+    
     /**
      * Should the table for this entry be replicated? 
      * @return

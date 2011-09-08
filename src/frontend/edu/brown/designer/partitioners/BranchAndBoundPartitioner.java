@@ -654,7 +654,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     remaining_tables.add(catalog_tbl);
                 }
                 // Include the vertical partition for any table that is not in our search neighborhood
-                else if (hints.enable_vertical_partitioning && vps.containsKey(catalog_tbl)) {
+                else if (hints.enable_vertical_partitioning && vps.containsKey(catalog_tbl) && catalog_tbl.getPartitioncolumn() instanceof VerticalPartitionColumn) {
                     MaterializedViewInfo catalog_view = vps.get(catalog_tbl);
                     assert(catalog_view != null);
                     assert(catalog_view.getDest() != null);
@@ -819,8 +819,8 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
             // Descendant tables used for memory calculations
             // It's ok for it to be empty. That means we're searching against all of tables
-            Set<Table> all_tables = this.previous_tables[idx];
-            assert(all_tables != null) : String.format("No previous tables at index %d? [current=%s, num_tables=%d]", idx, current, num_tables);
+            Set<Table> current_previousTables = this.previous_tables[idx];
+            assert(current_previousTables != null) : String.format("No previous tables at index %d? [current=%s, num_tables=%d]", idx, current, num_tables);
             
             // The local best vertex is the best vertex for this level in the traversal
             StateVertex local_best_vertex = null;
@@ -912,27 +912,26 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         "Unexpected " + current_col.fullName() + " != " + current_tbl.getPartitioncolumn().fullName();
                     
                     // Estimate memory size
-                    if (trace.get()) LOG.trace(String.format("Calculating memory size of current solution [%s]: %s", current_col.fullName(), all_tables));
-                    
                     Collection<Table> tablesToEstimate = null;
                     if (hints.enable_vertical_partitioning && this.current_vertical_partitions.isEmpty() == false) {
-                        tablesToEstimate = CollectionUtils.union(all_tables, this.current_vertical_partitions);
+                        tablesToEstimate = CollectionUtils.union(current_previousTables, this.current_vertical_partitions);
                     } else {
-                        tablesToEstimate = all_tables;
+                        tablesToEstimate = current_previousTables;
                     }
+                    if (trace.get()) 
+                        LOG.trace(String.format("Calculating memory size of current solution [%s]:\n%s", current_col.fullName(), StringUtil.join("\n", current_previousTables)));
                     try {
                         memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), tablesToEstimate);
                     } catch (Throwable ex) {
                         throw new RuntimeException("Failed to estimate memory using new attribute " + current_col.fullName(), ex);
                     }
                     memory_exceeded = (memory > this.hints.max_memory_per_partition);
-                    if (memory_exceeded) {
-                        double ratio = memory / (double)hints.max_memory_per_partition;
-                        if (debug.get()) 
-                            LOG.info(String.format("%s Memory: %d [ratio=%.2f, exceeded=%s]",
-                                                   current_col.fullName(), memory, ratio, memory_exceeded));
-                    }
-                    
+                    if (trace.get()) 
+                        LOG.trace(String.format("%s Memory: %s [ratio=%.2f, exceeded=%s]",
+                                               current_col.fullName(),
+                                               StringUtil.formatSize(memory),
+                                               memory / (double)hints.max_memory_per_partition,
+                                               memory_exceeded));
                     current_attribute = current_col;
                     
                 // ----------------------------------------------

@@ -81,15 +81,15 @@ public abstract class VerticalPartitionerUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<VerticalPartitionColumn> generateCandidates(final Column hp_col, final WorkloadStatistics stats) throws Exception {
-        final Table catalog_tbl = hp_col.getParent();
+    public static Collection<VerticalPartitionColumn> generateCandidates(final Column partition_col, final WorkloadStatistics stats) throws Exception {
+        final Table catalog_tbl = partition_col.getParent();
         final Database catalog_db = catalog_tbl.getParent();
         final Set<VerticalPartitionColumn> candidates = new ListOrderedSet<VerticalPartitionColumn>();
         
         // If the horizontal partition column is null, then there can't be any vertical partition columns
-        if (hp_col.getNullable()) {
+        if (partition_col.getNullable()) {
             if (debug.get())
-                LOG.warn("The horizontal partition column " + hp_col.fullName() + " is nullable. Skipping candidate generation");
+                LOG.warn("The horizontal partition column " + partition_col.fullName() + " is nullable. Skipping candidate generation");
             return (candidates);
         }
         
@@ -99,7 +99,7 @@ public abstract class VerticalPartitionerUtil {
         // For the given Column object, figure out what are the potential vertical partitioning candidates
         // if we assume that the Table is partitioned on that Column
         if (debug.get()) {
-            LOG.debug(String.format("Generating VerticalPartitionColumn candidates based on using %s as the horizontal partitioning attribute", hp_col.fullName()));
+            LOG.debug(String.format("Generating VerticalPartitionColumn candidates based on using %s as the horizontal partitioning attribute", partition_col.fullName()));
             LOG.trace(catalog_tbl + " Read-Only Columns: " + CatalogUtil.debug(readOnlyColumns));
         }
         for (Procedure catalog_proc : CatalogUtil.getReferencingProcedures(catalog_tbl)) {
@@ -110,9 +110,9 @@ public abstract class VerticalPartitionerUtil {
                 // between the candidate partitioning column and our target column
                 if (catalog_stmt.getQuerytype() != QueryType.SELECT.getValue()) continue;
                 Collection<Column> output_cols = PlanNodeUtil.getOutputColumnsForStatement(catalog_stmt);
-                if (hp_col instanceof MultiColumn) {
-                    if (output_cols.containsAll((MultiColumn)hp_col) == false) continue;
-                } else if (output_cols.contains(hp_col) == false) continue;
+                if (partition_col instanceof MultiColumn) {
+                    if (output_cols.containsAll((MultiColumn)partition_col) == false) continue;
+                } else if (output_cols.contains(partition_col) == false) continue;
                 
                 // Skip if this thing is just dumping out all columns
                 if (output_cols.size() == catalog_tbl.getColumns().size()) continue;
@@ -124,15 +124,15 @@ public abstract class VerticalPartitionerUtil {
                 // The referenced columns are the columns that are used in the predicate and order bys
                 Collection<Column> stmt_cols = CollectionUtils.union(CatalogUtil.getReferencedColumns(catalog_stmt),
                                                                      CatalogUtil.getOrderByColumns(catalog_stmt));
-                if (stmt_cols.contains(hp_col)) continue;
+                if (stmt_cols.contains(partition_col)) continue;
                 
                 // Vertical Partition Columns
                 Set<Column> all_cols = new TreeSet<Column>();
                 all_cols.addAll(stmt_cols);
-                if (hp_col instanceof MultiColumn) {
-                    all_cols.addAll(((MultiColumn)hp_col).getAttributes());    
+                if (partition_col instanceof MultiColumn) {
+                    all_cols.addAll(((MultiColumn)partition_col).getAttributes());    
                 } else {
-                    all_cols.add(hp_col);
+                    all_cols.add(partition_col);
                 }
                 
                 // Include any read-only output columns
@@ -140,26 +140,28 @@ public abstract class VerticalPartitionerUtil {
                     if (readOnlyColumns.contains(col)) all_cols.add(col);
                 } // FOR
                 
-                if (hp_col instanceof MultiColumn) {
-                    MultiColumn mc = (MultiColumn)hp_col;
+                if (partition_col instanceof MultiColumn) {
+                    MultiColumn mc = (MultiColumn)partition_col;
                     if (mc.size() == all_cols.size()) {
                         boolean foundAll = true;
                         for (Column col : mc) {
                             foundAll = all_cols.contains(col) && foundAll;
                         } // FOR
-                        assert(foundAll) : mc + "\n" + all_cols;
+                        if (foundAll) continue;
+//                        assert(foundAll) : mc + "\n" + all_cols;
                     }
                 }
                 MultiColumn vp_col = MultiColumn.get(all_cols.toArray(new Column[all_cols.size()]));
-                VerticalPartitionColumn vpc = VerticalPartitionColumn.get(hp_col, vp_col);
-                assert(vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", hp_col, vp_col);
+                assert(partition_col.equals(vp_col) == false) : vp_col;
+                VerticalPartitionColumn vpc = VerticalPartitionColumn.get(partition_col, vp_col);
+                assert(vpc != null) : String.format("Failed to get VerticalPartition column for <%s, %s>", partition_col, vp_col);
                 candidates.add(vpc);
                 
                 if (debug.get()) {
                     Map<String, Object> m = new ListOrderedMap<String, Object>();
                     m.put("Output Columns", output_cols);
                     m.put("Predicate Columns", stmt_cols);
-                    m.put("Horizontal Partitioning", hp_col.fullName());
+                    m.put("Horizontal Partitioning", partition_col.fullName());
                     m.put("Vertical Partitioning", vp_col.fullName());
                     LOG.debug("Vertical Partition Candidate: " + catalog_stmt.fullName() + "\n" + StringUtil.formatMaps(m));
                 }
