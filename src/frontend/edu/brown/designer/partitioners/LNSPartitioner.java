@@ -431,7 +431,6 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             }
             if (this.start_time == null && this.last_checkpoint == null) {
                 this.start_time = hints.startGlobalSearchTimer();
-                assert(this.start_time != null);
             } else {
                 LOG.info("Setting checkpoint offset times");
                 assert(hints != null);
@@ -439,6 +438,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 assert(this.last_checkpoint != null) : "Last CheckPoint is null";
                 hints.offsetCheckpointTime(this.start_time, this.last_checkpoint);
             }
+            assert(this.start_time != null);
         } else {
             LOG.info("Checkpoints disabled");
         }
