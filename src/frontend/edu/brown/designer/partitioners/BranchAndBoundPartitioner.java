@@ -876,8 +876,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         }
                         TableStatistics tstats = VerticalPartitionerUtil.computeTableStatistics(vp_col, info.stats);
                         assert(tstats != null);
-                        LOG.info("TABLES: " + info.catalog_db.getTables());
-                        LOG.info(tstats.debug(info.catalog_db));
                         // Add the vp's sys table to the list of tables that we need to estimate the memory
                         assert(catalog_view.getDest() != null) : "Missing parent table for " + catalog_view.fullName();
                         assert(this.current_vertical_partitions.contains(catalog_view.getDest()) == false) : vp_col;
