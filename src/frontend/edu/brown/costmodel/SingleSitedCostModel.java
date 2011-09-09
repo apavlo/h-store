@@ -177,7 +177,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             return (this.total_queries == this.examined_queries);
         }
 
-        public boolean isSingleSited() {
+        public boolean isSinglePartitioned() {
             return this.singlesited;
         }
         protected void setSingleSited(boolean singlesited) {

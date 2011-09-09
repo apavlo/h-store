@@ -25,7 +25,6 @@ import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.ColumnSet;
-import edu.brown.designer.DesignerUtil;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -444,7 +443,7 @@ public class PartitionEstimator {
                 // If it's not in there, then this query has to be broadcasted to all nodes
                 // Note that we pass all the tables that are part of the fragment, since we need
                 // to be able to handle joins
-                ColumnSet cset = DesignerUtil.extractFragmentColumnSet(catalog_frag, false, tables_arr);
+                ColumnSet cset = CatalogUtil.extractFragmentColumnSet(catalog_frag, false, tables_arr);
                 assert(cset != null);
                 Map<Column, Set<Column>> column_joins = new TreeMap<Column, Set<Column>>();
                 if (trace.get()) LOG.trace("Extracted Column Set for " + Arrays.toString(tables_arr) + ":\n" + cset.debug());
@@ -583,7 +582,7 @@ public class PartitionEstimator {
                     tables.clear();
                     tables.add(catalog_tbl);
                     AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
-                    DesignerUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, update_cset, root_node, true, tables);
+                    CatalogUtil.extractUpdateColumnSet(catalog_stmt, catalog_db, update_cset, root_node, true, tables);
 
                     boolean found = false;
                     for (ColumnSet.Entry entry : update_cset) {

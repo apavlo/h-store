@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -151,7 +152,7 @@ public class VerticalPartitionColumn extends MultiColumn {
         return (this.applied);
     }
     
-    public MaterializedViewInfo createMaterializedView() {
+    public synchronized MaterializedViewInfo createMaterializedView() {
         Table catalog_tbl = this.getParent();
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
         if (catalog_view == null || catalog_view.getDest() == null) {
@@ -193,8 +194,17 @@ public class VerticalPartitionColumn extends MultiColumn {
             catalog_tbl.getViews().add(this.catalog_view, false);
         }
         assert(this.catalog_view != null);
-        validate(catalog_view, catalog_tbl);
             
+        // Make sure that the view's destination table is in the catalog
+        Database catalog_db = CatalogUtil.getDatabase(catalog_view);
+        if (catalog_db.getTables().contains(catalog_view.getDest()) == false) {
+            if (debug.get())
+                LOG.debug("Adding back " + catalog_view.getDest() + " to catalog");
+            catalog_db.getTables().add(catalog_view.getDest(), false);
+        } else if (debug.get()) {
+            LOG.debug(String.format("%s already exists in catalog %s", catalog_view.getDest(), catalog_db.getTables()));
+        }
+        
         // Apply the new Statement query plans
         if (debug.get() && this.optimized.isEmpty()) {
             LOG.warn("There are no optimized query plans for " + this.fullName());
@@ -220,6 +230,8 @@ public class VerticalPartitionColumn extends MultiColumn {
             CatalogUtil.copyQueryPlans(e.getValue(), e.getKey());
         } // FOR
         this.applied = true;
+        
+        validate(catalog_view, catalog_tbl);
         return (this.catalog_view);
     }
     
@@ -251,9 +263,12 @@ public class VerticalPartitionColumn extends MultiColumn {
     }
     
     private static void validate(MaterializedViewInfo catalog_view, Table catalog_tbl) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_tbl);
         assert(catalog_view.getVerticalpartition());
         assert(catalog_view.getDest() != null) : 
             String.format("MaterializedViewInfo %s for %s is missing destination table!", catalog_view.fullName(), catalog_tbl);
+        assert(catalog_db.getTables().contains(catalog_view.getDest())) : 
+            String.format("MaterializedViewInfo %s for %s is missing destination table! %s", catalog_view.fullName(), catalog_tbl, catalog_db.getTables());
         assert(catalog_view.getGroupbycols().isEmpty() == false) :
             String.format("MaterializedViewInfo %s for %s is missing groupby columns!", catalog_view.fullName(), catalog_tbl);
         assert(catalog_view.getDest().getColumns().isEmpty() == false) :

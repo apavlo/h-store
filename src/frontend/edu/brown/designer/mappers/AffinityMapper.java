@@ -133,7 +133,7 @@ public class AffinityMapper extends AbstractMapper {
             if (! (element instanceof TransactionTrace) ) continue;
             TransactionTrace xact = (TransactionTrace)element;
             SingleSitedCostModel.TransactionCacheEntry xact_cost = null; // FIXME cost_model.getTransactionCacheEntry(xact);
-            if (xact_cost.isSingleSited()) continue;
+            if (xact_cost.isSinglePartitioned()) continue;
             multisite_xacts.add(xact);
             
             //System.out.println(xact + "\n" + xact_cost);

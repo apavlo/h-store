@@ -14,6 +14,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.*;
+import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
@@ -61,7 +63,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     /**
      * When we started keeping track of time
      */
-    private transient Long start_time = null;
+    private transient TimestampType start_time = null;
     
     /**
      * The FileWriter handle where we dump out new solutions
@@ -285,6 +287,10 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public String getSourceFile() {
         return (this.source_file);
     }
+    
+    // --------------------------------------------------------------------------------------------
+    // COST LOGGING
+    // --------------------------------------------------------------------------------------------
 
     public boolean shouldLogSolutionCosts() {
         return (this.log_solutions_costs != null);
@@ -305,7 +311,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
                 this.log_solutions_costs_writer.write("-- " + (new Date().toString()) + "\n");
                 LOG.info("Creating solution costs log file: " + file.getAbsolutePath());
             }
-            long offset = System.currentTimeMillis() - this.startGlobalSearchTimer();
+            long offset = System.currentTimeMillis() - this.startGlobalSearchTimer().getMSTime();
             this.log_solutions_costs_writer.write(String.format("%d\t%.05f\n", offset, cost));
             this.log_solutions_costs_writer.flush();
         } catch (Exception ex) {
@@ -313,59 +319,111 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         }
     }
     
+    // --------------------------------------------------------------------------------------------
+    // GLOBAL & LOCAL SEARCH TIMERS
+    // --------------------------------------------------------------------------------------------
+    
     /**
      * We're coming in after a checkpoint restart, so we need to offset
      * the total time by the time that already elapsed
      * @param orig_start_time
      * @param last_checkpoint
      */
-    public void offsetCheckpointTime(long orig_start_time, long last_checkpoint) {
-        assert(last_checkpoint > orig_start_time);
-        int delta = (int)(last_checkpoint - orig_start_time) / 1000;
+    public void offsetCheckpointTime(TimestampType orig_start_time, TimestampType last_checkpoint) {
+        assert(last_checkpoint.getTime() > orig_start_time.getTime());
+        int delta = (int)(last_checkpoint.getMSTime() - orig_start_time.getMSTime()) / 1000;
         this.limit_total_time -= delta;
     }
-    
     
     /**
      * Start the timer used to keep track of how long we are searching for solutions
      */
-    public Long startGlobalSearchTimer() {
+    public TimestampType startGlobalSearchTimer() {
         if (this.start_time == null) {
-            this.start_time = System.currentTimeMillis();
+            this.start_time = new TimestampType();
         }
         return (this.start_time);
     }
     
-    public Long getStartTime() {
+    public TimestampType getStartTime() {
         return (this.start_time);
     }
     
-    public long getGlobalStopTime() {
+    public TimestampType getGlobalStopTime() {
         long stop = Long.MAX_VALUE;
         if (this.limit_total_time != null) {
             stop = (this.limit_total_time * 1000);
         }
-        return (this.start_time + stop);
+        return new TimestampType((this.startGlobalSearchTimer().getMSTime() + stop) * 1000);
     }
     
+    /**
+     * Return the amount of time remaining (in ms) for the global search process
+     * @return
+     */
     public long getRemainingGlobalTime() {
-        return (this.getGlobalStopTime() - System.currentTimeMillis());
+        return (this.getGlobalStopTime().getMSTime() - System.currentTimeMillis());
     }
     
-    public double getElapsedGlobalPercent() {
-        long now = System.currentTimeMillis();
-        return Math.abs((now - this.getStartTime()) / (double)(this.getGlobalStopTime() - this.getStartTime()));
-    }
-    
-    public long getNextLocalStopTime() {
+    public TimestampType getNextLocalStopTime() {
         long now = System.currentTimeMillis();
         long stop = Long.MAX_VALUE;
         if (this.limit_local_time != null) {
             stop = (this.limit_local_time * 1000);
         }
-        return (now + stop);
+        return new TimestampType((now + stop) * 1000);
     }
-
+    
+    /**
+     * Returns the next stop time for the current time.
+     * This will the global stop time if that comes before the next local stop time
+     * @return Next stop timestamp, True if it was the local time
+     */
+    public Pair<TimestampType, Boolean> getNextStopTime() {
+        TimestampType next = null;
+        Boolean is_local = null; 
+        TimestampType stop_local = null;
+        TimestampType stop_total = null;
+        
+        if (this.limit_local_time != null && this.limit_local_time >= 0) {
+            stop_local = this.getNextLocalStopTime(); 
+        }
+        if (this.limit_total_time != null && this.limit_total_time >= 0) {
+            stop_total = this.getGlobalStopTime();
+        }
+        if (stop_local != null && stop_total != null) {
+            if (stop_local.compareTo(stop_total) < 0) {
+                next = stop_local;
+                is_local = true;
+            } else {
+                next = stop_total;
+                is_local = false;
+            }
+        } else if (stop_local != null) {
+            next = stop_local;
+            is_local = true;
+        } else if (stop_total != null) {
+            next = stop_total;
+            is_local = false;
+        }
+        return (next != null ? Pair.of(next, is_local) : null);
+    }
+    
+    /**
+     * Return the ratio of the amount of time that remains for the global search process
+     * 0.0 means that the search just started
+     * 1.0 means that the search is out of time
+     * @return
+     */
+    public double getElapsedGlobalPercent() {
+        long delta = (this.getGlobalStopTime().getMSTime() - this.getStartTime().getMSTime());
+        long now = System.currentTimeMillis();
+        return Math.abs((now - this.getStartTime().getMSTime()) / (double)delta);
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // PARTITION INFO
+    // --------------------------------------------------------------------------------------------
     
     public void addTablePartitionCandidate(Database catalog_db, String table_name, String column_name) {
         Table catalog_tbl = catalog_db.getTables().get(table_name);
@@ -426,9 +484,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         return (this.ignore_procedures.contains(catalog_proc.getName()));
     }
     
-    // ----------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
     // SERIALIZATION METHODS
-    // ----------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
     /**
      * Load with the ability to override values

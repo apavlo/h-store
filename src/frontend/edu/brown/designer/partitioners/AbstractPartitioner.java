@@ -3,6 +3,7 @@ package edu.brown.designer.partitioners;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 import java.util.Map.Entry;
 
@@ -50,11 +51,13 @@ public abstract class AbstractPartitioner {
         FOUND_TARGET,
     }
     
+    protected final Random rng = new Random();
     protected final Designer designer;
     protected final DesignerInfo info;
     protected final int num_partitions;
     protected final File checkpoint;
     protected HaltReason halt_reason = HaltReason.NULL;
+    
     
     public AbstractPartitioner(Designer designer, DesignerInfo info) {
         this.designer = designer;
@@ -121,11 +124,11 @@ public abstract class AbstractPartitioner {
      */
     protected AccessGraph generateAccessGraph() throws Exception {
         if (debug.get()) LOG.debug("Generating AccessGraph for entire catalog");
+        assert(info.workload != null);
         
         AccessGraph agraph = new AccessGraph(info.catalog_db);
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             // Skip if there are no transactions in the workload for this procedure
-            assert(info.workload != null);
             if (info.workload.getTraces(catalog_proc).isEmpty()) {
                 if (debug.get()) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {

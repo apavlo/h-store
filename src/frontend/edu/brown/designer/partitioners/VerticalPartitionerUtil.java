@@ -48,6 +48,7 @@ public abstract class VerticalPartitionerUtil {
     public static TableStatistics computeTableStatistics(VerticalPartitionColumn vp_col, WorkloadStatistics stats) {
         MaterializedViewInfo catalog_view = vp_col.createMaterializedView();
         Table view_tbl = catalog_view.getDest();
+        assert(view_tbl != null) : "Destination table for " + catalog_view + " is null?";
         TableStatistics tbl_stats = stats.getTableStatistics(view_tbl);
         if (tbl_stats == null) {
             tbl_stats = new TableStatistics(view_tbl);

@@ -620,7 +620,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
             } // FOR
             
             assertEquals(catalog_proc.getStatements().size(), txn_entry.getTotalQueryCount());
-            assert(txn_entry.isSingleSited());
+            assert(txn_entry.isSinglePartitioned());
             assertFalse(txn_entry.isComplete());
             assertEquals(1, txn_entry.getExaminedQueryCount());
             assertEquals(0, txn_entry.getMultiSiteQueryCount());
@@ -668,7 +668,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
         assertNull(entry.getExecutionPartition());
-        assert(entry.isSingleSited());
+        assert(entry.isSinglePartitioned());
         
         // Make something else the ProcParameter
         cost_model.invalidateCache(catalog_proc);
@@ -688,8 +688,8 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(entry);
         assertNotNull(entry.getExecutionPartition());
-        if (!entry.isSingleSited()) System.err.println(entry.debug());
-        assert(entry.isSingleSited());
+        if (!entry.isSinglePartitioned()) System.err.println(entry.debug());
+        assert(entry.isSinglePartitioned());
     }
     
     /**
@@ -728,7 +728,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         TransactionCacheEntry txn_entry = cost_model.getTransactionCacheEntry(target_txn);
         assertNotNull(txn_entry);
         assertNotNull(txn_entry.getExecutionPartition());
-        assert(txn_entry.isSingleSited());
+        assert(txn_entry.isSinglePartitioned());
 //        System.err.println(txn_entry.debug());
     }
 }

@@ -17,11 +17,14 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
+import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
@@ -31,12 +34,16 @@ import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
 import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.MemoryEstimator;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.statistics.TableStatistics;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProfileMeasurement;
@@ -536,7 +543,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             
         // Otherwise reconstruct the PartitionPlan from the StateVertex
         } else {
-            pplan = this.createPartitionPlan(hints, this.best_vertex, true, false);
+            pplan = this.createPartitionPlan(hints, this.best_vertex, true, true);
             this.setProcedureSinglePartitionFlags(pplan, hints);
         }
         // Make sure that we actually completed the search and didn't just abort
@@ -576,7 +583,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         private StateVertex start;
         private final MemoryEstimator memory_estimator;
         private AbstractCostModel cost_model;
-        private final Database search_db;
         private long traverse_ctr = 0;
         private long backtrack_ctr = 0;
         
@@ -599,7 +605,6 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             this.hints = hints;
             this.start = start;
             this.start_name = CatalogKey.getNameFromKey(start.getCatalogKey());
-            this.search_db = info.catalog_db;
             this.search_tables = search_tables;
             this.search_procs = search_procs;
             
@@ -710,34 +715,14 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         
         @Override
         public void run() {
-            Long stop_local = null; 
-            Long stop_total = null;
-            
-            if (this.hints.limit_local_time != null && this.hints.limit_local_time >= 0) {
-                stop_local = this.hints.getNextLocalStopTime();    
+            Pair<TimestampType, Boolean> p = hints.getNextStopTime();
+            if (p != null) {
+                this.halt_time = p.getFirst().getMSTime();
+                this.halt_time_local = p.getSecond();
             }
-            if (this.hints.limit_total_time != null && this.hints.limit_total_time >= 0) {
-                stop_total = this.hints.getGlobalStopTime();
-            }
-            if (stop_local != null && stop_total != null) {
-                if (stop_local < stop_total) {
-                    this.halt_time = stop_local;
-                    this.halt_time_local = true;
-                } else {
-                    this.halt_time = stop_total;
-                    this.halt_time_local = false;
-                }
-            } else if (stop_local != null) {
-                this.halt_time = stop_local;
-                this.halt_time_local = true;
-            } else if (stop_total != null) {
-                this.halt_time = stop_total;
-                this.halt_time_local = false;
-            }
-            if (debug.get() && this.halt_time != null)
-                LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
-                
             if (debug.get()) {
+                if (this.halt_time != null)
+                    LOG.debug("Remaining Search Time: " + (this.halt_time - System.currentTimeMillis()) / 1000d);  
                 LOG.debug(String.format("Starting Search for %d Elements: %s", this.all_search_elements.size(), this.all_search_elements));
                 LOG.debug("Current Best Solution: " + best_vertex.cost);
             }
@@ -881,13 +866,18 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         current_tbl.setIsreplicated(false);
                         current_col = search_col;
                         vp_col = (VerticalPartitionColumn)search_col;
+                        assert(CatalogUtil.getDatabase(vp_col).equals(info.catalog_db)) : String.format("VP_COL[%d] != INFO[%d]", CatalogUtil.getDatabase(vp_col).hashCode(), info.catalog_db.hashCode());
+                        
                         MaterializedViewInfo catalog_view = vp_col.applyUpdate();
                         assert(catalog_view != null) : "Unexpected null MaterializedViewInfo for " + current_tbl + " vertical partition:\n" + vp_col;
                         if (this.cost_model.isCachingEnabled()) {
                             if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getOptimizedQueries());
                             this.cost_model.invalidateCache(vp_col.getOptimizedQueries());
                         }
-                        VerticalPartitionerUtil.computeTableStatistics(vp_col, info.stats);
+                        TableStatistics tstats = VerticalPartitionerUtil.computeTableStatistics(vp_col, info.stats);
+                        assert(tstats != null);
+                        LOG.info("TABLES: " + info.catalog_db.getTables());
+                        LOG.info(tstats.debug(info.catalog_db));
                         // Add the vp's sys table to the list of tables that we need to estimate the memory
                         assert(catalog_view.getDest() != null) : "Missing parent table for " + catalog_view.fullName();
                         assert(this.current_vertical_partitions.contains(catalog_view.getDest()) == false) : vp_col;
@@ -921,7 +911,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     if (trace.get()) 
                         LOG.trace(String.format("Calculating memory size of current solution [%s]:\n%s", current_col.fullName(), StringUtil.join("\n", current_previousTables)));
                     try {
-                        memory = this.memory_estimator.estimate(search_db, info.getNumPartitions(), tablesToEstimate);
+                        memory = this.memory_estimator.estimate(info.catalog_db, info.getNumPartitions(), tablesToEstimate);
                     } catch (Throwable ex) {
                         throw new RuntimeException("Failed to estimate memory using new attribute " + current_col.fullName(), ex);
                     }
@@ -952,13 +942,14 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 Double cost = null;
                 // Don't estimate the cost if it doesn't fit
                 if (!memory_exceeded) {
-                    cost = this.cost_model.estimateWorkloadCost(search_db, info.workload, filter, best_vertex.cost);
+                    cost = this.cost_model.estimateWorkloadCost(info.catalog_db, info.workload, filter, best_vertex.cost);
                 } else {
                     cost = Double.MAX_VALUE;
                 }
 
                 StateVertex state = new StateVertex(parent, current_key, attribute_key, is_table, cost, memory);
-                if (debug.get()) state.debug = cost_model.debugHistograms(search_db);
+                if (debug.get()) 
+                    state.debug = cost_model.debugHistograms(info.catalog_db);
 //                if (!this.graph.containsVertex(parent)) this.graph.addVertex(parent);
 //                this.graph.addEdge(new StateEdge(), parent, state, EdgeType.DIRECTED);
 
@@ -977,17 +968,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 if (memory_exceeded) {
                     if (debug.get()) LOG.debug("Memory exceeeded! Skipping solution!");
                     if (vp_col != null) {
-                        // Reset the catalog and optimized queries in the cost model
-                        vp_col.revertUpdate();
-                        if (cost_model.isCachingEnabled()) {
-                            if (debug.get()) LOG.debug("Invalidating VerticalPartition Statements in cost model: " + vp_col.getOptimizedQueries());
-                            this.cost_model.invalidateCache(vp_col.getOptimizedQueries());
-                        }
-                        MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
-                        assert(catalog_view != null) : vp_col;
-                        assert(catalog_view.getDest() != null) : vp_col;
-                        assert(this.current_vertical_partitions.contains(catalog_view.getDest())) : vp_col;
-                        this.current_vertical_partitions.remove(catalog_view.getDest());
+                        this.revertVerticalPartitionColumn(vp_col);
                         vp_col = null;
                     }
                     continue;
@@ -1004,15 +985,16 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                         m0.put("Parent Catalog", createPartitionPlan(hints, parent, false, false));
                         
                         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
+                        m1.put("Current Attribute", current_attribute.fullName());
                         m1.put("Current State", state.toString());
-                        m1.put("Current CostModel", cost_model.debugHistograms(search_db));
+                        m1.put("Current CostModel", cost_model.debugHistograms(info.catalog_db));
                         m1.put("Current Catalog", createPartitionPlan(hints, state, false, false));
                         
                         LOG.error("CURRENT COST IS GREATER THAN CURRENT COST! THIS CANNOT HAPPEN!\n" + 
                                   StringUtil.formatMaps(m0, m1));
                         
                         cost_model.clear();
-                        double cost2 = this.cost_model.estimateWorkloadCost(search_db, info.workload, filter, best_vertex.cost);
+                        double cost2 = this.cost_model.estimateWorkloadCost(info.catalog_db, info.workload, filter, best_vertex.cost);
                         LOG.error("Second Time: " + cost2);
                         
                     }
@@ -1103,7 +1085,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
 //                    if (is_last_table && this.hints.enable_procparameter_search) {
 //                        for (int i = idx + 1; i < this.num_elements; i++) {
 //                            Procedure catalog_proc = (Procedure)this.all_search_elements.get(i);
-//                            LinkedList<String> attributes = AbstractPartitioner.generateProcParameterOrder(info, this.search_db, catalog_proc, hints);
+//                            LinkedList<String> attributes = AbstractPartitioner.generateProcParameterOrder(info, this.info.catalog_db, catalog_proc, hints);
 //                            
 //                            // We should have ProcParameter candidates!
 //                            assert(attributes.isEmpty() == false) : "No ProcParameter candidates: " + catalog_proc + "\n" + state;
@@ -1122,19 +1104,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     }
                 }
                 if (vp_col != null) {
-                    vp_col.revertUpdate();
-                    if (this.cost_model.isCachingEnabled()) {
-                        if (trace.get()) LOG.trace("Invalidating VerticalPartition Statements in cost model: " + vp_col.getOptimizedQueries());
-                        this.cost_model.invalidateCache(vp_col.getOptimizedQueries());
-                    }
-                    
-                    // Make sure we remove the sys table from the list of tables
-                    // that we need to estimate the memory from
-                    MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
-                    assert(catalog_view != null) : vp_col;
-                    assert(catalog_view.getDest() != null) : vp_col;
-                    assert(this.current_vertical_partitions.contains(catalog_view.getDest())) : vp_col;
-                    this.current_vertical_partitions.remove(catalog_view.getDest());
+                    this.revertVerticalPartitionColumn(vp_col);
                     vp_col = null;
                 }
                 if (this.halt_search) break;
@@ -1149,7 +1119,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // had the lowest cost in our search up above.
                 Procedure current_proc = (Procedure)current;
                 String best_key = local_best_vertex.getPartitionKey();
-                ProcParameter current_param = CatalogKey.getFromKey(this.search_db, best_key, ProcParameter.class);
+                ProcParameter current_param = CatalogKey.getFromKey(info.catalog_db, best_key, ProcParameter.class);
                 assert(current_param != null);
                 current_proc.setPartitionparameter(current_param.getIndex());
                 
@@ -1182,6 +1152,23 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
             }
             if (this.halt_search == false) this.backtrack_ctr++;
             return;
+        }
+        
+        private void revertVerticalPartitionColumn(VerticalPartitionColumn vp_col) {
+            // Reset the catalog and optimized queries in the cost model
+            vp_col.revertUpdate();
+            if (cost_model.isCachingEnabled()) {
+                if (debug.get()) LOG.debug("Invalidating VerticalPartition Statements in cost model: " + vp_col.getOptimizedQueries());
+                this.cost_model.invalidateCache(vp_col.getOptimizedQueries());
+            }
+            
+            // Make sure we remove the sys table from the list of tables
+            // that we need to estimate the memory from
+            MaterializedViewInfo catalog_view = vp_col.getViewCatalog();
+            assert(catalog_view != null) : vp_col;
+            assert(catalog_view.getDest() != null) : vp_col;
+            assert(this.current_vertical_partitions.contains(catalog_view.getDest())) : vp_col;
+            this.current_vertical_partitions.remove(catalog_view.getDest());
         }
         
         private StringBuilder createLevelOutput(StateVertex state, String label, String spacer, boolean memory_exceeded) {

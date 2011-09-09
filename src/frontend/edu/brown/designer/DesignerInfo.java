@@ -65,7 +65,7 @@ public class DesignerInfo {
     /**
      * ProcParameter Correlations
      */
-    private ParameterMappingsSet correlations;
+    private ParameterMappingsSet mappings;
     private String correlations_file;
     
     /**
@@ -123,7 +123,7 @@ public class DesignerInfo {
         this.costmodel = src.costmodel;
         this.checkpoint = src.checkpoint;
         this.m_estimator = src.m_estimator;
-        this.correlations = src.correlations;
+        this.mappings = src.mappings;
         this.correlations_file = src.correlations_file;
         this.dgraph = src.dgraph;
     }
@@ -156,7 +156,7 @@ public class DesignerInfo {
         
         // Correlations (smoke 'em if you got 'em)
         if (args.param_mappings != null) {
-            this.correlations = args.param_mappings;
+            this.mappings = args.param_mappings;
             this.correlations_file = args.getParam(ArgumentsParser.PARAM_MAPPINGS);
         }
         
@@ -202,17 +202,17 @@ public class DesignerInfo {
         this.workload = workload;
     }
 
-    /** Parameter Correlations **/
-    public void setCorrelations(ParameterMappingsSet correlations) {
-        this.correlations = correlations;
+    /** Parameter Mappings **/
+    public void setMappings(ParameterMappingsSet mappings) {
+        this.mappings = mappings;
     }
-    public ParameterMappingsSet getCorrelations() {
-        return correlations;
+    public ParameterMappingsSet getMappings() {
+        return mappings;
     }
-    public void setCorrelationsFile(String correlationsFile) {
-        correlations_file = correlationsFile;
+    public void setMappingsFile(String file) {
+        correlations_file = file;
     }
-    public String getCorrelationsFile() {
+    public String getMappingsFile() {
         return correlations_file;
     }
     

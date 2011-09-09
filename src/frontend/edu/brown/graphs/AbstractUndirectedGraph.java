@@ -36,6 +36,10 @@ public abstract class AbstractUndirectedGraph<V extends AbstractVertex, E extend
         this.inner = new InnerGraphInformation<V, E>(this, catalog_db);
     }
     
+    public Database getDatabase() {
+        return this.inner.getDatabase();
+    }
+    
     // ----------------------------------------------------------------------------
     // INNER DELEGATION METHODS
     // ----------------------------------------------------------------------------

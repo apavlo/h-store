@@ -7,8 +7,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -131,6 +131,7 @@ public class ConstraintPropagator {
      * Initialize internal data structures
      */
     private void init() {
+        Random rng = new Random();
        
         // PROCEDURES
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
@@ -224,7 +225,9 @@ public class ConstraintPropagator {
                 }
                 
                 assert(catalog_col != null);
-                this.edge_cols_xref.put(e, candidates);
+                List<Column> shuffled = new ArrayList<Column>(candidates);
+                Collections.shuffle(shuffled, rng);
+                this.edge_cols_xref.put(e, shuffled);
             } // FOR
 
         } // FOR

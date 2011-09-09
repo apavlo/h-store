@@ -52,34 +52,39 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         assertNotNull(this.partitioner);
     }
     
-//    /**
-//     * testGenerate
-//     */
-//    public void testVerticalPartitioning() throws Exception {
-//        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
-//        int num_intervals = info.getNumIntervals();
-//        info = this.generateInfo(clone_db);
-//        info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, num_intervals));
-//        info.setPartitionerClass(LNSPartitioner.class);
-//        
-//        hints.enable_vertical_partitioning = true;
-//        hints.max_memory_per_partition = Long.MAX_VALUE;
-//        hints.enable_costmodel_multipartition_penalty = true;
-//        hints.enable_replication_readmostly = false;
-//        hints.enable_replication_readonly = false;
-//        hints.weight_costmodel_multipartition_penalty = 100.0d;
-//        hints.relaxation_min_size = clone_db.getTables().size();
-//        hints.limit_local_time = 30;
-//        hints.limit_total_time = 30;
-//        
-//        designer = new Designer(info, hints, info.getArgs());
-//        AbstractPartitioner partitioner = (LNSPartitioner)designer.getPartitioner();
-//
-//        PartitionPlan pplan = partitioner.generate(hints);
-//        assertNotNull(pplan);
-//        
-//        System.err.println(pplan);
-//    }
+    /**
+     * testGenerate
+     */
+    public void testVerticalPartitioning() throws Exception {
+        Database clone_db = CatalogCloner.cloneDatabase(catalog_db);
+        assert(clone_db.hashCode() != catalog_db.hashCode());
+        
+        System.err.println("catalog_db => " + catalog_db.hashCode());
+        System.err.println("clone_db => " + clone_db.hashCode());
+        int num_intervals = info.getNumIntervals();
+        info = this.generateInfo(clone_db);
+        info.setCostModel(new TimeIntervalCostModel<SingleSitedCostModel>(clone_db, SingleSitedCostModel.class, num_intervals));
+        info.setPartitionerClass(LNSPartitioner.class);
+        
+        hints.enable_vertical_partitioning = true;
+        hints.max_memory_per_partition = Long.MAX_VALUE;
+        hints.enable_costmodel_multipartition_penalty = true;
+        hints.enable_replication_readmostly = false;
+        hints.enable_replication_readonly = false;
+        hints.weight_costmodel_multipartition_penalty = 100.0d;
+        hints.relaxation_min_size = clone_db.getTables().size();
+        hints.limit_local_time = 30;
+        hints.limit_total_time = 30;
+        
+        designer = new Designer(info, hints, info.getArgs());
+        LNSPartitioner partitioner = (LNSPartitioner)designer.getPartitioner();
+        assertEquals(clone_db, partitioner.info.catalog_db);
+
+        PartitionPlan pplan = partitioner.generate(hints);
+        assertNotNull(pplan);
+        
+        System.err.println(pplan);
+    }
     
     /**
      * testInit
@@ -289,6 +294,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         // to zero so that won't actually traverse the search tree
         hints.limit_local_time = 0;
         hints.enable_procparameter_search = false;
+        hints.max_memory_per_partition = Long.MAX_VALUE;
         this.partitioner.init(this.hints);
         this.partitioner.calculateInitialSolution(hints);
         assert(this.partitioner.initial_cost > 0);

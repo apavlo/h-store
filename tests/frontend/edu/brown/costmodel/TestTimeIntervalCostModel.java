@@ -287,7 +287,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             info.setNumIntervals(NUM_INTERVALS);
             info.setPartitionerClass(BranchAndBoundPartitioner.class);
             info.setCostModel(cm);
-            info.setCorrelationsFile(this.getParameterMappingsFile(ProjectType.TM1).getAbsolutePath());
+            info.setMappingsFile(this.getParameterMappingsFile(ProjectType.TM1).getAbsolutePath());
             
             Designer designer = new Designer(info, hints, info.getArgs());
             BranchAndBoundPartitioner local_search = (BranchAndBoundPartitioner)designer.getPartitioner();

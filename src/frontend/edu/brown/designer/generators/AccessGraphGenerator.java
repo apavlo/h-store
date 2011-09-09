@@ -31,7 +31,6 @@ import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.DesignerUtil;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.AccessGraph.AccessType;
 import edu.brown.designer.AccessGraph.EdgeAttributes;
@@ -306,7 +305,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             // --------------------------------------------------------------
             for (int ctr2 = ctr + 1; ctr2 < cnt; ctr2++) {
                 Table table1 = tables.get(ctr2);
-                ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, true, table0, table1);
+                ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, true, table0, table1);
                 if (debug_table) LOG.trace("Creating join edge between " + table0 + "<->" + table1 + " for " + catalog_stmt);
                 this.addEdge(agraph, AccessType.SQL_JOIN, cset, agraph.getVertex(table0), agraph.getVertex(table1), catalog_stmt);
             } // FOR
@@ -317,7 +316,7 @@ public class AccessGraphGenerator extends AbstractGenerator<AccessGraph> {
             //     a filter predicate using a variable or an input parameter
             // --------------------------------------------------------------
             if (debug_table) LOG.trace("Looking for scan ColumnSet on table '" + table0.getName() + "'");
-            ColumnSet cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, true, table0);
+            ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, true, table0);
             if (!cset.isEmpty()) {
                 if (debug_table) LOG.trace("Creating scan edge to " + table0 + " for " + catalog_stmt);
                 //if (debug) if (d) LOG.debug("Scan Column SET[" + table0.getName() + "]: " + cset.debug());

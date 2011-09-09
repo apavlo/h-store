@@ -3,15 +3,25 @@ package edu.brown.workload.filters;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 
 import edu.brown.utils.ClassUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
 
 /**
  * WorkloadIterator Filter
  */
 public abstract class Filter {
+    public static final Logger LOG = Logger.getLogger(Filter.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     private Filter next;
     
     public enum FilterResult {
@@ -39,6 +49,10 @@ public abstract class Filter {
         return (this.getFilters(search, new ArrayList<T>()));
     }
     
+    public final List<Filter> getFilters() {
+        return (this.getFilters(Filter.class, new ArrayList<Filter>()));
+    }
+    
     @SuppressWarnings("unchecked")
     private final <T extends Filter> List<T> getFilters(Class<? extends T> search, List<T> found) {
         if (ClassUtil.getSuperClasses(this.getClass()).contains(search)) {
@@ -56,10 +70,17 @@ public abstract class Filter {
     }
     
     public Filter.FilterResult apply(AbstractTraceElement<? extends CatalogType> element) {
+        Filter.FilterResult result = this.applyImpl(element);
+        if (debug.get())
+            LOG.debug("Filter: " + element + " => " + result);
+        return (result);
+    }
+        
+    private final Filter.FilterResult applyImpl(AbstractTraceElement<? extends CatalogType> element) {
         assert(element != null);
         Filter.FilterResult result = this.filter(element); 
         if (result == FilterResult.ALLOW) {
-            return (this.next != null ? this.next.apply(element) : FilterResult.ALLOW);
+            return (this.next != null ? this.next.applyImpl(element) : FilterResult.ALLOW);
         }
         return (result);
     }
