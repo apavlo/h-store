@@ -2100,8 +2100,9 @@ DESIGNER
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${project}-designer-benchmark.jar" />
+        <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="catalog.type=${project}" />
+        <arg value="catalog.hosts=${hosts}" />
         <arg value="workload=${workload}" />
         <arg value="workload.removedupes=true" />
         <arg value="workload.xactlimit=${limit}" />
@@ -2110,7 +2111,7 @@ DESIGNER
         <arg value="workload.procexclude=${exclude}" />
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
-        <arg value="mappings=${mappings}" />
+        <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
         <arg value="stats=${stats}" />
         <arg value="designer.partitioner=${partitioner}" />
         <arg value="designer.costmodel=${costmodel}" />

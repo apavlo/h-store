@@ -25,7 +25,6 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.ConstantValue;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -41,9 +40,7 @@ import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.designer.AccessGraph;
-import edu.brown.designer.ColumnSet;
 import edu.brown.designer.Designer;
-import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
@@ -162,13 +159,14 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
      * @throws Exception
      */
     protected void init(DesignerHints hints) throws Exception {
+        assert(hints != null);
         this.init_called = true;
         AccessGraph first = this.generateAccessGraph();
         this.agraph = AccessGraphGenerator.convertToSingleColumnEdges(info.catalog_db, first);
         
         // Set the limits initially from the hints file
         if (hints.limit_back_tracks != null) this.last_backtrack_limit = new Double(hints.limit_back_tracks);
-        if (hints.limit_total_time != null) this.last_localtime_limit = new Double(hints.limit_local_time);
+        if (hints.limit_local_time != null) this.last_localtime_limit = new Double(hints.limit_local_time);
         if (this.last_entropy_weight == null) this.last_entropy_weight = hints.weight_costmodel_skew;
         
         // HACK: Reload the correlations file so that we can get the proper catalog objects
@@ -880,9 +878,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         return (PartitionPlan.createFromCatalog(catalog_db).toString());
     }
     
+    @SuppressWarnings("unchecked")
     public String debug() {
-        StringBuilder sb = new StringBuilder();
-        
         Map<String, Object> maps[] = new Map[this.orig_table_attributes.size()];
         int i = 0;
         for (Table catalog_tbl : this.orig_table_attributes.keySet()) {
