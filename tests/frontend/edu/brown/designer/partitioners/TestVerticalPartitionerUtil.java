@@ -231,7 +231,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             Object params[] = new Object[catalog_stmt.getParameters().size()];
             for (int i = 0; i < params.length; i++) {
                 StmtParameter catalog_param = catalog_stmt.getParameters().get(i);
-                VoltType vtype = VoltType.get(catalog_param.getSqltype()); 
+                VoltType vtype = VoltType.get(catalog_param.getJavatype()); 
                 params[i] = VoltTypeUtil.getRandomValue(vtype);
             } // FOR
             stmt_params.put(catalog_stmt, params);

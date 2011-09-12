@@ -42,6 +42,8 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
@@ -751,6 +753,12 @@ public class ArgumentsParser {
                 throw new Exception("Unknown catalog type '" + catalog_type + "'");
             }
             this.catalog_type = type;
+        }
+        
+        // Update Cluster Configuration
+        if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(this.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            this.updateCatalog(FixCatalog.addHostInfo(this.catalog, cc), null);
         }
         
         // Check the requirements after loading the catalog, because some of the above parameters will set the catalog one

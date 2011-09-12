@@ -1,8 +1,10 @@
 package edu.brown.utils;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
@@ -24,41 +26,97 @@ public abstract class Producer<T, U> implements Runnable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private final AtomicBoolean queued_all = new AtomicBoolean(false);
     private final Collection<Consumer<U>> consumers = new HashSet<Consumer<U>>();
-    private final Iterable<T> it;
+    private Iterable<T> it;
     
-    public Producer(Collection<Consumer<U>> consumers, Iterable<T> it) {
-        this.consumers.addAll(consumers);
+    public Producer(Iterable<T> it) {
         this.it = it;
     }
     
+    public Producer(Iterable<T> it, Collection<Consumer<U>> consumers) {
+        this(it);
+        this.consumers.addAll(consumers);
+    }
+    
+    public final void addConsumer(Consumer<U> consumer) {
+        this.consumers.add(consumer);
+    }
+    
     @Override
-    public void run() {
+    public final void run() {
         for (Consumer<U> c : this.consumers) {
-             c.setProducer(this);
+             c.start();
         } // FOR
         
         int ctr = 0;
-        for (T u : this.it) {
-            Pair<Consumer<U>, U> p = this.transform(u);
+        for (T t : this.it) {
+            Pair<Consumer<U>, U> p = this.transform(t);
             assert(p != null);
             assert(p.getFirst() != null) : "Null Consumer - " + p;
             assert(p.getSecond() != null) : "Null Object - " + p;
             p.getFirst().queue(p.getSecond());
             if (++ctr % 100 == 0 && debug.get()) 
-                LOG.debug(String.format("Queued %d %s objects", ctr, u.getClass().getSimpleName()));
+                LOG.debug(String.format("Queued %d %s objects", ctr, t.getClass().getSimpleName()));
         } // FOR
-        this.queued_all.set(true);
         
-        // Poke all our threads just in case they finished
-        for (Consumer<U> c : this.consumers) c.interrupt();
+        // Poke all our threads to let them know that they should stop when their
+        // queue is empty
+        for (Consumer<U> c : this.consumers) c.stopWhenEmpty();
     }
     
-    public abstract Pair<Consumer<U>, U> transform(T u);
+    public abstract Pair<Consumer<U>, U> transform(T t);
     
-    public boolean hasQueuedAll() {
-        return this.queued_all.get();
+    /**
+     * Default transform implementation.
+     * Returns a pair that contains a random Consumer and the input parameter t
+     * case to type U
+     * @param t
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public final Pair<Consumer<U>, U> defaultTransform(T t) {
+        return Pair.of(CollectionUtil.random(this.consumers), (U)t);
+    }
+    
+    /**
+     * Get the total number of items processed by all of the Consumers
+     * attached to this Producer
+     * @return
+     */
+    public final int getTotalProcessed() {
+        int total = 0;
+        for (Consumer<?> c : this.consumers) {
+            total += c.getProcessedCounter();
+        } // FOR
+        return (total);
     }
 
+    public final Collection<Consumer<U>> getConsumers() {
+        return (Collections.unmodifiableCollection(this.consumers));
+    }
+    
+    public final List<Runnable> getRunnablesList() {
+        ArrayList<Runnable> runnables = new ArrayList<Runnable>();
+        runnables.add(this);
+        for (Consumer<U> c : this.consumers) {
+            runnables.add(c);
+        } // FOR
+        return (runnables);
+    }
+    
+    /**
+     * Return a new instance of a Producer. This producer will simply assign
+     * each item in the iterable to a random Consumer
+     * @param <T>
+     * @param <U>
+     * @param it
+     * @return
+     */
+    public static final <T, U> Producer<T, U> defaultProducer(Iterable<T> it) {
+        return new Producer<T, U>(it) {
+            public Pair<edu.brown.utils.Consumer<U>,U> transform(T t) {
+                return this.defaultTransform(t);
+            };
+        };
+    }
 }

@@ -7,8 +7,6 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.ClusterConfiguration;
-import edu.brown.catalog.FixCatalog;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.LowerBoundsCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
@@ -64,11 +62,6 @@ public class LowerBoundsCalculator {
             ArgumentsParser.PARAM_STATS,
             ArgumentsParser.PARAM_MAPPINGS
         );
-        
-        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
-            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
-            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
-        }
         
         // If given a PartitionPlan, then update the catalog
         if (args.hasParam(ArgumentsParser.PARAM_PARTITION_PLAN)) {

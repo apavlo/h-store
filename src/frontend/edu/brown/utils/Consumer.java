@@ -1,30 +1,35 @@
 package edu.brown.utils;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class Consumer<T> implements Runnable {
 
     private final LinkedBlockingDeque<T> queue = new LinkedBlockingDeque<T>();
-    private final CountDownLatch producer_latch = new CountDownLatch(1);
-    private Producer<?, T> producer;
+    private Semaphore start = new Semaphore(0);
+    private final AtomicBoolean stopWhenEmpty = new AtomicBoolean(false);
     private Thread self;
     private int counter = 0;
      
+    public Consumer() {
+        // Nothing...
+    }
+    
     @Override
     public void run() {
         this.self = Thread.currentThread();
         this.counter = 0;
         
+        // Wait until we have our producer
+        this.start.acquireUninterruptibly();
+        
         T t = null;
         while (true) {
             try {
-                // Wait until we have our producer
-                if (this.producer_latch.getCount() > 0) this.producer_latch.await();
-
                 // If the producer has queued everything, poll it right away
                 // That way we'll know when our queue is empty for good
-                if (this.producer.hasQueuedAll()) {
+                if (this.stopWhenEmpty.get()) {
                     t = this.queue.poll();
                 }
                 // Otherwise block until something gets added
@@ -49,16 +54,23 @@ public abstract class Consumer<T> implements Runnable {
         return (this.counter);
     }
     
-    public void setProducer(Producer<?, T> producer) {
-        this.producer = producer;
-        this.producer_latch.countDown();
-    }
-    
     public void queue(T t) {
         this.queue.add(t);
     }
 
-    public void interrupt() {
+    public synchronized final void reset() {
+        this.self = null;
+        this.queue.clear();
+        this.stopWhenEmpty.set(false);
+        this.start.drainPermits();
+    }
+    
+    public final void start() {
+        this.start.release();
+    }
+    
+    public final void stopWhenEmpty() {
+        this.stopWhenEmpty.set(true);
         if (this.self != null) {
             this.self.interrupt();
         }

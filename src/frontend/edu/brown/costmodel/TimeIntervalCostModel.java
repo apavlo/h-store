@@ -118,6 +118,8 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
     final ArrayList<Double> tmp_penalties = new ArrayList<Double>();
     final ArrayList<Long> tmp_potential = new ArrayList<Long>();
 
+    /** Temporary mapping from intervals to Consumers */
+    final Map<Integer, Consumer<Pair<TransactionTrace, Integer>>> tmp_consumers = new HashMap<Integer, Consumer<Pair<TransactionTrace,Integer>>>();
     
     /**
      * Constructor 
@@ -293,11 +295,22 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
                 LOG.trace("Workload Filter Chain:       " + StringUtil.join("   ", "\n", filter.getFilters()));
         }
         
-        final int num_threads = ThreadUtil.getMaxGlobalThreads();
-        final ArrayList<Runnable> runnables = new ArrayList<Runnable>();
-        final Map<Integer, Consumer<Pair<TransactionTrace, Integer>>> consumers = new HashMap<Integer, Consumer<Pair<TransactionTrace,Integer>>>(); 
+        // QUEUING THREAD
+        tmp_consumers.clear();
+        Producer<TransactionTrace, Pair<TransactionTrace, Integer>> producer = new Producer<TransactionTrace, Pair<TransactionTrace,Integer>>(CollectionUtil.wrapIterator(workload.iterator(filter))) {
+            @Override
+            public Pair<Consumer<Pair<TransactionTrace, Integer>>, Pair<TransactionTrace, Integer>>  transform(TransactionTrace txn_trace) {
+                int i = workload.getTimeInterval(txn_trace, num_intervals);
+                assert(i >= 0);
+                assert(i < num_intervals) : "Invalid interval: " + i;
+                total_txns.incrementAndGet();
+                Pair<TransactionTrace, Integer> p = Pair.of(txn_trace, i);
+                return (Pair.of(tmp_consumers.get(i), p));
+            }
+        };
         
         // PROCESSING THREADS
+        final int num_threads = ThreadUtil.getMaxGlobalThreads();
         int interval_ctr = 0;
         for (int thread = 0; thread < num_threads; thread++) {
             // First create a new IntervalProcessor/Consumer
@@ -306,32 +319,19 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
             // Then assign it to some number of intervals
             for (int i = 0, cnt = (int)Math.ceil(num_intervals / (double)num_threads); i < cnt; i++) {
                 if (interval_ctr > num_intervals) break;
-                consumers.put(interval_ctr++, ip);
+                tmp_consumers.put(interval_ctr++, ip);
                 if (trace.get())
                     LOG.trace(String.format("Interval #%02d => IntervalProcessor #%02d", interval_ctr-1, thread));
             } // FOR
             
             // And make sure that we queue it up too
-            runnables.add(ip);
+            producer.addConsumer(ip);
         } // FOR (threads)
         
-        // QUEUING THREAD
-        runnables.add(0, new Producer<TransactionTrace, Pair<TransactionTrace, Integer>>(consumers.values(), CollectionUtil.wrapIterator(workload.iterator(filter))) {
-            @Override
-            public Pair<Consumer<Pair<TransactionTrace, Integer>>, Pair<TransactionTrace, Integer>>  transform(TransactionTrace txn_trace) {
-                int i = workload.getTimeInterval(txn_trace, num_intervals);
-                assert(i >= 0);
-                assert(i < num_intervals) : "Invalid interval: " + i;
-                total_txns.incrementAndGet();
-                Pair<TransactionTrace, Integer> p = Pair.of(txn_trace, i);
-                return (Pair.of(consumers.get(i), p));
-            }
-        });
-        
-        ThreadUtil.runGlobalPool(runnables); // BLOCKING
+        ThreadUtil.runGlobalPool(producer.getRunnablesList()); // BLOCKING
         if (debug.get()) {
             int processed = 0;
-            for (Consumer<?> c : new HashSet<Consumer<?>>(consumers.values())) {
+            for (Consumer<?> c : producer.getConsumers()) {
                 processed += c.getProcessedCounter();
             } // FOR
             assert(total_txns.get() == processed) : String.format("Expected[%d] != Processed[%d]", total_txns.get(), processed);

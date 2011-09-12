@@ -1805,6 +1805,7 @@ DESIGNER
         <jvmarg value="-Xmx${volt.server.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="catalog.hosts=${hosts}" />
         <arg value="workload=${workload}" />
         <arg value="workload.output=${output}" />
         <arg value="workload.xactlimit=${limit}" />

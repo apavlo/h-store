@@ -21,7 +21,7 @@ import org.apache.commons.collections15.set.ListOrderedSet;
  */
 public abstract class CollectionUtil {
     
-    private static final Random rand = new Random();
+    private static final Random RANDOM = new Random();
     
     /**
      * Put all of the elements in items into the given array
@@ -124,6 +124,17 @@ public abstract class CollectionUtil {
      * @param items
      */
     public static <T> T random(Collection<T> items) {
+        return (CollectionUtil.random(items, RANDOM));
+    }
+    
+    /**
+     * Return a random value from the given Collection
+     * @param <T>
+     * @param items
+     * @param rand
+     * @return
+     */
+    public static <T> T random(Collection<T> items, Random rand) {
         int idx = rand.nextInt(items.size());
         return (CollectionUtil.get(items, idx));
     }
@@ -135,11 +146,22 @@ public abstract class CollectionUtil {
      * @return
      */
     public static <T> T random(Iterable<T> it) {
+        return (CollectionUtil.random(it, RANDOM));
+    }
+    
+    /**
+     * Return a random value from the given Iterable
+     * @param <T>
+     * @param it
+     * @param rand
+     * @return
+     */
+    public static <T> T random(Iterable<T> it, Random rand) { 
         List<T> list = new ArrayList<T>();
         for (T t : it) {
             list.add(t);
-        }
-        return random(list);
+        } // FOR
+        return (CollectionUtil.random(list, rand));
     }
     
     public static <E extends Enum<?>> Set<E> getAllExcluding(E elements[], E...excluding) {
