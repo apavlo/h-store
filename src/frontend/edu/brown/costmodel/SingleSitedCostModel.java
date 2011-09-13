@@ -107,7 +107,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private final String proc_key;
         private final QueryCacheEntry query_entries[];
         private final long txn_id;
-        private final int weight;
+        private final short weight;
         private final int total_queries;
         private boolean singlesited = true;
         private Integer base_partition = null;
@@ -120,7 +120,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         private TransactionCacheEntry(String proc_key, long txn_trace_id, int weight, int total_queries) {
             this.proc_key = proc_key;
             this.txn_id = txn_trace_id;
-            this.weight = weight;
+            this.weight = (short)weight;
             this.total_queries = total_queries;
             this.query_entries = new QueryCacheEntry[this.total_queries];
         }
@@ -780,17 +780,17 @@ public class SingleSitedCostModel extends AbstractCostModel {
             assert(this.histogram_query_partitions.isEmpty()) : this.histogram_query_partitions;
         }
         
-        TransactionCacheEntry est = this.processTransaction(catalog_db, txn_trace, filter);
-        assert (est != null);
-        if (debug.get()) LOG.debug(txn_trace + ": " + (est.singlesited ? "Single" : "Multi") + "-Partition");
+        TransactionCacheEntry txn_entry = this.processTransaction(catalog_db, txn_trace, filter);
+        assert (txn_entry != null);
+        if (debug.get()) LOG.debug(txn_trace + ": " + (txn_entry.singlesited ? "Single" : "Multi") + "-Partition");
 
-        if (!est.singlesited) {
-            return (COST_MULTISITE_QUERY * txn_trace.getWeight());
+        if (!txn_entry.singlesited) {
+            return (COST_MULTISITE_QUERY * txn_entry.weight);
         }
-        if (est.unknown_queries > 0) {
-            return (COST_UNKNOWN_QUERY * txn_trace.getWeight());
+        if (txn_entry.unknown_queries > 0) {
+            return (COST_UNKNOWN_QUERY * txn_entry.weight);
         }
-        return (COST_SINGLESITE_QUERY * txn_trace.getWeight());
+        return (COST_SINGLESITE_QUERY * txn_entry.weight);
     }
     
     /**
@@ -800,6 +800,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
      * @return
      */
     protected TransactionCacheEntry createTransactionCacheEntry(TransactionTrace txn_trace, String proc_key) {
+        final int txn_weight = (this.use_txn_weights ? txn_trace.getWeight() : 1);
+        
         if (this.use_caching && !this.cache_procXref.containsKey(proc_key)) {
             this.cache_procXref.put(proc_key, new HashSet<TransactionCacheEntry>());
         }
@@ -812,13 +814,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
         if (trace.get()) LOG.trace("New " + txn_entry);
 
         // Update txn counter
-        this.txn_ctr.addAndGet(txn_trace.getWeight());
+        this.txn_ctr.addAndGet(txn_weight);
 
         // Record that we executed this procedure
-        this.histogram_procs.put(proc_key, txn_trace.getWeight());
+        this.histogram_procs.put(proc_key, txn_weight);
         
         // Always record that it was single-partition in the beginning... we can switch later on
-        this.histogram_sp_procs.put(proc_key, txn_trace.getWeight());
+        this.histogram_sp_procs.put(proc_key, txn_weight);
         
         return (txn_entry);
     }
@@ -856,13 +858,13 @@ public class SingleSitedCostModel extends AbstractCostModel {
      */
     protected TransactionCacheEntry processTransaction(Database catalog_db, TransactionTrace txn_trace, Filter filter) throws Exception {
         final long txn_id = txn_trace.getTransactionId(); 
-        final int txn_weight = txn_trace.getWeight();
+        final int txn_weight = (this.use_txn_weights ? txn_trace.getWeight() : 1);
         final boolean debug_txn = DEBUG_TRACE_IDS.contains(txn_id);
         if (debug.get()) LOG.debug(String.format("Processing new %s - Weight:%d", txn_trace, txn_weight));
         
         // Check whether we have a completed entry for this transaction already
         TransactionCacheEntry txn_entry = null;
-        if (this.isCachingEnabled()) {
+        if (this.use_caching) {
             txn_entry = this.txn_entries.get(txn_id);
             
             // If we have a TransactionCacheEntry then we need to check that:
@@ -890,7 +892,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // Make sure to use a new HashSet, otherwise our set will get updated when the Histogram changes
         temp_txnOrigPartitions.clear();
         temp_txnOrigPartitions.addAll(txn_entry.touched_partitions.values());
-        if (!this.isCachingEnabled())
+        if (this.use_caching == false)
             assert (temp_txnOrigPartitions.isEmpty()) : txn_trace + " already has partitions?? " + temp_txnOrigPartitions;
 
         // If the partitioning parameter is set for the StoredProcedure and we haven't gotten the 
@@ -943,7 +945,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         for (QueryTrace query_trace : txn_trace.getQueries()) {
             // We don't want to multiple the query's weight by the txn's weight because
             // we scale things appropriately for the txn outside of this loop
-            int query_weight = query_trace.getWeight();
+            int query_weight = (this.use_query_weights ? query_trace.getWeight() : 1);
             query_idx++;
             if (debug.get()) LOG.debug("Examining " + query_trace + " from " + txn_trace);
             final Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
@@ -977,7 +979,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
             // Create a new QueryCacheEntry
             } else {
                 if (trace.get()) LOG.trace(String.format("Calculating new cost information for %s - Weight:%d", query_trace, query_weight));
-                if (!this.isCachingEnabled() || query_entry == null) {
+                if (this.use_caching == false || query_entry == null) {
                     query_entry = new QueryCacheEntry(txn_trace, query_trace, query_weight);
                 }
                 this.query_ctr.addAndGet(query_weight);

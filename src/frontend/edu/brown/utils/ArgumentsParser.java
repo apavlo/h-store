@@ -637,6 +637,14 @@ public class ArgumentsParser {
                     throw new RuntimeException("Failed to load stats file '" + this.stats_path + "'", ex);
                 }
             }
+            
+            // Scaling
+            if (this.params.containsKey(PARAM_STATS_SCALE_FACTOR)) {
+                double scale_factor = this.getDoubleParam(PARAM_STATS_SCALE_FACTOR);
+                LOG.info("Scaling TableStatistics: " + scale_factor);
+                AbstractTableStatisticsGenerator generator = AbstractTableStatisticsGenerator.factory(this.catalog_db, this.catalog_type, scale_factor);
+                generator.apply(this.stats);
+            }
         }
     }
     

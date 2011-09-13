@@ -1,6 +1,7 @@
 package edu.brown.costmodel;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -23,6 +24,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.AbstractTraceElement;
@@ -95,13 +97,69 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
     }
     
     /**
+     * testWeightedTxnEstimation
+     */
+    public void testWeightedTxnEstimation() throws Exception {
+        int num_txns = 20;
+        int num_intervals = 5;
+        
+        // Make a workload that has the same transaction in it multiple times
+        Workload new_workload = new Workload(catalog);
+        TransactionTrace multip_txn = CollectionUtil.first(multip_workload);
+        Procedure catalog_proc = multip_txn.getCatalogItem(catalog_db);
+        for (int i = 0; i < num_txns; i++) {
+            TransactionTrace clone = (TransactionTrace)multip_txn.clone();
+            clone.setTransactionId(i);
+            clone.setTimestamps(new Long((i/5)*1000), new Long((i/5)*1000 + 100));
+//            System.err.println(clone.debug(catalog_db) + "\n");
+            new_workload.addTransaction(catalog_proc, clone);
+        } // FOR
+        assertEquals(num_txns, new_workload.getTransactionCount());
+        TimeIntervalCostModel<SingleSitedCostModel> orig_costModel = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, num_intervals);
+        double cost0 = orig_costModel.estimateWorkloadCost(catalog_db, new_workload);
+        
+        // Now change make a new workload that has the same multi-partition transaction
+        // but this time it only has one but with a transaction weight
+        // We should get back the exact same cost
+//        System.err.println("+++++++++++++++++++++++++++++++++++++++++++++");
+        new_workload = new Workload(catalog);
+        for (int i = 0; i < num_txns/5; i++) {
+            TransactionTrace clone = (TransactionTrace)multip_txn.clone();
+            clone.setTransactionId(i);
+            clone.setTimestamps(new Long((i*5)*1000), new Long((i*5)*1000 + 100));
+            clone.setWeight(5);
+//            System.err.println(clone.debug(catalog_db) + "\n");
+            new_workload.addTransaction(catalog_proc, clone);
+        } // FOR
+        
+        TimeIntervalCostModel<SingleSitedCostModel> new_costModel = new TimeIntervalCostModel<SingleSitedCostModel>(catalog_db, SingleSitedCostModel.class, num_intervals);
+        double cost1 = new_costModel.estimateWorkloadCost(catalog_db, new_workload);
+        assert(cost1 > 0);
+        assertEquals(cost0, cost1, 0.001);
+        
+        // Now make sure the histograms match up
+        Map<Field, Histogram<?>> orig_histograms = TestSingleSitedCostModel.getHistograms(orig_costModel);
+        assertFalse(orig_histograms.isEmpty());
+        Map<Field, Histogram<?>> new_histograms = TestSingleSitedCostModel.getHistograms(new_costModel);
+        assertFalse(new_histograms.isEmpty());
+        for (Field f : orig_histograms.keySet()) {
+            Histogram<?> orig_h = orig_histograms.get(f);
+            assertNotNull(orig_h);
+            Histogram<?> new_h = new_histograms.get(f);
+            assert(orig_h != new_h);
+            assertNotNull(new_h);
+            assertEquals(orig_h, new_h);
+        } // FOR
+    }
+    
+    /**
      * testEstimateCost
      */
     public void testEstimateCost() throws Exception {
         // For now just check whether we get the same cost back for the same
         // workload... seems simple enough
-        double cost0 = this.cost_model.estimateWorkloadCost(catalog_db, multip_workload);
-        double cost1 = this.cost_model.estimateWorkloadCost(catalog_db, multip_workload);
+        double cost0 = cost_model.estimateWorkloadCost(catalog_db, multip_workload);
+        double cost1 = cost_model.estimateWorkloadCost(catalog_db, multip_workload);
         assertEquals(cost0, cost1);
         
         // Then make a new object and make sure that returns the same as well

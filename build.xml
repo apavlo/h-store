@@ -2054,6 +2054,7 @@ DESIGNER
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="mappings=${mappings}" />
         <arg value="stats=${stats}" />
+        <arg value="stats.scalefactor=${scalefactor}" />
         <arg value="designer.partitioner=${partitioner}" />
         <arg value="designer.threads=${threads}" />
         <arg value="designer.costmodel=${costmodel}" />

@@ -56,6 +56,7 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
@@ -85,6 +86,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
     public double best_memory;
 
     public TimestampType start_time = null;
+    public ProfileMeasurement total_search_time = new ProfileMeasurement("total");
     public TimestampType last_checkpoint = null;
     public int last_relax_size = 0;
     public int last_elapsed_time = 0;
@@ -345,7 +347,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         // Initialize a bunch of stuff we need
         this.init(hints);
 
-        
+        hints.startGlobalSearchTimer();
         LOG.info("Starting Large-Neighborhood Search\n" + this.debugHeader(hints));
         
         // Tell the costmodel about the hints.
@@ -384,8 +386,19 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         final ListOrderedSet<Table> table_attributes = new ListOrderedSet<Table>();
         final ListOrderedSet<Procedure> proc_attributes = new ListOrderedSet<Procedure>();
 
-        hints.startGlobalSearchTimer();
         while (true) {
+            // Found search target
+            if (this.last_halt_reason == HaltReason.FOUND_TARGET) {
+                LOG.info("Found target PartitionPlan. Halting");
+                break;
+            }
+            // Time Limit
+            else if (hints.limit_total_time != null && this.total_search_time.getTotalThinkTimeSeconds() > hints.limit_total_time) {
+                LOG.info("Time limit reached: " + hints.limit_total_time + " seconds");
+                break;
+            }
+            
+            this.total_search_time.start();
             // IMPORTANT: Make sure that we are always start comparing swaps using the solution
             // at the beginning of a restart (or the start of the search). We do *not* want to 
             // compare swaps using the global best cost
@@ -413,19 +426,13 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
                 LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getName() + "'");
             }
             
-            // Found search target
-            if (this.last_halt_reason == HaltReason.FOUND_TARGET) {
-                LOG.info("Found target PartitionPlan. Halting");
-                break;
-            }
-            // Time Limit
-            else if (hints.limit_total_time != null && this.last_checkpoint.compareTo(hints.getGlobalStopTime()) > 0) {
-                LOG.info("Time limit reached: " + hints.limit_total_time + " seconds");
-                break;
-            }
+            this.total_search_time.stop();
         } // WHILE
+        if (this.total_search_time.isStarted()) this.total_search_time.stop();
+        
         LOG.info("Final Solution Cost: " + String.format(DEBUG_COST_FORMAT, this.best_cost));
         LOG.info("Final Solution Memory: " + String.format(DEBUG_COST_FORMAT, this.best_memory));
+        LOG.info("Final Search Time: " + String.format("%.2f sec", this.total_search_time.getTotalThinkTimeSeconds()));
         // if (this.initial_cost > this.best_cost) LOG.warn("BAD MOJO! Initial Cost = " + this.initial_cost + " > " + this.best_cost);
         // assert(this.best_cost <= this.initial_cost);
         this.setProcedureSinglePartitionFlags(this.best_solution, hints);
@@ -960,7 +967,8 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         Map<String, Object> m[] = new Map[3];
         m[0] = new ListOrderedMap<String, Object>();
         m[0].put("Start Time",          hints.getStartTime());
-        m[0].put("Remaining Time",      (hints.getGlobalStopTime() != null ? String.format("%.2f sec", hints.getRemainingGlobalTime() / 1000d) : "-"));
+        m[0].put("Total Time",          String.format("%.2f sec", this.total_search_time.getTotalThinkTimeSeconds()));
+        m[0].put("Remaining Time",      (hints.limit_total_time != null ? (hints.limit_total_time - this.total_search_time.getTotalThinkTimeSeconds()) + " sec" : "-"));
         m[0].put("Cost Model",          info.getCostModel().getClass().getSimpleName());
         m[0].put("# of Transactions",   info.workload.getTransactionCount());
         m[0].put("# of Partitions",     CatalogUtil.getNumberOfPartitions(info.catalog_db));

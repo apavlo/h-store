@@ -105,7 +105,7 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         return (multip_txn);
     }
     
-    private Map<Field, Histogram<?>> getHistograms(AbstractCostModel cost_model) throws Exception {
+    public static Map<Field, Histogram<?>> getHistograms(AbstractCostModel cost_model) throws Exception {
         Map<Field, Histogram<?>> ret = new HashMap<Field, Histogram<?>>();
         Class<?> clazz = cost_model.getClass().getSuperclass();
         for (Field f : clazz.getDeclaredFields()) {
@@ -167,9 +167,9 @@ public class TestSingleSitedCostModel extends BaseTestCase {
         assertEquals(orig_cost, new_cost, 0.001);
         
         // Now make sure the histograms match up
-        Map<Field, Histogram<?>> orig_histograms = this.getHistograms(orig_costModel);
+        Map<Field, Histogram<?>> orig_histograms = getHistograms(orig_costModel);
         assertFalse(orig_histograms.isEmpty());
-        Map<Field, Histogram<?>> new_histograms = this.getHistograms(new_costModel);
+        Map<Field, Histogram<?>> new_histograms = getHistograms(new_costModel);
         assertFalse(new_histograms.isEmpty());
         for (Field f : orig_histograms.keySet()) {
             Histogram<?> orig_h = orig_histograms.get(f);
