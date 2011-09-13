@@ -57,7 +57,7 @@ public class ProcedureLimitFilter extends Filter {
     }
     
     @Override
-    public String debug() {
+    public String debugImpl() {
         return (this.getClass().getSimpleName() + ": limit=" + this.limit);
     }
     

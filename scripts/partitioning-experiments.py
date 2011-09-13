@@ -78,9 +78,8 @@ OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1
 OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
-    "ec2.type":                         "c1.xlarge",
     "ec2.client_type":                  "c1.xlarge",
-    "ec2.node_type":                    "m2.4xlarge",
+    "ec2.site_type":                    "m2.4xlarge",
     "ec2.change_type":                  False,
     
     "client.blocking":                  OPT_BASE_BLOCKING,

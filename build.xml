@@ -1798,6 +1798,7 @@ DESIGNER
         <assertions><enable /></assertions>
     </java>
     <gzip src="${output}" destfile="${output}.gz" />
+    <delete file="${output}" />
 </target>
 
 <target name='workload-compress'>
@@ -1814,10 +1815,12 @@ DESIGNER
         <arg value="workload.procinclude=${include}" />
         <arg value="workload.procinclude.multiplier=${multiplier}" />
         <arg value="mappings=${files.mappings.dir}/${project}.mappings" />
+        <arg value="designer.intervals=${intervals}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
     <gzip src="${output}" destfile="${output}.gz" />
+    <delete file="${output}" />
 </target>
 
 <target name='stats'

@@ -57,6 +57,7 @@ public class WorkloadSummarizer {
     private final Collection<Column> candidate_columns;
     private final Map<Statement, List<StmtParameter>> target_stmt_params = new HashMap<Statement, List<StmtParameter>>();
     private final Map<Procedure, List<ProcParameter>> target_proc_params = new HashMap<Procedure, List<ProcParameter>>();
+    private Integer num_intervals;
     
     private class DuplicateTraceElements<CT extends CatalogType, T extends AbstractTraceElement<CT>> extends HashMap<CT, Map<String, Set<T>>> {
         private static final long serialVersionUID = 1L;
@@ -135,6 +136,10 @@ public class WorkloadSummarizer {
              CatalogUtil.getAllColumns(catalog_db));
     }
     
+    public void setIntervals(Integer intervals) {
+        if (debug.get()) LOG.debug("Compression Intervals: " + intervals);
+        this.num_intervals = intervals;
+    }
     
     /**
      * Main entry point
@@ -174,7 +179,8 @@ public class WorkloadSummarizer {
                     }
                 } // FOR (parameter)
                 this.target_stmt_params.put(catalog_stmt, stmt_params);
-                LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_stmt.fullName(), stmt_params)); 
+                if (debug.get())
+                    LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_stmt.fullName(), stmt_params)); 
             } // FOR (statement)
             
             // For each ProcParameter, get the mappings to all of the StmtParameters
@@ -193,11 +199,12 @@ public class WorkloadSummarizer {
                 if (matched) proc_params.add(catalog_param);
             } // FOR (parameter)
             this.target_proc_params.put(catalog_proc, proc_params);
-            LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_proc.fullName(), proc_params)); 
+            if (debug.get())
+                LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_proc.fullName(), proc_params)); 
         } // FOR (procedure)
     }
 
-    protected String getTransactionTraceSignature(Procedure catalog_proc, TransactionTrace txn_trace) {
+    protected String getTransactionTraceSignature(Procedure catalog_proc, TransactionTrace txn_trace, Integer interval) {
         SortedSet<String> queries = new TreeSet<String>();
         for (QueryTrace query_trace : txn_trace.getQueries()) {
             Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
@@ -205,6 +212,7 @@ public class WorkloadSummarizer {
         } // FOR
         
         String signature = catalog_proc.getName() + "->";
+        if (interval != null) signature += "INT[" + interval + "]";
         signature += this.getParamSignature(txn_trace, this.target_proc_params.get(catalog_proc));
         
         for (String q : queries) {
@@ -279,7 +287,7 @@ public class WorkloadSummarizer {
      * @param workload
      * @return
      */
-    protected Workload removeDuplicateTransactions(Workload workload) {
+    protected Workload removeDuplicateTransactions(final Workload workload) {
         final DuplicateTraceElements<Procedure, TransactionTrace> duplicates = new DuplicateTraceElements<Procedure, TransactionTrace>();
         
         // PRODUCER
@@ -297,8 +305,8 @@ public class WorkloadSummarizer {
                 public void process(TransactionTrace txn_trace) {
                     Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
                     if (target_procedures.contains(catalog_proc) == false) return;
-                    
-                    String signature = getTransactionTraceSignature(catalog_proc, txn_trace);
+                    Integer interval = (num_intervals != null ? workload.getTimeInterval(txn_trace, num_intervals) : null); 
+                    String signature = getTransactionTraceSignature(catalog_proc, txn_trace, interval);
                     assert(signature != null);
                     assert(signature.isEmpty() == false);
                     duplicates.add(catalog_proc, signature, txn_trace);
@@ -370,9 +378,12 @@ public class WorkloadSummarizer {
         ThreadUtil.runGlobalPool(producer.getRunnablesList()); // BLOCKING
         
         if (debug.get())
-            LOG.debug(String.format("Reduced Workload from (%d txns / %d queries) to (%d txns / %d queries)",
-                                    workload.getTransactionCount(), workload.getQueryCount(),
-                                    new_workload.getTransactionCount(), new_workload.getQueryCount()));
+            LOG.debug(String.format("Reduced Workload %d -> %d txns [%.2f]  / %d -> %d queries [%.2f]",
+                                    workload.getTransactionCount(), new_workload.getTransactionCount(),
+                                    (workload.getTransactionCount() - new_workload.getTransactionCount()) / (double)new_workload.getTransactionCount(),
+                                    workload.getQueryCount(), new_workload.getQueryCount(),
+                                    (workload.getQueryCount() - new_workload.getQueryCount()) / (double)new_workload.getQueryCount()
+            ));
         return (new_workload);
     }
     
@@ -384,12 +395,16 @@ public class WorkloadSummarizer {
             ArgumentsParser.PARAM_WORKLOAD_OUTPUT,
             ArgumentsParser.PARAM_MAPPINGS
         );
+        Integer intervals = args.getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
         
-        LOG.info("Compressing workload based on " + CatalogUtil.getNumberOfPartitions(args.catalog) + " partitions");
+        LOG.info(String.format("Compressing workload based on %d partitions%s",
+                 CatalogUtil.getNumberOfPartitions(args.catalog),
+                 (intervals != null ? " over " + intervals + " intervals" : "")));
         LOG.info("BEFORE:\n" + args.workload.getProcedureHistogram());
         
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
         WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_mappings);
+        if (intervals != null) ws.setIntervals(intervals);
         Workload new_workload = ws.process(args.workload);
         assert(new_workload != null);
         LOG.info("AFTER:\n" + new_workload.getProcedureHistogram());

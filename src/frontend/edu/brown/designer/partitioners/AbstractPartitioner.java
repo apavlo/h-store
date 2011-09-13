@@ -165,7 +165,7 @@ public abstract class AbstractPartitioner {
         }
         
         @Override
-        public String debug() {
+        public String debugImpl() {
             return (AbstractPartitioner.class.getSimpleName() + "." + this.getClass().getSimpleName() + 
                     "[cache=" + this.stmt_cache + "]");
         }

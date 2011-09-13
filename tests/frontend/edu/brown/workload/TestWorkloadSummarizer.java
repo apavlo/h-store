@@ -118,7 +118,7 @@ public class TestWorkloadSummarizer extends BaseTestCase {
             if (is_new_proc) {
                 assertEquals(NUM_QUERIES, txn_trace.getQueryCount());
             } else {
-                assertEquals(this.summarizer.getTransactionTraceSignature(new_proc, txn_trace), 1, txn_trace.getQueryCount());
+                assertEquals(this.summarizer.getTransactionTraceSignature(new_proc, txn_trace, null), 1, txn_trace.getQueryCount());
             }
             for (QueryTrace query_trace : txn_trace.getQueries()) {
                 assertNotNull(query_trace);

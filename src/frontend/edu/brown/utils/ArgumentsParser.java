@@ -471,7 +471,7 @@ public class ArgumentsParser {
             if (params.containsKey(PARAM_WORKLOAD_REMOVE_DUPES)) {
                 DuplicateTraceFilter filter = new DuplicateTraceFilter();
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
 
             // TRANSACTION OFFSET
@@ -480,7 +480,7 @@ public class ArgumentsParser {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset, weightedTxns);
                 // Important! The offset should go in the front!
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
             
             // BASE PARTITIONS
@@ -501,7 +501,7 @@ public class ArgumentsParser {
                 }
                 filter.addPartitions(workload_base_partitions);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
 
             
@@ -589,7 +589,7 @@ public class ArgumentsParser {
                 }
                 
                 // Sampling!!
-                if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE) && this.getBooleanParam(PARAM_WORKLOAD_PROC_SAMPLE)) {
+                if (this.getBooleanParam(PARAM_WORKLOAD_PROC_SAMPLE, false)) {
                     if (debug) LOG.debug("Attaching sampling filter");
                     if (proc_histogram == null) proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
                     Map<String, Integer> proc_includes = ((ProcedureNameFilter)filter).getProcIncludes();
@@ -600,14 +600,14 @@ public class ArgumentsParser {
 
                 // Attach our new filter to the chain (or make it the head if it's the first one)
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             } 
             
             // TRANSACTION LIMIT
             if (this.workload_xact_limit != null) {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit, weightedTxns);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
             
             // QUERY LIMIT

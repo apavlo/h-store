@@ -95,9 +95,9 @@ public abstract class Filter {
     
     protected abstract void resetImpl();
     
-    public abstract String debug();
+    public abstract String debugImpl();
     
     public final String toString() {
-        return (this.debug() + (this.next != null ? "\n" + this.next.toString() : ""));
+        return (this.debugImpl() + (this.next != null ? "\n" + this.next.toString() : ""));
     }
 }
