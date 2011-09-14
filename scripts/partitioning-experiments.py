@@ -349,6 +349,7 @@ if __name__ == '__main__':
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
+                conf_remove = conf_remove - set(env.keys())
                 
                 if first:
                     if OPT_START_CLUSTER:

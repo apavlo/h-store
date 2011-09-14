@@ -84,13 +84,9 @@ NFSCLIENT_PACKAGES = [
     'autofs',
 ]
 
-NFSTYPE_TAG    = "NFSType"
-NFSTYPE_TAG_HEAD    = "node"
-NFSTYPE_TAG_CLIENT  = "client"
-
-HSTORETYPE_TAG_NAME     = "HStoreType"
-HSTORETYPE_TAG_SITE     = "site"
-HSTORETYPE_TAG_CLIENT   = "client"
+NFSTYPE_TAG         = "Type"
+NFSTYPE_TAG_HEAD    = "nfs-node"
+NFSTYPE_TAG_CLIENT  = "nfs-client"
 
 ## Fabric Options
 env.key_filename = os.path.join(os.environ["HOME"], ".ssh/hstore.pem")
@@ -198,8 +194,6 @@ def start_cluster():
     instances_running = len(env["ec2.running_instances"])
     instances_stopped = len(env["ec2.all_instances"]) - instances_running
     instances_needed = max(0, instances_needed - instances_running)
-    sites_needed = max(0, siteCount - len(env["ec2.site_instances"]))
-    clients_needed = max(0, clientCount - len(env["ec2.client_instances"]))
     if not nfs_inst_online and instances_needed == 0:
         instances_needed = 1
     orig_running = env["ec2.running_instances"][:]
@@ -386,10 +380,11 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
-    
-    attr = inst.get_attribute("instanceType")
-    assert attr != None
-    assert "instanceType" in attr
+    hstore_dir = "/home/%s/hstore" % env.user
+    with settings(warn_only=True):
+        if run("test -d %s" % hstore_dir).failed:
+            run("mkdir " + hstore_dir)
+    ## WITH
 ## DEF
 
 ## ----------------------------------------------
@@ -401,9 +396,6 @@ def setup_nfshead(rebootInst=True):
     __getInstances__()
     
     hstore_dir = "/home/%s/hstore" % env.user
-    with settings(warn_only=True):
-        if run("test -d %s" % hstore_dir).failed:
-            run("mkdir " + hstore_dir)
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
     sudo("exportfs -a")
@@ -609,10 +601,10 @@ def write_conf(project, removals=[ ]):
         if not prefix in prefix_include: continue
         if prefix == "benchmark":
             key = key.split(".")[-1]
-            assert not key in benchmarkConf_updates
+            assert not key in benchmarkConf_updates, key
             benchmarkConf_removals.add(key)
         else:
-            assert not key in hstoreConf_updates
+            assert not key in hstoreConf_updates, key
             hstoreConf_removals.add(key)
     ## FOR
 
@@ -770,7 +762,7 @@ def __waitUntilStatus__(inst, status):
 ## __getInstances__
 ## ----------------------------------------------        
 def __getInstances__():
-    if env["ec2.site_instances"] and env["ec2.client_instances"]: return
+    if env["ec2.running_instances"]: return env["ec2.running_instances"]
     reservations = ec2_conn.get_all_instances()
     instances = [i for r in reservations for i in r.instances]
     for inst in instances:
@@ -843,11 +835,11 @@ def __checkInstanceType__(inst):
     ## Check whether we need to change the instance type before we restart it
     currentType = attr["instanceType"]
     targetType = __getInstanceType__(inst)
-    if env["ec2.change_type"] == True and currentType != targetType:
-        LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, targetType, inst.tags['Name']))
-        inst.modify_attribute("instanceType", targetType)
-        return True
-    ## IF
+    #if env["ec2.change_type"] == True and currentType != targetType:
+        #LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, targetType, inst.tags['Name']))
+        #inst.modify_attribute("instanceType", targetType)
+        #return True
+    ### IF
     return False
 ## DEF
 
