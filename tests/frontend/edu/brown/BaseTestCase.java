@@ -310,7 +310,7 @@ public abstract class BaseTestCase extends TestCase {
         if (correlations_path != null) {
             ParameterMappingsSet correlations = new ParameterMappingsSet();
             correlations.load(correlations_path.getAbsolutePath(), catalog_db);
-            ParametersUtil.applyParameterCorrelations(catalog_db, correlations);
+            ParametersUtil.applyParameterMappings(catalog_db, correlations);
         }
     }
     

@@ -68,11 +68,14 @@ OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
 OPT_NO_EXECUTE = False
+OPT_NO_COMPILE = False
 OPT_STOP_ON_ERROR = False
+OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = False
 OPT_BASE_BLOCKING_CONCURRENT = 1000
-OPT_BASE_TXNRATE = 6000
+OPT_BASE_TXNRATE_PER_PARTITION = 2950 # Tested
+OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1
 OPT_BASE_SCALE_FACTOR = 50
@@ -89,28 +92,31 @@ BASE_SETTINGS = {
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
     "client.duration":                  60000,
-    "client.warmup":                    60000,
+    "client.warmup":                    30000,
     "client.scalefactor":               50,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          OPT_BASE_SCALE_FACTOR,
     "client.memory":                    512,
     
     "site.sites_per_host":                              1,
-    "site.partitions_per_site":                         4,
+    "site.partitions_per_site":                         5,
     "site.exec_profiling":                              True,
     "site.memory":                                      60020,
     "site.status_show_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
+    "site.status_show_thread_info":                     False,
     "site.status_interval":                             None,
-    "site.txn_incoming_queue_max_per_partition":        125000,
+    "site.txn_incoming_queue_max_per_partition":        5000,
     "site.txn_incoming_queue_release_factor":           0.90,
-    "site.txn_redirect_queue_max_per_partition":        15000,
+    "site.txn_redirect_queue_max_per_partition":        5000,
     "site.txn_redirect_queue_release_factor":           0.90,
-    "site.exec_postprocessing_thread":                  False,
+    "site.exec_postprocessing_thread":                  True,
     "site.pool_profiling":                              False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
+    "site.cpu_affinity":                                True,
+    "site.cpu_affinity_one_partition_per_core":         False,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -160,7 +166,10 @@ OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 ## updateEnv
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
+    env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
+    
+    env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
     
     if benchmark == "tpcc":
         env["benchmark.warehouses"] = env["site.partitions"]
@@ -207,19 +216,19 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## IF
     
     ## The number of concurrent blocked txns should be based on the number of partitions
-    if exp_factor == 0:
-        delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(64))
-        env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
-        #env["client.blocking"] = False # (exp_factor > 0)
+    #if exp_factor == 0:
+        #delta = OPT_BASE_BLOCKING_CONCURRENT * (env["site.partitions"]/float(64))
+        #env["client.blocking_concurrent"] = int(OPT_BASE_BLOCKING_CONCURRENT + delta)
+        ##env["client.blocking"] = False # (exp_factor > 0)
         
-        delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(64))
-        env["client.txnrate"] = OPT_BASE_TXNRATE # int(OPT_BASE_TXNRATE + delta)
+        #delta = OPT_BASE_TXNRATE * (env["site.partitions"]/float(64))
+        #env["client.txnrate"] = OPT_BASE_TXNRATE # int(OPT_BASE_TXNRATE + delta)
         
-        env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/32.0))
+        #env["client.count"] = int(OPT_BASE_CLIENT_COUNT * math.ceil(env["site.partitions"]/32.0))
         
-        for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
-            key = "client.%s" % key
-            LOG.info("%s = %s" % (key, env[key]))
+        #for key in [ "count", "txnrate", "blocking", "blocking_concurrent" ]:
+            #key = "client.%s" % key
+            #LOG.info("%s = %s" % (key, env[key]))
     ## IF
 ## DEF
 
@@ -260,6 +269,8 @@ if __name__ == '__main__':
         "partitions=",
         "start-cluster",
         "no-execute",
+        "no-compile",
+        "force-reboot",
         "trace",
         
         # Enable debug logging
@@ -299,6 +310,8 @@ if __name__ == '__main__':
     ## FOR
     if not "partitions" in options:
         raise Exception("Missing 'partitions' parameter")
+    if OPT_EXP_TYPE == "motivation":
+        OPT_BENCHMARKS = [ 'tpcc' ]
 
     ## Update Fabric env
     exp_opts = dict(BASE_SETTINGS.items() + EXPERIMENT_SETTINGS[OPT_EXP_TYPE][OPT_EXP_SETTINGS].items())
@@ -366,7 +379,7 @@ if __name__ == '__main__':
                 updateConf = True
                 while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
                     ## Only compile for the very first invocation
-                    if first:
+                    if first and OPT_NO_COMPILE == False:
                         if env["hstore.exec_prefix"].find("compile") == -1:
                             env["hstore.exec_prefix"] += " compile"
                     else:

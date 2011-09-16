@@ -76,6 +76,20 @@ public final class HStoreConf {
         )
         public int memory;
 
+        @ConfigProperty(
+            description="",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean cpu_affinity;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean cpu_affinity_one_partition_per_core;
+        
         // ----------------------------------------------------------------------------
         // Execution Options
         // ----------------------------------------------------------------------------
@@ -190,7 +204,16 @@ public final class HStoreConf {
             defaultBoolean=false,
             advanced=true
         )
-        public boolean exec_postprocessing_thread; 
+        public boolean exec_postprocessing_thread;
+        
+        @ConfigProperty(
+            description="The number of post-processing threads to use per HStoreSite. " +
+                        "The ${site.exec_postprocessing_thread} must be set to true.",
+            defaultInt=1,
+            advanced=true
+        )
+        public int exec_postprocessing_thread_count;
+        
 
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
@@ -301,7 +324,19 @@ public final class HStoreConf {
             advanced=false
         )
         public int markov_batch_caching_min;
+
+        // ----------------------------------------------------------------------------
+        // HStoreMessenger
+        // ----------------------------------------------------------------------------
         
+        @ConfigProperty(
+            description="If this enabled, HStoreMesseger will use a separate thread to incoming redirect " +
+                        "requests from other HStoreSites. ",
+            defaultBoolean=false,
+            advanced=true
+        )
+        public boolean messenger_redirect_thread;
+
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
         // ----------------------------------------------------------------------------

@@ -252,7 +252,7 @@ public class ParametersUtil {
         return (mappings);
     }
     
-    public static void applyParameterCorrelations(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
+    public static void applyParameterMappings(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
         Map<String, DefaultParameterMapping> proc_mapping = ParametersUtil.generateMappingFromCorrelations(catalog_db, correlations);
         ParametersUtil.populateCatalog(catalog_db, proc_mapping, true);
         return;

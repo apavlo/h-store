@@ -2,7 +2,7 @@ package edu.mit.hstore.interfaces;
 
 public interface Shutdownable {
 
-    enum State {
+    enum ShutdownState {
         INITIALIZED,
         STARTED,
         PREPARE_SHUTDOWN,

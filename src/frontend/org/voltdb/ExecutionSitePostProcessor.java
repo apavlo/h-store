@@ -53,7 +53,11 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     public void run() {
         this.self = Thread.currentThread();
         this.self.setName(this.hstore_site.getThreadName("post"));
-        LOG.info("Starting transaction post-processing thread");
+        if (this.hstore_site.getHStoreConf().site.cpu_affinity) {
+            this.hstore_site.getThreadManager().registerProcessingThread();
+        }
+        if (debug.get())
+            LOG.debug("Starting transaction post-processing thread");
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         Object triplet[] = null;

@@ -133,6 +133,8 @@ public class ExecutionSiteHelper implements Runnable {
         if (this.first) {
             Thread self = Thread.currentThread();
             self.setName(this.hstore_site.getThreadName("help"));
+            if (hstore_site.getHStoreConf().site.cpu_affinity)
+                hstore_site.getThreadManager().registerProcessingThread();
             this.first = false;
         }
         if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");

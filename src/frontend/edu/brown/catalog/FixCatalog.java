@@ -1,16 +1,19 @@
 package edu.brown.catalog;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
-
 import org.voltdb.VoltDB;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProjectType;
 
@@ -166,12 +169,12 @@ public abstract class FixCatalog {
         if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
             File input_path = new File(args.getParam(ArgumentsParser.PARAM_MAPPINGS));
             if (input_path.exists()) {
-                ParameterMappingsSet correlations = new ParameterMappingsSet();
-                correlations.load(input_path.getAbsolutePath(), args.catalog_db);
-                ParametersUtil.applyParameterCorrelations(args.catalog_db, correlations);
-                LOG.info("Applied correlations file to '" + input_path + "' catalog parameter mappings...");
+                ParameterMappingsSet mappings = new ParameterMappingsSet();
+                mappings.load(input_path.getAbsolutePath(), args.catalog_db);
+                ParametersUtil.applyParameterMappings(args.catalog_db, mappings);
+                LOG.info("Applied ParameterMappings file to '" + input_path + "' catalog parameter mappings...");
             } else {
-                LOG.warn("Correlations file '" + input_path + "' does not exist. Ignoring...");
+                LOG.warn("ParameterMappings file '" + input_path + "' does not exist. Ignoring...");
             }
         }
         

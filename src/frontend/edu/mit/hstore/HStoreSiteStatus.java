@@ -1,16 +1,7 @@
 package edu.mit.hstore;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -131,6 +122,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     public void run() {
         self = Thread.currentThread();
         self.setName(this.hstore_site.getThreadName("mon"));
+        if (hstore_conf.site.cpu_affinity)
+            hstore_site.getThreadManager().registerProcessingThread();
 
         if (LOG.isDebugEnabled()) LOG.debug(String.format("Starting HStoreSite status monitor thread [interval=%d, kill=%s]", this.interval, hstore_conf.site.status_kill_if_hung));
         while (!self.isInterrupted() && this.hstore_site.isShuttingDown() == false) {
@@ -247,32 +240,40 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             ExecutionSite es = e.getValue();
             int partition = e.getKey().intValue();
             TransactionState ts = es.getCurrentDtxn();
-            String key = String.format("    Partition[%02d]", partition);
-            
-            StringBuilder sb = new StringBuilder();
             
             // Queue Information
-            sb.append(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            
+            m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
                                     this.partition_txns.get(partition),
                                     es.getWorkQueueSize(),
                                     es.getBlockedQueueSize(),
-                                    es.getWaitingQueueSize()));
+                                    es.getWaitingQueueSize()), null);
             
             // Execution Info
-            sb.append("Txns Executed:  ").append(es.getTransactionCounter()).append("\n");
-            sb.append("Current DTXN:   ").append(ts == null ? "-" : ts).append("\n");
-            sb.append("Execution Mode: ").append(es.getExecutionMode()).append("\n");
+            m.put("Current DTXN", (ts == null ? "-" : ts));
+            m.put("Current Mode", es.getExecutionMode());
             
             // Queue Time
             if (hstore_conf.site.exec_profiling) {
-                ProfileMeasurement pm = es.getWorkQueueProfileMeasurement();
-                sb.append(String.format("Idle Time:      %.2fms total / %.2fms avg\n",
-                                        pm.getTotalThinkTime()/1000000d,
-                                        pm.getAverageThinkTime()/1000000d));
+                ProfileMeasurement pm = es.getWorkExecTime();
+                m.put("Txn Execution", String.format("%d total / %.2fms total / %.2fms avg",
+                                                pm.getInvocations(),
+                                                pm.getTotalThinkTimeMS(),
+                                                pm.getAverageThinkTimeMS()));
+                
+                pm = es.getWorkIdleTime();
+                m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
+                                                pm.getTotalThinkTimeMS(),
+                                                pm.getAverageThinkTimeMS()));
             }
             
-            m_exec.put(key, sb.toString());
+            m_exec.put(String.format("    Partition[%02d]", partition), StringUtil.formatMaps(m) + "\n");
         } // FOR
+        
+        // Incoming Partition Distribution
+        m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 4));
+        
         return (m_exec);
     }
     
@@ -351,30 +352,40 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * @return
      */
     protected Map<String, Object> threadInfo() {
+        HStoreThreadManager manager = hstore_site.getThreadManager();
+        assert(manager != null);
+        
         final Map<String, Object> m_thread = new ListOrderedMap<String, Object>();
         final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
         sortedThreads.clear();
         sortedThreads.addAll(threads.keySet());
         
         m_thread.put("Number of Threads", threads.size());
+        
         for (Thread t : sortedThreads) {
             StackTraceElement stack[] = threads.get(t);
+            
+            String name = StringUtil.abbrv(t.getName(), 24, true);
+            if (manager.isRegistered(t) == false) {
+                name += " *UNREGISTERED*";
+            }
+            
             String trace = null;
             if (stack.length == 0) {
-                trace = "<NONE>";
+                trace += "<NO STACK TRACE>";
 //            } else if (t.getName().startsWith("Thread-")) {
 //                trace = Arrays.toString(stack);
             } else {
                 // Find the first line that is interesting to us
                 for (int i = 0; i < stack.length; i++) {
                     if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
-                        trace = stack[i].toString();
+                        trace += stack[i].toString();
                         break;
                     }
                 } // FOR
                 if (trace == null) stack[0].toString();
             }
-            m_thread.put(StringUtil.abbrv(t.getName(), 24, true), trace);
+            m_thread.put(name, trace);
         } // FOR
         return (m_thread);
     }
@@ -538,7 +549,19 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Thread Information
         // ----------------------------------------------------------------------------
-        Map<String, Object> threadInfo = (show_threads ? this.threadInfo() : null);
+        Map<String, Object> threadInfo = null;
+        Map<String, Object> cpuThreads = null;
+        if (show_threads) {
+            threadInfo = this.threadInfo();
+            
+//            cpuThreads = new ListOrderedMap<String, Object>();
+//            for (Entry<Integer, Set<Thread>> e : hstore_site.getThreadManager().getCPUThreads().entrySet()) {
+//                TreeSet<String> names = new TreeSet<String>();
+//                for (Thread t : e.getValue())
+//                    names.add(t.getName());
+//                cpuThreads.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])));
+//            } // FOR
+        }
 
         // ----------------------------------------------------------------------------
         // Transaction Profiling
@@ -629,7 +652,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
             } // FOR
         }
-        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, txnProfiles, m_pool));
+        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, m_pool));
     }
     
     private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {

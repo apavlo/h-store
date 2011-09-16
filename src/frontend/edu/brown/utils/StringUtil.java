@@ -253,7 +253,7 @@ public abstract class StringUtil {
                         
                         String v_line = (line_i < value.length ? value[line_i] : "");
                         
-                        if (line_i == 0 && (first == false || (first && v_line.isEmpty() == false))) {
+                        if (line_i == (key.length-1) && (first == false || (first && v_line.isEmpty() == false))) {
                             if (equalsDelimiter == false && k_line.trim().isEmpty() == false) k_line += ":";
                         }
                     

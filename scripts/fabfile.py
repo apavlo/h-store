@@ -106,6 +106,7 @@ ENV_DEFAULT = {
     "ec2.region":                  "us-east-1b",
     "ec2.access_key_id":           os.getenv('AWS_ACCESS_KEY_ID'),
     "ec2.secret_access_key":       os.getenv('AWS_SECRET_ACCESS_KEY'),
+    "ec2.force_reboot":            True,
     "ec2.all_instances":           [ ],
     "ec2.running_instances":       [ ],
 
@@ -186,9 +187,9 @@ def start_cluster():
         ## IF
     ## FOR
     if nfs_inst == None:
-        LOG.info("No centeral NFS instance is available. Will create a new one")
+        LOG.info("No %s instance is available. Will create a new one" % NFSTYPE_TAG_HEAD)
     elif not nfs_inst_online:
-        LOG.info("Central NFS instance if offline. Will restart")
+        LOG.info("%s instance if offline. Will restart" % NFSTYPE_TAG_HEAD)
     
     ## Check whether we enough instances already running
     instances_running = len(env["ec2.running_instances"])
@@ -237,7 +238,7 @@ def start_cluster():
                 ## Check whether we need to change the instance type before we restart it
                 __checkInstanceType__(inst)
                 
-                LOG.info("Restarting stopped node '%s' / %s" % (inst.tags['Name'], inst.get_attribute("instanceType")))
+                LOG.info("Restarting stopped node '%s' / %s" % (inst.tags['Name'], inst.get_attribute("instanceType")['instanceType']))
                 inst.start()
                 waiting.append(inst)
                 instances_needed -= 1
@@ -297,7 +298,7 @@ def start_cluster():
         with settings(host_string=inst.public_dns_name):
             ## Setup the basic environmnt that we need on each node
             setup_env()
-            need_reboot = __checkInstanceType__(inst)
+            need_reboot = __checkInstanceType__(inst) or env["ec2.force_reboot"]
             
             ## The first instance will be our NFS head node
             if first:
@@ -580,7 +581,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 @task
 def write_conf(project, removals=[ ]):
     assert project
-    prefix_include = [ 'site', 'coordinator', 'client', 'benchmark' ]
+    prefix_include = [ 'site', 'coordinator', 'client', 'global', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
     hstoreConf_updates = { }

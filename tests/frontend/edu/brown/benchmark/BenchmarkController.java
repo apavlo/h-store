@@ -178,7 +178,7 @@ public class BenchmarkController {
     ServerThread m_localserver = null;
     
     /**
-     * SiteId -> Set<<Host, Port>>
+     * SiteId -> Set[Host, Port]
      */
     Map<Integer, Set<Pair<String, Integer>>> m_launchHosts;
     
@@ -299,7 +299,7 @@ public class BenchmarkController {
         this.catalog = catalog;
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(null, 0, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
         m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
         m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, config.client_initialPollingDelay, this.failure_observer);
 
@@ -424,13 +424,15 @@ public class BenchmarkController {
                 site_id++;
             } // FOR
         } else {
-            if (debug.get()) LOG.debug("Collecting host information from catalog");
+            if (debug.get()) LOG.debug("Retrieving host information from catalog");
             m_launchHosts = CatalogUtil.getExecutionSites(catalog);
             for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
                 Pair<String, Integer> p = CollectionUtil.first(e.getValue());
                 assert(p != null);
-                if (trace.get()) LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
-                                                         HStoreSite.formatSiteName(e.getKey()), p.getFirst(), p.getSecond()));
+                if (trace.get())
+                    LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
+                                           HStoreSite.formatSiteName(e.getKey()),
+                                           p.getFirst(), p.getSecond()));
                 unique_hosts.add(p.getFirst());
             } // FOR
         }
@@ -591,7 +593,6 @@ public class BenchmarkController {
             }
         }
         LOG.info("All remote HStoreSites are initialized");
-
     }
     
     public void startLoader(final Catalog catalog, final int numClients) {
@@ -672,7 +673,9 @@ public class BenchmarkController {
             for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
                 String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
-                if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
+                if (trace.get()) 
+                    LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
+//                    break;
             } // FOR
         } // FOR
     }

@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
+import edu.mit.hstore.HStoreThreadManager;
+
 /**
  * Hack to hook in log4j.properties
  * @author pavlo
@@ -19,6 +21,7 @@ public abstract class LoggerUtil {
     private static Thread REFRESH_THREAD = null;
     private static long LAST_TIMESTAMP = 0;
     private static final EventObservable OBSERVABLE = new EventObservable();
+    private static HStoreThreadManager THREAD_MANAGER;
     
     public static class LoggerBoolean {
         private boolean val;
@@ -76,6 +79,46 @@ public abstract class LoggerUtil {
         }
     }
     
+    private static class LoggerCheck implements Runnable {
+        final long interval;
+        
+        public LoggerCheck(long interval) {
+            this.interval = interval;
+        }
+        
+        public void run() {
+            if (PROPERTIES_FILE == null) setupLogging();
+            Thread self = Thread.currentThread();
+            self.setName("LogCheck");
+            
+            while (!self.isInterrupted()) {
+                try {
+                    Thread.sleep(interval);
+                } catch (InterruptedException ex) {
+                    break;
+                }
+                if (THREAD_MANAGER != null) {
+                    synchronized (LoggerUtil.class) {
+                        THREAD_MANAGER.registerProcessingThread();
+                        THREAD_MANAGER = null;
+                    } // SYNCH
+                }
+                
+                // Refresh our configuration if the file has changed
+                if (PROPERTIES_FILE != null && LAST_TIMESTAMP != PROPERTIES_FILE.lastModified()) {
+                    loadConfiguration(PROPERTIES_FILE);
+                    assert(PROPERTIES_FILE != null);
+                    Logger.getRootLogger().info("Refreshed log4j configuration [" + PROPERTIES_FILE.getAbsolutePath() + "]");
+                    LoggerUtil.OBSERVABLE.notifyObservers();
+                }
+            }
+        }
+    }
+    
+    public static synchronized void registerThread(HStoreThreadManager manager) {
+        THREAD_MANAGER = manager; 
+    }
+    
     public static void setupLogging() {
         if (PROPERTIES_FILE != null) return;
         
@@ -102,6 +145,10 @@ public abstract class LoggerUtil {
         LoggerUtil.refreshLogging(10000); // 180000l); // 3 min
     }
     
+    public static Thread getRefreshThread() {
+        return (REFRESH_THREAD);
+    }
+    
     protected static synchronized void loadConfiguration(File file) {
         org.apache.log4j.PropertyConfigurator.configure(file.getAbsolutePath());
         Logger.getRootLogger().debug("Loaded log4j configuration file '" + file.getAbsolutePath() + "'");
@@ -112,27 +159,7 @@ public abstract class LoggerUtil {
     public static void refreshLogging(final long interval) {
         if (REFRESH_THREAD == null) {
             Logger.getRootLogger().debug("Starting log4j refresh thread [update interval = " + interval + "]");
-            REFRESH_THREAD = new Thread() {
-                public void run() {
-                    if (PROPERTIES_FILE == null) setupLogging();
-                    Thread self = Thread.currentThread();
-                    self.setName("LogCheck");
-                    while (!self.isInterrupted()) {
-                        try {
-                            Thread.sleep(interval);
-                        } catch (InterruptedException ex) {
-                            break;
-                        }
-                        // Refresh our configuration if the file has changed
-                        if (PROPERTIES_FILE != null && LAST_TIMESTAMP != PROPERTIES_FILE.lastModified()) {
-                            loadConfiguration(PROPERTIES_FILE);
-                            assert(PROPERTIES_FILE != null);
-                            Logger.getRootLogger().info("Refreshed log4j configuration [" + PROPERTIES_FILE.getAbsolutePath() + "]");
-                            LoggerUtil.OBSERVABLE.notifyObservers();
-                        }
-                    }
-                }
-            };
+            REFRESH_THREAD = new Thread(new LoggerCheck(interval));
             REFRESH_THREAD.setPriority(Thread.MIN_PRIORITY);
             REFRESH_THREAD.setDaemon(true);
             REFRESH_THREAD.start();

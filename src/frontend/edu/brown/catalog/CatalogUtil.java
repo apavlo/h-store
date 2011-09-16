@@ -734,6 +734,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 Set<Pair<String, Integer>> s = new HashSet<Pair<String,Integer>>();
                 for (Integer port : CatalogUtil.getExecutionSitePorts(catalog_site)) {
                     s.add(Pair.of(catalog_host.getIpaddr(), port));
+//                    break;
                 } // FOR
                 sites.put(catalog_site.getId(), s);
             } // FOR
@@ -742,7 +743,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     public static Collection<Integer> getExecutionSitePorts(Site catalog_site) {
-        Set<Integer> ports = new HashSet<Integer>();
+        Set<Integer> ports = new TreeSet<Integer>();
         for (Partition catalog_part : catalog_site.getPartitions()) {
             ports.add(catalog_part.getProc_port());
         }
