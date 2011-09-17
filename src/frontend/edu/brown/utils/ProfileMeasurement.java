@@ -219,7 +219,9 @@ public class ProfileMeasurement implements JSONSerializable {
     public static void start(boolean ignore_started, ProfileMeasurement...to_start) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_start) {
-            if (ignore_started == false || (ignore_started && pm.isStarted() == false)) pm.start(time);
+            synchronized (pm) {
+                if (ignore_started == false || (ignore_started && pm.isStarted() == false)) pm.start(time);
+            } // SYNCH
         } // FOR
     }
     
@@ -240,7 +242,9 @@ public class ProfileMeasurement implements JSONSerializable {
     public static void stop(boolean ignore_stopped, ProfileMeasurement...to_stop) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_stop) {
-            if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false)) pm.stop(time);
+            synchronized (pm) {
+                if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false)) pm.stop(time);
+            } // SYNCH
         } // FOR
     }
     

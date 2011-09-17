@@ -232,11 +232,15 @@ public abstract class StringUtil {
                 if (first && map_titles[map_i]) {
                     blocks[map_i].append(StringUtil.join("\n", key));
                     if (CollectionUtil.last(key).endsWith("\n") == false) blocks[map_i].append("\n");
+                    
                 } else {
                     Object v_obj = e.getValue();
                     String v = null;
                     if (recursive && v_obj instanceof Map<?, ?>) {
                         v = formatMaps(delimiter, upper, box, border_top, border_bottom, recursive, first_element_title, (Map<?,?>)v_obj).trim();
+                    } else if (key.length == 1 && key[0].trim().isEmpty() && v_obj == null) {
+                        blocks[map_i].append("\n");
+                        continue;
                     } else if (v_obj == null) {
                         v = "null";
                     } else {

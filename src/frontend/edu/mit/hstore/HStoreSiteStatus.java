@@ -13,6 +13,7 @@ import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
+import org.voltdb.ExecutionSitePostProcessor;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -203,34 +204,42 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
-        Map<String, Object> m_exec = new ListOrderedMap<String, Object>();
+        ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
         m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
-        m_exec.put("InFlight Txns", String.format("%-5d [totalMin=%d, totalMax=%d, idle=%.2fms]",
+        m_exec.put("InFlight Txns", String.format("%-5d [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_min,
-                        inflight_max,
-                        this.hstore_site.idle_time.getTotalThinkTimeMS()
-                        
+                        inflight_max
         ));
+        
+        ProfileMeasurement pm = this.hstore_site.getEmptyQueueTime();
+        m_exec.put("Empty Queue", String.format("%d total / %.2fms total / %.2fms avg",
+                        pm.getInvocations(),
+                        pm.getTotalThinkTimeMS(),
+                        pm.getAverageThinkTimeMS()
+        ));
+        
         if (hstore_conf.site.exec_postprocessing_thread) {
             int processing_cur = hstore_site.getQueuedResponseCount();
             if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
             if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
-            m_exec.put("Post-Processing Txns", String.format("%-5d [totalMin=%d, totalMax=%d]",
-                            processing_cur,
-                            processing_min,
-                            processing_max
-            ));
+            
+            String val = String.format("%-5d [totalMin=%d, totalMax=%d]", processing_cur, processing_min, processing_max);
+            int i = 0;
+            for (ExecutionSitePostProcessor espp : hstore_site.getExecutionSitePostProcessors()) {
+                pm = espp.getExecTime();
+                val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
+                                     i++,
+                                     pm.getInvocations(),
+                                     pm.getTotalThinkTimeMS(),
+                                     pm.getAverageThinkTimeMS());
+            } // FOR
+            
+            m_exec.put("Post-Processing Txns", val);
         }
+        m_exec.put(" ", null);
 
-//        m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]\n",
-//                        this.hstore_site.isRedirectedThrottled(),
-//                        this.hstore_site.getRedirectQueueMax(),
-//                        this.hstore_site.getRedirectQueueRelease(),
-//                        this.hstore_site.redirect_throttle_time.getTotalThinkTimeMS()                              
-//        ));
-
-        
+        // EXECUTION ENGINES
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             ExecutionSite es = e.getValue();
             int partition = e.getKey().intValue();
@@ -245,36 +254,40 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getBlockedQueueSize(),
                                     es.getWaitingQueueSize()), null);
             
-            // Execution Info
-            m.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
-                    this.hstore_site.isIncomingThrottled(partition),
-                    this.hstore_site.getIncomingQueueMax(),
-                    this.hstore_site.getIncomingQueueRelease(),
-                    this.hstore_site.incoming_throttle_time[partition].getTotalThinkTimeMS()
-            ));
-            
-            m.put("Current DTXN", (ts == null ? "-" : ts));
-            m.put("Current Mode", es.getExecutionMode());
-            
             // Queue Time
             if (hstore_conf.site.exec_profiling) {
-                ProfileMeasurement pm = es.getWorkExecTime();
+                pm = es.getWorkExecTime();
                 m.put("Txn Execution", String.format("%d total / %.2fms total / %.2fms avg",
                                                 pm.getInvocations(),
                                                 pm.getTotalThinkTimeMS(),
                                                 pm.getAverageThinkTimeMS()));
-                
+            }
+            
+            // Execution Info
+            m.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
+                    this.hstore_site.isIncomingThrottled(partition),
+                    this.hstore_site.getIncomingQueueMax(partition),
+                    this.hstore_site.getIncomingQueueRelease(partition),
+                    this.hstore_site.incoming_throttle_time[partition].getTotalThinkTimeMS()
+            ));
+            
+            if (hstore_conf.site.exec_profiling) {
                 pm = es.getWorkIdleTime();
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
                                                 pm.getTotalThinkTimeMS(),
-                                                pm.getAverageThinkTimeMS()));
+                                                pm.getAverageThinkTimeMS()));                
             }
+            
+            m.put("Current Mode", String.format("%-10s / %s", es.getExecutionMode(), (ts == null ? "-" : ts)));
             
             m_exec.put(String.format("    Partition[%02d]", partition), StringUtil.formatMaps(m) + "\n");
         } // FOR
         
         // Incoming Partition Distribution
-        m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 4));
+        m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 10) + "\n");
+        
+        // Incoming Listenger Thread Distribution
+        m_exec.put("Incoming Listeners", hstore_site.getIncomingListenerHistogram().toString(50, 10));
         
         return (m_exec);
     }

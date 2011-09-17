@@ -74,10 +74,10 @@ OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = False
 OPT_BASE_BLOCKING_CONCURRENT = 1000
-OPT_BASE_TXNRATE_PER_PARTITION = 2950 # Tested
+OPT_BASE_TXNRATE_PER_PARTITION = 3500 # 2950 # Tested
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
 OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
@@ -93,25 +93,25 @@ BASE_SETTINGS = {
     "client.skewfactor":                -1,
     "client.duration":                  60000,
     "client.warmup":                    30000,
-    "client.scalefactor":               50,
+    "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
-    "client.throttle_backoff":          OPT_BASE_SCALE_FACTOR,
+    "client.throttle_backoff":          50,
     "client.memory":                    512,
     
-    "site.sites_per_host":                              1,
-    "site.partitions_per_site":                         5,
     "site.exec_profiling":                              True,
-    "site.memory":                                      60020,
     "site.status_show_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
-    "site.status_interval":                             None,
-    "site.txn_incoming_queue_max_per_partition":        5000,
-    "site.txn_incoming_queue_release_factor":           0.90,
-    "site.txn_redirect_queue_max_per_partition":        5000,
-    "site.txn_redirect_queue_release_factor":           0.90,
-    "site.exec_postprocessing_thread":                  True,
+    "site.status_show_exec_info":                       False,
+    "site.status_interval":                             5000,
     "site.pool_profiling":                              False,
+    
+    "site.sites_per_host":                              1,
+    "site.partitions_per_site":                         5,
+    "site.memory":                                      60020,
+    "site.txn_incoming_queue_max_per_partition":        10000,
+    "site.txn_incoming_queue_release_factor":           0.90,
+    "site.exec_postprocessing_thread":                  True,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
@@ -341,6 +341,7 @@ if __name__ == '__main__':
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
 
     updateSVN = True
+    needCompile = (OPT_NO_COMPILE == False)
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
@@ -358,33 +359,31 @@ if __name__ == '__main__':
             else:
                 assert False
                 
-            first = True
+            if OPT_START_CLUSTER:
+                LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
+                fabfile.start_cluster()
+                if OPT_NO_EXECUTE: sys.exit(0)
+            ## IF
+                
+            client_inst = fabfile.__getClientInstance__()
+            LOG.debug("Client Instance: " + client_inst.public_dns_name)
+                
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
                 conf_remove = conf_remove - set(env.keys())
                 
-                if first:
-                    if OPT_START_CLUSTER:
-                        LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
-                        fabfile.start_cluster()
-                        if OPT_NO_EXECUTE: sys.exit(0)
-                    
-                    client_inst = fabfile.__getClientInstance__()
-                    LOG.debug("Client Instance: " + client_inst.public_dns_name)
-                ## IF
-
                 results = [ ]
                 attempts = 0
                 updateConf = True
                 while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
                     ## Only compile for the very first invocation
-                    if first and OPT_NO_COMPILE == False:
+                    if needCompile:
                         if env["hstore.exec_prefix"].find("compile") == -1:
                             env["hstore.exec_prefix"] += " compile"
                     else:
                         env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
-                    first = False
+                    needCompile = False
                     
                     attempts += 1
                     LOG.info("Executing %s Trial #%d/%d for Factor %s [attempt=%d/%d]" % (\

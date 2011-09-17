@@ -23,7 +23,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -45,6 +47,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -68,7 +71,7 @@ class Distributer {
     private final ArrayList<NodeConnection> m_connections = new ArrayList<NodeConnection>();
     
     /** SiteId -> NodeConnection */
-    private final Map<Integer, NodeConnection> m_connectionSiteXref = new HashMap<Integer, NodeConnection>();
+    private final Map<Integer, Collection<NodeConnection>> m_connectionSiteXref = new HashMap<Integer, Collection<NodeConnection>>();
 
     private final ArrayList<ClientStatusListener> m_listeners = new ArrayList<ClientStatusListener>();
 
@@ -358,10 +361,14 @@ class Distributer {
         }
 
         public boolean hadBackPressure(long now) {
-            if (trace.get()) LOG.trace(String.format("Checking whether %s has backup pressure: %s", m_connection, m_hasBackPressure));
+            if (trace.get()) 
+                LOG.trace(String.format("Checking whether %s has backup pressure: %s",
+                                        m_connection, m_hasBackPressure));
             if (m_hasBackPressure.get()) {
                 if (now - m_hasBackPressureTimestamp > m_backpressureWait) {
-                    if (trace.get()) LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms", this, (now - m_hasBackPressureTimestamp)));
+                    if (trace.get()) 
+                        LOG.trace(String.format("Disabling backpresure at %s because client has waited for %d ms",
+                                                this, (now - m_hasBackPressureTimestamp)));
 //                    assert(m_hasBackPressureTimestamp >= 0);
                     m_hasBackPressure.set(false);
                     m_hasBackPressureTimestamp = -1;
@@ -530,8 +537,9 @@ class Distributer {
         }
         m_hostname = hostname;
         
-        LOG.debug(String.format("Created new Distributer for %s [multiThread=%s, backpressureWait=%d]",
-                                m_hostname, m_useMultipleThreads, m_backpressureWait));
+        if (debug.get())
+            LOG.debug(String.format("Created new Distributer for %s [multiThread=%s, backpressureWait=%d]",
+                                    m_hostname, m_useMultipleThreads, m_backpressureWait));
 
 //        new Thread() {
 //            @Override
@@ -594,7 +602,8 @@ class Distributer {
             LOG.error("Failed to get connection to " + host + ":" + port, ex);
             throw new IOException(ex);
         }
-        if (debug.get()) LOG.debug("We now have an authenticated connection. Let's grab the socket...");
+        if (debug.get()) 
+            LOG.debug("We now have an authenticated connection. Let's grab the socket...");
         final SocketChannel aChannel = (SocketChannel)connectionStuff[0];
         final long numbers[] = (long[])connectionStuff[1];
         if (m_clusterInstanceId == null) {
@@ -623,14 +632,22 @@ class Distributer {
         if (site_id != null) {
             if (debug.get())
                 LOG.debug(String.format("Created connection for Site %s: %s", HStoreSite.formatSiteName(site_id), cxn));
-            m_connectionSiteXref.put(site_id, cxn);
+            synchronized (m_connectionSiteXref) {
+                Collection<NodeConnection> nc = m_connectionSiteXref.get(site_id);
+                if (nc == null) {
+                    nc = new HashSet<NodeConnection>();
+                    m_connectionSiteXref.put(site_id, nc);
+                }
+                nc.add(cxn);    
+            } // SYNCH
         }
         
         Connection c = m_network.registerChannel(aChannel, cxn);
         cxn.m_hostname = c.getHostname();
         cxn.m_port = port;
         cxn.m_connection = c;
-        if (debug.get()) LOG.debug("From what I can tell, we have a connection: " + cxn);
+        if (debug.get()) 
+            LOG.debug("From what I can tell, we have a connection: " + cxn);
     }
 
 //    private HashMap<String, Long> reportedSizes = new HashMap<String, Long>();
@@ -676,8 +693,9 @@ class Distributer {
             if (totalConnections == 0) {
                 throw new NoConnectionsException("No connections.");
             }
-            if (site_id != null) {
-                cxn = m_connectionSiteXref.get(site_id);
+            if (site_id != null && m_connectionSiteXref.containsKey(site_id)) {
+                 cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
+//                cxn = CollectionUtil.first(m_connectionSiteXref.get(site_id));
                 if (cxn == null) {
                     LOG.warn("No direct connection to " + HStoreSite.formatSiteName(site_id));
                 } else backpressure = false; // XXX
@@ -692,9 +710,10 @@ class Distributer {
                 for (int i=0; i < totalConnections; ++i) {
                     int idx = Math.abs(++m_nextConnection % totalConnections);
                     cxn = m_connections.get(idx);
-    //                System.err.println("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
+                    if (trace.get())
+                        LOG.trace("m_nextConnection = " + idx + " / " + totalConnections + " [" + cxn + "]");
                     queuedInvocations += cxn.m_callbacks.size();
-                    if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
+                    if (cxn.hadBackPressure(now) == false || ignoreBackpressure) {
                         // serialize and queue the invocation
                         backpressure = false;
                         break;
@@ -708,7 +727,7 @@ class Distributer {
                     s.backpressure(true);
                 }
             }
-        }
+        } // SYNCH
 
         /*
          * Do the heavy weight serialization outside the synchronized block.
@@ -976,4 +995,8 @@ class Distributer {
     public String getBuildString() {
         return m_buildString;
     }
+    public int getConnectionCount() {
+        return m_connections.size();
+    }
+    
 }

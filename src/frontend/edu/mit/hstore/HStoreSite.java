@@ -29,15 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Observer;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -325,15 +317,16 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final Random rand = new Random();
 
     private final boolean incoming_throttle[];
-    private final int incoming_queue_max;
-    private final int incoming_queue_release;
+    private final int incoming_queue_max[];
+    private final int incoming_queue_release[];
     private final Histogram<Integer> incoming_partitions = new Histogram<Integer>();
+    private final Histogram<String> incoming_listeners = new Histogram<String>();
     protected final ProfileMeasurement incoming_throttle_time[];
 
-    private final boolean redirect_throttle[];
-    private final int redirect_queue_max;
-    private final int redirect_queue_release;
-    protected final ProfileMeasurement redirect_throttle_time = new ProfileMeasurement("redirectThrottle");
+//    private final boolean redirect_throttle[];
+//    private final int redirect_queue_max;
+//    private final int redirect_queue_release;
+//    protected final ProfileMeasurement redirect_throttle_time = new ProfileMeasurement("redirectThrottle");
     
     /** How long the HStoreSite had no inflight txns */
     protected final ProfileMeasurement idle_time = new ProfileMeasurement("idle");
@@ -370,7 +363,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         this.inflight_txns_ctr = new AtomicInteger[num_partitions];
         this.incoming_throttle = new boolean[num_partitions];
         this.incoming_throttle_time = new ProfileMeasurement[num_partitions];
-        this.redirect_throttle = new boolean[num_partitions];
+        this.incoming_queue_max = new int[num_partitions];
+        this.incoming_queue_release = new int[num_partitions];
         
         for (int partition : executors.keySet()) {
             this.executors[partition] = executors.get(partition);
@@ -379,7 +373,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             this.inflight_txns_ctr[partition] = new AtomicInteger(0); 
             this.incoming_throttle[partition] = false;
             this.incoming_throttle_time[partition] = new ProfileMeasurement("incoming-" + partition);
-            this.redirect_throttle[partition] = false;
+            this.incoming_queue_max[partition] = hstore_conf.site.txn_incoming_queue_max_per_partition;
+            this.incoming_queue_release[partition] = Math.max((int)(this.incoming_queue_max[partition] * hstore_conf.site.txn_incoming_queue_release_factor), 1);
             
             if (hstore_conf.site.status_show_executor_info) {
                 this.incoming_throttle_time[partition].resetOnEvent(this.startWorkload_observable);
@@ -404,13 +399,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
             } // FOR
         }
-        
-        // Queue Sizes
-        this.incoming_queue_max = Math.round(this.num_local_partitions * hstore_conf.site.txn_incoming_queue_max_per_partition);
-        this.incoming_queue_release = Math.max((int)(this.incoming_queue_max * hstore_conf.site.txn_incoming_queue_release_factor), 1);
-        this.redirect_queue_max = Math.round(this.num_local_partitions * hstore_conf.site.txn_redirect_queue_max_per_partition);
-        this.redirect_queue_release = Math.max((int)(this.redirect_queue_max * hstore_conf.site.txn_redirect_queue_release_factor), 1);
-        
         this.messenger = new HStoreMessenger(this);
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
@@ -477,6 +465,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 
     public ExecutionSiteHelper getExecutionSiteHelper() {
         return (this.helper);
+    }
+    public Collection<ExecutionSitePostProcessor> getExecutionSitePostProcessors() {
+        return (Collections.unmodifiableCollection(this.processors));
     }
     
     public int getExecutorCount() {
@@ -717,27 +708,21 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     public boolean isIncomingThrottled(int partition) {
         return (this.incoming_throttle[partition]);
     }
-    public int getIncomingQueueMax() {
-        return (this.incoming_queue_max);
+    public int getIncomingQueueMax(int partition) {
+        return (this.incoming_queue_max[partition]);
     }
-    public int getIncomingQueueRelease() {
-        return (this.incoming_queue_release);
+    public int getIncomingQueueRelease(int partition) {
+        return (this.incoming_queue_release[partition]);
     }
     public Histogram<Integer> getIncomingPartitionHistogram() {
         return (this.incoming_partitions);
     }
+    public Histogram<String> getIncomingListenerHistogram() {
+        return (this.incoming_listeners);
+    }
     
-    /**
-     * Returns true if this HStoreSite is throttling redirected transactions
-     */
-    public boolean isRedirectedThrottled(int partition) {
-        return (this.redirect_throttle[partition]);
-    }
-    public int getRedirectQueueMax() {
-        return (this.redirect_queue_max);
-    }
-    public int getRedirectQueueRelease() {
-        return (this.redirect_queue_release);
+    public ProfileMeasurement getEmptyQueueTime() {
+        return (this.idle_time);
     }
     
     /**
@@ -747,9 +732,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      * @return
      */
     public boolean checkDisableThrottling(long txn_id, int partition) {
-        if (this.incoming_throttle[partition] || this.redirect_throttle[partition]) {
+        if (this.incoming_throttle[partition]) {
             int queue_size = this.inflight_txns_ctr[partition].get(); // XXX - this.ready_responses.size(); 
-            if (this.incoming_throttle[partition] && queue_size < this.incoming_queue_release) {
+            if (this.incoming_throttle[partition] && queue_size < this.incoming_queue_release[partition]) {
                 this.incoming_throttle[partition] = false;
                 if (hstore_conf.site.status_show_executor_info)
                     ProfileMeasurement.stop(true, this.incoming_throttle_time[partition]);
@@ -895,8 +880,10 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         boolean sysproc = StoredProcedureInvocation.isSysProc(buffer);
         int base_partition = StoredProcedureInvocation.getBasePartition(buffer);
         
-        if (hstore_conf.site.exec_profiling && base_partition != -1) {
-            this.incoming_partitions.put(base_partition);
+        if (hstore_conf.site.exec_profiling) {
+            if (base_partition != -1)
+                this.incoming_partitions.put(base_partition);
+            this.incoming_listeners.put(Thread.currentThread().getName());
         }
         
         // The serializedRequest is a ProcedureInvocation object
@@ -1307,8 +1294,8 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
-        int queue_size = this.inflight_txns.size() - this.ready_responses.size();
-        if (this.incoming_throttle[base_partition] == false && queue_size > this.incoming_queue_max) {
+        int queue_size = this.inflight_txns.size(); //  - this.ready_responses.size();
+        if (this.incoming_throttle[base_partition] == false && queue_size > this.incoming_queue_max[base_partition]) {
             if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
                                            ts, queue_size, this.incoming_queue_release));
             this.incoming_throttle[base_partition] = true;
@@ -1713,8 +1700,13 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
         
-        if (this.inflight_txns_ctr[base_partition].decrementAndGet() == 0 && hstore_conf.site.status_show_executor_info) {
-            ProfileMeasurement.start(true, idle_time);
+        // If this partition is completely idle, then we will increase the size of its upper limit
+        if (this.inflight_txns_ctr[base_partition].decrementAndGet() == 0) {
+            if (this.startWorkload) {
+                this.incoming_queue_max[base_partition] += 100; // TODO
+                this.incoming_queue_release[base_partition] = Math.max((int)(this.incoming_queue_max[base_partition] * hstore_conf.site.txn_incoming_queue_release_factor), 1); 
+            }
+            if (hstore_conf.site.status_show_executor_info) ProfileMeasurement.start(true, idle_time);
         }
         
         // Update Transaction profiles

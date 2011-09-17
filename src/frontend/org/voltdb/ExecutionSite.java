@@ -1640,9 +1640,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // If we're a multi-partition txn then queue this mofo immediately
         if (ts.isPredictSinglePartition() == false) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            // synchronized (this.work_queue) {
+            // We need to acquire this lock because we need to make sure that we're always put in the front
+            // of the queue. Otherwise somebody might move the entire work queue into the blocked list
+            synchronized (this.work_queue) {
                 this.work_queue.addFirst(task);    
-            // }
+             } // SYNCH
 
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {
