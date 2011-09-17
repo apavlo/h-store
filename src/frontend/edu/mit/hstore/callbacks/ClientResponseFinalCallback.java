@@ -17,11 +17,13 @@ import edu.mit.hstore.HStoreSite;
 public class ClientResponseFinalCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FinishResponse> {
     private static final Logger LOG = Logger.getLogger(ClientResponseFinalCallback.class);
     
+    private final int base_partition;
     private final byte output[];
     private final Dtxn.FragmentResponse.Status status;
     
-    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, byte output[], Dtxn.FragmentResponse.Status status, RpcCallback<byte[]> done) {
+    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, int base_partition, byte output[], Dtxn.FragmentResponse.Status status, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
+        this.base_partition = base_partition;
         this.output = output;
         this.status = status;
     }
@@ -36,7 +38,7 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
         assert(this.status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
         
         // Check whether we should disable throttling
-        boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id);
+        boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id, this.base_partition);
         int timestamp = this.hstore_site.getNextServerTimestamp();
         
         ByteBuffer buffer = ByteBuffer.wrap(output);

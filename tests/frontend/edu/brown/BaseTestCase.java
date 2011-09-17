@@ -87,6 +87,7 @@ public abstract class BaseTestCase extends TestCase {
         
         // HStoreConf Hack
         HStoreConf.init(null, null);
+        HStoreConf.singleton().site.cpu_affinity = false;
         
         // Force everything to be single-threaded
         ThreadUtil.setMaxGlobalThreads(2);

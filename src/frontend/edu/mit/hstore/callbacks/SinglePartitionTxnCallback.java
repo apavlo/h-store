@@ -47,7 +47,7 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
         // that we haven't already done!
         } else {
             // Check whether we should disable throttling
-            boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id);
+            boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id, this.ts.getBasePartition());
             int timestamp = this.hstore_site.getNextServerTimestamp();
             
             ByteBuffer buffer = ByteBuffer.wrap(output);

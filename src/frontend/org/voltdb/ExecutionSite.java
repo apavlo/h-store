@@ -2070,7 +2070,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Always mark the throttling flag so that the clients know whether they are allowed to keep
         // coming at us and make requests
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
-        cresponse.setThrottleFlag(this.hstore_site.isIncomingThrottled());
+        cresponse.setThrottleFlag(this.hstore_site.isIncomingThrottled(ts.getBasePartition()));
         
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit

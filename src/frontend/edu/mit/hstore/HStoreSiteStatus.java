@@ -222,18 +222,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                             processing_max
             ));
         }
-        m_exec.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
-                        this.hstore_site.isIncomingThrottled(),
-                        this.hstore_site.getIncomingQueueMax(),
-                        this.hstore_site.getIncomingQueueRelease(),
-                        this.hstore_site.incoming_throttle_time.getTotalThinkTimeMS()
-        ));
-        m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]\n",
-                        this.hstore_site.isRedirectedThrottled(),
-                        this.hstore_site.getRedirectQueueMax(),
-                        this.hstore_site.getRedirectQueueRelease(),
-                        this.hstore_site.redirect_throttle_time.getTotalThinkTimeMS()                              
-        ));
+
+//        m_exec.put("Redirect Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]\n",
+//                        this.hstore_site.isRedirectedThrottled(),
+//                        this.hstore_site.getRedirectQueueMax(),
+//                        this.hstore_site.getRedirectQueueRelease(),
+//                        this.hstore_site.redirect_throttle_time.getTotalThinkTimeMS()                              
+//        ));
 
         
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
@@ -251,6 +246,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getWaitingQueueSize()), null);
             
             // Execution Info
+            m.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
+                    this.hstore_site.isIncomingThrottled(partition),
+                    this.hstore_site.getIncomingQueueMax(),
+                    this.hstore_site.getIncomingQueueRelease(),
+                    this.hstore_site.incoming_throttle_time[partition].getTotalThinkTimeMS()
+            ));
+            
             m.put("Current DTXN", (ts == null ? "-" : ts));
             m.put("Current Mode", es.getExecutionMode());
             
