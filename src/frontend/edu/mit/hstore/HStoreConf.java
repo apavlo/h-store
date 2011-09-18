@@ -99,7 +99,7 @@ public final class HStoreConf {
                         "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
                         "waiting for work to be added to its queue).",
             defaultBoolean=false,
-            advanced=true
+            advanced=false
         )
         public boolean exec_profiling;
         
@@ -325,6 +325,19 @@ public final class HStoreConf {
         )
         public int markov_batch_caching_min;
 
+        // ----------------------------------------------------------------------------
+        // BatchPlanner
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Enable BatchPlanner profiling. This will keep of how long the BatchPlanner spends performing " +
+                        "certain operations.",
+            defaultBoolean=false,
+            experimental=false,
+            advanced=false
+        )
+        public boolean planner_profiling;
+        
         // ----------------------------------------------------------------------------
         // HStoreMessenger
         // ----------------------------------------------------------------------------

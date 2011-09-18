@@ -244,7 +244,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
      */
-    public static final Map<Integer, BatchPlanner> POOL_BATCH_PLANNERS = new ConcurrentHashMap<Integer, BatchPlanner>();
+    public static final Map<Integer, BatchPlanner> POOL_BATCH_PLANNERS = new ConcurrentHashMap<Integer, BatchPlanner>(100);
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS

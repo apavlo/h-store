@@ -359,6 +359,91 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     // ----------------------------------------------------------------------------
+    // BATCH PLANNER INFO
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     * @return
+     */
+    protected Map<String, String> batchPlannerInfo() {
+        // First get all the BatchPlanners that we have
+        Collection<BatchPlanner> bps = new HashSet<BatchPlanner>(ExecutionSite.POOL_BATCH_PLANNERS.values());
+        Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();
+        ProfileMeasurement final_totals[] = null;
+        int num_cols = 0;
+        for (BatchPlanner bp : bps) {
+            ProfileMeasurement times[] = bp.getProfileTimes();
+            
+            Procedure catalog_proc = bp.getProcedure();
+            ProfileMeasurement totals[] = proc_totals.get(catalog_proc);
+            if (totals == null) {
+                num_cols = times.length+2;
+                totals = new ProfileMeasurement[num_cols-1];
+                final_totals = new ProfileMeasurement[num_cols-1];
+                proc_totals.put(catalog_proc, totals);
+            }
+            for (int i = 0; i < totals.length; i++) {
+                if (i == 0) {
+                    if (totals[i] == null) totals[i] = new ProfileMeasurement("total");
+                } else {
+                    if (totals[i] == null)
+                        totals[i] = new ProfileMeasurement(times[i-1]);
+                    else
+                        totals[i].appendTime(times[i-1]);
+                    totals[0].appendTime(times[i-1], false);
+                }
+                if (final_totals[i] == null) final_totals[i] = new ProfileMeasurement(totals[i].getType());
+            } // FOR
+        } // FOR
+        if (proc_totals.isEmpty()) return (null);
+        
+        boolean first = true;
+        String header[] = new String[num_cols];
+        Object rows[][] = new String[proc_totals.size()+2][];
+        String col_delimiters[] = new String[num_cols];
+        String row_delimiters[] = new String[rows.length];
+        int i = -1;
+        int j = 0;
+        for (Procedure proc : proc_totals.keySet()) {
+            j = 0;
+            rows[++i] = new String[num_cols];
+            rows[i][j++] = proc.getName();
+            if (first) header[0] = "";
+            for (ProfileMeasurement pm : proc_totals.get(proc)) {
+                if (first) header[j] = pm.getType();
+                final_totals[j-1].appendTime(pm, false);
+                rows[i][j] = Long.toString(Math.round(pm.getTotalThinkTimeMS()));
+                j++;
+            } // FOR
+            first = false;
+        } // FOR
+        
+        j = 0;
+        rows[++i] = new String[num_cols];
+        rows[i+1] = new String[num_cols];
+        rows[i][j++] = "TOTAL";
+        row_delimiters[i] = "-"; // "\u2015";
+
+        for (int final_idx = 0; final_idx < final_totals.length; final_idx++) {
+            if (final_idx == 0) col_delimiters[j] = " | ";
+            
+            ProfileMeasurement pm = final_totals[final_idx];
+            rows[i][j] = Long.toString(Math.round(pm.getTotalThinkTimeMS()));
+            rows[i+1][j] = (final_idx > 0 ? String.format("%.3f", pm.getTotalThinkTimeMS() / final_totals[0].getTotalThinkTimeMS()) : ""); 
+            j++;
+        } // FOR
+        
+//        if (debug.get()) {
+//            for (i = 0; i < rows.length; i++) {
+//                LOG.debug("ROW[" + i + "]: " + Arrays.toString(rows[i]));
+//            }
+//        }
+        TableUtil.Format f = new TableUtil.Format("   ", col_delimiters, row_delimiters, true, false, true, false, false, false, true, true, null);
+        return (TableUtil.tableMap(f, header, rows));
+    }
+    
+    // ----------------------------------------------------------------------------
     // THREAD INFO
     // ----------------------------------------------------------------------------
     
@@ -562,6 +647,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         Map<String, Object> m_exec = (show_exec ? this.executorInfo() : null);
 
         // ----------------------------------------------------------------------------
+        // Batch Planner Information
+        // ----------------------------------------------------------------------------
+        Map<String, String> plannerInfo = (hstore_conf.site.planner_profiling ? this.batchPlannerInfo() : null);
+        
+        // ----------------------------------------------------------------------------
         // Thread Information
         // ----------------------------------------------------------------------------
         Map<String, Object> threadInfo = null;
@@ -667,7 +757,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
             } // FOR
         }
-        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, m_pool));
+        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, m_pool));
     }
     
     private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {

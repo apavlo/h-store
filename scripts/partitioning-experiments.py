@@ -99,12 +99,13 @@ BASE_SETTINGS = {
     "client.memory":                    512,
     
     "site.exec_profiling":                              True,
+    "site.txn_profiling":                               True,
     "site.status_show_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             5000,
-    "site.pool_profiling":                              False,
+    "site.pool_profiling":                              True,
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         5,

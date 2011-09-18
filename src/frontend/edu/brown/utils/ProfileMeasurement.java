@@ -48,6 +48,15 @@ public class ProfileMeasurement implements JSONSerializable {
         this.reset();
     }
 
+    /**
+     * Copy constructor
+     * @param orig
+     */
+    public ProfileMeasurement(ProfileMeasurement orig) {
+        this(orig.type);
+        this.appendTime(orig);
+    }
+    
     public synchronized void reset() {
         if (this.think_marker != null) {
             this.reset = true;
@@ -167,8 +176,12 @@ public class ProfileMeasurement implements JSONSerializable {
         if (debug.get()) LOG.debug(String.format("STOP %s", this));
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
         long added = (timestamp - this.think_marker);
-        assert(added >= 0);
-        this.total_time += added;
+        if (added < 0) {
+            LOG.warn(String.format("Invalid stop timestamp for %s [timestamp=%d, marker=%d, added=%d]",
+                                   this.type, timestamp, this.think_marker, added));
+        } else {
+            this.total_time += added;
+        }
         this.think_marker = null;
 //        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
         return (this);
@@ -186,12 +199,17 @@ public class ProfileMeasurement implements JSONSerializable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    public void appendTime(ProfileMeasurement other) {
+    public ProfileMeasurement appendTime(ProfileMeasurement other, boolean checkType) {
         assert(other != null);
-        assert(this.type == other.type);
+        if (checkType) assert(this.type == other.type);
         this.total_time += other.total_time;
         this.think_marker = other.think_marker;
         this.invocations += other.invocations;
+        return (this);
+    }
+    
+    public ProfileMeasurement appendTime(ProfileMeasurement other) {
+        return (this.appendTime(other, true));
     }
  
     public void addThinkTime(long start, long stop) {
