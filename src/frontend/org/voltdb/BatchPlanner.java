@@ -258,14 +258,6 @@ public class BatchPlanner {
         /** Temporary buffer space for sorting the PlanFragments per Statement */
         private final List<PlanFragment> frag_list[];
         
-        /**
-         * We need to generate a list of FragmentTaskMessages that we will ship off to either
-         * remote execution sites or be executed locally. Note that we have to separate
-         * any tasks that have a input dependency from those that don't,  because
-         * we can only block at the FragmentTaskMessage level (as opposed to blocking by PlanFragment)
-         */
-        private List<FragmentTaskMessage> ftasks;
-        
         /** Round# -> Map{PartitionId, Set{PlanFragments}} **/
         private final Set<PlanVertex> rounds[][];
         private int rounds_length;
@@ -361,7 +353,6 @@ public class BatchPlanner {
             assert(this.cached == false) : "Trying to finish a cached BatchPlan!";
             this.base_partition = -1;
             this.mispredict = null;
-            this.ftasks.clear();
             for (int i = 0; i < this.frag_list.length; i++) {
                 this.frag_list[i] = null;
                 this.stmt_partitions[i].clear();
@@ -393,12 +384,13 @@ public class BatchPlanner {
          * @return
          */
         public List<FragmentTaskMessage> getFragmentTaskMessages(ParameterSet batchArgs[]) {
-            assert(this.cached == false) : "Trying to get FragmentTaskMessages for a cached query plan";
-            if (this.ftasks == null) {
-                this.ftasks = new ArrayList<FragmentTaskMessage>();
-                BatchPlanner.this.buildFragmentTaskMessages(this, graph, batchArgs);
-            }
-            return (this.ftasks);
+            // We need to generate a list of FragmentTaskMessages that we will ship off to either
+            // remote execution sites or be executed locally. Note that we have to separate
+            // any tasks that have a input dependency from those that don't,  because
+            // we can only block at the FragmentTaskMessage level (as opposed to blocking by PlanFragment)
+            ArrayList<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
+            BatchPlanner.this.buildFragmentTaskMessages(this, graph, ftasks, batchArgs);
+            return (ftasks);
         }
 
         public int getBatchSize() {
@@ -446,9 +438,9 @@ public class BatchPlanner {
             StringBuilder b = new StringBuilder();
             b.append("Read Only:        ").append(this.readonly).append("\n")
              .append("All Local:        ").append(this.all_local).append("\n")
-             .append("All Single-Sited: ").append(this.all_singlepartitioned).append("\n")
-             .append("------------------------------\n")
-             .append(StringUtil.join("\n", this.ftasks));
+             .append("All Single-Sited: ").append(this.all_singlepartitioned).append("\n");
+//             .append("------------------------------\n")
+//             .append(StringUtil.join("\n", this.ftasks));
             return (b.toString());
         }
     } // END CLASS
@@ -876,7 +868,7 @@ public class BatchPlanner {
      * @param txn_id
      * @return
      */
-    private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final ParameterSet[] batchArgs) {
+    private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<FragmentTaskMessage> ftasks, final ParameterSet[] batchArgs) {
         if (BatchPlanner.ENABLE_PROFILING) time_fragmentTaskMessages.start();
         long txn_id = plan.txn_id;
         long client_handle = plan.client_handle;
@@ -970,7 +962,7 @@ public class BatchPlanner {
                         stmt_indexes,
                         false); // FIXME(pavlo) Final task?
                 task.setFragmentTaskType(BatchPlanner.this.catalog_proc.getSystemproc() ? FragmentTaskMessage.SYS_PROC_PER_PARTITION : FragmentTaskMessage.USER_PROC);
-                plan.ftasks.add(task);
+                ftasks.add(task);
                 
                 if (debug.get()) {
                     LOG.debug(String.format("New FragmentTaskMessage to run at partition #%d with %d fragments for txn #%d " +
@@ -982,9 +974,9 @@ public class BatchPlanner {
                 }
             } // PARTITION
         } // ROUND            
-        assert(plan.ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
+        assert(ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
         if (debug.get())
-            LOG.debug("Created " + plan.ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
+            LOG.debug("Created " + ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
         if (BatchPlanner.ENABLE_PROFILING) time_fragmentTaskMessages.stop();
     }
 
