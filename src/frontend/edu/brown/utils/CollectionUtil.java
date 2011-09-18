@@ -52,6 +52,15 @@ public abstract class CollectionUtil {
         return;
     }
     
+    public static int[] toIntArray(Collection<Integer> items) {
+        int ret[] = new int[items.size()];
+        int idx = 0;
+        for (Integer i : items) {
+            ret[idx++] = i.intValue();
+        }
+        return (ret);
+    }
+    
     /**
      * Put all the values of an Iterator into a List
      * @param <T>

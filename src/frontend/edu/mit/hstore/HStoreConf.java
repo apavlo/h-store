@@ -338,6 +338,14 @@ public final class HStoreConf {
         )
         public boolean planner_profiling;
         
+        @ConfigProperty(
+            description="Enable caching in the PartitionEstimator.",
+            defaultBoolean=true,
+            experimental=false,
+            advanced=false
+        )
+        public boolean planner_caching;
+        
         // ----------------------------------------------------------------------------
         // HStoreMessenger
         // ----------------------------------------------------------------------------

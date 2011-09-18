@@ -1169,10 +1169,10 @@ public abstract class VoltProcedure implements Poolable {
         VoltTable results[] = null;
         if (this.plan.isSingledPartitionedAndLocal()) {
             if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
-            results = this.executor.executeLocalPlan(m_localTxnState, this.plan);
+            results = this.executor.executeLocalPlan(m_localTxnState, this.plan, params);
             
         } else {
-            List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages();
+            List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages(params);
             if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
     
             // Block until we get all of our responses.

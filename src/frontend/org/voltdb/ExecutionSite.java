@@ -1339,7 +1339,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param plan
      * @return
      */
-    protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan) {
+    protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
         long undoToken = ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN;
         
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
@@ -1363,7 +1363,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         int fragmentIdIndex = plan.getFragmentCount();
         int output_depIds[] = plan.getOutputDependencyIds();
         int input_depIds[] = plan.getInputDependencyIds();
-        ParameterSet parameterSets[] = plan.getParameterSets();
         
         // Mark that we touched the local partition once for each query in the batch
         ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
