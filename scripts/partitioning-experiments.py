@@ -74,10 +74,10 @@ OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = False
 OPT_BASE_BLOCKING_CONCURRENT = 1000
-OPT_BASE_TXNRATE_PER_PARTITION = 3500 # 2950 # Tested
+OPT_BASE_TXNRATE_PER_PARTITION = 4400 # 3500
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 6
 OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
@@ -92,27 +92,29 @@ BASE_SETTINGS = {
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
     "client.duration":                  60000,
-    "client.warmup":                    30000,
+    "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
     "client.memory":                    512,
     
     "site.exec_profiling":                              True,
-    "site.txn_profiling":                               True,
+    "site.txn_profiling":                               False,
+    "site.pool_profiling":                              False,
+    "site.planner_profiling":                           False,
+    "site.planner_caching":                             True,
     "site.status_show_txn_info":                        True,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             5000,
-    "site.pool_profiling":                              True,
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         5,
     "site.memory":                                      60020,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
-    "site.exec_postprocessing_thread":                  True,
+    "site.exec_postprocessing_thread":                  False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
@@ -347,7 +349,7 @@ if __name__ == '__main__':
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
         stop = False
-        updateJar = True
+        
         for partitions in map(int, options["partitions"]):
             LOG.info("%s - %s - %d Partitions - Experiment #%d" % (OPT_EXP_TYPE.upper(), benchmark.upper(), partitions, OPT_EXP_SETTINGS))
             env["site.partitions"] = partitions
@@ -369,6 +371,7 @@ if __name__ == '__main__':
             client_inst = fabfile.__getClientInstance__()
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
+            updateJar = True
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
@@ -402,7 +405,7 @@ if __name__ == '__main__':
                                                                     json=True, \
                                                                     trace=OPT_TRACE, \
                                                                     updateJar=updateJar,
-                                                                    updateConf=updateJar,
+                                                                    updateConf=updateConf,
                                                                     updateSVN=updateSVN)
                             data = parseResultsOutput(output)
                             txnrate = float(data["TXNPERSECOND"])
