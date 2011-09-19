@@ -100,9 +100,6 @@ public class BatchPlanner {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    // Used for turning ParameterSets into ByteBuffers
-//    protected final FastSerializer fs = new FastSerializer();
-    
     protected final Catalog catalog;
     protected final Procedure catalog_proc;
     protected final Statement catalog_stmts[];
@@ -126,7 +123,6 @@ public class BatchPlanner {
     private final ProfileMeasurement time_partitionEstimator;
     private final ProfileMeasurement time_planGraph;
     private final ProfileMeasurement time_fragmentTaskMessages;
-    
     
     // ----------------------------------------------------------------------------
     // INTERNAL PLAN GRAPH ELEMENTS

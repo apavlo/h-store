@@ -39,7 +39,7 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
         
         // Check whether we should disable throttling
         boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id, this.base_partition);
-        int timestamp = this.hstore_site.getNextServerTimestamp();
+        int timestamp = this.hstore_site.getNextRequestCounter();
         
         ByteBuffer buffer = ByteBuffer.wrap(output);
         ClientResponseImpl.setThrottleFlag(buffer, throttle);

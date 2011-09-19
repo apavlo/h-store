@@ -696,7 +696,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(this.hstore_messenger != null);
         assert(this.self == null);
         this.self = Thread.currentThread();
-        this.self.setName(this.getThreadName());
+        this.self.setName(HStoreSite.getThreadName(this.hstore_site, this.partitionId));
         this.preload();
         
         if (hstore_conf.site.cpu_affinity) {
@@ -912,10 +912,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         return (this.procedures.get(proc_name));
     }
 
-    public String getThreadName() {
-        return (this.hstore_site.getThreadName(String.format("%03d", this.getPartitionId())));
-    }
-    
     // ---------------------------------------------------------------
     // WORK QUEUE PROCESSING METHODS
     // ---------------------------------------------------------------

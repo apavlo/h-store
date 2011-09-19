@@ -248,8 +248,9 @@ public final class HStoreConf {
         @ConfigProperty(
             description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
                         "will not accept new requests until the number of queued transactions is less than " +
-                        "this percentage. " +
-                        "The incoming queue release is calculated as " +
+                        "this percentage. This includes all transactions that are waiting to be executed, " +
+                        "executing, and those that have already executed and are waiting for their results " +
+                        "to be sent back to the client. The incoming queue release is calculated as " +
                         "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
             defaultDouble=0.25,
             advanced=false
@@ -257,24 +258,16 @@ public final class HStoreConf {
         public double txn_incoming_queue_release_factor;
         
         @ConfigProperty(
-            description="Max size of the total transaction queue per partition before an HStoreSite will stop " +
-                        "accepting redirected requests from other HStoreSites.",
-            defaultInt=2000,
+            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+                        "value by this amount. The release limit will also be recalculated using the new value " +
+                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+                        "the first non-data loading transaction has been issued from the clients.",
+            defaultInt=100,
             advanced=false
         )
-        public int txn_redirect_queue_max_per_partition;
-        
-        @ConfigProperty(
-            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
-                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
-                        "includes all transactions that are waiting to be executed, executing, and those that " +
-                        "have already executed and are waiting for their results to be sent back to the client. " +
-                        "The redirect queue release is calculated as " +
-                        "${site.txn_redirect_queue_max} * ${site.txn_redirect_queue_release_factor}",
-            defaultDouble=0.50,
-            advanced=false
-        )
-        public double txn_redirect_queue_release_factor;
+        public int txn_incoming_queue_increase;
         
         @ConfigProperty(
             description="Allow queued distributed transctions to be rejected.",

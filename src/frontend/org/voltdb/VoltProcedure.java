@@ -27,12 +27,10 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Observable;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
@@ -55,8 +53,8 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.MarkovVertex;
+import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.TransactionEstimator.State;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -64,10 +62,10 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
 
@@ -497,30 +495,31 @@ public abstract class VoltProcedure implements Poolable {
      * @return
      */
     public final ClientResponse call(TransactionState txnState, Object... paramList) {
-        if (t) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
-        if (d) Thread.currentThread().setName(this.executor.getThreadName() + "-" + this.procedure_name);
+        if (d) {
+            Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.base_partition));
+            if (t) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
+        }
 
         ClientResponse response = null;
         
-        long current_txn_id = txnState.getTransactionId();
-        assert(this.txn_id == -1) : "Old Transaction Id: " + this.txn_id + " -> New Transaction Id: " + current_txn_id;
+        assert(this.txn_id == -1) : "Old Transaction Id: " + this.txn_id + " -> New Transaction Id: " + txnState.getTransactionId();
         this.m_currentTxnState = txnState;
         this.m_localTxnState = (LocalTransactionState)txnState;
-        this.txn_id = current_txn_id;
+        this.txn_id = txnState.getTransactionId();
         this.client_handle = txnState.getClientHandle();
         this.procParams = paramList;
         this.predict_singlepartition = this.m_localTxnState.isPredictSinglePartition();
         
-        if (d) LOG.debug("Starting execution of txn #" + current_txn_id);
+        if (d) LOG.debug("Starting execution of txn #" + this.txn_id);
         
         try {
             // Execute the txn (this blocks until we return)
-            if (t) LOG.trace("Invoking VoltProcedure.call for txn #" + current_txn_id);
+            if (t) LOG.trace("Invoking VoltProcedure.call for " + txnState);
             response = this.call(); // Bombs away!
             assert(response != null);
 
             // Notify anybody who cares that we're finished (used in testing)
-            if (t) LOG.trace("Notifying observers that txn #" + current_txn_id + " is finished");
+            if (t) LOG.trace("Notifying observers that " + txnState + " is finished");
             this.observable.notifyObservers(response);
             
         // VoltProcedure.call() should handle anything from the transaction

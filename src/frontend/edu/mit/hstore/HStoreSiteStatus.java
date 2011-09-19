@@ -66,7 +66,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final int interval; // milliseconds
-    private final Histogram<Integer> partition_txns = new Histogram<Integer>();
     private final TreeMap<Integer, ExecutionSite> executors;
     
     private Integer last_completed = null;
@@ -107,9 +106,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         this.executors = new TreeMap<Integer, ExecutionSite>();
         
-        this.partition_txns.setKeepZeroEntries(true);
         for (Integer partition : hstore_site.getLocalPartitionIds()) {
-            this.partition_txns.put(partition, 0);
             this.executors.put(partition, hstore_site.getExecutionSite(partition));
         } // FOR
         
@@ -122,7 +119,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     @Override
     public void run() {
         self = Thread.currentThread();
-        self.setName(this.hstore_site.getThreadName("mon"));
+        self.setName(HStoreSite.getThreadName(hstore_site, "mon"));
         if (hstore_conf.site.cpu_affinity)
             hstore_site.getThreadManager().registerProcessingThread();
 
@@ -206,14 +203,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
         m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
-        m_exec.put("InFlight Txns", String.format("%-5d [totalMin=%d, totalMax=%d]",
+        m_exec.put("Total InFlight Txns", String.format("%-5d [totalMin=%d, totalMax=%d]",
                         inflight_cur,
                         inflight_min,
                         inflight_max
         ));
         
         ProfileMeasurement pm = this.hstore_site.getEmptyQueueTime();
-        m_exec.put("Empty Queue", String.format("%d total / %.2fms total / %.2fms avg",
+        m_exec.put("Empty Queue", String.format("%d txns / %.2fms total / %.2fms avg",
                         pm.getInvocations(),
                         pm.getTotalThinkTimeMS(),
                         pm.getAverageThinkTimeMS()
@@ -224,7 +221,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             if (processing_min == null || processing_cur < processing_min) processing_min = processing_cur;
             if (processing_max == null || processing_cur > processing_max) processing_max = processing_cur;
             
-            String val = String.format("%-5d [totalMin=%d, totalMax=%d]", processing_cur, processing_min, processing_max);
+            String val = String.format("%-5d [min=%d, max=%d]", processing_cur, processing_min, processing_max);
             int i = 0;
             for (ExecutionSitePostProcessor espp : hstore_site.getExecutionSitePostProcessors()) {
                 pm = espp.getExecTime();
@@ -245,11 +242,16 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             int partition = e.getKey().intValue();
             TransactionState ts = es.getCurrentDtxn();
             
+            boolean is_throttled = this.hstore_site.isIncomingThrottled(partition);
+            int queue_size = hstore_site.getInflightTxnCount(partition);
+            int queue_max = this.hstore_site.getIncomingQueueMax(partition);
+            int queue_release = this.hstore_site.getIncomingQueueRelease(partition);
+            
             // Queue Information
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
-                                    this.partition_txns.get(partition),
+                                    queue_size,
                                     es.getWorkQueueSize(),
                                     es.getBlockedQueueSize(),
                                     es.getWaitingQueueSize()), null);
@@ -264,12 +266,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             }
             
             // Execution Info
+             
+            
             m.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
-                    this.hstore_site.isIncomingThrottled(partition),
-                    this.hstore_site.getIncomingQueueMax(partition),
-                    this.hstore_site.getIncomingQueueRelease(partition),
+                    is_throttled, queue_max, queue_release,
                     this.hstore_site.incoming_throttle_time[partition].getTotalThinkTimeMS()
             ));
+            if (is_throttled && queue_size < queue_release) {
+                LOG.warn(String.format("Partition #%02d is throttled when it should not be! [inflight=%d, release=%d]",
+                                        partition, queue_size, queue_release));
+            }
+            
             
             if (hstore_conf.site.exec_profiling) {
                 pm = es.getWorkIdleTime();
@@ -631,11 +638,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     // ----------------------------------------------------------------------------
     
     public synchronized String snapshot(boolean show_txns, boolean show_exec, boolean show_threads, boolean show_poolinfo) {
-        this.partition_txns.clearValues();
-        for (Entry<Long, LocalTransactionState> e : hstore_site.getAllTransactions()) {
-            this.partition_txns.put(e.getValue().getBasePartition());
-        } // FOR
-        
         // ----------------------------------------------------------------------------
         // Transaction Information
         // ----------------------------------------------------------------------------

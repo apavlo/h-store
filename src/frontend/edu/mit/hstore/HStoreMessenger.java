@@ -194,14 +194,14 @@ public class HStoreMessenger implements Shutdownable {
         
         // Special thread to handle forward requests
         if (this.hstore_site.getHStoreConf().site.messenger_redirect_thread) {
-            this.forward_thread = new Thread(forwardDispatcher, this.hstore_site.getThreadName("frwd"));
+            this.forward_thread = new Thread(forwardDispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
             this.forward_thread.setDaemon(true);
         } else {
             this.forward_thread = null;
         }
         
         // Wrap the listener in a daemon thread
-        this.listener_thread = new Thread(new MessengerListener(), this.hstore_site.getThreadName("msg"));
+        this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "msg"));
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
     }
