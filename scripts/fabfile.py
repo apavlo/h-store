@@ -107,7 +107,7 @@ ENV_DEFAULT = {
     "ec2.region":                  "us-east-1b",
     "ec2.access_key_id":           os.getenv('AWS_ACCESS_KEY_ID'),
     "ec2.secret_access_key":       os.getenv('AWS_SECRET_ACCESS_KEY'),
-    "ec2.force_reboot":            True,
+    "ec2.force_reboot":            False,
     "ec2.all_instances":           [ ],
     "ec2.running_instances":       [ ],
 
@@ -341,19 +341,20 @@ def start_cluster():
         LOG.info("Configuring instance '%s'" % (__getInstanceName__(inst)))
         with settings(host_string=inst.public_dns_name):
             ## Setup the basic environmnt that we need on each node
-            setup_env()
+            ## This will return true if we need to restart it
+            first_setup = setup_env()
+            need_reboot = first_setup or env["ec2.force_reboot"] or not nfs_inst_online
             
             ## The first instance will be our NFS head node
             if first:
-                if env["ec2.force_reboot"] or not nfs_inst_online: 
-                    setup_nfshead(env["ec2.force_reboot"])
+                if need_reboot: setup_nfshead(need_reboot)
                 deploy_hstore()
             
             ## Othewise make the rest of the node NFS clients
             else:
-                LOG.info("%s - force_reboot=%s, nfs_inst_online, orig_running=%s" % \
+                LOG.info("%s - forceReboot=%s / nfsInstOnline=%s / origRunning=%s" % \
                         (__getInstanceName__(inst), env["ec2.force_reboot"], nfs_inst_online, (inst in orig_running)))
-                need_reboot = env["ec2.force_reboot"] or ((nfs_inst_online and inst in orig_running) == False)
+                need_reboot = need_reboot or ((nfs_inst_online and inst in orig_running) == False)
                 setup_nfsclient(need_reboot)
             first = False
         ## WITH
@@ -392,6 +393,7 @@ def setup_env():
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
     
+    first_setup = False
     with settings(warn_only=True):
         basename = os.path.basename(env.key_filename)
         files = [ (env.key_filename + ".pub", "/home/%s/.ssh/authorized_keys" % (env.user)),
@@ -400,6 +402,7 @@ def setup_env():
         for local_file, remote_file in files:
             if run("test -f " + remote_file).failed:
                 put(local_file, remote_file, mode=0600)
+                first_setup = True
     ## WITH
     
     ## We may be running a large cluster, in which case we will have a lot of connections
@@ -432,6 +435,7 @@ def setup_env():
         if run("test -d %s" % hstore_dir).failed:
             run("mkdir " + hstore_dir)
     ## WITH
+    return (first_setup)
 ## DEF
 
 ## ----------------------------------------------
