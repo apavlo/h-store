@@ -76,13 +76,16 @@ OPT_BASE_BLOCKING = False
 OPT_BASE_BLOCKING_CONCURRENT = 1000
 OPT_BASE_TXNRATE_PER_PARTITION = 4400  # 2600 # # 3500
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 1
+OPT_BASE_CLIENT_COUNT = 4
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
 OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
     "ec2.site_type":                    "m2.4xlarge",
+    #"ec2.client_type":                  "m1.large",
+    #"ec2.site_type":                    "m1.xlarge",
+    
     "ec2.change_type":                  True,
     
     "client.blocking":                  OPT_BASE_BLOCKING,
@@ -114,6 +117,7 @@ BASE_SETTINGS = {
     "site.memory":                                      60020,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
+    "site.txn_incoming_queue_increase":                 10,
     "site.txn_enable_queue_pruning":                    False,
     "site.exec_postprocessing_thread":                  False,
     "site.pool_localtxnstate_idle":                     20000,
@@ -366,7 +370,7 @@ if __name__ == '__main__':
                 if OPT_NO_EXECUTE: sys.exit(0)
             ## IF
                 
-            client_inst = fabfile.__getClientInstance__()
+            client_inst = fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
             updateJar = True
