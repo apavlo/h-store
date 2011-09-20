@@ -316,16 +316,17 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
         final DesignerHints hints = new DesignerHints();
         hints.limit_local_time = 1;
         hints.limit_total_time = 5;
-        hints.enable_costmodel_caching = true;
+        hints.enable_costmodel_caching = false;
         hints.enable_costmodel_java_execution = false;
         hints.max_memory_per_partition = Long.MAX_VALUE;
+        hints.enable_vertical_partitioning = false;
         final PartitionPlan initial = PartitionPlan.createFromCatalog(catalog_db);
         
         // HACK: Enable debug output in BranchAndBoundPartitioner so that it slows the
         // the traversal. There is a race condition since we were able to speed things up
         BranchAndBoundPartitioner.LOG.setLevel(Level.DEBUG);
         
-        System.err.println(initial);
+        System.err.println("INITIAL PARTITIONPLAN:\n" + initial);
         
         Double last_cost = null;
         while (tries-- > 0) {
@@ -367,7 +368,7 @@ public class TestTimeIntervalCostModel extends BaseTestCase {
             // Which then means we should get the exact same cost back
             initial.apply(clone_db);
             cm.clear(true);
-            double cost1 = cm.estimateWorkloadCost(clone_db, singlep_workload);
+            double cost1 = cm.estimateWorkloadCost(catalog_db, singlep_workload);
             assert(cost1 > 0) : "[1] Invalid Cost: " + cost0;
             assertEquals("[1] Try #" + tries, cost0, cost1);
             
