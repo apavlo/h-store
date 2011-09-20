@@ -18,7 +18,6 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
@@ -27,7 +26,6 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.dtxn.DependencyInfo;
-import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.dtxn.TransactionState;
 import edu.mit.hstore.interfaces.Shutdownable;

@@ -726,6 +726,10 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 LOG.debug(String.format("Starting Search for %d Elements: %s", this.all_search_elements.size(), this.all_search_elements));
                 LOG.debug("Current Best Solution: " + best_vertex.cost);
             }
+            if (hints.target_plan != null) {
+                LOG.info("Searching for target PartitionPlan '" + hints.target_plan_path + "'");
+            }
+            
             ProfileMeasurement timer = new ProfileMeasurement("timer").start();
             try {
                 this.traverse(start, 0);

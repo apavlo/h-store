@@ -330,9 +330,11 @@ public class DesignerHints implements Cloneable, JSONSerializable {
      * @param last_checkpoint
      */
     public void offsetCheckpointTime(TimestampType orig_start_time, TimestampType last_checkpoint) {
-        assert(last_checkpoint.getTime() > orig_start_time.getTime());
-        int delta = (int)(last_checkpoint.getMSTime() - orig_start_time.getMSTime()) / 1000;
-        this.limit_total_time -= delta;
+        if (this.limit_total_time != null) {
+            assert(last_checkpoint.getTime() > orig_start_time.getTime());
+            int delta = (int)(last_checkpoint.getMSTime() - orig_start_time.getMSTime()) / 1000;
+            this.limit_total_time -= delta;
+        }
     }
     
     /**
@@ -350,8 +352,8 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     }
     
     public TimestampType getGlobalStopTime() {
-        long stop = Long.MAX_VALUE;
-        if (this.limit_total_time != null) {
+        long stop = 9999999;
+        if (this.limit_total_time != null && this.limit_total_time >= 0) {
             stop = (this.limit_total_time * 1000);
         }
         return new TimestampType((this.startGlobalSearchTimer().getMSTime() + stop) * 1000);
@@ -367,8 +369,8 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     
     public TimestampType getNextLocalStopTime() {
         long now = System.currentTimeMillis();
-        long stop = Long.MAX_VALUE;
-        if (this.limit_local_time != null) {
+        long stop = 9999999;
+        if (this.limit_local_time != null && this.limit_local_time >= 0) {
             stop = (this.limit_local_time * 1000);
         }
         return new TimestampType((now + stop) * 1000);
@@ -418,7 +420,9 @@ public class DesignerHints implements Cloneable, JSONSerializable {
     public double getElapsedGlobalPercent() {
         long delta = (this.getGlobalStopTime().getMSTime() - this.getStartTime().getMSTime());
         long now = System.currentTimeMillis();
-        return Math.abs((now - this.getStartTime().getMSTime()) / (double)delta);
+        double ratio = Math.abs((now - this.getStartTime().getMSTime()) / (double)delta);
+        assert(ratio <= 1.0) : String.format("Invalid Elapsed Ratio: %f [delta=%d, now=%d, start=%d, stop=%d]", ratio, delta, now, getStartTime().getMSTime(), getGlobalStopTime().getMSTime()); 
+        return ratio;
     }
     
     // --------------------------------------------------------------------------------------------

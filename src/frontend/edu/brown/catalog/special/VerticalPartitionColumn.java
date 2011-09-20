@@ -191,7 +191,8 @@ public class VerticalPartitionColumn extends MultiColumn {
             this.catalog_view = this.createMaterializedView();    
         } else {
             if (debug.get()) LOG.debug("Reusing existing vertical partition " + this.catalog_view + " for " + catalog_tbl);
-            catalog_tbl.getViews().add(this.catalog_view, false);
+            if (catalog_tbl.getViews().contains(catalog_view) == false)
+                catalog_tbl.getViews().add(this.catalog_view, false);
         }
         assert(this.catalog_view != null);
             
@@ -232,6 +233,9 @@ public class VerticalPartitionColumn extends MultiColumn {
         this.applied = true;
         
         validate(catalog_view, catalog_tbl);
+        
+        if (debug.get())
+            LOG.debug("Added " + catalog_view.getDest() + " for " + catalog_tbl + " and updated " + this.optimized.size() + " query plans");
         return (this.catalog_view);
     }
     

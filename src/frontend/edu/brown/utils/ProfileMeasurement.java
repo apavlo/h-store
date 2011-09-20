@@ -39,6 +39,14 @@ public class ProfileMeasurement implements JSONSerializable {
 
     private transient boolean reset = false;
     
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // ----------------------------------------------------------------------------
+    
+    public ProfileMeasurement() {
+        // For serialization
+    }
+    
     /**
      * Constructor
      * @param pmtype
@@ -56,6 +64,10 @@ public class ProfileMeasurement implements JSONSerializable {
         this(orig.type);
         this.appendTime(orig);
     }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
     
     public synchronized void reset() {
         if (this.think_marker != null) {
