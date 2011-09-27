@@ -239,6 +239,10 @@ public class BenchmarkResults {
             retval.add(e);
         return retval;
     }
+    
+    public FinalResult getFinalResult() {
+        return new FinalResult(this);
+    }
 
     public int getCompletedIntervalCount() {
         // make sure all

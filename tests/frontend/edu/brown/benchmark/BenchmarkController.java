@@ -53,6 +53,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -86,7 +87,6 @@ import org.voltdb.processtools.SSHTools;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.benchmark.BenchmarkResults.Result;
 import edu.brown.catalog.CatalogUtil;
@@ -1385,10 +1385,6 @@ public class BenchmarkController {
                 databaseURL[0] = parts[1];
             } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
                 statsTag = parts[1];
-            } else if (parts[0].equalsIgnoreCase("APPLICATIONNAME")) {
-                applicationName = parts[1];
-            } else if (parts[0].equalsIgnoreCase("SUBAPPLICATIONNAME")) {
-                subApplicationName = parts[1];
             } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
                 coordinatorHost = parts[1];
             } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {
@@ -1470,7 +1466,7 @@ public class BenchmarkController {
                 dumpDatabase = Boolean.parseBoolean(parts[1]);                
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
-
+                
             } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "INITIAL_POLLING_DELAY")) {
                 clientInitialPollingDelay = Integer.parseInt(parts[1]);
             } else {
@@ -1623,6 +1619,15 @@ public class BenchmarkController {
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalog);
         boolean failed = false;
+        
+        // Check CodeSpeed Parameters
+        if (hstore_conf.client.codespeed_url != null) {
+            assert(hstore_conf.client.codespeed_project != null && hstore_conf.client.codespeed_project.isEmpty() == false) : "Missing CodeSpeed Project";
+            assert(hstore_conf.client.codespeed_environment != null && hstore_conf.client.codespeed_environment.isEmpty() == false) : "Missing CodeSpeed Environment";
+            assert(hstore_conf.client.codespeed_executable != null && hstore_conf.client.codespeed_executable.isEmpty() == false) : "Missing CodeSpeed Executable";
+            assert(hstore_conf.client.codespeed_commitid != null && hstore_conf.client.codespeed_commitid.isEmpty() == false) : "Missing CodeSpeed CommitId";
+        }
+        
         try {
             controller.setupBenchmark();
             if (config.noExecute == false) controller.runBenchmark();
@@ -1633,5 +1638,23 @@ public class BenchmarkController {
             controller.cleanUpBenchmark();
         }
         if (failed || controller.failed) System.exit(1);
+        
+        // Upload Results to CodeSpeed
+        if (hstore_conf.client.codespeed_url != null) {
+            String codespeed_benchmark = controller.m_projectBuilder.getProjectName();
+            double txnrate = controller.getResults().getFinalResult().getTxnPerSecond();
+            
+            BenchmarkResultsUploader uploader = new BenchmarkResultsUploader(new URL(hstore_conf.client.codespeed_url),
+                                                                             hstore_conf.client.codespeed_project,
+                                                                             hstore_conf.client.codespeed_executable,
+                                                                             codespeed_benchmark,
+                                                                             hstore_conf.client.codespeed_environment,
+                                                                             hstore_conf.client.codespeed_commitid);
+            if (hstore_conf.client.codespeed_branch.isEmpty() == false) {
+                uploader.setBranch(hstore_conf.client.codespeed_branch);
+            }
+            
+            uploader.post(txnrate);
+        }
     }
 }

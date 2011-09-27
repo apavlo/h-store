@@ -1490,6 +1490,13 @@ BENCHMARKS
         <arg value="client.tickinterval=${client.tickinterval}" />
         <arg value="client.tablestats=${client.tablestats}" />
         <arg value="client.tablestats_dir=${client.tablestats_dir}" />
+        
+        <arg value="client.codespeed_url=${client.codespeed_url}" />
+        <arg value="client.codespeed_project=${client.codespeed_project}" />
+        <arg value="client.codespeed_environment=${client.codespeed_environment}" />
+        <arg value="client.codespeed_executable=${client.codespeed_executable}" />
+        <arg value="client.codespeed_commitid=${client.codespeed_commitid}" />
+        <arg value="client.codespeed_branch=${client.codespeed_branch}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
