@@ -786,6 +786,54 @@ public final class HStoreConf {
             advanced=false
         )
         public int delay_threshold = 8;
+        
+        @ConfigProperty(
+            description="", 
+            defaultString="",
+            experimental=false,
+            advanced=false
+        )
+        public String codespeed_url;
+        
+        @ConfigProperty(
+            description="", 
+            defaultString="H-Store",
+            experimental=false,
+            advanced=false
+        )
+        public String codespeed_project;
+        
+        @ConfigProperty(
+            description="", 
+            defaultString="",
+            experimental=false,
+            advanced=false
+        )
+        public String codespeed_environment;
+
+        @ConfigProperty(
+            description="", 
+            defaultString="",
+            experimental=false,
+            advanced=false
+        )
+        public String codespeed_executable;
+        
+        @ConfigProperty(
+            description="", 
+            defaultString="",
+            experimental=false,
+            advanced=false
+        )
+        public String codespeed_commitid;
+        
+        @ConfigProperty(
+            description="", 
+            defaultString="",
+            experimental=false,
+            advanced=false
+        )
+        public String codespeed_branch;
     }
     
     /**
