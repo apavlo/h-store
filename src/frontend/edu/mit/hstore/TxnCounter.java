@@ -79,11 +79,8 @@ public enum TxnCounter {
         int cnt = this.get();
         switch (this) {
             case SINGLE_PARTITION:
-                if (SINGLE_PARTITION.get() == 0) return (null);
-                total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
-                break;
             case MULTI_PARTITION:
-                if (MULTI_PARTITION.get() == 0) return (null);
+                if (this.get() == 0) return (null);
                 total = SINGLE_PARTITION.get() + MULTI_PARTITION.get();
                 break;
             case SPECULATIVE:

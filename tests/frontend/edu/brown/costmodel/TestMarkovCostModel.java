@@ -101,7 +101,7 @@ public class TestMarkovCostModel extends BaseTestCase {
                     return FilterResult.ALLOW;
                 }
                 @Override
-                public String debug() { return null; }
+                public String debugImpl() { return null; }
                 @Override
                 protected void resetImpl() { }
             });

@@ -140,6 +140,11 @@ public abstract class AbstractTraceElement<T extends CatalogType> implements JSO
         return (this.aborted);
     }
     
+    public void setTimestamps(Long start, Long stop) {
+        this.start_timestamp = start;
+        this.stop_timestamp = stop;
+    }
+    
     /**
      * @return the start_timestamp
      */

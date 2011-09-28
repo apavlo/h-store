@@ -90,6 +90,10 @@ public class StoredProcedureInvocation implements FastSerializable {
         unserializedParams = null;
     }
 
+    public boolean isSysProc() {
+        return sysproc;
+    }
+    
     public String getProcName() {
         return procName;
     }

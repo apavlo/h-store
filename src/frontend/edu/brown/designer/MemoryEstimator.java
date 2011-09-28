@@ -92,7 +92,15 @@ public class MemoryEstimator {
         
         long bytes = 0l;
         for (Table catalog_tbl : catalog_db.getTables()) {
-            if (!include_tables.contains(catalog_tbl)) continue;
+            if (include_tables.contains(catalog_tbl) == false) {
+                if (trace.get())
+                    LOG.trace("Skipping " + catalog_tbl);
+                continue;
+            }
+            
+            // TABLE SIZE
+            if (trace.get())
+                LOG.trace("Estimating table size for " + catalog_tbl);
             long table_bytes = this.estimate(catalog_tbl, partitions);
             if (debug.get()) {
                 Column catalog_col = (catalog_tbl.getIsreplicated() ?  ReplicatedColumn.get(catalog_tbl) : catalog_tbl.getPartitioncolumn());
@@ -100,12 +108,14 @@ public class MemoryEstimator {
                 m0.put(catalog_col.fullName(), table_bytes);
             }
             bytes += table_bytes;
+            
+            // INDEXES (unsupported)
             for (Index catalog_idx : catalog_tbl.getIndexes()) {
                 bytes += this.estimate(catalog_idx, partitions);
             } // FOR
             remaining_tables.remove(catalog_tbl);
         } // FOR
-        assert(remaining_tables.isEmpty()) : "Unknown Tables: " + remaining_tables;
+        assert(remaining_tables.isEmpty()) : String.format("Unknown Tables: %s / %s / %s", remaining_tables, include_tables, catalog_db.getTables());
         if (debug.get()) {
             Map<String, Long> m1 = new ListOrderedMap<String, Long>();
             m1.put("Total Database Size", bytes);

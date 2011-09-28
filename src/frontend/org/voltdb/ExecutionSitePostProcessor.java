@@ -24,6 +24,8 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     private final HStoreSite hstore_site;
     
     private final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
+    private final ProfileMeasurement execTime = new ProfileMeasurement("EXEC");
+    
     
     /**
      * Whether we should stop processing our queue
@@ -52,8 +54,12 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     @Override
     public void run() {
         this.self = Thread.currentThread();
-        this.self.setName(this.hstore_site.getThreadName("post"));
-        LOG.info("Starting transaction post-processing thread");
+        this.self.setName(HStoreSite.getThreadName(hstore_site, "post"));
+        if (hstore_site.getHStoreConf().site.cpu_affinity) {
+            hstore_site.getThreadManager().registerProcessingThread();
+        }
+        if (debug.get())
+            LOG.debug("Starting transaction post-processing thread");
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
         Object triplet[] = null;
@@ -68,6 +74,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
                 this.stop = true;
                 break;
             }
+            if (hstore_conf.site.status_show_executor_info) execTime.start();
             ExecutionSite es = (ExecutionSite)triplet[0];
             LocalTransactionState ts = (LocalTransactionState)triplet[1];
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
@@ -79,6 +86,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);
                 break;
             }
+            if (hstore_conf.site.status_show_executor_info) execTime.stop();
         } // WHILE
     }
     
@@ -100,4 +108,11 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
         if (this.self != null) this.self.interrupt();
     }
 
+    public ProfileMeasurement getIdleTime() {
+        return (this.idleTime);
+    }
+    public ProfileMeasurement getExecTime() {
+        return (this.execTime);
+    }
+    
 }

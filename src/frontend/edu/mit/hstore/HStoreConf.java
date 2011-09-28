@@ -32,6 +32,14 @@ public final class HStoreConf {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    
+    static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
+    static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
+    
+    static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
+    static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
+    
+    
     // ============================================================================
     // GLOBAL
     // ============================================================================
@@ -39,20 +47,23 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Temporary directory used to store various artifacts related to H-Store.",
-            defaultString="/tmp/hstore"
+            defaultString="/tmp/hstore",
+            experimental=false
         )
         public String temp_dir = "/tmp/hstore";
 
         @ConfigProperty(
             description="Options used when logging into client/server hosts. " + 
                         "We assume that there will be no spaces in paths or options listed here.",
-            defaultString="-x"
+            defaultString="-x",
+            experimental=false
         )
         public String sshoptions;
 
         @ConfigProperty(
             description="The default hostname used when generating cluster configurations.",
-            defaultString="localhost"
+            defaultString="localhost",
+            experimental=false
         )
         public String defaulthost = "localhost";
     }
@@ -65,17 +76,38 @@ public final class HStoreConf {
         @ConfigProperty(
             description="HStoreSite log directory on the host that the BenchmarkController is invoked from.",
             defaultString="${global.temp_dir}/logs/sites",
-            advanced=false
+            experimental=false
         )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/sites";
         
         @ConfigProperty(
             description="The amount of memory to allocate for each site process (in MB)",
-            defaultInt=1024,
-            advanced=false
+            defaultInt=2048,
+            experimental=false
         )
         public int memory;
 
+        @ConfigProperty(
+            description="When enabled, the ExecutionSite threads will be pinned to the first n CPU cores (where " +
+                        "n is the total number of partitions hosted by the local HStoreSite). All other threads " +
+                        "(e.g., for network handling) will be pinned to the remaining CPU cores. If there are fewer " +
+                        "CPU cores than partitions, then this option will be disabled. ",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean cpu_affinity;
+        
+        @ConfigProperty(
+            description="When used in conjunction with ${site.cpu_affinity}, each ExecutionSite thread will be " +
+                        "assigned to one and only CPU core. No other thread within the HStoreSite (including all " +
+                        "other ExecutionSites) will be allowed to execute on that core. This configuration option is " +
+                        "mostly used for debugging and is unlikely to provide any speed improvement because the " +
+                        "operating system will automatically maintain CPU affinity.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean cpu_affinity_one_partition_per_core;
+        
         // ----------------------------------------------------------------------------
         // Execution Options
         // ----------------------------------------------------------------------------
@@ -85,7 +117,7 @@ public final class HStoreConf {
                         "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
                         "waiting for work to be added to its queue).",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean exec_profiling;
         
@@ -94,7 +126,6 @@ public final class HStoreConf {
                         "single-partition transactions whenever it completes a work request for a multi-partition " +
                         "transaction running on a different node.",
             defaultBoolean=true,
-            advanced=false,
             experimental=true
         )
         public boolean exec_speculative_execution;
@@ -103,7 +134,6 @@ public final class HStoreConf {
             description="If this feature is enabled, then those non-speculative single partition transactions that are " +
                         "deemed to never abort will be executed without undo logging. Requires Markov model estimations.",
             defaultBoolean=false,
-            advanced=true,
             experimental=true
         )
         public boolean exec_no_undo_logging;
@@ -111,7 +141,6 @@ public final class HStoreConf {
         @ConfigProperty(
             description="All transactions are executed without any undo logging. For testing purposes only.",
             defaultBoolean=false,
-            advanced=true,
             experimental=true
         )
         public boolean exec_no_undo_logging_all;
@@ -121,7 +150,8 @@ public final class HStoreConf {
                         "through the Dtxn.Coordinator. Only multi-partition transactions will be sent to the " +
                         "Dtxn.Coordinator (in order to ensure global ordering). Setting this property to true provides a " +
                         "major throughput improvement.",
-            defaultBoolean=true
+            defaultBoolean=true,
+            experimental=false
         )
         public boolean exec_avoid_coordinator;
         
@@ -133,9 +163,9 @@ public final class HStoreConf {
                         "rolled back, and restarted on the partition that has the data that it was requesting. If the " +
                         "transaction requested more than partition when it was aborted, then it will be executed as a " +
                         "multi-partition transaction on the partition that was requested most often by queries " +
-                        "(using random tie breakers).",
+                        "(using random tie breakers). " +
+                        "See http://ibm.co/fLR2cH for more information.",
             defaultBoolean=false,
-            advanced=true,
             experimental=true
         )
         public boolean exec_db2_redirects;
@@ -146,7 +176,8 @@ public final class HStoreConf {
                         "and re-executed on the same partition as a multi-partition transaction that touches all partitions. " +
                         "Note that this is independent of how H-Store decides what partition to execute the transaction's Java " +
                         "control code on.",
-            defaultBoolean=true
+            defaultBoolean=true,
+            experimental=false
         )
         public boolean exec_force_singlepartitioned;
         
@@ -155,16 +186,16 @@ public final class HStoreConf {
                         "arrived on. Note that this is independent of whether the transaction is selected to be " +
                         "single-partitioned or not. It is likely that you do not want to use this option.",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean exec_force_localexecution;
         
         @ConfigProperty(
             description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
                         "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
-                        "system when used with other benchmarks.",
+                        "system when used with other benchmarks. See edu.mit.hstore.util.NewOrderInspector",
             defaultBoolean=false,
-            advanced=true
+            experimental=true
         )
         public boolean exec_neworder_cheat;
         
@@ -172,32 +203,45 @@ public final class HStoreConf {
             description="Used in conjunction with ${site.force_neworderinspect} to figure out when TPC-C NewOrder transactions " +
                         "are finished with partitions. This will crash the system when used with other benchmarks.",
             defaultBoolean=false,
-            advanced=true
+            experimental=true
         )
         public boolean exec_neworder_cheat_done_partitions;
     
         @ConfigProperty(
-            description="Whether the VoltProcedure should crash the HStoreSite on a mispredict.",
+            description="Whether the VoltProcedure should crash the HStoreSite when a transaction is mispredicted. A " +
+                        "mispredicted transaction is one that was originally identified as single-partitioned but then " +
+                        "executed a query that attempted to access multiple partitions. This is primarily used for debugging " +
+                        "the TransactionEstimator.",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean exec_mispredict_crash;
         
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
                         "all of the ExecutionSites. This may help with multi-partition transactions but will be the bottleneck " +
-                        "for single-partition txn heavy workloads.",
+                        "for single-partition txn heavy workloads because the thread must acquire the lock on each partition's " +
+                        "ExecutionEngine in order to commit or abort a transaction.",
             defaultBoolean=false,
-            advanced=true
+            experimental=true
         )
-        public boolean exec_postprocessing_thread; 
+        public boolean exec_postprocessing_thread;
+        
+        @ConfigProperty(
+            description="The number of post-processing threads to use per HStoreSite. " +
+                        "The ${site.exec_postprocessing_thread} parameter must be set to true.",
+            defaultInt=1,
+            experimental=true
+        )
+        public int exec_postprocessing_thread_count;
+        
 
         @ConfigProperty(
             description="If this enabled with speculative execution, then HStoreSite only invoke the commit operation in the " +
                         "EE for the last transaction in the queued responses. This will cascade to all other queued responses " +
                         "successful transactions that were speculatively executed.",
             defaultBoolean=true,
-            advanced=false
+            experimental=true
         )
         public boolean exec_queued_response_ee_bypass;
         
@@ -209,8 +253,7 @@ public final class HStoreConf {
             description="Enable transaction profiling. This will measure the amount of time a transaction spends" +
             		    "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
             defaultBoolean=false,
-            advanced=true,
-            experimental=true
+            experimental=false
         )
         public boolean txn_profiling;
         
@@ -218,46 +261,39 @@ public final class HStoreConf {
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=1000,
-            advanced=false
+            experimental=false
         )
         public int txn_incoming_queue_max_per_partition;
         
         @ConfigProperty(
             description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
                         "will not accept new requests until the number of queued transactions is less than " +
-                        "this percentage. " +
-                        "The incoming queue release is calculated as " +
+                        "this percentage. This includes all transactions that are waiting to be executed, " +
+                        "executing, and those that have already executed and are waiting for their results " +
+                        "to be sent back to the client. The incoming queue release is calculated as " +
                         "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
             defaultDouble=0.25,
-            advanced=false
+            experimental=false
         )
         public double txn_incoming_queue_release_factor;
         
         @ConfigProperty(
-            description="Max size of the total transaction queue per partition before an HStoreSite will stop " +
-                        "accepting redirected requests from other HStoreSites.",
-            defaultInt=2000,
-            advanced=false
+            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+                        "value by this amount. The release limit will also be recalculated using the new value " +
+                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+                        "the first non-data loading transaction has been issued from the clients.",
+            defaultInt=100,
+            experimental=false
         )
-        public int txn_redirect_queue_max_per_partition;
+        public int txn_incoming_queue_increase;
         
         @ConfigProperty(
-            description="The number transactions that can be stored in the HStoreSite's internal queue before " +
-                        "it will begin to reject redirected transaction requests from other HStoreSites. This " +
-                        "includes all transactions that are waiting to be executed, executing, and those that " +
-                        "have already executed and are waiting for their results to be sent back to the client. " +
-                        "The redirect queue release is calculated as " +
-                        "${site.txn_redirect_queue_max} * ${site.txn_redirect_queue_release_factor}",
-            defaultDouble=0.50,
-            advanced=false
-        )
-        public double txn_redirect_queue_release_factor;
-        
-        @ConfigProperty(
-            description="Allow queued distributed transctions to be rejected.",
+            description="Allow queued distributed transctions to be rejected. This should not be used " +
+                        "when trying to measure true throughput.",
             defaultBoolean=false,
-            experimental=true,
-            advanced=true
+            experimental=true
         )
         public boolean txn_enable_queue_pruning;
         
@@ -270,8 +306,7 @@ public final class HStoreConf {
                         "is aborted due to a misprediction. The Markov model is queued in the ExecutionSiteHelper " +
                         "for processing rather than being executed directly within the ExecutionSite's thread.",
             defaultBoolean=true,
-            experimental=false,
-            advanced=false
+            experimental=false
         )
         public boolean markov_mispredict_recompute;
 
@@ -280,7 +315,7 @@ public final class HStoreConf {
             description="If this is set to true, TransactionEstimator will try to reuse MarkovPathEstimators" +
                         "for transactions running at the same partition.",
             defaultBoolean=true,
-            advanced=false
+            experimental=true
         )
         public boolean markov_path_caching;
     
@@ -289,7 +324,7 @@ public final class HStoreConf {
                         "to keep using them. If (# of accurate txs / total txns) for a paritucular MarkovGraph " +
                         "goes below this threshold, then we will disable the caching",
             defaultDouble=1.0,
-            advanced=true
+            experimental=true
         )
         public double markov_path_caching_threshold;
         
@@ -298,25 +333,61 @@ public final class HStoreConf {
                         "to cache the path segment in the procedure's MarkovGraph. Provides a minor speed improvement " +
                         "for large batches with little variability in their execution paths.",
             defaultInt=3,
-            advanced=false
+            experimental=true
         )
         public int markov_batch_caching_min;
+
+        // ----------------------------------------------------------------------------
+        // BatchPlanner
+        // ----------------------------------------------------------------------------
         
+        @ConfigProperty(
+            description="Enable BatchPlanner profiling. This will keep of how long the BatchPlanner spends performing " +
+                        "certain operations.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean planner_profiling;
+        
+        @ConfigProperty(
+            description="Enable caching in the BatchPlanner. This will provide a significant speed improvement for " +
+                        "single-partitioned queries because the BatchPlanner is able to quickly identify what partitions " +
+                        "a batch of queries will access without having to process the request using the PartitionEstimator. " +
+                        "This parameter is so great I should probably just hardcode to be always on, but maybe you don't " +
+                        "believe me and want to see how slow things go with out this...",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean planner_caching;
+        
+        // ----------------------------------------------------------------------------
+        // HStoreMessenger
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreMesseger will use a separate thread to process incoming redirect " +
+                        "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean messenger_redirect_thread;
+
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
         // ----------------------------------------------------------------------------
     
         @ConfigProperty(
-            description="How many ms to wait initially before starting the ExecutionSiteHelper",
+            description="How many ms to wait initially before starting the ExecutionSiteHelper after " +
+                        "the HStoreSite has started.",
             defaultInt=2000,
-            advanced=false
+            experimental=true
         )
         public int helper_initial_delay;
         
         @ConfigProperty(
-            description="How many ms to wait before the ExecutionSiteHelper executes again to clean up txns",
+            description="How often (in ms) should the ExecutionSiteHelper execute to clean up completed transactions.",
             defaultInt=100,
-            advanced=true
+            experimental=false
         )
         public int helper_interval;
         
@@ -324,31 +395,33 @@ public final class HStoreConf {
             description="How many txns can the ExecutionSiteHelper clean-up per partition per round. Any value less " +
                         "than zero means that it will clean-up all txns it can per round",
             defaultInt=-1,
-            advanced=true
+            experimental=true
         )
         public int helper_txn_per_round;
         
         @ConfigProperty(
-            description="How long should the ExecutionSiteHelper wait before cleaning up a txn's state",
-            defaultInt=500,
-            advanced=true
+            description="The amount of time after a transaction completes before its resources can be garbage collected " +
+                        "and returned back to the various object pools in the HStoreSite.",
+            defaultInt=100,
+            experimental=true
         )
         public int helper_txn_expire;
         
         // ----------------------------------------------------------------------------
         // Output Tracing
         // ----------------------------------------------------------------------------
+        
         @ConfigProperty(
             description="When this property is set to true, all TransactionTrace records will include the stored procedure output result",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean trace_txn_output;
 
         @ConfigProperty(
             description="When this property is set to true, all QueryTrace records will include the query output result",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean trace_query_output;
         
@@ -360,7 +433,7 @@ public final class HStoreConf {
             description="Enable HStoreSite's StatusThread (# of milliseconds to print update). " +
                         "Set this to be -1 if you want to disable the status messages.",
             defaultInt=20000,
-            advanced=false
+            experimental=false
         )
         public int status_interval;
 
@@ -368,14 +441,14 @@ public final class HStoreConf {
             description="Allow the HStoreSiteStatus thread to kill the cluster if it's local HStoreSite has " +
                         "not executed and completed any new transactions since the last time it took a status snapshot.", 
             defaultBoolean=true,
-            advanced=false
+            experimental=false
         )
         public boolean status_kill_if_hung;
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include transaction information",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean status_show_txn_info;
 
@@ -384,14 +457,14 @@ public final class HStoreConf {
                         "such as the number of transactions currently queued, blocked for execution, or waiting to have their results " +
                         "returned to the client.",
             defaultBoolean=true,
-            advanced=true
+            experimental=false
         )
         public boolean status_show_executor_info;
         
         @ConfigProperty(
             description="When this property is set to true, HStoreSite status will include a snapshot of running threads",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean status_show_thread_info;
         
@@ -402,7 +475,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="The scale factor to apply to the object pool values.",
             defaultDouble=1.0,
-            advanced=false
+            experimental=false
         )
         public double pool_scale_factor;
         
@@ -410,7 +483,7 @@ public final class HStoreConf {
             description="Whether to track the number of objects created, passivated, and destroyed from the pool. " + 
                         "Results are shown in HStoreSiteStatus updates.",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean pool_profiling;
 
@@ -418,49 +491,49 @@ public final class HStoreConf {
             description="The max number of VoltProcedure instances to keep in the pool " + 
                         "(per ExecutionSite + per Procedure)",
             defaultInt=10000,
-            advanced=true
+            experimental=false
         )
         public int pool_voltprocedure_idle;
         
         @ConfigProperty(
             description="The max number of BatchPlans to keep in the pool (per BatchPlanner)",
             defaultInt=2000,
-            advanced=true
+            experimental=false
         )
         public int pool_batchplan_idle;
     
         @ConfigProperty(
             description="The number of LocalTransactionState objects to preload",
             defaultInt=500,
-            advanced=true
+            experimental=false
         )
         public int pool_localtxnstate_preload;
         
         @ConfigProperty(
-            description="The max number of LocalTransactionStates to keep in the pool (per ExecutionSite)",
+            description="The max number of LocalTransactionStates to keep in the pool (per partition)",
             defaultInt=5000,
-            advanced=true
+            experimental=false
         )
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
             description="The number of RemoteTransactionState objects to preload",
             defaultInt=500,
-            advanced=true
+            experimental=false
         )
         public int pool_remotetxnstate_preload;
         
         @ConfigProperty(
             description="The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)",
             defaultInt=500,
-            advanced=true
+            experimental=false
         )
         public int pool_remotetxnstate_idle;
         
         @ConfigProperty(
             description="The max number of MarkovPathEstimators to keep in the pool (global)",
             defaultInt=1000,
-            advanced=true
+            experimental=false
         )
         public int pool_pathestimators_idle;
         
@@ -468,7 +541,7 @@ public final class HStoreConf {
             description="The max number of TransactionEstimator.States to keep in the pool (global). " + 
                         "Should be the same as the number of MarkovPathEstimators.",
             defaultInt=1000,
-            advanced=true
+            experimental=false
         )
         public int pool_estimatorstates_idle;
         
@@ -476,28 +549,28 @@ public final class HStoreConf {
             description="The max number of DependencyInfos to keep in the pool (global). " +
                         "Should be the same as the number of MarkovPathEstimators. ",
             defaultInt=50000,
-            advanced=true
+            experimental=false
         )
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
             description="The number of DependencyInfo objects to preload in the pool.",
             defaultInt=10000,
-            advanced=true
+            experimental=false
         )
         public int pool_preload_dependency_infos;
         
         @ConfigProperty(
             description="The max number of ForwardTxnRequestCallbacks to keep idle in the pool",
             defaultInt=2500,
-            advanced=false
+            experimental=false
         )
         public int pool_forwardtxnrequests_idle;
         
         @ConfigProperty(
             description="The max number of ForwardTxnResponseCallbacks to keep idle in the pool.",
             defaultInt=2500,
-            advanced=false
+            experimental=false
         )
         public int pool_forwardtxnresponses_idle;
     }
@@ -511,28 +584,31 @@ public final class HStoreConf {
             description="Dtxn.Coordinator log directory  on the host that the BenchmarkController " +
                         "is invoked from.",
             defaultString="${global.temp_dir}/logs/coordinator",
-            advanced=false
+            experimental=false
         )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/coordinator";
         
         @ConfigProperty(
             description="The hostname to deploy the Dtxn.Coordinator on in the cluster.",
             defaultString="${global.defaulthost}",
-            advanced=false
+            experimental=false
         )
         public String host = HStoreConf.this.global.defaulthost;
         
         @ConfigProperty(
             description="The port number that the Dtxn.Coordinator will listen on.",
             defaultInt=12348,
-            advanced=false
+            experimental=false
         )
         public int port;
 
         @ConfigProperty(
-            description="How long should we wait before starting the Dtxn.Coordinator (in milliseconds)",
-            defaultInt=10000,
-            advanced=false
+            description="How long should we wait before starting the Dtxn.Coordinator (in milliseconds). " +
+                        "You may need to increase this parameter for larger cluster sizes or if the " +
+                        "HStoreSites have to load a lot of supplemental files (e.g., Markov models) before " +
+                        "they attempt to connect to other sites.",
+            defaultInt=0,
+            experimental=false
         )
         public int delay;
     }
@@ -546,21 +622,21 @@ public final class HStoreConf {
             description="Benchmark client log directory on the host that the BenchmarkController " +
                         "is invoked from.",
             defaultString="${global.temp_dir}/logs/clients",
-            advanced=false
+            experimental=false
         )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/clients";
         
         @ConfigProperty(
             description="The amount of memory to allocate for each client process (in MB)",
             defaultInt=512,
-            advanced=false
+            experimental=false
         )
         public int memory;
 
         @ConfigProperty(
             description="Default client host name",
             defaultString="${global.defaulthost}",
-            advanced=false
+            experimental=false
         )
         public String host = HStoreConf.this.global.defaulthost;
 
@@ -571,21 +647,21 @@ public final class HStoreConf {
                         "If ${client.blocking} is disabled, then the total transaction rate for a benchmark run is " +
                         "${client.txnrate} * ${client.processesperclient} * ${client.count}.",
             defaultInt=10000,
-            advanced=false
+            experimental=false
         )
         public int txnrate;
 
         @ConfigProperty(
             description="Number of processes to use per client host.",
             defaultInt=1,
-            advanced=false
+            experimental=false
         )
         public int processesperclient;
 
         @ConfigProperty(
             description="Number of clients hosts to use in the benchmark run.",
             defaultInt=1,
-            advanced=false
+            experimental=false
         )
         public int count;
 
@@ -593,7 +669,7 @@ public final class HStoreConf {
             description="How long should the benchmark trial run (in milliseconds). Does not " +
                         "include ${client.warmup time}.",
             defaultInt=60000,
-            advanced=false
+            experimental=false
         )
         public int duration;
 
@@ -601,7 +677,7 @@ public final class HStoreConf {
             description="How long should the system be allowed to warmup (in milliseconds). Any stats " +
                         "collected during this period are not counted in the final totals.",
             defaultInt=0,
-            advanced=false
+            experimental=false
         )
         public int warmup;
 
@@ -609,7 +685,7 @@ public final class HStoreConf {
             description="How often (in milliseconds) should the BenchmarkController poll the individual " +
                         "client processes and get their intermediate results.",
             defaultInt=10000,
-            advanced=false
+            experimental=false
         )
         public int interval;
 
@@ -618,7 +694,7 @@ public final class HStoreConf {
                         "submit one transaction at a time and wait until the result is returned before " +
                         "submitting the next. The clients still follow the ${client.txnrate} parameter.",
             defaultBoolean=false,
-            advanced=false
+            experimental=false
         )
         public boolean blocking;
         
@@ -627,7 +703,7 @@ public final class HStoreConf {
                         "of concurrent transactions that each client instance can submit to the H-Store cluster " +
                         "before it will block.",
             defaultInt=1,
-            advanced=false
+            experimental=false
         )
         public int blocking_concurrent;
 
@@ -636,7 +712,7 @@ public final class HStoreConf {
                         "A scalefactor less than one makes the data set larger, while greater than one " +
                         "makes it smaller. Implementation depends on benchmark specification.",
             defaultDouble=10.0,
-            advanced=false
+            experimental=false
         )
         public double scalefactor;
 
@@ -672,7 +748,7 @@ public final class HStoreConf {
                         "maintence operation or change data distributions. By default, tick() will be " +
                         "invoked at the interval defined by ${client.interval}.",
             defaultInt=-1,
-            advanced=true
+            experimental=false
         )
         public int tick_interval;
 
@@ -680,7 +756,7 @@ public final class HStoreConf {
             description="The amount of time (in ms) that the client will back-off from sending requests " +
                         "to an HStoreSite when told that the site is throttled.",
             defaultInt=500,
-            advanced=false
+            experimental=false
         )
         public int throttle_backoff;
         
@@ -688,7 +764,7 @@ public final class HStoreConf {
             description="If this enabled, then each DBMS will dump their entire database contents into " +
                         "CSV files after executing a benchmark run.",
             defaultBoolean=false,
-            advanced=false
+            experimental=false
         )
         public boolean dump_database = false;
         
@@ -696,7 +772,7 @@ public final class HStoreConf {
             description="If ${client.dump_database} is enabled, then each DBMS will dump their entire " +
                         "database contents into CSV files in the this directory after executing a benchmark run.",
             defaultString="${global.temp_dir}/dumps",
-            advanced=false
+            experimental=false
         )
         public String dump_database_dir = HStoreConf.this.global.temp_dir + "/dumps";
         
@@ -705,7 +781,7 @@ public final class HStoreConf {
                         "based on the data uploaded to the server. These stats will be written to the path " +
                         "specified by ${client.tablestats_output}.",
             defaultBoolean=false,
-            advanced=true
+            experimental=false
         )
         public boolean tablestats = false;
         
@@ -713,16 +789,19 @@ public final class HStoreConf {
             description="If ${client.tablestats} is enabled, then the loader will write out a database statistics " +
                         "file in the directory defined in this parameter.",
             defaultString="${global.temp_dir}/stats",
-            advanced=true
+            experimental=false
         )
         public String tablestats_dir = HStoreConf.this.global.temp_dir + "/stats";
         
         @ConfigProperty(
-            description="If set to true, then the client calculate the base partition needed by each transaction " +
-                        "request and send that request to the HStoreSite that has that partition.",
+            description="If this parameter is set to true, then each the client will calculate the base partition " +
+                        "needed by each transaction request before it sends to the DBMS. This base partition is " +
+                        "embedded in the StoreProcedureInvocation wrapper and is automatically sent to the HStoreSite " +
+                        "that has that partition. Note that the HStoreSite will not use the PartitionEstimator to " +
+                        "determine whether the client is correct, but the transaction can be restarted and re-executed " +
+                        "if ${site.exec_db2_redirects} is enabled.",
             defaultBoolean=false,
-            experimental=true,
-            advanced=true
+            experimental=false
         )
         public boolean txn_hints = false;
         
@@ -733,10 +812,64 @@ public final class HStoreConf {
                         "ten clients and ${client.delay_threshold} is set to five, then the first five processes will start " +
                         "right away and the remaining five will wait until the first ones finish before starting themselves.", 
             defaultInt=8,
-            experimental=false,
-            advanced=false
+            experimental=false
         )
         public int delay_threshold = 8;
+        
+        @ConfigProperty(
+            description="The URL of the CodeSpeed site that the H-Store BenchmarkController will post the transaction " +
+                        "throughput rate after a benchmark invocation finishes. This parameter must be a well-formed HTTP URL. " +
+                        "See the CodeSpeed documentation page for more info (https://github.com/tobami/codespeed).", 
+            defaultNull=true,
+            experimental=false
+        )
+        public String codespeed_url;
+        
+        @ConfigProperty(
+            description="The name of the project to use when posting the benchmark result to CodeSpeed." +
+                        "This parameter is required by CodeSpeed and cannot be empty. " +
+                        "Note that the the ${client.codespeed_url} parameter must also be set.", 
+            defaultString="H-Store",
+            experimental=false
+        )
+        public String codespeed_project;
+        
+        @ConfigProperty(
+            description="The name of the environment to use when posting the benchmark result to CodeSpeed. " +
+                        "The value of this parameter must already exist in the CodeSpeed site. " +
+                        "This parameter is required by CodeSpeed and cannot be empty. " +
+                        "Note that the the ${client.codespeed_url} parameter must also be set.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String codespeed_environment;
+
+        @ConfigProperty(
+            description="The name of the executable to use when posting the benchmark result to CodeSpeed. " +
+                        "This parameter is required by CodeSpeed and cannot be empty. " +
+                        "Note that the the ${client.codespeed_url} parameter must also be set.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String codespeed_executable;
+        
+        @ConfigProperty(
+            description="The Subversion revision number of the H-Store source code that is reported " +
+                        "when posting the benchmark result used to CodeSpeed. " +
+                        "This parameter is required by CodeSpeed and cannot be empty. " +
+                        "Note that the the ${client.codespeed_url} parameter must also be set.", 
+            defaultNull=true,
+            experimental=false
+        )
+        public String codespeed_commitid;
+        
+        @ConfigProperty(
+            description="The branch corresponding for this version of H-Store used when posting the benchmark " +
+                        "result to CodeSpeed. This is parameter is optional.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String codespeed_branch;
     }
     
     /**
@@ -787,14 +920,13 @@ public final class HStoreConf {
         
         @Override
         public String toString() {
-            return (this.toString(false, false));
+            return (this.toString(false));
         }
         
-        public String toString(boolean advanced, boolean experimental) {
+        public String toString(boolean experimental) {
             final Map<String, Object> m = new TreeMap<String, Object>();
             for (Entry<Field, ConfigProperty> e : this.properties.entrySet()) {
                 ConfigProperty cp = e.getValue();
-                if (advanced == false && cp.advanced()) continue;
                 if (experimental == false && cp.experimental()) continue;
                 
                 Field f = e.getKey();
@@ -930,18 +1062,20 @@ public final class HStoreConf {
         Class<?> f_class = f.getType();
         Object value = null;
         
-        if (f_class.equals(int.class)) {
-            value = cp.defaultInt();
-        } else if (f_class.equals(long.class)) {
-            value = cp.defaultLong();
-        } else if (f_class.equals(double.class)) {
-            value = cp.defaultDouble();
-        } else if (f_class.equals(boolean.class)) {
-            value = cp.defaultBoolean();
-        } else if (f_class.equals(String.class)) {
-            value = cp.defaultString();
-        } else {
-            LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f.getName()));
+        if (cp.defaultNull() == false) {
+            if (f_class.equals(int.class)) {
+                value = cp.defaultInt();
+            } else if (f_class.equals(long.class)) {
+                value = cp.defaultLong();
+            } else if (f_class.equals(double.class)) {
+                value = cp.defaultDouble();
+            } else if (f_class.equals(boolean.class)) {
+                value = cp.defaultBoolean();
+            } else if (f_class.equals(String.class)) {
+                value = cp.defaultString();
+            } else {
+                LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f.getName()));
+            }
         }
         return (value);
     }
@@ -1109,10 +1243,30 @@ public final class HStoreConf {
         return (m);
     }
     
+    public String makeIndexHTML(String group) {
+        final Conf handle = this.confHandles.get(group);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
+        
+        for (Field f : handle.properties.keySet()) {
+            ConfigProperty cp = handle.properties.get(f);
+            assert(cp != null);
+            
+            // INDEX
+            String entry = REGEX_CONFIG_REPLACE.replace("$1", group).replace("$2", f.getName()).replace("\\$", "$");
+            sb.append("  <li>  ").append(entry).append("\n");
+        } // FOR
+        sb.append("</ul>\n\n");
+        
+        return (sb.toString());
+    }
     
     public String makeHTML(String group) {
-        StringBuilder inner = new StringBuilder();
-        StringBuilder top = new StringBuilder();
+        final Conf handle = this.confHandles.get(group);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("<ul class=\"property-list\">\n\n");
         
         // Parameters:
         //  (1) parameter
@@ -1128,13 +1282,6 @@ public final class HStoreConf {
                                 "<tr><td colspan=\"2\">@@DESC@@</td></tr>\n" +
                                 "</table></li>\n\n";
         
-        final Pattern regex = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
-        final String regex_replace = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
-        
-        Conf handle = this.confHandles.get(group);
-        
-        top.append(String.format("<h2>%s Parameters</h2>\n<ul>\n", StringUtil.title(group)));
-        inner.append("<ul class=\"property-list\">\n\n");
         
         Map<String, String> values = new HashMap<String, String>();
         for (Field f : handle.properties.keySet()) {
@@ -1148,8 +1295,8 @@ public final class HStoreConf {
             Object defaultValue = this.getDefaultValue(f, cp);
             if (defaultValue != null) {
                 String value = defaultValue.toString();
-                Matcher m = regex.matcher(value);
-                if (m.find()) value = m.replaceAll(regex_replace);
+                Matcher m = REGEX_CONFIG.matcher(value);
+                if (m.find()) value = m.replaceAll(REGEX_CONFIG_REPLACE);
                 defaultValue = value;
             }
             values.put("DEFAULT", (defaultValue != null ? defaultValue.toString() : "null"));
@@ -1166,10 +1313,14 @@ public final class HStoreConf {
             
             // DESC
             String desc = cp.description();
-            Matcher m = regex.matcher(desc);
-            if (m.find()) {
-                desc = m.replaceAll(regex_replace);
-            }
+            
+            // Create links to remote sites
+            Matcher m = REGEX_URL.matcher(desc);
+            if (m.find()) desc = m.replaceAll(REGEX_URL_REPLACE);
+            
+            // Create links to other parameters
+            m = REGEX_CONFIG.matcher(desc);
+            if (m.find()) desc = m.replaceAll(REGEX_CONFIG_REPLACE);
             values.put("DESC", desc);
             
             // CREATE HTML FROM TEMPLATE
@@ -1177,17 +1328,10 @@ public final class HStoreConf {
             for (String key : values.keySet()) {
                 copy = copy.replace("@@" + key.toUpperCase() + "@@", values.get(key));
             }
-            inner.append(copy);
-            
-            // INDEX
-            copy = regex_replace;
-            copy = copy.replace("$1", group).replace("$2", f.getName()).replace("\\$", "$");
-            top.append("  <li>  ").append(copy).append("\n");
+            sb.append(copy);
         } // FOR
-        inner.append("</ul>\n\n");
-        top.append("</ul>\n\n");
-        
-        return (top.toString() + inner.toString());
+        sb.append("</ul>\n\n[previous] [next]\n");
+        return (sb.toString());
     }
     
     
@@ -1196,10 +1340,10 @@ public final class HStoreConf {
      * 
      */
     public String makeDefaultConfig() {
-        return (this.makeConfig(false, false));
+        return (this.makeConfig(false));
     }
     
-    public String makeConfig(boolean experimental, boolean advanced) {
+    public String makeConfig(boolean experimental) {
         StringBuilder sb = new StringBuilder();
         for (String group : this.confHandles.keySet()) {
             Conf handle = this.confHandles.get(group);
@@ -1210,7 +1354,6 @@ public final class HStoreConf {
             
             for (Field f : handle.properties.keySet()) {
                 ConfigProperty cp = handle.properties.get(f);
-                if (cp.advanced() && advanced == false) continue;
                 if (cp.experimental() && experimental == false) continue;
                 
                 String key = String.format("%s.%s", group, f.getName());
@@ -1238,10 +1381,10 @@ public final class HStoreConf {
     
     @Override
     public String toString() {
-        return (this.toString(false, false));
+        return (this.toString(false));
     }
         
-    public String toString(boolean advanced, boolean experimental) {
+    public String toString(boolean experimental) {
         Class<?> confClass = this.getClass();
         final Map<String, Object> m = new TreeMap<String, Object>();
         for (Field f : confClass.getFields()) {
@@ -1254,7 +1397,7 @@ public final class HStoreConf {
             }
             
             if (obj instanceof Conf) {
-                m.put(key, ((Conf)obj).toString(advanced, experimental));
+                m.put(key, ((Conf)obj).toString(experimental));
             }
         }
         return (StringUtil.formatMaps(m));

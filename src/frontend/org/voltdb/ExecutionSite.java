@@ -106,6 +106,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
@@ -243,7 +244,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Mapping from SQLStmt batch hash codes (computed by VoltProcedure.getBatchHashCode()) to BatchPlanners
      * The idea is that we can quickly derived the partitions for each unique set of SQLStmt list
      */
-    public static final Map<Integer, BatchPlanner> POOL_BATCH_PLANNERS = new ConcurrentHashMap<Integer, BatchPlanner>();
+    public static final Map<Integer, BatchPlanner> POOL_BATCH_PLANNERS = new ConcurrentHashMap<Integer, BatchPlanner>(100);
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -259,12 +260,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     protected int partitionId;
 
-    private long txn_count = 0;
-    
     /**
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
      */
-    private Shutdownable.State shutdown_state = Shutdownable.State.INITIALIZED;
+    private Shutdownable.ShutdownState shutdown_state = Shutdownable.ShutdownState.INITIALIZED;
     private CountDownLatch shutdown_latch;
     
     /**
@@ -361,9 +360,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private final LinkedBlockingDeque<TransactionInfoBaseMessage> work_queue = new LinkedBlockingDeque<TransactionInfoBaseMessage>();
 
     /**
-     * Keep track of how much time the ExecutionSite was idle waiting for work to do in its queue
+     * How much time the ExecutionSite was idle waiting for work to do in its queue
      */
-    private final ProfileMeasurement work_queue_wait = new ProfileMeasurement("EE_IDLE");
+    private final ProfileMeasurement work_idle_time = new ProfileMeasurement("EE_IDLE");
+    /**
+     * How much time it takes for this ExecutionSite to execute a transaction
+     */
+    private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
     
     // ----------------------------------------------------------------------------
     // Coordinator Callback
@@ -672,7 +675,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.helper = hstore_site.getExecutionSiteHelper();
 //        assert(this.helper != null) : "Missing ExecutionSiteHelper";
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
-        if (hstore_conf.site.exec_profiling) this.work_queue_wait.resetOnEvent(this.hstore_site.getWorkloadObservable());
+        if (hstore_conf.site.exec_profiling) {
+            EventObservable eo = this.hstore_site.getWorkloadObservable();
+            this.work_idle_time.resetOnEvent(eo);
+            this.work_exec_time.resetOnEvent(eo);
+        }
     }
     
     // ----------------------------------------------------------------------------
@@ -689,26 +696,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(this.hstore_messenger != null);
         assert(this.self == null);
         this.self = Thread.currentThread();
-        this.self.setName(this.getThreadName());
+        this.self.setName(HStoreSite.getThreadName(this.hstore_site, this.partitionId));
         this.preload();
         
-        /*
-        NDC.push("ExecutionSite - " + siteId + " index " + siteIndex);
-        if (VoltDB.getUseThreadAffinity()) {
-            final boolean startingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
-            for (int ii = 0; ii < startingAffinity.length; ii++) {
-                log.l7dlog( Level.INFO, LogKeys.org_voltdb_ExecutionSite_StartingThreadAffinity.name(), new Object[] { startingAffinity[ii] }, null);
-                startingAffinity[ii] = false;
-            }
-            startingAffinity[ siteIndex % startingAffinity.length] = true;
-            org.voltdb.utils.ThreadUtils.setThreadAffinity(startingAffinity);
-            final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
-            for (int ii = 0; ii < endingAffinity.length; ii++) {
-                log.l7dlog( Level.INFO, LogKeys.org_voltdb_ExecutionSite_EndingThreadAffinity.name(), new Object[] { endingAffinity[ii] }, null);
-                startingAffinity[ii] = false;
-            }
+        if (hstore_conf.site.cpu_affinity) {
+            this.hstore_site.getThreadManager().registerEEThread(partition);
         }
-        */
         
         // Setup the shutdown latch
         assert(this.shutdown_latch == null);
@@ -730,9 +723,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     work = this.work_queue.poll();
                     if (work == null) {
-                        if (hstore_conf.site.exec_profiling) this.work_queue_wait.start();
+                        if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                         work = this.work_queue.takeFirst();
-                        if (hstore_conf.site.exec_profiling) this.work_queue_wait.stop();
+                        if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
                     }
                 } catch (InterruptedException ex) {
                     if (d && this.isShuttingDown() == false) LOG.debug("Unexpected interuption while polling work queue. Halting ExecutionSite...", ex);
@@ -758,9 +751,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Invoke Stored Procedure
                 // -------------------------------
                 } else if (work instanceof InitiateTaskMessage) {
-                    if (hstore_conf.site.exec_profiling) txn_count++;
+                    if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
                     InitiateTaskMessage itask = (InitiateTaskMessage)work;
                     this.processInitiateTaskMessage((LocalTransactionState)ts, itask);
+                    if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
                     
                 // -------------------------------
                 // BAD MOJO!
@@ -844,11 +838,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public int getPartitionId() {
         return (this.partitionId);
     }
-
-    public long getTransactionCounter() {
-        return (this.txn_count);
-    }
-    
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
     }
@@ -893,8 +882,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public int getWorkQueueSize() {
         return (this.work_queue.size());
     }
-    public ProfileMeasurement getWorkQueueProfileMeasurement() {
-        return (this.work_queue_wait);
+    public ProfileMeasurement getWorkIdleTime() {
+        return (this.work_idle_time);
+    }
+    public ProfileMeasurement getWorkExecTime() {
+        return (this.work_exec_time);
+    }
+    public long getTransactionCounter() {
+        return (this.work_exec_time.getInvocations());
     }
     
     /**
@@ -917,10 +912,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         return (this.procedures.get(proc_name));
     }
 
-    public String getThreadName() {
-        return (this.hstore_site.getThreadName(String.format("%03d", this.getPartitionId())));
-    }
-    
     // ---------------------------------------------------------------
     // WORK QUEUE PROCESSING METHODS
     // ---------------------------------------------------------------
@@ -1344,7 +1335,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param plan
      * @return
      */
-    protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan) {
+    protected VoltTable[] executeLocalPlan(LocalTransactionState ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
         long undoToken = ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN;
         
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
@@ -1368,7 +1359,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         int fragmentIdIndex = plan.getFragmentCount();
         int output_depIds[] = plan.getOutputDependencyIds();
         int input_depIds[] = plan.getInputDependencyIds();
-        ParameterSet parameterSets[] = plan.getParameterSets();
         
         // Mark that we touched the local partition once for each query in the batch
         ts.getTouchedPartitions().put(this.partitionId, plan.getBatchSize());
@@ -1645,9 +1635,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // If we're a multi-partition txn then queue this mofo immediately
         if (ts.isPredictSinglePartition() == false) {
             if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
-            // synchronized (this.work_queue) {
+            // We need to acquire this lock because we need to make sure that we're always put in the front
+            // of the queue. Otherwise somebody might move the entire work queue into the blocked list
+            synchronized (this.work_queue) {
                 this.work_queue.addFirst(task);    
-            // }
+             } // SYNCH
 
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         } else if (hstore_conf.site.exec_speculative_execution && this.exec_mode != ExecutionMode.DISABLED) {
@@ -2075,7 +2067,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Always mark the throttling flag so that the clients know whether they are allowed to keep
         // coming at us and make requests
         Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
-        cresponse.setThrottleFlag(this.hstore_site.isIncomingThrottled());
+        cresponse.setThrottleFlag(this.hstore_site.isIncomingThrottled(ts.getBasePartition()));
         
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
@@ -2351,18 +2343,18 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     
     @Override
     public void prepareShutdown() {
-        shutdown_state = Shutdownable.State.PREPARE_SHUTDOWN;
+        shutdown_state = Shutdownable.ShutdownState.PREPARE_SHUTDOWN;
     }
     
     /**
      * Somebody from the outside wants us to shutdown
      */
     public synchronized void shutdown() {
-        if (this.shutdown_state == State.SHUTDOWN) {
+        if (this.shutdown_state == ShutdownState.SHUTDOWN) {
             if (d) LOG.debug(String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
             return;
         }
-        this.shutdown_state = State.SHUTDOWN;
+        this.shutdown_state = ShutdownState.SHUTDOWN;
         
         if (d) LOG.debug(String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
         

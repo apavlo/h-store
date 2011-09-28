@@ -632,7 +632,7 @@ public abstract class BenchmarkComponent {
             HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
-        if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true, true));
+        if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true));
         
         int transactionRate = m_hstoreConf.client.txnrate;
         boolean blocking = m_hstoreConf.client.blocking;

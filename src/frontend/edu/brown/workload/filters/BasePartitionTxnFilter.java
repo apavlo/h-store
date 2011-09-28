@@ -56,7 +56,7 @@ public class BasePartitionTxnFilter extends Filter {
     }
     
     @Override
-    public String debug() {
+    public String debugImpl() {
         return null;
     }
 

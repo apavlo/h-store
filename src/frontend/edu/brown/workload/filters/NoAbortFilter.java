@@ -9,7 +9,7 @@ import edu.brown.workload.AbstractTraceElement;
  */
 public class NoAbortFilter extends Filter {
     @Override
-    public String debug() {
+    public String debugImpl() {
         return (this.getClass().getSimpleName());
     }
     

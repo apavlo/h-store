@@ -25,7 +25,7 @@ public class SamplingFilter extends Filter {
      * Procedure Name -> Total # of Txns Wanted
      */
     private final Map<String, Integer> proc_includes;
-    private final Histogram proc_histogram;
+    private final Histogram<String> proc_histogram;
     
     private final Map<String, AtomicInteger> proc_counters = new HashMap<String, AtomicInteger>();
     private final Map<String, Integer> proc_rates = new HashMap<String, Integer>();
@@ -35,7 +35,7 @@ public class SamplingFilter extends Filter {
      * @param proc_includes
      * @param proc_histogram
      */
-    public SamplingFilter(Map<String, Integer> proc_includes, Histogram proc_histogram) {
+    public SamplingFilter(Map<String, Integer> proc_includes, Histogram<String> proc_histogram) {
         final boolean debug = LOG.isDebugEnabled();
         
         this.proc_includes = proc_includes;
@@ -52,7 +52,7 @@ public class SamplingFilter extends Filter {
             Integer needed = this.proc_includes.get(proc_name);
             String debug_msg = "";
             if (needed != null) {
-                long total = this.proc_histogram.get(o, 0);
+                long total = this.proc_histogram.get(proc_name, 0);
                 int rate = (needed > 0 && needed < total ? Math.round(total / needed) : 1);
                 if (needed == 0) rate = 0;
                 this.proc_counters.put(proc_name, new AtomicInteger(0));
@@ -70,7 +70,7 @@ public class SamplingFilter extends Filter {
     }
 
     @Override
-    public String debug() {
+    public String debugImpl() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClass().getSimpleName())
           .append("[");

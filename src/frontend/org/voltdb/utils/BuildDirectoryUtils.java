@@ -29,7 +29,7 @@ import java.io.PrintStream;
  */
 public abstract class BuildDirectoryUtils {
 
-    static final String rootPath = "debugoutput/";
+    static final String rootPath = "/tmp/hstore/debugoutput/";
 
     public static PrintStream getDebugOutputPrintStream(final String dir, final String filename) {
         String path;

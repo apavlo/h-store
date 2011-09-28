@@ -139,7 +139,7 @@ public class PartitionPlan implements JSONSerializable {
                     if (parent != null) {
                         TableEntry parent_entry = PartitionPlan.this.table_entries.get(parent);
                         if (parent_entry == null) {
-                            LOG.warn("Failed to initialize dependencies:\n" + PartitionPlan.this);
+                            LOG.warn(String.format("Missing parent entry %s for child %s: %s", parent, element, table_entries.keySet()));
                         } else {
                             // assert(parent_entry != null) : "Missing parent entry " + parent + " for " + element;
                             if (!this.hasVisited(parent)) children.addAfter(parent);

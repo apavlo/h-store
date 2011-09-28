@@ -135,9 +135,9 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
             ex.printStackTrace();
             System.exit(1);
         }
-        StringBuilder buffer = new StringBuilder();
-        buffer.append(this.getCatalogItem(catalog_db).toString()).append("\n").append(StringUtil.prefix(StringUtil.formatMaps(m), DEBUG_SPACER));
-        return (buffer.toString());
+        return (String.format("%s\n%s",
+                              this.getCatalogItem(catalog_db),
+                              StringUtil.prefix(StringUtil.formatMaps(m), DEBUG_SPACER)));
     }
     
     /**

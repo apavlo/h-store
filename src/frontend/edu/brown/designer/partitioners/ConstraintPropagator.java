@@ -7,8 +7,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -131,18 +131,19 @@ public class ConstraintPropagator {
      * Initialize internal data structures
      */
     private void init() {
+        Random rng = new Random();
        
         // PROCEDURES
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) continue;
 
             // CACHED RETURN VALUE SETS
-            this.retvals.put(catalog_proc, new TreeSet<ProcParameter>(Collections.reverseOrder()));
+            this.retvals.put(catalog_proc, new HashSet<ProcParameter>());
             
             // Generate the multi-attribute partitioning candidates
             if (hints.enable_multi_partitioning) {
                 // MultiProcParameters
-                this.multiparams.put(catalog_proc, new TreeSet<ProcParameter>(Collections.reverseOrder()));
+                this.multiparams.put(catalog_proc, new HashSet<ProcParameter>());
                 for (Set<MultiProcParameter> mpps : PartitionerUtil.generateMultiProcParameters(info, hints, catalog_proc).values()) {
                     this.multiparams.get(catalog_proc).addAll(mpps);
                 } // FOR 
@@ -153,7 +154,7 @@ public class ConstraintPropagator {
                         for (Column catalog_col : mc.getAttributes()) {
                             Collection<MultiColumn> s = this.multicolumns.get(catalog_col);
                             if (s == null) {
-                                this.multicolumns.put(catalog_col, CollectionUtil.addAll(new TreeSet<MultiColumn>(), mc));
+                                this.multicolumns.put(catalog_col, CollectionUtil.addAll(new HashSet<MultiColumn>(), mc));
                             } else {
                                 s.add(mc);
                             }
@@ -170,7 +171,7 @@ public class ConstraintPropagator {
             Table catalog_tbl = v.getCatalogItem();
             if (this.retvals.containsKey(catalog_tbl) == false) {
                 // CACHE RETURN VALUE SETS
-                this.retvals.put(catalog_tbl, new TreeSet<Column>(Collections.reverseOrder()));
+                this.retvals.put(catalog_tbl, new HashSet<Column>());
                 
                 // REPLICATION
                 if (this.hints.enable_replication_readmostly || this.hints.enable_replication_readonly) {
@@ -182,7 +183,7 @@ public class ConstraintPropagator {
                 ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
                 assert(cset != null);
                 Column catalog_col = CollectionUtil.first(cset.findAllForParent(Column.class, catalog_tbl));
-                Collection<Column> candidates = new TreeSet<Column>(Collections.reverseOrder());
+                Collection<Column> candidates = new HashSet<Column>();
                 
                 if (catalog_col == null) LOG.fatal("Failed to find column for " + catalog_tbl + " in ColumnSet:\n" + cset);
                 
@@ -196,7 +197,7 @@ public class ConstraintPropagator {
                     // Maintain a reverse index from Columns to DesignerEdges
                     Collection<DesignerEdge> col_edges = this.column_edge_xref.get(catalog_col);
                     if (col_edges == null) {
-                        col_edges = new TreeSet<DesignerEdge>();
+                        col_edges = new HashSet<DesignerEdge>();
                         this.column_edge_xref.put(catalog_col, col_edges);
                     }
                     col_edges.add(e);
@@ -224,7 +225,9 @@ public class ConstraintPropagator {
                 }
                 
                 assert(catalog_col != null);
-                this.edge_cols_xref.put(e, candidates);
+                List<Column> shuffled = new ArrayList<Column>(candidates);
+                Collections.shuffle(shuffled, rng);
+                this.edge_cols_xref.put(e, shuffled);
             } // FOR
 
         } // FOR

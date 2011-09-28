@@ -78,7 +78,14 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
     
     @Override
     public String toString() {
-        return (this.getClass().getSimpleName() + "[" + this.catalog_item_name + ":#" + this.txn_id + "]");
+        String ret = String.format("%s[%s:#%d]",
+                                   this.getClass().getSimpleName(),
+                                   this.catalog_item_name,
+                                   this.txn_id);
+        if (this.getWeight() > 1) {
+            ret += " - Weight:" + this.getWeight();
+        }
+        return (ret);
     }
     
     /**
@@ -138,6 +145,7 @@ public class TransactionTrace extends AbstractTraceElement<Procedure> {
           .append("Stop Time:    " + this.stop_timestamp + "\n")
           .append("Run Time:     " + (this.stop_timestamp != null ? this.stop_timestamp - this.start_timestamp : "???") + "\n")
           .append("Txn Aborted:  " + this.aborted + "\n")
+          .append("Weight:       " + this.weight + "\n")
           .append("# of Queries: " + this.queries.size() + "\n")
           .append("# of Batches: " + this.query_batches.size() + "\n");
         

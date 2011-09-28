@@ -159,11 +159,12 @@ public abstract class ThreadUtil {
     }
     
     /**
-     * 
+     * Execute the given collection of Runnables in the global thread pool.
+     * The calling thread will block until all of the threads finish
      * @param <R>
-     * @param threads
+     * @param runnables
      */
-    public static <R extends Runnable> void runGlobalPool(final Collection<R> threads) {
+    public static <R extends Runnable> void runGlobalPool(final Collection<R> runnables) {
         final boolean d = LOG.isDebugEnabled();
         
         // Initialize the thread pool the first time that we run
@@ -175,7 +176,7 @@ public abstract class ThreadUtil {
             }
         } // SYNCHRONIZED
         
-        ThreadUtil.run(threads, ThreadUtil.pool, false);
+        ThreadUtil.run(runnables, ThreadUtil.pool, false);
     }
     
     /**

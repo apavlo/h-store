@@ -1,5 +1,6 @@
 package org.voltdb;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -21,6 +22,7 @@ import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStoreConf;
 
 public class TestBatchPlanner extends BaseTestCase {
 
@@ -74,6 +76,21 @@ public class TestBatchPlanner extends BaseTestCase {
         // Create a SQLStmt batch
         this.batch = new SQLStmt[] { new SQLStmt(this.catalog_stmt, fragments) };
         this.args = new ParameterSet[] { VoltProcedure.getCleanParams(this.batch[0], raw_args) };
+    }
+    
+    protected int getLocalFragmentCount(Collection<FragmentTaskMessage> ftasks, int base_partition) {
+        int cnt = 0;
+        for (FragmentTaskMessage ftask : ftasks) {
+            if (ftask.getDestinationPartitionId() == base_partition) cnt++;
+        } // FOR
+        return (cnt);
+    }
+    protected int getRemoteFragmentCount(Collection<FragmentTaskMessage> ftasks, int base_partition) {
+        int cnt = 0;
+        for (FragmentTaskMessage ftask : ftasks) {
+            if (ftask.getDestinationPartitionId() != base_partition) cnt++;
+        } // FOR
+        return (cnt);
     }
     
 //    /**
@@ -159,13 +176,42 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, true);
         assertNotNull(plan);
-        int local_frags = plan.getLocalFragmentCount(LOCAL_PARTITION);
-        int remote_frags = plan.getRemoteFragmentCount(LOCAL_PARTITION);
+        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
+        int local_frags = getLocalFragmentCount(ftasks, LOCAL_PARTITION);
+        int remote_frags = getRemoteFragmentCount(ftasks, LOCAL_PARTITION);
         
         assertTrue(plan.isLocal());
         assertTrue(plan.isSingleSited());
         assertEquals(1, local_frags);
         assertEquals(0, remote_frags);
+    }
+    
+    /**
+     * testSingleSitedLocalPlanCaching
+     */
+    public void testSingleSitedLocalPlanCaching() throws Exception {
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        boolean orig = hstore_conf.site.planner_caching;
+        hstore_conf.site.planner_caching = true;
+        
+        try {
+            this.init(SINGLESITE_PROCEDURE, SINGLESITE_STATEMENT, SINGLESITE_PROCEDURE_ARGS);
+            BatchPlanner planner = new BatchPlanner(batch, this.catalog_proc, p_estimator);
+            BatchPlanner.BatchPlan plan0 = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, true);
+            assertNotNull(plan0);
+            assertTrue(plan0.isLocal());
+            assertTrue(plan0.isSingleSited());
+            Collection<FragmentTaskMessage> ftasks = plan0.getFragmentTaskMessages(this.args);
+            assertEquals(1, getLocalFragmentCount(ftasks, LOCAL_PARTITION)); // local_frags
+            assertEquals(0, getRemoteFragmentCount(ftasks, LOCAL_PARTITION)); // remote_frags
+            
+            BatchPlanner.BatchPlan plan1 = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, true);
+            assertNotNull(plan1);
+            assert(plan0 == plan1);
+            
+        } finally {
+            hstore_conf.site.planner_caching = orig;    
+        }
     }
     
     /**
@@ -184,8 +230,9 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, true);
         assertNotNull(plan);
-        int local_frags = plan.getLocalFragmentCount(LOCAL_PARTITION);
-        int remote_frags = plan.getRemoteFragmentCount(LOCAL_PARTITION);
+        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
+        int local_frags = getLocalFragmentCount(ftasks, LOCAL_PARTITION);
+        int remote_frags = getRemoteFragmentCount(ftasks, LOCAL_PARTITION);
         
         assertTrue(plan.isLocal());
         assertTrue(plan.isSingleSited());
@@ -209,8 +256,9 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, true);
         assertNotNull(plan);
-        int local_frags = plan.getLocalFragmentCount(LOCAL_PARTITION);
-        int remote_frags = plan.getRemoteFragmentCount(LOCAL_PARTITION);
+        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
+        int local_frags = getLocalFragmentCount(ftasks, LOCAL_PARTITION);
+        int remote_frags = getRemoteFragmentCount(ftasks, LOCAL_PARTITION);
         
         assertTrue(plan.isLocal());
         assertTrue(plan.isSingleSited());
@@ -226,8 +274,9 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, this.args, false);
         assertNotNull(plan);
-        int local_frags = plan.getLocalFragmentCount(REMOTE_PARTITION);
-        int remote_frags = plan.getRemoteFragmentCount(REMOTE_PARTITION);
+        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
+        int local_frags = getLocalFragmentCount(ftasks, REMOTE_PARTITION);
+        int remote_frags = getRemoteFragmentCount(ftasks, REMOTE_PARTITION);
         
         assertFalse(plan.isLocal());
         assertTrue(plan.isSingleSited());
@@ -243,8 +292,9 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, false);
         assertNotNull(plan);
-        int local_frags = plan.getLocalFragmentCount(LOCAL_PARTITION);
-        int remote_frags = plan.getRemoteFragmentCount(LOCAL_PARTITION);
+        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
+        int local_frags = getLocalFragmentCount(ftasks, LOCAL_PARTITION);
+        int remote_frags = getRemoteFragmentCount(ftasks, LOCAL_PARTITION);
         
         assertFalse(plan.isLocal());
         assertFalse(plan.isSingleSited());
@@ -260,8 +310,9 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, this.args, false);
         assertNotNull(plan);
-        int local_frags = plan.getLocalFragmentCount(LOCAL_PARTITION);
-        int remote_frags = plan.getRemoteFragmentCount(LOCAL_PARTITION);
+        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
+        int local_frags = getLocalFragmentCount(ftasks, LOCAL_PARTITION);
+        int remote_frags = getRemoteFragmentCount(ftasks, LOCAL_PARTITION);
          
         assertFalse(plan.isLocal());
         assertFalse(plan.isSingleSited());
@@ -278,7 +329,7 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.args, false);
         assertNotNull(plan);
         
-        List<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages();
+        List<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
 //        System.err.println("TASKS:\n" + ftasks);
 //        System.err.println("----------------------------------------");
         Set<Integer> output_dependencies = new HashSet<Integer>();

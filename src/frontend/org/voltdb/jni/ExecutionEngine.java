@@ -19,7 +19,6 @@ package org.voltdb.jni;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -635,6 +634,4 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
             long pointer,
             boolean mAckAction, boolean mPollAction,
             long mAckOffset, int mTableId);
-
-
 }

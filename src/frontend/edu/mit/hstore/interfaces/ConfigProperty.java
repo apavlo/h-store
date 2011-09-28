@@ -44,11 +44,11 @@ public @interface ConfigProperty {
     boolean defaultBoolean() default false;
     
     /**
-     * Whether this configuration property is considered advanced and
-     * should not be included in the default config file
+     * Whether the default value is null
      * @return
      */
-    boolean advanced() default false;
+    boolean defaultNull() default false;
+    
     /**
      * Whether support for this configuration is considered experimental 
      * @return

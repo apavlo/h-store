@@ -248,7 +248,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     public ProcessSetManager(String log_dir, int initial_polling_delay, EventObserver observer) {
-        this.output_directory = (log_dir != null ? new File(log_dir) : null);
+        this.output_directory = (log_dir != null && log_dir.isEmpty() == false ? new File(log_dir) : null);
         this.initial_polling_delay = initial_polling_delay;
         this.failure_observable.addObserver(observer);
         
