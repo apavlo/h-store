@@ -1479,7 +1479,7 @@ public class BenchmarkController {
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
         File f = new File(hstore_conf_path);
         HStoreConf hstore_conf = HStoreConf.init(f, vargs);
-        if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true, true));
+        if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
@@ -1622,10 +1622,10 @@ public class BenchmarkController {
         
         // Check CodeSpeed Parameters
         if (hstore_conf.client.codespeed_url != null) {
-            assert(hstore_conf.client.codespeed_project != null && hstore_conf.client.codespeed_project.isEmpty() == false) : "Missing CodeSpeed Project";
-            assert(hstore_conf.client.codespeed_environment != null && hstore_conf.client.codespeed_environment.isEmpty() == false) : "Missing CodeSpeed Environment";
-            assert(hstore_conf.client.codespeed_executable != null && hstore_conf.client.codespeed_executable.isEmpty() == false) : "Missing CodeSpeed Executable";
-            assert(hstore_conf.client.codespeed_commitid != null && hstore_conf.client.codespeed_commitid.isEmpty() == false) : "Missing CodeSpeed CommitId";
+            assert(hstore_conf.client.codespeed_project != null) : "Missing CodeSpeed Project";
+            assert(hstore_conf.client.codespeed_environment != null) : "Missing CodeSpeed Environment";
+            assert(hstore_conf.client.codespeed_executable != null) : "Missing CodeSpeed Executable";
+            assert(hstore_conf.client.codespeed_commitid != null) : "Missing CodeSpeed CommitId";
         }
         
         try {

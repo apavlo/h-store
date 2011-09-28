@@ -109,6 +109,7 @@ import edu.mit.hstore.dtxn.LocalTransactionState;
 import edu.mit.hstore.dtxn.TransactionState;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
+import edu.mit.hstore.util.NewOrderInspector;
 
 /**
  * 
@@ -2033,7 +2034,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         HStoreConf.initArgumentsParser(args, catalog_site);
-        if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true, true));
+        if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
 
         // HStoreSite Stuff
         final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);
