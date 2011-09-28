@@ -25,8 +25,8 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
     // Reading the workload takes a long time, so we only want to do it once
     protected static Workload workload;
     protected static WorkloadStatistics stats;
-    protected static ParameterMappingsSet correlations;
-    protected static File correlations_file;
+    protected static ParameterMappingsSet mappings;
+    protected static File mappings_file;
 
     protected Designer designer;
     protected DesignerInfo info;
@@ -59,11 +59,11 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
                 throw ex;
             }
             this.applyCatalogCorrelations(type);
-            correlations_file = this.getParameterMappingsFile(type);
-            assertNotNull(correlations_file);
-            assert(correlations_file.exists());
-            correlations = new ParameterMappingsSet();
-            correlations.load(correlations_file.getAbsolutePath(), catalog_db);
+            mappings_file = this.getParameterMappingsFile(type);
+            assertNotNull(mappings_file);
+            assert(mappings_file.exists());
+            mappings = new ParameterMappingsSet();
+            mappings.load(mappings_file.getAbsolutePath(), catalog_db);
         }
         
         // Setup everything else (that's just how we roll up in this ma)
@@ -74,8 +74,8 @@ public abstract class BasePartitionerTestCase extends BaseTestCase {
     protected DesignerInfo generateInfo(Database catalog_db) {
         DesignerInfo info = new DesignerInfo(catalog_db, workload);
         info.setStats(stats);
-        info.setCorrelations(correlations);
-        info.setCorrelationsFile(correlations_file.getAbsolutePath());
+        info.setMappings(mappings);
+        info.setMappingsFile(mappings_file.getAbsolutePath());
         info.setNumThreads(NUM_THREADS);
         info.setNumIntervals(NUM_INTERVALS);
         return (info);

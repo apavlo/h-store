@@ -65,12 +65,19 @@ public class TableStatistics extends AbstractStatistics<Table> {
         COLUMN_STATS,
     };
     
+    /** Total number of tuples in the table */
     public Long tuple_count_total = 0l;
+    /** Total number of bytes for the table */
     public Long tuple_size_total = 0l;
+    /** The minimum size of a tupe in the table */
     public Long tuple_size_min = null;
+    /** The maximum size of a tuple in the table */
     public Long tuple_size_max = null;
+    /** The average size of a tuple in the table */
     public Long tuple_size_avg = 0l;
+    /** Is this table readonly */
     public Boolean readonly = true;
+    
     public final SortedMap<QueryType, Long> query_type_count = new TreeMap<QueryType, Long>();
     public final SortedMap<String, ColumnStatistics> column_stats = new TreeMap<String, ColumnStatistics>();
     

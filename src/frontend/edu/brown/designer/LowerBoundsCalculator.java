@@ -11,8 +11,10 @@ import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.LowerBoundsCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
+import edu.brown.designer.partitioners.MostPopularPartitioner;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.workload.Workload;
 
 /**
@@ -75,23 +77,28 @@ public class LowerBoundsCalculator {
         // Create the container object that will hold all the information that
         // the designer will need to use
         DesignerInfo info = new DesignerInfo(args);
+        
+        // Upper Bounds
+        Designer designer = new Designer(info, args.designer_hints, args);
+        PartitionPlan initial_solution = new MostPopularPartitioner(designer, info).generate(args.designer_hints);
+        initial_solution.apply(args.catalog_db);
 
         // Calculate the actual cost too while we're at it...
         TimeIntervalCostModel<SingleSitedCostModel> cm = new TimeIntervalCostModel<SingleSitedCostModel>(args.catalog_db, SingleSitedCostModel.class, args.num_intervals);
         cm.applyDesignerHints(args.designer_hints);
-        double actual_cost = cm.estimateWorkloadCost(args.catalog_db, args.workload);
+        double upper_bound = cm.estimateWorkloadCost(args.catalog_db, args.workload);
         
-        final long start = System.currentTimeMillis();
+        final ProfileMeasurement timer = new ProfileMeasurement("timer").start();
         LowerBoundsCalculator lb = new LowerBoundsCalculator(info, args.num_intervals);
-        double lb_cost = lb.calculate(args.workload);
-        final long stop = System.currentTimeMillis();
+        double lower_bound = lb.calculate(args.workload);
+        timer.stop();
         
         ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("# of Partitions", CatalogUtil.getNumberOfPartitions(args.catalog_db));
         m.put("# of Intervals", args.num_intervals);
-        m.put("Lower Bounds", String.format("%.03f", lb_cost));
-        m.put("Actual Cost", String.format("%.03f", actual_cost));
-        m.put("Search Time", (stop - start) / 1000d);
+        m.put("Lower Bound", String.format("%.03f", lower_bound));
+        m.put("Upper Bound", String.format("%.03f", upper_bound));
+        m.put("Search Time", String.format("%.2f sec", timer.getTotalThinkTimeSeconds()));
         
         for (Entry<String, Object> e : m.entrySet()) {
             LOG.info(String.format("%-20s%s", e.getKey()+":", e.getValue().toString()));

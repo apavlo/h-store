@@ -1,7 +1,6 @@
 package edu.brown.workload;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
@@ -22,6 +22,7 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
@@ -30,7 +31,12 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.Consumer;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.Producer;
+import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * 
@@ -38,6 +44,11 @@ import edu.brown.utils.PartitionEstimator;
  */
 public class WorkloadSummarizer {
     private static final Logger LOG = Logger.getLogger(WorkloadSummarizer.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private final Database catalog_db;
     private final PartitionEstimator p_estimator;
@@ -46,6 +57,7 @@ public class WorkloadSummarizer {
     private final Collection<Column> candidate_columns;
     private final Map<Statement, List<StmtParameter>> target_stmt_params = new HashMap<Statement, List<StmtParameter>>();
     private final Map<Procedure, List<ProcParameter>> target_proc_params = new HashMap<Procedure, List<ProcParameter>>();
+    private Integer num_intervals;
     
     private class DuplicateTraceElements<CT extends CatalogType, T extends AbstractTraceElement<CT>> extends HashMap<CT, Map<String, Set<T>>> {
         private static final long serialVersionUID = 1L;
@@ -124,6 +136,20 @@ public class WorkloadSummarizer {
              CatalogUtil.getAllColumns(catalog_db));
     }
     
+    public void setIntervals(Integer intervals) {
+        if (debug.get()) LOG.debug("Compression Intervals: " + intervals);
+        this.num_intervals = intervals;
+    }
+    
+    /**
+     * Main entry point
+     * @param workload
+     * @return
+     */
+    public Workload process(Workload workload) {
+        return (this.removeDuplicateTransactions(this.removeDuplicateQueries(workload)));
+    }
+    
     protected List<StmtParameter> getTargetParameters(Statement catalog_stmt) {
         return (this.target_stmt_params.get(catalog_stmt));
     }
@@ -153,7 +179,8 @@ public class WorkloadSummarizer {
                     }
                 } // FOR (parameter)
                 this.target_stmt_params.put(catalog_stmt, stmt_params);
-                LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_stmt.fullName(), stmt_params)); 
+                if (debug.get())
+                    LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_stmt.fullName(), stmt_params)); 
             } // FOR (statement)
             
             // For each ProcParameter, get the mappings to all of the StmtParameters
@@ -172,16 +199,12 @@ public class WorkloadSummarizer {
                 if (matched) proc_params.add(catalog_param);
             } // FOR (parameter)
             this.target_proc_params.put(catalog_proc, proc_params);
-            LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_proc.fullName(), proc_params)); 
+            if (debug.get())
+                LOG.debug(String.format("%s - Relevant Parameters: %s", catalog_proc.fullName(), proc_params)); 
         } // FOR (procedure)
     }
-    
-    
-    public Workload process(Workload workload) {
-        return (this.removeDuplicateTransactions(this.removeDuplicateQueries(workload)));
-    }
 
-    protected String getTransactionTraceSignature(Procedure catalog_proc, TransactionTrace txn_trace) {
+    protected String getTransactionTraceSignature(Procedure catalog_proc, TransactionTrace txn_trace, Integer interval) {
         SortedSet<String> queries = new TreeSet<String>();
         for (QueryTrace query_trace : txn_trace.getQueries()) {
             Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
@@ -189,11 +212,15 @@ public class WorkloadSummarizer {
         } // FOR
         
         String signature = catalog_proc.getName() + "->";
+        if (interval != null) signature += "INT[" + interval + "]";
         signature += this.getParamSignature(txn_trace, this.target_proc_params.get(catalog_proc));
         
         for (String q : queries) {
             signature += "\n" + q;
         } // FOR
+        
+        if (trace.get()) LOG.trace(txn_trace + " ==> " + signature);
+        
         return (signature);
     }
     
@@ -210,45 +237,85 @@ public class WorkloadSummarizer {
         String sig = (element.aborted ? "ABRT-" : "");
         if (target_params != null) {
             AbstractHasher hasher = p_estimator.getHasher();
+            boolean first = true;
             for (CatalogType catalog_param : target_params) {
-                Object val = null;
+                // Skip types that are always unique (and not useful for partitioning)
+                VoltType vtype = VoltType.get((catalog_param instanceof StmtParameter ? ((StmtParameter)catalog_param).getJavatype() :
+                                                                                        ((ProcParameter)catalog_param).getType()));
+                if (vtype == VoltType.STRING || vtype == VoltType.TIMESTAMP) continue;
+                
+                // Add a prefix to separate parameters
+                if (first == false) sig += "|";
+                
+                // StmtParameter
                 if (catalog_param instanceof StmtParameter) {
                     int idx = ((StmtParameter)catalog_param).getIndex();
-                    val = params[idx];
+                    sig += hasher.hash(params[idx]);
+                    
+                // ProcParameter
                 } else if (catalog_param instanceof ProcParameter) {
                     ProcParameter catalog_procparam = (ProcParameter)catalog_param;
                     int idx = catalog_procparam.getIndex();
+                    
+                    // ARRAY
                     if (catalog_procparam.getIsarray()) {
-                        val = Arrays.toString((Object[])params[idx]); // HACK
+                        Set<Integer> hashes = new TreeSet<Integer>();
+                        for (Object o : (Object[])params[idx]) {
+                            hashes.add(hasher.hash(o));
+                        } // FOR
+                        boolean first_hash = true;
+                        for (Integer hash : hashes) {
+                            if (first_hash == false) sig += ","; 
+                            sig += hash;
+                            first_hash = false;
+                        } // FOR
+                    // SCALAR
                     } else {
-                        val = params[idx];
+                        sig += hasher.hash(params[idx]);        
                     }
                 } else {
                     assert(false) : "Unexpected: " + catalog_param;
                 }
-//                assert(idx < params.length);
-                sig += (sig.isEmpty() ? "" : "|") + hasher.hash(val);
+                first = false;
             } // FOR
         }
         return (sig);
     }
     
     /**
-     * 
+     * Remove duplicate transaction invocations and populate a new Workload
      * @param workload
      * @return
      */
-    protected Workload removeDuplicateTransactions(Workload workload) {
-        DuplicateTraceElements<Procedure, TransactionTrace> duplicates = new DuplicateTraceElements<Procedure, TransactionTrace>();
-        for (TransactionTrace txn_trace : workload) {
-            Procedure catalog_proc = txn_trace.getCatalogItem(this.catalog_db);
-            if (this.target_procedures.contains(catalog_proc) == false) continue;
-            
-            String signature = this.getTransactionTraceSignature(catalog_proc, txn_trace);
-            assert(signature != null);
-            assert(signature.isEmpty() == false);
-            duplicates.add(catalog_proc, signature, txn_trace);
-        } // FOR (txn)
+    protected Workload removeDuplicateTransactions(final Workload workload) {
+        final DuplicateTraceElements<Procedure, TransactionTrace> duplicates = new DuplicateTraceElements<Procedure, TransactionTrace>();
+        
+        // PRODUCER
+        Producer<TransactionTrace, TransactionTrace> producer = new Producer<TransactionTrace, TransactionTrace>(workload) {
+            @Override
+            public Pair<Consumer<TransactionTrace>, TransactionTrace> transform(TransactionTrace t) {
+                return this.defaultTransform(t);
+            }
+        };
+        
+        // CONSUMERS
+        for (int i = 0, cnt = ThreadUtil.getMaxGlobalThreads(); i < cnt; i++) {
+            Consumer<TransactionTrace> c = new Consumer<TransactionTrace>() {
+                @Override
+                public void process(TransactionTrace txn_trace) {
+                    Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+                    if (target_procedures.contains(catalog_proc) == false) return;
+                    Integer interval = (num_intervals != null ? workload.getTimeInterval(txn_trace, num_intervals) : null); 
+                    String signature = getTransactionTraceSignature(catalog_proc, txn_trace, interval);
+                    assert(signature != null);
+                    assert(signature.isEmpty() == false);
+                    duplicates.add(catalog_proc, signature, txn_trace);
+                }
+            };
+            producer.addConsumer(c);
+        } // FOR
+        
+        ThreadUtil.runGlobalPool(producer.getRunnablesList()); // BLOCKING
         
         if (duplicates.hasDuplicates() == false) return (workload);
         Workload new_workload = new Workload(this.catalog_db.getCatalog());
@@ -271,36 +338,52 @@ public class WorkloadSummarizer {
      * @return
      */
     protected Workload removeDuplicateQueries(Workload workload) {
-        Workload new_workload = new Workload(this.catalog_db.getCatalog());
-        AtomicInteger trimmed_ctr = new AtomicInteger(0);
+        final Workload new_workload = new Workload(this.catalog_db.getCatalog());
+        final AtomicInteger trimmed_ctr = new AtomicInteger(0);
         
-        DuplicateTraceElements<Statement, QueryTrace> duplicates = new DuplicateTraceElements<Statement, QueryTrace>();
-        for (TransactionTrace txn_trace : workload) {
-            Procedure catalog_proc = txn_trace.getCatalogItem(this.catalog_db);
-            if (this.target_procedures.contains(catalog_proc) == false) continue;
-            duplicates.clear();            
-            for (QueryTrace query_trace : txn_trace.getQueries()) {
-                Statement catalog_stmt = query_trace.getCatalogItem(this.catalog_db);
-                String param_hashes = this.getQueryTraceSignature(catalog_stmt, query_trace);
-                duplicates.add(catalog_stmt, param_hashes, query_trace);
-            } // FOR (query)
-            
-            // If this TransactionTrace has duplicate queries, then we will want to consturct
-            // a new TransactionTrace that has the weighted queries. Note that will cause us 
-            // to have to remove any batches
-            if (duplicates.hasDuplicates()) {
-                TransactionTrace new_txn_trace = (TransactionTrace)txn_trace.clone();
-                new_txn_trace.setQueries(duplicates.getWeightedTraceElements());
-                new_workload.addTransaction(new_txn_trace.getCatalogItem(this.catalog_db), new_txn_trace);
-                trimmed_ctr.incrementAndGet();
-            } else {
-                new_workload.addTransaction(txn_trace.getCatalogItem(this.catalog_db), txn_trace);
-            }
-        } // FOR (txn)
+        // PRODUCER
+        Producer<TransactionTrace, TransactionTrace> producer = Producer.defaultProducer(workload);
         
-        LOG.debug(String.format("Reduced Workload from (%d txns / %d queries) to (%d txns / %d queries)",
-                               workload.getTransactionCount(), workload.getQueryCount(),
-                               new_workload.getTransactionCount(), new_workload.getQueryCount()));
+        // CONSUMERS
+        for (int i = 0, cnt = ThreadUtil.getMaxGlobalThreads(); i < cnt; i++) {
+            final DuplicateTraceElements<Statement, QueryTrace> duplicates = new DuplicateTraceElements<Statement, QueryTrace>();
+            Consumer<TransactionTrace> c = new Consumer<TransactionTrace>() {
+                @Override
+                public void process(TransactionTrace txn_trace) {
+                    Procedure catalog_proc = txn_trace.getCatalogItem(catalog_db);
+                    if (target_procedures.contains(catalog_proc) == false) return;
+                    duplicates.clear();            
+                    for (QueryTrace query_trace : txn_trace.getQueries()) {
+                        Statement catalog_stmt = query_trace.getCatalogItem(catalog_db);
+                        String param_hashes = getQueryTraceSignature(catalog_stmt, query_trace);
+                        duplicates.add(catalog_stmt, param_hashes, query_trace);
+                    } // FOR (query)
+                    
+                    // If this TransactionTrace has duplicate queries, then we will want to consturct
+                    // a new TransactionTrace that has the weighted queries. Note that will cause us 
+                    // to have to remove any batches
+                    if (duplicates.hasDuplicates()) {
+                        TransactionTrace new_txn_trace = (TransactionTrace)txn_trace.clone();
+                        new_txn_trace.setQueries(duplicates.getWeightedTraceElements());
+                        new_workload.addTransaction(new_txn_trace.getCatalogItem(catalog_db), new_txn_trace);
+                        trimmed_ctr.incrementAndGet();
+                    } else {
+                        new_workload.addTransaction(txn_trace.getCatalogItem(catalog_db), txn_trace);
+                    }
+                }
+            };
+            producer.addConsumer(c);
+        } // FOR
+        
+        ThreadUtil.runGlobalPool(producer.getRunnablesList()); // BLOCKING
+        
+        if (debug.get())
+            LOG.debug(String.format("Reduced Workload %d -> %d txns [%.2f]  / %d -> %d queries [%.2f]",
+                                    workload.getTransactionCount(), new_workload.getTransactionCount(),
+                                    (workload.getTransactionCount() - new_workload.getTransactionCount()) / (double)new_workload.getTransactionCount(),
+                                    workload.getQueryCount(), new_workload.getQueryCount(),
+                                    (workload.getQueryCount() - new_workload.getQueryCount()) / (double)new_workload.getQueryCount()
+            ));
         return (new_workload);
     }
     
@@ -312,13 +395,19 @@ public class WorkloadSummarizer {
             ArgumentsParser.PARAM_WORKLOAD_OUTPUT,
             ArgumentsParser.PARAM_MAPPINGS
         );
+        Integer intervals = args.getIntParam(ArgumentsParser.PARAM_DESIGNER_INTERVALS);
         
-        LOG.info("Compressing workload based on " + CatalogUtil.getNumberOfPartitions(args.catalog) + " partitions");
+        LOG.info(String.format("Compressing workload based on %d partitions%s",
+                 CatalogUtil.getNumberOfPartitions(args.catalog),
+                 (intervals != null ? " over " + intervals + " intervals" : "")));
+        LOG.info("BEFORE:\n" + args.workload.getProcedureHistogram());
         
         PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
         WorkloadSummarizer ws = new WorkloadSummarizer(args.catalog_db, p_estimator, args.param_mappings);
+        if (intervals != null) ws.setIntervals(intervals);
         Workload new_workload = ws.process(args.workload);
         assert(new_workload != null);
+        LOG.info("AFTER:\n" + new_workload.getProcedureHistogram());
         
         String output_path = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT);
         LOG.info("Saving compressed workload '" + output_path + "'");

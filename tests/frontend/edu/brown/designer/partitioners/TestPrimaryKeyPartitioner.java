@@ -46,8 +46,8 @@ public class TestPrimaryKeyPartitioner extends BaseTestCase {
         this.workload = new Workload(catalog);
         this.info = new DesignerInfo(catalog_db, this.workload);
         this.info.setPartitionerClass(PrimaryKeyPartitioner.class);
-        this.info.setCorrelations(correlations);
-        this.info.setCorrelationsFile(correlations_file.getAbsolutePath());
+        this.info.setMappings(correlations);
+        this.info.setMappingsFile(correlations_file.getAbsolutePath());
         this.hints = new DesignerHints();
 
         this.designer = new Designer(this.info, this.hints, this.info.getArgs());

@@ -42,6 +42,8 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
@@ -469,7 +471,7 @@ public class ArgumentsParser {
             if (params.containsKey(PARAM_WORKLOAD_REMOVE_DUPES)) {
                 DuplicateTraceFilter filter = new DuplicateTraceFilter();
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
 
             // TRANSACTION OFFSET
@@ -478,7 +480,7 @@ public class ArgumentsParser {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(-1l, this.workload_xact_offset, weightedTxns);
                 // Important! The offset should go in the front!
                 this.workload_filter = (this.workload_filter != null ? filter.attach(this.workload_filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
             
             // BASE PARTITIONS
@@ -499,7 +501,7 @@ public class ArgumentsParser {
                 }
                 filter.addPartitions(workload_base_partitions);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
 
             
@@ -587,7 +589,7 @@ public class ArgumentsParser {
                 }
                 
                 // Sampling!!
-                if (params.containsKey(PARAM_WORKLOAD_PROC_SAMPLE) && this.getBooleanParam(PARAM_WORKLOAD_PROC_SAMPLE)) {
+                if (this.getBooleanParam(PARAM_WORKLOAD_PROC_SAMPLE, false)) {
                     if (debug) LOG.debug("Attaching sampling filter");
                     if (proc_histogram == null) proc_histogram = WorkloadUtil.getProcedureHistogram(new File(path));
                     Map<String, Integer> proc_includes = ((ProcedureNameFilter)filter).getProcIncludes();
@@ -598,14 +600,14 @@ public class ArgumentsParser {
 
                 // Attach our new filter to the chain (or make it the head if it's the first one)
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             } 
             
             // TRANSACTION LIMIT
             if (this.workload_xact_limit != null) {
                 ProcedureLimitFilter filter = new ProcedureLimitFilter(this.workload_xact_limit, weightedTxns);
                 this.workload_filter = (this.workload_filter != null ? this.workload_filter.attach(filter) : filter);
-                if (debug) LOG.debug("Attached " + filter.debug());
+                if (debug) LOG.debug("Attached " + filter.debugImpl());
             }
             
             // QUERY LIMIT
@@ -634,6 +636,14 @@ public class ArgumentsParser {
                 } catch (Throwable ex) {
                     throw new RuntimeException("Failed to load stats file '" + this.stats_path + "'", ex);
                 }
+            }
+            
+            // Scaling
+            if (this.params.containsKey(PARAM_STATS_SCALE_FACTOR)) {
+                double scale_factor = this.getDoubleParam(PARAM_STATS_SCALE_FACTOR);
+                LOG.info("Scaling TableStatistics: " + scale_factor);
+                AbstractTableStatisticsGenerator generator = AbstractTableStatisticsGenerator.factory(this.catalog_db, this.catalog_type, scale_factor);
+                generator.apply(this.stats);
             }
         }
     }
@@ -751,6 +761,12 @@ public class ArgumentsParser {
                 throw new Exception("Unknown catalog type '" + catalog_type + "'");
             }
             this.catalog_type = type;
+        }
+        
+        // Update Cluster Configuration
+        if (this.params.containsKey(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(this.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            this.updateCatalog(FixCatalog.addHostInfo(this.catalog, cc), null);
         }
         
         // Check the requirements after loading the catalog, because some of the above parameters will set the catalog one

@@ -1,4 +1,4 @@
-package edu.mit.hstore;
+package edu.mit.hstore.util;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -10,6 +10,8 @@ import org.apache.log4j.Logger;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransactionState;
 
 public class NewOrderInspector {

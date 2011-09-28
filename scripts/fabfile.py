@@ -64,7 +64,7 @@ if not os.path.exists(realpath):
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 import boto
 
-## List of packages needed on each node
+## List of packages needed on each instance
 ALL_PACKAGES = [
     'subversion',
     'gcc',
@@ -84,9 +84,9 @@ NFSCLIENT_PACKAGES = [
     'autofs',
 ]
 
-NFSTYPE_TAG_NAME     = "Type"
-NFSTYPE_HEAD_NODE    = "nfs-node"
-NFSTYPE_CLIENT_NODE  = "nfs-client"
+NFSTYPE_TAG         = "Type"
+NFSTYPE_TAG_HEAD    = "nfs-node"
+NFSTYPE_TAG_CLIENT  = "nfs-client"
 
 ## Fabric Options
 env.key_filename = os.path.join(os.environ["HOME"], ".ssh/hstore.pem")
@@ -98,13 +98,16 @@ env.port = 22
 ## Default Environmnt
 ENV_DEFAULT = {
     ## EC2 Options
-    "ec2.type":                    "m1.xlarge",
+    "ec2.site_type":               "m2.4xlarge",
+    "ec2.client_type":             "m1.xlarge",
+    "ec2.placement_group":         None,
     "ec2.ami":                     "ami-63be790a",
     "ec2.security_group":          "hstore",
     "ec2.keypair":                 "hstore",
     "ec2.region":                  "us-east-1b",
     "ec2.access_key_id":           os.getenv('AWS_ACCESS_KEY_ID'),
     "ec2.secret_access_key":       os.getenv('AWS_SECRET_ACCESS_KEY'),
+    "ec2.force_reboot":            False,
     "ec2.all_instances":           [ ],
     "ec2.running_instances":       [ ],
 
@@ -145,8 +148,9 @@ ec2_conn = boto.connect_ec2(env["ec2.access_key_id"], env["ec2.secret_access_key
 ## ----------------------------------------------
 @task
 def benchmark():
+    """Execute all of the builtin H-Store benchmarks on a cluster that is already running"""
     __getInstances__()
-    client_inst = __getClientInstance__()
+    client_inst = __getRunningClientInstances__()[0]
     with settings(host_string=client_inst.public_dns_name):
         for project in ['tpcc', 'tm1', 'airline', 'auctionmark']:
             exec_benchmark(project=project)
@@ -158,9 +162,14 @@ def benchmark():
 ## ----------------------------------------------
 @task
 def start_cluster():
+    """Deploy a new H-Store cluster on EC2 using the given configuration"""
     
     ## First make sure that our security group is setup
     __createSecurityGroup__()
+    
+    ## Then create our placement group if they want one
+    if env["ec2.placement_group"] != None:
+        __createPlacementGroup__()
 
     ## Then figure out how many instances we actually need
     hostCount, siteCount, partitionCount, clientCount = __getInstanceTypeCounts__()
@@ -173,78 +182,96 @@ def start_cluster():
     ## and figure out how many we can reuse versus restart versus create
     __getInstances__()
 
-    ## At least one of the running nodes must be our nfs-node
+    ## These must be running 
+    siteInstances = [ ]
+    clientInstances = [ ]
+
+    ## The stopped instances that we need to restart
+    stoppedInstances = [ ]
+    
+    ## One instance is the NFS head node. We always need to at least have this guy available.
     nfs_inst = None
     nfs_inst_online = False
+    
     for inst in env["ec2.all_instances"]:
-        if inst.tags[NFSTYPE_TAG_NAME] == NFSTYPE_HEAD_NODE:
-            if inst in env["ec2.running_instances"]:
-                assert nfs_inst == None, "Multiple NFS nodes are running"
+        is_running = inst in env["ec2.running_instances"]
+        
+        ## At least one of the running nodes must be our nfs-node
+        if inst.tags[NFSTYPE_TAG] == NFSTYPE_TAG_HEAD:
+            if is_running:
+                assert nfs_inst == None, "Multiple NFS instances are running"
                 nfs_inst_online = True
             nfs_inst = inst
         ## IF
+        
+        ## If it's already running, check its type to see whether we want to make it a client or a site
+        if is_running:
+            instType = __getInstanceType__(inst)
+            if instType == env["ec2.site_type"]:
+                siteInstances.append(inst)
+            elif instType == env["ec2.client_type"]:
+                clientInstances.append(inst)
+            ## If it doesn't match any of them, then we'll stop it and change it
+            elif env["ec2.change_type"]:
+                LOG.info("Stopping %s instance '%s' so that it can be restarted with a different type" % (instType, __getInstanceName__(inst)))
+                inst.stop()
+                env["ec2.running_instances"].remove(inst)
+                stoppedInstances.append(inst)
+        else:
+            stoppedInstances.append(inst)
     ## FOR
+    for inst in stoppedInstances:
+        __waitUntilStatus__(inst, "stopped")
+    ## FOR
+    
+    ## Make sure that we always start the nfs_inst first
+    if nfs_inst != None and nfs_inst in stoppedInstances:
+        stoppedInstances.remove(nfs_inst)
+        stoppedInstances.insert(0, nfs_inst)
+    ## IF
+                
     if nfs_inst == None:
-        LOG.info("No centeral NFS instance is available. Will create a new one")
+        LOG.info("No '%s' instance is available. Will create a new one" % NFSTYPE_TAG_HEAD)
     elif not nfs_inst_online:
-        LOG.info("Central NFS instance if offline. Will restart")
+        LOG.info("'%s' instance %s is offline. Will restart" % (NFSTYPE_TAG_HEAD, __getInstanceName__(nfs_inst)))
     
     ## Check whether we enough instances already running
-    instances_running = len(env["ec2.running_instances"])
-    instances_stopped = len(env["ec2.all_instances"]) - instances_running
-    instances_needed = max(0, instances_needed - instances_running)
-    if not nfs_inst_online and instances_needed == 0:
-        instances_needed = 1
+    sites_needed = max(0, siteCount - len(siteInstances))
+    clients_needed = max(0, clientCount - len(clientInstances))
+    if not nfs_inst_online and sites_needed == 0:
+        sites_needed = 1
     orig_running = env["ec2.running_instances"][:]
+    instances_needed = sites_needed + clients_needed
     
-    LOG.info("AllInstances:%d / Running:%d / Stopped:%d / Needed:%d" % ( \
-        len(env["ec2.all_instances"]), \
-        len(env["ec2.running_instances"]), \
-        instances_stopped, \
-        instances_needed \
-    ))
+    LOG.info("All Instances - Stopped:%d / Running:%d" % (len(env["ec2.all_instances"]), len(env["ec2.running_instances"])))
+    LOG.info("SITES   - Running:%d / Needed:%d" % (len(siteInstances), sites_needed))
+    LOG.info("CLIENTS - Running:%d / Needed:%d" % (len(clientInstances), clients_needed))
     
     ## See whether we can restart a stopped instance
-    if instances_needed > 0 and instances_stopped > 0:
+    if instances_needed > 0 and len(stoppedInstances) > 0:
+        ## First roll through and start all these mofos back up
+        first = True
         waiting = [ ]
-        
-        ## If we don't have an NFS node, then we need to make sure that we at least
-        ## start that one
-        if nfs_inst == None:
-            for inst in env["ec2.all_instances"]:
-                if inst.tags[NFSTYPE_TAG_NAME] == NFSTYPE_HEAD_NODE:
-                    nfs_inst = inst
-                    waiting.append(inst)
-                    instances_needed -= 1
-                    break
-            ## FOR
-        ## IF
-        
-        for inst in env["ec2.all_instances"]:
-            ## If we've found our NFS node, then we're allowed to take as 
-            ## many more nodes that we need.
-            if nfs_inst != None and instances_needed == 0: break
-            ## If we haven't found our NFS node, then we need to leave one 
-            ## more reservation so that we can create it
-            elif nfs_inst == None and instances_needed == 1: break
+        for inst in stoppedInstances:
+            assert not inst in env["ec2.running_instances"]
             
-            if not inst in env["ec2.running_instances"]:
-                attr = inst.get_attribute("instanceType")
-                assert attr != None
-                assert "instanceType" in attr
-                currentType = attr["instanceType"]
+            ## Figure out whether this will be a site or a client
+            if sites_needed > 0:
+                inst.modify_attribute("instanceType", env["ec2.site_type"])
+                siteInstances.append(inst)
+                sites_needed -= 1
+            else:
+                inst.modify_attribute("instanceType", env["ec2.client_type"])
+                clientInstances.append(inst)
+                clients_needed -= 1
                 
-                ## Check whether we need to change the instance type before we restart it
-                if env["ec2.change_type"] == True and currentType != env["ec2.type"]:
-                    LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, env["ec2.type"], inst.tags['Name']))
-                    inst.modify_attribute("instanceType", env["ec2.type"])
-                    currentType = env["ec2.type"]
-                ## IF
-                
-                LOG.info("Restarting stopped node '%s' / %s" % (inst.tags['Name'], currentType))
-                inst.start()
-                waiting.append(inst)
-                instances_needed -= 1
+            LOG.info("Restarting stopped instance '%s' / %s" % (__getInstanceName__(inst), __getInstanceType__(inst)))
+            inst.start()
+            waiting.append(inst)
+            instances_needed -= 1
+            
+            if sites_needed == 0 and clients_needed == 0:
+                break
         ## FOR
         if waiting:
             for inst in waiting:
@@ -258,28 +285,42 @@ def start_cluster():
         ## Figure out what the next id should be. Not necessary, but just nice...
         next_id = 0
         for inst in env["ec2.all_instances"]:
-            if inst.tags['Name'].startswith("hstore-"):
-                next_id += 1
+            instName = __getInstanceName__(inst)
+            if instName.startswith("hstore-"):
+                instId = int(instName.split("-")[-1])
+                next_id = max(next_id, instId+1)
         ## FOR
 
         LOG.info("Deploying %d new instances [next_id=%d]" % (instances_needed, next_id))
-        instance_tags = [ ]
+        siteInstance_tags = [ ]
+        clientInstance_tags = [ ]
         marked_nfs = False
         for i in range(instances_needed):
             tags = { 
                 "Name": "hstore-%02d" % (next_id),
-                NFSTYPE_TAG_NAME: NFSTYPE_CLIENT_NODE,
+                NFSTYPE_TAG: NFSTYPE_TAG_CLIENT,
             }
             if nfs_inst == None and not marked_nfs:
-                tags[NFSTYPE_TAG_NAME] = NFSTYPE_HEAD_NODE
+                tags[NFSTYPE_TAG] = NFSTYPE_TAG_HEAD
                 marked_nfs = True
-            
-            instance_tags.append(tags)
+                new_sites += 1
+                
+            if sites_needed > 0:
+                siteInstance_tags.append(tags)
+                sites_needed -= 1
+            else:
+                clientInstance_tags.append(tags)
+                clients_needed -= 1
             next_id += 1
         ## FOR
-        assert instances_needed == len(instance_tags), "%d != %d" % (instances_needed, len(instance_tags))
-        __startInstances__(instances_needed, instance_tags)
-        instances_needed = 0
+        assert sites_needed == 0
+        assert clients_needed == 0
+        if len(siteInstance_tags) > 0:
+            __startInstances__(len(siteInstance_tags), env["ec2.site_type"], siteInstance_tags)
+            instances_needed -= len(siteInstance_tags)
+        if len(clientInstance_tags) > 0:
+            __startInstances__(len(clientInstance_tags), env["ec2.client_type"], clientInstance_tags)
+            instances_needed -= len(clientInstance_tags)
     ## IF
     assert instances_needed == 0
     assert len(env["ec2.running_instances"]) >= instances_count, "%d != %d" % (len(env["ec2.running_instances"]), instances_count)
@@ -287,7 +328,7 @@ def start_cluster():
     ## Check whether we already have an NFS node setup
     for i in range(len(env["ec2.running_instances"])):
         inst = env["ec2.running_instances"][i]
-        if NFSTYPE_TAG_NAME in inst.tags and inst.tags[NFSTYPE_TAG_NAME] == NFSTYPE_HEAD_NODE:
+        if NFSTYPE_TAG in inst.tags and inst.tags[NFSTYPE_TAG] == NFSTYPE_TAG_HEAD:
             LOG.debug("BEFORE: %s" % env["ec2.running_instances"])
             env["ec2.running_instances"].pop(i)
             env["ec2.running_instances"].insert(0, inst)
@@ -297,20 +338,24 @@ def start_cluster():
         
     first = True
     for inst in env["ec2.running_instances"]:
-        LOG.info("Configuring instance '%s'" % (inst.tags["Name"]))
+        LOG.info("Configuring instance '%s'" % (__getInstanceName__(inst)))
         with settings(host_string=inst.public_dns_name):
             ## Setup the basic environmnt that we need on each node
-            setup_env()
+            ## This will return true if we need to restart it
+            first_setup = setup_env()
+            need_reboot = first_setup or env["ec2.force_reboot"] or not nfs_inst_online
             
             ## The first instance will be our NFS head node
             if first:
-                if not nfs_inst_online: setup_nfshead()
+                if need_reboot: setup_nfshead(need_reboot)
                 deploy_hstore()
             
             ## Othewise make the rest of the node NFS clients
             else:
-                rebootInst = (nfs_inst_online and inst in orig_running) == False
-                setup_nfsclient(rebootInst)
+                LOG.info("%s - forceReboot=%s / nfsInstOnline=%s / origRunning=%s" % \
+                        (__getInstanceName__(inst), env["ec2.force_reboot"], nfs_inst_online, (inst in orig_running)))
+                need_reboot = need_reboot or ((nfs_inst_online and inst in orig_running) == False)
+                setup_nfsclient(need_reboot)
             first = False
         ## WITH
     ## FOR
@@ -348,6 +393,7 @@ def setup_env():
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
     
+    first_setup = False
     with settings(warn_only=True):
         basename = os.path.basename(env.key_filename)
         files = [ (env.key_filename + ".pub", "/home/%s/.ssh/authorized_keys" % (env.user)),
@@ -356,6 +402,7 @@ def setup_env():
         for local_file, remote_file in files:
             if run("test -f " + remote_file).failed:
                 put(local_file, remote_file, mode=0600)
+                first_setup = True
     ## WITH
     
     ## We may be running a large cluster, in which case we will have a lot of connections
@@ -383,20 +430,23 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
+    hstore_dir = "/home/%s/hstore" % env.user
+    with settings(warn_only=True):
+        if run("test -d %s" % hstore_dir).failed:
+            run("mkdir " + hstore_dir)
+    ## WITH
+    return (first_setup)
 ## DEF
 
 ## ----------------------------------------------
 ## setup_nfshead
 ## ----------------------------------------------
 @task
-def setup_nfshead():
+def setup_nfshead(rebootInst=True):
     """Deploy the NFS head node"""
     __getInstances__()
     
     hstore_dir = "/home/%s/hstore" % env.user
-    with settings(warn_only=True):
-        if run("test -d %s" % hstore_dir).failed:
-            run("mkdir " + hstore_dir)
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
     sudo("exportfs -a")
@@ -405,7 +455,15 @@ def setup_nfshead():
     
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
-    ec2_conn.create_tags([inst.id], {NFSTYPE_TAG_NAME: NFSTYPE_HEAD_NODE})
+    ec2_conn.create_tags([inst.id], {NFSTYPE_TAG: NFSTYPE_TAG_HEAD})
+    
+    ## Reboot and wait until it comes back online
+    if rebootInst:
+        LOG.info("Rebooting " + __getInstanceName__(inst))
+        reboot(10)
+        __waitUntilStatus__(inst, 'running')
+        ## IF
+    LOG.info("NFS Head '%s' is online and ready" % __getInstanceName__(inst))
 ## DEF
 
 ## ----------------------------------------------
@@ -433,14 +491,15 @@ def setup_nfsclient(rebootInst=True):
     
     inst = __getInstance__(env.host_string)
     assert inst != None, "Failed to find instance for hostname '%s'\n%s" % (env.host_string, "\n".join([inst.public_dns_name for inst in env["ec2.running_instances"]]))
+    ec2_conn.create_tags([inst.id], {NFSTYPE_TAG: NFSTYPE_TAG_CLIENT})
     
     ## Reboot and wait until it comes back online
     if rebootInst:
-        LOG.info("Rebooting " + env.host_string)
+        LOG.info("Rebooting " + __getInstanceName__(inst))
         reboot(10)
         __waitUntilStatus__(inst, 'running')
     ## IF
-    LOG.info("NFS Client '%s' is online and ready" % inst.tags["Name"])
+    LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
     
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     run("cd " + code_dir)
@@ -464,6 +523,8 @@ def deploy_hstore(build=True):
                     run("ant clean-all")
                 run("ant build")
     ## WITH
+    code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
+    run("cd " + code_dir)
 ## DEF
 
 ## ----------------------------------------------
@@ -485,23 +546,24 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     host_id = 0
     site_id = 0
     partition_id = 0
-    for inst in env["ec2.running_instances"]:
-        ## DBMS INSTANCES
-        if host_id < hostCount:
-            for i in range(env["site.sites_per_host"]):
-                firstPartition = partition_id
-                lastPartition = min(env["site.partitions"], firstPartition + env["site.partitions_per_site"])-1
-                host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
-                if firstPartition != lastPartition:
-                    host += "-%d" % lastPartition
-                partition_id += env["site.partitions_per_site"]
-                site_id += 1
-                hosts.append(host)
-            ## FOR (SITES)
-        ## CLIENT INSTANCES
-        else:
-            clients.append(inst.private_dns_name)
-        host_id += 1
+    
+    ## HStore Sites
+    for inst in __getRunningSiteInstances__():
+        for i in range(env["site.sites_per_host"]):
+            firstPartition = partition_id
+            lastPartition = min(env["site.partitions"], firstPartition + env["site.partitions_per_site"])-1
+            host = "%s:%d:%d" % (inst.private_dns_name, site_id, firstPartition)
+            if firstPartition != lastPartition:
+                host += "-%d" % lastPartition
+            partition_id += env["site.partitions_per_site"]
+            site_id += 1
+            hosts.append(host)
+        ## FOR (SITES)
+    ## FOR
+        
+    ## HStore Clients
+    for inst in __getRunningClientInstances__():
+        clients.append(inst.private_dns_name)
     ## FOR
     assert len(hosts) > 0
 
@@ -569,7 +631,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 @task
 def write_conf(project, removals=[ ]):
     assert project
-    prefix_include = [ 'site', 'coordinator', 'client', 'benchmark' ]
+    prefix_include = [ 'site', 'coordinator', 'client', 'global', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
     hstoreConf_updates = { }
@@ -590,10 +652,10 @@ def write_conf(project, removals=[ ]):
         if not prefix in prefix_include: continue
         if prefix == "benchmark":
             key = key.split(".")[-1]
-            assert not key in benchmarkConf_updates
+            assert not key in benchmarkConf_updates, key
             benchmarkConf_removals.add(key)
         else:
-            assert not key in hstoreConf_updates
+            assert not key in hstoreConf_updates, key
             hstoreConf_removals.add(key)
     ## FOR
 
@@ -658,8 +720,8 @@ def stop_cluster(terminate=False):
     
     waiting = [ ]
     for inst in env["ec2.running_instances"]:
-        if inst.tags['Name'].startswith("hstore-") and inst.state == 'running':
-            LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", inst.tags['Name']))
+        if __getInstanceName__(inst).startswith("hstore-") and inst.state == 'running':
+            LOG.info("%s %s" % ("Terminating" if terminate else "Stopping", __getInstanceName__(inst)))
             if terminate:
                 inst.terminate()
             else:
@@ -678,15 +740,16 @@ def stop_cluster(terminate=False):
 ## ----------------------------------------------
 ## __startInstances__
 ## ----------------------------------------------        
-def __startInstances__(instances_count, instance_tags):
-    LOG.info("Attemping to start %d '%s' execution nodes." % (instances_count, env["ec2.type"]))
+def __startInstances__(instances_count, ec2_type, instance_tags):
+    LOG.info("Attemping to start %d instances." % (instances_count))
     reservation = ec2_conn.run_instances(env["ec2.ami"],
-                                         instance_type=env["ec2.type"],
+                                         instance_type=ec2_type,
                                          key_name=env["ec2.keypair"],
                                          min_count=instances_count,
                                          max_count=instances_count,
                                          security_groups=[ env["ec2.security_group"] ],
-                                         placement=env["ec2.region"])
+                                         placement=env["ec2.region"],
+                                         placement_group=env["ec2.placement_group"])
     LOG.info("Started %d execution nodes. Waiting for them to come online" % len(reservation.instances))
     i = 0
     for inst in reservation.instances:
@@ -700,7 +763,7 @@ def __startInstances__(instances_count, instance_tags):
             logging.error(str(instance_tags))
             raise
         __waitUntilStatus__(inst, 'running')
-        LOG.info("New Instance '%s' / %s is ready" % (inst.tags['Name'], env["ec2.type"]))
+        LOG.info("New Instance '%s' / %s is ready" % (__getInstanceName__(inst), env["ec2.site_type"]))
         i += 1
     ## FOR
     time.sleep(20)
@@ -716,8 +779,8 @@ def __waitUntilStatus__(inst, status):
         time.sleep(5)
         tries -= 1
     if tries == 0:
-        logging.error("Last '%s' status: %s" % (inst.tags['Name'], inst.update()))
-        raise Exception("Timed out waiting for %s to get to status '%s'" % (inst.tags['Name'], status))
+        logging.error("Last '%s' status: %s" % (__getInstanceName__(inst), inst.update()))
+        raise Exception("Timed out waiting for %s to get to status '%s'" % (__getInstanceName__(inst), status))
     
     ## Just because it's running doesn't mean it's ready
     ## So we'll wait until we can SSH into it
@@ -727,7 +790,7 @@ def __waitUntilStatus__(inst, status):
         socket.setdefaulttimeout(10)
         host_status = False
         tries = 5
-        LOG.info("Testing whether instance '%s' is ready [tries=%d]" % (inst.tags['Name'], tries))
+        LOG.info("Testing whether instance '%s' is ready [tries=%d]" % (__getInstanceName__(inst), tries))
         while tries > 0:
             host_status = False
             try:
@@ -742,22 +805,60 @@ def __waitUntilStatus__(inst, status):
         ## WHILE
         socket.setdefaulttimeout(original_timeout)
         if not host_status:
-            raise Exception("Failed to connect to '%s'" % inst.tags['Name'])
+            raise Exception("Failed to connect to '%s'" % __getInstanceName__(inst))
 ## DEF
 
 ## ----------------------------------------------
 ## __getInstances__
 ## ----------------------------------------------        
 def __getInstances__():
-    if env["ec2.running_instances"]: return
-    reservations = ec2_conn.get_all_instances()
+    if env["ec2.running_instances"]: return env["ec2.running_instances"]
+    
+    instFilter = { }
+    if env["ec2.placement_group"] != None:
+        instFilter["placement_group"] = env["ec2.placement_group"]
+    
+    reservations = ec2_conn.get_all_instances(filters=instFilter)
     instances = [i for r in reservations for i in r.instances]
     for inst in instances:
-        if 'Name' in inst.tags and inst.tags['Name'].startswith("hstore-"):
+        ## Cluster Groups
+        if 'Name' in inst.tags and __getInstanceName__(inst).startswith("hstore-"):
             if inst.state != 'terminated': env["ec2.all_instances"].append(inst)
             if inst.state == 'running': env["ec2.running_instances"].append(inst)
     ## FOR
-    return env["ec2.running_instances"]
+    sortKey = lambda inst: __getInstanceName__(inst)
+    env["ec2.all_instances"].sort(key=sortKey)
+    env["ec2.running_instances"].sort(key=sortKey)
+    return
+## DEF
+
+## ----------------------------------------------
+## __getRunningInstances__
+## ----------------------------------------------        
+def __getRunningInstances__(instType):
+    __getInstances__()
+    instances = [ ]
+    for inst in env["ec2.running_instances"]:
+        if __getInstanceType__(inst) == instType:
+            instances.append(inst)
+    ## FOR
+    if len(instances) == 0:
+        raise Exception("No running instances with type '%s' were found" % instType)
+    return instances
+## DEF
+
+## ----------------------------------------------
+## __getRunningSiteInstances__
+## ----------------------------------------------        
+def __getRunningSiteInstances__():
+    return __getRunningInstances__(env["ec2.site_type"])
+## DEF
+
+## ----------------------------------------------
+## __getRunningClientInstances__
+## ----------------------------------------------        
+def __getRunningClientInstances__():
+    return __getRunningInstances__(env["ec2.client_type"])
 ## DEF
 
 ## ----------------------------------------------
@@ -777,6 +878,7 @@ def __getInstance__(public_dns_name):
 ## __getInstanceTypeCounts__
 ## ----------------------------------------------        
 def __getInstanceTypeCounts__():
+    """Return a tuple of the number hosts/sites/partitions/clients that we need"""
     partitionCount = env["site.partitions"]
     siteCount = int(math.ceil(partitionCount / float(env["site.partitions_per_site"])))
     hostCount = int(math.ceil(siteCount / float(env["site.sites_per_host"])))
@@ -785,16 +887,57 @@ def __getInstanceTypeCounts__():
 ## DEF
 
 ## ----------------------------------------------
-## __getClientInstance__
+## __getInstanceName__
 ## ----------------------------------------------        
-def __getClientInstance__():
+def __getInstanceName__(inst):
+    assert inst
+    return (inst.tags['Name'] if 'Name' in inst.tags else '???')
+## DEF
+
+## ----------------------------------------------
+## __getInstanceType__
+## ----------------------------------------------        
+def __getInstanceType__(inst):
+    attr = inst.get_attribute("instanceType")
+    assert attr != None
+    assert "instanceType" in attr
+    return attr["instanceType"]
+## DEF
+
+## ----------------------------------------------
+## __getExpectedInstanceType__
+## ----------------------------------------------        
+def __getExpectedInstanceType__(inst):
     __getInstances__()
-    host_offset = __getInstanceTypeCounts__()[0]
-    assert host_offset > 0
-    assert host_offset < len(env["ec2.running_instances"]), "%d < %d" % (host_offset, len(env["ec2.running_instances"])) 
-    client_inst = env["ec2.running_instances"][host_offset]
-    assert client_inst
-    return client_inst
+    site_offset = __getInstanceTypeCounts__()[0]
+    assert site_offset > 0
+    if not inst in env["ec2.running_instances"]:
+        inst_offset = 0 if len(env["ec2.running_instances"]) < site_offset else site_offset
+    else:
+        inst_offset = env["ec2.running_instances"].index(inst)
+    return env["ec2.site_type"] if inst_offset < site_offset else env["ec2.client_type"]
+## DEF
+
+## ----------------------------------------------
+## __checkInstanceType__
+## ----------------------------------------------        
+def __checkInstanceType__(inst):
+    expectedType = __getExpectedInstanceType__(inst)
+    LOG.debug("Checking whether the instance type for %s is '%s'" % (__getInstanceName__(inst), expectedType))
+    attr = inst.get_attribute("instanceType")
+    assert attr != None
+    assert "instanceType" in attr
+
+    ## Check whether we need to change the instance type before we restart it
+    currentType = attr["instanceType"]
+    if env["ec2.change_type"] == True and currentType != expectedType:
+        if inst.update() == 'running':
+            raise Exception("Unable to switch instance type from '%s' to '%s' for %s" % (currentType, expectedType, __getInstanceName__(inst)))
+        LOG.info("Switching instance type from '%s' to '%s' for '%s'" % (currentType, expectedType, __getInstanceName__(inst)))
+        inst.modify_attribute("instanceType", expectedType)
+        return True
+    ### IF
+    return False
 ## DEF
 
 ## ----------------------------------------------
@@ -811,4 +954,17 @@ def __createSecurityGroup__():
     sg = ec2_conn.create_security_group(env["ec2.security_group"], 'H-Store Security Group')
     sg.authorize(src_group=sg)
     sg.authorize('tcp', 22, 22, '0.0.0.0/0')
+## DEF
+
+## ----------------------------------------------
+## __createPlacementGroup__
+## ----------------------------------------------
+def __createPlacementGroup__():
+    groupName = env["ec2.placement_group"]
+    assert groupName
+    placement_groups = ec2_conn.get_all_placement_groups(groupnames=[groupName])
+    if len(placement_groups) == 0:
+        LOG.info("Creating placement group '%s'" % groupName)
+        ec2_conn.create_placement_group(groupName, strategy='cluster')
+    return
 ## DEF

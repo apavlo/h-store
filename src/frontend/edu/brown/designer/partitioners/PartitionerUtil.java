@@ -27,8 +27,8 @@ import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
-import edu.brown.designer.DesignerUtil;
 import edu.brown.designer.DesignerVertex;
+import edu.brown.graphs.IGraph;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
@@ -136,7 +136,7 @@ public abstract class PartitionerUtil {
      */
     public static ListOrderedSet<String> generateProcParameterOrder(final DesignerInfo info, final Database catalog_db, final Procedure catalog_proc, final DesignerHints hints) throws Exception {
         // HACK: Reload the correlations file so that we can get the proper catalog objects
-        ParameterMappingsSet correlations = info.getCorrelations();
+        ParameterMappingsSet correlations = info.getMappings();
         assert(correlations != null);
 //        ParameterCorrelations correlations = new ParameterCorrelations();
 //        assert(info.getCorrelationsFile() != null) : "The correlations file path was not set";
@@ -244,7 +244,7 @@ public abstract class PartitionerUtil {
             if (debug.get()) LOG.debug("Forced Replication: " + table_visit_order);
         }
         
-        for (DesignerVertex root : DesignerUtil.createCandidateRoots(info, hints, agraph)) {
+        for (DesignerVertex root : PartitionerUtil.createCandidateRoots(info, hints, agraph)) {
             if (debug.get()) LOG.debug("Examining edges for candidate root '" + root.getCatalogItem().getName() + "'");
             // From each candidate root, traverse the graph in breadth first order based on
             // the edge weights in the AccessGraph
@@ -539,6 +539,106 @@ public abstract class PartitionerUtil {
            } // FOR
        } // FOR
        return (multicolumns);
+    }
+    
+    /**
+     * 
+     * @param graph
+     * @param agraph
+     * @return
+     * @throws Exception
+     */
+    public static List<DesignerVertex> createCandidateRoots(final DesignerInfo info, final DesignerHints hints, final IGraph<DesignerVertex, DesignerEdge> agraph) throws Exception {
+        LOG.debug("Searching for candidate roots...");
+        if (agraph == null) throw new NullPointerException("AccessGraph is Null");
+        //
+        // For each vertex, count the number of edges that point to it
+        //
+        List<DesignerVertex> roots = new ArrayList<DesignerVertex>();
+        SortedMap<Double, Set<DesignerVertex>> candidates = new TreeMap<Double, Set<DesignerVertex>>(Collections.reverseOrder());
+        for (DesignerVertex vertex : info.dgraph.getVertices()) {
+            if (!agraph.containsVertex(vertex)) continue;
+            
+            if (hints.force_replication.contains(vertex.getCatalogItem().getName())) continue;
+            //
+            // We only can only use this vertex as a candidate root if 
+            // none of its parents (if it even has any) are used in the AccessGraph or are 
+            // not marked for replication
+            //
+            boolean valid = true;
+            Collection<DesignerVertex> parents = info.dgraph.getPredecessors(vertex);
+            for (DesignerVertex other : agraph.getNeighbors(vertex)) {
+                if (parents.contains(other) && !hints.force_replication.contains(other.getCatalogItem().getName())) {
+                    LOG.debug("SKIP " + vertex + " [" + other + "]");
+                    valid = false;
+                    break;
+                }
+            } // FOR
+            if (!valid) continue;
+            //System.out.println("CANDIDATE: " + vertex);
+            
+            //
+            // We now need to set the weight of the candidate.
+            // The first way I did this was to count the number of outgoing edges from the candidate
+            // Now I'm going to use the weights of the outgoing edges in the AccessGraph.
+            //
+            final List<Double> weights = new ArrayList<Double>(); 
+            new VertexTreeWalker<DesignerVertex, DesignerEdge>(info.dgraph) {
+                @Override
+                protected void callback(DesignerVertex element) {
+                    // Get the total weights from this vertex to all of its descendants
+                    if (agraph.containsVertex(element)) {
+                        double total_weight = 0d;
+                        Collection<DesignerVertex> descedents = info.dgraph.getDescendants(element);
+                        //System.out.println(element + ": " + descedents);
+                        for (DesignerVertex descendent : descedents) {
+                             if (descendent != element && agraph.containsVertex(descendent)) {
+                                for (DesignerEdge edge : agraph.findEdgeSet(element, descendent)) {
+                                    Double weight = edge.getTotalWeight();
+                                    if (weight != null) total_weight += weight;
+                                    //System.out.println(element + "->" + descendent);
+                                }
+                            }
+                        } // FOR
+                        weights.add(total_weight);
+                    }
+//                    Vertex parent = this.getPrevious();
+//                    if (agraph.containsVertex(element) && parent != null) {
+//                        for (Edge edge : agraph.findEdgeSet(parent, element)) {
+//                            Double weight = (Double)edge.getAttribute(AccessGraph.EdgeAttributes.WEIGHT.name());
+//                            weights.add(weight);
+//                            System.out.println(parent + "->" + element);
+//                        }
+//                    }
+                }
+            }.traverse(vertex);
+            double weight = 0d;
+            for (Double _weight : weights) weight+= _weight;
+            if (!candidates.containsKey(weight)) candidates.put(weight, new HashSet<DesignerVertex>());
+            candidates.get(weight).add(vertex);
+            /*
+            int count = info.dgraph.getOutEdges(vertex).size();
+            if (count > 0 || agraph.getVertexCount() == 1) {
+                if (!candidates.containsKey(count)) candidates.put(count, new HashSet<Vertex>());
+                candidates.get(count).add(vertex);
+                LOG.debug("Found candidate root '" + vertex + "' [" + count + "]");
+            }*/
+        } // FOR
+        
+        StringBuilder buffer = new StringBuilder();
+        buffer.append("Found ").append(candidates.size()).append(" candidate roots and ranked them as follows:\n");
+        int ctr = 0;
+        for (Double weight : candidates.keySet()) {
+            for (DesignerVertex vertex : candidates.get(weight)) {
+                buffer.append("\t[").append(ctr++).append("] ")
+                      .append(vertex).append("  Weight=").append(weight).append("\n");
+                roots.add(vertex);
+            } // FOR
+        } // FOR
+        LOG.debug(buffer.toString());
+        //LOG.info(buffer.toString());
+        
+        return (roots);
     }
 
 }

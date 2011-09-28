@@ -53,6 +53,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -86,7 +87,6 @@ import org.voltdb.processtools.SSHTools;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.benchmark.BenchmarkResults.Result;
 import edu.brown.catalog.CatalogUtil;
@@ -178,7 +178,7 @@ public class BenchmarkController {
     ServerThread m_localserver = null;
     
     /**
-     * SiteId -> Set<<Host, Port>>
+     * SiteId -> Set[Host, Port]
      */
     Map<Integer, Set<Pair<String, Integer>>> m_launchHosts;
     
@@ -299,7 +299,7 @@ public class BenchmarkController {
         this.catalog = catalog;
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(null, 0, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
         m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
         m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, config.client_initialPollingDelay, this.failure_observer);
 
@@ -424,13 +424,15 @@ public class BenchmarkController {
                 site_id++;
             } // FOR
         } else {
-            if (debug.get()) LOG.debug("Collecting host information from catalog");
+            if (debug.get()) LOG.debug("Retrieving host information from catalog");
             m_launchHosts = CatalogUtil.getExecutionSites(catalog);
             for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
                 Pair<String, Integer> p = CollectionUtil.first(e.getValue());
                 assert(p != null);
-                if (trace.get()) LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
-                                                         HStoreSite.formatSiteName(e.getKey()), p.getFirst(), p.getSecond()));
+                if (trace.get())
+                    LOG.trace(String.format("Retrieved host info for %s from catalog: %s:%d",
+                                           HStoreSite.formatSiteName(e.getKey()),
+                                           p.getFirst(), p.getSecond()));
                 unique_hosts.add(p.getFirst());
             } // FOR
         }
@@ -591,7 +593,6 @@ public class BenchmarkController {
             }
         }
         LOG.info("All remote HStoreSites are initialized");
-
     }
     
     public void startLoader(final Catalog catalog, final int numClients) {
@@ -672,7 +673,9 @@ public class BenchmarkController {
             for (Pair<String, Integer> p : m_launchHosts.get(catalog_site.getId())) {
                 String address = String.format("%s:%d:%d", p.getFirst(), p.getSecond(), catalog_site.getId());
                 params.add("HOST=" + address);
-                if (trace.get()) LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
+                if (trace.get()) 
+                    LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
+//                    break;
             } // FOR
         } // FOR
     }
@@ -1382,10 +1385,6 @@ public class BenchmarkController {
                 databaseURL[0] = parts[1];
             } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
                 statsTag = parts[1];
-            } else if (parts[0].equalsIgnoreCase("APPLICATIONNAME")) {
-                applicationName = parts[1];
-            } else if (parts[0].equalsIgnoreCase("SUBAPPLICATIONNAME")) {
-                subApplicationName = parts[1];
             } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
                 coordinatorHost = parts[1];
             } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {
@@ -1467,7 +1466,7 @@ public class BenchmarkController {
                 dumpDatabase = Boolean.parseBoolean(parts[1]);                
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
-
+                
             } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "INITIAL_POLLING_DELAY")) {
                 clientInitialPollingDelay = Integer.parseInt(parts[1]);
             } else {
@@ -1480,7 +1479,7 @@ public class BenchmarkController {
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
         File f = new File(hstore_conf_path);
         HStoreConf hstore_conf = HStoreConf.init(f, vargs);
-        if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true, true));
+        if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
@@ -1620,6 +1619,15 @@ public class BenchmarkController {
         // ACTUALLY RUN THE BENCHMARK
         BenchmarkController controller = new BenchmarkController(config, catalog);
         boolean failed = false;
+        
+        // Check CodeSpeed Parameters
+        if (hstore_conf.client.codespeed_url != null) {
+            assert(hstore_conf.client.codespeed_project != null) : "Missing CodeSpeed Project";
+            assert(hstore_conf.client.codespeed_environment != null) : "Missing CodeSpeed Environment";
+            assert(hstore_conf.client.codespeed_executable != null) : "Missing CodeSpeed Executable";
+            assert(hstore_conf.client.codespeed_commitid != null) : "Missing CodeSpeed CommitId";
+        }
+        
         try {
             controller.setupBenchmark();
             if (config.noExecute == false) controller.runBenchmark();
@@ -1630,5 +1638,23 @@ public class BenchmarkController {
             controller.cleanUpBenchmark();
         }
         if (failed || controller.failed) System.exit(1);
+        
+        // Upload Results to CodeSpeed
+        if (hstore_conf.client.codespeed_url != null) {
+            String codespeed_benchmark = controller.m_projectBuilder.getProjectName();
+            double txnrate = controller.getResults().getFinalResult().getTxnPerSecond();
+            
+            BenchmarkResultsUploader uploader = new BenchmarkResultsUploader(new URL(hstore_conf.client.codespeed_url),
+                                                                             hstore_conf.client.codespeed_project,
+                                                                             hstore_conf.client.codespeed_executable,
+                                                                             codespeed_benchmark,
+                                                                             hstore_conf.client.codespeed_environment,
+                                                                             hstore_conf.client.codespeed_commitid);
+            if (hstore_conf.client.codespeed_branch.isEmpty() == false) {
+                uploader.setBranch(hstore_conf.client.codespeed_branch);
+            }
+            
+            uploader.post(txnrate);
+        }
     }
 }

@@ -404,7 +404,8 @@ public class LocalTransactionState extends TransactionState {
             // Return all of our BatchPlans (if we have any)
             if (this.batch_plans.isEmpty() == false) {
                 for (BatchPlanner.BatchPlan plan : this.batch_plans) {
-                    plan.getPlanner().getBatchPlanPool().returnObject(plan);
+                    if (plan.isCached() == false)
+                        plan.getPlanner().getBatchPlanPool().returnObject(plan);
                 } // FOR
                 this.batch_plans.clear();
             }

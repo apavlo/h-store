@@ -19,7 +19,7 @@ public class DuplicateTraceFilter extends Filter {
     private long skip_ctr = 0;
     
     @Override
-    public String debug() {
+    public String debugImpl() {
         return (this.getClass().getSimpleName() + "[num_ids=" + this.txn_ids.size() + ", skip_ctr=" + this.skip_ctr + "]");
     }
     
@@ -29,7 +29,7 @@ public class DuplicateTraceFilter extends Filter {
             long txn_id = ((TransactionTrace)element).getTransactionId();
             if (this.txn_ids.contains(txn_id)) {
                 this.skip_ctr++;
-                if (LOG.isTraceEnabled() && this.skip_ctr % 100 == 0) LOG.trace(this.debug());
+                if (LOG.isTraceEnabled() && this.skip_ctr % 100 == 0) LOG.trace(this.debugImpl());
                 if (LOG.isTraceEnabled()) LOG.trace("SKIP: " + element);
                 return (FilterResult.SKIP);
             }

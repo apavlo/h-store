@@ -1,8 +1,13 @@
 package edu.brown.utils;
 
+import java.io.IOException;
 import java.util.Observable;
 
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
 
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
@@ -10,7 +15,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  * 
  * @author pavlo
  */
-public class ProfileMeasurement {
+public class ProfileMeasurement implements JSONSerializable {
     public static final Logger LOG = Logger.getLogger(ProfileMeasurement.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -18,14 +23,13 @@ public class ProfileMeasurement {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    /**
-     * The profile type
-     */
-    private final String type;
-    /**
-     * Total amount of time spent processsing the profiled seciton (in ms) 
-     */
-    private transient long think_time;
+    /** The profile type */
+    private String type;
+     /** Total amount of time spent processing the profiled section (in ms) */
+    private long total_time;
+    /** The number of times that this ProfileMeasurement has been started */
+    private int invocations = 0;
+    
     /**
      * This marker is used to set when the boundary area of the code
      * we are trying to profile starts and stops. When it is zero, the
@@ -33,9 +37,15 @@ public class ProfileMeasurement {
      */
     private transient Long think_marker; 
 
-    private transient int invocations = 0;
-    
     private transient boolean reset = false;
+    
+    // ----------------------------------------------------------------------------
+    // CONSTRUCTORS
+    // ----------------------------------------------------------------------------
+    
+    public ProfileMeasurement() {
+        // For serialization
+    }
     
     /**
      * Constructor
@@ -46,18 +56,31 @@ public class ProfileMeasurement {
         this.reset();
     }
 
+    /**
+     * Copy constructor
+     * @param orig
+     */
+    public ProfileMeasurement(ProfileMeasurement orig) {
+        this(orig.type);
+        this.appendTime(orig);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // UTILITY METHODS
+    // ----------------------------------------------------------------------------
+    
     public synchronized void reset() {
         if (this.think_marker != null) {
             this.reset = true;
         }
-        this.think_time = 0;
+        this.total_time = 0;
         this.invocations = 0;
     }
     
     public void clear() {
         this.think_marker = null;
         this.invocations = 0;
-        this.think_time = 0;
+        this.total_time = 0;
     }
     
     public void resetOnEvent(EventObservable e) {
@@ -82,21 +105,21 @@ public class ProfileMeasurement {
      * @return
      */
     public long getTotalThinkTime() {
-        return (this.think_time);
+        return (this.total_time);
     }
     /**
      * Get the total amount of time spent in the profiled area in milliseconds
      * @return
      */
     public double getTotalThinkTimeMS() {
-        return (this.think_time / 1000000d);
+        return (this.total_time / 1000000d);
     }
     /**
      * Get the total amount of time spent in the profiled area in seconds
      * @return
      */
     public double getTotalThinkTimeSeconds() {
-        return (this.think_time / 1000000d / 1000d);
+        return (this.total_time / 1000000d / 1000d);
     }
     
     /**
@@ -104,7 +127,7 @@ public class ProfileMeasurement {
      * @return
      */
     public double getAverageThinkTime() {
-        return (this.invocations > 0 ? this.think_time / (double)this.invocations : 0d);
+        return (this.invocations > 0 ? this.total_time / (double)this.invocations : 0d);
     }
     /**
      * Get the average think time per invocation in milliseconds
@@ -165,8 +188,12 @@ public class ProfileMeasurement {
         if (debug.get()) LOG.debug(String.format("STOP %s", this));
         assert(this.think_marker != null) : this.type + " - " + this.hashCode();
         long added = (timestamp - this.think_marker);
-        assert(added >= 0);
-        this.think_time += added;
+        if (added < 0) {
+            LOG.warn(String.format("Invalid stop timestamp for %s [timestamp=%d, marker=%d, added=%d]",
+                                   this.type, timestamp, this.think_marker, added));
+        } else {
+            this.total_time += added;
+        }
         this.think_marker = null;
 //        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
         return (this);
@@ -184,17 +211,22 @@ public class ProfileMeasurement {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
-    public void appendTime(ProfileMeasurement other) {
+    public ProfileMeasurement appendTime(ProfileMeasurement other, boolean checkType) {
         assert(other != null);
-        assert(this.type == other.type);
-        this.think_time += other.think_time;
+        if (checkType) assert(this.type == other.type);
+        this.total_time += other.total_time;
         this.think_marker = other.think_marker;
         this.invocations += other.invocations;
+        return (this);
+    }
+    
+    public ProfileMeasurement appendTime(ProfileMeasurement other) {
+        return (this.appendTime(other, true));
     }
  
     public void addThinkTime(long start, long stop) {
         assert(this.think_marker == null) : this.type;
-        this.think_time += (stop - start);
+        this.total_time += (stop - start);
     }
 
     /**
@@ -217,7 +249,9 @@ public class ProfileMeasurement {
     public static void start(boolean ignore_started, ProfileMeasurement...to_start) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_start) {
-            if (ignore_started == false || (ignore_started && pm.isStarted() == false)) pm.start(time);
+            synchronized (pm) {
+                if (ignore_started == false || (ignore_started && pm.isStarted() == false)) pm.start(time);
+            } // SYNCH
         } // FOR
     }
     
@@ -238,7 +272,9 @@ public class ProfileMeasurement {
     public static void stop(boolean ignore_stopped, ProfileMeasurement...to_stop) {
         long time = ProfileMeasurement.getTime();
         for (ProfileMeasurement pm : to_stop) {
-            if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false)) pm.stop(time);
+            synchronized (pm) {
+                if (ignore_stopped == false || (ignore_stopped && pm.isStopped() == false)) pm.stop(time);
+            } // SYNCH
         } // FOR
     }
     
@@ -266,9 +302,38 @@ public class ProfileMeasurement {
     public String toString(boolean verbose) {
         if (verbose) {
             return (String.format("%s[total=%d, marker=%s, invocations=%d]",
-                    this.type, this.think_time, this.think_marker, this.invocations));    
+                    this.type, this.total_time, this.think_marker, this.invocations));    
         } else {
             return (this.type);
         }
+    }
+    
+    // --------------------------------------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // --------------------------------------------------------------------------------------------
+    
+    @Override
+    public void load(String input_path, Database catalog_db) throws IOException {
+        JSONUtil.load(this, catalog_db, input_path);
+    }
+    @Override
+    public void save(String output_path) throws IOException {
+        JSONUtil.save(this, output_path);
+    }
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        stringer.key("TYPE").value(this.type);
+        stringer.key("TIME").value(this.total_time);
+        stringer.key("INVOCATIONS").value(this.invocations);
+    }
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        this.type = json_object.getString("TYPE");
+        this.total_time = json_object.getLong("TIME");
+        this.invocations = json_object.getInt("INVOCATIONS");
     }
 }

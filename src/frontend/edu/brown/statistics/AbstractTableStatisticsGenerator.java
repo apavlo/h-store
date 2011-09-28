@@ -297,6 +297,33 @@ public abstract class AbstractTableStatisticsGenerator {
         
         return (stats);
     }
+
+    /**
+     * Generate table stats and apply them to 
+     * @param stats
+     * @throws Exception
+     */
+    public void apply(WorkloadStatistics stats) throws Exception {
+        Map<Table, TableStatistics> table_stats = this.generate();
+        assert(table_stats != null);
+        stats.apply(table_stats);
+    }
+    
+    /**
+     * Create a new instance of a TableStatisticsGenerator for the given ProjectType
+     * @param catalog_db
+     * @param ptype
+     * @param scale_factor
+     * @return
+     */
+    public static AbstractTableStatisticsGenerator factory(Database catalog_db, ProjectType ptype, double scale_factor) {
+        String generator_className = String.format("%s.%sTableStatisticsGenerator", ptype.getPackageName(), ptype.getBenchmarkPrefix()); 
+        AbstractTableStatisticsGenerator generator = (AbstractTableStatisticsGenerator)ClassUtil.newInstance(generator_className,
+                                                                                         new Object[]{ catalog_db, scale_factor },
+                                                                                         new Class<?>[]{ Database.class, double.class });
+        assert(generator != null);
+        return (generator);
+    }
     
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
@@ -307,15 +334,7 @@ public abstract class AbstractTableStatisticsGenerator {
         double scale_factor = args.getDoubleParam(ArgumentsParser.PARAM_STATS_SCALE_FACTOR);
         String output = args.getParam(ArgumentsParser.PARAM_STATS_OUTPUT);
         
-        String generator_className = String.format("%s.%sTableStatisticsGenerator",
-                                                   args.catalog_type.getPackageName(),
-                                                   args.catalog_type.getBenchmarkPrefix()); 
-        final AbstractTableStatisticsGenerator generator = (AbstractTableStatisticsGenerator)
-                                                            ClassUtil.newInstance(generator_className,
-                                                                                  new Object[]{ args.catalog_db, scale_factor },
-                                                                                  new Class<?>[]{ Database.class, double.class });
-        assert(generator != null);
-        
+        AbstractTableStatisticsGenerator generator = factory(args.catalog_db, args.catalog_type, scale_factor);
         Map<Table, TableStatistics> table_stats = generator.generate();
         assert(table_stats != null);
         WorkloadStatistics stats = new WorkloadStatistics(args.catalog_db);

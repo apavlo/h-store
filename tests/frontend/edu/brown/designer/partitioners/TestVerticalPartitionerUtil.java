@@ -158,7 +158,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
         for (TransactionCacheEntry txn_entry : costModel.getTransactionCacheEntries()) {
             // There should be no unknown queries and all transactions should be multi-sited
             assertEquals(txn_entry.toString(), 0, txn_entry.getUnknownQueryCount());
-            assertFalse(txn_entry.isSingleSited());
+            assertFalse(txn_entry.isSinglePartitioned());
             
             TransactionCacheEntry clone = (TransactionCacheEntry)txn_entry.clone();
             assertNotSame(txn_entry, clone);
@@ -231,7 +231,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             Object params[] = new Object[catalog_stmt.getParameters().size()];
             for (int i = 0; i < params.length; i++) {
                 StmtParameter catalog_param = catalog_stmt.getParameters().get(i);
-                VoltType vtype = VoltType.get(catalog_param.getSqltype()); 
+                VoltType vtype = VoltType.get(catalog_param.getJavatype()); 
                 params[i] = VoltTypeUtil.getRandomValue(vtype);
             } // FOR
             stmt_params.put(catalog_stmt, params);

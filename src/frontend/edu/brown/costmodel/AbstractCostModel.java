@@ -89,6 +89,10 @@ public abstract class AbstractCostModel {
     protected boolean use_skew_txns = true;
     protected boolean use_skew_java = false;
     
+    /** Enable Support for Weighted Transactions and Queries*/
+    protected boolean use_txn_weights = true;
+    protected boolean use_query_weights = true;
+    
     /** Enable Multipartition Txn Penalty (if supported) */
     protected boolean use_multitpartition_penalty = true;
     
@@ -269,7 +273,6 @@ public abstract class AbstractCostModel {
         }
         return (ret);
     }
-    
 
     /**
      * Return the set of untouched partitions for the last costmodel estimate
@@ -303,6 +306,16 @@ public abstract class AbstractCostModel {
     public void setCachingEnabled(boolean caching) {
         if (debug.get()) LOG.debug("Cost Model Caching: " + (caching ? "ENABLED" : "DISABLED"));
         this.use_caching = caching;
+    }
+    
+    public void enableTransactionWeights(boolean val) {
+        if (debug.get()) LOG.debug("Transaction Weight Support: " + (val ? "ENABLED" : "DISABLED"));
+        this.use_txn_weights = val;
+    }
+    
+    public void enableQueryWeights(boolean val) {
+        if (debug.get()) LOG.debug("Transaction Weight Support: " + (val ? "ENABLED" : "DISABLED"));
+        this.use_txn_weights = val;
     }
     
     // ----------------------------------------------------------------------------

@@ -22,8 +22,8 @@ import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Logger;
 
+import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
@@ -31,8 +31,10 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -41,6 +43,12 @@ import edu.mit.hstore.HStoreConf;
  *  responses.
  */
 final class ClientImpl implements Client {
+    private static final Logger LOG = Logger.getLogger(ClientImpl.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private final AtomicLong m_handle = new AtomicLong(new Random().nextLong() * -1l); // Long.MAX_VALUE
 
@@ -314,10 +322,13 @@ final class ClientImpl implements Client {
         if (m_backpressure) {
             synchronized (m_backpressureLock) {
                 while (m_backpressure && !m_isShutdown) {
-//                    LOG.info(String.format("Blocking client due to backup pressure [m_backpressure=%s]", m_backpressure));
+//                    if (debug.get())
+                        LOG.info(String.format("Blocking client due to backup pressure [backPressure=%s, #connections=%d]",
+                                                m_backpressure, m_distributer.getConnectionCount()));
                     m_backpressureLock.wait(m_backpressureWait);
                     m_backpressure = false;
-//                    LOG.info(String.format("Unblocking client [m_backpressure=%s]", m_backpressure));
+                    if (debug.get())
+                        LOG.debug(String.format("Unblocking client [m_backpressure=%s]", m_backpressure));
                     break;
                 }
             } // SYNCH
@@ -335,7 +346,7 @@ final class ClientImpl implements Client {
                     m_backpressure = false;
                     m_backpressureLock.notifyAll();
                 }
-            }
+            } // SYNCH
         }
 
         @Override
@@ -357,7 +368,7 @@ final class ClientImpl implements Client {
 
 
 
-    static final Logger LOG = Logger.getLogger(ClientImpl.class.getName());  // Logger shared by client package.
+    // static final Logger LOG = Logger.getLogger(ClientImpl.class.getName());  // Logger shared by client package.
     private final Distributer m_distributer;                             // de/multiplexes connections to a cluster
     private final Object m_backpressureLock = new Object();
     private final int m_backpressureWait;

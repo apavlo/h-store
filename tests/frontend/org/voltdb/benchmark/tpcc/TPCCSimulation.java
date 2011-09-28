@@ -201,20 +201,18 @@ public class TPCCSimulation {
     }
     public synchronized void tick(int counter) {
         this.tick_counter = counter;
-        if (config.temporal_skew) {
-            if (debug.get()) {
-                Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
-                m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
-                      this.lastWarehouseHistory);
-                m.put(String.format("TOTAL\n - SampleCount=%d", this.totalWarehouseHistory.getSampleCount()),
-                      this.totalWarehouseHistory);
-                
-                long total = this.totalWarehouseHistory.getSampleCount();
-                LOG.info(String.format("ROUND #%02d - Warehouse Temporal Skew - %d / %d [%.2f]\n%s",
-                        this.tick_counter, this.temporal_counter, total, (this.temporal_counter / (double)total), 
-                        StringUtil.formatMaps(m)));
-                LOG.info(StringUtil.SINGLE_LINE);
-            }
+        if (debug.get()) {
+            Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
+            m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
+                  this.lastWarehouseHistory);
+            m.put(String.format("TOTAL\n - SampleCount=%d", this.totalWarehouseHistory.getSampleCount()),
+                  this.totalWarehouseHistory);
+            
+            long total = this.totalWarehouseHistory.getSampleCount();
+            LOG.info(String.format("ROUND #%02d - Warehouse Temporal Skew - %d / %d [%.2f]\n%s",
+                    this.tick_counter, this.temporal_counter, total, (this.temporal_counter / (double)total), 
+                    StringUtil.formatMaps(m)));
+            LOG.info(StringUtil.SINGLE_LINE);
             this.lastWarehouseHistory.clearValues();
         }
     }

@@ -4,9 +4,11 @@
 package edu.brown.designer.partitioners;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Observable;
 import java.util.Set;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.ProcParameter;
@@ -71,43 +73,57 @@ public class MostPopularPartitioner extends AbstractPartitioner {
         // Generate an AccessGraph and select the column with the greatest weight for each table
         final AccessGraph agraph = this.generateAccessGraph();
         final boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
+
+        double total_partitionRatio = 0.0;
+        long total_partitionSize = 0l;
         
-        double total_memory_ratio = 0.0;
-        long total_memory_bytes = 0l;
         for (DesignerVertex v : agraph.getVertices()) {
             Table catalog_tbl = v.getCatalogItem();
             String table_key = CatalogKey.createKey(catalog_tbl);
             
             Collection<Column> forced_columns = hints.getForcedTablePartitionCandidates(catalog_tbl); 
-            if (trace.get()) LOG.trace("Processing Table " + catalog_tbl.getName());
-            
             TableStatistics ts = info.stats.getTableStatistics(catalog_tbl);
             assert(ts != null) : "Null TableStatistics for " + catalog_tbl;
-            double size_ratio = (calculate_memory ? (ts.tuple_size_total / (double)hints.max_memory_per_partition) : 0);
+            double partition_size = (calculate_memory ? (ts.tuple_size_total / (double)info.getNumPartitions()) : 0);
+            double partition_ratio = (calculate_memory ? (ts.tuple_size_total / (double)hints.max_memory_per_partition) : 0);
             TableEntry pentry = null;
-            if (trace.get()) LOG.trace(String.format("MEMORY %-25s%.02f", catalog_tbl.getName() + ": ", size_ratio));
+            
+            if (debug.get()) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Read Only", ts.readonly);
+                m.put("Table Size", StringUtil.formatSize(ts.tuple_size_total));
+                m.put("Table Partition Size", StringUtil.formatSize(partition_size));
+                m.put("Table Partition Ratio", String.format("%.02f", partition_ratio));
+                m.put("Total Partition Size", String.format("%s / %s", StringUtil.formatSize(total_partitionSize), StringUtil.formatSize(hints.max_memory_per_partition)));
+                m.put("Total Partition Ratio", String.format("%.02f", total_partitionRatio));
+                LOG.debug(String.format("%s\n%s", catalog_tbl.getName(), StringUtil.formatMaps(m)));
+            }
             
             // -------------------------------
             // Replication
             // -------------------------------
             if (hints.force_replication.contains(table_key) ||
-                (calculate_memory && ts.readonly && size_ratio <= hints.force_replication_size_limit)) {
-                total_memory_ratio += size_ratio;
-                total_memory_bytes += ts.tuple_size_total;
-                if (debug.get()) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), ReplicatedColumn.COLUMN_NAME));
-                pentry = new TableEntry(PartitionMethodType.REPLICATION, null, null, null);
+                (calculate_memory && ts.readonly && hints.enable_replication_readonly && 
+                 partition_ratio <= hints.force_replication_size_limit)) {
+                total_partitionRatio += partition_ratio;
+                total_partitionSize += ts.tuple_size_total;
+                Column catalog_col = ReplicatedColumn.get(catalog_tbl);
+                pentry = new TableEntry(PartitionMethodType.REPLICATION, catalog_col);
+                if (debug.get()) 
+                    LOG.debug(String.format("Replicating %s at all partitions [%s]", catalog_tbl.getName(), catalog_col.fullName()));
             
             // -------------------------------
-            // Forced Partitioning
+            // Forced Selection
             // -------------------------------
             } else if (forced_columns.isEmpty() == false) {
                 // Assume there is only one candidate
                 assert(forced_columns.size() == 1) : "Unexpected number of forced columns: " + forced_columns;
                 Column catalog_col = CollectionUtil.first(forced_columns);
-                pentry = new TableEntry(PartitionMethodType.HASH, catalog_col, null, null);
-                if (debug.get()) LOG.debug("FORCED PARTITION: " + CatalogUtil.getDisplayName(catalog_col));
-                total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
-                total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
+                pentry = new TableEntry(PartitionMethodType.HASH, catalog_col);
+                total_partitionRatio += partition_size / (double)hints.max_memory_per_partition;
+                total_partitionSize += partition_size;
+                if (debug.get()) 
+                    LOG.debug(String.format("Forcing %s to be partitioned by specific column [%s]", catalog_tbl.getName(), catalog_col.fullName()));
 
             // -------------------------------
             // Select Most Popular
@@ -115,10 +131,9 @@ public class MostPopularPartitioner extends AbstractPartitioner {
             } else {
                 // If there are no edges, then we'll just randomly pick a column since it doesn't matter
                 final Collection<DesignerEdge> edges = agraph.getIncidentEdges(v);
-                if (edges.isEmpty()) {
-                    continue;
-                }
-                if (trace.get()) LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
+                if (edges.isEmpty()) continue;
+                if (trace.get()) 
+                    LOG.trace(catalog_tbl + " has " + edges.size() + " edges in AccessGraph");
                 
                 Histogram<Column> column_histogram = null;
                 Histogram<Column> join_column_histogram = new Histogram<Column>();
@@ -133,18 +148,18 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                     
                     double edge_weight = e.getTotalWeight();
                     ColumnSet cset = e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET);
-                    if (trace.get()) LOG.trace("Examining ColumnSet for " + e.toString(true));
+                    if (trace.get()) 
+                        LOG.trace("Examining ColumnSet for " + e.toString(true));
                     
                     Histogram<Column> cset_histogram = cset.buildHistogramForType(Column.class);
-                    if (trace.get()) LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n" + cset_histogram.toString());
-                    
                     Collection<Column> columns = cset_histogram.values();
-                    if (trace.get()) LOG.trace(cset_histogram.setDebugLabels(CatalogUtil.getHistogramLabels(cset_histogram.values())).toString(100, 50));
+                    if (trace.get()) 
+                        LOG.trace("Constructed Histogram for " + catalog_tbl + " from ColumnSet:\n" + cset_histogram.setDebugLabels(CatalogUtil.getHistogramLabels(cset_histogram.values())).toString(100, 50));
                     for (Column catalog_col : columns) {
                         if (!catalog_col.getParent().equals(catalog_tbl)) continue;
                         if (catalog_col.getNullable()) continue;
                         long cnt = cset_histogram.get(catalog_col);
-                        if (trace.get()) LOG.trace("Found Match: " + catalog_col + " [cnt=" + cnt + "]");
+                        if (trace.get()) LOG.trace("Found Match: " + catalog_col.fullName() + " [cnt=" + cnt + "]");
                         column_histogram.put(catalog_col, Math.round(cnt * edge_weight));    
                     } // FOR
     //                System.err.println(cset.debug());
@@ -160,12 +175,12 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                             DesignerVertex v = (DesignerVertex)arg;
                             
                             for (DesignerEdge e : agraph.getIncidentEdges(v)) {
-                                System.err.println(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
+                                LOG.info(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
                             }
-                            System.err.println(StringUtil.repeat("-", 100));
+                            LOG.info(StringUtil.repeat("-", 100));
                         }
                     };
-                    System.err.println("Edges: " + edges);
+                    LOG.info("Edges: " + edges);
                     GraphVisualizationPanel.createFrame(agraph, observer).setVisible(true);
 //                    ThreadUtil.sleep(10000);
                 }
@@ -176,28 +191,38 @@ public class MostPopularPartitioner extends AbstractPartitioner {
 //                    continue;
 //                }
                 assert(!column_histogram.isEmpty()) : "Failed to find any ColumnSets for " + catalog_tbl;
-                if (trace.get()) LOG.trace("Column Histogram:\n" + column_histogram);
+                if (trace.get()) 
+                    LOG.trace("Column Histogram:\n" + column_histogram);
                 
-                total_memory_ratio += (size_ratio / (double)info.getNumPartitions());
-                total_memory_bytes += (ts.tuple_size_total / (double)info.getNumPartitions());
-                Column most_popular = CollectionUtil.first(column_histogram.getMaxCountValues());
-                pentry = new TableEntry(PartitionMethodType.HASH, most_popular, null, null);
-                if (debug.get()) LOG.debug(String.format("PARTITION %-25s%s", catalog_tbl.getName(), most_popular.getName()));
+                Column catalog_col = CollectionUtil.first(column_histogram.getMaxCountValues());
+                pentry = new TableEntry(PartitionMethodType.HASH, catalog_col, null, null);
+                total_partitionRatio += partition_size / (double)hints.max_memory_per_partition;
+                total_partitionSize += partition_size;
+                
+                if (debug.get()) 
+                    LOG.debug(String.format("Selected %s's most popular column for partitioning [%s]", catalog_tbl.getName(), catalog_col.fullName()));
             }
             pplan.table_entries.put(catalog_tbl, pentry);
+            
+            if (debug.get())
+                LOG.debug(String.format("Current Partition Size: %s", StringUtil.formatSize(total_partitionSize), StringUtil.formatSize(hints.max_memory_per_partition)));
+            assert(total_partitionRatio <= 1) :
+                String.format("Too much memory per partition: %s / %s", StringUtil.formatSize(total_partitionSize), StringUtil.formatSize(hints.max_memory_per_partition));
         } // FOR
-        assert(total_memory_ratio <= 100) : "Too much memory per partition: " + total_memory_ratio;
+        
         for (Table catalog_tbl : info.catalog_db.getTables()) {
             if (pplan.getTableEntry(catalog_tbl) == null) {
                 Column catalog_col = CollectionUtil.random(catalog_tbl.getColumns());
                 assert(catalog_col != null) : "Failed to randomly pick column for " + catalog_tbl;
                 pplan.table_entries.put(catalog_tbl, new TableEntry(PartitionMethodType.HASH, catalog_col, null, null));
-                if (debug.get()) LOG.debug("RANDOM SELECTION: " + CatalogUtil.getDisplayName(catalog_col));
+                if (debug.get()) 
+                    LOG.debug(String.format("No partitioning column selected for %s. Choosing a random attribute [%s]", catalog_tbl, catalog_col.fullName()));
             }
         } // FOR
         
         if (hints.enable_procparameter_search) {
-            if (debug.get()) LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
+            if (debug.get())
+                LOG.debug("Selecting partitioning ProcParameter for " + this.info.catalog_db.getProcedures().size() + " Procedures");
             pplan.apply(info.catalog_db);
             
             // Temporarily disable multi-attribute parameters
@@ -210,7 +235,8 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 Set<String> param_order = PartitionerUtil.generateProcParameterOrder(info, info.catalog_db, catalog_proc, hints);
                 if (param_order.isEmpty() == false) {
                     ProcParameter catalog_proc_param = CatalogKey.getFromKey(info.catalog_db, CollectionUtil.first(param_order), ProcParameter.class);
-                    if (debug.get()) LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
+                    if (debug.get()) 
+                        LOG.debug(String.format("PARTITION %-25s%s", catalog_proc.getName(), CatalogUtil.getDisplayName(catalog_proc_param)));
                     
                     // Create a new PartitionEntry for this procedure and set it to be always single-partitioned
                     // We will check down below whether that's always true or not
@@ -223,7 +249,7 @@ public class MostPopularPartitioner extends AbstractPartitioner {
         }
         this.setProcedureSinglePartitionFlags(pplan, hints);
         
-        this.last_memory = total_memory_bytes;
+        this.last_memory = total_partitionSize;
         
         return (pplan);
     }

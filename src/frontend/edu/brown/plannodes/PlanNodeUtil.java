@@ -1,6 +1,15 @@
 package edu.brown.plannodes;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -48,7 +57,6 @@ import org.voltdb.utils.Encoder;
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.ColumnSet;
-import edu.brown.designer.DesignerUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
@@ -690,7 +698,7 @@ public abstract class PlanNodeUtil {
             Statement catalog_stmt = catalog_stmt_param.getParent();
             ColumnSet cset = null;
             try {
-                cset = DesignerUtil.extractStatementColumnSet(catalog_stmt, false);
+                cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false);
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to extract ColumnSet for " + catalog_stmt_param.fullName(), ex);
             }

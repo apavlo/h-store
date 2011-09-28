@@ -32,8 +32,20 @@ public class TestHStoreConf extends BaseTestCase {
     /**
      * testMakeHTML
      */
+    public void testMakeIndexHTML() throws Exception {
+        for (String prefix : new String[]{ "global", "client", "coordinator", "site", }) {
+            String contents = hstore_conf.makeIndexHTML(prefix);
+            assertNotNull(contents);
+            System.err.println(contents);
+        } // FOR
+        System.err.println(StringUtil.DOUBLE_LINE);
+    }
+    
+    /**
+     * testMakeHTML
+     */
     public void testMakeHTML() throws Exception {
-        for (String prefix : new String[]{ "global", "client", "site", "coordinator" }) {
+        for (String prefix : new String[]{ "global", "client", "coordinator", "site", }) {
             String contents = hstore_conf.makeHTML(prefix);
             assertNotNull(contents);
             System.err.println(contents);
@@ -45,14 +57,15 @@ public class TestHStoreConf extends BaseTestCase {
      * 
      */
     public void testMakeConfig() throws Exception {
-        String contents = hstore_conf.makeConfig(true, true);
+        String contents = hstore_conf.makeConfig(true);
         assertNotNull(contents);
         Class<?> confClass = hstore_conf.site.getClass();
 //        for (Field f : confClass.getFields()) {
 //            String key = String.format("site.%s", f.getName());
 //            assert(contents.contains(key)) : "Missing " + key;
 //        } // FOR
-//        System.out.println(contents);
+        System.err.println(contents);
+        System.err.println(StringUtil.DOUBLE_LINE);
         
     }
     

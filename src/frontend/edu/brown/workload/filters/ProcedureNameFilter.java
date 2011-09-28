@@ -90,7 +90,7 @@ public class ProcedureNameFilter extends Filter {
     }
     
     @Override
-    public String debug() {
+    public String debugImpl() {
         return (this.getClass().getSimpleName() + "[include=" + this.includeCounters + " exclude=" + this.exclude + "]");
     }
     

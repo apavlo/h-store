@@ -71,9 +71,4 @@ public class MockExecutionSite extends ExecutionSite {
     	}
     	return (vt);
     }
-    
-    @Override
-    public String getThreadName() {
-        return "MOCK";
-    }
 }

@@ -59,7 +59,7 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
         if (mispredict) {
             callback = new MispredictCleanupCallback(this.hstore_site, this.txn_id, status);
         } else {
-            callback = new ClientResponseFinalCallback(this.hstore_site, this.txn_id, output, status, this.done);   
+            callback = new ClientResponseFinalCallback(this.hstore_site, this.txn_id, this.ts.getBasePartition(), output, status, this.done);   
         }
         if (t) LOG.trace(String.format("Calling Dtxn.Coordinator.finish() for %s [commit=%s, payload=%s]", this.ts, commit, request.hasPayload()));
         this.hstore_site.requestFinish(this.ts, request, callback);
