@@ -30,17 +30,20 @@ import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.BatchPlanner.BatchPlan;
 
+import com.google.protobuf.RpcCallback;
+
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.dtxn.Dtxn;
 
 /**
  * 
  * @author pavlo
  */
-public class RemoteTransactionState extends TransactionState {
-    protected static final Logger LOG = Logger.getLogger(RemoteTransactionState.class);
+public class RemoteTransaction extends AbstractTransaction {
+    protected static final Logger LOG = Logger.getLogger(RemoteTransaction.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -50,7 +53,7 @@ public class RemoteTransactionState extends TransactionState {
     /**
      * RemoteTransactionState Factory
      */
-    public static class Factory extends CountingPoolableObjectFactory<RemoteTransactionState> {
+    public static class Factory extends CountingPoolableObjectFactory<RemoteTransaction> {
         private final ExecutionSite executor;
         
         public Factory(ExecutionSite executor, boolean enable_tracking) {
@@ -58,19 +61,27 @@ public class RemoteTransactionState extends TransactionState {
             this.executor = executor;
         }
         @Override
-        public RemoteTransactionState makeObjectImpl() throws Exception {
-            return new RemoteTransactionState(this.executor);
+        public RemoteTransaction makeObjectImpl() throws Exception {
+            return new RemoteTransaction(this.executor);
         }
     };
     
-    public RemoteTransactionState(ExecutionSite executor) {
+    private RpcCallback<Dtxn.FragmentResponse> fragment_callback;
+    
+    public RemoteTransaction(ExecutionSite executor) {
         super(executor);
     }
     
     @Override
     @SuppressWarnings("unchecked")
-    public RemoteTransactionState init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
-        return ((RemoteTransactionState)super.init(txnId, clientHandle, source_partition, predict_singlePartitioned, predict_readOnly, predict_abortable, false));
+    public RemoteTransaction init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
+        return ((RemoteTransaction)super.init(txnId, clientHandle, source_partition, predict_singlePartitioned, predict_readOnly, predict_abortable, false));
+    }
+    
+    @Override
+    public void finish() {
+        super.finish();
+        this.fragment_callback = null;
     }
     
     @Override
@@ -82,7 +93,7 @@ public class RemoteTransactionState extends TransactionState {
     public void startRound() {
         // If the stored procedure is not executing locally then we need at least
         // one FragmentTaskMessage callback
-        assert(this.fragment_callbacks.isEmpty() == false) :
+        assert(this.fragment_callback != null) :
             "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
         super.startRound();
     }
@@ -117,6 +128,25 @@ public class RemoteTransactionState extends TransactionState {
     @Override
     public void addFinishedBatchPlan(BatchPlan plan) {
         // Nothing
+    }
+    
+
+    /**
+     * Return the previously stored callback for a FragmentTaskMessage
+     * @return
+     */
+    public RpcCallback<Dtxn.FragmentResponse> getFragmentTaskCallback() {
+        return (this.fragment_callback);
+    }
+    
+    /**
+     * Store a callback specifically for one FragmentTaskMessage 
+     * @param callback
+     */
+    public void setFragmentTaskCallback(RpcCallback<Dtxn.FragmentResponse> callback) {
+        assert(callback != null) : "Null callback for txn #" + this.txn_id;
+        if (trace.get()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
+        this.fragment_callback = callback;
     }
     
     @Override

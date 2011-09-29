@@ -10,7 +10,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.utils.PartitionEstimator;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * 
@@ -29,7 +29,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
 
     @Override
-    public void processClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
+    public void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // Nothing!
     }
     

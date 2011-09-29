@@ -4,7 +4,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -108,6 +110,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         int num_stmts = statements.size();
         assert(num_stmts > 0);
         
+        Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
         SQLStmt batches[][] = new SQLStmt[10][];
         int hashes[] = new int[batches.length];
         Random rand = new Random();
@@ -119,7 +122,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 batches[i][ii] = statements.get(ii);
             } // FOR
             hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            ExecutionSite.POOL_BATCH_PLANNERS.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
+            batchPlanners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
         } // FOR
         
         for (int i = 0; i < batches.length; i++) {
@@ -137,7 +140,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
             assert(hashes[i] != hash);
-            assertNull(ExecutionSite.POOL_BATCH_PLANNERS.get(hash));
+            assertNull(batchPlanners.get(hash));
         } // FOR
     }
     

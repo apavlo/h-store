@@ -27,7 +27,7 @@ import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.TransactionProfile;
-import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
@@ -238,7 +238,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             ExecutionSite es = e.getValue();
             int partition = e.getKey().intValue();
-            TransactionState ts = es.getCurrentDtxn();
+            AbstractTransaction ts = es.getCurrentDtxn();
             
             boolean is_throttled = this.hstore_site.isIncomingThrottled(partition);
             int queue_size = hstore_site.getInflightTxnCount(partition);
@@ -373,7 +373,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      */
     protected Map<String, String> batchPlannerInfo() {
         // First get all the BatchPlanners that we have
-        Collection<BatchPlanner> bps = new HashSet<BatchPlanner>(ExecutionSite.POOL_BATCH_PLANNERS.values());
+        Collection<BatchPlanner> bps = new HashSet<BatchPlanner>();
+        for (ExecutionSite es : this.executors.values()) {
+            bps.addAll(es.POOL_BATCH_PLANNERS.values());
+        } // FOR
         Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();
         ProfileMeasurement final_totals[] = null;
         int num_cols = 0;
@@ -679,7 +682,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         m_pool.clear();
         if (show_poolinfo) {
             // BatchPlanners
-            m_pool.put("BatchPlanners", ExecutionSite.POOL_BATCH_PLANNERS.size());
+            // m_pool.put("BatchPlanners", ExecutionSite.POOL_BATCH_PLANNERS.size());
 
             // MarkovPathEstimators
             StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
@@ -712,15 +715,17 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             int created = 0;
             int passivated = 0;
             int destroyed = 0;
-            for (BatchPlanner bp : ExecutionSite.POOL_BATCH_PLANNERS.values()) {
-                pool = (StackObjectPool)bp.getBatchPlanPool();
-                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                
-                active += pool.getNumActive();
-                idle += pool.getNumIdle();
-                created += factory.getCreatedCount();
-                passivated += factory.getPassivatedCount();
-                destroyed += factory.getDestroyedCount();
+            for (ExecutionSite es : this.executors.values()) {
+                for (BatchPlanner bp : es.POOL_BATCH_PLANNERS.values()) {
+                    pool = (StackObjectPool)bp.getBatchPlanPool();
+                    factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                    
+                    active += pool.getNumActive();
+                    idle += pool.getNumIdle();
+                    created += factory.getCreatedCount();
+                    passivated += factory.getPassivatedCount();
+                    destroyed += factory.getDestroyedCount();
+                } // FOR
             } // FOR
             m_pool.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, destroyed, passivated));
             

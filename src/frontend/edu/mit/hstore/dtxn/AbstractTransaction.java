@@ -37,18 +37,14 @@ import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.messaging.FragmentTaskMessage;
-
-import com.google.protobuf.RpcCallback;
 
 import edu.brown.utils.Poolable;
-import edu.mit.dtxn.Dtxn;
 
 /**
  * @author pavlo
  */
-public abstract class TransactionState implements Poolable {
-    private static final Logger LOG = Logger.getLogger(TransactionState.class);
+public abstract class AbstractTransaction implements Poolable {
+    private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private static final boolean d = LOG.isDebugEnabled();
     private static final boolean t = LOG.isTraceEnabled();
 
@@ -125,16 +121,10 @@ public abstract class TransactionState implements Poolable {
     protected Long last_undo_token;
     protected RoundState round_state;
     protected int round_ctr = 0;
-    protected RuntimeException pending_error;
+    
     protected Long ee_finished_timestamp;
     protected boolean rejected;
-    
-
-    /**
-     * Callbacks for specific FragmentTaskMessages
-     * We have to keep these separate because the txn may request to execute a bunch of tasks that also go to this partition
-     */
-    protected final HashMap<FragmentTaskMessage, RpcCallback<Dtxn.FragmentResponse>> fragment_callbacks = new HashMap<FragmentTaskMessage, RpcCallback<Dtxn.FragmentResponse>>(); 
+    protected RuntimeException pending_error;
 
     /**
      * PartitionDependencyKey
@@ -153,7 +143,7 @@ public abstract class TransactionState implements Poolable {
      * Constructor
      * @param executor
      */
-    public TransactionState(ExecutionSite executor) {
+    public AbstractTransaction(ExecutionSite executor) {
         this.executor = executor;
     }
 
@@ -167,7 +157,7 @@ public abstract class TransactionState implements Poolable {
      * @param exec_local
      * @param dtxn_txn_id
      */
-    protected final TransactionState init(long txn_id, long client_handle, int base_partition,
+    protected final AbstractTransaction init(long txn_id, long client_handle, int base_partition,
                                           boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable,
                                           boolean exec_local) {
         this.txn_id = txn_id;
@@ -200,7 +190,6 @@ public abstract class TransactionState implements Poolable {
         this.hstoresite_finished = false;
         
         this.ee_finished_timestamp = null;
-        this.pending_error = null;
         this.last_undo_token = null;
         
         this.predict_singlePartitioned = false;
@@ -210,9 +199,9 @@ public abstract class TransactionState implements Poolable {
         this.exec_readOnly = true;
         this.exec_eeWork = false;
         this.exec_noUndoBuffer = false;
+        this.pending_error = null;
         
         this.touched_partitions.clear();
-        this.fragment_callbacks.clear();
     }
 
     // ----------------------------------------------------------------------------
@@ -228,7 +217,7 @@ public abstract class TransactionState implements Poolable {
      * @param predict_readOnly TODO
      * @param predict_abortable TODO
      */
-    public abstract <T extends TransactionState> T init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable);
+    public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable);
     
     public abstract VoltTable[] getResults();
     
@@ -257,7 +246,7 @@ public abstract class TransactionState implements Poolable {
             this.exec_noUndoBuffer = true;
         }
         this.round_state = RoundState.INITIALIZED;
-        this.pending_error = null;
+//        this.pending_error = null;
         
         if (d) LOG.debug(String.format("Initializing new round information for %slocal txn #%d [undoToken=%d]",
                                        (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
@@ -386,6 +375,7 @@ public abstract class TransactionState implements Poolable {
     public String getPendingErrorMessage() {
         return (this.pending_error != null ? this.pending_error.getMessage() : null);
     }
+    
     /**
      * 
      * @param error
@@ -508,31 +498,10 @@ public abstract class TransactionState implements Poolable {
         return base_partition;
     }
     
-
-    /**
-     * Return the previously stored callback for a FragmentTaskMessage
-     * @param ftask
-     * @return
-     */
-    public RpcCallback<Dtxn.FragmentResponse> getFragmentTaskCallback(FragmentTaskMessage ftask) {
-        return (this.fragment_callbacks.get(ftask));
-    }
-    
-    /**
-     * Store a callback specifically for one FragmentTaskMessage 
-     * @param ftask
-     * @param callback
-     */
-    public void setFragmentTaskCallback(FragmentTaskMessage ftask, RpcCallback<Dtxn.FragmentResponse> callback) {
-        assert(callback != null) : "Null callback for txn #" + this.txn_id;
-        if (t) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
-        this.fragment_callbacks.put(ftask, callback);
-    }
-    
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof TransactionState) {
-            TransactionState other = (TransactionState)obj;
+        if (obj instanceof AbstractTransaction) {
+            AbstractTransaction other = (AbstractTransaction)obj;
             if ((other.txn_id == -1) && (this.txn_id == -1)) return (this.hashCode() != other.hashCode());
             return (this.txn_id == other.txn_id && this.base_partition == other.base_partition);
         }
@@ -555,7 +524,6 @@ public abstract class TransactionState implements Poolable {
         m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
         m.put("Read-Only", this.exec_readOnly);
-        m.put("FragmentTask Callbacks", this.fragment_callbacks.size());
         m.put("Executing Locally", this.exec_local);
         m.put("Local Partition", this.executor.getPartitionId());
         m.put("Last UndoToken", this.last_undo_token);

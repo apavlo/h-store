@@ -37,7 +37,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.dtxn.AbstractTransaction;
 
 /**
  * 
@@ -146,7 +146,7 @@ public class ExecutionSiteHelper implements Runnable {
             
             int cleaned = 0;
             while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
-                TransactionState ts = es.finished_txn_states.peek();
+                AbstractTransaction ts = es.finished_txn_states.peek();
                 if (ts.getEE_FinishedTimestamp() < to_remove) {
 //                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
                     if (ts.isHStoreSite_Finished() == false) break;

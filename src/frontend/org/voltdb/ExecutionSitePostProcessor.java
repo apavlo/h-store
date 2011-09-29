@@ -10,7 +10,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
@@ -76,7 +76,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
             }
             if (hstore_conf.site.status_show_executor_info) execTime.start();
             ExecutionSite es = (ExecutionSite)triplet[0];
-            LocalTransactionState ts = (LocalTransactionState)triplet[1];
+            LocalTransaction ts = (LocalTransaction)triplet[1];
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                            ts, es.getPartitionId(), cr.getStatusName()));
