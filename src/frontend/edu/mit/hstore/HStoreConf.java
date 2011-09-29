@@ -32,7 +32,6 @@ public final class HStoreConf {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    
     static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
     static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
     

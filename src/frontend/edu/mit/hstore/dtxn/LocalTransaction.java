@@ -575,7 +575,6 @@ public class LocalTransaction extends AbstractTransaction {
             } else {
                 try {
                     dinfo = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
-                    this.state.all_dependencies.add(dinfo);
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
