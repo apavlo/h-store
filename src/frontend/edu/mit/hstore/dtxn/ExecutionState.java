@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 
@@ -76,8 +76,6 @@ public class ExecutionState {
      * List of encoded Partition/Dependency keys
      */
     protected ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
-    
-    protected final Set<DependencyInfo> all_dependencies = new HashSet<DependencyInfo>();
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -153,7 +151,7 @@ public class ExecutionState {
     /**
      * 
      */
-    protected final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
+    protected final Queue<DependencyInfo> reusable_dependencies = new LinkedList<DependencyInfo>(); 
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -174,17 +172,6 @@ public class ExecutionState {
     public void clear() {
         this.exec_touchedPartitions.clear();
         this.dependency_latch = null;
-        this.all_dependencies.clear();
-        this.reusable_dependencies.clear();
-        
-        try {
-            // Return all of our DependencyInfos
-            for (DependencyInfo d : this.all_dependencies) {
-                DependencyInfo.INFO_POOL.returnObject(d);
-            } // FOR
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
     }
     
     // ----------------------------------------------------------------------------
