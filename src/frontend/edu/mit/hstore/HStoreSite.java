@@ -229,11 +229,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
     private final VoltProcedureListener voltListeners[];
     private final NIOEventLoop procEventLoops[];
 
-    /** PartitionId -> Dtxn.ExecutionEngine */
-    private final Dtxn.Coordinator coordinators[];
-    private final Dtxn.Partition engine_channels[];
-    private final NIOEventLoop engineEventLoop = new NIOEventLoop();
-
     /**
      * 
      */
@@ -364,8 +359,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final int num_partitions = this.all_partitions.size();
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        this.engine_channels = new Dtxn.Partition[num_partitions];
-        this.coordinators = new Dtxn.Coordinator[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
         this.inflight_txns_ctr = new AtomicInteger[num_partitions];
         this.incoming_throttle = new boolean[num_partitions];
@@ -801,8 +794,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             l.exitLoop();
         }
 //        this.voltListener.close();
-        if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
-        this.engineEventLoop.exitLoop();
         
 //        if (d) 
             LOG.info("Completed shutdown process at " + this.getSiteName());
@@ -1170,26 +1161,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
-            
-        // -------------------------------
-        // CANADIAN MODE: Single-Partition
-        // -------------------------------
-        } else if (single_partitioned) {
-            // Construct a message that goes directly to the Dtxn.Engine for the destination partition
-            if (d) LOG.debug(String.format("Passing single-partition %s to Dtxn.Engine for partition %d [handle=%d]",
-                                           ts, base_partition, ts.getClientHandle()));
-
-            Dtxn.DtxnPartitionFragment.Builder requestBuilder = Dtxn.DtxnPartitionFragment.newBuilder();
-            requestBuilder.setTransactionId(txn_id);
-            requestBuilder.setCommit(Dtxn.DtxnPartitionFragment.CommitState.LOCAL_COMMIT);
-            requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
-            requestBuilder.setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array()));
-            
-            RpcCallback<Dtxn.FragmentResponse> callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
-            if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-            this.engine_channels[base_partition].execute(ts.rpc_request_init, requestBuilder.build(), callback);
-
-            if (t) LOG.trace("Using SinglePartitionTxnCallback for " + ts);
             
         // -------------------------------    
         // CANADIAN MODE: Multi-Partition
@@ -1764,94 +1735,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final Site catalog_site = hstore_site.getSite();
         final int num_partitions = catalog_site.getPartitions().size();
         final String site_host = catalog_site.getHost().getIpaddr();
-        
-        // ----------------------------------------------------------------------------
-        // (1) ProtoServer Thread (one per HStoreSite)
-        // ----------------------------------------------------------------------------
-        if (d) LOG.debug(String.format("Launching ProtoServer [site=%d, port=%d]", hstore_site.getSiteId(), catalog_site.getDtxn_port()));
-        final CountDownLatch execLatch = new CountDownLatch(1);
-        runnables.add(new Runnable() {
-            public void run() {
-                final Thread self = Thread.currentThread();
-                self.setName(HStoreSite.getThreadName(hstore_site, "proto"));
-                if (hstore_site.getHStoreConf().site.cpu_affinity)
-                    hstore_site.getThreadManager().registerProcessingThread();
                 
-                ProtoServer execServer = new ProtoServer(hstore_site.protoEventLoop);
-                execServer.register(hstore_site);
-                execServer.bind(catalog_site.getDtxn_port());
-                execLatch.countDown();
-                
-                boolean should_shutdown = false;
-                Throwable error = null;
-                try {
-                    hstore_site.protoEventLoop.setExitOnSigInt(true);
-                    hstore_site.ready_latch.countDown();
-                    hstore_site.protoEventLoop.run();
-                } catch (Throwable ex) {
-                    if (hstore_site.isShuttingDown() == false) LOG.fatal("ProtoServer thread failed", ex);
-                    error = ex;
-                    should_shutdown = true;
-                }
-                if (hstore_site.isShuttingDown() == false) {
-                    LOG.warn(String.format("ProtoServer thread is stopping! [error=%s, should_shutdown=%s, state=%s]",
-                                           (error != null ? error.getMessage() : null), should_shutdown, hstore_site.shutdown_state));
-                    hstore_site.prepareShutdown();
-                    if (should_shutdown) hstore_site.messenger.shutdownCluster(error);
-                }
-            };
-        });
-        
-        // ----------------------------------------------------------------------------
-        // (2) DTXN Engine Threads (one per partition)
-        // ----------------------------------------------------------------------------
-        if (d) LOG.debug(String.format("Launching DTXN Engines for %d partitions", num_partitions));
-        final CountDownLatch engineLatch = new CountDownLatch(hstore_site.local_partitions.size());
-        for (final Partition catalog_part : catalog_site.getPartitions()) {
-            // TODO: There should be a single thread that forks all the processes and then joins on them
-            runnables.add(new Runnable() {
-                public void run() {
-                    final Thread self = Thread.currentThread();
-                    self.setName(HStoreSite.getThreadName(hstore_site.site_id, "eng", catalog_part.getId()));
-                    if (hstore_site.getHStoreConf().site.cpu_affinity)
-                        hstore_site.getThreadManager().registerProcessingThread();
-                    
-                    int partition = catalog_part.getId();
-                    int port = catalog_site.getDtxn_port();
-                    
-                    // This needs to wait for the ProtoServer to start first
-                    if (execLatch.getCount() > 0) {
-                        if (d) LOG.debug("Waiting for ProtoServer to finish start up for Partition #" + partition);
-                        try {
-                            execLatch.await();
-                        } catch (InterruptedException ex) {
-                            LOG.error("Unexpected interuption while waiting for Partition #" + partition, ex);
-                            hstore_site.messenger.shutdownCluster(ex);
-                        }
-                    }
-                    
-                    if (d) LOG.debug("Forking off ProtoDtxnEngine for Partition #" + partition + " [outbound_port=" + port + "]");
-                    String[] command = new String[]{
-                        dtxnengine_path,                // protodtxnengine
-                        site_host + ":" + port,         // host:port (ProtoServer)
-                        hstore_conf_path,               // hstore.conf
-                        Integer.toString(partition),    // partition #
-                        "0"                             // ??
-                    };
-                    engineLatch.countDown();
-                    hstore_site.ready_latch.countDown();
-                    ThreadUtil.fork(command, hstore_site.shutdown_observable,
-                                    String.format("[%s] ", HStoreSite.getThreadName(hstore_site.site_id, "protodtxnengine", partition)), true);
-                    if (hstore_site.isShuttingDown() == false) { 
-                        String msg = "ProtoDtxnEngine for Partition #" + partition + " is stopping!"; 
-                        LOG.error(msg);
-                        hstore_site.prepareShutdown();
-                        hstore_site.messenger.shutdownCluster(new Exception(msg));
-                    }
-                }
-            });
-        } // FOR (partition)
-
         // ----------------------------------------------------------------------------
         // (3) Engine EventLoop Thread (one per HStoreSite)
         // ----------------------------------------------------------------------------
