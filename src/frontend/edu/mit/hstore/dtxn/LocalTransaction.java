@@ -25,7 +25,17 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -33,11 +43,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
-import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.InitiateTaskMessage;
@@ -70,12 +78,6 @@ public class LocalTransaction extends AbstractTransaction {
 
     private static final Set<FragmentTaskMessage> EMPTY_SET = Collections.emptySet();
     
-    // ----------------------------------------------------------------------------
-    // GLOBAL DATA MEMBERS
-    // ----------------------------------------------------------------------------
-    
-    private final List<BatchPlanner.BatchPlan> batch_plans = new ArrayList<BatchPlanner.BatchPlan>();
-
     /**
      * LocalTransactionState Factory
      */
@@ -253,14 +255,6 @@ public class LocalTransaction extends AbstractTransaction {
         super.finish();
 
         try {
-            // Return all of our BatchPlans (if we have any)
-            if (this.batch_plans.isEmpty() == false) {
-                for (BatchPlanner.BatchPlan plan : this.batch_plans) {
-                    if (plan.isCached() == false)
-                        plan.getPlanner().getBatchPlanPool().returnObject(plan);
-                } // FOR
-                this.batch_plans.clear();
-            }
             // Return our TransactionEstimator.State handle
             if (this.estimator_state != null) {
                 TransactionEstimator.getStatePool().returnObject(this.estimator_state);
@@ -967,10 +961,5 @@ public class LocalTransaction extends AbstractTransaction {
         sb.append(StringUtil.columns(stmt_debug));
         
         return (sb.toString());
-    }
-
-    @Override
-    public void addFinishedBatchPlan(BatchPlan plan) {
-        this.batch_plans.add(plan);
     }
 }

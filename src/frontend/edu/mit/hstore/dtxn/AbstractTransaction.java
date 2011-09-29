@@ -33,7 +33,6 @@ import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
@@ -225,8 +224,6 @@ public abstract class AbstractTransaction implements Poolable {
     
     public abstract void addResult(int partition, int dependency_id, VoltTable result);
 
-    public abstract void addFinishedBatchPlan(BatchPlanner.BatchPlan plan);
-    
     // ----------------------------------------------------------------------------
     // ROUND METHODS
     // ----------------------------------------------------------------------------

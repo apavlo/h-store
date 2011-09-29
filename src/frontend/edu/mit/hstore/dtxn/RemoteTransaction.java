@@ -28,7 +28,6 @@ package edu.mit.hstore.dtxn;
 import org.apache.log4j.Logger;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
-import org.voltdb.BatchPlanner.BatchPlan;
 
 import com.google.protobuf.RpcCallback;
 
@@ -124,12 +123,6 @@ public class RemoteTransaction extends AbstractTransaction {
     public void addResult(int partition, int dependencyId, VoltTable result) {
         throw new RuntimeException("Trying to store a result for a transaction not executing locally [txn=" + this.txn_id + "]");
     }
-
-    @Override
-    public void addFinishedBatchPlan(BatchPlan plan) {
-        // Nothing
-    }
-    
 
     /**
      * Return the previously stored callback for a FragmentTaskMessage
