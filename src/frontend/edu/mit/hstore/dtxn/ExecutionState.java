@@ -15,14 +15,23 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class ExecutionState {
+    private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     // ----------------------------------------------------------------------------
     // INTERNAL PARTITION+DEPENDENCY KEY
@@ -66,97 +75,85 @@ public class ExecutionState {
     /**
      * List of encoded Partition/Dependency keys
      */
-    private ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
+    protected ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
     
-    private final Set<DependencyInfo> all_dependencies = new HashSet<DependencyInfo>();
+    protected final Set<DependencyInfo> all_dependencies = new HashSet<DependencyInfo>();
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
     // ----------------------------------------------------------------------------
-
-    /**
-     * Temporary space used in ExecutionSite.waitForResponses
-     */
-    public final List<FragmentTaskMessage> remote_fragment_list = new ArrayList<FragmentTaskMessage>();
-    public final List<FragmentTaskMessage> local_fragment_list = new ArrayList<FragmentTaskMessage>();
-    
-    /**
-     * Temporary space used when calling removeInternalDependencies()
-     */
-    public final HashMap<Integer, List<VoltTable>> remove_dependencies_map = new HashMap<Integer, List<VoltTable>>();
     
     /**
      * This latch will block until all the Dependency results have returned
      * Generated in startRound()
      */
-    private CountDownLatch dependency_latch;
+    protected CountDownLatch dependency_latch;
     
     /**
      * SQLStmt Index -> DependencyId -> DependencyInfo
      */
-    private final Map<Integer, DependencyInfo> dependencies[];
+    protected final Map<Integer, DependencyInfo> dependencies[];
     
     /**
      * Final result output dependencies. Each position in the list represents a single Statement
      */
-    private final List<Integer> output_order = new ArrayList<Integer>();
+    protected final List<Integer> output_order = new ArrayList<Integer>();
     
     /**
      * As information come back to us, we need to keep track of what SQLStmt we are storing 
      * the data for. Note that we have to maintain two separate lists for results and responses
      * Partition-DependencyId Key Offset -> Next SQLStmt Index
      */
-    private final Map<Integer, Queue<Integer>> results_dependency_stmt_ctr = new ConcurrentHashMap<Integer, Queue<Integer>>();
-    private final Map<Integer, Queue<Integer>> responses_dependency_stmt_ctr = new ConcurrentHashMap<Integer, Queue<Integer>>();
+    protected final Map<Integer, Queue<Integer>> results_dependency_stmt_ctr = new ConcurrentHashMap<Integer, Queue<Integer>>();
+    protected final Map<Integer, Queue<Integer>> responses_dependency_stmt_ctr = new ConcurrentHashMap<Integer, Queue<Integer>>();
 
     /**
      * Sometimes we will get responses/results back while we are still queuing up the rest of the tasks and
      * haven't started the next round. So we need a temporary space where we can put these guys until 
      * we start the round. Otherwise calculating the proper latch count is tricky
      */
-    private final Set<Integer> queued_responses = new ListOrderedSet<Integer>();
-    private final Map<Integer, VoltTable> queued_results = new ListOrderedMap<Integer, VoltTable>();
+    protected final Set<Integer> queued_responses = new ListOrderedSet<Integer>();
+    protected final Map<Integer, VoltTable> queued_results = new ListOrderedMap<Integer, VoltTable>();
     
     /**
      * Blocked FragmentTaskMessages
      */
-    private final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
+    protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
     
     /**
      * Unblocked FragmentTaskMessages
      * The VoltProcedure thread will block on this queue waiting for tasks to execute inside of ExecutionSite
      * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
      */
-    private final LinkedBlockingDeque<Collection<FragmentTaskMessage>> unblocked_tasks = new LinkedBlockingDeque<Collection<FragmentTaskMessage>>(); 
+    protected final LinkedBlockingDeque<Collection<FragmentTaskMessage>> unblocked_tasks = new LinkedBlockingDeque<Collection<FragmentTaskMessage>>(); 
     
     /**
      * These are the DependencyIds that we don't bother returning to the ExecutionSite
      */
-    private final Set<Integer> internal_dependencies = new HashSet<Integer>();
+    protected final Set<Integer> internal_dependencies = new HashSet<Integer>();
 
     /**
      * Number of SQLStmts in the current batch
      */
-    private int batch_size = 0;
+    protected int batch_size = 0;
     /**
      * The total # of dependencies this Transaction is waiting for in the current round
      */
-    private int dependency_ctr = 0;
+    protected int dependency_ctr = 0;
     /**
      * The total # of dependencies received thus far in the current round
      */
-    private int received_ctr = 0;
+    protected int received_ctr = 0;
     
     /** 
      * What partitions has this txn touched
      */
-    private final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
-    
+    protected final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
     /**
      * 
      */
-    private final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
+    protected final ConcurrentLinkedQueue<DependencyInfo> reusable_dependencies = new ConcurrentLinkedQueue<DependencyInfo>(); 
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -179,7 +176,20 @@ public class ExecutionState {
         this.dependency_latch = null;
         this.all_dependencies.clear();
         this.reusable_dependencies.clear();
+        
+        try {
+            // Return all of our DependencyInfos
+            for (DependencyInfo d : this.all_dependencies) {
+                DependencyInfo.INFO_POOL.returnObject(d);
+            } // FOR
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
+    
+    // ----------------------------------------------------------------------------
+    // EXECUTION ROUNDS
+    // ----------------------------------------------------------------------------
     
     public void clearRound() {
         this.partition_dependency_keys.clear();
@@ -188,8 +198,6 @@ public class ExecutionState {
         this.queued_results.clear();
         this.blocked_tasks.clear();
         this.internal_dependencies.clear();
-        this.remote_fragment_list.clear();
-        this.local_fragment_list.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
@@ -207,5 +215,4 @@ public class ExecutionState {
         this.dependency_ctr = 0;
         this.received_ctr = 0;
     }
-    
 }

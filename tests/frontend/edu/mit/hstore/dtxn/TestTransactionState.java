@@ -25,7 +25,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.BaseTestCase;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
-import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.DependencyInfo;
 
 /**
@@ -57,7 +57,8 @@ public class TestTransactionState extends BaseTestCase {
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
     
-    private LocalTransactionState ts;
+    private LocalTransaction ts;
+    private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -99,11 +100,13 @@ public class TestTransactionState extends BaseTestCase {
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(ftasks);
+        assertNotNull(executor);
         
-        this.ts = new LocalTransactionState(executor);
+        this.execState = new ExecutionState(executor);
+        this.ts = new LocalTransaction(executor);
         this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
-        assertNotNull(this.ts);
-        assertEquals(TransactionState.RoundState.NULL, this.ts.getCurrentRoundState());
+        this.ts.setExecutionState(this.execState);
+        assertEquals(AbstractTransaction.RoundState.NULL, this.ts.getCurrentRoundState());
     }
 
     /**
@@ -148,7 +151,7 @@ public class TestTransactionState extends BaseTestCase {
             int partition_id = LOCAL_PARTITION;
             int dependency_id = i * 1000;
             
-            keys.add(this.ts.createPartitionDependencyKey(partition_id, dependency_id));
+            keys.add(this.execState.createPartitionDependencyKey(partition_id, dependency_id));
             pairs.add(Pair.of(partition_id, dependency_id));
         } // FOR
         
@@ -163,7 +166,7 @@ public class TestTransactionState extends BaseTestCase {
             // Now make sure that we get back the right values
             Pair<Integer, Integer> expected = pairs.get(i);
             assertNotNull(expected);
-            this.ts.getPartitionDependencyFromKey(key.intValue(), values);
+            this.execState.getPartitionDependencyFromKey(key.intValue(), values);
             assertEquals(expected.getFirst().intValue(), values[0]);
             assertEquals(expected.getSecond().intValue(), values[1]);
         } // FOR
@@ -174,7 +177,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     public void testInitRound() throws Exception {
         this.ts.initRound(UNDO_TOKEN);
-        assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         assertNotNull(this.ts.getLastUndoToken());
         assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken().longValue());
         //System.err.println(this.ts);
@@ -185,7 +188,7 @@ public class TestTransactionState extends BaseTestCase {
      */
     public void testStartRound() throws Exception {
         this.ts.initRound(UNDO_TOKEN);
-        assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         this.addFragments();
         this.ts.startRound();
         CountDownLatch latch = this.ts.getDependencyLatch();
@@ -257,7 +260,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(UNDO_TOKEN);
         this.addFragments();
         this.ts.startRound();
-        assertEquals(TransactionState.RoundState.STARTED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState());
         
         // We want to add results for just one of the duplicated statements and make sure that
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
@@ -310,7 +313,7 @@ public class TestTransactionState extends BaseTestCase {
     public void testAddResultsBeforeStart() throws Exception {
         this.ts.initRound(UNDO_TOKEN);
         this.addFragments();
-        assertEquals(TransactionState.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
         // if we start the round *after* a bunch of results have arrived.
@@ -343,7 +346,7 @@ public class TestTransactionState extends BaseTestCase {
         CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
-        assertEquals(TransactionState.RoundState.STARTED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState());
     }
     
     /**

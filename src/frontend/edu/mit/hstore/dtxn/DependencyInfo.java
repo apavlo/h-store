@@ -66,7 +66,7 @@ public class DependencyInfo implements Poolable {
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected LocalTransactionState ts;
+    protected LocalTransaction ts;
     protected int stmt_index = -1;
     protected int dependency_id = -1;
     
@@ -107,7 +107,7 @@ public class DependencyInfo implements Poolable {
         // Nothing...
     }
     
-    public void init(LocalTransactionState ts, int stmt_index, int dependency_id) {
+    public void init(LocalTransaction ts, int stmt_index, int dependency_id) {
         this.ts = ts;
         this.stmt_index = stmt_index;
         this.dependency_id = dependency_id;

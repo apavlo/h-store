@@ -24,7 +24,7 @@ import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
 import edu.mit.hstore.dtxn.DependencyInfo;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * @author pavlo
@@ -52,7 +52,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
     
-    private LocalTransactionState ts;
+    private LocalTransaction ts;
+    private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -91,8 +92,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
             ftasks = plan.getFragmentTaskMessages(args);
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new LocalTransactionState(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
-        assertNotNull(this.ts);
+        assertNotNull(executor);
+        
+        this.execState = new ExecutionState(executor);
+        this.ts = new LocalTransaction(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
+        this.ts.setExecutionState(this.execState);
     }
 
     /**
@@ -253,7 +257,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             } // FOR (partition)
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
-        assert(this.ts instanceof LocalTransactionState);
+        assert(this.ts instanceof LocalTransaction);
         System.err.println(this.ts.toString());
 
         VoltTable results[] = this.ts.getResults();

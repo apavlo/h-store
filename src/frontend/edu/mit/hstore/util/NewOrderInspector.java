@@ -12,7 +12,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 public class NewOrderInspector {
     private static final Logger LOG = Logger.getLogger(NewOrderInspector.class);
@@ -53,7 +53,7 @@ public class NewOrderInspector {
      * @param args
      * @return
      */
-    public boolean initializeTransaction(LocalTransactionState ts, Object args[]) {
+    public boolean initializeTransaction(LocalTransaction ts, Object args[]) {
 //        assert(ts.getProcedureName().equalsIgnoreCase("neworder")) : "Unable to use NewOrder cheat for " + ts;
         Short w_id = this.neworder_hack_w_id.get(args[0].toString());
         assert(w_id != null);

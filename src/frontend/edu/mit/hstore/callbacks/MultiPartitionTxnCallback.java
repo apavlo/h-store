@@ -9,7 +9,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * Unpack a FragmentResponse and send the bytes to the client
@@ -21,9 +21,9 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
     private static final boolean t = LOG.isTraceEnabled();
     
     private final ByteString payload;
-    private final LocalTransactionState ts;
+    private final LocalTransaction ts;
     
-    public MultiPartitionTxnCallback(HStoreSite hstore_site, LocalTransactionState ts, RpcCallback<byte[]> done) {
+    public MultiPartitionTxnCallback(HStoreSite hstore_site, LocalTransaction ts, RpcCallback<byte[]> done) {
         super(hstore_site, ts.getTransactionId(), done);
         this.payload = HStoreSite.encodeTxnId(this.txn_id);
         this.ts = ts;

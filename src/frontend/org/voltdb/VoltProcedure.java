@@ -66,8 +66,8 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransactionState;
-import edu.mit.hstore.dtxn.TransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
+import edu.mit.hstore.dtxn.AbstractTransaction;
 
 /**
  * Wraps the stored procedure object created by the user
@@ -165,8 +165,8 @@ public abstract class VoltProcedure implements Poolable {
     private long txn_id = -1;
     private long client_handle;
     private boolean predict_singlepartition;
-    private TransactionState m_currentTxnState;  // assigned in call()
-    private LocalTransactionState m_localTxnState;  // assigned in call()
+    private AbstractTransaction m_currentTxnState;  // assigned in call()
+    private LocalTransaction m_localTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
@@ -217,11 +217,11 @@ public abstract class VoltProcedure implements Poolable {
      * passed this state in call(); sysprocs have other entry points on
      * non-coordinator sites.
      */
-    public void setTransactionState(TransactionState txnState) {
+    public void setTransactionState(AbstractTransaction txnState) {
         m_currentTxnState = txnState;
     }
 
-    public TransactionState getTransactionState() {
+    public AbstractTransaction getTransactionState() {
         return m_currentTxnState;
     }
     
@@ -466,7 +466,7 @@ public abstract class VoltProcedure implements Poolable {
      * @param paramList
      * @return
      */
-    public final ClientResponse callAndBlock(TransactionState txnState, Object... paramList) {
+    public final ClientResponse callAndBlock(AbstractTransaction txnState, Object... paramList) {
         final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
         EventObserver observer = new EventObserver() {
             @Override
@@ -494,7 +494,7 @@ public abstract class VoltProcedure implements Poolable {
      * @param paramList
      * @return
      */
-    public final ClientResponse call(TransactionState txnState, Object... paramList) {
+    public final ClientResponse call(AbstractTransaction txnState, Object... paramList) {
         if (d) {
             Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.base_partition));
             if (t) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
@@ -504,7 +504,7 @@ public abstract class VoltProcedure implements Poolable {
         
         assert(this.txn_id == -1) : "Old Transaction Id: " + this.txn_id + " -> New Transaction Id: " + txnState.getTransactionId();
         this.m_currentTxnState = txnState;
-        this.m_localTxnState = (LocalTransactionState)txnState;
+        this.m_localTxnState = (LocalTransaction)txnState;
         this.txn_id = txnState.getTransactionId();
         this.client_handle = txnState.getClientHandle();
         this.procParams = paramList;
@@ -1057,15 +1057,10 @@ public abstract class VoltProcedure implements Poolable {
         
         // Calculate the hash code for this batch to see whether we already have a planner
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
-        this.planner = ExecutionSite.POOL_BATCH_PLANNERS.get(batchHashCode);
+        this.planner = this.executor.POOL_BATCH_PLANNERS.get(batchHashCode);
         if (this.planner == null) { // Assume fast case
-            synchronized (ExecutionSite.POOL_BATCH_PLANNERS) {
-                this.planner = ExecutionSite.POOL_BATCH_PLANNERS.get(batchHashCode);
-                if (this.planner == null) {
-                    this.planner = new BatchPlanner(batchStmts, batchSize, this.catalog_proc, this.p_estimator);
-                    ExecutionSite.POOL_BATCH_PLANNERS.put(batchHashCode, planner);
-                }
-            } // SYNCH
+            this.planner = new BatchPlanner(batchStmts, batchSize, this.catalog_proc, this.p_estimator);
+            this.executor.POOL_BATCH_PLANNERS.put(batchHashCode, planner);
         }
         assert(this.planner != null);
 

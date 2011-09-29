@@ -9,7 +9,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * This callback is invoked after the ExecutionSite has completed processing a single-partition txn
@@ -19,9 +19,9 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
     private static final Logger LOG = Logger.getLogger(SinglePartitionTxnCallback.class);
     private static final boolean d = LOG.isDebugEnabled();
     
-    private final LocalTransactionState ts;
+    private final LocalTransaction ts;
     
-    public SinglePartitionTxnCallback(HStoreSite hstore_site, LocalTransactionState ts, int dest_partition, RpcCallback<byte[]> done) {
+    public SinglePartitionTxnCallback(HStoreSite hstore_site, LocalTransaction ts, int dest_partition, RpcCallback<byte[]> done) {
         super(hstore_site, ts.getTransactionId(), done);
         this.ts = ts;
     }
