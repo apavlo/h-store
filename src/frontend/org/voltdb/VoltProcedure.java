@@ -1175,10 +1175,6 @@ public abstract class VoltProcedure implements Poolable {
         }
         assert(results != null) : "Got back a null results array for txn #" + this.txn_id + "\n" + plan.toString();
 
-        // Tell our TransactionState that we are done with this BatchPlan
-        // It will dispose of it when the transaction commits/aborts
-        this.m_currentTxnState.addFinishedBatchPlan(this.plan);
-        
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         
         return (results);

@@ -709,26 +709,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("ForwardTxnResponses", this.formatPoolCounts(pool, factory));
             
-            // BatchPlans
-            int active = 0;
-            int idle = 0;
-            int created = 0;
-            int passivated = 0;
-            int destroyed = 0;
-            for (ExecutionSite es : this.executors.values()) {
-                for (BatchPlanner bp : es.POOL_BATCH_PLANNERS.values()) {
-                    pool = (StackObjectPool)bp.getBatchPlanPool();
-                    factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                    
-                    active += pool.getNumActive();
-                    idle += pool.getNumIdle();
-                    created += factory.getCreatedCount();
-                    passivated += factory.getPassivatedCount();
-                    destroyed += factory.getDestroyedCount();
-                } // FOR
-            } // FOR
-            m_pool.put("BatchPlans", String.format(POOL_FORMAT, active, idle, created, destroyed, passivated));
-            
             // Partition Specific
             String labels[] = new String[] {
                 "LocalTxnState",

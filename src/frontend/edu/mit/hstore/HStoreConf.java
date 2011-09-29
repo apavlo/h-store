@@ -494,13 +494,6 @@ public final class HStoreConf {
             experimental=false
         )
         public int pool_voltprocedure_idle;
-        
-        @ConfigProperty(
-            description="The max number of BatchPlans to keep in the pool (per BatchPlanner)",
-            defaultInt=2000,
-            experimental=false
-        )
-        public int pool_batchplan_idle;
     
         @ConfigProperty(
             description="The number of LocalTransactionState objects to preload",

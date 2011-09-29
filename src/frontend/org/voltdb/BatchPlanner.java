@@ -40,8 +40,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
@@ -62,10 +60,8 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.Poolable;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -105,22 +101,6 @@ public class BatchPlanner {
     private static boolean ENABLE_PROFILING = false;
     private static boolean ENABLE_CACHING = false;
     
-    /**
-     * BatchPlan Object Factory
-     */
-    private static class BatchPlanFactory extends CountingPoolableObjectFactory<BatchPlan> {
-        private final BatchPlanner planner;
-        
-        public BatchPlanFactory(BatchPlanner planner) {
-            super(HStoreConf.singleton().site.pool_profiling);
-            this.planner = planner;
-        }
-        @Override
-        public BatchPlan makeObjectImpl() throws Exception {
-            return (this.planner.new BatchPlan());
-        }
-    }
-    
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -136,7 +116,7 @@ public class BatchPlanner {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
-    private final ObjectPool plan_pool;
+    private final BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>(); 
     
     // FAST SINGLE-PARTITION LOOKUP CACHE
@@ -259,7 +239,7 @@ public class BatchPlanner {
     /**
      * BatchPlan
      */
-    public class BatchPlan implements Poolable {
+    public class BatchPlan {
         // ----------------------------------------------------------------------------
         // INVOCATION DATA MEMBERS
         // ----------------------------------------------------------------------------
@@ -267,7 +247,6 @@ public class BatchPlanner {
         
         private long txn_id;
         private long client_handle;
-        private int batchSize;
         private Integer base_partition = -1;
         private PlanGraph graph;
         private MispredictionException mispredict;
@@ -351,42 +330,29 @@ public class BatchPlanner {
          * @param base_partition
          * @param batchSize
          */
-        private BatchPlan init(long txn_id, long client_handle, int base_partition, int batchSize) {
+        private BatchPlan init(long txn_id, long client_handle, int base_partition) {
             this.txn_id = txn_id;
             this.client_handle = client_handle;
-            this.batchSize = batchSize;
             this.base_partition = base_partition;
-            return (this);
-        }
-        
-        @Override
-        public boolean isInitialized() {
-            return (this.base_partition != -1);
-        }
-        
-        /**
-         * Marks this BatchPlan as completed (i.e., all of the PlanFragments have
-         * been executed the and the results have been returned. This must be called before
-         * returning back to the user-level VoltProcedure
-         */
-        @Override
-        public void finish() {
-            assert(this.cached == false) : "Trying to finish a cached BatchPlan!";
-            this.base_partition = -1;
             this.mispredict = null;
+            
             for (int i = 0; i < this.frag_list.length; i++) {
-                this.frag_list[i] = null;
-                this.stmt_partitions[i].clear();
-                this.param_serializers[i].clear();
-                for (Set<Integer> s : this.frag_partitions[i].values()) {
-                    s.clear();
-                } // FOR
+                if (this.frag_list[i] != null) this.frag_list[i].clear();
+                if (this.stmt_partitions[i] != null) this.stmt_partitions[i].clear();
+                if (this.param_serializers[i] != null) this.param_serializers[i].clear();
+                if (this.frag_partitions[i] != null) {
+                    for (Set<Integer> s : this.frag_partitions[i].values()) {
+                        s.clear();
+                    } // FOR
+                }
             } // FOR
             for (int i = 0; i < this.rounds.length; i++) {
                 for (int ii = 0; ii < this.rounds[i].length; ii++) {
                     this.rounds[i][ii].clear();
                 } // FOR
             } // FOR
+            
+            return (this);
         }
 
         public BatchPlanner getPlanner() {
@@ -415,7 +381,7 @@ public class BatchPlanner {
         }
 
         public int getBatchSize() {
-            return (this.batchSize);
+            return (BatchPlanner.this.batchSize);
         }
         public int getFragmentCount() {
             return (this.graph.fragmentIds.length);
@@ -493,7 +459,7 @@ public class BatchPlanner {
         this.p_estimator = p_estimator;
         this.hasher = p_estimator.getHasher();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
-        this.plan_pool = new StackObjectPool(new BatchPlanFactory(this), HStoreConf.singleton().site.pool_batchplan_idle);
+        this.plan = new BatchPlan();
         
         // Initialize static members
         if (BatchPlanner.INITIALIZED.get() == false && BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
@@ -542,29 +508,8 @@ public class BatchPlanner {
         }
     }
 
-//    /**
-//     * Pre-load a bunch of BatchPlans so that we don't have to make them as needed
-//     * @param num_partitions
-//     */
-//    private void preload(int initial_size) {
-//        initial_size = (int)Math.round(initial_size / HStoreSite.getPreloadScaleFactor());
-//        BatchPlan plans[] = new BatchPlan[initial_size];
-//        try {
-//            for (int i = 0; i < initial_size; i++) {
-//                BatchPlan plan = (BatchPlan)this.plan_pool.borrowObject();
-//                plans[i] = plan.init(-1l, -1l, 0, 0, null);
-//            } // FOR
-//            
-//            for (BatchPlan plan : plans) {
-//                this.plan_pool.returnObject(plan);
-//            } // FOR
-//        } catch (Exception ex) {
-//            throw new RuntimeException(ex);
-//        }
-//    }
-    
-    public ObjectPool getBatchPlanPool() {
-        return (this.plan_pool);
+    public BatchPlan getBatchPlan() {
+        return (this.plan);
     }
     public Procedure getProcedure() {
         return this.catalog_proc;
@@ -572,7 +517,6 @@ public class BatchPlanner {
     public Statement[] getStatements() {
         return this.catalog_stmts;
     }
-    
     public ProfileMeasurement getBuildFragmentTaskMessagesTime() {
         return this.time_fragmentTaskMessages;
     }
@@ -590,7 +534,6 @@ public class BatchPlanner {
                 this.time_fragmentTaskMessages,
         };
     }
-    
     
     /**
      * 
@@ -643,14 +586,8 @@ public class BatchPlanner {
             }
         }
         
-        // Otherwise we have to construct a new BatchPlan from scratch
-        BatchPlan plan = null;
-        try {
-            plan = (BatchPlan)this.plan_pool.borrowObject();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-        plan.init(txn_id, client_handle, base_partition, this.batchSize);
+        // Otherwise we have to construct a new BatchPlan
+        plan.init(txn_id, client_handle, base_partition);
 
         // ----------------------
         // DEBUG DUMP
