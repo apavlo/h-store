@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.mit.hstore;
+package edu.mit.hstore.util;
 
 import java.util.Set;
 import java.util.TreeSet;

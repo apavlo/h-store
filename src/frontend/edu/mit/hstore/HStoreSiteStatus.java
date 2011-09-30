@@ -29,6 +29,7 @@ import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
+import edu.mit.hstore.util.TxnCounter;
 
 /**
  * 

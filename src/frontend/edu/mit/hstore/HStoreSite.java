@@ -110,6 +110,7 @@ import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 import edu.mit.hstore.util.NewOrderInspector;
+import edu.mit.hstore.util.TxnCounter;
 
 /**
  * 
