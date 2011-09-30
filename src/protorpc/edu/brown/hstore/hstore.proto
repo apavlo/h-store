@@ -3,6 +3,109 @@ import "ca/evanjones/protorpc/Protocol.proto";
 package edu.brown.hstore;
 
 // -----------------------------------
+// INITIALIZE TRANSACTION
+// -----------------------------------
+
+// Initialization request for a new transaction
+message TransactionInitRequest {
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+
+    // List of partitions at this site that are will be involved
+    // with this transaction.
+    repeated int32 partitions = 2 [packed=true];
+
+    // TODO: Embed the first queries that need to execute at the remote partitions
+    // if they are known ahead of time.
+}
+
+message TransactionInitResponse {
+    enum Status {
+        // The remote HStoreSite is ready to run this transaction
+        OK = 0;
+        // The remote HStore will not run this transaction
+        // The transaction will be retried at the initiaizing HStoreSite
+        REJECT = 1;
+    }
+
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+    required Status status = 2;
+}
+
+// -----------------------------------
+// TRANSACTION WORK
+// -----------------------------------
+
+message TransactionWorkRequest {
+    // Specifies the work to be performed at a single partition.
+    message PartitionFragment {
+        required int32 partition_id = 1;
+        // Serialized FragmentTaskMessages
+        required bytes work = 2;
+        // If true, this is the final fragment for this transaction at this partition.
+        optional bool last_fragment = 3 [default = false];
+    }
+
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+
+    // Set of partitions to send work to. A partition can appear only once in this list.
+    repeated PartitionFragment fragments = 2;
+}
+
+message TransactionWorkResponse {
+    // The output results of PartitionFragments
+    message PartitionResult {
+        required int32 partition_id = 1;
+        // Serialized FragmentTaskResponse
+        required bytes output = 2;
+        // If this partition hit an error, this field will contain the error message.
+        optional string error = 3;
+    }
+    enum Status {
+        // The remote HStoreSite executed all of the PartitionFragments successfully
+        OK = 0;
+        // The remote HStore failed to execute the PartitionFragments because of an error
+        ERROR = 1;
+    }
+
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+    repeated PartitionResult results = 2;
+    required Status status = 3;
+}
+
+// -----------------------------------
+// FINISH TRANSACTION
+// -----------------------------------
+
+// The initiating HStoreSite is telling the remote sites
+// what needs to happen for this transaction.
+message TransactionFinishRequest {
+    enum Status {
+        // Prepare message in 2PC. At this point, the HStoreSite 
+        PREPARE = 0;
+        // The final commit message that says 2PC succeeded
+        COMMIT = 1;
+        // The transaction aborted because of user code
+        ABORT_USER = 2;
+        // The transaction aborted because of a misprediction (and will be restarted)
+        ABORT_MISPREDICT = 3;
+    }
+
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+    required Status status = 3;
+}
+
+message TransactionFinishResponse {
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+}
+
+// -----------------------------------
 // MESSAGES
 // -----------------------------------
 
@@ -29,10 +132,6 @@ message MessageAcknowledgement {
     optional int64 txn_id = 4;
 }
 
-// -----------------------------------
-// FRAGMENT TRANSFERS
-// -----------------------------------
-
 message Fragment {
     required int32 transaction_id = 1;
     required bytes work = 2;
@@ -42,7 +141,7 @@ message Fragment {
 }
 
 message FragmentDependency {
-	required int32 dependency_id = 1;
+       required int32 dependency_id = 1;
     required bytes data = 2;
 }
 
@@ -64,6 +163,12 @@ message FragmentAcknowledgement {
 // -----------------------------------
 
 service HStoreService {
+    rpc TransactionInit(TransactionInitRequest) returns (TransactionInitResponse);
+    rpc TransactionWork(TransactionWorkRequest) returns (TransactionWorkResponse);
+    rpc TransactionFinish(TransactionFinishRequest) returns (TransactionFinishResponse);
+    
+    // TODO: Break the original HStoreMessenger services out into separate rpcs per MessageType
     rpc SendMessage(MessageRequest) returns (MessageAcknowledgement);
+    // TODO: REMOVE
     rpc SendFragment (FragmentTransfer) returns (FragmentAcknowledgement);
 }
