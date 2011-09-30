@@ -128,7 +128,6 @@ public class BenchmarkController {
                     BenchmarkController.this.failed = true;
                     m_clientPSM.prepareShutdown();
                     m_sitePSM.prepareShutdown();
-                    m_coordPSM.prepareShutdown();
                     
                     if (self != null) {
                         BenchmarkController.this.self.interrupt();
@@ -138,9 +137,6 @@ public class BenchmarkController {
             } // SYNCH
         }
     };
-    
-    /** Dtxn.Coordinator **/
-    final ProcessSetManager m_coordPSM;
     
     /** Clients **/
     final ProcessSetManager m_clientPSM;
@@ -301,7 +297,6 @@ public class BenchmarkController {
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
         m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
-        m_coordPSM = new ProcessSetManager(hstore_conf.coordinator.log_dir, config.client_initialPollingDelay, this.failure_observer);
 
         Map<String, Field> builderFields = new HashMap<String, Field>();
         builderFields.put("m_clientClass", null);
@@ -561,22 +556,6 @@ public class BenchmarkController {
             hosts_started++;
         } // FOR
 
-        // START: Dtxn.Coordinator
-        if (m_config.noCoordinator == false) {
-            String host = m_config.coordinatorHost;
-            List<String> dtxnCommand = new ArrayList<String>();
-            dtxnCommand.add("ant dtxn-coordinator");
-            dtxnCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
-            dtxnCommand.add("-Dcoordinator.delay=" + hstore_conf.coordinator.delay);
-            dtxnCommand.add("-Dcoordinator.port=" + hstore_conf.coordinator.port);
-
-            String command[] = SSHTools.convert(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions, dtxnCommand);
-            String fullCommand = StringUtil.join(" ", command);
-            if (trace.get()) LOG.trace("START COORDINATOR: " + fullCommand);
-            m_coordPSM.startProcess("dtxn-" + host, command);
-            LOG.info("Started Dtxn.Coordinator on " + host + ":" + hstore_conf.coordinator.port);
-        }
-        
         // WAIT FOR SERVERS TO BE READY
         int waiting = hosts_started;
         if (waiting > 0) {
@@ -969,7 +948,6 @@ public class BenchmarkController {
 
         this.stop = true;
         m_sitePSM.prepareShutdown();
-        m_coordPSM.prepareShutdown();
         
         // shut down all the clients
         boolean first = true;
@@ -1059,11 +1037,6 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("Killing nodes");
         m_sitePSM.shutdown();
         
-        if (m_config.noCoordinator == false) {
-            ThreadUtil.sleep(1000); // HACK
-            if (debug.get()) LOG.debug("Killing Dtxn.Coordinator");
-            m_coordPSM.shutdown();
-        }
         this.cleaned = true;
     }
 
