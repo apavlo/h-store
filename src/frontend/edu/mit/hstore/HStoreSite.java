@@ -46,6 +46,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
@@ -83,6 +84,7 @@ import com.google.protobuf.RpcController;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.Hstore;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
@@ -100,8 +102,8 @@ import edu.brown.workload.Workload;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
 import edu.mit.hstore.callbacks.ClientResponseFinalCallback;
-import edu.mit.hstore.callbacks.ForwardTxnRequestCallback;
-import edu.mit.hstore.callbacks.ForwardTxnResponseCallback;
+import edu.mit.hstore.callbacks.TransactionRedirectCallback;
+import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
 import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
@@ -229,11 +231,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
      */
     private final VoltProcedureListener voltListeners[];
     private final NIOEventLoop procEventLoops[];
-
-    /** PartitionId -> Dtxn.ExecutionEngine */
-    private final Dtxn.Coordinator coordinators[];
-    private final Dtxn.Partition engine_channels[];
-    private final NIOEventLoop engineEventLoop = new NIOEventLoop();
 
     /**
      * 
@@ -365,8 +362,6 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         final int num_partitions = this.all_partitions.size();
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        this.engine_channels = new Dtxn.Partition[num_partitions];
-        this.coordinators = new Dtxn.Coordinator[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
         this.inflight_txns_ctr = new AtomicInteger[num_partitions];
         this.incoming_throttle = new boolean[num_partitions];
@@ -412,11 +407,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         
         // Static Object Pools
         if (POOL_FORWARDTXN_REQUEST == null) {
-            POOL_FORWARDTXN_REQUEST = new StackObjectPool(new ForwardTxnRequestCallback.Factory(hstore_conf.site.pool_profiling),
+            POOL_FORWARDTXN_REQUEST = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectCallback.class, hstore_conf.site.pool_profiling),
                                                           hstore_conf.site.pool_forwardtxnrequests_idle);
         }
         if (POOL_FORWARDTXN_RESPONSE == null) {
-            POOL_FORWARDTXN_RESPONSE = new StackObjectPool(new ForwardTxnResponseCallback.Factory(hstore_conf.site.pool_profiling),
+            POOL_FORWARDTXN_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectResponseCallback.class, hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
         }
         
@@ -801,9 +796,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
         for (NIOEventLoop l : this.procEventLoops) {
             l.exitLoop();
         }
-//        this.voltListener.close();
-        if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
-        this.engineEventLoop.exitLoop();
+        
+        // if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
+        // this.engineEventLoop.exitLoop();
         
 //        if (d) 
             LOG.info("Completed shutdown process at " + this.getSiteName());
@@ -939,9 +934,9 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
-            ForwardTxnRequestCallback callback = null;
+            TransactionRedirectCallback callback = null;
             try {
-                callback = (ForwardTxnRequestCallback)HStoreSite.POOL_FORWARDTXN_REQUEST.borrowObject();
+                callback = (TransactionRedirectCallback)HStoreSite.POOL_FORWARDTXN_REQUEST.borrowObject();
                 callback.init(done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
@@ -951,7 +946,7 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             assert(request.hasBasePartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
             StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
             
-            this.messenger.forwardTransaction(serializedRequest, callback, base_partition);
+            this.messenger.redirectTransaction(serializedRequest, callback, base_partition);
             if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
             return;
         }
@@ -1172,25 +1167,25 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
             if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
             
-        // -------------------------------
+        // -------------------------------    
         // CANADIAN MODE: Single-Partition
         // -------------------------------
-        } else if (single_partitioned) {
-            // Construct a message that goes directly to the Dtxn.Engine for the destination partition
-            if (d) LOG.debug(String.format("Passing single-partition %s to Dtxn.Engine for partition %d [handle=%d]",
-                                           ts, base_partition, ts.getClientHandle()));
-
-            Dtxn.DtxnPartitionFragment.Builder requestBuilder = Dtxn.DtxnPartitionFragment.newBuilder();
-            requestBuilder.setTransactionId(txn_id);
-            requestBuilder.setCommit(Dtxn.DtxnPartitionFragment.CommitState.LOCAL_COMMIT);
-            requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
-            requestBuilder.setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array()));
-            
-            RpcCallback<Dtxn.FragmentResponse> callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
-            if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-            this.engine_channels[base_partition].execute(ts.rpc_request_init, requestBuilder.build(), callback);
-
-            if (t) LOG.trace("Using SinglePartitionTxnCallback for " + ts);
+//        } else if (single_partitioned) {
+//            // Construct a message that goes directly to the Dtxn.Engine for the destination partition
+//            if (d) LOG.debug(String.format("Passing single-partition %s to Dtxn.Engine for partition %d [handle=%d]",
+//                                           ts, base_partition, ts.getClientHandle()));
+//
+//            Dtxn.DtxnPartitionFragment.Builder requestBuilder = Dtxn.DtxnPartitionFragment.newBuilder();
+//            requestBuilder.setTransactionId(txn_id);
+//            requestBuilder.setCommit(Dtxn.DtxnPartitionFragment.CommitState.LOCAL_COMMIT);
+//            requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
+//            requestBuilder.setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array()));
+//            
+//            RpcCallback<Dtxn.FragmentResponse> callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
+//            if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
+//            this.engine_channels[base_partition].execute(ts.rpc_request_init, requestBuilder.build(), callback);
+//
+//            if (t) LOG.trace("Using SinglePartitionTxnCallback for " + ts);
             
         // -------------------------------    
         // CANADIAN MODE: Multi-Partition
@@ -1206,14 +1201,11 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
 //            if (d && dtxn_txns.isEmpty()) LOG.debug(String.format("Enabling CANADIAN mode [txn=#%d]", txn_id));
 //            dtxn_txns.add(txn_id);
             
-            Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment.newBuilder();
-            
-            // Note that we pass the fake txn id to the Dtxn.Coordinator. 
+            Hstore.TransactionInitRequest.Builder requestBuilder = Hstore.TransactionInitRequest.newBuilder();
             requestBuilder.setTransactionId(txn_id);
-            
-            // Whether this transaction is single-partitioned or not
-            requestBuilder.setLastFragment(single_partitioned);
-            
+
+            // Partitions
+            // Figure out what partitions we plan on touching for this transaction
             Set<Integer> done_partitions = ts.getDonePartitions();
             
             // TransactionEstimator
@@ -1231,36 +1223,22 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                     if (touched_partitions.contains(p) == false && p.intValue() != base_partition) done_partitions.add(p);
                 } // FOR
             }
-            
-            for (Integer p : done_partitions) {
-                requestBuilder.addDonePartition(p.intValue());
+            for (Integer p : this.all_partitions) {
+                if (done_partitions.contains(p) == false) 
+                    requestBuilder.addPartitions(p.intValue());
             } // FOR
             assert(done_partitions.size() != this.all_partitions.size()) : "Trying to mark " + ts + " as done at EVERY partition!";
-            if (d && requestBuilder.getDonePartitionCount() > 0) {
-                LOG.debug(String.format("Marked %s as done at %d partitions: %s", ts, requestBuilder.getDonePartitionCount(), requestBuilder.getDonePartitionList()));
+            if (d && requestBuilder.getPartitionsCount() > 0) {
+                LOG.debug(String.format("Marked %s as done at %d partitions: %s", ts, requestBuilder.getPartitionsCount(), requestBuilder.getPartitionsList()));
             }
 
-            // NOTE: Evan betrayed our love so we can't use his txn ids because they are meaningless to us
-            // So we're going to pack in our txn id in the payload. Any message they we get from Evan
-            // will have this payload so that we can figure out what the hell is going on...
-            requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
-    
-            // Pack the StoredProcedureInvocation into a Dtxn.PartitionFragment
-            requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
-                    .setPartitionId(base_partition)
-                    .setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array())));
-            
-            // This latch prevents us from making additional requests to the Dtxn.Coordinator until
+            // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
             if (t) LOG.trace("Using InitiateCallback for " + ts);
-            RpcCallback<Dtxn.CoordinatorResponse> callback = new InitiateCallback(this, txn_id, ts.init_latch);
+            RpcCallback<Hstore.TransactionInitRequest> callback = new InitiateCallback(this, txn_id, ts.init_latch);
             
-            Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build();
             if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-            this.coordinators[base_partition].execute(new ProtoRpcController(), dtxn_request, callback); // txn_info.rpc_request_init
-            
-            if (d) LOG.debug(String.format("Sent Dtxn.CoordinatorFragment for %s [bytes=%d]", ts, dtxn_request.getSerializedSize()));
-            
+            this.messenger.initTransaction(requestBuilder.build(), callback); // txn_info.rpc_request_init
         }
         
         // Look at the number of inflight transactions and see whether we should block and wait for the 
@@ -1477,14 +1455,14 @@ public class HStoreSite extends Dtxn.ExecutionEngine implements VoltProcedureLis
                 }
                 assert(serializedRequest != null);
                 
-                ForwardTxnRequestCallback callback;
+                TransactionRedirectCallback callback;
                 try {
-                    callback = (ForwardTxnRequestCallback)HStoreSite.POOL_FORWARDTXN_REQUEST.borrowObject();
+                    callback = (TransactionRedirectCallback)HStoreSite.POOL_FORWARDTXN_REQUEST.borrowObject();
                     callback.init(orig_callback);
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
                 }
-                this.messenger.forwardTransaction(serializedRequest, callback, redirect_partition);
+                this.messenger.redirectTransaction(serializedRequest, callback, redirect_partition);
                 if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return;
                 
