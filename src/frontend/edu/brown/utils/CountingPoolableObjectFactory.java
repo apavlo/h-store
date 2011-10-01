@@ -1,5 +1,6 @@
 package edu.brown.utils;
 
+import java.lang.reflect.Constructor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.pool.BasePoolableObjectFactory;
@@ -49,5 +50,18 @@ public abstract class CountingPoolableObjectFactory<T extends Poolable> extends 
     }
     public int getDestroyedCount() {
         return (this.destroyed.get());
+    }
+    
+    public static <X extends Poolable> CountingPoolableObjectFactory<X> makeFactory(final Class<X> clazz, final boolean enable_tracking) {
+        return new CountingPoolableObjectFactory<X>(enable_tracking) {
+            private final Constructor<X> constructor;
+            {
+                this.constructor = ClassUtil.getConstructor(clazz);
+            }
+            @Override
+            public X makeObjectImpl() throws Exception {
+                return (this.constructor.newInstance());
+            }
+        };
     }
 }

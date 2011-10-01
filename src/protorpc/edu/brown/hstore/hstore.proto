@@ -121,7 +121,6 @@ message TransactionRedirectResponse {
     // The id of the HStoreSite is responding to this shutdown request
     required int32 sender_id = 1;
     required bytes output = 2;
-    optional int64 orig_txn_id = 3;
 }
 
 // -----------------------------------
@@ -131,6 +130,7 @@ message TransactionRedirectResponse {
 message ShutdownRequest {
     // The id of the HStoreSite that is wants us to shutdown
     required int32 sender_id = 1;
+    required int32 exit_status = 2;
 }
 
 message ShutdownResponse {

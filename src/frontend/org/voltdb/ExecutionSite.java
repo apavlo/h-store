@@ -1246,12 +1246,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // We need to include the DependencyIds in our response, but we will send the actual
                 // data through the HStoreMessenger
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    fresponse.addDependency(result.depIds[i]);
+                    fresponse.addDependency(result.depIds[i], result.dependencies[i]);
                 } // FOR
-                this.sendFragmentResponseMessage((RemoteTransaction)ts, ftask, fresponse);
                 
-                // Bombs away!
-                this.hstore_messenger.sendDependencySet(ts.getTransactionId(), this.partitionId, ftask.getSourcePartitionId(), result); 
+                // TODO: We need to group together all of the FragmentResponses for this transaction
+                // from all of the partitions so that we only send one single message
+                this.sendFragmentResponseMessage((RemoteTransaction)ts, ftask, fresponse);
             }
 
         // -------------------------------
@@ -1262,6 +1262,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (is_local && is_dtxn == false) {
                 this.processFragmentResponseMessage(ts, fresponse);
             } else {
+                // TODO: We need to group together all of the FragmentResponses for this transaction
+                // from all of the partitions so that we only send one single message
                 this.sendFragmentResponseMessage((RemoteTransaction)ts, ftask, fresponse);
             }
         }
