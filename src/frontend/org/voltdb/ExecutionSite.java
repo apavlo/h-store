@@ -102,6 +102,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
@@ -375,6 +376,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Temporary space used when calling removeInternalDependencies()
      */
     private final HashMap<Integer, List<VoltTable>> tmp_removeDependenciesMap = new HashMap<Integer, List<VoltTable>>();
+
+    /**
+     * Remote SiteId -> TransactionWorkRequest.Builder
+     */
+    private final Map<Integer, Hstore.TransactionWorkRequest.Builder> tmp_transactionRequestBuildersMap = new HashMap<Integer, Hstore.TransactionWorkRequest.Builder>();
     
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
@@ -390,26 +396,27 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
     
     // ----------------------------------------------------------------------------
-    // Coordinator Callback
+    // TransactionWorkResponse Callback
     // ----------------------------------------------------------------------------
 
     /**
-     * Coordinator -> ExecutionSite Callback
+     * This will be invoked for each TransactionWorkResponse that comes back from
+     * the remote HStoreSites. Note that we don't need to do any counting as to whether
+     * a transaction has gotten back all of the responses that it expected. That logic is down
+     * below in waitForResponses()
      */
-    private final RpcCallback<Dtxn.CoordinatorResponse> request_work_callback = new RpcCallback<Dtxn.CoordinatorResponse>() {
-        /**
-         * Convert the CoordinatorResponse into a VoltTable for the given dependency id
-         * @param parameter
-         */
+    private final RpcCallback<Hstore.TransactionWorkResponse> request_work_callback = new RpcCallback<Hstore.TransactionWorkResponse>() {
         @Override
-        public void run(Dtxn.CoordinatorResponse parameter) {
-            assert(parameter.getResponseCount() > 0) : "Got a CoordinatorResponse with no FragmentResponseMessages!";
+        public void run(Hstore.TransactionWorkResponse msg) {
+            long txn_id = msg.getTransactionId();
+            AbstractTransaction ts = ExecutionSite.this.txn_states.get(txn_id);
+            assert(ts != null) : "No transaction state exists for txn #" + txn_id + " " + txn_states;
             
-            // Ignore (I think this is ok...)
-            if (t) LOG.trace("Processing Dtxn.CoordinatorResponse in RPC callback with " + parameter.getResponseCount() + " embedded responses");
-            for (int i = 0, cnt = parameter.getResponseCount(); i < cnt; i++) {
-                ByteString serialized = parameter.getResponse(i).getOutput();
-                
+            if (t)
+                LOG.trace(String.format("Processing Hstore.TransactionWorkResponse for %s with %d results",
+                                        ts, msg.getResultsCount()));
+            for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
+                ByteString serialized = msg.getResults(i).getOutput();
                 FragmentResponseMessage response = null;
                 try {
                     response = (FragmentResponseMessage)VoltMessage.createMessageFromBuffer(serialized.asReadOnlyByteBuffer(), false);
@@ -418,13 +425,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     System.exit(1);
                 }
                 assert(response != null);
-                long txn_id = response.getTxnId();
-                
-                // Since there is no data for us to store, we will want to just let the TransactionState know
-                // that we got a response. This ensures that the txn isn't unblocked just because the data arrives
-                AbstractTransaction ts = ExecutionSite.this.txn_states.get(txn_id);
-                assert(ts != null) : "No transaction state exists for txn #" + txn_id + " " + txn_states;
-                ExecutionSite.this.processFragmentResponseMessage(ts, response);
+                ExecutionSite.this.processFragmentResponseMessage((LocalTransaction)ts, response);
             } // FOR
         }
     }; // END CLASS
@@ -444,7 +445,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 m_registeredSysProcPlanFragments.put(pfId, proc);
                 LOG.trace("Registered " + proc.getClass().getSimpleName() + " sysproc handle for FragmentId #" + pfId);
             }
-        }
+        } // SYNCH
     }
 
     /**
@@ -976,7 +977,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param ts
      * @param fresponse
      */
-    protected void processFragmentResponseMessage(AbstractTransaction ts, FragmentResponseMessage fresponse) {
+    protected void processFragmentResponseMessage(LocalTransaction ts, FragmentResponseMessage fresponse) {
         if (t) LOG.trace(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
                                        ts, this.partitionId, fresponse.getSourcePartitionId(), fresponse.getTableCount()));
         
@@ -1260,7 +1261,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } else {
             this.error_counter.getAndIncrement();
             if (is_local && is_dtxn == false) {
-                this.processFragmentResponseMessage(ts, fresponse);
+                this.processFragmentResponseMessage((LocalTransaction)ts, fresponse);
             } else {
                 // TODO: We need to group together all of the FragmentResponses for this transaction
                 // from all of the partitions so that we only send one single message
@@ -1589,7 +1590,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void doWork(FragmentTaskMessage task, RpcCallback<Dtxn.FragmentResponse> callback) {
+    public void doWork(FragmentTaskMessage task, RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
         long txn_id = task.getTxnId();
         long client_handle = task.getClientHandle();
         
@@ -1698,7 +1699,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param fresponse
      */
     public void sendFragmentResponseMessage(RemoteTransaction ts, FragmentTaskMessage ftask, FragmentResponseMessage fresponse) {
-        RpcCallback<Dtxn.FragmentResponse> callback = ts.getFragmentTaskCallback();
+        RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback = ts.getFragmentTaskCallback();
         if (callback == null) {
             LOG.fatal("Unable to send FragmentResponseMessage:\n" + fresponse.toString());
             LOG.fatal("Orignal FragmentTaskMessage:\n" + ftask);
@@ -1709,24 +1710,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         BBContainer bc = fresponse.getBufferForMessaging(buffer_pool);
         assert(bc.b.hasArray());
         ByteString bs = ByteString.copyFrom(bc.b.array());
-//        ByteBuffer serialized = bc.b.asReadOnlyBuffer();
-//        LOG.info("Serialized FragmentResponseMessage [size=" + serialized.capacity() + ",id=" + serialized.get(VoltMessage.HEADER_SIZE) + "]");
-//        assert(serialized.get(VoltMessage.HEADER_SIZE) == VoltMessage.FRAGMENT_RESPONSE_ID);
-        
         if (d) LOG.debug(String.format("Sending FragmentResponseMessage for %s [partition=%d, size=%d]", ts, this.partitionId, bs.size()));
-        Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder().setOutput(bs);
-        
-        switch (fresponse.getStatusCode()) {
-            case FragmentResponseMessage.SUCCESS:
-                builder.setStatus(Dtxn.FragmentResponse.Status.OK);
-                break;
-            case FragmentResponseMessage.UNEXPECTED_ERROR:
-            case FragmentResponseMessage.USER_ERROR:
-                builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_USER);
-                break;
-            default:
-                assert(false) : "Unexpected FragmentResponseMessage status '" + fresponse.getStatusCode() + "'";
-        } // SWITCH
+        Hstore.TransactionWorkResponse.PartitionResult.Builder builder = Hstore.TransactionWorkResponse.PartitionResult.newBuilder()
+                                                                                    .setOutput(bs)
+                                                                                    .setError(fresponse.getException() != null);
         callback.run(builder.build());
         bc.discard();
     }
@@ -1777,7 +1764,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (this.done_partitions.size() > 0) {
                 if (d) LOG.debug(String.format("Marking %d partitions as done after this fragment for %s: %s\n%s",
                                  this.done_partitions.size(), ts, this.done_partitions, estimate));
-                this.hstore_messenger.sendDoneAtPartitions(txn_id, this.done_partitions);
+                this.hstore_messenger.transactionFinish(txn_id, this.done_partitions);
             }
         }
     }
@@ -1792,14 +1779,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(ts != null);
         long txn_id = ts.getTransactionId();
 
-        if (t) LOG.trace(String.format("Combining %d FragmentTaskMessages into a single Dtxn.CoordinatorFragment for %s", tasks.size(), ts));
-        
-        // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
-        // waiting for an input dependency. Note that we pack all the fragments into a single
-        // CoordinatorFragment rather than sending each FragmentTaskMessage in its own message
-        Dtxn.CoordinatorFragment.Builder requestBuilder = Dtxn.CoordinatorFragment
-                                                                .newBuilder()
-                                                                .setTransactionId(txn_id);
+        if (t) LOG.trace(String.format("Wrapping %d FragmentTaskMessages into a Hstore.TransactionWorkRequest for %s", tasks.size(), ts));
         
         // If our transaction was originally designated as a single-partitioned, then we need to make
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
@@ -1809,15 +1789,17 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         Set<Integer> done_partitions = ts.getDonePartitions();
         
         if (hstore_conf.site.exec_speculative_execution) this.notifyDonePartitions(ts);
-        
+
+        // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
+        // waiting for an input dependency. Note that we pack all the fragments into a single
+        // CoordinatorFragment rather than sending each FragmentTaskMessage in its own message
+        assert(tmp_transactionRequestBuildersMap.isEmpty());
         for (FragmentTaskMessage ftask : tasks) {
             assert(!ts.isBlocked(ftask));
             
-            // Important! Set the UsingDtxn flag for each FragmentTaskMessage so that we know
-            // how to respond on the other side of the request
-            ftask.setUsingDtxnCoordinator(true);
-            
             int target_partition = ftask.getDestinationPartitionId();
+            int target_site = hstore_site.getSiteIdForPartitionId(target_partition);
+            
             // Make sure things are still legit for our single-partition transaction
             if (predict_singlepartition && target_partition != this.partitionId) {
                 if (d) LOG.debug(String.format("%s on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d",
@@ -1849,14 +1831,19 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     ftask.attachResults(e.getKey(), e.getValue());
                 } // FOR
             }
+
+            Hstore.TransactionWorkRequest.Builder request = tmp_transactionRequestBuildersMap.get(target_site);
+            if (request == null) {
+                request = Hstore.TransactionWorkRequest.newBuilder()
+                                        .setTransactionId(txn_id);
+                tmp_transactionRequestBuildersMap.put(target_site, request);
+            }
             
-            // Nasty...
+            // The ByteString API forces us to copy from our buffer... 
             ByteString bs = ByteString.copyFrom(ftask.getBufferForMessaging(buffer_pool).b.array());
-            requestBuilder.addFragment(Dtxn.CoordinatorFragment.PartitionFragment.newBuilder()
-                    .setPartitionId(target_partition)
-                    .setWork(bs)
-            );
-            
+            request.addFragments(Hstore.TransactionWorkRequest.PartitionFragment.newBuilder()
+                                                                .setPartitionId(target_partition)
+                                                                .setWork(bs));
         } // FOR (tasks)
 
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure
@@ -1869,10 +1856,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         
         // Bombs away!
-        Dtxn.CoordinatorFragment dtxn_request = requestBuilder.build(); 
-        this.hstore_site.requestWork(ts, dtxn_request, this.request_work_callback);
-        if (d) LOG.debug(String.format("Work request is sent for %s [bytes=%d, #fragments=%d]",
-                                       ts, dtxn_request.getSerializedSize(), tasks.size()));
+        this.hstore_messenger.transactionWork(tmp_transactionRequestBuildersMap, this.request_work_callback);
+        if (d) LOG.debug(String.format("Work request for %d fragments was sent to %d remote HStoreSites for %s",
+                                       tasks.size(), tmp_transactionRequestBuildersMap.size(), ts));
+        
+        // We want to clear out our temporary map here so that we don't have to do it
+        // the next time we need to use this
+        tmp_transactionRequestBuildersMap.clear();
     }
 
     /**

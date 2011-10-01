@@ -40,7 +40,7 @@ public class SinglePartitionTxnCallback extends AbstractTxnCallback implements R
         // as soon as possible...
         if (mispredict) {
             if (d) LOG.debug(String.format("Restarting %s because it mispredicted", this.ts));
-            this.hstore_site.misprediction(this.ts, this.done);
+            this.hstore_site.mispredictTransaction(this.ts, this.done);
             
         // If the txn committed/aborted, then we can send the response directly back to the client here
         // Note that we don't even need to call HStoreSite.finishTransaction() since that doesn't do anything

@@ -41,7 +41,7 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
         // If the txn was mispredicted, then we will pass the information over to the HStoreSite
         // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
         // as soon as possible...
-        if (mispredict) this.hstore_site.misprediction(this.ts, this.done);
+        if (mispredict) this.hstore_site.mispredictTransaction(this.ts, this.done);
 
         // According to the where ever the VoltProcedure was running, our transaction is
         // now complete (either aborted or committed). So we need to tell Dtxn.Coordinator

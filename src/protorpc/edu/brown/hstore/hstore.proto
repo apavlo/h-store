@@ -61,7 +61,7 @@ message TransactionWorkResponse {
         // Serialized FragmentTaskResponse
         required bytes output = 2;
         // If this partition hit an error, this field will contain the error message.
-        optional string error = 3;
+        optional bool error = 3 [default = false];
     }
     enum Status {
         // The remote HStoreSite executed all of the PartitionFragments successfully
