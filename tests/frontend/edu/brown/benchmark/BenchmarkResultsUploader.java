@@ -38,9 +38,12 @@ import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.apache.log4j.Logger;
+
 public class BenchmarkResultsUploader {
+    public static final Logger LOG = Logger.getLogger(BenchmarkResultsUploader.class);
     
-    private static final SimpleDateFormat df = new SimpleDateFormat("yy-MM-dd HH:mm");
+    private static final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm");
     
     private final URL  m_url;
     
@@ -130,6 +133,7 @@ public class BenchmarkResultsUploader {
      * @param txnrate The transactions executed per second
      */
     public void post(Double txnrate) {
+        final boolean debug = LOG.isDebugEnabled();
         StringBuilder sb = new StringBuilder();
         
         // RESULT_VALUE
@@ -157,6 +161,8 @@ public class BenchmarkResultsUploader {
             }
         } // FOR
         
+        if (debug)
+            LOG.debug("Uploading benchmark results to " + m_url);
         try {
             // Send the request
             URLConnection conn = m_url.openConnection();
@@ -178,7 +184,8 @@ public class BenchmarkResultsUploader {
             reader.close();
 
             // Output the response
-            // System.out.println(answer.toString());
+            if (debug)
+                LOG.debug("Upload Result:\n" + answer.toString());
         } catch (MalformedURLException ex) {
             ex.printStackTrace();
         } catch (IOException ex) {
