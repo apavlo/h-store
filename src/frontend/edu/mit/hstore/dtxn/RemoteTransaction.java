@@ -31,11 +31,11 @@ import org.voltdb.VoltTable;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.Hstore;
 import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.dtxn.Dtxn;
 
 /**
  * 
@@ -65,7 +65,7 @@ public class RemoteTransaction extends AbstractTransaction {
         }
     };
     
-    private RpcCallback<Dtxn.FragmentResponse> fragment_callback;
+    private RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> fragment_callback;
     
     public RemoteTransaction(ExecutionSite executor) {
         super(executor);
@@ -128,7 +128,7 @@ public class RemoteTransaction extends AbstractTransaction {
      * Return the previously stored callback for a FragmentTaskMessage
      * @return
      */
-    public RpcCallback<Dtxn.FragmentResponse> getFragmentTaskCallback() {
+    public RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> getFragmentTaskCallback() {
         return (this.fragment_callback);
     }
     
@@ -136,7 +136,7 @@ public class RemoteTransaction extends AbstractTransaction {
      * Store a callback specifically for one FragmentTaskMessage 
      * @param callback
      */
-    public void setFragmentTaskCallback(RpcCallback<Dtxn.FragmentResponse> callback) {
+    public void setFragmentTaskCallback(RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
         assert(callback != null) : "Null callback for txn #" + this.txn_id;
         if (trace.get()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callback = callback;
