@@ -52,6 +52,10 @@ message TransactionWorkRequest {
 
     // Set of partitions to send work to. A partition can appear only once in this list.
     repeated PartitionFragment fragments = 2;
+    
+    // List of partitions that this transaction is done with
+    // This allows us to piggyback on this message additional information
+    repeated int32 done_partition = 3 [packed=true];
 }
 
 message TransactionWorkResponse {
