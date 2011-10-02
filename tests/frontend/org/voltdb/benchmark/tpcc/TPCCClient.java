@@ -598,11 +598,11 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (LOG.isDebugEnabled()) LOG.debug("NewOrder clientResponse.getStatus() = " + clientResponse.getStatusName());
+            if (LOG.isDebugEnabled()) LOG.debug("NewOrder clientResponse.getStatus() = " + clientResponse.getStatus());
             
             if (crash_on_error) {
                 boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
-                assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatusName();
+                assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatus();
             }
             incrementTransactionCounter(TPCCSimulation.Transaction.NEW_ORDER.ordinal());
         }

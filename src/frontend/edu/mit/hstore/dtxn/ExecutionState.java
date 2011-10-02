@@ -108,14 +108,12 @@ public class ExecutionState {
      * Partition-DependencyId Key Offset -> Next SQLStmt Index
      */
     protected final Map<Integer, Queue<Integer>> results_dependency_stmt_ctr = new ConcurrentHashMap<Integer, Queue<Integer>>();
-    protected final Map<Integer, Queue<Integer>> responses_dependency_stmt_ctr = new ConcurrentHashMap<Integer, Queue<Integer>>();
 
     /**
-     * Sometimes we will get responses/results back while we are still queuing up the rest of the tasks and
+     * Sometimes we will get results back while we are still queuing up the rest of the tasks and
      * haven't started the next round. So we need a temporary space where we can put these guys until 
      * we start the round. Otherwise calculating the proper latch count is tricky
      */
-    protected final Set<Integer> queued_responses = new ListOrderedSet<Integer>();
     protected final Map<Integer, VoltTable> queued_results = new ListOrderedMap<Integer, VoltTable>();
     
     /**
@@ -187,16 +185,12 @@ public class ExecutionState {
     public void clearRound() {
         this.partition_dependency_keys.clear();
         this.output_order.clear();
-        this.queued_responses.clear();
         this.queued_results.clear();
         this.blocked_tasks.clear();
         this.internal_dependencies.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
-            q.clear();
-        } // FOR
-        for (Queue<Integer> q : this.responses_dependency_stmt_ctr.values()) {
             q.clear();
         } // FOR
         

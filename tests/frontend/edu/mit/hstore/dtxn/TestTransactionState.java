@@ -285,7 +285,6 @@ public class TestTransactionState extends BaseTestCase {
                 int dependency_id = this.internal_dependency_ids.get(stmt_index);
                 LOG.debug("Adding result for [partition=" + partition + ", dependency_id=" + dependency_id + ", stmt_index=" + stmt_index + "]");
                 this.ts.addResult(partition, dependency_id, FAKE_RESULT);
-                this.ts.addResponse(partition, dependency_id);
             } // FOR
         } // FOR
         if (NUM_PARTITIONS != internal_dinfo.getResults().size()) {
@@ -331,12 +330,10 @@ public class TestTransactionState extends BaseTestCase {
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
                     this.ts.addResult(partition, dependency_id, copy);
-                    this.ts.addResponse(partition, dependency_id);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result
                 } else {
                     this.ts.addResult(partition, dependency_id, FAKE_RESULT);
-                    this.ts.addResponse(partition, dependency_id);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
@@ -374,12 +371,10 @@ public class TestTransactionState extends BaseTestCase {
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
                     this.ts.addResult(partition, dependency_id, copy);
-                    this.ts.addResponse(partition, dependency_id);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result
                 } else {
                     this.ts.addResult(partition, dependency_id, FAKE_RESULT);
-                    this.ts.addResponse(partition, dependency_id);
                     LOG.debug("Adding result for [partition=" + partition + ", dependency_id=" + dependency_id + "]");
                 }
             } // FOR (partition)

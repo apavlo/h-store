@@ -33,9 +33,8 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
 
     @Override
     public void globalInit(ExecutionSite site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
-            Integer local_partition) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
         site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsDistribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsAggregate, this);
     }

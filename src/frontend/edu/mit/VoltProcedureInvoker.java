@@ -51,7 +51,7 @@ public class VoltProcedureInvoker {
         
         ClientResponse cresponse = client.callProcedure(catalog_proc.getName(), parameters);
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Status", cresponse.getStatusName());
+        m.put("Status", cresponse.getStatus());
         m.put("Length", String.format("%d [bytes=%d]", cresponse.getResults().length, cresponse.getResultsSize()));
         m.put("Results", StringUtil.join("\n", cresponse.getResults()));
         System.out.println(StringUtil.formatMaps(m));

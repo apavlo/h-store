@@ -2,7 +2,6 @@ package edu.mit.hstore.dtxn;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -87,11 +86,6 @@ public class DependencyInfo implements Poolable {
     protected final List<VoltTable> results_list = new ArrayList<VoltTable>();
     
     /**
-     * List of PartitionIds that have sent responses
-     */
-    protected final List<Integer> responses = new ArrayList<Integer>();
-    
-    /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
     protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
@@ -126,7 +120,6 @@ public class DependencyInfo implements Poolable {
         this.partitions.clear();
         this.results.clear();
         this.results_list.clear();
-        this.responses.clear();
         this.blocked_tasks.clear();
         this.blocked_tasks_released.set(false);
 //        this.blocked_all_local = true;
@@ -186,19 +179,6 @@ public class DependencyInfo implements Poolable {
     }
     
     /**
-     * Add a response for a PartitionId
-     * Returns true if we have also stored the result for this PartitionId
-     * @param partition
-     * @return
-     */
-    public synchronized boolean addResponse(int partition) {
-        if (t) LOG.trace("Storing RESPONSE for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id);
-        assert(this.responses.contains(partition) == false);
-        this.responses.add(partition);
-        return (this.results.contains(partition));
-    }
-    
-    /**
      * Add a result for a PartitionId
      * Returns true if we have also stored the response for this PartitionId
      * @param partition
@@ -210,7 +190,7 @@ public class DependencyInfo implements Poolable {
         assert(this.results.contains(partition) == false);
         this.results.add(partition);
         this.results_list.add(result);
-        return (this.responses.contains(partition)); 
+        return (true); // this.responses.contains(partition)); 
     }
     
     protected List<VoltTable> getResults() {
@@ -234,10 +214,6 @@ public class DependencyInfo implements Poolable {
         return (this.results_list);
     }
     
-    protected List<Integer> getResponses() {
-        return (this.responses);
-    }
-    
     /**
      * Return just the first result for this DependencyInfo
      * This should only be called to get back the results for the final VoltTable of a query
@@ -254,17 +230,13 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public boolean hasTasksReady() {
-        int num_partitions = this.partitions.size();
         if (t) {
             LOG.trace("Block Tasks Not Empty? " + !this.blocked_tasks.isEmpty());
-            LOG.trace("# of Results:   " + this.results.size());
-            LOG.trace("# of Responses: " + this.responses.size());
-            LOG.trace("# of <Responses/Results> Needed = " + num_partitions);
+            LOG.trace(String.format("# of Results:   %d / %d", this.results.size(), this.partitions.size()));
         }
         boolean ready = (this.blocked_tasks.isEmpty() == false) &&
                         (this.blocked_tasks_released.get() == false) &&
-                        (this.results.size() == num_partitions) &&
-                        (this.responses.size() == num_partitions);
+                        (this.results.size() == this.partitions.size());
         return (ready);
     }
     
@@ -284,8 +256,7 @@ public class DependencyInfo implements Poolable {
         
         StringBuilder b = new StringBuilder();
         String status = null;
-        int num_partitions = this.partitions.size();
-        if (this.results.size() == num_partitions && this.responses.size() == num_partitions) {
+        if (this.results.size() == this.partitions.size()) {
             if (this.blocked_tasks_released.get() == false) {
                 status = "READY";
             } else {
@@ -299,7 +270,6 @@ public class DependencyInfo implements Poolable {
         
         b.append("DependencyInfo[#").append(this.dependency_id).append("]\n")
          .append("  Partitions: ").append(this.partitions).append("\n")
-         .append("  Responses:  ").append(this.responses.size()).append("\n")
          .append("  Results:    ").append(this.results.size()).append("\n")
          .append("  Blocked:    ").append(this.blocked_tasks).append("\n")
          .append("  Status:     ").append(status).append("\n");

@@ -142,7 +142,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Final RpcCallback to the client
      */
-    public RpcCallback<byte[]> client_callback;
+    private RpcCallback<byte[]> client_callback;
     
     public final ProtoRpcController rpc_request_init = new ProtoRpcController();
     public final ProtoRpcController rpc_request_work = new ProtoRpcController();
@@ -286,9 +286,6 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public void initRound(long undoToken) {
         assert(this.state != null);
-        assert(this.state.queued_responses.isEmpty()) : 
-            String.format("Trying to initialize round for txn #%d but there are %d queued responses",
-                          this.txn_id, this.state.queued_responses.size());
         assert(this.state.queued_results.isEmpty()) : 
             String.format("Trying to initialize round for txn #%d but there are %d queued results",
                           this.txn_id, this.state.queued_results.size());
@@ -324,20 +321,15 @@ public class LocalTransaction extends AbstractTransaction {
                 "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.state.output_order.size();
             
             // Release any queued responses/results
-            if (t) LOG.trace("Releasing " + this.state.queued_responses.size() + " queued responses");
-            int key[] = new int[2];
-            for (Integer response : this.state.queued_responses) {
-                this.state.getPartitionDependencyFromKey(response.intValue(), key);
-                this.processResultResponse(key[0], key[1], response.intValue(), null);
-            } // FOR
-            if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
-            
-            for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
-                this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
-                this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
-            } // FOR
-            this.state.queued_responses.clear();
-            this.state.queued_results.clear();
+            if (this.state.queued_results.isEmpty() == false) {
+                if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
+                int key[] = new int[2];
+                for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
+                    this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
+                    this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
+                } // FOR
+                this.state.queued_results.clear();
+            }
             
             // Now create the latch
             int count = this.state.dependency_ctr - this.state.received_ctr;
@@ -353,7 +345,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public void finishRound() {
         assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
-        assert(this.state.queued_responses.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.state.queued_responses.size() + " queued responses";
         assert(this.state.queued_results.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.state.queued_results.size() + " queued results";
         
         if (d) LOG.debug("Finishing " + (this.exec_local ? "" : "non-") + "local round for txn #" + this.txn_id);
@@ -585,7 +576,6 @@ public class LocalTransaction extends AbstractTransaction {
      * Get the final results of the last round of execution for this Transaction
      * @return
      */
-    @Override
     public VoltTable[] getResults() {
         final VoltTable results[] = new VoltTable[this.state.output_order.size()];
         if (d) LOG.debug("Generating output results with " + results.length + " tables for txn #" + this.txn_id);
@@ -639,18 +629,12 @@ public class LocalTransaction extends AbstractTransaction {
                     Integer key_idx = this.state.createPartitionDependencyKey(partition, dependency_id.intValue());
     
                     Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
-                    Queue<Integer> resp_stmt_ctr = this.state.responses_dependency_stmt_ctr.get(key_idx);
                     if (rest_stmt_ctr == null) {
-                        assert(resp_stmt_ctr == null);
                         rest_stmt_ctr = new LinkedList<Integer>();
-                        resp_stmt_ctr = new LinkedList<Integer>();
                         this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
-                        this.state.responses_dependency_stmt_ctr.put(key_idx, resp_stmt_ctr);
                     }
                     rest_stmt_ctr.add(stmt_index);
-                    resp_stmt_ctr.add(stmt_index);
                     if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
-                    assert(resp_stmt_ctr.size() == rest_stmt_ctr.size());
                 } // FOR
             } // SYNCH
         }
@@ -676,17 +660,6 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return (blocked);
     }
-
-    /**
-     * 
-     * @param partition
-     * @param dependency_id
-     */
-    public void addResponse(int partition, int dependency_id) {
-        final int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-        this.processResultResponse(partition, dependency_id, key, null);
-    }
-    
     
     /**
      * 
@@ -700,18 +673,6 @@ public class LocalTransaction extends AbstractTransaction {
         int key = this.state.createPartitionDependencyKey(partition, dependency_id);
         this.processResultResponse(partition, dependency_id, key, result);
     }
-
-    /**
-     * Add a result with a response (this is slow and should only be used for testing);
-     * @param partition
-     * @param dependency_id
-     * @param result
-     */
-    public void addResultWithResponse(int partition, int dependency_id, VoltTable result) {
-        int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-        this.processResultResponse(partition, dependency_id, key, null);
-        this.processResultResponse(partition, dependency_id, key, result);
-    }
     
     /**
      * 
@@ -720,57 +681,49 @@ public class LocalTransaction extends AbstractTransaction {
      * @param result
      */
     private void processResultResponse(final int partition, final int dependency_id, final int key, VoltTable result) {
-        final String type = (d ? (result != null ? "RESULT" : "RESPONSE") : null);
+        assert(result != null);
         assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         assert(this.exec_local) :
-            "Trying to store " + type + " for txn #" + this.txn_id + " but it is not executing locally!";
+            "Trying to store result for txn #" + this.txn_id + " but it is not executing locally!";
 
         DependencyInfo dinfo = null;
-        Map<Integer, Queue<Integer>> stmt_ctr = (result != null ? this.state.results_dependency_stmt_ctr : this.state.responses_dependency_stmt_ctr);
+        Map<Integer, Queue<Integer>> stmt_ctr = this.state.results_dependency_stmt_ctr;
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
         synchronized (this.state) {
             if (this.round_state == RoundState.INITIALIZED) {
-                if (result != null) {
-                    assert(this.state.queued_results.containsKey(key) == false) : "Duplicate " + type + " " + key + " for txn #" + this.txn_id;
-                    this.state.queued_results.put(key, result);
-                } else {
-                    assert(this.state.queued_responses.contains(key) == false) : "Duplicate " + type + " " + key + " for txn #" + this.txn_id;
-                    this.state.queued_responses.add(key);
-                }
-                if (t) LOG.trace("Queued " + type + " " + key + " for txn #" + this.txn_id + " until the round is started");
+                assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
+                this.state.queued_results.put(key, result);
+                if (t) LOG.trace("Queued result " + key + " for txn #" + this.txn_id + " until the round is started");
                 return;
             }
 
             // Each partition+dependency_id should be unique for a Statement batch.
             // So as the results come back to us, we have to figure out which Statement it belongs to
-            if (t) LOG.trace("Storing new " + type + " for key " + key + " in txn #" + this.txn_id);
+            if (t) LOG.trace("Storing new result for key " + key + " in txn #" + this.txn_id);
             Queue<Integer> queue = stmt_ctr.get(key);
-            if (t) LOG.trace(type + " stmt_ctr(key=" + key + "): " + queue);
+            if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + queue);
             assert(queue != null) :
-                "Unexpected partition/dependency " + type + " pair " + key + " in txn #" + this.txn_id;
+                "Unexpected partition/dependency result pair " + key + " in txn #" + this.txn_id;
             assert(queue.isEmpty() == false) :
-                "No more statements for partition/dependency " + type + " pair " + key + " in txn #" + this.txn_id + "\n" + this;
+                "No more statements for partition/dependency result pair " + key + " in txn #" + this.txn_id + "\n" + this;
             
             int stmt_index = queue.remove().intValue();
             dinfo = this.getDependencyInfo(stmt_index, dependency_id);
             assert(dinfo != null) :
                 "Unexpected DependencyId " + dependency_id + " from partition " + partition + " for txn #" + this.txn_id + " [stmt_index=" + stmt_index + "]\n" + result;
 
-            final boolean complete = (result != null ? dinfo.addResult(partition, result) : dinfo.addResponse(partition));
-            if (complete) {
-                if (t) LOG.trace("Received all RESULTS + RESPONSES for [stmt#=" + stmt_index + ", dep#=" + dependency_id + "] for txn #" + this.txn_id);
-                this.state.received_ctr++;
-                if (this.state.dependency_latch != null) {
-                    this.state.dependency_latch.countDown();
+            dinfo.addResult(partition, result);
+            this.state.received_ctr++;
+            if (this.state.dependency_latch != null) {
+                this.state.dependency_latch.countDown();
                     
-                    // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
-                    long count = this.state.dependency_latch.getCount();
-                    if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
-                    if (t) LOG.trace("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
-                }    
+                // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
+                long count = this.state.dependency_latch.getCount();
+                if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
+                if (t) LOG.trace("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
             }
         } // SYNC
         // Check whether we need to start running stuff now
@@ -798,21 +751,14 @@ public class LocalTransaction extends AbstractTransaction {
     }
 
     /**
-     * Retrieve the dependency results that are used for internal plan execution
-     * These are not the results that should be sent to the client
+     * Populate the given map with the the dependency results that are used for
+     * internal plan execution. Note that these are not the results that should be
+     * sent to the client.
+     * @param ftask
+     * @param results
      * @return
      */
-    public HashMap<Integer, List<VoltTable>> removeInternalDependencies(FragmentTaskMessage ftask) {
-        return (this.removeInternalDependencies(ftask, new HashMap<Integer, List<VoltTable>>()));
-    }
-    
-    /**
-     * Fast version!
-     * Retrieve the dependency results that are used for internal plan execution
-     * These are not the results that should be sent to the client
-     * @return
-     */
-    public synchronized HashMap<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final HashMap<Integer, List<VoltTable>> results) {
+    public synchronized Map<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final Map<Integer, List<VoltTable>> results) {
         if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d", this.state.internal_dependencies.size(), this.txn_id));
         
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
@@ -863,7 +809,6 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("# of Blocked Tasks", this.state.blocked_tasks.size());
         m.put("# of Statements", this.state.batch_size);
         m.put("Expected Results", this.state.results_dependency_stmt_ctr.keySet());
-        m.put("Expected Responses", this.state.responses_dependency_stmt_ctr.keySet());
         maps.add(m);
         
         // Predictions
@@ -924,11 +869,6 @@ public class LocalTransaction extends AbstractTransaction {
                 inner += "]\n";
             } // FOR
             
-            inner += "  Dependency Responses:\n";
-            for (Integer dependency_id : dependency_ids) {
-                inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getResponses() + "\n";
-            } // FOR
-    
             inner += "  Blocked FragmentTaskMessages:\n";
             boolean none = true;
             for (Integer dependency_id : dependency_ids) {

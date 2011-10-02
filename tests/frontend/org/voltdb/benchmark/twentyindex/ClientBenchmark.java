@@ -35,6 +35,7 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.hstore.Hstore;
 
 public class ClientBenchmark extends BenchmarkComponent {
     public static final AtomicLong globalMainId = new AtomicLong(1);
@@ -60,9 +61,9 @@ public class ClientBenchmark extends BenchmarkComponent {
     static class AsyncCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            final byte status = clientResponse.getStatus();
+            final Hstore.Status status = clientResponse.getStatus();
 
-            if (status != ClientResponse.SUCCESS) {
+            if (status != Hstore.Status.OK) {
                 System.err.println("Failed to execute!!!");
                 System.err.println(clientResponse.getException());
                 System.err.println(clientResponse.getStatusString());

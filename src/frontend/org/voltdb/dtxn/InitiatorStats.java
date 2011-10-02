@@ -24,6 +24,9 @@ import org.voltdb.SysProcSelector;
 import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.client.ClientResponse;
+
+import edu.brown.hstore.Hstore;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.HashMap;
@@ -92,15 +95,15 @@ public class InitiatorStats extends SiteStatsSource {
             connectionHostname = hostname;
         }
 
-        private void processInvocation(int delta, byte status) {
+        private void processInvocation(int delta, Hstore.Status status) {
             totalExecutionTime += delta;
             minExecutionTime = Math.min( delta, minExecutionTime);
             maxExecutionTime = Math.max(  delta, maxExecutionTime);
             lastMinExecutionTime = Math.min( delta, lastMinExecutionTime);
             lastMaxExecutionTime = Math.max( delta, lastMaxExecutionTime);
             invocationCount++;
-            if (status != ClientResponse.SUCCESS) {
-                if (status == ClientResponse.GRACEFUL_FAILURE || status == ClientResponse.USER_ABORT) {
+            if (status != Hstore.Status.OK) {
+                if (status == Hstore.Status.ABORT_GRACEFUL || status == Hstore.Status.ABORT_USER) {
                     abortCount++;
                 } else {
                     failureCount++;
@@ -119,7 +122,7 @@ public class InitiatorStats extends SiteStatsSource {
             String connectionHostname,
             StoredProcedureInvocation invocation,
             int delta,
-            byte status) {
+            Hstore.Status status) {
         final StringBuffer key = new StringBuffer(2048);
         key.append(invocation.getProcName()).append('$').append(connectionId);
         final String keyString = key.toString();

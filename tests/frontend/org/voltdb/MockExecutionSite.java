@@ -38,7 +38,6 @@ public class MockExecutionSite extends ExecutionSite {
         return (new VoltTable[]{ });
     }
     
-    @Override
     public synchronized void storeDependency(long txnId, int senderPartitionId, int dependencyId, VoltTable data) {
     	System.err.println("STORING TXN #" + txnId);
         this.dependencies.put(txnId, data);

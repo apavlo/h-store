@@ -86,6 +86,7 @@ import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.hstore.Hstore;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
@@ -266,7 +267,7 @@ public abstract class BenchmarkComponent {
     private int m_tickCounter = 0;
     
     private final boolean m_noUploading;
-    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, ClientResponse.SUCCESS, new VoltTable[0], "");
+    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, Hstore.Status.OK, new VoltTable[0], "");
     
     /**
      * Keep track of the number of tuples loaded so that we can generate table statistics
@@ -977,7 +978,7 @@ public abstract class BenchmarkComponent {
         m_tableBytes.put(tableName, byteCount);
         
         // Keep track of table stats
-        if (m_tableStats && cr.getStatus() == ClientResponse.SUCCESS) {
+        if (m_tableStats && cr.getStatus() == Hstore.Status.OK) {
             final Catalog catalog = this.getCatalog();
             assert(catalog != null);
             final Database catalog_db = CatalogUtil.getDatabase(catalog);
@@ -1321,15 +1322,15 @@ public abstract class BenchmarkComponent {
                                        ClientResponse clientResponse,
                                        boolean abortExpected,
                                        boolean errorExpected) {
-        final byte status = clientResponse.getStatus();
-        if (status != ClientResponse.SUCCESS) {
+        final Hstore.Status status = clientResponse.getStatus();
+        if (status != Hstore.Status.OK) {
             if (errorExpected)
                 return true;
 
-            if (abortExpected && status == ClientResponse.USER_ABORT)
+            if (abortExpected && status == Hstore.Status.ABORT_USER)
                 return true;
 
-            if (status == ClientResponse.CONNECTION_LOST) {
+            if (status == Hstore.Status.ABORT_CONNECTION_LOST) {
                 return false;
             }
 

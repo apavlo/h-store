@@ -5,14 +5,15 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 import org.voltdb.client.ClientResponse;
 
-import edu.brown.utils.*;
-
 import edu.brown.BaseTestCase;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProjectType;
 import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.dtxn.AbstractTransaction;
 
 /**
  * @author pavlo
@@ -66,7 +67,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        AbstractTransaction ts = new LocalTransaction(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID, false, false, true);
+        LocalTransaction ts = new LocalTransaction(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID, false, false, true);
         site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
@@ -94,11 +95,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
      */
     public void testExecuteLocalBatch() throws Exception {
         long txn_id = NEXT_TXN_ID.incrementAndGet();
-        volt_proc.setTransactionId(txn_id);
         
-        //
         // We have to slap some queries into a BatchPlan
-        //
         Procedure catalog_proc = volt_proc.getProcedure();
         assertNotNull(catalog_proc);
         SQLStmt batchStmts[] = new SQLStmt[catalog_proc.getStatements().size()];
