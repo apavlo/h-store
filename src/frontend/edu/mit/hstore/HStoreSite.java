@@ -107,7 +107,6 @@ import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
 import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
-import edu.mit.hstore.callbacks.SinglePartitionTxnCallback;
 import edu.mit.hstore.callbacks.TransactionWorkResponseCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.AbstractTransaction;
@@ -414,7 +413,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Reusable Cached Messages
-        ClientResponseImpl cresponse = new ClientResponseImpl(-1, ClientResponse.REJECTED, EMPTY_RESULT, "", -1);
+        ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, EMPTY_RESULT, "");
         this.cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
         this.cached_FragmentResponse = Dtxn.FragmentResponse.newBuilder().setStatus(Status.OK)
                                                                    .setOutput(ByteString.EMPTY)
@@ -867,7 +866,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-                ClientResponseImpl cresponse = new ClientResponseImpl(1, ClientResponse.SUCCESS, new VoltTable[0], "");
+                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, Hstore.Status.OK, EMPTY_RESULT, "");
                 FastSerializer out = new FastSerializer();
                 try {
                     out.writeObject(cresponse);
@@ -1142,7 +1141,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.exec_avoid_coordinator && single_partitioned) {
             ts.ignore_dtxn = true;
             ts.init_wrapper = wrapper;
-            SinglePartitionTxnCallback init_callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
             
             // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
             this.startTransaction(ts, ts.init_wrapper, init_callback);        
@@ -1269,7 +1267,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
         boolean single_partitioned = ts.isPredictSinglePartition();
-        assert(ts.client_callback != null) : "Missing original RpcCallback for " + ts;
+        assert(ts.getClientCallback() != null) : "Missing original RpcCallback for " + ts;
         RpcCallback<Dtxn.FragmentResponse> callback = null;
         
         ExecutionSite executor = this.executors[base_partition];
@@ -1278,19 +1276,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If we're single-partitioned, then we don't want to send back a callback now.
         // The response from the ExecutionSite should be the only response that we send back to the Dtxn.Coordinator
         // This limits the number of network roundtrips that we have to do...
-        if (ts.ignore_dtxn == false && single_partitioned == false) { //  || (txn_info.sysproc == false && hstore_conf.site.ignore_dtxn == false)) {
+        if (single_partitioned == false) {
             // We need to send back a response before we actually start executing to avoid a race condition    
-            if (d) LOG.debug(String.format("Sending back Dtxn.FragmentResponse to the InitiateTaskMessage for %s", ts));    
+            if (d) LOG.debug(String.format("Sending back Dtxn.FragmentResponse to the InitiateTaskMessage for %s", ts));
+            
+            // FIXME
             done.run(cached_FragmentResponse);
-            callback = new MultiPartitionTxnCallback(this, ts, ts.client_callback);
-        } else {
-            if (ts.init_latch != null) ts.init_latch.countDown();
-            callback = done;
+            ts.setCoordinatorCallback(new MultiPartitionTxnCallback(this, ts, ts.getClientCallback()));
         }
-        ts.setCoordinatorCallback(callback);
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
-        executor.doWork(task, callback, ts);
+        executor.doWork(task, ts);
         
         if (hstore_conf.site.status_show_txn_info) {
             assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id;
@@ -1364,44 +1360,51 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                                                ts.getBasePartition(),
                                                                                payload.toByteArray(),
                                                                                Dtxn.FragmentResponse.Status.OK,
-                                                                               ts.client_callback);
+                                                                               ts.getClientCallback());
         this.requestFinish(ts, request, callback);
         if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(ts.getProcedureName());
     }
-    
-    /**
-     * This method is the first part of two phase commit for a transaction.
-     * If speculative execution is enabled, then we'll notify each the ExecutionSites
-     * for the listed partitions that it is done. This will cause all the 
-     * that are blocked on this transaction to be released immediately and queued 
-     * @param request
-     */
-    public void finishPrepareTransaction(Hstore.TransactionFinishRequest request) {
-        assert(request.hasTransactionId()) : "Got Hstore.TransactionFinishRequest without a txn id!";
-        long txn_id = request.getTransactionId();
-        assert(request.getStatus() == Hstore.TransactionFinishRequest.Status.PREPARE);
 
-        if (hstore_conf.site.exec_speculative_execution) {
-            int spec_cnt = 0;
-            for (int p : request.getPartitionsList()) {
-                if (this.txnid_managers[p] == null) continue;
+    
+    
+    
+    public void prepareTransaction(LocalTransaction ts, ClientResponseImpl cresponse) {
+        Hstore.TransactionPrepareRequest.Builder builder = Hstore.TransactionPrepareRequest.newBuilder(); 
+        RpcCallback<Dtxn.FragmentResponse> callback = ts.getCoordinatorCallback();
+        if (callback == null)
+            throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
+    
+        switch (cresponse.getStatus()) {
+            case OK:
+                if (t) LOG.trace("Marking " + ts + " as success.");
                 
-                // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
-                // one finishes. We should really have multiple queues of speculatively execute txns, but for now
-                // this is fine
-                
-    //            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
-    //                   this.speculative_txn[p] == txn_id) : String.format("Trying to enable speculative execution twice at partition %d [current=#%d, new=#%d]", p, this.speculative_txn[p], txn_id); 
-                    
-                // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
-                boolean ret = this.executors[p].enableSpeculativeExecution(txn_id, false);
-                if (d && ret) {
-                    spec_cnt++;
-                    if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+            case ABORT_MISPREDICT:
+                if (d) 
+                    LOG.debug(String.format("%s mispredicted while executing at partition %d! Aborting work and restarting [isLocal=%s, singlePartition=%s, hasError=%s]",
+                                            ts, this.partitionId, ts.isExecLocal(), ts.isExecSinglePartition(), ts.hasPendingError()));
+                if (is_singlepartitioned)
+                    this.finishWork(ts, false);
+                else
+                    builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
+                break;
+            default:
+                if (d) {
+                    if (status == Hstore.Status.ABORT_USER) {
+                        LOG.trace("Marking " + ts + " as user aborted.");
+                    } else {
+                        LOG.warn("Unexpected server error for " + ts + ": " + cresponse.getStatusString());
+                    }
                 }
-            } // FOR
-            if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
-        }
+                if (is_singlepartitioned)
+                    this.finishWork(ts, false);
+                else
+                    builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_USER);
+                break;
+        } // SWITCH
+    }
+    
+    public void finishTransaction(LocalTransaction ts, ClientResponseImpl cresponse) {
+        
     }
     
     /**
@@ -1412,8 +1415,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void finishFinalTransaction(Hstore.TransactionFinishRequest request) {
         assert(request.hasTransactionId()) : "Got Hstore.TransactionFinishRequest without a txn id!";
         long txn_id = request.getTransactionId();
-        assert(request.getStatus() != Hstore.TransactionFinishRequest.Status.PREPARE);
-        boolean commit = (request.getStatus() == Hstore.TransactionFinishRequest.Status.COMMIT);
+        boolean commit = (request.getStatus() == Hstore.Status.OK);
         if (d) 
             LOG.debug(String.format("Got Dtxn.FinishRequest for txn #%d [commit=%s]",
                                     txn_id, commit));
@@ -1430,6 +1432,61 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.executors[p.intValue()].finishWork(txn_id, commit);
             } // FOR
         }
+    }
+
+    public ByteBuffer serializeClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        FastSerializer out = new FastSerializer(ExecutionSite.buffer_pool);
+        try {
+            out.writeObject(cresponse);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        
+        // Check whether we should disable throttling
+        boolean throttle = this.checkDisableThrottling(ts.getTransactionId(), ts.getBasePartition());
+        int timestamp = this.getNextRequestCounter();
+        
+        ByteBuffer buffer = ByteBuffer.wrap(out.getBytes());
+        ClientResponseImpl.setThrottleFlag(buffer, throttle);
+        ClientResponseImpl.setServerTimestamp(buffer, timestamp);
+        
+        if (d) 
+            LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+                                    ts, throttle, timestamp));
+        return (buffer);
+    }
+    
+    /**
+     * 
+     * At this point the transaction should been properly committed or aborted at
+     * the ExecutionSite, including if it was mispredicted.
+     * @param ts
+     * @param cresponse
+     */
+    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        Hstore.Status status = cresponse.getStatus();
+        assert(ts.isExecLocal());
+        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
+        
+        // Don't send anything back if it's a mispredict because it's as waste of time...
+        // If the txn committed/aborted, then we can send the response directly back to the
+        // client here. Note that we don't even need to call HStoreSite.finishTransaction()
+        // since that doesn't do anything that we haven't already done!
+        if (status != Hstore.Status.ABORT_MISPREDICT) {
+            // Send result back to client!
+            ts.getClientCallback().run(this.serializeClientResponse(ts, cresponse).array());
+        }
+        // If the txn was mispredicted, then we will pass the information over to the HStoreSite
+        // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
+        // as soon as possible...
+        else {
+            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
+            this.mispredictTransaction(ts, ts.getClientCallback());
+        }
+        
+        // But make sure we always call HStoreSite.completeTransaction() so that we cleanup whatever internal
+        // state that we may have for this txn regardless of how it finished
+        this.completeTransaction(ts.getTransactionId(), status);
     }
 
     /**
@@ -1551,7 +1608,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void queueClientResponse(ExecutionSite es, LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
-                                       ts, es.getPartitionId(), cr.getStatusName(), this.ready_responses.size()));
+                                       ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
 //        this.queue_size.incrementAndGet();
         this.ready_responses.add(new Object[]{es, ts, cr});
     }
@@ -1573,7 +1630,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform final cleanup and book keeping for a completed txn
      * @param txn_id
      */
-    public void completeTransaction(final long txn_id, final Dtxn.FragmentResponse.Status status) {
+    public void completeTransaction(final long txn_id, final Hstore.Status status) {
         if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         LocalTransaction ts = this.inflight_txns.remove(txn_id);
         assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
@@ -1593,7 +1650,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // We have to calculate the profile information *before* we call ExecutionSite.cleanup!
         // XXX: Should we include totals for mispredicted txns?
         if (hstore_conf.site.txn_profiling && this.status_monitor != null &&
-            ts.profiler.isDisabled() == false && status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT) {
+            ts.profiler.isDisabled() == false && status != Hstore.Status.ABORT_MISPREDICT) {
             ts.profiler.stopTransaction();
             this.status_monitor.addTxnProfile(catalog_proc, ts.profiler);
         }
@@ -1621,7 +1678,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                     break;
                 case ABORT_USER:
-                case ABORT_DEADLOCK:
                     if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
                     if (t_estimator != null) t_estimator.abort(txn_id);
                     if (hstore_conf.site.status_show_txn_info) TxnCounter.ABORTED.inc(catalog_proc);
@@ -1640,7 +1696,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isExecNoUndoBuffer()) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.sysproc) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT && ts.isRejected() == false) {
+            } else if (status != Hstore.Status.ABORT_MISPREDICT && ts.isRejected() == false) {
                 (ts.isPredictSinglePartition() ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }

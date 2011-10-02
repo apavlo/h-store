@@ -164,7 +164,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(first_dinfo);
         assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedFragmentTaskMessages().size());
         this.ts.addResult(partition, first_output_dependency_id, FAKE_RESULT);
-        this.ts.addResponse(partition, first_output_dependency_id);
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
@@ -174,7 +173,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
             partition = ftask.getDestinationPartitionId();   
             int output_dependency_id = ftask.getOutputDepId(0);
             this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
-            this.ts.addResponse(partition, output_dependency_id);
         } // FOR
         assert(second_dinfo.hasTasksReleased());
     }
@@ -202,11 +200,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     if (partition != LOCAL_PARTITION) continue;
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
-                    this.ts.addResultWithResponse(partition, dependency_id, copy);
+                    this.ts.addResult(partition, dependency_id, copy);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result (if they actually need it)
                 } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
-                    this.ts.addResultWithResponse(partition, dependency_id, FAKE_RESULT);
+                    this.ts.addResult(partition, dependency_id, FAKE_RESULT);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
@@ -246,13 +244,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
                     this.ts.addResult(partition, dependency_id, copy);
-                    this.ts.addResponse(partition, dependency_id);
                     markers.add(marker++);
                     
                 // Otherwise just stuff in our fake result (if they actually need it)
                 } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
                     this.ts.addResult(partition, dependency_id, FAKE_RESULT);
-                    this.ts.addResponse(partition, dependency_id);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)

@@ -50,6 +50,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.Hstore;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
@@ -140,7 +141,7 @@ public abstract class VoltProcedure implements Poolable {
     protected int base_partition = -1;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
-    private final EventObservable observable = new EventObservable();
+    private EventObservable observable = null;
 
     // data from hsql wrapper
     private final ArrayList<VoltTable> queryResults = new ArrayList<VoltTable>();
@@ -162,7 +163,6 @@ public abstract class VoltProcedure implements Poolable {
     // INVOCATION MEMBERS
     // ----------------------------------------------------------------------------
     
-    private long txn_id = -1;
     private long client_handle;
     private boolean predict_singlepartition;
     private AbstractTransaction m_currentTxnState;  // assigned in call()
@@ -173,7 +173,7 @@ public abstract class VoltProcedure implements Poolable {
     private final Object[] batchQueryArgs[] = new Object[1000][];
     private int batchQueryArgsIndex = 0;
     private VoltTable[] results = EMPTY_RESULT;
-    private byte status = ClientResponseImpl.SUCCESS;
+    private Hstore.Status status = Hstore.Status.OK;
     private SerializableException error = null;
     private String status_msg = "";
 
@@ -201,15 +201,7 @@ public abstract class VoltProcedure implements Poolable {
      * @return transaction id
      */
     public Long getTransactionId() {
-        return this.txn_id; // m_currentTxnState.txnId;
-    }
-
-    /**
-     * Allow VoltProcedures access to their transaction id.
-     * @return transaction id
-     */
-    public void setTransactionId(long txn_id) {
-        this.txn_id = txn_id;
+        return m_currentTxnState.getTransactionId();
     }
 
     /**
@@ -232,9 +224,8 @@ public abstract class VoltProcedure implements Poolable {
      * @param eeType
      * @param hsql
      * @param p_estimator
-     * @param local_partition
      */
-    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator, Integer local_partition) {
+    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {
@@ -250,6 +241,7 @@ public abstract class VoltProcedure implements Poolable {
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
         this.base_partition = this.executor.getPartitionId();
+        assert(this.base_partition != -1);
         
         this.enable_tracing = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
                               (ProcedureProfiler.workloadTrace != null);
@@ -378,10 +370,9 @@ public abstract class VoltProcedure implements Poolable {
         
         this.m_currentTxnState = null;
         this.m_localTxnState = null;
-        this.txn_id = -1;
         this.client_handle = -1;
         this.results = EMPTY_RESULT;
-        this.status = ClientResponseImpl.SUCCESS;
+        this.status = Hstore.Status.OK;
         this.error = null;
         this.status_msg = "";
     }
@@ -418,7 +409,7 @@ public abstract class VoltProcedure implements Poolable {
     public Random getSeededRandomNumberGenerator() {
         // this value is memoized here and reset at the beginning of call(...).
         if (m_cachedRNG == null) {
-            m_cachedRNG = new Random(this.getTransactionId());
+            m_cachedRNG = new Random(this.m_currentTxnState.getTransactionId());
         }
         return m_cachedRNG;
     }
@@ -453,7 +444,10 @@ public abstract class VoltProcedure implements Poolable {
         return hashCode;
     }
 
-    public void registerCallback(EventObserver observer) {
+    public synchronized void registerCallback(EventObserver observer) {
+        if (this.observable == null) {
+            this.observable = new EventObservable();
+        }
         this.observable.addObserver(observer);
     }
 
@@ -461,108 +455,68 @@ public abstract class VoltProcedure implements Poolable {
         this.observable.deleteObserver(observer);
     }
     
+//    /**
+//     * Convenience method to call and block a VoltProcedure
+//     * @param paramList
+//     * @return
+//     */
+//    public final ClientResponse callAndBlock(LocalTransaction txnState, Object... paramList) {
+//        final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
+//        EventObserver observer = new EventObserver() {
+//            @Override
+//            public void update(Observable o, Object arg) {
+//                assert(arg != null);
+//                lock.offer((ClientResponse)arg);
+//            }
+//        };
+//        this.registerCallback(observer);
+//        this.call(txnState, paramList);
+//
+//        ClientResponse response = null;
+//        try {
+//            response = lock.take();
+//        } catch (Exception ex) {
+//            LOG.error("Failed to retrieve response from VoltProcedure blocking callback", ex);
+//        }
+//        this.unregisterCallback(observer);
+//        assert(response != null);
+//        return (response);
+//    }
+
     /**
-     * Convenience method to call and block a VoltProcedure
+     * The thing that actually executes the VoltProcedure.run() method 
      * @param paramList
      * @return
      */
-    public final ClientResponse callAndBlock(AbstractTransaction txnState, Object... paramList) {
-        final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
-        EventObserver observer = new EventObserver() {
-            @Override
-            public void update(Observable o, Object arg) {
-                assert(arg != null);
-                lock.offer((ClientResponse)arg);
-            }
-        };
-        this.registerCallback(observer);
-        this.call(txnState, paramList);
-
-        ClientResponse response = null;
-        try {
-            response = lock.take();
-        } catch (Exception ex) {
-            LOG.error("Failed to retrieve response from VoltProcedure blocking callback", ex);
-        }
-        this.unregisterCallback(observer);
-        assert(response != null);
-        return (response);
-    }
-
-    /**
-     * Non-Blocking call.
-     * @param paramList
-     * @return
-     */
-    public final ClientResponse call(AbstractTransaction txnState, Object... paramList) {
+    public final ClientResponse call(LocalTransaction txnState, Object... paramList) {
         if (d) {
             Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.base_partition));
-            if (t) LOG.trace("Setting up internal state for txn #" + txnState.getTransactionId());
+            if (t) LOG.trace("Setting up internal state for " + txnState);
         }
 
+        assert(this.m_currentTxnState == null) : "Old: " + m_currentTxnState + " -> New: " + txnState;
         ClientResponse response = null;
-        
-        assert(this.txn_id == -1) : "Old Transaction Id: " + this.txn_id + " -> New Transaction Id: " + txnState.getTransactionId();
         this.m_currentTxnState = txnState;
-        this.m_localTxnState = (LocalTransaction)txnState;
-        this.txn_id = txnState.getTransactionId();
+        this.m_localTxnState = txnState;
         this.client_handle = txnState.getClientHandle();
         this.procParams = paramList;
         this.predict_singlepartition = this.m_localTxnState.isPredictSinglePartition();
         
-        if (d) LOG.debug("Starting execution of txn #" + this.txn_id);
-        
-        try {
-            // Execute the txn (this blocks until we return)
-            if (t) LOG.trace("Invoking VoltProcedure.call for " + txnState);
-            response = this.call(); // Bombs away!
-            assert(response != null);
-
-            // Notify anybody who cares that we're finished (used in testing)
-            if (t) LOG.trace("Notifying observers that " + txnState + " is finished");
-            this.observable.notifyObservers(response);
-            
-        // VoltProcedure.call() should handle anything from the transaction
-        // If we get anything out here then that's bad news
-        } catch (Throwable ex) {
-            if (this.executor.isShuttingDown() == false) {
-                SQLStmt last[] = this.voltLastQueriesExecuted();
-                
-                LOG.fatal("Unexpected error while executing " + m_localTxnState, ex);
-                if (last.length > 0) {
-                    LOG.fatal("Last Queries Executed: " + Arrays.toString(last));
-                }
-                LOG.fatal("LocalTransactionState Dump:\n" + m_localTxnState.debug());
-                this.executor.crash(ex);
-            }
-        }
-        return (response);
-    }
-
-    /**
-     * The thing that actually executes the VoltProcedure.run() method 
-     * @return
-     */
-    private final ClientResponse call() {
         // in case someone queues sql but never calls execute, clear the queue here.
-        batchQueryStmtIndex = 0;
-        batchQueryArgsIndex = 0;
-        last_batchQueryStmtIndex = -1;
-
-        // Select a local_partition to use if we're on the coordinator, otherwise
-        // just use the real partition. We shouldn't have to do this once Evan gets it
-        // so that we can have a coordinator on each node
-        assert(this.base_partition != -1);
-
-        //lastBatchNeedsRollback = false;
-
+        this.batchQueryStmtIndex = 0;
+        this.batchQueryArgsIndex = 0;
+        this.last_batchQueryStmtIndex = -1;
+        
+        if (d) LOG.debug("Starting execution of " + this.m_currentTxnState);
         if (this.procParams.length != this.paramTypesLength) {
             String msg = "PROCEDURE " + procedure_name + " EXPECTS " + String.valueOf(paramTypesLength) +
                 " PARAMS, BUT RECEIVED " + String.valueOf(this.procParams.length);
             LOG.error(msg);
-            status = ClientResponseImpl.GRACEFUL_FAILURE;
+            status = Hstore.Status.ABORT_GRACEFUL;
             status_msg = msg;
-            return new ClientResponseImpl(this.txn_id, status, results, status_msg, this.client_handle);
+            response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, status, results, status_msg); 
+            if (this.observable != null) this.observable.notifyObservers(response);
+            return (response); 
         }
 
         for (int i = 0; i < paramTypesLength; i++) {
@@ -572,9 +526,11 @@ public abstract class VoltProcedure implements Poolable {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
                 LOG.error(msg, e);
-                status = ClientResponseImpl.GRACEFUL_FAILURE;
+                status = Hstore.Status.ABORT_GRACEFUL;
                 status_msg = msg;
-                return new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.client_handle);
+                response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.status, this.results, this.status_msg);
+                if (this.observable != null) this.observable.notifyObservers(response);
+                return (response);
             }
         }
 
@@ -583,13 +539,13 @@ public abstract class VoltProcedure implements Poolable {
         // a handle that we need to pass to the trace manager when we want to register a new query
         if (this.enable_tracing) {
             this.m_workloadQueryHandles.clear();
-            this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.txn_id, catalog_proc, this.procParams);
+            this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.m_currentTxnState.getTransactionId(), catalog_proc, this.procParams);
         }
 
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         try {
-            if (t) LOG.trace(String.format("Invoking txn #%d [procMethod=%s, class=%s, partition=%d]",
-                                           this.txn_id, this.procedure_name, getClass().getSimpleName(), this.base_partition));
+            if (t) LOG.trace(String.format("Invoking %s [class=%s, partition=%d]",
+                                           this.m_currentTxnState, this.procedure_name, getClass().getSimpleName(), this.base_partition));
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
@@ -598,13 +554,13 @@ public abstract class VoltProcedure implements Poolable {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
             } catch (RuntimeException e) {
-                LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id));
+                LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
                 throw new InvocationTargetException(e);
             } catch (AssertionError e) {
-                LOG.fatal(String.format("Unexpected error when executing %s txn #%d", this.procedure_name, this.txn_id), e);
+                LOG.fatal("Unexpected error when executing " + this.m_currentTxnState, e);
                 System.exit(1);
             }
-            if (d) LOG.debug(this.catalog_proc + " is finished for txn #" + this.txn_id);
+            if (d) LOG.debug(this.catalog_proc + " is finished for " + this.m_currentTxnState);
             
         // -------------------------------
         // Exceptions that we can process+handle
@@ -628,8 +584,8 @@ public abstract class VoltProcedure implements Poolable {
             // VoltAbortException
             // -------------------------------
             if (ex_class.equals(VoltAbortException.class)) {
-                if (d) LOG.debug("Caught VoltAbortException for txn #" + this.txn_id, ex);
-                this.status = ClientResponseImpl.USER_ABORT;
+                if (d) LOG.debug("Caught VoltAbortException for " + this.m_currentTxnState, ex);
+                this.status = Hstore.Status.ABORT_USER;
                 this.status_msg = "USER ABORT: " + ex.getMessage();
                 
                 if (this.enable_tracing && m_workloadXactHandle != null) {
@@ -639,15 +595,15 @@ public abstract class VoltProcedure implements Poolable {
             // MispredictionException
             // -------------------------------
             } else if (ex_class.equals(MispredictionException.class)) {
-                if (d) LOG.warn("Caught MispredictionException for txn #" + this.txn_id);
-                this.status = ClientResponse.MISPREDICTION;
+                if (d) LOG.warn("Caught MispredictionException for " + this.m_currentTxnState);
+                this.status = Hstore.Status.ABORT_MISPREDICT;
                 this.m_localTxnState.getTouchedPartitions().putHistogram((((MispredictionException)ex).getPartitions()));
 
             // -------------------------------
             // ConstraintFailureException
             // -------------------------------
             } else if (ex_class.equals(org.voltdb.exceptions.ConstraintFailureException.class)) {
-                this.status = ClientResponseImpl.UNEXPECTED_FAILURE;
+                this.status = Hstore.Status.ABORT_UNEXPECTED;
                 this.status_msg = "CONSTRAINT FAILURE: " + ex.getMessage();
                 
             // -------------------------------
@@ -673,9 +629,9 @@ public abstract class VoltProcedure implements Poolable {
                     }
                 }
                 if (executor.isShuttingDown() == false) {
-                    LOG.error(String.format("PROCEDURE %s UNEXPECTED ABORT TXN #%d: %s", procedure_name, this.txn_id, msg), ex);
+                    LOG.error(String.format("%s Unexpected Abort: %s", this.m_currentTxnState, msg), ex);
                 }
-                status = ClientResponseImpl.UNEXPECTED_FAILURE;
+                status = Hstore.Status.ABORT_UNEXPECTED;
                 status_msg = "UNEXPECTED ABORT: " + statusMsg;
             }
         // -------------------------------
@@ -689,7 +645,7 @@ public abstract class VoltProcedure implements Poolable {
         }
 
         // Workload Trace - Stop the transaction trace record.
-        if (this.enable_tracing && m_workloadXactHandle != null && this.status == ClientResponseImpl.SUCCESS) {
+        if (this.enable_tracing && m_workloadXactHandle != null && this.status == Hstore.Status.OK) {
             if (hstore_conf.site.trace_txn_output) {
                 ProcedureProfiler.workloadTrace.stopTransaction(m_workloadXactHandle, this.results);
             } else {
@@ -698,44 +654,21 @@ public abstract class VoltProcedure implements Poolable {
         }
         
         if (this.results == null) {
-            LOG.fatal("We got back a null result from txn #" + this.txn_id + " [proc=" + this.procedure_name + "]");
+            LOG.fatal("We got back a null result from " + this.m_currentTxnState);
             System.exit(1);
         }
         
-        ClientResponseImpl ret = null;
-        try {
-            ret = new ClientResponseImpl(this.txn_id, this.status, this.results, this.status_msg, this.error);
-            ret.setClientHandle(this.client_handle);
-        } catch (AssertionError ex) {
-            LOG.fatal("Failed to create ClientResponse for txn #" + this.txn_id + " [proc=" + this.procedure_name + "]", ex);
-            System.exit(1);
-        } catch (Exception ex) {
-            LOG.fatal("Failed to create ClientResponse for txn #" + this.txn_id + " [proc=" + this.procedure_name + "]", ex);
-            System.exit(1);
-        }
-        
-        return (ret);
+        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.status, this.results, this.status_msg, this.error);
+        if (this.observable != null) this.observable.notifyObservers(response);
+        return (response);
     }
 
     
     protected long getClientHandle() {
         return (this.client_handle);
     }
-
-    protected int getLocalPartition() {
-        return (this.base_partition);
-    }
-
-    protected Catalog getCatalog() {
-        return (this.catalog);
-        }
-
-    public Procedure getProcedure() {
+    protected Procedure getProcedure() {
         return (this.catalog_proc);
-    }
-
-    protected PartitionEstimator getPartitionEstimator() {
-        return (this.p_estimator);
     }
     
     /**
@@ -1067,9 +1000,10 @@ public abstract class VoltProcedure implements Poolable {
         // At this point we have to calculate exactly what we need to do on each partition
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
-        this.plan = this.planner.plan(this.txn_id, this.client_handle, this.base_partition, params, this.predict_singlepartition);
+        this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(), this.client_handle,
+                                      this.base_partition, params, this.predict_singlepartition);
         assert(this.plan != null);
-        if (d) LOG.debug("BatchPlan for txn #" + this.txn_id + ":\n" + plan.toString());
+        if (d) LOG.debug("BatchPlan for " + this.m_currentTxnState + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();
         
         // Tell the TransactionEstimator that we're about to execute these mofos
@@ -1106,9 +1040,9 @@ public abstract class VoltProcedure implements Poolable {
                                             planner.catalog_stmts[i].fullName(),
                                             batchStmts[i].catStmt.getSqltext(),
                                             Arrays.toString(params[i].toArray())));
-                }
+                } // FOR
                 
-                sb.append(String.format("\nTXN #%d PARAMS:\n%s", this.txn_id, sb.toString()));
+                sb.append(String.format("\n%s PARAMS:\n%s", this.m_currentTxnState, sb.toString()));
                 ParameterMangler pm = new ParameterMangler(catalog_proc);
                 Object mangled[] = pm.convert(this.procParams); 
                 for (int i = 0; i < mangled.length; i++) {
@@ -1167,13 +1101,13 @@ public abstract class VoltProcedure implements Poolable {
             
         } else {
             List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages(params);
-            if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for txn #" + this.txn_id);
+            if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for " + this.m_currentTxnState);
     
             // Block until we get all of our responses.
             // We can do this because our ExecutionSite is multi-threaded
             results = this.executor.waitForResponses(this.m_localTxnState, tasks, plan.getBatchSize());
         }
-        assert(results != null) : "Got back a null results array for txn #" + this.txn_id + "\n" + plan.toString();
+        assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         
@@ -1184,36 +1118,36 @@ public abstract class VoltProcedure implements Poolable {
     // UTILITY CRAP
     // ----------------------------------------------------------------------------
 
-    final private Object tryScalarMakeCompatible(Class<?> slot, Object param) throws Exception {
-        Class<?> pclass = param.getClass();
-        if ((slot == long.class) && (pclass == Long.class || pclass == Integer.class || pclass == Short.class || pclass == Byte.class)) return param;
-        if ((slot == int.class) && (pclass == Integer.class || pclass == Short.class || pclass == Byte.class)) return param;
-        if ((slot == short.class) && (pclass == Short.class || pclass == Byte.class)) return param;
-        if ((slot == byte.class) && (pclass == Byte.class)) return param;
-        if ((slot == double.class) && (pclass == Double.class)) return param;
-        if ((slot == String.class) && (pclass == String.class)) return param;
-        if (slot == Date.class) {
-            if (pclass == Long.class) return new Date((Long)param);
-            if (pclass == Date.class) return param;
-        }
-        if (slot == BigDecimal.class) {
-            if (pclass == Long.class) {
-                BigInteger bi = new BigInteger(param.toString());
-                BigDecimal bd = new BigDecimal(bi);
-                bd.setScale(4, BigDecimal.ROUND_HALF_EVEN);
-                return bd;
-            }
-            if (pclass == BigDecimal.class) {
-                BigDecimal bd = (BigDecimal) param;
-                bd.setScale(4, BigDecimal.ROUND_HALF_EVEN);
-                return bd;
-            }
-        }
-        if (slot == VoltTable.class && pclass == VoltTable.class) {
-            return param;
-        }
-        throw new Exception("tryScalarMakeCompatible: Unable to matoh parameters:" + slot.getName());
-    }
+//    final private Object tryScalarMakeCompatible(Class<?> slot, Object param) throws Exception {
+//        Class<?> pclass = param.getClass();
+//        if ((slot == long.class) && (pclass == Long.class || pclass == Integer.class || pclass == Short.class || pclass == Byte.class)) return param;
+//        if ((slot == int.class) && (pclass == Integer.class || pclass == Short.class || pclass == Byte.class)) return param;
+//        if ((slot == short.class) && (pclass == Short.class || pclass == Byte.class)) return param;
+//        if ((slot == byte.class) && (pclass == Byte.class)) return param;
+//        if ((slot == double.class) && (pclass == Double.class)) return param;
+//        if ((slot == String.class) && (pclass == String.class)) return param;
+//        if (slot == Date.class) {
+//            if (pclass == Long.class) return new Date((Long)param);
+//            if (pclass == Date.class) return param;
+//        }
+//        if (slot == BigDecimal.class) {
+//            if (pclass == Long.class) {
+//                BigInteger bi = new BigInteger(param.toString());
+//                BigDecimal bd = new BigDecimal(bi);
+//                bd.setScale(4, BigDecimal.ROUND_HALF_EVEN);
+//                return bd;
+//            }
+//            if (pclass == BigDecimal.class) {
+//                BigDecimal bd = (BigDecimal) param;
+//                bd.setScale(4, BigDecimal.ROUND_HALF_EVEN);
+//                return bd;
+//            }
+//        }
+//        if (slot == VoltTable.class && pclass == VoltTable.class) {
+//            return param;
+//        }
+//        throw new Exception("tryScalarMakeCompatible: Unable to matoh parameters:" + slot.getName());
+//    }
 
     public static ParameterSet getCleanParams(SQLStmt stmt, Object[] args) {
         final int numParamTypes = stmt.numStatementParamJavaTypes;
@@ -1497,19 +1431,19 @@ public abstract class VoltProcedure implements Poolable {
                 matches.add(ste);
         }
 
-        byte status = ClientResponseImpl.UNEXPECTED_FAILURE;
+        Hstore.Status status = Hstore.Status.ABORT_UNEXPECTED;
         StringBuilder msg = new StringBuilder();
 
         if (e.getClass() == VoltAbortException.class) {
-            status = ClientResponseImpl.USER_ABORT;
+            status = Hstore.Status.ABORT_USER;
             msg.append("USER ABORT\n");
         }
         else if (e.getClass() == org.voltdb.exceptions.ConstraintFailureException.class) {
-            status = ClientResponseImpl.GRACEFUL_FAILURE;
+            status = Hstore.Status.ABORT_GRACEFUL;
             msg.append("CONSTRAINT VIOLATION\n");
         }
         else if (e.getClass() == org.voltdb.exceptions.SQLException.class) {
-            status = ClientResponseImpl.GRACEFUL_FAILURE;
+            status = Hstore.Status.ABORT_GRACEFUL;
             msg.append("SQL ERROR\n");
         }
         else if (e.getClass() == org.voltdb.ExpectedProcedureException.class) {
@@ -1546,7 +1480,7 @@ public abstract class VoltProcedure implements Poolable {
                 e instanceof SerializableException ? (SerializableException)e : null);
     }
 
-    private ClientResponseImpl getErrorResponse(byte status, String msg, SerializableException e) {
+    private ClientResponseImpl getErrorResponse(Hstore.Status status, String msg, SerializableException e) {
 
         StringBuilder msgOut = new StringBuilder();
         msgOut.append("\n===============================================================================\n");
@@ -1557,7 +1491,7 @@ public abstract class VoltProcedure implements Poolable {
         LOG.trace(msgOut);
 
         return new ClientResponseImpl(
-                this.getTransactionId(),
+                this.m_currentTxnState.getTransactionId(),
                 status,
                 m_statusCode,
                 m_statusString,

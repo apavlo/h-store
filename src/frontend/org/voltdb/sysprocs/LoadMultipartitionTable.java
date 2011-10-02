@@ -33,7 +33,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
@@ -65,9 +64,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
     @Override
     public void globalInit(ExecutionSite site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
-            Integer local_partition) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
         
         site.registerPlanFragment(SysProcFragmentId.PF_loadDistribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_loadAggregate, this);

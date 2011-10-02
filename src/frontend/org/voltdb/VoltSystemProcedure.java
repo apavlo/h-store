@@ -65,8 +65,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     
     @Override
-    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator, Integer localPartition) {
-        super.globalInit(site, catalog_proc, eeType, hsql, pEstimator, localPartition);
+    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
+        super.globalInit(site, catalog_proc, eeType, hsql, pEstimator);
         this.database = CatalogUtil.getDatabase(catalog_proc);
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
     }

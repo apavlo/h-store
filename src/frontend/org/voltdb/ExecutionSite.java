@@ -103,6 +103,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
@@ -117,6 +118,7 @@ import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.ExecutionState;
 import edu.mit.hstore.dtxn.LocalTransaction;
@@ -227,8 +229,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                this.catalog_proc,
                                ExecutionSite.this.backend_target,
                                ExecutionSite.this.hsql,
-                               ExecutionSite.this.p_estimator,
-                               ExecutionSite.this.getPartitionId());
+                               ExecutionSite.this.p_estimator);
             } catch (Exception e) {
                 if (d) LOG.warn("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
                 throw e;
@@ -269,11 +270,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private Shutdownable.ShutdownState shutdown_state = Shutdownable.ShutdownState.INITIALIZED;
     private CountDownLatch shutdown_latch;
     
-    /**
-     * Counter for the number of errors that we've hit
-     */
-    private final AtomicInteger error_counter = new AtomicInteger(0);
-
     /**
      * Catalog objects
      */
@@ -394,7 +390,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
     
     // ----------------------------------------------------------------------------
-    // TransactionWorkResponse Callback
+    // Callbacks
     // ----------------------------------------------------------------------------
 
     /**
@@ -427,6 +423,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } // FOR
         }
     }; // END CLASS
+
+    /**
+     * 
+     */
+    private final RpcCallback<Hstore.TransactionFinishResponse> abort_callback = new RpcCallback<TransactionFinishResponse>() {
+        @Override
+        public void run(TransactionFinishResponse parameter) {
+            // Nothing to do!
+        }
+    };
     
     // ----------------------------------------------------------------------------
     // SYSPROC STUFF
@@ -636,8 +642,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                  catalog_proc,
                                  this.backend_target,
                                  this.hsql,
-                                 this.p_estimator,
-                                 this.getPartitionId());
+                                 this.p_estimator);
             this.procedures.put(catalog_proc.getName(), volt_proc);
         } // FOR
     }
@@ -988,8 +993,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                             fresponse.getStatusCodeName(), fresponse.getSourcePartitionId(), ts));
             ts.setPendingError(fresponse.getException());
         }
-        for (int ii = 0, num_tables = fresponse.getTableCount(); ii < num_tables; ii++) {
-            ts.addResponse(fresponse.getSourcePartitionId(), fresponse.getTableDependencyIdAtIndex(ii));
+        for (int i = 0, cnt = fresponse.getTableCount(); i < cnt; i++) {
+            assert(fresponse.hasTableAtIndex(i)) : 
+                String.format("Missing result table from FragmentResponseMessage for %s\n%s", ts, fresponse);  
+            ts.addResult(fresponse.getSourcePartitionId(),
+                         fresponse.getTableDependencyIdAtIndex(i),
+                         fresponse.getTableAtIndex(i));
         } // FOR
     }
     
@@ -1067,10 +1076,26 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (t) LOG.trace(ts.debug());
         }
             
-        ClientResponseImpl cresponse = (ClientResponseImpl)volt_proc.call(ts, itask.getParameters()); // Blocking...
+        ClientResponseImpl cresponse = null;
+        try {
+            cresponse = (ClientResponseImpl)volt_proc.call(ts, itask.getParameters()); // Blocking...
+        // VoltProcedure.call() should handle any exceptions thrown by the transaction
+        // If we get anything out here then that's bad news
+        } catch (Throwable ex) {
+            if (this.isShuttingDown() == false) {
+                SQLStmt last[] = volt_proc.voltLastQueriesExecuted();
+                
+                LOG.fatal("Unexpected error while executing " + ts, ex);
+                if (last.length > 0) {
+                    LOG.fatal("Last Queries Executed: " + Arrays.toString(last));
+                }
+                LOG.fatal("LocalTransactionState Dump:\n" + ts.debug());
+                this.crash(ex);
+            }
+        }
         assert(cresponse != null && this.isShuttingDown() == false) : String.format("No ClientResponse for %s???", ts);
-        byte status = cresponse.getStatus();
-        if (d) LOG.debug(String.format("Finished execution of %s [status=%s, txnMode=%s, mode=%s]", ts, cresponse.getStatusName(), spec_exec, this.exec_mode));
+        Hstore.Status status = cresponse.getStatus();
+        if (d) LOG.debug(String.format("Finished execution of %s [status=%s, txnMode=%s, mode=%s]", ts, status, spec_exec, this.exec_mode));
 
         // Process the ClientResponse immediately if:
         //  (1) This is the multi-partition transaction that everyone is waiting for
@@ -1078,10 +1103,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         //  (3) The transaction does not need to wait for the multi-partition transaction to finish first
         if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, spec_exec)) {
             if (hstore_conf.site.exec_postprocessing_thread) {
-                if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatusName()));
+                if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, status));
                 hstore_site.queueClientResponse(this, ts, cresponse);
             } else {
-                if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatusName()));
+                if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, status));
                 this.processClientResponse(ts, cresponse);
             }
 
@@ -1093,7 +1118,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // disable executing all transactions until the multi-partition transaction commits
             // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
             // that there already was a multi-partition transaction hanging around.
-            if (status != ClientResponse.SUCCESS) {
+            if (status != Hstore.Status.OK) {
                 this.setExecutionMode(ExecutionMode.DISABLED, txn_id);
                 synchronized (this.work_queue) {
                     FragmentTaskMessage ftask = null;
@@ -1109,7 +1134,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
             }
             if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, hasLatch=%s, latchQueue=%s, dtxn=%s]",
-                                           ts, cresponse.getStatusName(), spec_exec, this.exec_mode,
+                                           ts, cresponse.getStatus(), spec_exec, this.exec_mode,
                                            release_latch, this.exec_latch.getQueueLength(), this.current_dtxn));
             this.queueClientResponse(ts, cresponse);
         }
@@ -1135,15 +1160,15 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param spec_exec
      * @return
      */
-    private boolean canProcessClientResponseNow(LocalTransaction ts, byte status, ExecutionMode spec_exec) {
+    private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode spec_exec) {
         if (d) LOG.debug(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, mode=%s]",
-                                       ts, ClientResponseImpl.getStatusName(status), ts.isExecSinglePartition(), ts.isExecReadOnly(), spec_exec));
+                                       ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(), spec_exec));
         // Commit All
         if (spec_exec == ExecutionMode.COMMIT_ALL) {
             return (true);
             
         // Process successful txns based on the mode that it was executed under
-        } else if (status == ClientResponse.SUCCESS) {
+        } else if (status == Hstore.Status.OK) {
             switch (spec_exec) {
                 case COMMIT_ALL:
                     return (true);
@@ -1155,11 +1180,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     throw new RuntimeException("Unexpectd execution mode: " + spec_exec); 
             } // SWITCH
         // Anything mispredicted should be processed right away
-        } else if (status == ClientResponse.MISPREDICTION) {
+        } else if (status == Hstore.Status.ABORT_MISPREDICT) {
             return (true);
             
         // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        } else if (status != ClientResponse.SUCCESS && ts.isExecReadOnly()) {
+        } else if (status != Hstore.Status.OK && ts.isExecReadOnly()) {
             return (true);
         }
         
@@ -1234,7 +1259,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     int dep_id = ftask.getOutputDependencyIds()[i];
                     // ts.addResult(result.depIds[i], result.dependencies[i]);
                     if (t) LOG.trace("Storing DependencyId #" + dep_id  + " for " + ts);
-                    local_ts.addResultWithResponse(this.partitionId, dep_id, result.dependencies[i]);
+                    local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
                 } // FOR
                 
             // Otherwise push dependencies back to the remote partition that needs it
@@ -1254,7 +1279,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // ERRROR
         // ------------------------------- 
         } else {
-            this.error_counter.getAndIncrement();
             if (is_local && is_dtxn == false) {
                 this.processFragmentResponseMessage((LocalTransaction)ts, fresponse);
             } else {
@@ -1323,7 +1347,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             local_ts = (LocalTransaction)ts; 
             if (local_ts.getInternalDependencyIds().isEmpty() == false) {
                 if (t) LOG.trace("Retrieving internal dependency results from TransactionState for " + ts);
-                ts.ee_dependencies.putAll(local_ts.removeInternalDependencies(ftask));
+                local_ts.removeInternalDependencies(ftask, local_ts.ee_dependencies);
             }
         }
 
@@ -1499,23 +1523,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Store the given VoltTable as an input dependency for the given txn
-     * @param txn_id
-     * @param sender_partition_id
-     * @param dependency_id
-     * @param data
-     */
-    public void storeDependency(long txn_id, int sender_partition_id, int dependency_id, VoltTable data) {
-        AbstractTransaction ts = this.txn_states.get(txn_id);
-        if (ts == null) {
-            String msg = String.format("No transaction state for txn #%d at partition %s", txn_id, this.partitionId);
-            LOG.error(msg);
-            throw new RuntimeException(msg);
-        }
-        ts.addResult(sender_partition_id, dependency_id, data);
-    }
-    
-    /**
      * 
      * @param txn_id
      * @param clusterName
@@ -1652,11 +1659,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param callback
      * @param ts
      */
-    public void doWork(InitiateTaskMessage task, RpcCallback<Dtxn.FragmentResponse> callback, LocalTransaction ts) {
+    public void doWork(InitiateTaskMessage task, LocalTransaction ts) {
         long txn_id = task.getTxnId();
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
-        if (d) LOG.debug(String.format("Queuing new transaction execution request for %s on partition %d with%s a callback",
-                                       ts, this.partitionId, (callback == null ? "out" : "")));
+        if (d) LOG.debug(String.format("Queuing new transaction execution request for %s on partition %d",
+                                       ts, this.partitionId));
         this.txn_states.put(txn_id, ts);
         
         // If we're a multi-partition txn then queue this mofo immediately
@@ -2056,88 +2063,63 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     protected void queueClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         if (d) LOG.debug(String.format("Queuing ClientResponse for %s [handle=%s, status=%s]",
-                                       ts, ts.getClientHandle(), cresponse.getStatusName()));
+                                       ts, ts.getClientHandle(), cresponse.getStatus()));
         assert(ts.isPredictSinglePartition() == true) :
             String.format("Specutatively executed multi-partition %s [mode=%s, status=%s]",
-                          ts, this.exec_mode, cresponse.getStatusName());
+                          ts, this.exec_mode, cresponse.getStatus());
         assert(ts.isSpeculative() == true) :
             String.format("Queuing non-specutative %s [mode=%s, status=%s]",
-                          ts, this.exec_mode, cresponse.getStatusName());
+                          ts, this.exec_mode, cresponse.getStatus());
         assert(this.exec_mode != ExecutionMode.COMMIT_ALL) :
             String.format("Queuing %s when in non-specutative mode [mode=%s, status=%s]",
-                          ts, this.exec_mode, cresponse.getStatusName());
-        assert(cresponse.getStatus() != ClientResponse.MISPREDICTION) : "Trying to queue mispredicted " + ts;
+                          ts, this.exec_mode, cresponse.getStatus());
+        assert(cresponse.getStatus() != Hstore.Status.ABORT_MISPREDICT) : "Trying to queue mispredicted " + ts;
         // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.finish_time.stop();
         this.queued_responses.add(Pair.of(ts, cresponse));
         if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
     }
-
-    /**
-     * Send a ClientResponseImpl message back to the coordinator
-     */
+    
     protected void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        RpcCallback<Dtxn.FragmentResponse> callback = ts.getCoordinatorCallback();
-        if (callback == null) {
-            throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
-        }
-        assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
-        byte status = cresponse.getStatus();
-
-        // Always mark the throttling flag so that the clients know whether they are allowed to keep
-        // coming at us and make requests
-        Dtxn.FragmentResponse.Builder builder = Dtxn.FragmentResponse.newBuilder();
-        cresponse.setThrottleFlag(this.hstore_site.isIncomingThrottled(ts.getBasePartition()));
-        
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
-        boolean is_local_singlepartitioned = ts.isExecSinglePartition() && ts.isExecLocal();
-        if (d) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
-                                       ts, this.partitionId, cresponse.getClientHandle(), cresponse.getStatusName(),
-                                       ts.isExecSinglePartition(), ts.isExecLocal()));
-        switch (status) {
-            case ClientResponseImpl.SUCCESS:
-                if (t) LOG.trace("Marking " + ts + " as success.");
-                builder.setStatus(Dtxn.FragmentResponse.Status.OK);
-                if (is_local_singlepartitioned) this.finishWork(ts, true);
-                break;
-            case ClientResponseImpl.MISPREDICTION:
-                if (d) LOG.debug(String.format("%s mispredicted while executing at partition %d! Aborting work and restarting [isLocal=%s, singlePartition=%s, hasError=%s]",
-                                               ts, this.partitionId, ts.isExecLocal(), ts.isExecSinglePartition(), ts.hasPendingError()));
-                builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
-                this.finishWork(ts, false);
-                break;
-            case ClientResponseImpl.USER_ABORT:
-                if (t) LOG.trace("Marking " + ts + " as user aborted.");
-            default:
-                if (status != ClientResponseImpl.USER_ABORT) {
-                    this.error_counter.incrementAndGet();
-                    if (d) LOG.warn("Unexpected server error for " + ts + ": " + cresponse.getStatusString());
-                }
-                builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_USER);
-                if (is_local_singlepartitioned) this.finishWork(ts, false);
-                break;
-        } // SWITCH
+        boolean is_singlepartitioned = ts.isExecSinglePartition();
+        Hstore.Status status = cresponse.getStatus();
+
+        if (d)
+            LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
+                                    ts, this.partitionId, cresponse.getClientHandle(), status,
+                                    ts.isExecSinglePartition(), ts.isExecLocal()));
         
-        // Don't send anything back if it's a mispredict because it's as waste of time...
-        if (status != ClientResponseImpl.MISPREDICTION) {
-            FastSerializer out = new FastSerializer(ExecutionSite.buffer_pool);
-            try {
-                out.writeObject(cresponse);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            builder.setOutput(ByteString.copyFrom(out.getBytes()));
-            if (t) LOG.trace("RESULTS:\n" + Arrays.toString(cresponse.getResults()));
-        } else {
-            builder.setOutput(ByteString.EMPTY);
+        // ALL: Single-Partition Transactions
+        if (is_singlepartitioned) {
+            // Commit or abort the transaction
+            this.finishWork(ts, (status == Hstore.Status.OK));
+            
+            // Then send the result back to the client!
+            this.hstore_site.sendClientResponse(ts, cresponse);
+        } 
+        // COMMIT: Distributed Transaction
+        else if (status == Hstore.Status.OK) {
+            // We have to send a prepare message to all of our remote HStoreSites
+            MultiPartitionTxnCallback callback = new MultiPartitionTxnCallback(hstore_site, ts);
+            
+            this.hstore_site.prepareTransaction(ts, cresponse);
         }
-        
-        if (d) LOG.debug("Invoking Dtxn.FragmentResponse callback for " + ts);
-        callback.run(builder.build());
+        // ABORT: Distributed Transaction
+        else {
+            // Then send a message all the partitions involved that the party is over
+            // and that they need to abort the transaction. We don't actually care when we get the
+            // results back because we'll start working on new txns right away.
+            this.hstore_messenger.transactionFinish(ts, status, this.abort_callback);
+            
+            // Send back the result to the client right now, since there's no way 
+            // that we're magically going to be able to recover this and get them a result
+            // This has to come before the network messages above because this will clean-up the 
+            // LocalTransaction state information
+            this.hstore_site.sendClientResponse(ts, cresponse);
+        }
     }
-
-
         
     /**
      * Internal call to abort/commit the transaction
@@ -2308,7 +2290,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // If the multi-p txn aborted, then we need to abort everything in our queue
             // Change the status to be a MISPREDICT so that they get executed again
             if (commit == false) {
-                cr.setStatus(ClientResponse.MISPREDICTION);
+                cr.setStatus(Hstore.Status.ABORT_MISPREDICT);
                 ts.setPendingError(new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions()), false);
                 aborted++;
                 
@@ -2321,17 +2303,17 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     ts.unsetSubmittedEE();
                     skip_commit++;
                     
-                } else if (ee_commit && cr.getStatus() == ClientResponse.SUCCESS) {
+                } else if (ee_commit && cr.getStatus() == Hstore.Status.OK) {
                     if (t) LOG.trace(String.format("Committing %s but will bypass all other successful transactions [undoToken=%d]", ts, ts.getLastUndoToken()));
                     ee_commit = false;
                 }
             }
             
             if (hstore_conf.site.exec_postprocessing_thread) {
-                if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatusName()));
+                if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
                 hstore_site.queueClientResponse(this, ts, cr);
             } else {
-                if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatusName()));
+                if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
                 this.processClientResponse(ts, cr);
             }
         } // WHILE

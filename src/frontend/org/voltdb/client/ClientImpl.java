@@ -31,6 +31,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
@@ -198,7 +199,7 @@ final class ClientImpl implements Client {
         } catch (final InterruptedException e) {
             throw new java.io.InterruptedIOException("Interrupted while waiting for response");
         }
-        if (cb.getResponse().getStatus() != ClientResponse.SUCCESS) {
+        if (cb.getResponse().getStatus() != Hstore.Status.OK) {
             throw new ProcCallException(cb.getResponse(), cb.getResponse().getStatusString(), cb.getResponse().getException());
         }
         // cb.result() throws ProcCallException if procedure failed

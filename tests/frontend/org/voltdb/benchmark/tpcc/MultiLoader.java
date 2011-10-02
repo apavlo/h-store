@@ -652,7 +652,7 @@ public class MultiLoader extends BenchmarkComponent {
 //
 //                    @Override
 //                    public synchronized void clientCallback(ClientResponse clientResponse) {
-//                        if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
+//                        if (clientResponse.getStatus() != Hstore.Status.OK) {
 //                            System.err.println(clientResponse.getStatusString());
 //                            System.exit(-1);
 //                        }

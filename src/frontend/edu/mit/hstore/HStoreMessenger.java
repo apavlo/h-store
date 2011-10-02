@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
@@ -44,6 +45,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
+import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
@@ -433,7 +435,7 @@ public class HStoreMessenger implements Shutdownable {
     // TransactionFinish
     private final MessageRouter<TransactionFinishRequest, TransactionFinishResponse> router_transactionFinish = new MessageRouter<TransactionFinishRequest, TransactionFinishResponse>() {
         protected void sendLocal(long txn_id, TransactionFinishRequest msg, Collection<Integer> partitions) {
-            
+            // FIXME
         }
         protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionFinishRequest msg, RpcCallback<TransactionFinishResponse> callback) {
             channel.transactionFinish(controller, msg, callback);
@@ -508,9 +510,49 @@ public class HStoreMessenger implements Shutdownable {
             */
         }
         
+        /**
+         * This method is the first part of two phase commit for a transaction.
+         * If speculative execution is enabled, then we'll notify each the ExecutionSites
+         * for the listed partitions that it is done. This will cause all the 
+         * that are blocked on this transaction to be released immediately and queued 
+         * @param request
+         */
+        @Override
+        public void transactionPrepare(RpcController controller, TransactionPrepareRequest request,
+                RpcCallback<TransactionPrepareResponse> done) {
+            // TODO: Move into HStoreSite
+            assert(request.hasTransactionId()) : "Got Hstore.TransactionFinishRequest without a txn id!";
+            long txn_id = request.getTransactionId();
+
+            if (hstore_site.getHStoreConf().site.exec_speculative_execution) {
+                int spec_cnt = 0;
+                for (int p : request.getPartitionsList()) {
+                    if (this.txnid_managers[p] == null) continue;
+                    
+                    // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
+                    // one finishes. We should really have multiple queues of speculatively execute txns, but for now
+                    // this is fine
+                    
+        //            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
+        //                   this.speculative_txn[p] == txn_id) : String.format("Trying to enable speculative execution twice at partition %d [current=#%d, new=#%d]", p, this.speculative_txn[p], txn_id); 
+                        
+                    // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
+                    boolean ret = this.executors[p].enableSpeculativeExecution(txn_id, false);
+                    if (d && ret) {
+                        spec_cnt++;
+                        if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+                    }
+                } // FOR
+                if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+            }
+        }
+        
+        
         @Override
         public void transactionFinish(RpcController controller, TransactionFinishRequest request,
                 RpcCallback<TransactionFinishResponse> done) {
+            
+
             
             long txn_id = request.getTransactionId();
             
@@ -608,22 +650,23 @@ public class HStoreMessenger implements Shutdownable {
     }
     
     /**
-     * Notify remote HStoreSites that the multi-partition transaction is done with data
+     * Notify all remote HStoreSites that the multi-partition transaction is done with data
      * at the given partitions. This is used for the "early prepare" optimization.
      * @param txn_id
      * @param partitions
      */
-    public void transactionFinish(long txn_id, RpcCallback<Hstore.TransactionFinishResponse> callback, Collection<Integer> partitions) {
-        // We'll create a single message that contains all the partitions that 
-        // we're done with, so that we don't have to spend time making a separate 
-        // message for each HStoreSite.
+    public void transactionFinish(LocalTransaction ts, Hstore.Status status, RpcCallback<Hstore.TransactionFinishResponse> callback) {
         Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()
-                                                             .setTransactionId(txn_id)
-                                                             .addAllPartitions(partitions)
-                                                             .build();
-        this.router_transactionFinish.sendMessages(txn_id, request, callback, partitions);
+                                                        .setTransactionId(ts.getTransactionId())
+                                                        .setStatus(status)
+                                                        .addAllPartitions(ts.getDonePartitions())
+                                                        .build();
+        this.router_transactionFinish.sendMessages(request.getTransactionId(),
+                                                   request,
+                                                   callback,
+                                                   ts.getTouchedPartitions().values());
         if (debug.get())
-            LOG.debug(String.format("Notified remote HStoreSites that txn #%d is done at %d partitions", txn_id, partitions.size()));
+            LOG.debug(String.format("Notified remote HStoreSites that txn #%d is done at %d partitions", request.getTransactionId(), request.getPartitionsList().size()));
     }
     
     /**

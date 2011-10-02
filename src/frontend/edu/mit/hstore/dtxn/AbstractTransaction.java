@@ -218,12 +218,6 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable);
     
-    public abstract VoltTable[] getResults();
-    
-    public abstract void addResponse(int partition, int dependency_id);
-    
-    public abstract void addResult(int partition, int dependency_id, VoltTable result);
-
     // ----------------------------------------------------------------------------
     // ROUND METHODS
     // ----------------------------------------------------------------------------

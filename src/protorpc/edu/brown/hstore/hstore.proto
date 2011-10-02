@@ -2,6 +2,31 @@ import "ca/evanjones/protorpc/Protocol.proto";
 
 package edu.brown.hstore;
 
+enum Status {
+    // Everything is ok with the transaction and it is allowed
+    // to proceed to the next processing stage
+    OK = 0;
+    // Status code indicating the stored procedure executed successfully and was
+    // voluntarily aborted and rolled back by the stored procedure code
+    ABORT_USER = 1;
+    // Status code indicating the stored procedure failed and was rolled back. There are no negative server side
+    // side effects.
+    ABORT_GRACEFUL = 2;
+    // Status code indicating the stored procedure failed (or may never have been successfully invoked)
+    // and that there may have been negative side effects on the server
+    ABORT_UNEXPECTED = 3;
+    // Status code indicating the connection to the database that the invocation was queued at
+    // was lost before a response was received. It is possible that the invocation was sent,
+    // executed, and successfully committed before a response could be returned or the 
+    // invocation may never have been sent.
+    ABORT_CONNECTION_LOST = 4;
+    // The transaction aborted because of a misprediction (and will be restarted)
+    ABORT_MISPREDICT = 5;
+    // The transaction could not be initialized because on partition rejected it.
+    // The transaction will be retried at the initiaizing HStoreSite
+    ABORT_REJECT = 6;
+}
+
 // -----------------------------------
 // INITIALIZE TRANSACTION
 // -----------------------------------
@@ -20,15 +45,6 @@ message TransactionInitRequest {
 }
 
 message TransactionInitResponse {
-    enum Status {
-        // The remote HStoreSite is ready to run this transaction
-        OK = 0;
-        // The remote HStore will not run this transaction
-        // The transaction will be retried at the initiaizing HStoreSite
-        REJECT = 1;
-    }
-
-    // Globally unique transaction id
     required int64 transaction_id = 1;
     required Status status = 2;
 }
@@ -67,39 +83,38 @@ message TransactionWorkResponse {
         // If this partition hit an error, this field will contain the error message.
         optional bool error = 3 [default = false];
     }
-    enum Status {
-        // The remote HStoreSite executed all of the PartitionFragments successfully
-        OK = 0;
-        // The remote HStore failed to execute the PartitionFragments because of an error
-        ERROR = 1;
-    }
 
-    // Globally unique transaction id
     required int64 transaction_id = 1;
     repeated PartitionResult results = 2;
     required Status status = 3;
 }
 
 // -----------------------------------
-// FINISH TRANSACTION
+// 2PC:PREPARE TRANSACTION
 // -----------------------------------
 
-// The initiating HStoreSite is telling the remote sites
-// what needs to happen for this transaction.
-message TransactionFinishRequest {
-    enum Status {
-        // Prepare message in 2PC. At this point, the HStoreSite 
-        PREPARE = 0;
-        // The final commit message that says 2PC succeeded
-        COMMIT = 1;
-        // The transaction aborted because of user code
-        ABORT_USER = 2;
-        // The transaction aborted because of a misprediction (and will be restarted)
-        ABORT_MISPREDICT = 3;
-        // The transaction could not be initialized because on partition rejected it.
-        ABORT_REJECT = 4;
-    }
+// Two-Phase Commit Prepare
+// The initiating HStoreSite is telling the remote sites to prepare to commit
+// a distributed transaction for a select number of partitions.
+message TransactionPrepareRequest {
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+}
 
+message TransactionPrepareResponse {
+    required int64 transaction_id = 1;
+    required Status status = 2;
+}
+
+// -----------------------------------
+// 2PC:FINISH TRANSACTION
+// -----------------------------------
+
+// Two-Phase Commit Final Step
+// The initiating HStoreSite is telling the remote sites that they
+// they need to commit/abort their transaction. The PREPARE request
+// must be sent before this one only if the status is COMMIT
+message TransactionFinishRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
     repeated int32 partitions = 2 [packed=true];
@@ -107,7 +122,6 @@ message TransactionFinishRequest {
 }
 
 message TransactionFinishResponse {
-    // Globally unique transaction id
     required int64 transaction_id = 1;
 }
 
@@ -149,6 +163,7 @@ message ShutdownResponse {
 service HStoreService {
     rpc TransactionInit(TransactionInitRequest) returns (TransactionInitResponse);
     rpc TransactionWork(TransactionWorkRequest) returns (TransactionWorkResponse);
+    rpc TransactionPrepare(TransactionPrepareRequest) returns (TransactionPrepareResponse);
     rpc TransactionFinish(TransactionFinishRequest) returns (TransactionFinishResponse);
     rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);

@@ -33,6 +33,8 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 
 public class BulkTPCCClient extends BulkClient {
     private final ScaleParameters m_scaleParams;
@@ -102,7 +104,7 @@ public class BulkTPCCClient extends BulkClient {
     class DeliveryCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            assert clientResponse.getStatus() == 1;
+            assert clientResponse.getStatus() == Hstore.Status.OK;
 //            if (clientResponse.getResults()[0].getRowCount()
 //                    != m_scaleParams.districtsPerWarehouse) {
 //                System.err.println(
@@ -153,7 +155,7 @@ public class BulkTPCCClient extends BulkClient {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             assert clientResponse.getResults() != null : "Results were null";
-            assert clientResponse.getStatus() == 1 : " Result status code was not 1";
+            assert clientResponse.getStatus() == Status.OK : " Result status code was not " + Status.OK;
             if (m_transactionType != null) {
                 m_counts[m_transactionType.ordinal()].incrementAndGet();
             }
@@ -171,7 +173,7 @@ public class BulkTPCCClient extends BulkClient {
     class StockLevelCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            assert clientResponse.getStatus() == 1;
+            assert clientResponse.getStatus() == Status.OK;
             assert clientResponse.getResults().length == 1;
             assert clientResponse.getResults()[0].asScalarLong() >= 0;
             m_counts[TPCCSimulation.Transaction.STOCK_LEVEL.ordinal()].incrementAndGet();

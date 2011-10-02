@@ -79,7 +79,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
             LocalTransaction ts = (LocalTransaction)triplet[1];
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
-                                           ts, es.getPartitionId(), cr.getStatusName()));
+                                           ts, es.getPartitionId(), cr.getStatus()));
             try {
                 es.processClientResponse(ts, cr);
             } catch (Throwable ex) {
