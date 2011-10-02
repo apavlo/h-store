@@ -306,8 +306,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected HStoreConf hstore_conf;
     protected ExecutionSiteHelper helper = null;
     
-    protected final transient Set<Integer> done_partitions = new HashSet<Integer>();
-
     // ----------------------------------------------------------------------------
     // Execution State
     // ----------------------------------------------------------------------------
@@ -509,8 +507,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /**
      * Initialize the StoredProcedure runner and EE for this Site.
      * @param partitionId
-     * @param t_estimator TODO
-     * @param coordinator TODO
+     * @param t_estimator
+     * @param coordinator
      * @param siteManager
      * @param serializedCatalog A list of catalog commands, separated by
      * newlines that, when executed, reconstruct the complete m_catalog.
@@ -1220,7 +1218,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // SUCCESS
         // -------------------------------
         if (fresponse.getStatusCode() == FragmentResponseMessage.SUCCESS) {
-            // XXX: For single-sited INSERT/UPDATE/DELETE queries, we don't directly
+            // For single-partition INSERT/UPDATE/DELETE queries, we don't directly
             // execute the SendPlanNode in order to get back the number of tuples that
             // were modified. So we have to rely on the output dependency ids set in the task
             assert(result.size() == ftask.getOutputDependencyIds().length) :
@@ -1249,9 +1247,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     fresponse.addDependency(result.depIds[i], result.dependencies[i]);
                 } // FOR
-                
-                // TODO: We need to group together all of the FragmentResponses for this transaction
-                // from all of the partitions so that we only send one single message
                 this.sendFragmentResponseMessage((RemoteTransaction)ts, ftask, fresponse);
             }
 
@@ -1263,8 +1258,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (is_local && is_dtxn == false) {
                 this.processFragmentResponseMessage((LocalTransaction)ts, fresponse);
             } else {
-                // TODO: We need to group together all of the FragmentResponses for this transaction
-                // from all of the partitions so that we only send one single message
                 this.sendFragmentResponseMessage((RemoteTransaction)ts, ftask, fresponse);
             }
         }
@@ -1398,7 +1391,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Only notify other partitions that we're done with them if we're not a single-partition transaction
         if (hstore_conf.site.exec_speculative_execution && ts.isPredictSinglePartition() == false) {
-            this.notifyDonePartitions(ts);
+            // TODO: We need to notify the remote HStoreSites that we are done with their partitions
+            this.calculateDonePartitions(ts);
         }
 
         if (t) {
@@ -1723,14 +1717,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * that they are done
      * @param ts
      */
-    private void notifyDonePartitions(LocalTransaction ts) {
-        long txn_id = ts.getTransactionId();
-        Set<Integer> ts_done_partitions = ts.getDonePartitions();
+    private boolean calculateDonePartitions(LocalTransaction ts) {
+        final Set<Integer> ts_done_partitions = ts.getDonePartitions();
+        final int ts_done_partitions_size = ts_done_partitions.size();
         Set<Integer> new_done = null;
 
         TransactionEstimator.State t_state = ts.getEstimatorState();
         if (t_state == null) {
-            return;
+            return (false);
         }
         
         if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
@@ -1752,21 +1746,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             Collection<Integer> ts_touched = ts.getTouchedPartitions().values();
 
             // Mark the txn done at this partition if the MarkovEstimate said we were done
-            this.done_partitions.clear();
             for (Integer p : new_done) {
                 if (ts_done_partitions.contains(p) == false && ts_touched.contains(p)) {
                     if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, ts));
                     ts_done_partitions.add(p);
-                    this.done_partitions.add(p);
                 }
             } // FOR
-            
-            if (this.done_partitions.size() > 0) {
-                if (d) LOG.debug(String.format("Marking %d partitions as done after this fragment for %s: %s\n%s",
-                                 this.done_partitions.size(), ts, this.done_partitions, estimate));
-                this.hstore_messenger.transactionFinish(txn_id, this.done_partitions);
-            }
         }
+        return (ts_done_partitions.size() != ts_done_partitions_size);
     }
 
     /**
@@ -1788,7 +1775,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         boolean predict_singlepartition = ts.isPredictSinglePartition(); 
         Set<Integer> done_partitions = ts.getDonePartitions();
         
-        if (hstore_conf.site.exec_speculative_execution) this.notifyDonePartitions(ts);
+        boolean new_done = false;
+        if (hstore_conf.site.exec_speculative_execution) {
+            new_done = this.calculateDonePartitions(ts);
+        }
 
         // Now we can go back through and start running all of the FragmentTaskMessages that were not blocked
         // waiting for an input dependency. Note that we pack all the fragments into a single
@@ -1835,7 +1825,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             Hstore.TransactionWorkRequest.Builder request = tmp_transactionRequestBuildersMap.get(target_site);
             if (request == null) {
                 request = Hstore.TransactionWorkRequest.newBuilder()
-                                        .setTransactionId(txn_id);
+                                        .setTransactionId(txn_id)
+                                        .addAllDonePartition(done_partitions);
                 tmp_transactionRequestBuildersMap.put(target_site, request);
             }
             
@@ -1845,12 +1836,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                                 .setPartitionId(target_partition)
                                                                 .setWork(bs));
         } // FOR (tasks)
-
+        
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure
         // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
             if (t) LOG.trace(String.format("Aborting %s because it was mispredicted", ts));
-            // XXX: This is kind of screwy because we don't actually want to send the touched partitions
+            // This is kind of screwy because we don't actually want to send the touched partitions
             // histogram because VoltProcedure will just do it for us...
             throw new MispredictionException(txn_id, null);
         }
@@ -1859,6 +1850,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.hstore_messenger.transactionWork(tmp_transactionRequestBuildersMap, this.request_work_callback);
         if (d) LOG.debug(String.format("Work request for %d fragments was sent to %d remote HStoreSites for %s",
                                        tasks.size(), tmp_transactionRequestBuildersMap.size(), ts));
+
+        // TODO: We need to check whether we need to notify other HStoreSites that we didn't send
+        // a new FragmentTaskMessage to that we are done with their partitions
+        if (new_done) {
+            
+        }
         
         // We want to clear out our temporary map here so that we don't have to do it
         // the next time we need to use this

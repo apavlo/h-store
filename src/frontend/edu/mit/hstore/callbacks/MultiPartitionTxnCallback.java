@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.Hstore;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
@@ -20,12 +21,10 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
     private static final Logger LOG = Logger.getLogger(MultiPartitionTxnCallback.class);
     private static final boolean t = LOG.isTraceEnabled();
     
-    private final ByteString payload;
     private final LocalTransaction ts;
     
     public MultiPartitionTxnCallback(HStoreSite hstore_site, LocalTransaction ts, RpcCallback<byte[]> done) {
         super(hstore_site, ts.getTransactionId(), done);
-        this.payload = HStoreSite.encodeTxnId(this.txn_id);
         this.ts = ts;
     }
     
@@ -46,8 +45,7 @@ public class MultiPartitionTxnCallback extends AbstractTxnCallback implements Rp
         // According to the where ever the VoltProcedure was running, our transaction is
         // now complete (either aborted or committed). So we need to tell Dtxn.Coordinator
         // to go fuck itself and send the final messages to everyone that was involved
-        // We have to pack in our txn id in the payload
-        Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder()
+        Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()
                                             .setTransactionId(this.txn_id)
                                             .setCommit(commit)
                                             .setPayload(this.payload)

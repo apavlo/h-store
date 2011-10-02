@@ -130,11 +130,6 @@ public class LocalTransaction extends AbstractTransaction {
 
     /** Whether this txn is being executed specutatively */
     private boolean exec_speculative = false;
-    
-    /**
-     * The partitions that we told the Dtxn.Coordinator that we were done with
-     */
-    private final Set<Integer> done_partitions = new HashSet<Integer>();
 
     /**
      * Initialization Barrier
@@ -276,7 +271,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.exec_speculative = false;
         this.ignore_dtxn = false;
         this.coordinator_callback = null;
-        this.done_partitions.clear();
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -434,7 +428,7 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.orig_txn_id);
     }
     public Set<Integer> getDonePartitions() {
-        return this.done_partitions;
+        return this.state.done_partitions;
     }
     public Histogram<Integer> getTouchedPartitions() {
         return (this.state.exec_touchedPartitions);
@@ -885,7 +879,6 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Exec Single-Partitioned", this.isExecSinglePartition());
         m.put("Exec Read Only", this.exec_readOnly);
         m.put("Exec Locally", this.exec_local);
-        m.put("Done Partitions", this.done_partitions);
         m.put("Speculative Execution", this.exec_speculative);
         m.put("Touched Partitions", this.state.exec_touchedPartitions);
         maps.add(m);
