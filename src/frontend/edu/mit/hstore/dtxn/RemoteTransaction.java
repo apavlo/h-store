@@ -49,26 +49,10 @@ public class RemoteTransaction extends AbstractTransaction {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    /**
-     * RemoteTransactionState Factory
-     */
-    public static class Factory extends CountingPoolableObjectFactory<RemoteTransaction> {
-        private final ExecutionSite executor;
-        
-        public Factory(ExecutionSite executor, boolean enable_tracking) {
-            super(enable_tracking);
-            this.executor = executor;
-        }
-        @Override
-        public RemoteTransaction makeObjectImpl() throws Exception {
-            return new RemoteTransaction(this.executor);
-        }
-    };
-    
     private RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> fragment_callback;
     
-    public RemoteTransaction(ExecutionSite executor) {
-        super(executor);
+    public RemoteTransaction() {
+        super();
     }
     
     @Override
@@ -120,7 +104,7 @@ public class RemoteTransaction extends AbstractTransaction {
      * @param callback
      */
     public void setFragmentTaskCallback(RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
-        assert(callback != null) : "Null callback for txn #" + this.txn_id;
+        // assert(callback != null) : "Null callback for txn #" + this.txn_id;
         if (trace.get()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
         this.fragment_callback = callback;
     }

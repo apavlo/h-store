@@ -68,9 +68,9 @@ public abstract class AbstractTransaction implements Poolable {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    /** The ExecutionSite that this TransactionState is tied to **/
-    protected final ExecutionSite executor;
-    
+    /**
+     * 
+     */
     public final Map<Integer, List<VoltTable>> ee_dependencies = new HashMap<Integer, List<VoltTable>>();
     
     /**
@@ -139,8 +139,8 @@ public abstract class AbstractTransaction implements Poolable {
      * Constructor
      * @param executor
      */
-    public AbstractTransaction(ExecutionSite executor) {
-        this.executor = executor;
+    public AbstractTransaction() {
+        // Nothing....
     }
 
     /**
@@ -502,7 +502,6 @@ public abstract class AbstractTransaction implements Poolable {
         m.put("Current Round State", this.round_state);
         m.put("Read-Only", this.exec_readOnly);
         m.put("Executing Locally", this.exec_local);
-        m.put("Local Partition", this.executor.getPartitionId());
         m.put("Last UndoToken", this.last_undo_token);
         m.put("# of Rounds", this.round_ctr);
         m.put("Pending Error", (this.pending_error != null ? this.pending_error.toString() : null));

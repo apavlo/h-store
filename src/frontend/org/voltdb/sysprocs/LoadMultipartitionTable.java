@@ -96,7 +96,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             assert(this.isInitialized()) : " The sysproc " + this.getClass().getSimpleName() + " was not initialized properly";
             try {
                 // voltLoadTable is void. Assume success or exception.
-                super.voltLoadTable(txn_id, context.getCluster().getName(), context.getDatabase().getName(),
+                super.voltLoadTable(context.getCluster().getName(), context.getDatabase().getName(),
                                     table_name, (VoltTable)(params.toArray()[1]), 0);
             } catch (VoltAbortException e) {
                 // must continue and reply with dependency.

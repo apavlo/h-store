@@ -180,11 +180,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public final ObjectPool localTxnPool;
 
     /**
-     * RemoteTransactionState Object Pool
-     */
-    public final ObjectPool remoteTxnPool;
-    
-    /**
      * Create a new instance of the corresponding VoltProcedure for the given Procedure catalog object
      */
     public class VoltProcedureFactory extends CountingPoolableObjectFactory<VoltProcedure> {
@@ -502,7 +497,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.execState = null;
         
         this.localTxnPool = new StackObjectPool(new LocalTransaction.Factory(this, false));
-        this.remoteTxnPool = new StackObjectPool(new RemoteTransaction.Factory(this, false));
         DependencyInfo.initializePool(HStoreConf.singleton());
     }
 
@@ -530,8 +524,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         this.localTxnPool = new StackObjectPool(new LocalTransaction.Factory(this, hstore_conf.site.pool_profiling),
                                                 hstore_conf.site.pool_localtxnstate_idle);
-        this.remoteTxnPool = new StackObjectPool(new RemoteTransaction.Factory(this, hstore_conf.site.pool_profiling),
-                                                 hstore_conf.site.pool_remotetxnstate_idle);
         DependencyInfo.initializePool(hstore_conf);
         
         this.backend_target = target;
@@ -644,49 +636,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
 
     /**
-     * Preload a bunch of stuff that we'll need later on
-     */
-    protected void preload() {
-        this.initializeVoltProcedures();
-
-        // Then preload a bunch of TransactionStates
-        for (boolean local : new boolean[]{ true, false }) {
-            List<AbstractTransaction> states = new ArrayList<AbstractTransaction>();
-            ObjectPool pool = (local ? this.localTxnPool : this.remoteTxnPool);
-            int count = (int)Math.round((local ? hstore_conf.site.pool_localtxnstate_preload : hstore_conf.site.pool_remotetxnstate_preload) / hstore_conf.site.pool_scale_factor);
-            try {
-                for (int i = 0; i < count; i++) {
-                    AbstractTransaction ts = (AbstractTransaction)pool.borrowObject();
-                    ts.init(-1l, -1l, this.partitionId, false, true);
-                    states.add(ts);
-                } // FOR
-                
-                for (AbstractTransaction ts : states) {
-                    pool.returnObject(ts);
-                } // FOR
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        } // FOR
-        
-        // And some DependencyInfos
-//        try {
-//            List<DependencyInfo> infos = new ArrayList<DependencyInfo>();
-//            int count = (int)Math.round(PRELOAD_DEPENDENCY_INFOS / scaleFactor);
-//            for (int i = 0; i < count; i++) {
-//                DependencyInfo di = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
-//                di.init(null, 1, 1);
-//                infos.add(di);
-//            } // FOR
-//            for (DependencyInfo di : infos) {
-//                DependencyInfo.INFO_POOL.returnObject(di);
-//            } // FOR
-//        } catch (Exception ex) {
-//            throw new RuntimeException(ex);
-//        } 
-    }
-
-    /**
      * Link this ExecutionSite with its parent HStoreSite
      * This will initialize the references the various components shared among the ExecutionSites 
      * @param hstore_site
@@ -722,7 +671,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(this.self == null);
         this.self = Thread.currentThread();
         this.self.setName(HStoreSite.getThreadName(this.hstore_site, this.partitionId));
-        this.preload();
         
         if (hstore_conf.site.cpu_affinity) {
             this.hstore_site.getThreadManager().registerEEThread(partition);
@@ -1531,7 +1479,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param allowELT
      * @throws VoltAbortException
      */
-    public void loadTable(long txn_id, String clusterName, String databaseName, String tableName, VoltTable data, int allowELT) throws VoltAbortException {
+    public void loadTable(AbstractTransaction ts, String clusterName, String databaseName, String tableName, VoltTable data, int allowELT) throws VoltAbortException {
         if (cluster == null) {
             throw new VoltProcedure.VoltAbortException("cluster '" + clusterName + "' does not exist");
         }
@@ -1543,16 +1491,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             throw new VoltAbortException("table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
         }
 
-        AbstractTransaction ts = this.txn_states.get(txn_id);
-        if (ts == null) {
-            String msg = "No transaction state for txn #" + txn_id;
-            LOG.error(msg);
-            throw new RuntimeException(msg);
-        }
-        
         ts.setSubmittedEE();
         ee.loadTable(table.getRelativeIndex(), data,
-                     txn_id,
+                     ts.getTransactionId(),
                      lastCommittedTxnId,
                      getNextUndoToken(),
                      allowELT != 0);
@@ -1561,27 +1502,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // ---------------------------------------------------------------
     // ExecutionSite API
     // ---------------------------------------------------------------
-
-    /**
-     * 
-     */
-    protected void cleanupTransaction(AbstractTransaction ts) {
-        long txn_id = ts.getTransactionId();
-        assert(ts.isEE_Finished());
-        if (this.txn_states.remove(txn_id) != null) {
-            if (t) LOG.trace(String.format("Cleaning up internal state information for Txn #%d at partition %d", txn_id, this.partitionId));
-            try {
-                if (ts.isExecLocal()) {
-                    this.localTxnPool.returnObject(ts);
-                } else {
-                    this.remoteTxnPool.returnObject(ts);
-                }
-            } catch (Exception ex) {
-                LOG.fatal("Failed to return TransactionState for txn #" + txn_id, ex);
-                throw new RuntimeException(ex);
-            }
-        }
-    }
     
     /**
      * New work from the coordinator that this local site needs to execute (non-blocking)
@@ -1590,26 +1510,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void doWork(FragmentTaskMessage task, RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
+    public void doWork(RemoteTransaction ts, FragmentTaskMessage task, RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
         long txn_id = task.getTxnId();
-        long client_handle = task.getClientHandle();
-        
-        AbstractTransaction ts = this.txn_states.get(txn_id);
         boolean read_only = task.isReadOnly();
-        if (ts == null) {
-            try {
-                // Remote Transaction
-                ts = (RemoteTransaction)remoteTxnPool.borrowObject();
-                ts.init(txn_id, client_handle, task.getSourcePartitionId(), read_only, true);
-                if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
-                                               ts, task.getSourcePartitionId(), this.partitionId, read_only, false));
-            } catch (Exception ex) {
-                LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
-                throw new RuntimeException(ex);
-            }
-            this.txn_states.put(txn_id, ts);
-            if (t) LOG.trace(String.format("Stored new transaction state for %s at partition %d", ts, this.partitionId));
-        }
         assert(ts.isInitialized());
             
         if (ts != this.current_dtxn) {
@@ -1639,7 +1542,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Remote Work
         if (callback != null) {
             if (t) LOG.trace(String.format("Storing FragmentTask callback in TransactionState for %s at partition %d", ts, this.partitionId));
-            ((RemoteTransaction)ts).setFragmentTaskCallback(callback);
+            ts.setFragmentTaskCallback(callback);
         } else {
             assert(task.isUsingDtxnCoordinator() == false) : String.format("No callback for remote execution request for %s at partition %d", ts, this.partitionId);
         }

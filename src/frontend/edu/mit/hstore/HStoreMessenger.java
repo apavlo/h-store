@@ -387,25 +387,28 @@ public class HStoreMessenger implements Shutdownable {
                     LOG.debug(String.format("Sending %s message to %s for %s",
                                             msg.getClass().getSimpleName(), HStoreSite.formatSiteName(dest_site_id), ts));
                 
-                // OPTIMIZATION: 
+                // Local Partition
                 if (HStoreMessenger.this.local_site_id == dest_site_id) {
                     if (local_partitions == null) local_partitions = new HashSet<Integer>(); // XXX: ObjectPool?
                     local_partitions.add(p);
-                    
+                // Remote Partition
                 } else {
                     HStoreService channel = HStoreMessenger.this.channels.get(dest_site_id);
                     assert(channel != null) : "Invalid partition id '" + p + "' at " + HStoreMessenger.this.hstore_site.getSiteName();
-                    
-                    // TODO: The callback needs to keep track of what partitions have acknowledged that they
-                    // can prepare to commit the transaction, so that we don't send duplicate messages
-                    // when it comes time to actually commit the transaction
-                    this.sendRemote(channel, new ProtoRpcController(), msg, callback);
+                    ProtoRpcController controller = this.getProtoRpcController(ts, dest_site_id);
+                    assert(controller != null) : "Invalid " + msg.getClass().getSimpleName() + " ProtoRpcController for site #" + dest_site_id;
+                    this.sendRemote(channel, controller, msg, callback);
                 }
-                    
                 site_sent[dest_site_id] = true;
                 ctr++;
             } // FOR
+            // Optimization: We'll invoke sendLocal() after we have sent out
+            // all of the mesages to remote sites
             if (local_partitions.size() > 0) this.sendLocal(ts.getTransactionId(), msg, local_partitions);
+            
+            if (debug.get())
+                LOG.debug(String.format("Sent %d %s to %d partitions for txn #%d ",
+                                        ts.getTransactionId(), msg.getClass().getSimpleName(), partitions.size()));
         }
         
         /**
@@ -587,7 +590,8 @@ public class HStoreMessenger implements Shutdownable {
         }
         
         @Override
-        public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
+        public void shutdown(RpcController controller, ShutdownRequest request,
+                RpcCallback<ShutdownResponse> done) {
             LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
             
             HStoreMessenger.this.shutting_down = true;
@@ -619,8 +623,7 @@ public class HStoreMessenger implements Shutdownable {
     
     public void transactionInit(Hstore.TransactionInitRequest request, RpcCallback<Hstore.TransactionInitRequest> callback) {
         
-        // TODO: We need to make a general method that can send process requests and blast them out to all
-        // of the HStoreSites as needed
+        // TODO
         
     }
     
@@ -675,8 +678,6 @@ public class HStoreMessenger implements Shutdownable {
                                                    request,
                                                    callback,
                                                    ts.getTouchedPartitions().values());
-        if (debug.get())
-            LOG.debug(String.format("Notified remote HStoreSites that txn #%d is done at %d partitions", request.getTransactionId(), request.getPartitionsList().size()));
     }
     
     /**
