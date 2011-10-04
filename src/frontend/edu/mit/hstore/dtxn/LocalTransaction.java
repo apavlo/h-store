@@ -50,6 +50,7 @@ import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
@@ -168,9 +169,9 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Constructor
      */
-    public LocalTransaction(ExecutionSite executor) {
-        super(executor);
-        this.profiler = (this.executor.getHStoreConf().site.txn_profiling ? new TransactionProfile() : null);
+    public LocalTransaction() {
+        super();
+        this.profiler = (HStoreConf.singleton().site.txn_profiling ? new TransactionProfile() : null);
     }
 
     @SuppressWarnings("unchecked")

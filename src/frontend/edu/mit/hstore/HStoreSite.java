@@ -101,6 +101,7 @@ import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.AbstractTransaction;
+import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 import edu.mit.hstore.util.NewOrderInspector;
@@ -182,6 +183,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public static ObjectPool POOL_TXNWORK;
     public static ObjectPool POOL_TXNPREPARE;
+    
+    /**
+     * RemoteTransaction Object Pool
+     */
+    public static ObjectPool remoteTxnPool;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STUFF
@@ -280,6 +286,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Keep track of which txns that we have in-flight right now
      */
     private final ConcurrentHashMap<Long, LocalTransaction> inflight_txns = new ConcurrentHashMap<Long, LocalTransaction>();
+    private final ConcurrentHashMap<Long, RemoteTransaction> remote_txns = new ConcurrentHashMap<Long, RemoteTransaction>();
     private final AtomicInteger inflight_txns_ctr[];
 
     /**
@@ -404,6 +411,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
             POOL_TXNPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling, this),
                                                           hstore_conf.site.pool_forwardtxnresponses_idle);
+            
+            remoteTxnPool = new StackObjectPool(
+                                     CountingPoolableObjectFactory.makeFactory(RemoteTransaction.class, hstore_conf.site.pool_profiling),
+                                     hstore_conf.site.pool_remotetxnstate_idle);
         }
         
         // Reusable Cached Messages
@@ -482,12 +493,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public int getSiteId() {
         return (this.site_id);
     }
-    /**
-     * Return the number of HStoreSites in the cluster
-     */
-    public int getSiteCount() {
-        return (CatalogUtil.getNumberOfSites(catalog_db));
-    }
     public String getSiteName() {
         return (HStoreSite.getThreadName(this.site_id, null, null));
     }
@@ -509,15 +514,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Get the total number of transactions inflight for all partitions 
-     * @return
      */
     protected int getInflightTxnCount() {
         return (this.inflight_txns.size());
     }
     /**
      * Get the number of transactions inflight for this partition
-     * @param partition
-     * @return
      */
     protected int getInflightTxnCount(int partition) {
         return (this.inflight_txns_ctr[partition].get());
@@ -529,7 +531,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /**
      * Relative marker used 
-     * @return
      */
     public int getNextRequestCounter() {
         return (this.request_counter.getAndIncrement());
@@ -656,12 +657,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Returns true if this HStoreSite is ready
-     * @return
      */
     public boolean isReady() {
         return (this.ready);
     }
-    
     /**
      * Get the Observable handle for this HStoreSite that can alert others when the party is
      * getting started
@@ -674,25 +673,24 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Returns true if this HStoreSite is throttling incoming transactions
      */
-    public boolean isIncomingThrottled(int partition) {
+    protected boolean isIncomingThrottled(int partition) {
         return (this.incoming_throttle[partition]);
     }
-    public int getIncomingQueueMax(int partition) {
+    protected int getIncomingQueueMax(int partition) {
         return (this.incoming_queue_max[partition]);
     }
-    public int getIncomingQueueRelease(int partition) {
+    protected int getIncomingQueueRelease(int partition) {
         return (this.incoming_queue_release[partition]);
     }
-    public Histogram<Integer> getIncomingPartitionHistogram() {
+    protected Histogram<Integer> getIncomingPartitionHistogram() {
         return (this.incoming_partitions);
     }
-    public Histogram<String> getIncomingListenerHistogram() {
+    protected Histogram<String> getIncomingListenerHistogram() {
         return (this.incoming_listeners);
     }
     public EventObservable getWorkloadObservable() {
         return (this.startWorkload_observable);
     }
-    
     public ProfileMeasurement getEmptyQueueTime() {
         return (this.idle_time);
     }
@@ -1274,11 +1272,25 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionWork(long txn_id, FragmentTaskMessage ftask, TransactionWorkCallback callback) {
         // TODO: The HStoreSite should pass a AbstractTransaction handle here so 
         // that we can re-use the same handle per HStoreSite
-
+        RemoteTransaction ts = this.remote_txns.get(txn_id);
+        if (ts == null) {
+            try {
+                // Remote Transaction
+                ts = (RemoteTransaction)remoteTxnPool.borrowObject();
+                ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
+                if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
+                                               ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false));
+            } catch (Exception ex) {
+                LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
+                throw new RuntimeException(ex);
+            }
+            this.remote_txns.put(txn_id, ts);
+            if (t) LOG.trace(String.format("Stored new transaction state for %s at partition %d", ts, ftask.getDestinationPartitionId()));
+        }
         if (t)
             LOG.trace(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
                                     ftask.getDestinationPartitionId(), txn_id));
-        this.executors[ftask.getDestinationPartitionId()].doWork(ftask, callback);
+        this.executors[ftask.getDestinationPartitionId()].doWork(ts, ftask, callback);
     }
 
 
@@ -1588,6 +1600,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         ts.setHStoreSite_Finished(true);
+        
+        try {
+            if (ts.isExecLocal()) {
+                // FIXME this.localTxnPool.returnObject(ts);
+            } else {
+                remoteTxnPool.returnObject(ts);
+            }
+        } catch (Exception ex) {
+            LOG.fatal("Failed to return TransactionState to ObjectPool for txn #" + txn_id, ex);
+            throw new RuntimeException(ex);
+        }
     }
 
     // ----------------------------------------------------------------------------
