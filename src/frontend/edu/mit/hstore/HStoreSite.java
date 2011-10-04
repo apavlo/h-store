@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.CollectionUtils;
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
@@ -172,15 +173,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * ForwardTxnRequestCallback Pool
      */
-    public static ObjectPool POOL_FORWARDTXN_REQUEST;
+    public static ObjectPool POOL_TXNREDIRECT_REQUEST;
 
     /**
      * ForwardTxnResponseCallback Pool
      */
     public static ObjectPool POOL_FORWARDTXN_RESPONSE;
     
-    public static ObjectPool POOL_TRANSACTIONWORK_RESPONSE;
-    public static ObjectPool POOL_TRANSACTIONPREPARE;
+    public static ObjectPool POOL_TXNWORK;
+    public static ObjectPool POOL_TXNPREPARE;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STUFF
@@ -245,7 +246,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final Collection<Integer> all_partitions;
 
     /** List of local partitions at this HStoreSite */
-    private final List<Integer> local_partitions = new ArrayList<Integer>();
+    private final ListOrderedSet<Integer> local_partitions = new ListOrderedSet<Integer>();
     
     private final Collection<Integer> single_partition_sets[]; 
     
@@ -327,6 +328,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinators
      * @param p_estimator
      */
+    @SuppressWarnings("unchecked")
     public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) throws Exception {
         assert(catalog_site != null);
         assert(p_estimator != null);
@@ -369,7 +371,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             if (hstore_conf.site.status_show_executor_info) {
                 this.incoming_throttle_time[partition].resetOnEvent(this.startWorkload_observable);
-                // this.redirect_throttle_time.resetOnEvent(this.startWorkload_observable);
             }
             
         } // FOR
@@ -394,14 +395,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // Static Object Pools
-        if (POOL_FORWARDTXN_REQUEST == null) {
-            POOL_FORWARDTXN_REQUEST = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectCallback.class, hstore_conf.site.pool_profiling),
+        if (POOL_TXNREDIRECT_REQUEST == null) {
+            POOL_TXNREDIRECT_REQUEST = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectCallback.class, hstore_conf.site.pool_profiling),
                                                           hstore_conf.site.pool_forwardtxnrequests_idle);
             POOL_FORWARDTXN_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectResponseCallback.class, hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
-            POOL_TRANSACTIONWORK_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionWorkCallback.class, hstore_conf.site.pool_profiling),
+            POOL_TXNWORK = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionWorkCallback.class, hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
-            POOL_TRANSACTIONPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling, this),
+            POOL_TXNPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling, this),
                                                           hstore_conf.site.pool_forwardtxnresponses_idle);
         }
         
@@ -474,13 +475,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * Return the Site catalog object for this HStoreSiteNode
-     * @return
      */
     public Site getSite() {
         return (this.catalog_site);
     }
     public int getSiteId() {
         return (this.site_id);
+    }
+    /**
+     * Return the number of HStoreSites in the cluster
+     */
+    public int getSiteCount() {
+        return (CatalogUtil.getNumberOfSites(catalog_db));
     }
     public String getSiteName() {
         return (HStoreSite.getThreadName(this.site_id, null, null));
@@ -911,7 +917,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // we will just forward it back to the client. How sweet is that??
             TransactionRedirectCallback callback = null;
             try {
-                callback = (TransactionRedirectCallback)HStoreSite.POOL_FORWARDTXN_REQUEST.borrowObject();
+                callback = (TransactionRedirectCallback)HStoreSite.POOL_TXNREDIRECT_REQUEST.borrowObject();
                 callback.init(done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
@@ -1119,7 +1125,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.invocation);
         
         // -------------------------------
-        // SINGLE-PARTITION TXN
+        // SINGLE-PARTITION TRANSACTION
         // -------------------------------
         if (hstore_conf.site.exec_avoid_coordinator && single_partitioned) {
             ts.ignore_dtxn = true;
@@ -1265,95 +1271,70 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @param done
      */
-    public void executeTransactionWork(Hstore.TransactionWorkRequest request, RpcCallback<Hstore.TransactionWorkResponse> done) {
-        // This is work from a transaction executing at another node
-        // Any other message can just be sent along to the ExecutionSite without sending
-        // back anything right away. The ExecutionSite will use our wrapped callback handle
-        // to send back whatever response it needs to, but we won't actually send it
-        // until we get back results from all of the partitions
-        TransactionWorkCallback callback = null;
-        try {
-            callback = (TransactionWorkCallback)POOL_TRANSACTIONWORK_RESPONSE.borrowObject();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-        callback.init(request.getTransactionId(), request.getFragmentsCount(), done);
-        TransactionInfoBaseMessage msg = null;
-        for (PartitionFragment partition_task : request.getFragmentsList()) {
-            // Decode the inner VoltMessage
-            try {
-                msg = (TransactionInfoBaseMessage)VoltMessage.createMessageFromBuffer(partition_task.getWork().asReadOnlyByteBuffer(), false);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-    
-            long txn_id = msg.getTxnId();
-            int base_partition = msg.getDestinationPartitionId();
-            
-            if (d) {
-                LOG.debug(String.format("Got %s message for txn #%d [partition=%d]", msg.getClass().getSimpleName(), txn_id, base_partition));
-                if (t) LOG.trace("CONTENTS:\n" + msg);
-            }
-            assert(msg instanceof FragmentTaskMessage) : "Unexpected message type: " + msg.getClass().getSimpleName();
-            this.executors[base_partition].doWork((FragmentTaskMessage)msg, callback);
-        } // FOR
+    public void transactionWork(long txn_id, FragmentTaskMessage ftask, TransactionWorkCallback callback) {
+        // TODO: The HStoreSite should pass a AbstractTransaction handle here so 
+        // that we can re-use the same handle per HStoreSite
+
+        if (t)
+            LOG.trace(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
+                                    ftask.getDestinationPartitionId(), txn_id));
+        this.executors[ftask.getDestinationPartitionId()].doWork(ftask, callback);
     }
 
-//    /**
-//     * 
-//     * @param ts
-//     * @param done
-//     */
-//    private void rejectTransaction(LocalTransaction ts, RpcCallback<Hstore.TransactionWorkResponse> done) {
-//        // Send back the initial response to the Dtxn.Coordinator
-//        done.run(cached_FragmentResponse);
-//        
-//        // We then need to tell the coordinator that we committed
-//        ByteString payload = null;
-//        synchronized (this.cached_ClientResponse) {
-//            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, this.incoming_throttle[ts.getBasePartition()]);
-//            ClientResponseImpl.setClientHandle(this.cached_ClientResponse, ts.getClientHandle());
-//            this.cached_ClientResponse.rewind();
-//            payload = ByteString.copyFrom(this.cached_ClientResponse);
-//        } // SYNCH
-//        
-//        Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder().setTransactionId(ts.getTransactionId())
-//                                                                    .setCommit(false)
-//                                                                    .setPayload(payload)
-//                                                                    .build();
-//        ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this,
-//                                                                               ts.getTransactionId(),
-//                                                                               ts.getBasePartition(),
-//                                                                               payload.toByteArray(),
-//                                                                               Dtxn.FragmentResponse.Status.OK,
-//                                                                               ts.getClientCallback());
-//        this.requestFinish(ts, request, callback);
-//        if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(ts.getProcedureName());
-//    }
 
+    /**
+     * This method is the first part of two phase commit for a transaction.
+     * If speculative execution is enabled, then we'll notify each the ExecutionSites
+     * for the listed partitions that it is done. This will cause all the 
+     * that are blocked on this transaction to be released immediately and queued 
+     * @param txn_id
+     * @param partitions
+     * @param updated
+     */
+    public void transactionPrepare(long txn_id, Collection<Integer> partitions, Collection<Integer> updated) {
+        if (d) 
+            LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
+        
+        int spec_cnt = 0;
+        for (Integer p : partitions) {
+            if (this.local_partitions.contains(p) == false) continue;
+            if (updated != null) updated.add(p);
+            
+            // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
+            // for this partition
+            if (hstore_conf.site.exec_speculative_execution) {
+                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(txn_id, false);
+                if (debug.get() && ret) {
+                    spec_cnt++;
+                    LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+                }
+            }
+        } // FOR
+        if (debug.get() && spec_cnt > 0)
+            LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+    }
     
     /**
      * This method is used to finally complete the transaction.
-     * The EexecutionSite will either commit or abort the transaction at the specified partitions
-     * @param request
+     * The ExecutionSite will either commit or abort the transaction at the specified partitions
+     * @param txn_id
+     * @param status
+     * @param partitions
      */
-    public void finishFinalTransaction(Hstore.TransactionFinishRequest request) {
-        assert(request.hasTransactionId()) : "Got Hstore.TransactionFinishRequest without a txn id!";
-        long txn_id = request.getTransactionId();
-        boolean commit = (request.getStatus() == Hstore.Status.OK);
+    public void transactionFinish(long txn_id, Hstore.Status status, Collection<Integer> partitions) {
         if (d) 
-            LOG.debug(String.format("Got Dtxn.FinishRequest for txn #%d [commit=%s]",
-                                    txn_id, commit));
+            LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s]", txn_id, status));
+        boolean commit = (status == Hstore.Status.OK);
         
         // We only need to call commit/abort if 
         // (1) This txn is executing on a remote partition
         // (2) This txn wasn't a single-partition transaction
         LocalTransaction ts = this.inflight_txns.get(txn_id);
         if (ts == null || ts.isPredictSinglePartition() == false) {
-            if (d)
-                LOG.debug(String.format("Calling finishWork for txn #%d on %d partitions",
-                                        txn_id, request.getPartitionsCount()));
-            for (Integer p : request.getPartitionsList()) {
+            if (debug.get())
+                LOG.debug(String.format("Calling finishWork for txn #%d on %d partitions", txn_id, partitions));
+            for (Integer p : partitions) {
+                if (this.local_partitions.contains(p) == false) continue;
                 this.executors[p.intValue()].finishWork(txn_id, commit);
             } // FOR
         }
@@ -1406,7 +1387,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // as soon as possible...
         else {
             if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
-            this.mispredictTransaction(ts, ts.getClientCallback());
+            this.transactionMispredict(ts, ts.getClientCallback());
         }
         
         // But make sure we always call HStoreSite.completeTransaction() so that we cleanup whatever internal
@@ -1422,7 +1403,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      * @param orig_callback - the original callback to the client
      */
-    public void mispredictTransaction(LocalTransaction orig_ts, RpcCallback<byte[]> orig_callback) {
+    public void transactionMispredict(LocalTransaction orig_ts, RpcCallback<byte[]> orig_callback) {
         if (d) LOG.debug(orig_ts + " was mispredicted! Going to clean-up our mess and re-execute");
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.invocation;
@@ -1468,7 +1449,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 TransactionRedirectCallback callback;
                 try {
-                    callback = (TransactionRedirectCallback)HStoreSite.POOL_FORWARDTXN_REQUEST.borrowObject();
+                    callback = (TransactionRedirectCallback)HStoreSite.POOL_TXNREDIRECT_REQUEST.borrowObject();
                     callback.init(orig_callback);
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   

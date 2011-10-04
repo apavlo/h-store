@@ -860,6 +860,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public int getSiteId() {
         return (this.siteId);
     }
+    public Partition getPartition() {
+        return (this.partition);
+    }
     public int getPartitionId() {
         return (this.partitionId);
     }
@@ -1850,7 +1853,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         
         // Bombs away!
-        this.hstore_messenger.transactionWork(tmp_transactionRequestBuildersMap, this.request_work_callback);
+        this.hstore_messenger.transactionWork(ts, tmp_transactionRequestBuildersMap, this.request_work_callback);
         if (d) LOG.debug(String.format("Work request for %d fragments was sent to %d remote HStoreSites for %s",
                                        tasks.size(), tmp_transactionRequestBuildersMap.size(), ts));
 
@@ -2097,6 +2100,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } 
         // COMMIT: Distributed Transaction
         else if (status == Hstore.Status.OK) {
+            // Store the ClientResponse in the TransactionPrepareCallback so that
+            // when we get all of our 
             TransactionPrepareCallback callback = ts.getPrepareCallback();
             assert(callback != null);
             callback.setClientResponse(cresponse);

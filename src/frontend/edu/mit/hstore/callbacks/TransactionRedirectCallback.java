@@ -25,7 +25,7 @@ public class TransactionRedirectCallback implements RpcCallback<Hstore.Transacti
     /**
      * Default Constructor
      */
-    private TransactionRedirectCallback() {
+    public TransactionRedirectCallback() {
         // Nothing to do...
     }
     
@@ -65,7 +65,7 @@ public class TransactionRedirectCallback implements RpcCallback<Hstore.Transacti
         } finally {
             try {
                 this.finish();
-                HStoreSite.POOL_FORWARDTXN_REQUEST.returnObject(this);
+                HStoreSite.POOL_TXNREDIRECT_REQUEST.returnObject(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Funky failure", ex);
             }

@@ -147,7 +147,6 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public CountDownLatch init_latch;
 
-    
     public final ProtoRpcController rpc_request_init = new ProtoRpcController();
     public final ProtoRpcController rpc_request_work = new ProtoRpcController();
     public final ProtoRpcController rpc_request_finish = new ProtoRpcController();
@@ -180,7 +179,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.predict_touchedPartitions != null);
         if (this.predict_touchedPartitions.size() > 1) {
             try {
-                this.prepare_callback = (TransactionPrepareCallback)HStoreSite.POOL_TRANSACTIONPREPARE.borrowObject();
+                this.prepare_callback = (TransactionPrepareCallback)HStoreSite.POOL_TXNPREPARE.borrowObject();
                 this.prepare_callback.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -188,6 +187,22 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return ((LocalTransaction)super.init(txnId, clientHandle, base_partition,
                                              predict_readOnly, predict_canAbort, true));
+    }
+    
+    /**
+     * Testing Constructor
+     * @param txnId
+     * @param clientHandle
+     * @param base_partition
+     * @param predict_touchedPartitions
+     * @param predict_readOnly
+     * @param predict_canAbort
+     * @return
+     */
+    protected LocalTransaction init(long txnId, long clientHandle, int base_partition,
+                                    Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort) {
+        this.predict_touchedPartitions = predict_touchedPartitions;
+        return this.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort);
     }
 
     /**
@@ -273,7 +288,7 @@ public class LocalTransaction extends AbstractTransaction {
             }
             // Return our TransactionPrepareCallback
             if (this.prepare_callback != null) {
-                HStoreSite.POOL_TRANSACTIONPREPARE.returnObject(this.prepare_callback);
+                HStoreSite.POOL_TXNPREPARE.returnObject(this.prepare_callback);
                 this.prepare_callback = null;
             }
         } catch (Exception ex) {
@@ -550,6 +565,28 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean isPredictSinglePartition() {
         return (this.predict_touchedPartitions.size() == 1);
+    }
+    
+    private ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
+        if (cache[site_id] == null) {
+            cache[site_id] = new ProtoRpcController();
+        } else {
+            cache[site_id].reset();
+        }
+        return (cache[site_id]);
+    }
+    
+    public ProtoRpcController getTransactionInitController(int site_id) {
+        return this.getProtoRpcController(this.state.rpc_transactionInit, site_id);
+    }
+    public ProtoRpcController getTransactionWorkController(int site_id) {
+        return this.getProtoRpcController(this.state.rpc_transactionWork, site_id);
+    }
+    public ProtoRpcController getTransactionPrepareController(int site_id) {
+        return this.getProtoRpcController(this.state.rpc_transactionPrepare, site_id);
+    }
+    public ProtoRpcController getTransactionFinishController(int site_id) {
+        return this.getProtoRpcController(this.state.rpc_transactionFinish, site_id);
     }
     
     // ----------------------------------------------------------------------------
