@@ -432,6 +432,15 @@ public class HStoreMessenger implements Shutdownable {
             channel.transactionWork(controller, msg, callback);
         }
     };
+    // TransactionPrepare
+    private final MessageRouter<TransactionPrepareRequest, TransactionPrepareResponse> router_transactionPrepare = new MessageRouter<TransactionPrepareRequest, TransactionPrepareResponse>() {
+        protected void sendLocal(long txn_id, TransactionPrepareRequest msg, Collection<Integer> partitions) {
+            // FIXME
+        }
+        protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest msg, RpcCallback<TransactionPrepareResponse> callback) {
+            channel.transactionPrepare(controller, msg, callback);
+        }
+    };
     // TransactionFinish
     private final MessageRouter<TransactionFinishRequest, TransactionFinishResponse> router_transactionFinish = new MessageRouter<TransactionFinishRequest, TransactionFinishResponse>() {
         protected void sendLocal(long txn_id, TransactionFinishRequest msg, Collection<Integer> partitions) {
@@ -520,31 +529,30 @@ public class HStoreMessenger implements Shutdownable {
         @Override
         public void transactionPrepare(RpcController controller, TransactionPrepareRequest request,
                 RpcCallback<TransactionPrepareResponse> done) {
-            // TODO: Move into HStoreSite
             assert(request.hasTransactionId()) : "Got Hstore.TransactionFinishRequest without a txn id!";
             long txn_id = request.getTransactionId();
 
             if (hstore_site.getHStoreConf().site.exec_speculative_execution) {
                 int spec_cnt = 0;
-                for (int p : request.getPartitionsList()) {
-                    if (this.txnid_managers[p] == null) continue;
-                    
-                    // We'll let multiple tell us to speculatively execute, but we only let them go when hte latest
-                    // one finishes. We should really have multiple queues of speculatively execute txns, but for now
-                    // this is fine
-                    
-        //            assert(this.speculative_txn[p] == NULL_SPECULATIVE_EXEC_ID ||
-        //                   this.speculative_txn[p] == txn_id) : String.format("Trying to enable speculative execution twice at partition %d [current=#%d, new=#%d]", p, this.speculative_txn[p], txn_id); 
+                for (Integer p : request.getPartitionsList()) {
+                    if (local_partitions.contains(p) == false) continue;
                         
                     // Make sure that we tell the ExecutionSite first before we allow txns to get fired off
-                    boolean ret = this.executors[p].enableSpeculativeExecution(txn_id, false);
-                    if (d && ret) {
+                    boolean ret = hstore_site.getExecutionSite(p.intValue()).enableSpeculativeExecution(txn_id, false);
+                    if (debug.get() && ret) {
                         spec_cnt++;
-                        if (d) LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+                        LOG.debug(String.format("Partition %d - Speculative Execution!", p));
                     }
                 } // FOR
-                if (d) LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+                if (debug.get())
+                    LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
             }
+            
+            Hstore.TransactionPrepareResponse response = Hstore.TransactionPrepareResponse.newBuilder()
+                                                                .setTransactionId(txn_id)
+                                                                .setStatus(Hstore.Status.OK)
+                                                                .build();
+            done.run(response);
         }
         
         
@@ -647,6 +655,14 @@ public class HStoreMessenger implements Shutdownable {
                                                    e.getValue().build(),
                                                    callback);
         } // FOR
+    }
+    
+    public void transactionPrepare(LocalTransaction ts, RpcCallback<Hstore.TransactionPrepareResponse> callback, Collection<Integer> partitions) {
+        Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
+                                                        .setTransactionId(ts.getTransactionId())
+                                                        .addAllPartitions(ts.getDonePartitions())
+                                                        .build();
+        this.router_transactionPrepare.sendMessages(request.getTransactionId(), request, callback, partitions);
     }
     
     /**
