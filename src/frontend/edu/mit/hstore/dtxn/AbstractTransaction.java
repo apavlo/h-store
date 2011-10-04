@@ -82,9 +82,6 @@ public abstract class AbstractTransaction implements Poolable {
     // PREDICTIONS FLAGS
     // ----------------------------------------------------------------------------
     
-    /** Whether this txn is suppose to be single-partitioned */
-    private boolean predict_singlePartitioned = false;
-    
     /** Whether this txn can abort */
     private boolean predict_abortable = true;
     
@@ -150,25 +147,21 @@ public abstract class AbstractTransaction implements Poolable {
      * Initialize this TransactionState for a new Transaction invocation
      * @param txn_id
      * @param client_handle
-     * @param predict_singlePartition TODO
      * @param predict_readOnly TODO
      * @param predict_abortable TODO
      * @param exec_local
      * @param dtxn_txn_id
      */
     protected final AbstractTransaction init(long txn_id, long client_handle, int base_partition,
-                                          boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable,
-                                          boolean exec_local) {
+                                             boolean predict_readOnly, boolean predict_abortable, boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.round_state = RoundState.NULL;
         this.rejected = false;
 
-        this.predict_singlePartitioned = predict_singlePartition;
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
-        
         this.exec_local = exec_local;
         
         return (this);
@@ -191,7 +184,6 @@ public abstract class AbstractTransaction implements Poolable {
         this.ee_finished_timestamp = null;
         this.last_undo_token = null;
         
-        this.predict_singlePartitioned = false;
         this.predict_readOnly = false;
         this.predict_abortable = true;
         
@@ -216,7 +208,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @param predict_readOnly TODO
      * @param predict_abortable TODO
      */
-    public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable);
+    public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable);
     
     // ----------------------------------------------------------------------------
     // ROUND METHODS
@@ -272,12 +264,6 @@ public abstract class AbstractTransaction implements Poolable {
     // PREDICTIONS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Returns true if this Transaction was originally predicted to be single-partitioned
-     */
-    public boolean isPredictSinglePartition() {
-        return (this.predict_singlePartitioned);
-    }
     /**
      * Returns true if this Transaction was originally predicted as being able to abort
      */

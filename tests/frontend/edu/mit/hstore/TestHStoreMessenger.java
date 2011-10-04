@@ -29,8 +29,6 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.MessageAcknowledgement;
-import edu.brown.hstore.Hstore.MessageType;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
@@ -212,152 +210,151 @@ public class TestHStoreMessenger extends BaseTestCase {
     	
     }
 
-    /**
-     * testSendFragmentLocal
-     */
-    @Test
-    public void testSendFragmentLocal() throws Exception {
-        // TODO: Write a test case that tests that we can send a data fragment (i.e., VoltTable) from
-        //       one partition to another that is on the same site using HStoreMessenger.sendFragment().
-        //       You can cast the destination ExecutionSite to a MockExecutionSite and use getDependency()
-        //       to get back the VoltTable stored by HStoreMessenger. You can check that there is no
-        //       HStoreService for target partition and thus it couldn't possibly use the network to send the message.
-    	Integer sender_partition_id;
-    	Integer dest_partition_id;
-    	for (int i = 0; i < NUM_SITES_PER_HOST; i++)
-    	{
-    		Object[] testarray = new Object[]{"test", 10};
-    		fragment.addRow(testarray);
-    		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
-    		sender_partition_id = Integer.parseInt(sets.toArray()[0].toString());
-    		dest_partition_id = Integer.parseInt(sets.toArray()[1].toString());
-    		messengers[i].sendDependency(0, sender_partition_id, dest_partition_id, 0, fragment);
-    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutionSite(dest_partition_id);
-    		VoltTable vt = executor.getDependency(0);
-    		// Verify row expected
-    		for (int j = 0; j < vt.getRowCount(); j++)
-    		{
-    			assertEquals(vt.fetchRow(j).get(0, VoltType.STRING), "test");
-				assertEquals(vt.fetchRow(j).get(1, VoltType.BIGINT), new Long("10"));
-				break;
-    		}
-//    		break;
-    	}
-    }
+//    /**
+//     * testSendFragmentLocal
+//     */
+//    @Test
+//    public void testSendFragmentLocal() throws Exception {
+//        // TODO: Write a test case that tests that we can send a data fragment (i.e., VoltTable) from
+//        //       one partition to another that is on the same site using HStoreMessenger.sendFragment().
+//        //       You can cast the destination ExecutionSite to a MockExecutionSite and use getDependency()
+//        //       to get back the VoltTable stored by HStoreMessenger. You can check that there is no
+//        //       HStoreService for target partition and thus it couldn't possibly use the network to send the message.
+//    	Integer sender_partition_id;
+//    	Integer dest_partition_id;
+//    	for (int i = 0; i < NUM_SITES_PER_HOST; i++)
+//    	{
+//    		Object[] testarray = new Object[]{"test", 10};
+//    		fragment.addRow(testarray);
+//    		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
+//    		sender_partition_id = Integer.parseInt(sets.toArray()[0].toString());
+//    		dest_partition_id = Integer.parseInt(sets.toArray()[1].toString());
+//    		messengers[i].sendDependency(0, sender_partition_id, dest_partition_id, 0, fragment);
+//    		MockExecutionSite executor = (MockExecutionSite)sites[i].getExecutionSite(dest_partition_id);
+//    		VoltTable vt = executor.getDependency(0);
+//    		// Verify row expected
+//    		for (int j = 0; j < vt.getRowCount(); j++)
+//    		{
+//    			assertEquals(vt.fetchRow(j).get(0, VoltType.STRING), "test");
+//				assertEquals(vt.fetchRow(j).get(1, VoltType.BIGINT), new Long("10"));
+//				break;
+//    		}
+////    		break;
+//    	}
+//    }
 
-    /**
-     * testSendFragmentRemote
-     */
-    @Test
-    public void testSendFragmentRemote() throws Exception {
-        // TODO: Write a test case that tests that we can send a data fragment (i.e., VoltTable) from
-        //       one partition to another that is on a remote site. This will check whether the
-        //       HStoreMessenger.sendFragment() can properly discern that a partition is remote and should use
-        //       a network message to send the data. You can stuff some data into the fragment
-        //       and make sure that it arrives on the other side with the proper values.
-    	Integer sender_partition_id;
-    	Integer dest_partition_id;
-    	int txn_id = 0;
-    	for (int i = 0; i < NUM_SITES_PER_HOST; i++)
-    	{
-    		Object[] testarray = new Object[]{"test", 10};
-    		fragment.addRow(testarray);
-    		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
-    		sender_partition_id = CollectionUtil.first(sets);
-    		for (int j = i+1; j < NUM_SITES_PER_HOST; j++)
-    		{
-        		Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
-        		dest_partition_id = CollectionUtil.first(sets2);
-        		messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
-        		System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
-        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);
-        		assertNotNull(executor);
-        		
-        		VoltTable vt = null; // executor.waitForDependency(txn_id);
-        		while (vt == null) {
-        			vt = executor.getDependency(txn_id);
-        		}
-        		assertNotNull(String.format("Site #%d -> Site #%d", i, j), vt);
-        		
-        		// Verify row expected
-        		for (int k = 0; k < vt.getRowCount(); k++)
-        		{
-        			assertEquals(vt.fetchRow(k).get(0, VoltType.STRING), "test");
-    				assertEquals(vt.fetchRow(k).get(1, VoltType.BIGINT), new Long("10"));
-    				break;
-        		}
-        		txn_id++;
-//        		break;
-    		}
-    	}
-    	
-    }
+//    /**
+//     * testSendFragmentRemote
+//     */
+//    @Test
+//    public void testSendFragmentRemote() throws Exception {
+//        // TODO: Write a test case that tests that we can send a data fragment (i.e., VoltTable) from
+//        //       one partition to another that is on a remote site. This will check whether the
+//        //       HStoreMessenger.sendFragment() can properly discern that a partition is remote and should use
+//        //       a network message to send the data. You can stuff some data into the fragment
+//        //       and make sure that it arrives on the other side with the proper values.
+//    	Integer sender_partition_id;
+//    	Integer dest_partition_id;
+//    	int txn_id = 0;
+//    	for (int i = 0; i < NUM_SITES_PER_HOST; i++)
+//    	{
+//    		Object[] testarray = new Object[]{"test", 10};
+//    		fragment.addRow(testarray);
+//    		Set<Integer> sets = sites[i].getMessenger().getLocalPartitionIds();
+//    		sender_partition_id = CollectionUtil.first(sets);
+//    		for (int j = i+1; j < NUM_SITES_PER_HOST; j++)
+//    		{
+//        		Set<Integer> sets2 = sites[j].getMessenger().getLocalPartitionIds();
+//        		dest_partition_id = CollectionUtil.first(sets2);
+//        		messengers[i].sendDependency(txn_id, sender_partition_id, dest_partition_id, 0, fragment);
+//        		System.err.println("SITE #" + j + ": " + sites[j].getLocalPartitionIds());
+//        		MockExecutionSite executor = (MockExecutionSite)sites[j].getExecutionSite(dest_partition_id);
+//        		assertNotNull(executor);
+//        		
+//        		VoltTable vt = null; // executor.waitForDependency(txn_id);
+//        		while (vt == null) {
+//        			vt = executor.getDependency(txn_id);
+//        		}
+//        		assertNotNull(String.format("Site #%d -> Site #%d", i, j), vt);
+//        		
+//        		// Verify row expected
+//        		for (int k = 0; k < vt.getRowCount(); k++)
+//        		{
+//        			assertEquals(vt.fetchRow(k).get(0, VoltType.STRING), "test");
+//    				assertEquals(vt.fetchRow(k).get(1, VoltType.BIGINT), new Long("10"));
+//    				break;
+//        		}
+//        		txn_id++;
+////        		break;
+//    		}
+//    	}
+//    }
     
-    /**
-     * testSendMessage
-     */
-    @Test
-    public void testSendMessage() throws Exception {
-        // Send a StatusRequest message to each of our remote sites
-        final Map<Integer, String> responses = new HashMap<Integer, String>();
-        final Set<Integer> waiting = new HashSet<Integer>();
-        
-        // We will block on this until we get responses from all of the remote sites
-        final CountDownLatch latch = new CountDownLatch(NUM_SITES);
-        
-        final RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
-            @Override
-            public void run(MessageAcknowledgement parameter) {
-                int sender_site_id = parameter.getSenderSiteId();
-                String status = new String(parameter.getData().toByteArray());
-                responses.put(sender_site_id, status);
-                waiting.remove(sender_site_id);
-                latch.countDown();
-                
-                if (waiting.isEmpty()) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("TestConnection Responses:\n");
-                    for (Entry<Integer, String> e : responses.entrySet()) {
-                        sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
-                    } // FOR
-                    System.err.println(sb.toString());
-                }
-            }
-        };
-        
-        // Send a StatusRequest message to all of our sites. They will respond with some sort of message
-        // We have to wrap the sendMessage() calls in threads so that we can fire them off in parallel
-        // The sender partition can just be our first partition that we have
-        final int sender_id = 0;
-        List<Thread> threads = new ArrayList<Thread>();
-        AssertThreadGroup group = new AssertThreadGroup();
-        for (int i = 0; i < NUM_SITES; i++) {
-            final int dest_id = i;
-            // Local site (i.e., ourself!)
-            if (sender_id == dest_id) {
-                responses.put(dest_id, "LOCAL");
-                latch.countDown();
-            // Remote site
-            } else {
-                final Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
-                                                                .setSenderSiteId(sender_id)
-                                                                .setDestSiteId(dest_id)
-                                                                .setType(MessageType.STATUS)
-                                                                .build();
-                threads.add(new Thread(group, (sender_id + "->" + dest_id)) {
-                    public void run() {
-                        messengers[sender_id].getSiteChannel(dest_id).sendMessage(new ProtoRpcController(), sm, callback);        
-                    };
-                });
-                waiting.add(i);
-            }
-        } // FOR
-
-        // BOMBS AWAY!
-        ThreadUtil.runNewPool(threads);
-        
-        // BLOCK!
-        latch.await();
-        assert(group.exceptions.isEmpty()) : group.exceptions;
-    }
+//    /**
+//     * testSendMessage
+//     */
+//    @Test
+//    public void testSendMessage() throws Exception {
+//        // Send a StatusRequest message to each of our remote sites
+//        final Map<Integer, String> responses = new HashMap<Integer, String>();
+//        final Set<Integer> waiting = new HashSet<Integer>();
+//        
+//        // We will block on this until we get responses from all of the remote sites
+//        final CountDownLatch latch = new CountDownLatch(NUM_SITES);
+//        
+//        final RpcCallback<MessageAcknowledgement> callback = new RpcCallback<MessageAcknowledgement>() {
+//            @Override
+//            public void run(MessageAcknowledgement parameter) {
+//                int sender_site_id = parameter.getSenderSiteId();
+//                String status = new String(parameter.getData().toByteArray());
+//                responses.put(sender_site_id, status);
+//                waiting.remove(sender_site_id);
+//                latch.countDown();
+//                
+//                if (waiting.isEmpty()) {
+//                    StringBuilder sb = new StringBuilder();
+//                    sb.append("TestConnection Responses:\n");
+//                    for (Entry<Integer, String> e : responses.entrySet()) {
+//                        sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+//                    } // FOR
+//                    System.err.println(sb.toString());
+//                }
+//            }
+//        };
+//        
+//        // Send a StatusRequest message to all of our sites. They will respond with some sort of message
+//        // We have to wrap the sendMessage() calls in threads so that we can fire them off in parallel
+//        // The sender partition can just be our first partition that we have
+//        final int sender_id = 0;
+//        List<Thread> threads = new ArrayList<Thread>();
+//        AssertThreadGroup group = new AssertThreadGroup();
+//        for (int i = 0; i < NUM_SITES; i++) {
+//            final int dest_id = i;
+//            // Local site (i.e., ourself!)
+//            if (sender_id == dest_id) {
+//                responses.put(dest_id, "LOCAL");
+//                latch.countDown();
+//            // Remote site
+//            } else {
+//                final Hstore.MessageRequest sm = Hstore.MessageRequest.newBuilder()
+//                                                                .setSenderSiteId(sender_id)
+//                                                                .setDestSiteId(dest_id)
+//                                                                .setType(MessageType.STATUS)
+//                                                                .build();
+//                threads.add(new Thread(group, (sender_id + "->" + dest_id)) {
+//                    public void run() {
+//                        messengers[sender_id].getSiteChannel(dest_id).sendMessage(new ProtoRpcController(), sm, callback);        
+//                    };
+//                });
+//                waiting.add(i);
+//            }
+//        } // FOR
+//
+//        // BOMBS AWAY!
+//        ThreadUtil.runNewPool(threads);
+//        
+//        // BLOCK!
+//        latch.await();
+//        assert(group.exceptions.isEmpty()) : group.exceptions;
+//    }
 }

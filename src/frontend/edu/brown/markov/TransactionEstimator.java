@@ -64,17 +64,10 @@ public class TransactionEstimator implements Loggable {
      */
     private static final double RECOMPUTE_TOLERANCE = (double) 0.5;
 
-    private static ObjectPool ESTIMATOR_POOL;
+    public static ObjectPool POOL_ESTIMATORS;
     
-    private static ObjectPool STATE_POOL;
+    public static ObjectPool POOL_STATES;
     
-    public static ObjectPool getStatePool() {
-        return (STATE_POOL);
-    }
-    
-    public static ObjectPool getEstimatorPool() {
-        return (ESTIMATOR_POOL);
-    }
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -171,7 +164,7 @@ public class TransactionEstimator implements Loggable {
                 if (d) LOG.debug(String.format("Initial MarkovPathEstimator is not marked as cached for txn #%d. Returning to pool... [hashCode=%d]",
                                                this.txn_id, this.initial_estimator.hashCode()));
                 try {
-                    TransactionEstimator.ESTIMATOR_POOL.returnObject(this.initial_estimator);
+                    TransactionEstimator.POOL_ESTIMATORS.returnObject(this.initial_estimator);
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
                 }
@@ -348,12 +341,12 @@ public class TransactionEstimator implements Loggable {
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
-            if (STATE_POOL == null) {
+            if (POOL_STATES == null) {
                 if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
-                STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().site.pool_estimatorstates_idle);
+                POOL_STATES = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().site.pool_estimatorstates_idle);
                 
                 if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
-                ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().site.pool_pathestimators_idle);
+                POOL_ESTIMATORS = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC
     }
@@ -494,7 +487,7 @@ public class TransactionEstimator implements Loggable {
         if (estimator == null) {
             if (d) LOG.debug("Recalculating initial path estimate for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id)); 
             try {
-                estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
+                estimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
                 estimator.init(markov, this, base_partition, args);
                 estimator.enableForceTraversal(true);
             } catch (Exception ex) {
@@ -542,7 +535,7 @@ public class TransactionEstimator implements Loggable {
         if (d) LOG.debug(String.format("Creating new State %s [touchedPartitions=%s]", AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.getTouchedPartitions()));
         State state = null;
         try {
-            state = (State)STATE_POOL.borrowObject();
+            state = (State)POOL_STATES.borrowObject();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

@@ -52,15 +52,17 @@ public abstract class CountingPoolableObjectFactory<T extends Poolable> extends 
         return (this.destroyed.get());
     }
     
-    public static <X extends Poolable> CountingPoolableObjectFactory<X> makeFactory(final Class<X> clazz, final boolean enable_tracking) {
+    public static <X extends Poolable> CountingPoolableObjectFactory<X> makeFactory(final Class<X> clazz, final boolean enable_tracking, final Object...args) {
+        Class<?> argsClazz[] = new Class[args.length];
+        for (int i = 0; i < args.length; i++) {
+            assert(args[i] != null) : "[" + i + "]";
+            argsClazz[i] = args[i].getClass();
+        } // FOR
+        final Constructor<X> constructor = ClassUtil.getConstructor(clazz, argsClazz);
         return new CountingPoolableObjectFactory<X>(enable_tracking) {
-            private final Constructor<X> constructor;
-            {
-                this.constructor = ClassUtil.getConstructor(clazz);
-            }
             @Override
             public X makeObjectImpl() throws Exception {
-                return (this.constructor.newInstance());
+                return (constructor.newInstance(args));
             }
         };
     }

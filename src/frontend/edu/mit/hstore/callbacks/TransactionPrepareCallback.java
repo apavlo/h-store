@@ -1,7 +1,7 @@
 package edu.mit.hstore.callbacks;
 
-//import org.apache.log4j.Logger;
-
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -11,6 +11,8 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionFinishResponse;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -20,6 +22,11 @@ import edu.mit.hstore.dtxn.LocalTransaction;
  */
 public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private static final RpcCallback<Hstore.TransactionFinishResponse> commit_callback = new RpcCallback<TransactionFinishResponse>() {
         @Override
@@ -28,34 +35,53 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         }
     };
     
-    private HStoreSite hstore_site;
+    private final HStoreSite hstore_site;
+    
+    /**
+     * We'll flip this flag if one of our partitions replies with an
+     * unexpected abort. This ensures that we only send out the ABORT
+     * to all the HStoreSites once. 
+     */
+    private final AtomicBoolean aborted = new AtomicBoolean(false);
+    
     private LocalTransaction ts;
     private ClientResponseImpl cresponse;
-    private AtomicBoolean aborted = new AtomicBoolean(false);
     
-    public TransactionPrepareCallback() {
-        // Nothing...
+    
+    public TransactionPrepareCallback(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
     }
     
-    public void init(HStoreSite hstore_site, LocalTransaction ts, ClientResponseImpl cresponse) {
-        this.hstore_site = hstore_site;
+    public void init(LocalTransaction ts) {
         this.ts = ts;
+        
+        // We need to wait for N-1 partitions to send back their acknowledgments
+        // The minus one part is so that we don't wait for the base partition to send
+        // and acknowledgment.
+        super.init(this.ts.getPredictTouchedPartitions().size() - 1, ts.getClientCallback());
+    }
+    
+    public void setClientResponse(ClientResponseImpl cresponse) {
+        assert(this.cresponse == null);
         this.cresponse = cresponse;
-        
-        // TODO: Figure out how many HStoreSites this transaction touched
-        int num_sites = 0;
-        
-        super.init(num_sites, ts.getClientCallback());
+    }
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.ts != null);
     }
     
     @Override
     public void finish() {
-        super.finish();
         this.aborted.set(false);
+        this.ts = null;
+        this.cresponse = null;
     }
     
     @Override
     public void unblockCallback() {
+        assert(this.cresponse != null) : "Trying to send back ClientResponse for " + ts + " before it was set!";
+        
         // Everybody returned ok, so we'll tell them all commit right now
         this.hstore_site.getMessenger().transactionFinish(this.ts, Hstore.Status.OK, commit_callback);
         
@@ -85,8 +111,8 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         }
         // Otherwise we need to update our counter to keep track of how many OKs that we got
         // back. We'll ignore anything that comes in after we've aborted
-        else if (this.aborted.get() == false) {
-            super.run(response);
+        else if (this.aborted.get() == false && this.getCounter().addAndGet(-1 * response.getPartitionsCount()) == 0) {
+            this.unblockCallback();
         }
     }
 } // END CLASS

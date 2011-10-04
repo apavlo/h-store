@@ -29,15 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Observer;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -100,8 +92,6 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
-import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
 import edu.mit.hstore.callbacks.ClientResponseFinalCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -250,13 +240,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /** Cached Rejection Response **/
     private final ByteBuffer cached_ClientResponse;
-    private final Dtxn.FragmentResponse cached_FragmentResponse;
     
     /** All of the partitions in the cluster */
     private final Collection<Integer> all_partitions;
 
     /** List of local partitions at this HStoreSite */
     private final List<Integer> local_partitions = new ArrayList<Integer>();
+    
+    private final Collection<Integer> single_partition_sets[]; 
+    
     private final int num_local_partitions;
     /** PartitionId -> SiteId */
     private final Map<Integer, Integer> partition_site_xref = new HashMap<Integer, Integer>();
@@ -362,6 +354,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.incoming_throttle_time = new ProfileMeasurement[num_partitions];
         this.incoming_queue_max = new int[num_partitions];
         this.incoming_queue_release = new int[num_partitions];
+        this.single_partition_sets = new Collection[num_partitions];
         
         for (int partition : executors.keySet()) {
             this.executors[partition] = executors.get(partition);
@@ -372,6 +365,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.incoming_throttle_time[partition] = new ProfileMeasurement("incoming-" + partition);
             this.incoming_queue_max[partition] = hstore_conf.site.txn_incoming_queue_max_per_partition;
             this.incoming_queue_release[partition] = Math.max((int)(this.incoming_queue_max[partition] * hstore_conf.site.txn_incoming_queue_release_factor), 1);
+            this.single_partition_sets[partition] = Collections.singleton(partition); 
             
             if (hstore_conf.site.status_show_executor_info) {
                 this.incoming_throttle_time[partition].resetOnEvent(this.startWorkload_observable);
@@ -407,16 +401,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
             POOL_TRANSACTIONWORK_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionWorkCallback.class, hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
-            POOL_TRANSACTIONPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling),
-                                                       hstore_conf.site.pool_forwardtxnresponses_idle);
+            POOL_TRANSACTIONPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling, this),
+                                                          hstore_conf.site.pool_forwardtxnresponses_idle);
         }
         
         // Reusable Cached Messages
         ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, EMPTY_RESULT, "");
         this.cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
-        this.cached_FragmentResponse = Dtxn.FragmentResponse.newBuilder().setStatus(Status.OK)
-                                                                   .setOutput(ByteString.EMPTY)
-                                                                   .build();
         
         
         // NewOrder Hack
@@ -977,26 +968,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // TRANSACTION EXECUTION PROPERTIES
         // -------------------------------
         
-        boolean predict_singlePartitioned = false;
         boolean predict_abortable = (hstore_conf.site.exec_no_undo_logging_all == false);
         boolean predict_readOnly = catalog_proc.getReadonly();
+        Collection<Integer> predict_touchedPartitions = null;
         TransactionEstimator.State t_state = null; 
         
         // Sysprocs are always multi-partitioned
         if (sysproc) {
             if (t) LOG.trace(String.format("%s is a sysproc, so it has to be multi-partitioned", ts));
-            predict_singlePartitioned = false;
+            predict_touchedPartitions = this.all_partitions;
             
         // Force all transactions to be single-partitioned
         } else if (hstore_conf.site.exec_force_singlepartitioned) {
             if (t) LOG.trace("The \"Always Single-Partitioned\" flag is true. Marking as single-partitioned!");
-            predict_singlePartitioned = true;
+            predict_touchedPartitions = this.single_partition_sets[base_partition];
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
         } else if (hstore_conf.site.exec_neworder_cheat && catalog_proc.getName().equalsIgnoreCase("neworder")) {
             if (t) LOG.trace(String.format("%s - Executing neworder argument hack for VLDB paper", ts));
-            predict_singlePartitioned = this.tpcc_inspector.initializeTransaction(ts, args);
+            predict_touchedPartitions = this.tpcc_inspector.initializeTransaction(ts, args);
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
@@ -1019,7 +1010,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
                     if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
-                    predict_singlePartitioned = false;
+                    predict_touchedPartitions = this.all_partitions;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
@@ -1029,15 +1020,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
                         if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                        predict_singlePartitioned = false;
+                        predict_touchedPartitions = this.all_partitions;
                         
                     // Invalid MarkovEstimate. Stick with defaults
                     } else if (m_estimate.isValid() == false) {
                         if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
                                 AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
-                        predict_singlePartitioned = false;
                         predict_readOnly = catalog_proc.getReadonly();
                         predict_abortable = true;
+                        predict_touchedPartitions = this.all_partitions;
                         
                     // Use MarkovEstimate to determine things
                     } else {
@@ -1045,20 +1036,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                             LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                             LOG.debug(String.format("%s MarkovEstimate:\n%s", AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
                         }
-                        predict_singlePartitioned = m_estimate.isSinglePartition(this.thresholds);
+                        predict_touchedPartitions = m_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
-                        predict_abortable = (predict_singlePartitioned == false || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
-//                        if (catalog_proc.getName().startsWith("payment") && predict_abortable == true) {
-//                            LOG.info(catalog_proc.getName() + " -> predict_singlePartition = " + predict_singlePartitioned);
-//                            LOG.info(catalog_proc.getName() + " -> predict_readonly        = " + predict_readOnly);
-//                            LOG.info(catalog_proc.getName() + " -> isAbortable             =  " + m_estimate.isAbortable(this.thresholds));
-//                            LOG.info("MARKOV ESTIMATE:\n" + m_estimate);
-//                            MarkovGraph markov = t_state.getMarkovGraph();
-//                            GraphvizExport<Vertex, Edge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
-//                            gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
-//                            System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
-//                            this.messenger.shutdownCluster(new RuntimeException("BUSTED!"), false);
-//                        }
+                        predict_abortable = (predict_touchedPartitions.size() == 1 || m_estimate.isAbortable(this.thresholds)); // || predict_readOnly == false
+                        
                     }
                 }
             } catch (Throwable ex) {
@@ -1069,7 +1050,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
                 LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
-                predict_singlePartitioned = false;
+                predict_touchedPartitions = this.all_partitions;
                 predict_readOnly = false;
                 predict_abortable = true;
             } finally {
@@ -1092,13 +1073,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
 
         ts.init(txn_id, request.getClientHandle(), base_partition,
-                        predict_singlePartitioned, predict_readOnly, predict_abortable,
+                        predict_touchedPartitions, predict_readOnly, predict_abortable,
                         t_state, catalog_proc, request, done);
         if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
         if (d) {
-            LOG.debug(String.format("Executing %s on partition %d [singlePartition=%s, readOnly=%s, abortable=%s, handle=%d]",
+            LOG.debug(String.format("Executing %s on partition %d [touchedPartition=%s, readOnly=%s, abortable=%s, handle=%d]",
                                     ts, base_partition,
-                                    predict_singlePartitioned, predict_readOnly, predict_abortable,
+                                    predict_touchedPartitions, predict_readOnly, predict_abortable,
                                     request.getClientHandle()));
         }
         this.initializeInvocation(ts);
@@ -1248,36 +1229,36 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
-    /**
-     * 
-     * @param executor
-     * @param ts
-     * @param task
-     * @param done
-     */
-    private void startTransaction(LocalTransaction ts, InitiateTaskMessage task, RpcCallback<Dtxn.FragmentResponse> done) {
-        long txn_id = ts.getTransactionId();
-        int base_partition = ts.getBasePartition();
-        boolean single_partitioned = ts.isPredictSinglePartition();
-        assert(ts.getClientCallback() != null) : "Missing original RpcCallback for " + ts;
-        RpcCallback<Dtxn.FragmentResponse> callback = null;
-        
-        
-  
-        // If we're single-partitioned, then we don't want to send back a callback now.
-        // The response from the ExecutionSite should be the only response that we send back to the Dtxn.Coordinator
-        // This limits the number of network roundtrips that we have to do...
-        if (single_partitioned == false) {
-            // We need to send back a response before we actually start executing to avoid a race condition    
-            if (d) LOG.debug(String.format("Sending back Dtxn.FragmentResponse to the InitiateTaskMessage for %s", ts));
-            
-            // FIXME
-            done.run(cached_FragmentResponse);
-            ts.setCoordinatorCallback(new TransactionPrepareCallback(this, ts, ts.getClientCallback()));
-        }
-        
-
-    }
+//    /**
+//     * 
+//     * @param executor
+//     * @param ts
+//     * @param task
+//     * @param done
+//     */
+//    private void startTransaction(LocalTransaction ts, InitiateTaskMessage task, RpcCallback<Dtxn.FragmentResponse> done) {
+//        long txn_id = ts.getTransactionId();
+//        int base_partition = ts.getBasePartition();
+//        boolean single_partitioned = ts.isPredictSinglePartition();
+//        assert(ts.getClientCallback() != null) : "Missing original RpcCallback for " + ts;
+//        RpcCallback<Dtxn.FragmentResponse> callback = null;
+//        
+//        
+//  
+//        // If we're single-partitioned, then we don't want to send back a callback now.
+//        // The response from the ExecutionSite should be the only response that we send back to the Dtxn.Coordinator
+//        // This limits the number of network roundtrips that we have to do...
+//        if (single_partitioned == false) {
+//            // We need to send back a response before we actually start executing to avoid a race condition    
+//            if (d) LOG.debug(String.format("Sending back Dtxn.FragmentResponse to the InitiateTaskMessage for %s", ts));
+//            
+//            // FIXME
+//            done.run(cached_FragmentResponse);
+//            ts.setCoordinatorCallback(new TransactionPrepareCallback(this, ts, ts.getClientCallback()));
+//        }
+//        
+//
+//    }
 
     /**
      * Execute some work on a particular ExecutionSite
@@ -1318,37 +1299,37 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
     }
 
-    /**
-     * 
-     * @param ts
-     * @param done
-     */
-    private void rejectTransaction(LocalTransaction ts, RpcCallback<Hstore.TransactionWorkResponse> done) {
-        // Send back the initial response to the Dtxn.Coordinator
-        done.run(cached_FragmentResponse);
-        
-        // We then need to tell the coordinator that we committed
-        ByteString payload = null;
-        synchronized (this.cached_ClientResponse) {
-            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, this.incoming_throttle[ts.getBasePartition()]);
-            ClientResponseImpl.setClientHandle(this.cached_ClientResponse, ts.getClientHandle());
-            this.cached_ClientResponse.rewind();
-            payload = ByteString.copyFrom(this.cached_ClientResponse);
-        } // SYNCH
-        
-        Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder().setTransactionId(ts.getTransactionId())
-                                                                    .setCommit(false)
-                                                                    .setPayload(payload)
-                                                                    .build();
-        ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this,
-                                                                               ts.getTransactionId(),
-                                                                               ts.getBasePartition(),
-                                                                               payload.toByteArray(),
-                                                                               Dtxn.FragmentResponse.Status.OK,
-                                                                               ts.getClientCallback());
-        this.requestFinish(ts, request, callback);
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(ts.getProcedureName());
-    }
+//    /**
+//     * 
+//     * @param ts
+//     * @param done
+//     */
+//    private void rejectTransaction(LocalTransaction ts, RpcCallback<Hstore.TransactionWorkResponse> done) {
+//        // Send back the initial response to the Dtxn.Coordinator
+//        done.run(cached_FragmentResponse);
+//        
+//        // We then need to tell the coordinator that we committed
+//        ByteString payload = null;
+//        synchronized (this.cached_ClientResponse) {
+//            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, this.incoming_throttle[ts.getBasePartition()]);
+//            ClientResponseImpl.setClientHandle(this.cached_ClientResponse, ts.getClientHandle());
+//            this.cached_ClientResponse.rewind();
+//            payload = ByteString.copyFrom(this.cached_ClientResponse);
+//        } // SYNCH
+//        
+//        Dtxn.FinishRequest request = Dtxn.FinishRequest.newBuilder().setTransactionId(ts.getTransactionId())
+//                                                                    .setCommit(false)
+//                                                                    .setPayload(payload)
+//                                                                    .build();
+//        ClientResponseFinalCallback callback = new ClientResponseFinalCallback(this,
+//                                                                               ts.getTransactionId(),
+//                                                                               ts.getBasePartition(),
+//                                                                               payload.toByteArray(),
+//                                                                               Dtxn.FragmentResponse.Status.OK,
+//                                                                               ts.getClientCallback());
+//        this.requestFinish(ts, request, callback);
+//        if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(ts.getProcedureName());
+//    }
 
     
     /**
@@ -1518,17 +1499,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Restart the new transaction
         if (hstore_conf.site.txn_profiling) new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
-        boolean predict_singlePartitioned = (orig_ts.getOriginalTransactionId() == null && touched.getValueCount() == 1);
+        Collection<Integer> predict_touchedPartitions = (orig_ts.getOriginalTransactionId() == null ? touched.values() : this.all_partitions);  
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME
-        new_ts.init(new_txn_id, base_partition, orig_ts, predict_singlePartitioned, predict_readOnly, predict_abortable);
-        Set<Integer> new_done = new_ts.getDonePartitions();
-        new_done.addAll(this.all_partitions);
-        new_done.removeAll(touched.values());
+        new_ts.init(new_txn_id, base_partition, orig_ts, predict_touchedPartitions, predict_readOnly, predict_abortable);
         
         if (d) {
             LOG.debug(String.format("Re-executing mispredicted %s as new %s-partition %s on partition %d",
-                                    orig_ts, (predict_singlePartitioned ? "single" : "multi"), new_ts, base_partition));
+                                    orig_ts, (predict_touchedPartitions.size() == 1 ? "single" : "multi"), new_ts, base_partition));
             if (t) LOG.trace(String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions()));
         }
         
@@ -1553,19 +1531,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //        this.queue_size.incrementAndGet();
         this.ready_responses.add(new Object[]{es, ts, cr});
     }
-    
-    /**
-     * Request that the Dtxn.Coordinator finish our transaction
-     * @param ts
-     * @param request
-     * @param callback
-     */
-    public void requestFinish(LocalTransaction ts, Hstore.TransactionFinishRequest request, RpcCallback<Hstore.TransactionFinishResponse> callback) {
-        if (d) LOG.debug(String.format("Telling the Dtxn.Coordinator to finish %s [status=%s, error=%s]", ts, request.getStatus(), ts.getPendingErrorMessage()));
-        if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-        this.coordinators[ts.getBasePartition()].finish(ts.rpc_request_finish, request, callback);
-    }
-
 
     /**
      * Perform final cleanup and book keeping for a completed txn
@@ -1666,8 +1631,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Site catalog_site = hstore_site.getSite();
-        final int num_partitions = catalog_site.getPartitions().size();
-        final String site_host = catalog_site.getHost().getIpaddr();
         
         // ----------------------------------------------------------------------------
         // (4) Procedure Request Listener Thread (one per Partition)

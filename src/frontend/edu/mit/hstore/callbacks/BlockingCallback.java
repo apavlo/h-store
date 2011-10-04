@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
 import edu.brown.utils.Poolable;
 
 public abstract class BlockingCallback<T, U extends GeneratedMessage> implements RpcCallback<U>, Poolable {

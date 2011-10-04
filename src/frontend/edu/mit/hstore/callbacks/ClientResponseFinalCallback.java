@@ -7,6 +7,7 @@ import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.Hstore;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 
@@ -19,9 +20,9 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
     
     private final int base_partition;
     private final byte output[];
-    private final Dtxn.FragmentResponse.Status status;
+    private final Hstore.Status status;
     
-    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, int base_partition, byte output[], Dtxn.FragmentResponse.Status status, RpcCallback<byte[]> done) {
+    public ClientResponseFinalCallback(HStoreSite hstore_coordinator, long txn_id, int base_partition, byte output[], Hstore.Status status, RpcCallback<byte[]> done) {
         super(hstore_coordinator, txn_id, done);
         this.base_partition = base_partition;
         this.output = output;
@@ -35,7 +36,7 @@ public class ClientResponseFinalCallback extends AbstractTxnCallback implements 
     public void run(Dtxn.FinishResponse parameter) {
         final boolean d = LOG.isDebugEnabled();
         // But only send the output to the client if this wasn't a mispredict
-        assert(this.status != Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
+        assert(this.status != Hstore.Status.ABORT_MISPREDICT);
         
         // Check whether we should disable throttling
         boolean throttle = this.hstore_site.checkDisableThrottling(this.txn_id, this.base_partition);
