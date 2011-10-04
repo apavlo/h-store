@@ -6,24 +6,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import org.voltdb.client.ClientResponse;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionFinishResponse;
-import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
- * Unpack a FragmentResponse and send the bytes to the client
- * This will be called by ExecutionSite.sendClientResponse
+ * 
  * @author pavlo
  */
-public class MultiPartitionTxnCallback extends BlockingCallback<byte[], Hstore.TransactionPrepareResponse> {
-    private static final Logger LOG = Logger.getLogger(MultiPartitionTxnCallback.class);
+public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.TransactionPrepareResponse> {
+    private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
 
     private static final RpcCallback<Hstore.TransactionFinishResponse> commit_callback = new RpcCallback<TransactionFinishResponse>() {
         @Override
@@ -32,16 +28,17 @@ public class MultiPartitionTxnCallback extends BlockingCallback<byte[], Hstore.T
         }
     };
     
-    private final HStoreSite hstore_site;
+    private HStoreSite hstore_site;
     private LocalTransaction ts;
     private ClientResponseImpl cresponse;
     private AtomicBoolean aborted = new AtomicBoolean(false);
     
-    public MultiPartitionTxnCallback(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
+    public TransactionPrepareCallback() {
+        // Nothing...
     }
     
-    public void init(LocalTransaction ts, ClientResponseImpl cresponse) {
+    public void init(HStoreSite hstore_site, LocalTransaction ts, ClientResponseImpl cresponse) {
+        this.hstore_site = hstore_site;
         this.ts = ts;
         this.cresponse = cresponse;
         
@@ -73,13 +70,16 @@ public class MultiPartitionTxnCallback extends BlockingCallback<byte[], Hstore.T
         final Hstore.Status status = response.getStatus();
         
         // If any TransactionPrepareResponse comes back with anything but an OK,
-        // then the part is over and we need to abort the transaction immediately
+        // then the we need to abort the transaction immediately
         if (status != Hstore.Status.OK) {
+            // If this is the first response that told us to abort, then we'll
+            // send the abort message out 
             if (this.aborted.compareAndSet(false, true)) {
+                // Let everybody know that the party is over!
                 this.hstore_site.getMessenger().transactionFinish(this.ts, status, commit_callback);
                 
                 // Change the response's status and send back the result to the client
-                
+                this.cresponse.setStatus(status);
                 this.hstore_site.sendClientResponse(this.ts, this.cresponse);
             }
         }

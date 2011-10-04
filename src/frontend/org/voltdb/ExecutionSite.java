@@ -118,7 +118,7 @@ import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
+import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.ExecutionState;
 import edu.mit.hstore.dtxn.LocalTransaction;
@@ -2102,8 +2102,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // COMMIT: Distributed Transaction
         else if (status == Hstore.Status.OK) {
             // We have to send a prepare message to all of our remote HStoreSites
-            MultiPartitionTxnCallback callback = new MultiPartitionTxnCallback(hstore_site, ts);
+            TransactionPrepareCallback callback = new TransactionPrepareCallback();
+            // TODO: This should be pulled from an object pool
+            callback.init(hstore_site, ts, cresponse);
             
+            // TODO: Figure out what partitions we need to inform that we're done with
+            // We want to make sure that we don't go back to ones that we've already told
+            this.hstore_messenger.transactionPrepare(ts, callback, ts.getTouchedPartitions().values());
             this.hstore_site.prepareTransaction(ts, cresponse);
         }
         // ABORT: Distributed Transaction

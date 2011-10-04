@@ -106,8 +106,8 @@ import edu.mit.hstore.callbacks.ClientResponseFinalCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.InitiateCallback;
-import edu.mit.hstore.callbacks.MultiPartitionTxnCallback;
-import edu.mit.hstore.callbacks.TransactionWorkResponseCallback;
+import edu.mit.hstore.callbacks.TransactionPrepareCallback;
+import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.interfaces.Loggable;
@@ -190,6 +190,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public static ObjectPool POOL_FORWARDTXN_RESPONSE;
     
     public static ObjectPool POOL_TRANSACTIONWORK_RESPONSE;
+    public static ObjectPool POOL_TRANSACTIONPREPARE;
     
     // ----------------------------------------------------------------------------
     // INTERNAL STUFF
@@ -402,14 +403,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (POOL_FORWARDTXN_REQUEST == null) {
             POOL_FORWARDTXN_REQUEST = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectCallback.class, hstore_conf.site.pool_profiling),
                                                           hstore_conf.site.pool_forwardtxnrequests_idle);
-        }
-        if (POOL_FORWARDTXN_RESPONSE == null) {
             POOL_FORWARDTXN_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectResponseCallback.class, hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
-        }
-        if (POOL_TRANSACTIONWORK_RESPONSE == null) {
-            POOL_TRANSACTIONWORK_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionWorkResponseCallback.class, hstore_conf.site.pool_profiling),
+            POOL_TRANSACTIONWORK_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionWorkCallback.class, hstore_conf.site.pool_profiling),
                                                            hstore_conf.site.pool_forwardtxnresponses_idle);
+            POOL_TRANSACTIONPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling),
+                                                       hstore_conf.site.pool_forwardtxnresponses_idle);
         }
         
         // Reusable Cached Messages
@@ -692,6 +691,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public Histogram<String> getIncomingListenerHistogram() {
         return (this.incoming_listeners);
+    }
+    public EventObservable getWorkloadObservable() {
+        return (this.startWorkload_observable);
     }
     
     public ProfileMeasurement getEmptyQueueTime() {
@@ -1136,42 +1138,32 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.invocation);
         
         // -------------------------------
-        // FAST MODE: Skip the Dtxn.Coordinator
+        // SINGLE-PARTITION TXN
         // -------------------------------
         if (hstore_conf.site.exec_avoid_coordinator && single_partitioned) {
             ts.ignore_dtxn = true;
             ts.init_wrapper = wrapper;
             
-            // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
-            this.startTransaction(ts, ts.init_wrapper, init_callback);        
+         // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
+            ExecutionSite executor = this.executors[base_partition];
+            assert(executor != null) : "No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
+            
+            if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
+            executor.doWork(wrapper, ts);
+            
+            if (hstore_conf.site.status_show_txn_info) {
+                assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id;
+                TxnCounter.EXECUTED.inc(ts.getProcedure());
+            }
             
             if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
-            
+        }
+        
         // -------------------------------    
-        // CANADIAN MODE: Single-Partition
+        // DISTRIBUTED TRANSACTION
         // -------------------------------
-//        } else if (single_partitioned) {
-//            // Construct a message that goes directly to the Dtxn.Engine for the destination partition
-//            if (d) LOG.debug(String.format("Passing single-partition %s to Dtxn.Engine for partition %d [handle=%d]",
-//                                           ts, base_partition, ts.getClientHandle()));
-//
-//            Dtxn.DtxnPartitionFragment.Builder requestBuilder = Dtxn.DtxnPartitionFragment.newBuilder();
-//            requestBuilder.setTransactionId(txn_id);
-//            requestBuilder.setCommit(Dtxn.DtxnPartitionFragment.CommitState.LOCAL_COMMIT);
-//            requestBuilder.setPayload(HStoreSite.encodeTxnId(txn_id));
-//            requestBuilder.setWork(ByteString.copyFrom(wrapper.getBufferForMessaging(this.buffer_pool).b.array()));
-//            
-//            RpcCallback<Dtxn.FragmentResponse> callback = new SinglePartitionTxnCallback(this, ts, base_partition, ts.client_callback);
-//            if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-//            this.engine_channels[base_partition].execute(ts.rpc_request_init, requestBuilder.build(), callback);
-//
-//            if (t) LOG.trace("Using SinglePartitionTxnCallback for " + ts);
-            
-        // -------------------------------    
-        // CANADIAN MODE: Multi-Partition
-        // -------------------------------
-        } else {
+        else {
             // Construct the message for the Dtxn.Coordinator
             if (d) LOG.debug(String.format("Passing multi-partition %s to Dtxn.Coordinator for partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
@@ -1270,8 +1262,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.getClientCallback() != null) : "Missing original RpcCallback for " + ts;
         RpcCallback<Dtxn.FragmentResponse> callback = null;
         
-        ExecutionSite executor = this.executors[base_partition];
-        assert(executor != null) : "No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
+        
   
         // If we're single-partitioned, then we don't want to send back a callback now.
         // The response from the ExecutionSite should be the only response that we send back to the Dtxn.Coordinator
@@ -1282,16 +1273,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // FIXME
             done.run(cached_FragmentResponse);
-            ts.setCoordinatorCallback(new MultiPartitionTxnCallback(this, ts, ts.getClientCallback()));
+            ts.setCoordinatorCallback(new TransactionPrepareCallback(this, ts, ts.getClientCallback()));
         }
         
-        if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
-        executor.doWork(task, ts);
-        
-        if (hstore_conf.site.status_show_txn_info) {
-            assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id;
-            TxnCounter.EXECUTED.inc(ts.getProcedure());
-        }
+
     }
 
     /**
@@ -1305,9 +1290,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // back anything right away. The ExecutionSite will use our wrapped callback handle
         // to send back whatever response it needs to, but we won't actually send it
         // until we get back results from all of the partitions
-        TransactionWorkResponseCallback callback = null;
+        TransactionWorkCallback callback = null;
         try {
-            callback = (TransactionWorkResponseCallback)POOL_TRANSACTIONWORK_RESPONSE.borrowObject();
+            callback = (TransactionWorkCallback)POOL_TRANSACTIONWORK_RESPONSE.borrowObject();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -1365,47 +1350,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(ts.getProcedureName());
     }
 
-    
-    
-    
-    public void prepareTransaction(LocalTransaction ts, ClientResponseImpl cresponse) {
-        Hstore.TransactionPrepareRequest.Builder builder = Hstore.TransactionPrepareRequest.newBuilder(); 
-        RpcCallback<Dtxn.FragmentResponse> callback = ts.getCoordinatorCallback();
-        if (callback == null)
-            throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
-    
-        switch (cresponse.getStatus()) {
-            case OK:
-                if (t) LOG.trace("Marking " + ts + " as success.");
-                
-            case ABORT_MISPREDICT:
-                if (d) 
-                    LOG.debug(String.format("%s mispredicted while executing at partition %d! Aborting work and restarting [isLocal=%s, singlePartition=%s, hasError=%s]",
-                                            ts, this.partitionId, ts.isExecLocal(), ts.isExecSinglePartition(), ts.hasPendingError()));
-                if (is_singlepartitioned)
-                    this.finishWork(ts, false);
-                else
-                    builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_MISPREDICT);
-                break;
-            default:
-                if (d) {
-                    if (status == Hstore.Status.ABORT_USER) {
-                        LOG.trace("Marking " + ts + " as user aborted.");
-                    } else {
-                        LOG.warn("Unexpected server error for " + ts + ": " + cresponse.getStatusString());
-                    }
-                }
-                if (is_singlepartitioned)
-                    this.finishWork(ts, false);
-                else
-                    builder.setStatus(Dtxn.FragmentResponse.Status.ABORT_USER);
-                break;
-        } // SWITCH
-    }
-    
-    public void finishTransaction(LocalTransaction ts, ClientResponseImpl cresponse) {
-        
-    }
     
     /**
      * This method is used to finally complete the transaction.
@@ -1591,9 +1535,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.initializeInvocation(new_ts);
     }
 
-    public EventObservable getWorkloadObservable() {
-        return (this.startWorkload_observable);
-    }
     
     // ----------------------------------------------------------------------------
     // TRANSACTION FINISH/CLEANUP METHODS

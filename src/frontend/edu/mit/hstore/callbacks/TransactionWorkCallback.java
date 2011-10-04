@@ -10,7 +10,7 @@ import edu.brown.hstore.Hstore;
  * 
  * @author pavlo
  */
-public class TransactionWorkResponseCallback extends BlockingCallback<Hstore.TransactionWorkResponse, Hstore.TransactionWorkResponse.PartitionResult> {
+public class TransactionWorkCallback extends BlockingCallback<Hstore.TransactionWorkResponse, Hstore.TransactionWorkResponse.PartitionResult> {
     private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
     
     protected Hstore.TransactionWorkResponse.Builder builder = null;
@@ -18,7 +18,7 @@ public class TransactionWorkResponseCallback extends BlockingCallback<Hstore.Tra
     /**
      * Default Constructor
      */
-    public TransactionWorkResponseCallback() {
+    public TransactionWorkCallback() {
         super();
     }
     
