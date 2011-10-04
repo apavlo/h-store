@@ -37,7 +37,8 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
- * 
+ * A RemoteTransaction is one whose Java control code is executing at a 
+ * different partition then where we are using this handle.
  * @author pavlo
  */
 public class RemoteTransaction extends AbstractTransaction {

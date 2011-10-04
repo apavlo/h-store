@@ -27,7 +27,7 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
     /**
      * Default Constructor
      */
-    private TransactionRedirectResponseCallback() {
+    public TransactionRedirectResponseCallback() {
         // Nothing to do...
     }
     

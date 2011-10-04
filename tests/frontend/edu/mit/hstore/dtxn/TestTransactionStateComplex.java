@@ -30,7 +30,7 @@ import edu.mit.hstore.dtxn.LocalTransaction;
  * @author pavlo
  */
 public class TestTransactionStateComplex extends BaseTestCase {
-    private static final Long TXN_ID = 1000l;
+    private static final long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
@@ -95,7 +95,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, true);
+        this.ts = new LocalTransaction(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), false, true);
         this.ts.setExecutionState(this.execState);
     }
 

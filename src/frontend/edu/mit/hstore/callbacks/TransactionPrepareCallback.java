@@ -1,7 +1,5 @@
 package edu.mit.hstore.callbacks;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
