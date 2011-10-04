@@ -312,7 +312,7 @@ public class MarkovCostModel extends AbstractCostModel {
         }
 
         
-        TransactionEstimator.getStatePool().returnObject(s);
+        TransactionEstimator.POOL_STATES.returnObject(s);
         
         return (cost);
     }

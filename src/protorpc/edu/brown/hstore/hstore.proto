@@ -103,7 +103,8 @@ message TransactionPrepareRequest {
 
 message TransactionPrepareResponse {
     required int64 transaction_id = 1;
-    required Status status = 2;
+    repeated int32 partitions = 2 [packed=true];
+    required Status status = 3;
 }
 
 // -----------------------------------

@@ -1,9 +1,9 @@
 package edu.mit.hstore.util;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -53,7 +53,7 @@ public class NewOrderInspector {
      * @param args
      * @return
      */
-    public boolean initializeTransaction(LocalTransaction ts, Object args[]) {
+    public Collection<Integer> initializeTransaction(LocalTransaction ts, Object args[]) {
 //        assert(ts.getProcedureName().equalsIgnoreCase("neworder")) : "Unable to use NewOrder cheat for " + ts;
         Short w_id = this.neworder_hack_w_id.get(args[0].toString());
         assert(w_id != null);
@@ -62,12 +62,13 @@ public class NewOrderInspector {
         short inner[] = (short[])args[5];
         
         boolean predict_singlePartition = true;
-        Set<Integer> done_partitions = ts.getDonePartitions();
-        if (hstore_conf.site.exec_neworder_cheat_done_partitions) done_partitions.addAll(this.hstore_site.getAllPartitionIds());
+        Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
+        if (hstore_conf.site.exec_neworder_cheat_done_partitions == false)
+            predict_touchedPartitions.addAll(this.hstore_site.getAllPartitionIds());
         
         short last_w_id = w_id.shortValue();
         Integer last_partition = w_id_partition;
-        if (hstore_conf.site.exec_neworder_cheat_done_partitions) done_partitions.remove(w_id_partition);
+        if (hstore_conf.site.exec_neworder_cheat_done_partitions) predict_touchedPartitions.add(w_id_partition);
         for (short s_w_id : inner) {
             if (s_w_id != last_w_id) {
                 last_partition = this.neworder_hack_hashes.get(s_w_id);
@@ -76,11 +77,11 @@ public class NewOrderInspector {
             if (w_id_partition.equals(last_partition) == false) {
                 predict_singlePartition = false;
                 if (hstore_conf.site.exec_neworder_cheat_done_partitions) {
-                    done_partitions.remove(last_partition);
+                    predict_touchedPartitions.add(last_partition);
                 } else break;
             }
         } // FOR
         if (trace.get()) LOG.trace(String.format("%s - SinglePartitioned=%s, W_ID=%d, S_W_IDS=%s", ts, predict_singlePartition, w_id, Arrays.toString(inner)));
-        return (predict_singlePartition);
+        return (predict_touchedPartitions);
     }
 }

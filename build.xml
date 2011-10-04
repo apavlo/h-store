@@ -175,7 +175,7 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="default"
-    depends="protobuf, protorpc, dtxn, compile, ee"
+    depends="protobuf, protorpc, compile, ee"
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"

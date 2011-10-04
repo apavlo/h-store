@@ -72,8 +72,8 @@ public class RemoteTransaction extends AbstractTransaction {
     
     @Override
     @SuppressWarnings("unchecked")
-    public RemoteTransaction init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(txnId, clientHandle, source_partition, predict_singlePartitioned, predict_readOnly, predict_abortable, false));
+    public RemoteTransaction init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable) {
+        return ((RemoteTransaction)super.init(txnId, clientHandle, source_partition, predict_readOnly, predict_abortable, false));
     }
     
     @Override

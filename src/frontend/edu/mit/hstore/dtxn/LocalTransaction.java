@@ -25,17 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -60,7 +50,8 @@ import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.dtxn.Dtxn;
+import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
 /**
  * 
@@ -99,21 +90,37 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     /**
+     * The original StoredProcedureInvocation request that was sent to the HStoreSite
+     * XXX: Why do we need to keep this?
+     */
+    public StoredProcedureInvocation invocation;
+
+    /**
+     * 
+     */
+    public InitiateTaskMessage init_wrapper = null;
+    
+    /**
+     * The set of partitions that we expected this partition to touch.
+     */
+    public Collection<Integer> predict_touchedPartitions;
+    
+    /**
      * A handle to the execution state of this transaction
+     * This will only get set when the transaction starts running.
      */
     protected ExecutionState state;
     
     /**
-     * Callback to the coordinator for txns that are running on this partition
+     * This callback is used to keep track of what partitions have replied that they are 
+     * ready to commit/abort our transaction. This is only needed for distributed transactions.
      */
-    private RpcCallback<Dtxn.FragmentResponse> coordinator_callback;
+    private TransactionPrepareCallback prepare_callback; 
     
     /**
-     * The original StoredProcedureInvocation request that was sent to the HStoreSite
+     * Final RpcCallback to the client
      */
-    public StoredProcedureInvocation invocation;
-
-    public InitiateTaskMessage init_wrapper = null;
+    private RpcCallback<byte[]> client_callback;
     
     private Long orig_txn_id;
     
@@ -139,10 +146,7 @@ public class LocalTransaction extends AbstractTransaction {
      * but just not send any data requests.
      */
     public CountDownLatch init_latch;
-    /**
-     * Final RpcCallback to the client
-     */
-    private RpcCallback<byte[]> client_callback;
+
     
     public final ProtoRpcController rpc_request_init = new ProtoRpcController();
     public final ProtoRpcController rpc_request_work = new ProtoRpcController();
@@ -169,21 +173,30 @@ public class LocalTransaction extends AbstractTransaction {
         super(executor);
         this.profiler = (this.executor.getHStoreConf().site.txn_profiling ? new TransactionProfile() : null);
     }
-    
+
     @SuppressWarnings("unchecked")
-    public LocalTransaction init(long txnId, long clientHandle, int source_partition,
-                                      boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
-        return ((LocalTransaction)super.init(txnId, clientHandle, source_partition,
-                                                  predict_singlePartitioned, predict_readOnly, predict_abortable, true));
+    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
+                                 boolean predict_readOnly, boolean predict_canAbort) {
+        assert(this.predict_touchedPartitions != null);
+        if (this.predict_touchedPartitions.size() > 1) {
+            try {
+                this.prepare_callback = (TransactionPrepareCallback)HStoreSite.POOL_TRANSACTIONPREPARE.borrowObject();
+                this.prepare_callback.init(this);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+        return ((LocalTransaction)super.init(txnId, clientHandle, base_partition,
+                                             predict_readOnly, predict_canAbort, true));
     }
-    
+
     /**
-     * 
+     * Main initialization method for LocalTransaction
      * @param txnId
      * @param clientHandle
      * @param base_partition
-     * @param predictSinglePartition
-     * @param predictReadOnly
+     * @param predict_singlePartition
+     * @param predict_readOnly
      * @param predict_canAbort
      * @param estimator_state
      * @param catalog_proc
@@ -192,19 +205,20 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public LocalTransaction init(long txnId, long clientHandle, int base_partition,
-                                      boolean predictSinglePartition, boolean predictReadOnly, boolean predict_canAbort, TransactionEstimator.State estimator_state,
-                                      Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+                                 Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
+                                 TransactionEstimator.State estimator_state,
+                                 Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+        assert(predict_touchedPartitions.isEmpty() == false);
         
+        this.predict_touchedPartitions = predict_touchedPartitions;
         this.estimator_state = estimator_state;
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
         this.client_callback = client_callback;
-        this.init_latch = (predictSinglePartition == false ? new CountDownLatch(1) : null);
+        this.init_latch = (predict_touchedPartitions.size() > 1 ? new CountDownLatch(1) : null);
         
-        return ((LocalTransaction)super.init(txnId, clientHandle, base_partition,
-                                                  predictSinglePartition, predictReadOnly, predict_canAbort,
-                                                  true));
+        return this.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort);
     }
     
     /**
@@ -214,7 +228,9 @@ public class LocalTransaction extends AbstractTransaction {
      * @param orig
      * @return
      */
-    public LocalTransaction init(long txnId, int base_partition, LocalTransaction orig, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
+    public LocalTransaction init(long txnId, int base_partition, LocalTransaction orig,
+                                 Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_abortable) {
+        this.predict_touchedPartitions = predict_touchedPartitions;
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
@@ -232,7 +248,7 @@ public class LocalTransaction extends AbstractTransaction {
 //            this.est_time.appendTime(orig.est_time);
 //        }
         
-        return (this.init(txnId, orig.client_handle, base_partition, predict_singlePartitioned, predict_readOnly, predict_abortable));
+        return this.init(txnId, orig.client_handle, base_partition, predict_readOnly, predict_abortable);
     }
     
     public void setExecutionState(ExecutionState state) {
@@ -252,8 +268,13 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             // Return our TransactionEstimator.State handle
             if (this.estimator_state != null) {
-                TransactionEstimator.getStatePool().returnObject(this.estimator_state);
+                TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
                 this.estimator_state = null;
+            }
+            // Return our TransactionPrepareCallback
+            if (this.prepare_callback != null) {
+                HStoreSite.POOL_TRANSACTIONPREPARE.returnObject(this.prepare_callback);
+                this.prepare_callback = null;
             }
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -270,7 +291,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.sysproc = false;
         this.exec_speculative = false;
         this.ignore_dtxn = false;
-        this.coordinator_callback = null;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -405,8 +425,11 @@ public class LocalTransaction extends AbstractTransaction {
     public StoredProcedureInvocation getInvocation() {
         return invocation;
     }
+    public TransactionPrepareCallback getPrepareCallback() {
+        return (this.prepare_callback);
+    }
     public RpcCallback<byte[]> getClientCallback() {
-        return client_callback;
+        return (this.client_callback);
     }
     public CountDownLatch getInitializationLatch() {
         return (this.init_latch);
@@ -518,21 +541,15 @@ public class LocalTransaction extends AbstractTransaction {
     public boolean isBlocked(FragmentTaskMessage ftask) {
         return (this.state.blocked_tasks.contains(ftask));
     }
-    /**
-     * Retrieves the coordinator callback
-     * @return the coordinator_callback
-     */
-    public RpcCallback<Dtxn.FragmentResponse> getCoordinatorCallback() {
-        return (this.coordinator_callback);
-    }
     
+    public Collection<Integer> getPredictTouchedPartitions() {
+        return (this.predict_touchedPartitions);
+    }
     /**
-     * @param callback
+     * Returns true if this Transaction was originally predicted to be single-partitioned
      */
-    public void setCoordinatorCallback(RpcCallback<Dtxn.FragmentResponse> callback) {
-        // Important! We never want to overwrite this after we set it!!
-        assert(this.coordinator_callback == null) : "Trying to set the Coordinator callback twice for txn #" + this.txn_id;
-        this.coordinator_callback = callback;
+    public boolean isPredictSinglePartition() {
+        return (this.predict_touchedPartitions.size() == 1);
     }
     
     // ----------------------------------------------------------------------------
@@ -814,6 +831,7 @@ public class LocalTransaction extends AbstractTransaction {
         // Predictions
         m = new ListOrderedMap<String, Object>();
         m.put("Predict Single-Partitioned", this.isPredictSinglePartition());
+        m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
         m.put("Estimator State", this.estimator_state);
@@ -833,9 +851,7 @@ public class LocalTransaction extends AbstractTransaction {
         m.put("Original Txn Id", this.orig_txn_id);
         m.put("Init Latch", this.init_latch);
         m.put("Client Callback", this.client_callback);
-        
-        m.put("Dtxn.Coordinator Callback", this.coordinator_callback);
-        m.put("Ignore Dtxn.Coordinator", this.ignore_dtxn);
+        m.put("Prepare Callback", this.prepare_callback);
         maps.add(m);
 
         // Profile Times

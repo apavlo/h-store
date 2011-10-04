@@ -686,12 +686,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             // m_pool.put("BatchPlanners", ExecutionSite.POOL_BATCH_PLANNERS.size());
 
             // MarkovPathEstimators
-            StackObjectPool pool = (StackObjectPool)TransactionEstimator.getEstimatorPool();
+            StackObjectPool pool = (StackObjectPool)TransactionEstimator.POOL_ESTIMATORS;
             CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("Estimators", this.formatPoolCounts(pool, factory));
 
             // TransactionEstimator.States
-            pool = (StackObjectPool)TransactionEstimator.getStatePool();
+            pool = (StackObjectPool)TransactionEstimator.POOL_STATES;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("EstimationStates", this.formatPoolCounts(pool, factory));
             

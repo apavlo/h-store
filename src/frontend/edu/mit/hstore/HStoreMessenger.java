@@ -44,6 +44,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
@@ -85,10 +86,10 @@ public class HStoreMessenger implements Shutdownable {
     private boolean shutting_down = false;
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
     
-    // Message Routers
-    
 
-    
+    /**
+     * 
+     */
     private class MessengerListener implements Runnable {
         @Override
         public void run() {
@@ -132,6 +133,9 @@ public class HStoreMessenger implements Shutdownable {
         }
     }
     
+    /**
+     * 
+     */
     private class ForwardTxnDispatcher implements Runnable {
         final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
         
@@ -657,19 +661,30 @@ public class HStoreMessenger implements Shutdownable {
         } // FOR
     }
     
-    public void transactionPrepare(LocalTransaction ts, RpcCallback<Hstore.TransactionPrepareResponse> callback, Collection<Integer> partitions) {
+    /**
+     * Notify the given partitions that this transaction is finished with them
+     * This can also be used for the "early prepare" optimization.
+     * @param ts
+     * @param callback
+     * @param partitions
+     */
+    public void transactionPrepare(LocalTransaction ts, Collection<Integer> partitions) {
         Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .addAllPartitions(ts.getDonePartitions())
                                                         .build();
-        this.router_transactionPrepare.sendMessages(request.getTransactionId(), request, callback, partitions);
+        this.router_transactionPrepare.sendMessages(request.getTransactionId(),
+                                                    request,
+                                                    ts.getPrepareCallback(),
+                                                    partitions);
     }
-    
+
     /**
-     * Notify all remote HStoreSites that the multi-partition transaction is done with data
-     * at the given partitions. This is used for the "early prepare" optimization.
-     * @param txn_id
-     * @param partitions
+     * Notify all remote HStoreSites that the distributed transaction is done with data
+     * at the given partitions and that they need to commit/abort the results. 
+     * @param ts
+     * @param status
+     * @param callback
      */
     public void transactionFinish(LocalTransaction ts, Hstore.Status status, RpcCallback<Hstore.TransactionFinishResponse> callback) {
         Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()

@@ -2,6 +2,7 @@ package edu.mit.hstore.callbacks;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.Hstore;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreSite;
 
@@ -10,9 +11,9 @@ import edu.mit.hstore.HStoreSite;
  * @author pavlo
  */
 public class MispredictCleanupCallback extends AbstractTxnCallback implements RpcCallback<Dtxn.FinishResponse> {
-    private final Dtxn.FragmentResponse.Status status;
+    private final Hstore.Status status;
     
-    public MispredictCleanupCallback(HStoreSite hstore_site, long txn_id, Dtxn.FragmentResponse.Status status) {
+    public MispredictCleanupCallback(HStoreSite hstore_site, long txn_id, Hstore.Status status) {
         super(hstore_site, txn_id, null);
         this.status = status;
     }

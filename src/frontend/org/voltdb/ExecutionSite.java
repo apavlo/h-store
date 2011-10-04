@@ -42,7 +42,6 @@
 
 package org.voltdb;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,9 +59,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -75,7 +74,6 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.MispredictionException;
@@ -86,7 +84,6 @@ import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
-import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentResponseMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.InitiateTaskMessage;
@@ -114,16 +111,15 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.dtxn.Dtxn;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
+import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.ExecutionState;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
-import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 
@@ -661,7 +657,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             try {
                 for (int i = 0; i < count; i++) {
                     AbstractTransaction ts = (AbstractTransaction)pool.borrowObject();
-                    ts.init(-1l, -1l, this.partitionId, false, false, true);
+                    ts.init(-1l, -1l, this.partitionId, false, true);
                     states.add(ts);
                 } // FOR
                 
@@ -1601,7 +1597,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             try {
                 // Remote Transaction
                 ts = (RemoteTransaction)remoteTxnPool.borrowObject();
-                ts.init(txn_id, client_handle, task.getSourcePartitionId(), false, read_only, true);
+                ts.init(txn_id, client_handle, task.getSourcePartitionId(), read_only, true);
                 if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
                                                ts, task.getSourcePartitionId(), this.partitionId, read_only, false));
             } catch (Exception ex) {
@@ -2101,15 +2097,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } 
         // COMMIT: Distributed Transaction
         else if (status == Hstore.Status.OK) {
-            // We have to send a prepare message to all of our remote HStoreSites
-            TransactionPrepareCallback callback = new TransactionPrepareCallback();
-            // TODO: This should be pulled from an object pool
-            callback.init(hstore_site, ts, cresponse);
+            TransactionPrepareCallback callback = ts.getPrepareCallback();
+            assert(callback != null);
+            callback.setClientResponse(cresponse);
             
-            // TODO: Figure out what partitions we need to inform that we're done with
+            // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
-            this.hstore_messenger.transactionPrepare(ts, callback, ts.getTouchedPartitions().values());
-            this.hstore_site.prepareTransaction(ts, cresponse);
+            Collection<Integer> partitions =  CollectionUtils.subtract(ts.getPredictTouchedPartitions(), ts.getDonePartitions());
+            this.hstore_messenger.transactionPrepare(ts, partitions);
         }
         // ABORT: Distributed Transaction
         else {
