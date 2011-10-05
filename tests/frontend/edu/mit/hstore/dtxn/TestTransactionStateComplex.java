@@ -95,7 +95,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), false, true);
+        this.ts = new LocalTransaction().init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), false, true);
         this.ts.setExecutionState(this.execState);
     }
 

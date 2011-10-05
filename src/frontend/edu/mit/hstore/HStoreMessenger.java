@@ -505,7 +505,7 @@ public class HStoreMessenger implements Shutdownable {
             // until we get back results from all of the partitions
             TransactionWorkCallback callback = null;
             try {
-                callback = (TransactionWorkCallback)HStoreSite.POOL_TXNWORK.borrowObject();
+                callback = (TransactionWorkCallback)HStoreObjectPools.POOL_TXNWORK.borrowObject();
                 callback.init(txn_id, request.getFragmentsCount(), done);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -576,7 +576,7 @@ public class HStoreMessenger implements Shutdownable {
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)HStoreSite.POOL_FORWARDTXN_RESPONSE.borrowObject();
+                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.POOL_FORWARDTXN_RESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderId(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);

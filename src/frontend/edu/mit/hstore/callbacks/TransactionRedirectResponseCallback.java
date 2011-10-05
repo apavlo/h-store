@@ -8,6 +8,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionRedirectResponse;
 import edu.brown.utils.Poolable;
+import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -63,7 +64,7 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
         if (trace) LOG.trace("Sent our ClientResponse back. Returning to regularly scheduled program...");
         try {
             this.finish();
-            HStoreSite.POOL_FORWARDTXN_RESPONSE.returnObject(this);
+            HStoreObjectPools.POOL_FORWARDTXN_RESPONSE.returnObject(this);
         } catch (Exception ex) {
             throw new RuntimeException("Funky failure", ex);
         }

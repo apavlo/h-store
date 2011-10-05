@@ -141,25 +141,25 @@ public class ExecutionSiteHelper implements Runnable {
 
         this.hstore_site.updateLogging();
         for (ExecutionSite es : this.executors) {
-            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
+//            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
             long to_remove = System.currentTimeMillis() - this.txn_expire;
             
             int cleaned = 0;
-            while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
-                AbstractTransaction ts = es.finished_txn_states.peek();
-                if (ts.getEE_FinishedTimestamp() < to_remove) {
-//                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
-                    if (ts.isHStoreSite_Finished() == false) break;
-                    
-                    if (t) LOG.trace("Cleaning txn #" + ts.getTransactionId());
-                    
-
-                    es.cleanupTransaction(ts);
-                    es.finished_txn_states.remove();
-                    cleaned++;
-                    this.total_cleaned++;
-                } else break;
-            } // WHILE
+//            while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
+//                AbstractTransaction ts = es.finished_txn_states.peek();
+//                if (ts.getEE_FinishedTimestamp() < to_remove) {
+////                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
+//                    if (ts.isHStoreSite_Finished() == false) break;
+//                    
+//                    if (t) LOG.trace("Cleaning txn #" + ts.getTransactionId());
+//                    
+//
+//                    es.cleanupTransaction(ts);
+//                    es.finished_txn_states.remove();
+//                    cleaned++;
+//                    this.total_cleaned++;
+//                } else break;
+//            } // WHILE
             if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.partitionId, this.total_cleaned));
             // Only call tick here!
             es.tick();

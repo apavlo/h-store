@@ -40,7 +40,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.set.ListOrderedSet;
-import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
@@ -171,28 +170,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
 
-    /**
-     * ForwardTxnRequestCallback Pool
-     */
-    public static ObjectPool POOL_TXNREDIRECT_REQUEST;
-
-    /**
-     * ForwardTxnResponseCallback Pool
-     */
-    public static ObjectPool POOL_FORWARDTXN_RESPONSE;
-    
-    public static ObjectPool POOL_TXNWORK;
-    public static ObjectPool POOL_TXNPREPARE;
-    
-    /**
-     * RemoteTransaction Object Pool
-     */
-    public static ObjectPool remoteTxnPool;
-    
-    // ----------------------------------------------------------------------------
-    // INTERNAL STUFF
-    // ----------------------------------------------------------------------------
-    
     private final HStoreThreadManager threadManager;
     
     /**
@@ -402,20 +379,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // Static Object Pools
-        if (POOL_TXNREDIRECT_REQUEST == null) {
-            POOL_TXNREDIRECT_REQUEST = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectCallback.class, hstore_conf.site.pool_profiling),
-                                                          hstore_conf.site.pool_forwardtxnrequests_idle);
-            POOL_FORWARDTXN_RESPONSE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionRedirectResponseCallback.class, hstore_conf.site.pool_profiling),
-                                                           hstore_conf.site.pool_forwardtxnresponses_idle);
-            POOL_TXNWORK = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionWorkCallback.class, hstore_conf.site.pool_profiling),
-                                                           hstore_conf.site.pool_forwardtxnresponses_idle);
-            POOL_TXNPREPARE = new StackObjectPool(CountingPoolableObjectFactory.makeFactory(TransactionPrepareCallback.class, hstore_conf.site.pool_profiling, this),
-                                                          hstore_conf.site.pool_forwardtxnresponses_idle);
-            
-            remoteTxnPool = new StackObjectPool(
-                                     CountingPoolableObjectFactory.makeFactory(RemoteTransaction.class, hstore_conf.site.pool_profiling),
-                                     hstore_conf.site.pool_remotetxnstate_idle);
-        }
+        HStoreObjectPools.initialize(this);
         
         // Reusable Cached Messages
         ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, EMPTY_RESULT, "");
@@ -510,6 +474,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public Integer getSiteIdForPartitionId(Integer partition_id) {
         return this.partition_site_xref.get(partition_id);
+    }
+    
+    public LocalTransaction getLocalTransaction(long txn_id) {
+        return (this.inflight_txns.get(txn_id));
+    }
+    
+    public RemoteTransaction getRemoteTransaction(long txn_id) {
+        // FIXME
+        return (null);
     }
     
     /**
@@ -915,7 +888,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // we will just forward it back to the client. How sweet is that??
             TransactionRedirectCallback callback = null;
             try {
-                callback = (TransactionRedirectCallback)HStoreSite.POOL_TXNREDIRECT_REQUEST.borrowObject();
+                callback = (TransactionRedirectCallback)HStoreObjectPools.POOL_TXNREDIRECT_REQUEST.borrowObject();
                 callback.init(done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
@@ -959,7 +932,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long txn_id = id_generator.getNextUniqueTransactionId();
         LocalTransaction ts = null;
         try {
-            ts = (LocalTransaction)this.executors[base_partition].localTxnPool.borrowObject();
+            ts = HStoreObjectPools.localTxnPool.borrowObject();
         } catch (Exception ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
@@ -1276,7 +1249,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts == null) {
             try {
                 // Remote Transaction
-                ts = (RemoteTransaction)remoteTxnPool.borrowObject();
+                ts = (RemoteTransaction)HStoreObjectPools.remoteTxnPool.borrowObject();
                 ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
                 if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
                                                ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false));
@@ -1461,7 +1434,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 TransactionRedirectCallback callback;
                 try {
-                    callback = (TransactionRedirectCallback)HStoreSite.POOL_TXNREDIRECT_REQUEST.borrowObject();
+                    callback = (TransactionRedirectCallback)HStoreObjectPools.POOL_TXNREDIRECT_REQUEST.borrowObject();
                     callback.init(orig_callback);
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
@@ -1483,8 +1456,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
         LocalTransaction new_ts = null;
         try {
-            ExecutionSite executor = this.executors[base_partition];
-            new_ts = (LocalTransaction)executor.localTxnPool.borrowObject();
+            new_ts = HStoreObjectPools.localTxnPool.borrowObject();
         } catch (Exception ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
             throw new RuntimeException(ex);
@@ -1605,7 +1577,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isExecLocal()) {
                 // FIXME this.localTxnPool.returnObject(ts);
             } else {
-                remoteTxnPool.returnObject(ts);
+                HStoreObjectPools.remoteTxnPool.returnObject(ts);
             }
         } catch (Exception ex) {
             LOG.fatal("Failed to return TransactionState to ObjectPool for txn #" + txn_id, ex);

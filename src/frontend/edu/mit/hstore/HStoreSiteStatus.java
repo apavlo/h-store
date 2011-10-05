@@ -701,12 +701,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             m_pool.put("DependencyInfos", this.formatPoolCounts(pool, factory));
             
             // ForwardTxnRequestCallbacks
-            pool = (StackObjectPool)HStoreSite.POOL_TXNREDIRECT_REQUEST;
+            pool = (StackObjectPool)HStoreObjectPools.POOL_TXNREDIRECT_REQUEST;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("ForwardTxnRequests", this.formatPoolCounts(pool, factory));
             
             // ForwardTxnResponseCallbacks
-            pool = (StackObjectPool)HStoreSite.POOL_FORWARDTXN_RESPONSE;
+            pool = (StackObjectPool)HStoreObjectPools.POOL_FORWARDTXN_RESPONSE;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("ForwardTxnResponses", this.formatPoolCounts(pool, factory));
             
@@ -722,21 +722,15 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             int total_destroyed[] = new int[labels.length];
             for (int i = 0, cnt = labels.length; i < cnt; i++) {
                 total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
-            }
-            
-            for (ExecutionSite e : executors.values()) {
-                int i = 0;
-                for (ObjectPool p : new ObjectPool[] { e.localTxnPool, e.remoteTxnPool }) {
-                    pool = (StackObjectPool)p;
-                    factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                    
-                    total_active[i] += p.getNumActive();
-                    total_idle[i] += p.getNumIdle(); 
-                    total_created[i] += factory.getCreatedCount();
-                    total_passivated[i] += factory.getPassivatedCount();
-                    total_destroyed[i] += factory.getDestroyedCount();
-                    i += 1;
-                } // FOR
+                pool = (StackObjectPool)(i == 0 ? HStoreObjectPools.localTxnPool : HStoreObjectPools.remoteTxnPool);   
+                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+                
+                total_active[i] += pool.getNumActive();
+                total_idle[i] += pool.getNumIdle(); 
+                total_created[i] += factory.getCreatedCount();
+                total_passivated[i] += factory.getPassivatedCount();
+                total_destroyed[i] += factory.getDestroyedCount();
+                i += 1;
             } // FOR
             
             for (int i = 0, cnt = labels.length; i < cnt; i++) {

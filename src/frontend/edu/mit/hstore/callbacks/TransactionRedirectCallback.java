@@ -10,6 +10,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.utils.Poolable;
+import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -65,7 +66,7 @@ public class TransactionRedirectCallback implements RpcCallback<Hstore.Transacti
         } finally {
             try {
                 this.finish();
-                HStoreSite.POOL_TXNREDIRECT_REQUEST.returnObject(this);
+                HStoreObjectPools.POOL_TXNREDIRECT_REQUEST.returnObject(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Funky failure", ex);
             }
