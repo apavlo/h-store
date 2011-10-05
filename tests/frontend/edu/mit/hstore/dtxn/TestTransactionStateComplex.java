@@ -21,8 +21,10 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -48,6 +50,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     };
     private static final VoltTable FAKE_RESULT = new VoltTable(FAKE_RESULTS_COLUMNS);
     
+    private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
@@ -85,6 +88,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 batch[i] = new SQLStmt(catalog_stmt, catalog_stmt.getMs_fragments());
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
+            
+            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
+            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+            executors.put(LOCAL_PARTITION, executor);
+            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, args, SINGLE_PARTITIONED);

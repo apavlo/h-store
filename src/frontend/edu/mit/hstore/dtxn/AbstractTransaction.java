@@ -116,6 +116,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @param executor
      */
     public AbstractTransaction() {
+        assert(HStoreSite.LOCAL_PARTITION_OFFSETS != null);
         this.exec_readOnly = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
         this.exec_eeWork = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
         this.exec_noUndoBuffer = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];

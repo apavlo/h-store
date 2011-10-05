@@ -572,6 +572,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int pool_localtxninit_idle;
+        
+        @ConfigProperty(
+            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int pool_txnprepare_idle;
     }
 
     // ============================================================================

@@ -23,8 +23,10 @@ import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.DependencyInfo;
 
@@ -53,6 +55,7 @@ public class TestTransactionState extends BaseTestCase {
     };
     private static final VoltTable FAKE_RESULT = new VoltTable(FAKE_RESULTS_COLUMNS);
     
+    private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
@@ -92,6 +95,11 @@ public class TestTransactionState extends BaseTestCase {
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
          
+            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
+            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+            executors.put(LOCAL_PARTITION, executor);
+            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
+            
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, args, SINGLE_PARTITIONED);
             assertNotNull(plan);

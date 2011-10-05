@@ -575,7 +575,7 @@ public class HStoreMessenger implements Shutdownable {
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.POOL_FORWARDTXN_RESPONSE.borrowObject();
+                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.POOL_TXNREDIRECT_RESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderId(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
