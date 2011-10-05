@@ -50,9 +50,9 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
     }
     
     @Override
-    public void run(Hstore.TransactionWorkResponse.PartitionResult parameter) {
+    protected int runImpl(Hstore.TransactionWorkResponse.PartitionResult parameter) {
         this.builder.addResults(parameter);
         if (parameter.hasError()) this.builder.setStatus(Hstore.Status.ABORT_UNEXPECTED);
-        super.run(parameter);
+        return (1);
     }
 }

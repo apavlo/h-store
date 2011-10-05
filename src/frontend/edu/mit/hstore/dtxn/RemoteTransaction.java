@@ -26,12 +26,10 @@
 package edu.mit.hstore.dtxn;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
-import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -84,11 +82,6 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public void finishRound() {
         super.finishRound();
-    }
-    
-    @Override
-    public boolean isHStoreSite_Finished() {
-        return (true);
     }
     
     /**

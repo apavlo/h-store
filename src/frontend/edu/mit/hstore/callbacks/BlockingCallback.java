@@ -32,6 +32,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         // Nothing!
     }
     
+    protected abstract int runImpl(U parameter);
+    
     /**
      * This method is invoked once all of the T messages are recieved 
      */
@@ -47,12 +49,13 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     protected abstract void finishImpl();
     
-    
     @Override
     public void run(U parameter) {
-        // If this is the last PartitionResult that we were waiting for, then we'll send back
-        // the TransactionWorkResponse to the remote HStoreSite
-        if (this.getCounter().decrementAndGet() == 0) {
+        int counter = this.runImpl(parameter);
+        
+        // If this is the last result that we were waiting for, then we'll invoke
+        // the unblockCallback()
+        if (this.aborted.get() == false && this.getCounter().addAndGet(-1 * counter) == 0) {
             this.unblockCallback();
         }
     }

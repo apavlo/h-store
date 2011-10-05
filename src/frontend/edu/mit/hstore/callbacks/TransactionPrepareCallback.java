@@ -90,10 +90,11 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         // Change the response's status and send back the result to the client
         this.cresponse.setStatus(status);
         this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+        this.hstore_site.completeTransaction(this.ts.getTransactionId(), status);
     }
     
     @Override
-    public void run(Hstore.TransactionPrepareResponse response) {
+    protected int runImpl(Hstore.TransactionPrepareResponse response) {
         final Hstore.Status status = response.getStatus();
         
         // If any TransactionPrepareResponse comes back with anything but an OK,
@@ -101,10 +102,9 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         if (status != Hstore.Status.OK) {
             this.abort(status);
         }
+
         // Otherwise we need to update our counter to keep track of how many OKs that we got
         // back. We'll ignore anything that comes in after we've aborted
-        else if (this.isAborted() == false && this.getCounter().addAndGet(-1 * response.getPartitionsCount()) == 0) {
-            this.unblockCallback();
-        }
+        return response.getPartitionsCount();
     }
 } // END CLASS

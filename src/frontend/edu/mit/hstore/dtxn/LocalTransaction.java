@@ -46,12 +46,12 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreObjectPools;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
 /**
@@ -115,10 +115,6 @@ public class LocalTransaction extends AbstractTransaction {
      * Whether this is a sysproc
      */
     public boolean sysproc;
-    /**
-     * Whether this txn isn't use the Dtxn.Coordinator
-     */
-    public boolean ignore_dtxn = false;
 
     /** Whether this txn is being executed specutatively */
     private boolean exec_speculative = false;
@@ -285,12 +281,10 @@ public class LocalTransaction extends AbstractTransaction {
         this.rpc_request_finish.reset();
 
         this.state = null;
-        this.init_wrapper = null;
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
         this.exec_speculative = false;
-        this.ignore_dtxn = false;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -367,7 +361,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
         assert(this.state.queued_results.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.state.queued_results.size() + " queued results";
         
-        if (d) LOG.debug("Finishing " + (this.exec_local ? "" : "non-") + "local round for txn #" + this.txn_id);
+        if (d) LOG.debug(String.format("Finishing round #%d for %s", this.round_ctr, this));
         synchronized (this.state) {
             super.finishRound();
             
@@ -377,7 +371,7 @@ public class LocalTransaction extends AbstractTransaction {
                 if (t) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
                 this.state.dependency_latch = null;
             }
-        } // SYNCHRONIZED
+        } // SYNCH
     }
     
     /**
@@ -431,9 +425,7 @@ public class LocalTransaction extends AbstractTransaction {
     public RpcCallback<byte[]> getClientCallback() {
         return (this.client_callback);
     }
-    public CountDownLatch getInitializationLatch() {
-        return (this.init_latch);
-    }
+
     /**
      * Return the original txn id that this txn was restarted for (after a mispredict)
      * @return
@@ -723,7 +715,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(result != null);
         assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-        assert(this.exec_local) :
+        assert(this.isExecLocal(partition) == false) :
             "Trying to store result for txn #" + this.txn_id + " but it is not executing locally!";
 
         DependencyInfo dinfo = null;
@@ -863,7 +855,6 @@ public class LocalTransaction extends AbstractTransaction {
         m = new ListOrderedMap<String, Object>();
         m.put("Exec Single-Partitioned", this.isExecSinglePartition());
         m.put("Exec Read Only", this.exec_readOnly);
-        m.put("Exec Locally", this.exec_local);
         m.put("Speculative Execution", this.exec_speculative);
         m.put("Touched Partitions", this.state.exec_touchedPartitions);
         maps.add(m);
