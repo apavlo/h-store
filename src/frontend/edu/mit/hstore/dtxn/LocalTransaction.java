@@ -715,8 +715,6 @@ public class LocalTransaction extends AbstractTransaction {
         assert(result != null);
         assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-        assert(this.isExecLocal(partition) == false) :
-            "Trying to store result for txn #" + this.txn_id + " but it is not executing locally!";
 
         DependencyInfo dinfo = null;
         Map<Integer, Queue<Integer>> stmt_ctr = this.state.results_dependency_stmt_ctr;

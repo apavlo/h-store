@@ -706,7 +706,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             m_pool.put("ForwardTxnRequests", this.formatPoolCounts(pool, factory));
             
             // ForwardTxnResponseCallbacks
-            pool = (StackObjectPool)HStoreObjectPools.POOL_FORWARDTXN_RESPONSE;
+            pool = (StackObjectPool)HStoreObjectPools.POOL_TXNREDIRECT_RESPONSE;
             factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put("ForwardTxnResponses", this.formatPoolCounts(pool, factory));
             

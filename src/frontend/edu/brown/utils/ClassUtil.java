@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -194,6 +195,9 @@ public abstract class ClassUtil {
             
             constructor = target_class.getConstructor(params); 
         } catch (Exception ex) {
+            System.err.println("TARGET_CLASS: " + target_class);
+            System.err.println("PARAMS: " + Arrays.toString(params));
+            System.err.println("------");
             for (Constructor<?> c : target_class.getConstructors()) {
                 System.err.println(c);
             }
