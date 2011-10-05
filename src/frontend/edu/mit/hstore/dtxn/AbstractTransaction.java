@@ -93,13 +93,13 @@ public abstract class AbstractTransaction implements Poolable {
     // ----------------------------------------------------------------------------
     
     /** Whether this transaction has been read-only so far */
-    protected boolean exec_readOnly[] = true;
+    protected boolean exec_readOnly[];
 
     /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
-    protected boolean exec_eeWork[] = false;
+    protected boolean exec_eeWork[];
     
     /** This is set to true if the transaction did some work without an undo buffer **/
-    private boolean exec_noUndoBuffer[] = false;
+    private boolean exec_noUndoBuffer[];
     
     /**
      * Whether this transaction's control code is executing at this partition
@@ -140,7 +140,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @param executor
      */
     public AbstractTransaction() {
-        // Nothing....
+        // FIXME: Allocate execute arrays
     }
 
     /**
@@ -180,17 +180,19 @@ public abstract class AbstractTransaction implements Poolable {
     public void finish() {
         this.txn_id = -1;
         this.hstoresite_finished = false;
-        
+        this.pending_error = null;
         this.ee_finished_timestamp = null;
         this.last_undo_token = null;
         
         this.predict_readOnly = false;
         this.predict_abortable = true;
         
-        this.exec_readOnly = true;
-        this.exec_eeWork = false;
-        this.exec_noUndoBuffer = false;
-        this.pending_error = null;
+        for (int i = 0; i < this.exec_readOnly.length; i++) {
+            this.exec_readOnly[i] = true;
+            this.exec_eeWork[i] = false;
+            this.exec_noUndoBuffer[i] = false;
+        }
+        
         
         this.touched_partitions.clear();
     }
@@ -226,7 +228,7 @@ public abstract class AbstractTransaction implements Poolable {
             this.last_undo_token = undoToken;
         }
         if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
-            this.exec_noUndoBuffer = true;
+            this.exec_noUndoBuffer[this.base_partition] = true;
         }
         this.round_state = RoundState.INITIALIZED;
 //        this.pending_error = null;
@@ -285,22 +287,22 @@ public abstract class AbstractTransaction implements Poolable {
      * Mark this transaction as have performed some modification on this partition
      */
     public void markExecNotReadOnly(int partition) {
-        this.exec_readOnly = false;
+        this.exec_readOnly[partition] = false;
     }
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public boolean isExecReadOnly(int partition) {
-        return (this.exec_readOnly);
+        return (this.exec_readOnly[partition]);
     }
     /**
      * Returns true if this transaction executed without undo buffers at some point
      */
-    public boolean isExecNoUndoBuffer() {
-        return (this.exec_noUndoBuffer);
+    public boolean isExecNoUndoBuffer(int partition) {
+        return (this.exec_noUndoBuffer[partition]);
     }
-    public void markExecNoUndoBuffer() {
-        this.exec_noUndoBuffer = true;
+    public void markExecNoUndoBuffer(int partition) {
+        this.exec_noUndoBuffer[partition] = true;
     }
     /**
      * Returns true if this transaction's control code running at this partition 
@@ -372,19 +374,19 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Should be called whenever the txn submits work to the EE 
      */
-    public void setSubmittedEE() {
-        this.exec_eeWork = true;
+    public void setSubmittedEE(int partition) {
+        this.exec_eeWork[partition] = true;
     }
     
-    public void unsetSubmittedEE() {
-        this.exec_eeWork = false;
+    public void unsetSubmittedEE(int partition) {
+        this.exec_eeWork[partition] = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
-    public boolean hasSubmittedEE() {
-        return (this.exec_eeWork);
+    public boolean hasSubmittedEE(int partition) {
+        return (this.exec_eeWork[partition]);
     }
     
     // ----------------------------------------------------------------------------

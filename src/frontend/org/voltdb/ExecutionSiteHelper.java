@@ -185,12 +185,12 @@ public class ExecutionSiteHelper implements Runnable {
     private synchronized void shutdown() {
         LOG.info("Shutdown event received. Cleaning all transactions");
         
-        for (ExecutionSite es : this.executors) {
-            int cleaned = es.finished_txn_states.size();
-            es.finished_txn_states.clear();
-            assert(es.finished_txn_states.isEmpty());
-            if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
-        } // FOR
+//        for (ExecutionSite es : this.executors) {
+//            int cleaned = es.finished_txn_states.size();
+//            es.finished_txn_states.clear();
+//            assert(es.finished_txn_states.isEmpty());
+//            if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
+//        } // FOR
     }
 
 }
