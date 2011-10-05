@@ -1288,7 +1288,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
             // for this partition
             if (hstore_conf.site.exec_speculative_execution) {
-                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(txn_id, false);
+                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(null, false); // FIXME
                 if (debug.get() && ret) {
                     spec_cnt++;
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));
@@ -1320,7 +1320,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 LOG.debug(String.format("Calling finishWork for txn #%d on %d partitions", txn_id, partitions));
             for (Integer p : partitions) {
                 if (this.local_partitions.contains(p) == false) continue;
-                this.executors[p.intValue()].finishWork(txn_id, commit);
+                this.executors[p.intValue()].finishTransaction(ts, commit);
             } // FOR
         }
     }
@@ -1564,7 +1564,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Then update transaction profiling counters
         if (hstore_conf.site.status_show_txn_info) {
             if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
-            if (ts.isExecNoUndoBuffer()) TxnCounter.NO_UNDO.inc(catalog_proc);
+            if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.sysproc) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Hstore.Status.ABORT_MISPREDICT && ts.isRejected() == false) {

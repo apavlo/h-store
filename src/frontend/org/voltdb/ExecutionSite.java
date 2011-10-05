@@ -50,11 +50,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
@@ -63,8 +60,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.catalog.Catalog;
@@ -888,8 +883,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             synchronized (this.exec_mode) {
                 if (this.current_dtxn == ts && this.exec_mode != ExecutionMode.DISABLED) {
                     this.setExecutionMode(ts, ExecutionMode.COMMIT_READONLY);
-                    this.releaseBlockedTransactions(txn_id, true);
-                    if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=#%d]", this.exec_mode, partitionId, txn_id));
+                    this.releaseBlockedTransactions(ts, true);
+                    if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=%s]", this.exec_mode, partitionId, ts));
                     return (true);
                 }
             } // SYNCH
@@ -953,9 +948,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                    this.partitionId, this.current_dtxn, ts);
                 this.current_dtxn = ts;
                 if (hstore_conf.site.exec_speculative_execution) {
-                    this.setExecutionMode(ts.getProcedure().getReadonly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
+                    this.setExecutionMode(ts, ts.getProcedure().getReadonly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
                 } else {
-                    this.setExecutionMode(ExecutionMode.DISABLED, txn_id);                  
+                    this.setExecutionMode(ts, ExecutionMode.DISABLED);                  
                 }
                 if (d) LOG.debug(String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
                                                ts, this.partitionId, true, this.exec_mode));                    
@@ -1041,7 +1036,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
             // that there already was a multi-partition transaction hanging around.
             if (status != Hstore.Status.OK) {
-                this.setExecutionMode(ExecutionMode.DISABLED, txn_id);
+                this.setExecutionMode(ts, ExecutionMode.DISABLED);
                 synchronized (this.work_queue) {
                     FragmentTaskMessage ftask = null;
                     if (this.work_queue.peekFirst() instanceof FragmentTaskMessage) {
@@ -1084,7 +1079,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode spec_exec) {
         if (d) LOG.debug(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, mode=%s]",
-                                       ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(), spec_exec));
+                                       ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), spec_exec));
         // Commit All
         if (spec_exec == ExecutionMode.COMMIT_ALL) {
             return (true);
@@ -1095,7 +1090,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 case COMMIT_ALL:
                     return (true);
                 case COMMIT_READONLY:
-                    return (ts.isExecReadOnly());
+                    return (ts.isExecReadOnly(this.partitionId));
                 case COMMIT_NONE:
                     return (false);
                 default:
@@ -1106,7 +1101,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             return (true);
             
         // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        } else if (status != Hstore.Status.OK && ts.isExecReadOnly()) {
+        } else if (status != Hstore.Status.OK && ts.isExecReadOnly(this.partitionId)) {
             return (true);
         }
         
@@ -1288,7 +1283,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // HACK: We have to set the TransactionState for sysprocs manually
             volt_proc.setTransactionState(ts);
-            ts.markExecNotReadOnly();
+            ts.markExecNotReadOnly(this.partitionId);
             result = volt_proc.executePlanFragment(ts.getTransactionId(), ts.ee_dependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
             if (t) LOG.trace("Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
         // -------------------------------
@@ -1400,14 +1395,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 //            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
             ee.stashWorkUnitDependencies(ts.ee_dependencies);
         }
-        ts.setSubmittedEE();
+        ts.setSubmittedEE(this.partitionId);
         
         // Check whether this fragments are read-only
-        if (ts.isExecReadOnly()) {
+        if (ts.isExecReadOnly(this.partitionId)) {
             boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, batchSize); 
             if (readonly == false) {
                 if (t) LOG.trace(String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
-                ts.markExecNotReadOnly();
+                ts.markExecNotReadOnly(this.partitionId);
             }
         }
         
@@ -1466,7 +1461,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             throw new VoltAbortException("table '" + tableName + "' does not exist in database " + clusterName + "." + databaseName);
         }
 
-        ts.setSubmittedEE();
+        ts.setSubmittedEE(this.partitionId);
         ee.loadTable(table.getRelativeIndex(), data,
                      ts.getTransactionId(),
                      lastCommittedTxnId,
@@ -1500,9 +1495,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                   this.partitionId, this.current_dtxn, ts);
                 this.current_dtxn = ts;
                 if (hstore_conf.site.exec_speculative_execution) {
-                    this.setExecutionMode(read_only ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE, txn_id);
+                    this.setExecutionMode(ts, read_only ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
                 } else {
-                    this.setExecutionMode(ExecutionMode.DISABLED, txn_id);
+                    this.setExecutionMode(ts, ExecutionMode.DISABLED);
                 }
                 
                 if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
@@ -1511,7 +1506,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
         // Check whether we should drop down to a less permissive speculative execution mode
         } else if (hstore_conf.site.exec_speculative_execution && read_only == false) {
-            this.setExecutionMode(ExecutionMode.COMMIT_NONE, txn_id);
+            this.setExecutionMode(ts, ExecutionMode.COMMIT_NONE);
         }
 
         // Remote Work
@@ -1762,7 +1757,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(batch_size > 0);
         ts.setBatchSize(batch_size);
         boolean first = true;
-        boolean read_only = ts.isExecReadOnly();
+        boolean read_only = ts.isExecReadOnly(this.partitionId);
         boolean predict_singlePartition = ts.isPredictSinglePartition();
         CountDownLatch latch = null;
         
@@ -1867,7 +1862,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     }
                 }
             }
-            if (read_only == false) ts.markExecNotReadOnly();
+            if (read_only == false) ts.markExecNotReadOnly(this.partitionId);
             first = false;
         } // WHILE
 
@@ -1997,7 +1992,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Don't do anything if the TransactionState has already been marked as finished
         // This is ok because the Dtxn.Coordinator can't send us a single message for all of the partitions managed by our HStoreSite
         if (ts.isEE_Finished()) {
-            assert(this.finished_txn_states.contains(ts)) : ts + " was marked as finished but it was not in our finished states!";
             return;
         }
         
@@ -2010,7 +2004,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (this.ee != null && ts.hasSubmittedEE() && ts.isExecReadOnly() == false && undoToken != null) {
+        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != null) {
             if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
                     LOG.fatal(ts.debug());
@@ -2020,7 +2014,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 synchronized (this.ee) {
                     if (commit) {
                         if (d) LOG.debug(String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
+                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                         this.ee.releaseUndoToken(undoToken);
         
                     // Evan says that txns will be aborted LIFO. This means the first txn that
@@ -2030,7 +2024,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // we should be able to check whether our undoToken has already been rolled back
                     } else {
                         if (d) LOG.debug(String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE()));
+                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                         this.ee.undoUndoToken(undoToken);
                     }
                 } // SYNCH
@@ -2040,7 +2034,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
         ts.setEE_Finished();
-        this.finished_txn_states.add(ts);
     }
     
     /**
@@ -2050,7 +2043,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param txn_id
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
-    public void finishWork(AbstractTransaction ts, boolean commit) {
+    public void finishTransaction(AbstractTransaction ts, boolean commit) {
         boolean cleanup_dtxn = (this.current_dtxn == ts);
         if (d) LOG.debug(String.format("Procesing finishWork request for %s at partition %d [currentDtxn=%s, cleanup=%s]", ts, this.partitionId, this.current_dtxn, cleanup_dtxn));
         
@@ -2075,10 +2068,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 if (t) LOG.trace(String.format("Unmarking %s as the current DTXN at partition %d and setting execution mode to %s",
                                                this.current_dtxn, this.partitionId, ExecutionMode.COMMIT_ALL));
                 this.current_dtxn = null;
-                this.setExecutionMode(ExecutionMode.COMMIT_ALL, txn_id);
+                this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
                 
                 // Release blocked transactions
-                this.releaseBlockedTransactions(txn_id, false);
+                this.releaseBlockedTransactions(ts, false);
             } // SYNCH
         }
     }    
@@ -2161,7 +2154,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Don't tell the EE that we committed
                 if (ee_commit == false) {
                     if (t) LOG.trace(String.format("Bypassing EE commit for %s [undoToken=%d]", ts, ts.getLastUndoToken()));
-                    ts.unsetSubmittedEE();
+                    ts.unsetSubmittedEE(this.partitionId);
                     skip_commit++;
                     
                 } else if (ee_commit && cr.getStatus() == Hstore.Status.OK) {

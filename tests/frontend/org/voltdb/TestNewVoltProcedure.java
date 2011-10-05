@@ -69,7 +69,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
         LocalTransaction ts = new LocalTransaction().init(xact_id, CLIENT_HANDLE++, PARTITION_ID, false, true);
         ts.getPredictTouchedPartitions().add(PARTITION_ID);
-        site.txn_states.put(xact_id, ts);
+        // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
         //             so there is no way for us to check whether things look legit until we get
