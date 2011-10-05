@@ -175,11 +175,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
 
     /**
-     * LocalTransactionState Object Pool
-     */
-    public final ObjectPool localTxnPool;
-
-    /**
      * Create a new instance of the corresponding VoltProcedure for the given Procedure catalog object
      */
     public class VoltProcedureFactory extends CountingPoolableObjectFactory<VoltProcedure> {
@@ -316,16 +311,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private final Semaphore exec_latch = new Semaphore(1);
 
     /**
-     * TransactionId -> TransactionState
-     */
-    protected final Map<Long, AbstractTransaction> txn_states = new ConcurrentHashMap<Long, AbstractTransaction>(); 
-
-    /**
-     * List of Transactions that have been marked as finished
-     */
-    protected final Queue<AbstractTransaction> finished_txn_states = new ConcurrentLinkedQueue<AbstractTransaction>();
-
-    /**
      * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
      */
     private long lastTickTime = 0;
@@ -394,8 +379,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         @Override
         public void run(Hstore.TransactionWorkResponse msg) {
             long txn_id = msg.getTransactionId();
-            AbstractTransaction ts = ExecutionSite.this.txn_states.get(txn_id);
-            assert(ts != null) : "No transaction state exists for txn #" + txn_id + " " + txn_states;
+            AbstractTransaction ts = hstore_site.getLocalTransaction(txn_id);
+            assert(ts != null) : "No transaction state exists for txn #" + txn_id;
             
             if (t)
                 LOG.trace(String.format("Processing Hstore.TransactionWorkResponse for %s with %d results",
@@ -496,7 +481,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.partitionId = 0;
         this.execState = null;
         
-        this.localTxnPool = new StackObjectPool(new LocalTransaction.Factory(this, false));
         DependencyInfo.initializePool(HStoreConf.singleton());
     }
 
@@ -521,9 +505,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.siteId = this.site.getId();
         
         this.execState = new ExecutionState(this);
-        
-        this.localTxnPool = new StackObjectPool(new LocalTransaction.Factory(this, hstore_conf.site.pool_profiling),
-                                                hstore_conf.site.pool_localtxnstate_idle);
         DependencyInfo.initializePool(hstore_conf);
         
         this.backend_target = target;
@@ -683,7 +664,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Things that we will need in the loop below
         TransactionInfoBaseMessage work = null;
         boolean stop = false;
-        AbstractTransaction ts = null;
+        LocalTransaction local_ts = null;
+        RemoteTransaction remote_ts = null;
         
         try {
             if (d) LOG.debug("Starting ExecutionSite run loop...");
@@ -705,28 +687,32 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     stop = true;
                     break;
                 }
-
-                ts = this.txn_states.get(work.getTxnId());
-                if (ts == null) {
-                    String msg = "No transaction state for txn #" + work.getTxnId();
-                    LOG.error(msg);
-                    throw new RuntimeException(msg);
-                }
                 
                 // -------------------------------
                 // Execute Query Plan Fragments
                 // -------------------------------
                 if (work instanceof FragmentTaskMessage) {
+                    remote_ts = hstore_site.getRemoteTransaction(work.getTxnId());
+                    local_ts = null;
+                    if (remote_ts == null) {
+                        throw new RuntimeException("No transaction state for txn #" + work.getTxnId());
+                    }
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
-                    this.processFragmentTaskMessage(ts, ftask);
+                    this.processFragmentTaskMessage(remote_ts, ftask);
 
                 // -------------------------------
                 // Invoke Stored Procedure
                 // -------------------------------
                 } else if (work instanceof InitiateTaskMessage) {
+                    local_ts = hstore_site.getLocalTransaction(work.getTxnId());
+                    remote_ts = null;
+                    if (local_ts == null) {
+                        throw new RuntimeException("No transaction state for txn #" + work.getTxnId());
+                    }
+                    
                     if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
                     InitiateTaskMessage itask = (InitiateTaskMessage)work;
-                    this.processInitiateTaskMessage((LocalTransaction)ts, itask);
+                    this.processInitiateTaskMessage(local_ts, itask);
                     if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
                     
                 // -------------------------------
@@ -739,6 +725,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
+                AbstractTransaction ts = (local_ts != null ? local_ts : remote_ts);
                 LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
                                         this.partitionId, (ts != null ? " - " + ts.toString() : "")), ex);
                 if (ts != null) LOG.fatal("TransactionState Dump:\n" + ts.debug());
@@ -746,6 +733,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
 //            if (d) 
+            AbstractTransaction ts = (local_ts != null ? local_ts : remote_ts);
                 LOG.info("ExecutionSite is stopping. In-Flight Txn: " + ts);
             
             // Release the shutdown latch in case anybody waiting for us
@@ -833,13 +821,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param mode
      * @param txn_id
      */
-    private void setExecutionMode(ExecutionMode mode, long txn_id) {
+    private void setExecutionMode(AbstractTransaction ts, ExecutionMode mode) {
         if (d && this.exec_mode != mode) {
-            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s [txn=%d, orig=%s]",
-                                    this.partitionId, mode, txn_id, this.exec_mode));
+            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s [txn=%s, orig=%s]",
+                                    this.partitionId, mode, ts, this.exec_mode));
         }
         assert(mode != ExecutionMode.COMMIT_READONLY || (mode == ExecutionMode.COMMIT_READONLY && this.current_dtxn != null)) :
-            String.format("Txn #%d is trying to set partition %d to %s when the current DTXN is null?", txn_id, this.partitionId, mode);
+            String.format("%s is trying to set partition %d to %s when the current DTXN is null?", ts, this.partitionId, mode);
         this.exec_mode = mode;
     }
     public ExecutionMode getExecutionMode() {
@@ -869,17 +857,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Returns true if the txn is read-only at this partition
-     * Returns null if this ExecutionSite has never seen this txn before
-     * @param txn_id
-     * @return
-     */
-    public Boolean isReadOnly(long txn_id) {
-        AbstractTransaction ts = this.txn_states.get(txn_id);
-        return (ts == null ? null : ts.isExecReadOnly());
-    }
-    
-    /**
      * Returns the VoltProcedure instance for a given stored procedure name
      * @param proc_name
      * @return
@@ -902,23 +879,21 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param force
      * @return
      */
-    public boolean enableSpeculativeExecution(long txn_id, boolean force) {
+    public boolean enableSpeculativeExecution(AbstractTransaction ts, boolean force) {
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
-        AbstractTransaction ts = this.txn_states.get(txn_id);
-        if (ts == null) {
-            return (false);
-        }
         
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
-        synchronized (this.exec_mode) {
-            if (this.current_dtxn == ts && this.exec_mode != ExecutionMode.DISABLED && ts.isExecReadOnly()) {
-                this.setExecutionMode(ExecutionMode.COMMIT_READONLY, txn_id);
-                this.releaseBlockedTransactions(txn_id, true);
-                if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=#%d]", this.exec_mode, partitionId, txn_id));
-                return (true);
-            }
-        } // SYNCH
+        if (ts.isExecReadOnly(this.partitionId)) {
+            synchronized (this.exec_mode) {
+                if (this.current_dtxn == ts && this.exec_mode != ExecutionMode.DISABLED) {
+                    this.setExecutionMode(ts, ExecutionMode.COMMIT_READONLY);
+                    this.releaseBlockedTransactions(txn_id, true);
+                    if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=#%d]", this.exec_mode, partitionId, txn_id));
+                    return (true);
+                }
+            } // SYNCH
+        }
         return (false);
     }
     
@@ -1566,7 +1541,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "The TransactionState is somehow null for txn #" + txn_id;
         if (d) LOG.debug(String.format("Queuing new transaction execution request for %s on partition %d",
                                        ts, this.partitionId));
-        this.txn_states.put(txn_id, ts);
         
         // If we're a multi-partition txn then queue this mofo immediately
         if (ts.isPredictSinglePartition() == false) {
@@ -1769,21 +1743,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // We want to clear out our temporary map here so that we don't have to do it
         // the next time we need to use this
         tmp_transactionRequestBuildersMap.clear();
-    }
-
-    /**
-     * Execute the given tasks and then block the current thread waiting for the list of dependency_ids to come
-     * back from whatever it was we were suppose to do... 
-     * @param txn_id
-     * @param dependency_ids
-     * @return
-     */
-    protected VoltTable[] waitForResponses(long txn_id, List<FragmentTaskMessage> tasks, int batch_size) {
-        LocalTransaction ts = (LocalTransaction)this.txn_states.get(txn_id);
-        if (ts == null) {
-            throw new RuntimeException("No transaction state for txn #" + txn_id + " at partition " + this.partitionId);
-        }
-        return (this.waitForResponses(ts, tasks, batch_size));
     }
 
     /**
@@ -2091,13 +2050,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param txn_id
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
-    public void finishWork(long txn_id, boolean commit) {
-        AbstractTransaction ts = this.txn_states.get(txn_id);
-        if (ts == null) {
-            String msg = "No transaction state for txn #" + txn_id;
-            if (t) LOG.trace(msg + ". Ignoring for now...");
-            return;   
-        }
+    public void finishWork(AbstractTransaction ts, boolean commit) {
         boolean cleanup_dtxn = (this.current_dtxn == ts);
         if (d) LOG.debug(String.format("Procesing finishWork request for %s at partition %d [currentDtxn=%s, cleanup=%s]", ts, this.partitionId, this.current_dtxn, cleanup_dtxn));
         
@@ -2111,7 +2064,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // at the given partition
                 if (hstore_conf.site.exec_speculative_execution) {
                     if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished", this.partitionId, ts));
-                    Boolean readonly = this.isReadOnly(txn_id);
+                    Boolean readonly = ts.isExecReadOnly(this.partitionId);
                     this.releaseQueuedResponses(readonly != null && readonly == true ? true : commit);
                     
                     this.exec_latch.release();
@@ -2134,10 +2087,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param txn_id
      * @param p
      */
-    private void releaseBlockedTransactions(long txn_id, boolean speculative) {
+    private void releaseBlockedTransactions(AbstractTransaction ts, boolean speculative) {
         if (this.current_dtxn_blocked.isEmpty() == false) {
-            if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of txn #%d",
-                                           this.current_dtxn_blocked.size(), this.partitionId, txn_id));
+            if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of %s",
+                                           this.current_dtxn_blocked.size(), this.partitionId, ts));
             this.work_queue.addAll(this.current_dtxn_blocked);
 //            for (TransactionInfoBaseMessage task : this.current_dtxn_blocked) {
 //                if (speculative) release_ts.setSpeculative(true);

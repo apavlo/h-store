@@ -103,7 +103,7 @@ public class TestTransactionState extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(executor);
+        this.ts = new LocalTransaction();
         this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
         this.ts.setExecutionState(this.execState);
         assertEquals(AbstractTransaction.RoundState.NULL, this.ts.getCurrentRoundState());

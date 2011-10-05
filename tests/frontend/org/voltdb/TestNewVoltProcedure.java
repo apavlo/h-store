@@ -67,7 +67,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        LocalTransaction ts = new LocalTransaction(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID, false, true);
+        LocalTransaction ts = new LocalTransaction().init(xact_id, CLIENT_HANDLE++, PARTITION_ID, false, true);
         ts.getPredictTouchedPartitions().add(PARTITION_ID);
         site.txn_states.put(xact_id, ts);
         

@@ -32,6 +32,7 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * System procedures extend VoltSystemProcedure and use its utility methods to
@@ -180,6 +181,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.executor.waitForResponses(this.getTransactionId(), ftasks, 1));
+        return (this.executor.waitForResponses((LocalTransaction)this.getTransactionState(), ftasks, 1));
     }
 }

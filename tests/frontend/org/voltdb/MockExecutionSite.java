@@ -1,5 +1,6 @@
 package org.voltdb;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    public VoltTable[] waitForResponses(long txnId, List<FragmentTaskMessage> tasks, int batchSize) {
+    protected VoltTable[] waitForResponses(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
         return (new VoltTable[]{ });
     }
     

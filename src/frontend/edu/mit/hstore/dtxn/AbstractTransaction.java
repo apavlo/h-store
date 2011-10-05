@@ -93,13 +93,13 @@ public abstract class AbstractTransaction implements Poolable {
     // ----------------------------------------------------------------------------
     
     /** Whether this transaction has been read-only so far */
-    protected boolean exec_readOnly = true;
+    protected boolean exec_readOnly[] = true;
 
     /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
-    protected boolean exec_eeWork = false;
+    protected boolean exec_eeWork[] = false;
     
     /** This is set to true if the transaction did some work without an undo buffer **/
-    private boolean exec_noUndoBuffer = false;
+    private boolean exec_noUndoBuffer[] = false;
     
     /**
      * Whether this transaction's control code is executing at this partition
@@ -284,13 +284,13 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Mark this transaction as have performed some modification on this partition
      */
-    public void markExecNotReadOnly() {
+    public void markExecNotReadOnly(int partition) {
         this.exec_readOnly = false;
     }
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
-    public boolean isExecReadOnly() {
+    public boolean isExecReadOnly(int partition) {
         return (this.exec_readOnly);
     }
     /**

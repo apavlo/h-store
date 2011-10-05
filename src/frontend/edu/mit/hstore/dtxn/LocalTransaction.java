@@ -51,7 +51,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
 /**
@@ -69,22 +69,6 @@ public class LocalTransaction extends AbstractTransaction {
     private static boolean t = trace.get();
 
     private static final Set<FragmentTaskMessage> EMPTY_SET = Collections.emptySet();
-    
-    /**
-     * LocalTransactionState Factory
-     */
-    public static class Factory extends CountingPoolableObjectFactory<LocalTransaction> {
-        private final ExecutionSite executor;
-        
-        public Factory(ExecutionSite executor, boolean enable_tracking) {
-            super(enable_tracking);
-            this.executor = executor;
-        }
-        @Override
-        public LocalTransaction makeObjectImpl() throws Exception {
-            return new LocalTransaction(this.executor);
-        }
-    };
     
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
@@ -180,7 +164,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.predict_touchedPartitions != null);
         if (this.predict_touchedPartitions.size() > 1) {
             try {
-                this.prepare_callback = (TransactionPrepareCallback)HStoreSite.POOL_TXNPREPARE.borrowObject();
+                this.prepare_callback = (TransactionPrepareCallback)HStoreObjectPools.POOL_TXNPREPARE.borrowObject();
                 this.prepare_callback.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -289,7 +273,7 @@ public class LocalTransaction extends AbstractTransaction {
             }
             // Return our TransactionPrepareCallback
             if (this.prepare_callback != null) {
-                HStoreSite.POOL_TXNPREPARE.returnObject(this.prepare_callback);
+                HStoreObjectPools.POOL_TXNPREPARE.returnObject(this.prepare_callback);
                 this.prepare_callback = null;
             }
         } catch (Exception ex) {
