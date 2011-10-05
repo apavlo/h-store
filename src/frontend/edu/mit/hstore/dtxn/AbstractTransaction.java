@@ -25,19 +25,17 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ExecutionSite;
-import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.utils.Poolable;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * @author pavlo
@@ -57,27 +55,16 @@ public abstract class AbstractTransaction implements Poolable {
         FINISHED;
     }
     
-    public static String formatTxnName(Procedure catalog_proc, long txn_id) {
-        if (catalog_proc != null) {
-            return (catalog_proc.getName() + " #" + txn_id);
-        }
-        return ("#" + txn_id);
-    }
-
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    /**
-     * 
-     */
-    public final Map<Integer, List<VoltTable>> ee_dependencies = new HashMap<Integer, List<VoltTable>>();
+    protected long txn_id = -1;
+    protected long client_handle;
+    protected int base_partition;
+    protected final Set<Integer> touched_partitions = new HashSet<Integer>();
+    protected boolean rejected;
     
-    /**
-     * A simple flag that lets us know that the HStoreSite is done with this guy
-     */
-    private boolean hstoresite_finished = false;
-
     // ----------------------------------------------------------------------------
     // PREDICTIONS FLAGS
     // ----------------------------------------------------------------------------
@@ -89,38 +76,27 @@ public abstract class AbstractTransaction implements Poolable {
     private boolean predict_readOnly = false;
     
     // ----------------------------------------------------------------------------
-    // EXECUTION FLAGS
+    // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
-    
-    /** Whether this transaction has been read-only so far */
-    protected boolean exec_readOnly[];
 
-    /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
-    protected boolean exec_eeWork[];
+    protected RuntimeException pending_error;
     
-    /** This is set to true if the transaction did some work without an undo buffer **/
-    private boolean exec_noUndoBuffer[];
+    protected Long ee_finished_timestamp;
     
-    /**
-     * Whether this transaction's control code is executing at this partition
-     */
-    protected boolean exec_local;
-    
-    // ----------------------------------------------------------------------------
-    // INVOCATION DATA MEMBERS
-    // ----------------------------------------------------------------------------
-    
-    protected long txn_id = -1;
-    protected long client_handle;
-    protected int base_partition;
-    protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected Long last_undo_token;
     protected RoundState round_state;
     protected int round_ctr = 0;
     
-    protected Long ee_finished_timestamp;
-    protected boolean rejected;
-    protected RuntimeException pending_error;
+    /** Whether this transaction has been read-only so far */
+    protected final boolean exec_readOnly[];
+
+    /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
+    protected final boolean exec_eeWork[];
+    
+    /** This is set to true if the transaction did some work without an undo buffer **/
+    private final boolean exec_noUndoBuffer[];
+    
+
 
     /**
      * PartitionDependencyKey
@@ -140,7 +116,9 @@ public abstract class AbstractTransaction implements Poolable {
      * @param executor
      */
     public AbstractTransaction() {
-        // FIXME: Allocate execute arrays
+        this.exec_readOnly = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
+        this.exec_eeWork = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
+        this.exec_noUndoBuffer = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
     }
 
     /**
@@ -162,7 +140,6 @@ public abstract class AbstractTransaction implements Poolable {
 
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
-        this.exec_local = exec_local;
         
         return (this);
     }
@@ -179,7 +156,6 @@ public abstract class AbstractTransaction implements Poolable {
     @Override
     public void finish() {
         this.txn_id = -1;
-        this.hstoresite_finished = false;
         this.pending_error = null;
         this.ee_finished_timestamp = null;
         this.last_undo_token = null;
@@ -188,11 +164,11 @@ public abstract class AbstractTransaction implements Poolable {
         this.predict_abortable = true;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
-            this.exec_readOnly[i] = true;
-            this.exec_eeWork[i] = false;
-            this.exec_noUndoBuffer[i] = false;
-        }
-        
+            int p = HStoreSite.LOCAL_PARTITION_OFFSETS[i];
+            this.exec_readOnly[p] = true;
+            this.exec_eeWork[p] = false;
+            this.exec_noUndoBuffer[p] = false;
+        } // FOR
         
         this.touched_partitions.clear();
     }
@@ -233,8 +209,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.round_state = RoundState.INITIALIZED;
 //        this.pending_error = null;
         
-        if (d) LOG.debug(String.format("Initializing new round information for %slocal txn #%d [undoToken=%d]",
-                                       (this.exec_local ? "" : "non-"), this.txn_id, undoToken));
+        if (d) LOG.debug(String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
     }
     
     /**
@@ -287,28 +262,28 @@ public abstract class AbstractTransaction implements Poolable {
      * Mark this transaction as have performed some modification on this partition
      */
     public void markExecNotReadOnly(int partition) {
-        this.exec_readOnly[partition] = false;
+        this.exec_readOnly[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = false;
     }
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public boolean isExecReadOnly(int partition) {
-        return (this.exec_readOnly[partition]);
+        return (this.exec_readOnly[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
     }
     /**
      * Returns true if this transaction executed without undo buffers at some point
      */
     public boolean isExecNoUndoBuffer(int partition) {
-        return (this.exec_noUndoBuffer[partition]);
+        return (this.exec_noUndoBuffer[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
     }
     public void markExecNoUndoBuffer(int partition) {
-        this.exec_noUndoBuffer[partition] = true;
+        this.exec_noUndoBuffer[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
     }
     /**
      * Returns true if this transaction's control code running at this partition 
      */
-    public boolean isExecLocal() {
-        return this.exec_local;
+    public boolean isExecLocal(int partition) {
+        return (this.base_partition == partition);
     }
     
     // ----------------------------------------------------------------------------
@@ -375,18 +350,18 @@ public abstract class AbstractTransaction implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
-        this.exec_eeWork[partition] = true;
+        this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
     }
     
     public void unsetSubmittedEE(int partition) {
-        this.exec_eeWork[partition] = false;
+        this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
     public boolean hasSubmittedEE(int partition) {
-        return (this.exec_eeWork[partition]);
+        return (this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
     }
     
     // ----------------------------------------------------------------------------
@@ -418,30 +393,8 @@ public abstract class AbstractTransaction implements Poolable {
         return (this.ee_finished_timestamp);
     }
     
-    // ----------------------------------------------------------------------------
-    // Whether the HStoreSite is finished with the transaction
-    // This assumes that all of the ExecutionSites are finished with it too
-    // ----------------------------------------------------------------------------
-    
-    
-    /**
-     * Returns true if this transaction is finished at this HStoreSite
-     * @return
-     */
-    public boolean isHStoreSite_Finished() {
-        if (t) LOG.trace(String.format("%s - Returning HStoreSite done [val=%s, hash=%d]", this, this.hstoresite_finished, this.hashCode()));
-        return (this.hstoresite_finished);
-    }
-    public void setHStoreSite_Finished(boolean val) {
-        this.hstoresite_finished = val;
-        if (t) LOG.trace(String.format("%s - Setting HStoreSite done [val=%s, hash=%d]", this, this.hstoresite_finished, this.hashCode()));
-    }
-    
-    
-    
     /**
      * Get this state's transaction id
-     * @return
      */
     public long getTransactionId() {
         return this.txn_id;
@@ -449,14 +402,12 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Get the current Round that this TransactionState is in
      * Used only for testing  
-     * @return
      */
     protected RoundState getCurrentRoundState() {
         return (this.round_state);
     }
     /**
-     * 
-     * @return
+     * Get the last undo token used for this transaction
      */
     public Long getLastUndoToken() {
         return this.last_undo_token;
@@ -503,10 +454,16 @@ public abstract class AbstractTransaction implements Poolable {
         m.put("Transaction #", this.txn_id);
         m.put("Current Round State", this.round_state);
         m.put("Read-Only", this.exec_readOnly);
-        m.put("Executing Locally", this.exec_local);
         m.put("Last UndoToken", this.last_undo_token);
         m.put("# of Rounds", this.round_ctr);
         m.put("Pending Error", (this.pending_error != null ? this.pending_error.toString() : null));
         return (m);
+    }
+    
+    public static String formatTxnName(Procedure catalog_proc, long txn_id) {
+        if (catalog_proc != null) {
+            return (catalog_proc.getName() + " #" + txn_id);
+        }
+        return ("#" + txn_id);
     }
 }

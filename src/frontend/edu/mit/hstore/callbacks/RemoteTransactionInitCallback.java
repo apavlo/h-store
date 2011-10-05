@@ -48,4 +48,9 @@ public class RemoteTransactionInitCallback extends BlockingCallback<Hstore.Trans
         this.builder.setStatus(status);
         this.unblockCallback();
     }
+    
+    @Override
+    protected int runImpl(Integer parameter) {
+        return 1;
+    }
 }

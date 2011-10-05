@@ -1,6 +1,7 @@
 package edu.mit.hstore;
 
 import edu.brown.utils.TypedStackObjectPool;
+import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -31,6 +32,11 @@ public abstract class HStoreObjectPools {
     public static TypedStackObjectPool<TransactionPrepareCallback> POOL_TXNPREPARE;
     
     /**
+     * 
+     */
+    public static TypedStackObjectPool<LocalTransactionInitCallback> POOL_TXN_LOCALINIT;
+    
+    /**
      * RemoteTransaction Object Pool
      */
     public static TypedStackObjectPool<RemoteTransaction> remoteTxnPool;
@@ -52,23 +58,26 @@ public abstract class HStoreObjectPools {
         if (POOL_TXNREDIRECT_REQUEST == null) {
             HStoreConf hstore_conf = hstore_site.getHStoreConf();
             POOL_TXNREDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
-                                                                    hstore_conf.site.pool_forwardtxnrequests_idle,
-                                                                    hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_forwardtxnrequests_idle,
+                    hstore_conf.site.pool_profiling);
             POOL_FORWARDTXN_RESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
-                                                                    hstore_conf.site.pool_forwardtxnresponses_idle,
-                                                                    hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_forwardtxnresponses_idle,
+                    hstore_conf.site.pool_profiling);
             POOL_TXNWORK = TypedStackObjectPool.factory(TransactionWorkCallback.class,
-                                                        hstore_conf.site.pool_forwardtxnresponses_idle,
-                                                        hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_forwardtxnresponses_idle,
+                    hstore_conf.site.pool_profiling);
             POOL_TXNPREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
-                                                           hstore_conf.site.pool_forwardtxnresponses_idle,
-                                                           hstore_conf.site.pool_profiling, hstore_site);
+                    hstore_conf.site.pool_forwardtxnresponses_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
+            POOL_TXN_LOCALINIT = TypedStackObjectPool.factory(LocalTransactionInitCallback.class,
+                    hstore_conf.site.pool_localtxninit_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
             remoteTxnPool = TypedStackObjectPool.factory(RemoteTransaction.class,
-                                                         hstore_conf.site.pool_remotetxnstate_idle,
-                                                         hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_remotetxnstate_idle,
+                    hstore_conf.site.pool_profiling);
             localTxnPool = TypedStackObjectPool.factory(LocalTransaction.class,
-                                                        hstore_conf.site.pool_localtxnstate_idle,
-                                                        hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_localtxnstate_idle,
+                    hstore_conf.site.pool_profiling);
         }
     }
 }

@@ -452,7 +452,6 @@ public class HStoreMessenger implements Shutdownable {
     private final MessageRouter<TransactionFinishRequest, TransactionFinishResponse> router_transactionFinish = new MessageRouter<TransactionFinishRequest, TransactionFinishResponse>() {
         protected void sendLocal(long txn_id, TransactionFinishRequest msg, Collection<Integer> partitions) {
             hstore_site.transactionFinish(txn_id, msg.getStatus(), partitions);
-            hstore_site.completeTransaction(txn_id, msg.getStatus());
         }
         protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionFinishRequest msg, RpcCallback<TransactionFinishResponse> callback) {
             channel.transactionFinish(controller, msg, callback);
@@ -620,10 +619,18 @@ public class HStoreMessenger implements Shutdownable {
     // ----------------------------------------------------------------------------
     // TRANSACTION METHODS
     // ----------------------------------------------------------------------------
-    
-    public void transactionInit(Hstore.TransactionInitRequest request, RpcCallback<Hstore.TransactionInitRequest> callback) {
-        
-        // TODO
+
+    /**
+     * 
+     * @param ts
+     * @param callback
+     */
+    public void transactionInit(LocalTransaction ts, RpcCallback<Hstore.TransactionInitResponse> callback) {
+        Hstore.TransactionInitRequest request = Hstore.TransactionInitRequest.newBuilder()
+                                                         .setTransactionId(ts.getTransactionId())
+                                                         .addAllPartitions(ts.getPredictTouchedPartitions())
+                                                         .build();
+        this.router_transactionInit.sendMessages(ts, request, callback, request.getPartitionsList());
         
     }
     
@@ -650,15 +657,12 @@ public class HStoreMessenger implements Shutdownable {
      * @param callback
      * @param partitions
      */
-    public void transactionPrepare(LocalTransaction ts, Collection<Integer> partitions) {
+    public void transactionPrepare(LocalTransaction ts, RpcCallback<Hstore.TransactionPrepareResponse> callback, Collection<Integer> partitions) {
         Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .addAllPartitions(ts.getDonePartitions())
                                                         .build();
-        this.router_transactionPrepare.sendMessages(ts,
-                                                    request,
-                                                    ts.getPrepareCallback(),
-                                                    partitions);
+        this.router_transactionPrepare.sendMessages(ts, request, callback, partitions);
     }
 
     /**
@@ -683,10 +687,10 @@ public class HStoreMessenger implements Shutdownable {
     /**
      * Forward a StoredProcedureInvocation request to a remote site for execution
      * @param serializedRequest
-     * @param done
+     * @param callback
      * @param partition
      */
-    public void transactionRedirect(byte[] serializedRequest, RpcCallback<Hstore.TransactionRedirectResponse> done, int partition) {
+    public void transactionRedirect(byte[] serializedRequest, RpcCallback<Hstore.TransactionRedirectResponse> callback, int partition) {
         int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
         if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreSite.formatSiteName(dest_site_id));
         ByteString bs = ByteString.copyFrom(serializedRequest);
@@ -694,7 +698,7 @@ public class HStoreMessenger implements Shutdownable {
                                         .setSenderId(this.local_site_id)
                                         .setWork(bs)
                                         .build();
-        this.channels.get(dest_site_id).transactionRedirect(new ProtoRpcController(), mr, done);
+        this.channels.get(dest_site_id).transactionRedirect(new ProtoRpcController(), mr, callback);
     }
     
     // ----------------------------------------------------------------------------

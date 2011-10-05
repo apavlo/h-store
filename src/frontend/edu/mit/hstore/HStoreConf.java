@@ -565,6 +565,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int pool_forwardtxnresponses_idle;
+        
+        @ConfigProperty(
+            description="The max number of LocalTransactionInitCallbacks to keep idle in the pool.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int pool_localtxninit_idle;
     }
 
     // ============================================================================
