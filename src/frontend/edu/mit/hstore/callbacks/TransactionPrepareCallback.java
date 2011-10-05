@@ -1,13 +1,12 @@
 package edu.mit.hstore.callbacks;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -34,18 +33,13 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     };
     
     private final HStoreSite hstore_site;
-    
-    /**
-     * We'll flip this flag if one of our partitions replies with an
-     * unexpected abort. This ensures that we only send out the ABORT
-     * to all the HStoreSites once. 
-     */
-    private final AtomicBoolean aborted = new AtomicBoolean(false);
-    
     private LocalTransaction ts;
     private ClientResponseImpl cresponse;
-    
-    
+
+    /**
+     * Constructor
+     * @param hstore_site
+     */
     public TransactionPrepareCallback(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
     }
@@ -70,8 +64,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     }
     
     @Override
-    public void finish() {
-        this.aborted.set(false);
+    public void finishImpl() {
         this.ts = null;
         this.cresponse = null;
     }
@@ -90,26 +83,27 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     }
     
     @Override
+    protected void abortCallback(Status status) {
+        // Let everybody know that the party is over!
+        this.hstore_site.getMessenger().transactionFinish(this.ts, status, commit_callback);
+        
+        // Change the response's status and send back the result to the client
+        this.cresponse.setStatus(status);
+        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+    }
+    
+    @Override
     public void run(Hstore.TransactionPrepareResponse response) {
         final Hstore.Status status = response.getStatus();
         
         // If any TransactionPrepareResponse comes back with anything but an OK,
         // then the we need to abort the transaction immediately
         if (status != Hstore.Status.OK) {
-            // If this is the first response that told us to abort, then we'll
-            // send the abort message out 
-            if (this.aborted.compareAndSet(false, true)) {
-                // Let everybody know that the party is over!
-                this.hstore_site.getMessenger().transactionFinish(this.ts, status, commit_callback);
-                
-                // Change the response's status and send back the result to the client
-                this.cresponse.setStatus(status);
-                this.hstore_site.sendClientResponse(this.ts, this.cresponse);
-            }
+            this.abort(status);
         }
         // Otherwise we need to update our counter to keep track of how many OKs that we got
         // back. We'll ignore anything that comes in after we've aborted
-        else if (this.aborted.get() == false && this.getCounter().addAndGet(-1 * response.getPartitionsCount()) == 0) {
+        else if (this.isAborted() == false && this.getCounter().addAndGet(-1 * response.getPartitionsCount()) == 0) {
             this.unblockCallback();
         }
     }

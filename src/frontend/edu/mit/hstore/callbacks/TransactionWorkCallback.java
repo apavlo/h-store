@@ -5,6 +5,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 
 /**
  * 
@@ -28,6 +29,11 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
                                             .setTransactionId(txn_id)
                                             .setStatus(Hstore.Status.OK);
     }
+    
+    @Override
+    protected void finishImpl() {
+        this.builder = null;
+    }
 
     @Override
     public void unblockCallback() {
@@ -36,6 +42,11 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
                                     this.builder.getResultsCount(), this.builder.getTransactionId()));
         }
         this.getOrigCallback().run(this.builder.build());
+    }
+    
+    @Override
+    protected void abortCallback(Status status) {
+        // Nothing...
     }
     
     @Override
