@@ -1178,7 +1178,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // max limit. So we're going to need to throttle it
         if (this.incoming_throttle[base_partition] == false && queue_size > this.incoming_queue_max[base_partition]) {
             if (d) LOG.debug(String.format("INCOMING overloaded because of %s. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           ts, queue_size, this.incoming_queue_release));
+                                           ts, queue_size, this.incoming_queue_release[base_partition]));
             this.incoming_throttle[base_partition] = true;
             if (hstore_conf.site.status_show_executor_info) 
                 ProfileMeasurement.start(true, this.incoming_throttle_time[base_partition]);

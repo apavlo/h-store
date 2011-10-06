@@ -90,12 +90,6 @@ public class BatchPlanner {
 
     public static final int PLAN_POOL_INITIAL_SIZE = 200;
 
-    /**
-     * Each element in this array is a singleton set that only contains the
-     * array's offset as the partition id
-     **/
-    private static Set<Integer> SINGLE_PARTITION_SETS[];
-    
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     
     private static boolean ENABLE_PROFILING = false;
@@ -116,7 +110,7 @@ public class BatchPlanner {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
-    private final BatchPlan plan;
+    private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>(); 
     
     // FAST SINGLE-PARTITION LOOKUP CACHE
@@ -331,13 +325,14 @@ public class BatchPlanner {
          * @param batchSize
          */
         private BatchPlan init(long txn_id, long client_handle, int base_partition) {
+            assert(this.cached == false);
             this.txn_id = txn_id;
             this.client_handle = client_handle;
             this.base_partition = base_partition;
             this.mispredict = null;
             
             for (int i = 0; i < this.frag_list.length; i++) {
-                if (this.frag_list[i] != null) this.frag_list[i].clear();
+                if (this.frag_list[i] != null) this.frag_list[i] = null;
                 if (this.stmt_partitions[i] != null) this.stmt_partitions[i].clear();
                 if (this.param_serializers[i] != null) this.param_serializers[i].clear();
                 if (this.frag_partitions[i] != null) {
@@ -637,7 +632,12 @@ public class BatchPlanner {
                 assert(has_singlepartition_plan);
                 fragments = catalog_stmt.getFragments();
                 for (PlanFragment catalog_frag : fragments) {
-                    frag_partitions.put(catalog_frag, SINGLE_PARTITION_SETS[base_partition]);
+                    Set<Integer> p = frag_partitions.get(catalog_frag);
+                    if (p == null) {
+                        p = new HashSet<Integer>();
+                        frag_partitions.put(catalog_frag, p);
+                    }
+                    p.add(base_partition);
                 } // FOR
                 stmt_all_partitions.add(base_partition);
             }
@@ -787,17 +787,14 @@ public class BatchPlanner {
         int bitmap_hash = Arrays.hashCode(plan.singlepartition_bitmap);
         PlanGraph graph = this.plan_graphs.get(bitmap_hash);
         if (graph == null) { // assume fast case
-            synchronized (this) {
-                graph = this.plan_graphs.get(bitmap_hash);
-                if (graph == null) {
-                    graph = this.buildPlanGraph(plan);
-                    this.plan_graphs.put(bitmap_hash, graph);
-                }
-            } // SYNCHRONIZED
+            graph = this.buildPlanGraph(plan);
+            this.plan_graphs.put(bitmap_hash, graph);
         }
         plan.graph = graph;
         plan.rounds_length = graph.max_rounds;
 
+        if (BatchPlanner.ENABLE_PROFILING) time_plan.stop();
+        
         // Create the MispredictException if any Statement in the loop above hit it
         // We don't want to throw it because whoever called us may want to look at the plan first 
         if (mispredict_h != null) {
@@ -807,16 +804,13 @@ public class BatchPlanner {
         // to our cached listing. We'll mark it as cached so that it is never returned back
         // to the BatchPlan object pool
         else if (BatchPlanner.ENABLE_CACHING && cache_singlePartitionPlans[base_partition] == null && plan.isSingledPartitionedAndLocal()) {
-            synchronized (this) {
-                if (cache_singlePartitionPlans[base_partition] == null) {
-                    cache_singlePartitionPlans[base_partition] = plan;
-                    plan.cached = true;
-                }
-            } // SYNCH
+            cache_singlePartitionPlans[base_partition] = plan;
+            plan.cached = true;
+            plan = new BatchPlan();
+            return cache_singlePartitionPlans[base_partition];
         }
 
         if (debug.get()) LOG.debug("Created BatchPlan:\n" + plan.toString());
-        if (BatchPlanner.ENABLE_PROFILING) time_plan.stop();
         return (plan);
     }
 
@@ -858,7 +852,7 @@ public class BatchPlanner {
             if (trace.get()) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); //  + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
 
             for (int partition = 0; partition < this.num_partitions; partition++) {
-                Set<PlanVertex> vertices = plan.rounds[round][partition];
+                Collection<PlanVertex> vertices = plan.rounds[round][partition];
                 if (vertices.isEmpty()) continue;
             
                 int num_frags = vertices.size();
@@ -1010,15 +1004,9 @@ public class BatchPlanner {
         return (graph);
     }
     
-    @SuppressWarnings("unchecked")
     private static void preload(Database catalog_db) {
         assert(catalog_db != null);
         
-        int num_partitions = CatalogUtil.getNumberOfPartitions(catalog_db);
-        SINGLE_PARTITION_SETS = (Set<Integer>[])new Set<?>[num_partitions];
-        for (int i = 0; i < num_partitions; i++) {
-            SINGLE_PARTITION_SETS[i] = Collections.singleton(i);
-        } // FOR        
     }
     
     private static Comparator<PlanVertex> PLANVERTEX_COMPARATOR = new Comparator<PlanVertex>() {
