@@ -25,7 +25,17 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -38,7 +48,6 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.messaging.InitiateTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
@@ -51,7 +60,6 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreObjectPools;
-import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
 /**
@@ -78,23 +86,18 @@ public class LocalTransaction extends AbstractTransaction {
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
      * XXX: Why do we need to keep this?
      */
-    public StoredProcedureInvocation invocation;
+    private StoredProcedureInvocation invocation;
 
-    /**
-     * 
-     */
-    public InitiateTaskMessage init_wrapper = null;
-    
     /**
      * The set of partitions that we expected this partition to touch.
      */
-    public Collection<Integer> predict_touchedPartitions;
+    private Collection<Integer> predict_touchedPartitions;
     
     /**
      * A handle to the execution state of this transaction
      * This will only get set when the transaction starts running.
      */
-    protected ExecutionState state;
+    private ExecutionState state;
     
     /**
      * This callback is used to keep track of what partitions have replied that they are 
@@ -127,10 +130,6 @@ public class LocalTransaction extends AbstractTransaction {
      * but just not send any data requests.
      */
     public CountDownLatch init_latch;
-
-    public final ProtoRpcController rpc_request_init = new ProtoRpcController();
-    public final ProtoRpcController rpc_request_work = new ProtoRpcController();
-    public final ProtoRpcController rpc_request_finish = new ProtoRpcController();
 
     /**
      * TransctionEstimator State Handle
@@ -276,10 +275,6 @@ public class LocalTransaction extends AbstractTransaction {
             throw new RuntimeException(ex);
         }
         
-        this.rpc_request_init.reset();
-        this.rpc_request_work.reset();
-        this.rpc_request_finish.reset();
-
         this.state = null;
         this.orig_txn_id = null;
         this.catalog_proc = null;

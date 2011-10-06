@@ -124,7 +124,7 @@ ENV_DEFAULT = {
     "client.blocking":             False,
     
     ## H-Store Options
-    "hstore.svn":                   "https://database.cs.brown.edu/svn/hstore/branches/partitioning-branch",
+    "hstore.svn":                   "https://database.cs.brown.edu/svn/hstore/branches/newdtxn-branch",
     "hstore.svn_options":           "--trust-server-cert --non-interactive --ignore-externals",
     "hstore.clean":                 False,
     "hstore.exec_prefix":           "compile",
