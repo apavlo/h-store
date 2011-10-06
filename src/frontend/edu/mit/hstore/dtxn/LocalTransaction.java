@@ -180,7 +180,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param predict_canAbort
      * @return
      */
-    protected LocalTransaction init(long txnId, long clientHandle, int base_partition,
+    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
                                     Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         return this.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort);

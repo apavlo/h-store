@@ -578,6 +578,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 //            this.hsql = null;
 //            this.ee = null;
         }
+        
+        this.initializeVoltProcedures();
     }
     
     @SuppressWarnings("unchecked")
