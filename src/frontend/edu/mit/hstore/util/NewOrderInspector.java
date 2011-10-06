@@ -3,6 +3,7 @@ package edu.mit.hstore.util;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -62,13 +63,14 @@ public class NewOrderInspector {
         short inner[] = (short[])args[5];
         
         boolean predict_singlePartition = true;
-        Collection<Integer> predict_touchedPartitions = ts.getPredictTouchedPartitions();
+        Collection<Integer> predict_touchedPartitions = new HashSet<Integer>();
         if (hstore_conf.site.exec_neworder_cheat_done_partitions == false)
             predict_touchedPartitions.addAll(this.hstore_site.getAllPartitionIds());
         
         short last_w_id = w_id.shortValue();
         Integer last_partition = w_id_partition;
-        if (hstore_conf.site.exec_neworder_cheat_done_partitions) predict_touchedPartitions.add(w_id_partition);
+        if (hstore_conf.site.exec_neworder_cheat_done_partitions)
+            predict_touchedPartitions.add(w_id_partition);
         for (short s_w_id : inner) {
             if (s_w_id != last_w_id) {
                 last_partition = this.neworder_hack_hashes.get(s_w_id);

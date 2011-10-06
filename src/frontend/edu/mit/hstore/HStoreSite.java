@@ -1094,7 +1094,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.invocation);
+        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.getInvocation());
         
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
@@ -1394,7 +1394,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionMispredict(LocalTransaction orig_ts, RpcCallback<byte[]> orig_callback) {
         if (d) LOG.debug(orig_ts + " was mispredicted! Going to clean-up our mess and re-execute");
         int base_partition = orig_ts.getBasePartition();
-        StoredProcedureInvocation spi = orig_ts.invocation;
+        StoredProcedureInvocation spi = orig_ts.getInvocation();
         assert(spi != null) : "Missing StoredProcedureInvocation for " + orig_ts;
         
         final Histogram<Integer> touched = orig_ts.getTouchedPartitions();
