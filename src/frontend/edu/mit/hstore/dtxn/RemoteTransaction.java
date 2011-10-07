@@ -66,22 +66,12 @@ public class RemoteTransaction extends AbstractTransaction {
     }
     
     @Override
-    public void initRound(long undoToken) {
-        super.initRound(undoToken);
-    }
-    
-    @Override
-    public void startRound() {
+    public void startRound(int partition) {
         // If the stored procedure is not executing locally then we need at least
         // one FragmentTaskMessage callback
         assert(this.fragment_callback != null) :
             "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
-        super.startRound();
-    }
-    
-    @Override
-    public void finishRound() {
-        super.finishRound();
+        super.startRound(partition);
     }
     
     /**

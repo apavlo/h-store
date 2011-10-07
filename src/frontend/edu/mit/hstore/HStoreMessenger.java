@@ -48,6 +48,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.callbacks.RemoteTransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
@@ -290,6 +291,18 @@ public class HStoreMessenger implements Shutdownable {
         return (this.listener_thread);
     }
     
+    private int getNumLocalPartitions(Collection<Integer> partitions) {
+        int ctr = 0;
+        int size = partitions.size();
+        for (Integer p : this.local_partitions) {
+            if (partitions.contains(p)) {
+                ctr++;
+                if (size == ctr) break;
+            }
+        } // FOR
+        return (ctr);
+    }
+    
     private VoltTable copyVoltTable(VoltTable vt) throws Exception {
         FastSerializer fs = new FastSerializer(buffer_pool);
         fs.writeObject(vt);
@@ -425,7 +438,7 @@ public class HStoreMessenger implements Shutdownable {
     // TransactionInit
     private final MessageRouter<TransactionInitRequest, TransactionInitResponse> router_transactionInit = new MessageRouter<TransactionInitRequest, TransactionInitResponse>() {
         protected void sendLocal(long txn_id, TransactionInitRequest msg, Collection<Integer> partitions) {
-            
+            // TODO(pavlo): We should really submit this to the txn queue
         }
         protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionInitRequest msg, RpcCallback<TransactionInitResponse> callback) {
             channel.transactionInit(controller, msg, callback);
@@ -486,9 +499,29 @@ public class HStoreMessenger implements Shutdownable {
     
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request,
-                RpcCallback<TransactionInitResponse> done) {
-            // TODO Auto-generated method stub
+                RpcCallback<TransactionInitResponse> callback) {
+            assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
+            long txn_id = request.getTransactionId();
             
+            // Wrap the callback around a RemoteTransactionInitCallback that will wait until
+            // our HStoreSite gets an acknowledgement from all the 
+            RemoteTransactionInitCallback wrapper = new RemoteTransactionInitCallback(); // TODO: ObjectPool!
+            wrapper.init(txn_id, request.getPartitionsList(), callback);
+            
+            // XXX: Just say that this HStoreSite is ready to run the txn 
+            // at all of the partitions that it needs
+            // TODO(cjl16): Remove this code after fixing HStoreSite.transactionInit
+            for (Integer p : request.getPartitionsList()) {
+                if (local_partitions.contains(p)) {
+                    wrapper.run(p);
+                }
+            } // FOR
+            
+            // hstore_site.transactionInit(txn_id, wrapper);
+            
+            // We don't need to send back a response right here.
+            // RemoteTransactionInitCallback will wait until it has results from all of the partitions 
+            // the tasks were sent to and then send back everything in a single response message
         }
         
         @Override
@@ -630,7 +663,14 @@ public class HStoreMessenger implements Shutdownable {
                                                          .setTransactionId(ts.getTransactionId())
                                                          .addAllPartitions(ts.getPredictTouchedPartitions())
                                                          .build();
-        this.router_transactionInit.sendMessages(ts, request, callback, request.getPartitionsList());
+        // XXX this.router_transactionInit.sendMessages(ts, request, callback, request.getPartitionsList());
+        
+        Hstore.TransactionInitResponse.Builder b = Hstore.TransactionInitResponse.newBuilder()
+                                                         .setTransactionId(ts.getTransactionId())
+                                                         .setStatus(Hstore.Status.OK)
+                                                         .addAllPartitions(local_partitions);
+        callback.run(b.build());
+        
         
     }
     

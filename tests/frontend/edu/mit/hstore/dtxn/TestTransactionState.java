@@ -114,7 +114,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts = new LocalTransaction();
         this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
         this.ts.setExecutionState(this.execState);
-        assertEquals(AbstractTransaction.RoundState.NULL, this.ts.getCurrentRoundState());
+        assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
 
     /**
@@ -184,10 +184,10 @@ public class TestTransactionState extends BaseTestCase {
      * testInitRound
      */
     public void testInitRound() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
-        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
-        assertNotNull(this.ts.getLastUndoToken());
-        assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken().longValue());
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
+        assertNotNull(this.ts.getLastUndoToken(LOCAL_PARTITION));
+        assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken(LOCAL_PARTITION).longValue());
         //System.err.println(this.ts);
     }
     
@@ -195,10 +195,10 @@ public class TestTransactionState extends BaseTestCase {
      * testStartRound
      */
     public void testStartRound() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
-        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         this.addFragments();
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
         CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         
@@ -227,7 +227,7 @@ public class TestTransactionState extends BaseTestCase {
      * testAddFragmentTaskMessage
      */
     public void testAddFragmentTaskMessage() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
         
         assertEquals(NUM_EXPECTED_DEPENDENCIES, this.ts.getDependencyCount());
@@ -265,10 +265,10 @@ public class TestTransactionState extends BaseTestCase {
      * testAddResult
      */
     public void testAddResult() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        this.ts.startRound();
-        assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState());
+        this.ts.startRound(LOCAL_PARTITION);
+        assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         
         // We want to add results for just one of the duplicated statements and make sure that
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
@@ -318,9 +318,9 @@ public class TestTransactionState extends BaseTestCase {
      * testAddResultsBeforeStart
      */
     public void testAddResultsBeforeStart() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
         // if we start the round *after* a bunch of results have arrived.
@@ -347,20 +347,20 @@ public class TestTransactionState extends BaseTestCase {
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
         CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
-        assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState());
+        assertEquals(AbstractTransaction.RoundState.STARTED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
     
     /**
      * testGetResults
      */
     public void testGetResults() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
 
         // Add a bunch of fake results
         Long marker = 1000l;
