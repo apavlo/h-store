@@ -43,13 +43,12 @@ import edu.mit.hstore.HStoreSite;
 public abstract class AbstractTransaction implements Poolable {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private static final boolean d = LOG.isDebugEnabled();
-    private static final boolean t = LOG.isTraceEnabled();
+//    private static final boolean t = LOG.isTraceEnabled();
 
     /**
      * Internal state for the transaction
      */
     protected enum RoundState {
-        NULL,
         INITIALIZED,
         STARTED,
         FINISHED;
@@ -64,6 +63,7 @@ public abstract class AbstractTransaction implements Poolable {
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
+    protected RuntimeException pending_error;
     
     // ----------------------------------------------------------------------------
     // PREDICTIONS FLAGS
@@ -78,14 +78,10 @@ public abstract class AbstractTransaction implements Poolable {
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
-
-    protected RuntimeException pending_error;
-    
-    protected Long ee_finished_timestamp;
-    
-    protected Long last_undo_token;
-    protected RoundState round_state;
-    protected int round_ctr = 0;
+    protected final Long ee_finished_timestamp[];
+    protected final Long last_undo_token[];
+    protected final RoundState round_state[];
+    protected final int round_ctr[];
     
     /** Whether this transaction has been read-only so far */
     protected final boolean exec_readOnly[];
@@ -117,9 +113,15 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public AbstractTransaction() {
         assert(HStoreSite.LOCAL_PARTITION_OFFSETS != null);
-        this.exec_readOnly = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
-        this.exec_eeWork = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
-        this.exec_noUndoBuffer = new boolean[HStoreSite.LOCAL_PARTITION_OFFSETS.length];
+        
+        int cnt = HStoreSite.LOCAL_PARTITION_OFFSETS.length;
+        this.ee_finished_timestamp = new Long[cnt];
+        this.last_undo_token = new Long[cnt];
+        this.round_state = new RoundState[cnt];
+        this.round_ctr = new int[cnt];
+        this.exec_readOnly = new boolean[cnt];
+        this.exec_eeWork = new boolean[cnt];
+        this.exec_noUndoBuffer = new boolean[cnt];
     }
 
     /**
@@ -136,9 +138,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
-        this.round_state = RoundState.NULL;
         this.rejected = false;
-
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
         
@@ -157,18 +157,17 @@ public abstract class AbstractTransaction implements Poolable {
     @Override
     public void finish() {
         this.txn_id = -1;
-        this.pending_error = null;
-        this.ee_finished_timestamp = null;
-        this.last_undo_token = null;
-        
         this.predict_readOnly = false;
         this.predict_abortable = true;
+        this.pending_error = null;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
-            int p = HStoreSite.LOCAL_PARTITION_OFFSETS[i];
-            this.exec_readOnly[p] = true;
-            this.exec_eeWork[p] = false;
-            this.exec_noUndoBuffer[p] = false;
+            int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[i];
+            this.ee_finished_timestamp[offset] = null;
+            this.last_undo_token[offset] = null;
+            this.exec_readOnly[offset] = true;
+            this.exec_eeWork[offset] = false;
+            this.exec_noUndoBuffer[offset] = false;
         } // FOR
         
         this.touched_partitions.clear();
@@ -197,17 +196,18 @@ public abstract class AbstractTransaction implements Poolable {
      * Must be called once before one can add new FragmentTaskMessages for this txn 
      * @param undoToken
      */
-    public void initRound(long undoToken) {
-        assert(this.round_state == RoundState.NULL || this.round_state == RoundState.FINISHED) : 
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+    public void initRound(int partition, long undoToken) {
+        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        assert(this.round_state[offset] == null || this.round_state[offset] == RoundState.FINISHED) : 
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (this.last_undo_token == null || undoToken != ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
-            this.last_undo_token = undoToken;
+        if (this.last_undo_token[offset] == null || undoToken != ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            this.last_undo_token[offset] = undoToken;
         }
         if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
             this.exec_noUndoBuffer[this.base_partition] = true;
         }
-        this.round_state = RoundState.INITIALIZED;
+        this.round_state[offset] = RoundState.INITIALIZED;
 //        this.pending_error = null;
         
         if (d) LOG.debug(String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
@@ -217,12 +217,12 @@ public abstract class AbstractTransaction implements Poolable {
      * Called once all of the FragmentTaskMessages have been submitted for this txn
      * @return
      */
-    public void startRound() {
-        assert(this.round_state == RoundState.INITIALIZED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+    public void startRound(int partition) {
+        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        assert(this.round_state[offset] == RoundState.INITIALIZED) :
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        this.round_state = RoundState.STARTED;
-        
+        this.round_state[offset] = RoundState.STARTED;
         if (d) LOG.debug("Starting round for local txn #" + this.txn_id);
     }
     
@@ -230,12 +230,13 @@ public abstract class AbstractTransaction implements Poolable {
      * When a round is over, this must be called so that we can clean up the various
      * dependency tracking information that we have
      */
-    public void finishRound() {
-        assert(this.round_state == RoundState.STARTED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+    public void finishRound(int partition) {
+        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        assert(this.round_state[offset] == RoundState.STARTED) :
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        this.round_state = RoundState.FINISHED;
-        this.round_ctr++;
+        this.round_state[offset] = RoundState.FINISHED;
+        this.round_ctr[offset]++;
     }
     
     // ----------------------------------------------------------------------------
@@ -302,15 +303,15 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Returns true if this transaction has done something at this partition
      */
-    public boolean hasStarted() {
-        return (this.last_undo_token != null);
+    public boolean hasStarted(int partition) {
+        return (this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] != null);
     }
     
     /**
      * Get the current batch/round counter
      */
-    public int getCurrentRound() {
-        return (this.round_ctr);
+    public int getCurrentRound(int partition) {
+        return (this.round_ctr[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
     }
     
     /**
@@ -373,25 +374,26 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Mark this txn as finished (and thus ready for clean-up)
      */
-    public void setEE_Finished() {
-        if (this.ee_finished_timestamp == null) {
-            this.ee_finished_timestamp = System.currentTimeMillis();
+    public void setEE_Finished(int partition) {
+        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        if (this.ee_finished_timestamp[offset] == null) {
+            this.ee_finished_timestamp[offset] = System.currentTimeMillis();
         }
     }
     /**
      * Is this TransactionState marked as finished
      * @return
      */
-    public boolean isEE_Finished() {
-        return (this.ee_finished_timestamp != null);
+    public boolean isEE_Finished(int partition) {
+        return (this.ee_finished_timestamp[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] != null);
     }
     /**
      * 
      * @return
      */
-    public long getEE_FinishedTimestamp() {
-        assert(this.ee_finished_timestamp != null);
-        return (this.ee_finished_timestamp);
+    public long getEE_FinishedTimestamp(int partition) {
+        assert(this.ee_finished_timestamp[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] != null);
+        return (this.ee_finished_timestamp[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
     }
     
     /**
@@ -404,14 +406,14 @@ public abstract class AbstractTransaction implements Poolable {
      * Get the current Round that this TransactionState is in
      * Used only for testing  
      */
-    protected RoundState getCurrentRoundState() {
-        return (this.round_state);
+    protected RoundState getCurrentRoundState(int partition) {
+        return (this.round_state[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
     }
     /**
      * Get the last undo token used for this transaction
      */
-    public Long getLastUndoToken() {
-        return this.last_undo_token;
+    public Long getLastUndoToken(int partition) {
+        return this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]];
     }
     
     /**

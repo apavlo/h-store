@@ -12,6 +12,7 @@ public final class TPCCConfig {
 
     public int firstWarehouse = Constants.STARTING_WAREHOUSE;
     
+    public int loadthreads = 1;
     public boolean warehouse_affinity = false;
     public boolean noop = false;
     public boolean neworder_only = false;
@@ -40,13 +41,16 @@ public final class TPCCConfig {
             if (key.equalsIgnoreCase("first_warehouse") && !val.isEmpty()) {
                 firstWarehouse = Integer.parseInt(val);
             }
-            
+            // LOAD THREADS
+            else if (key.equalsIgnoreCase("loadthreads") && !val.isEmpty()) {
+                loadthreads = Integer.parseInt(val);
+            }
             // WAREHOUSE AFFINITY
             else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
                 warehouse_affinity = Boolean.parseBoolean(val);
             }
             // NOOPs
-            if (key.equalsIgnoreCase("noop") && !val.isEmpty()) {
+            else if (key.equalsIgnoreCase("noop") && !val.isEmpty()) {
                 noop = Boolean.parseBoolean(val);
             }
             // ONLY NEW ORDER

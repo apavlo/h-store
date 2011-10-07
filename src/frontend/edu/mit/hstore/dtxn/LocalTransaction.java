@@ -25,17 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -293,88 +283,92 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     @Override
-    public void initRound(long undoToken) {
+    public void initRound(int partition, long undoToken) {
         assert(this.state != null);
         assert(this.state.queued_results.isEmpty()) : 
             String.format("Trying to initialize round for txn #%d but there are %d queued results",
                           this.txn_id, this.state.queued_results.size());
-        
         synchronized (this.state) {
-            super.initRound(undoToken);
+            super.initRound(partition, undoToken);
             // Reset these guys here so that we don't waste time in the last round
             if (this.last_undo_token != null) this.state.clearRound();
         } // SYNCHRONIZED
     }
     
-    public void fastInitRound(long undoToken) {
-        assert(this.state != null);
-        super.initRound(undoToken);
+    public void fastInitRound(int partition, long undoToken) {
+        super.initRound(partition, undoToken);
     }
     
     @Override
-    public void startRound() {
-        assert(this.state.output_order.isEmpty());
-        assert(this.state.batch_size > 0);
-        if (d) LOG.debug("Starting round for local txn #" + this.txn_id + " with " + this.state.batch_size + " queued Statements");
-        
-        synchronized (this.state) {
-            super.startRound();
+    public void startRound(int partition) {
+        if (this.base_partition == partition) {
+            assert(this.state.output_order.isEmpty());
+            assert(this.state.batch_size > 0);
+            if (d) LOG.debug("Starting round for local txn #" + this.txn_id + " with " + this.state.batch_size + " queued Statements");
             
-            // Create our output counters
-            for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
-                for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
-                    if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) this.state.output_order.add(dinfo.dependency_id);
+            synchronized (this.state) {
+                super.startRound(partition);
+    
+                // Create our output counters
+                for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
+                    for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
+                        if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) this.state.output_order.add(dinfo.dependency_id);
+                    } // FOR
                 } // FOR
-            } // FOR
-            assert(this.state.batch_size == this.state.output_order.size()) :
-                "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.state.output_order.size();
-            
-            // Release any queued responses/results
-            if (this.state.queued_results.isEmpty() == false) {
-                if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
-                int key[] = new int[2];
-                for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
-                    this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
-                    this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
-                } // FOR
-                this.state.queued_results.clear();
-            }
-            
-            // Now create the latch
-            int count = this.state.dependency_ctr - this.state.received_ctr;
-            assert(count >= 0);
-            assert(this.state.dependency_latch == null) : "This should never happen!\n" + this.toString();
-            this.state.dependency_latch = new CountDownLatch(count);
-        } // SYNCH
+                assert(this.state.batch_size == this.state.output_order.size()) :
+                    "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.state.output_order.size();
+                
+                // Release any queued responses/results
+                if (this.state.queued_results.isEmpty() == false) {
+                    if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
+                    int key[] = new int[2];
+                    for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
+                        this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
+                        this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
+                    } // FOR
+                    this.state.queued_results.clear();
+                }
+                
+                // Now create the latch
+                int count = this.state.dependency_ctr - this.state.received_ctr;
+                assert(count >= 0);
+                assert(this.state.dependency_latch == null) : "This should never happen!\n" + this.toString();
+                this.state.dependency_latch = new CountDownLatch(count);
+            } // SYNCH
+        } else {
+            super.startRound(partition);
+        }
     }
     
-    /**
-     * When a round is over, this must be called so that we can clean up the various
-     * dependency tracking information that we have
-     */
-    public void finishRound() {
+    @Override
+    public void finishRound(int partition) {
         assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
         assert(this.state.queued_results.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.state.queued_results.size() + " queued results";
         
         if (d) LOG.debug(String.format("Finishing round #%d for %s", this.round_ctr, this));
-        synchronized (this.state) {
-            super.finishRound();
-            
-            // Reset our initialization flag so that we can be ready to run more stuff the next round
-            if (this.state.dependency_latch != null) {
-                assert(this.state.dependency_latch.getCount() == 0);
-                if (t) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
-                this.state.dependency_latch = null;
-            }
-        } // SYNCH
+        if (this.base_partition == partition) {
+            synchronized (this.state) {
+                super.finishRound(partition);
+                
+                // Reset our initialization flag so that we can be ready to run more stuff the next round
+                if (this.base_partition == partition && this.state.dependency_latch != null) {
+                    assert(this.state.dependency_latch.getCount() == 0);
+                    if (t) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
+                    this.state.dependency_latch = null;
+                }
+            } // SYNCH
+        } else {
+            super.finishRound(partition);
+        }
     }
     
     /**
      * Quickly finish this round. Assumes that everything executed locally
+     * and therefore we don't need any locks
      */
-    public void fastFinishRound() {
-        this.round_state = RoundState.STARTED;
-        super.finishRound();
+    public void fastFinishRound(int partition) {
+        this.round_state[partition] = RoundState.STARTED;
+        super.finishRound(partition);
     }
     
     // ----------------------------------------------------------------------------
@@ -628,7 +622,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ftask
      */
     public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
-        assert(this.round_state == RoundState.INITIALIZED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        assert(this.round_state[this.base_partition] == RoundState.INITIALIZED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
@@ -708,7 +702,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private void processResultResponse(final int partition, final int dependency_id, final int key, VoltTable result) {
         assert(result != null);
-        assert(this.round_state == RoundState.INITIALIZED || this.round_state == RoundState.STARTED) :
+        assert(this.round_state[this.base_partition] == RoundState.INITIALIZED || this.round_state[this.base_partition] == RoundState.STARTED) :
             "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
 
         DependencyInfo dinfo = null;
@@ -717,7 +711,7 @@ public class LocalTransaction extends AbstractTransaction {
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
         synchronized (this.state) {
-            if (this.round_state == RoundState.INITIALIZED) {
+            if (this.round_state[this.base_partition] == RoundState.INITIALIZED) {
                 assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
                 this.state.queued_results.put(key, result);
                 if (t) LOG.trace("Queued result " + key + " for txn #" + this.txn_id + " until the round is started");

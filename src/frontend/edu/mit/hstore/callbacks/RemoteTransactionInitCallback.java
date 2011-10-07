@@ -1,10 +1,14 @@
 package edu.mit.hstore.callbacks;
 
+import java.util.Collection;
+
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * This callback is used to wrap around the network-outbound TransactionInitResponse callback on
@@ -15,18 +19,31 @@ import edu.brown.hstore.Hstore;
  */
 public class RemoteTransactionInitCallback extends BlockingCallback<Hstore.TransactionInitResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(RemoteTransactionInitCallback.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
             
     private Hstore.TransactionInitResponse.Builder builder = null;
+    private Collection<Integer> partitions = null;
     
     public RemoteTransactionInitCallback() {
         super();
     }
     
-    public void init(long txn_id, int num_partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
-        super.init(num_partitions, orig_callback);
+    public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
+        if (debug.get())
+            LOG.debug("Starting new RemoteTransactionInitCallback for txn #" + txn_id);
+        super.init(partitions.size(), orig_callback);
+        this.partitions = partitions;
         this.builder = Hstore.TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id)
                              .setStatus(Hstore.Status.OK);
+    }
+    
+    public Collection<Integer> getPartitions() {
+        return (this.partitions);
     }
     
     @Override
@@ -45,6 +62,9 @@ public class RemoteTransactionInitCallback extends BlockingCallback<Hstore.Trans
     
     @Override
     protected void abortCallback(Hstore.Status status) {
+        if (debug.get())
+            LOG.debug(String.format("Aborting RemoteTransactionInitCallback for txn #%d [status=%s]",
+                                    this.builder.getTransactionId(), status));
         this.builder.setStatus(status);
         this.unblockCallback();
     }

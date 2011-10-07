@@ -6,6 +6,8 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -19,6 +21,11 @@ import edu.mit.hstore.dtxn.LocalTransaction;
  */
 public class LocalTransactionInitCallback extends BlockingCallback<Hstore.TransactionInitResponse, Hstore.TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(LocalTransactionInitCallback.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     private static final RpcCallback<Hstore.TransactionFinishResponse> abort_callback = new RpcCallback<Hstore.TransactionFinishResponse>() {
         @Override
@@ -35,6 +42,8 @@ public class LocalTransactionInitCallback extends BlockingCallback<Hstore.Transa
     }
 
     public void init(LocalTransaction ts) {
+        if (debug.get())
+            LOG.debug("Starting new LocalTransactionInitCallback for txn #" + ts.getTransactionId());
         this.ts = ts;
         super.init(ts.getPredictTouchedPartitions().size(), null);
     }
@@ -46,7 +55,7 @@ public class LocalTransactionInitCallback extends BlockingCallback<Hstore.Transa
     
     @Override
     protected void unblockCallback() {
-        // TODO: Queue this LocalTransaction at the HStoreSite
+        hstore_site.transactionStart(ts);
     }
     
     @Override

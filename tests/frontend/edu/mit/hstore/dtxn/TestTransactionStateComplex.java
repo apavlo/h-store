@@ -147,9 +147,9 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testTwoRoundQueryPlan
      */
     public void testTwoRoundQueryPlan() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
         
         // We want to add results for just one of the duplicated statements and make sure that
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
@@ -190,7 +190,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testAddResultsBeforeStart
      */
     public void testAddResultsBeforeStart() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
@@ -218,7 +218,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
         CountDownLatch latch = this.ts.getDependencyLatch(); 
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
@@ -228,9 +228,9 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testGetResults
      */
     public void testGetResults() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
 //        System.err.println(this.ts);
 //        System.err.println(this.internal_dependency_ids);
 

@@ -55,7 +55,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if (this.aborted.get() == false && this.getCounter().addAndGet(-1 * counter) == 0) {
+        if (this.aborted.get() == false && this.counter.addAndGet(-1 * counter) == 0) {
             this.unblockCallback();
         }
     }
@@ -89,8 +89,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         this.finishImpl();
     }
     
-    public AtomicInteger getCounter() {
-        return this.counter;
+    public int getCounter() {
+        return this.counter.get();
     }
     public RpcCallback<T> getOrigCallback() {
         return this.orig_callback;

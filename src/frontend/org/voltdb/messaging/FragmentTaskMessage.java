@@ -227,10 +227,6 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         m_usingDtxn = value;
     }
     
-    public boolean isUsingDtxnCoordinator() {
-        return (m_usingDtxn);
-    }
-    
     public boolean isFinalTask() {
         return m_isFinal;
     }
