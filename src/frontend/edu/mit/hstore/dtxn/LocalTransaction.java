@@ -113,15 +113,6 @@ public class LocalTransaction extends AbstractTransaction {
     private boolean exec_speculative = false;
 
     /**
-     * Initialization Barrier
-     * This ensures that a transaction does not start until the Dtxn.Coordinator has returned the acknowledgement
-     * that from our call from procedureInvocation()->execute()
-     * This probably should be pushed further into the ExecutionSite so that we can actually invoke the procedure
-     * but just not send any data requests.
-     */
-    public CountDownLatch init_latch;
-
-    /**
      * TransctionEstimator State Handle
      */
     private TransactionEstimator.State estimator_state;
@@ -201,7 +192,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.sysproc = catalog_proc.getSystemproc();
         this.invocation = invocation;
         this.client_callback = client_callback;
-        this.init_latch = (predict_touchedPartitions.size() > 1 ? new CountDownLatch(1) : null);
         
         return this.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort);
     }
@@ -221,7 +211,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.sysproc = orig.sysproc;
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
-        this.init_latch = (this.isPredictSinglePartition() == false ? new CountDownLatch(1) : null);
         // this.estimator_state = orig.estimator_state;
         
         // Append the profiling times
@@ -288,11 +277,15 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.state.queued_results.isEmpty()) : 
             String.format("Trying to initialize round for txn #%d but there are %d queued results",
                           this.txn_id, this.state.queued_results.size());
-        synchronized (this.state) {
+        if (this.base_partition == partition) {
+            synchronized (this.state) {
+                super.initRound(partition, undoToken);
+                // Reset these guys here so that we don't waste time in the last round
+                if (this.last_undo_token != null) this.state.clearRound();
+            } // SYNCHRONIZED
+        } else {
             super.initRound(partition, undoToken);
-            // Reset these guys here so that we don't waste time in the last round
-            if (this.last_undo_token != null) this.state.clearRound();
-        } // SYNCHRONIZED
+        }
     }
     
     public void fastInitRound(int partition, long undoToken) {
@@ -345,7 +338,6 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
         assert(this.state.queued_results.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.state.queued_results.size() + " queued results";
         
-        if (d) LOG.debug(String.format("Finishing round #%d for %s", this.round_ctr, this));
         if (this.base_partition == partition) {
             synchronized (this.state) {
                 super.finishRound(partition);
@@ -654,7 +646,7 @@ public class LocalTransaction extends AbstractTransaction {
                         this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
                     }
                     rest_stmt_ctr.add(stmt_index);
-                    if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
+                    if (d) LOG.debug(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
                 } // FOR
             } // SYNCH
         }
@@ -724,9 +716,11 @@ public class LocalTransaction extends AbstractTransaction {
             Queue<Integer> queue = stmt_ctr.get(key);
             if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + queue);
             assert(queue != null) :
-                "Unexpected partition/dependency result pair " + key + " in txn #" + this.txn_id;
+                String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
+                              partition, dependency_id, this);
             assert(queue.isEmpty() == false) :
-                "No more statements for partition/dependency result pair " + key + " in txn #" + this.txn_id + "\n" + this;
+                String.format("No more statements for {Partition:%d, Dependency:%d} in %s\nresults_dependency_stmt_ctr = %s",
+                              partition, dependency_id, this, this.state.results_dependency_stmt_ctr);
             
             int stmt_index = queue.remove().intValue();
             dinfo = this.getDependencyInfo(stmt_index, dependency_id);
@@ -841,15 +835,14 @@ public class LocalTransaction extends AbstractTransaction {
         // Actual Execution
         m = new ListOrderedMap<String, Object>();
         m.put("Exec Single-Partitioned", this.isExecSinglePartition());
-        m.put("Exec Read Only", this.exec_readOnly);
         m.put("Speculative Execution", this.exec_speculative);
         m.put("Touched Partitions", this.state.exec_touchedPartitions);
+        m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
         maps.add(m);
 
         // Additional Info
         m = new ListOrderedMap<String, Object>();
         m.put("Original Txn Id", this.orig_txn_id);
-        m.put("Init Latch", this.init_latch);
         m.put("Client Callback", this.client_callback);
         m.put("Prepare Callback", this.prepare_callback);
         maps.add(m);

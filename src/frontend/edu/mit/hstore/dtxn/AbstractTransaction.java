@@ -25,6 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -235,6 +236,7 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
+        if (d) LOG.debug(String.format("Finishing round #%d for %s", this.round_ctr[offset], this));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }
@@ -455,10 +457,10 @@ public abstract class AbstractTransaction implements Poolable {
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
-        m.put("Current Round State", this.round_state);
-        m.put("Read-Only", this.exec_readOnly);
-        m.put("Last UndoToken", this.last_undo_token);
-        m.put("# of Rounds", this.round_ctr);
+        m.put("Current Round State", Arrays.toString(this.round_state));
+        m.put("Read-Only", Arrays.toString(this.exec_readOnly));
+        m.put("Last UndoToken", Arrays.toString(this.last_undo_token));
+        m.put("# of Rounds", Arrays.toString(this.round_ctr));
         m.put("Pending Error", (this.pending_error != null ? this.pending_error.toString() : null));
         return (m);
     }

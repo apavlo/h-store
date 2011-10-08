@@ -966,10 +966,12 @@ public abstract class BenchmarkComponent {
         // Load up this dirty mess...
         ClientResponse cr = null;
         if (m_noUploading == false) {
+            synchronized (this) {
             try {
                 cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
             } catch (Exception e) {
                 throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
+            }
             }
         } else {
             cr = m_dummyResponse;
