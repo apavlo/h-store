@@ -1147,8 +1147,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            // Construct the message for the Dtxn.Coordinator
-            if (d) LOG.debug(String.format("Passing multi-partition %s to Dtxn.Coordinator for partition %d [handle=%d]",
+            if (d) LOG.debug(String.format("Queuing distributed %s to running at partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
             
             // Since we know that this txn came over from the Dtxn.Coordinator, we'll throw it in
@@ -1302,6 +1301,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) 
             LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
+        AbstractTransaction ts = this.inflight_txns.get(txn_id);
+        assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
+        
         int spec_cnt = 0;
         for (Integer p : partitions) {
             if (this.local_partitions.contains(p) == false) continue;
@@ -1312,7 +1314,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
             // for this partition
             if (hstore_conf.site.exec_speculative_execution) {
-                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(null, false); // FIXME
+                boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts, false);
                 if (debug.get() && ret) {
                     spec_cnt++;
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));
@@ -1341,7 +1343,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         if (ts == null || (ts instanceof LocalTransaction && ((LocalTransaction)ts).isPredictSinglePartition() == false)) {
             if (debug.get())
-                LOG.debug(String.format("Calling finishWork for txn #%d on %d partitions", txn_id, partitions));
+                LOG.debug(String.format("Calling finishWork for txn #%d on %d partitions", txn_id, partitions.size()));
             for (Integer p : partitions) {
                 if (this.local_partitions.contains(p) == false) continue;
                 
@@ -1702,12 +1704,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 // But then wait for all of the threads to be finished with their initializations
                 // before we tell the world that we're ready!
-                if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
-                try {
-                    hstore_site.ready_latch.await();
-                } catch (Exception ex) {
-                    LOG.error("Unexpected interuption while waiting for engines to start", ex);
-                    hstore_site.messenger.shutdownCluster(ex);
+                if (hstore_site.ready_latch.getCount() > 0) {
+                    if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
+                    try {
+                        hstore_site.ready_latch.await();
+                    } catch (Exception ex) {
+                        LOG.error("Unexpected interuption while waiting for engines to start", ex);
+                        hstore_site.messenger.shutdownCluster(ex);
+                    }
                 }
                 hstore_site.ready();
             }

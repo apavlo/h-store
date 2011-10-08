@@ -884,6 +884,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public boolean enableSpeculativeExecution(AbstractTransaction ts, boolean force) {
+        assert(ts != null) : "Null transaction handle???";
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
         // Check whether the txn that we're waiting for is read-only.
@@ -1865,25 +1866,25 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // to need to get queued up by at the other ExecutionSites
                 if (num_local > 0) {
                     
-                    if (t) LOG.trace(String.format("Executing %d FragmentTaskMessages on local site's partitions for %s",
+                    if (d) LOG.debug(String.format("Executing %d FragmentTaskMessages on local site's partitions for %s",
                                                    this.tmp_localSiteFragmentList.size(), ts));
                     for (FragmentTaskMessage ftask : this.tmp_localSiteFragmentList) {
                         try {
                             hstore_site.getExecutionSite(ftask.getDestinationPartitionId()).doWork(ts, ftask, null);
-                        } catch (Exception ex) {
-                            LOG.error("Unexpected error when executing local site fragments for " + ts, ex);
-                            throw new RuntimeException(ex);
+                        } catch (Throwable ex) {
+                            throw new RuntimeException(String.format("Unexpected error when executing local site fragments for %s on partition %d",
+                                                                     ts, ftask.getDestinationPartitionId()));
                         }
                     } // FOR
                     
-                    if (t) LOG.trace(String.format("Executing %d FragmentTaskMessages on local partition for %s",
+                    if (d) LOG.debug(String.format("Executing %d FragmentTaskMessages on local partition for %s",
                                                    this.tmp_localPartitionFragmentList.size(), ts));
                     for (FragmentTaskMessage ftask : this.tmp_localPartitionFragmentList) {
                         try {
                             this.processFragmentTaskMessage(ts, ftask);
-                        } catch (Exception ex) {
-                            LOG.error("Unexpected error when executing local partition fragments for " + ts, ex);
-                            throw new RuntimeException(ex);
+                        } catch (Throwable ex) {
+                            throw new RuntimeException(String.format("Unexpected error when executing local partition fragments for %s on partition %d",
+                                                                     ts, ftask.getDestinationPartitionId()));
                         }
                     } // FOR
                 }
