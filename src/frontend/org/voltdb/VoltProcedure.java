@@ -66,6 +66,7 @@ import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.AbstractTransaction;
@@ -170,7 +171,7 @@ public abstract class VoltProcedure implements Poolable {
     private int last_batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
     private int batchQueryArgsIndex = 0;
-    private VoltTable[] results = HStoreSite.EMPTY_RESULT;
+    private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
     private Hstore.Status status = Hstore.Status.OK;
     private SerializableException error = null;
     private String status_msg = "";
@@ -369,10 +370,7 @@ public abstract class VoltProcedure implements Poolable {
         this.m_currentTxnState = null;
         this.m_localTxnState = null;
         this.client_handle = -1;
-        this.results = HStoreSite.EMPTY_RESULT;
-        this.status = Hstore.Status.OK;
-        this.error = null;
-        this.status_msg = "";
+
     }
         
     final void initSQLStmt(SQLStmt stmt) {
@@ -492,13 +490,16 @@ public abstract class VoltProcedure implements Poolable {
             if (t) LOG.trace("Setting up internal state for " + txnState);
         }
 
-        assert(this.m_currentTxnState == null) : "Old: " + m_currentTxnState + " -> New: " + txnState;
         ClientResponse response = null;
         this.m_currentTxnState = txnState;
         this.m_localTxnState = txnState;
         this.client_handle = txnState.getClientHandle();
         this.procParams = paramList;
         this.predict_singlepartition = this.m_localTxnState.isPredictSinglePartition();
+        this.results = HStoreConstants.EMPTY_RESULT;
+        this.status = Hstore.Status.OK;
+        this.error = null;
+        this.status_msg = "";
         
         // in case someone queues sql but never calls execute, clear the queue here.
         this.batchQueryStmtIndex = 0;
@@ -547,7 +548,7 @@ public abstract class VoltProcedure implements Poolable {
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
-                if (this.results == null) results = HStoreSite.EMPTY_RESULT;
+                if (this.results == null) results = HStoreConstants.EMPTY_RESULT;
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
@@ -967,7 +968,7 @@ public abstract class VoltProcedure implements Poolable {
         assert(batchArgs != null);
         assert(batchStmts.length > 0);
         assert(batchArgs.length > 0);
-        if (batchSize == 0) return (HStoreSite.EMPTY_RESULT);
+        if (batchSize == 0) return (HStoreConstants.EMPTY_RESULT);
         
         if (hstore_conf.site.txn_profiling) {
             this.m_localTxnState.profiler.stopExecJava();
@@ -1102,8 +1103,7 @@ public abstract class VoltProcedure implements Poolable {
             if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for " + this.m_currentTxnState);
     
             // Block until we get all of our responses.
-            // We can do this because our ExecutionSite is multi-threaded
-            results = this.executor.waitForResponses(this.m_localTxnState, tasks, plan.getBatchSize());
+            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, tasks, plan.getBatchSize());
         }
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 

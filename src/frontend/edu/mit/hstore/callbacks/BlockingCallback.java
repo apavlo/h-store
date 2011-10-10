@@ -3,10 +3,14 @@ package edu.mit.hstore.callbacks;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Logger;
+
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * 
@@ -14,6 +18,12 @@ import edu.brown.utils.Poolable;
  * @param <U> The message type that we will accumulate before invoking the original RpcCallback
  */
 public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable {
+    private static final Logger LOG = Logger.getLogger(BlockingCallback.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     private final AtomicInteger counter = new AtomicInteger(0);
     private RpcCallback<T> orig_callback;
@@ -49,15 +59,10 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     protected abstract void finishImpl();
     
-    @Override
-    public void run(U parameter) {
-        int counter = this.runImpl(parameter);
-        
-        // If this is the last result that we were waiting for, then we'll invoke
-        // the unblockCallback()
-        if (this.aborted.get() == false && this.counter.addAndGet(-1 * counter) == 0) {
-            this.unblockCallback();
-        }
+    private void unblock() {
+        if (debug.get())
+            LOG.debug(String.format("Invoking %s.unblockCallback()", this.getClass().getSimpleName()));
+        this.unblockCallback();
     }
     
     public final void abort(Hstore.Status status) {
@@ -68,11 +73,24 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         }
     }
     
+    @Override
+    public void run(U parameter) {
+        int counter = this.runImpl(parameter);
+        
+        // If this is the last result that we were waiting for, then we'll invoke
+        // the unblockCallback()
+        if (this.aborted.get() == false && this.counter.addAndGet(-1 * counter) == 0) {
+            this.unblock();
+        }
+    }
+    
     public boolean isAborted() {
         return (this.aborted.get());
     }
     
     protected final void init(int counter_val, RpcCallback<T> orig_callback) {
+        if (debug.get())
+            LOG.debug(String.format("Initialized new %s with counter = %d", this.getClass().getSimpleName(), counter_val));
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
     }
@@ -94,8 +112,10 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      * creating a message.
      */
     public void decrementCounter(int ctr) {
+        if (debug.get())
+            LOG.debug(String.format("Decrementing %s counter by %d", this.getClass().getSimpleName(), ctr));
         if (this.counter.addAndGet(-1 * ctr) == 0) {
-            this.unblockCallback();
+            this.unblock();
         }
     }
     

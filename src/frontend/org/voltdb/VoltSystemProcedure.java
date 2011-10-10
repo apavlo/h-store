@@ -141,7 +141,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      * @param aggregatorOutputDependencyId dependency id produced by the aggregation pf
      *        The id of the table returned as the result of this procedure.
      */
-    protected VoltTable[] executeSysProcPlanFragmentsAsync(SynthesizedPlanFragment pfs[]) {
+    protected final VoltTable[] executeSysProcPlanFragmentsAsync(SynthesizedPlanFragment pfs[]) {
         LOG.debug("Preparing to execute " + pfs.length + " sysproc fragments");
         List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
         
@@ -181,6 +181,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.executor.waitForResponses((LocalTransaction)this.getTransactionState(), ftasks, 1));
+        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, 1));
     }
 }

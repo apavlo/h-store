@@ -23,6 +23,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 
 public class TestBatchPlanner extends BaseTestCase {
 
@@ -342,7 +343,7 @@ public class TestBatchPlanner extends BaseTestCase {
             if (!ftask.hasInputDependencies()) {
                 assertEquals("FragmentTaskMessage for multi-partition query does not have the right # of fragments", 1, ftask.getFragmentCount());
                 for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
-                    assertEquals(ExecutionSite.NULL_DEPENDENCY_ID, ftask.getOnlyInputDepId(i));
+                    assertEquals(HStoreConstants.NULL_DEPENDENCY_ID, ftask.getOnlyInputDepId(i));
                 } // FOR
                 assertNotNull(ftask.getOutputDependencyIds());
                 assertEquals(1, ftask.getOutputDependencyIds().length);

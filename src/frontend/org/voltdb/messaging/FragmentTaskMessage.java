@@ -25,10 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
+
+import edu.mit.hstore.HStoreConstants;
 
 /**
  * Message from a stored procedure coordinator to an execution site
@@ -178,7 +179,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         ArrayList<Integer> l = (ArrayList<Integer>) m_inputDepIds[index];
         l.add(depId);
         m_inputDepCount++;
-        if (depId != ExecutionSite.NULL_DEPENDENCY_ID) m_realInputDepCount++;
+        if (depId != HStoreConstants.NULL_DEPENDENCY_ID) m_realInputDepCount++;
     }
 
     @SuppressWarnings("unchecked")

@@ -16,7 +16,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-import org.voltdb.BatchPlanner;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
@@ -27,6 +26,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
@@ -159,6 +159,8 @@ public class ExecutionState {
     
     /** 
      * What partitions has this txn touched
+     * This needs to be a Histogram so that we can figure out what partitions
+     * were touched the most if end up needing to redirect it later on
      */
     protected final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
@@ -177,7 +179,7 @@ public class ExecutionState {
     @SuppressWarnings("unchecked")
     public ExecutionState(ExecutionSite executor) {
         this.executor = executor;
-        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[BatchPlanner.MAX_BATCH_SIZE];
+        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[HStoreConf.singleton().site.planner_max_batch_size];
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR

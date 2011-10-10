@@ -32,10 +32,10 @@ import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.utils.Poolable;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -164,6 +164,8 @@ public abstract class AbstractTransaction implements Poolable {
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[i];
+            this.round_state[offset] = null;
+            this.round_ctr[offset] = 0;
             this.ee_finished_timestamp[offset] = null;
             this.last_undo_token[offset] = null;
             this.exec_readOnly[offset] = true;
@@ -200,12 +202,12 @@ public abstract class AbstractTransaction implements Poolable {
     public void initRound(int partition, long undoToken) {
         int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
         assert(this.round_state[offset] == null || this.round_state[offset] == RoundState.FINISHED) : 
-            String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, partition);
+            String.format("Invalid round state %s for %s at partition %d [hashCode=%d]", this.round_state[offset], this, partition, this.hashCode());
         
-        if (this.last_undo_token[offset] == null || undoToken != ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (this.last_undo_token[offset] == null || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.last_undo_token[offset] = undoToken;
         }
-        if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.exec_noUndoBuffer[this.base_partition] = true;
         }
         this.round_state[offset] = RoundState.INITIALIZED;

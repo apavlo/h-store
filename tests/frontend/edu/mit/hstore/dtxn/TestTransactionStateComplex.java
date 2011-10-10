@@ -24,6 +24,7 @@ import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransaction;
@@ -131,7 +132,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     this.first_tasks.add(ftask);
                 } else {
                     for (Integer input_dep_id : ftask.getInputDepIds(i)) {
-                        if (input_dep_id != ExecutionSite.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
+                        if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                     } // FOR
                 }
             } // FOR

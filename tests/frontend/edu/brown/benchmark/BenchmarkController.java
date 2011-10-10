@@ -100,6 +100,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
@@ -563,7 +564,7 @@ public class BenchmarkController {
             do {
                 ProcessSetManager.OutputLine line = m_sitePSM.nextBlocking();
                 if (line == null) break;
-                if (line.value.contains(HStoreSite.SITE_READY_MSG)) {
+                if (line.value.contains(HStoreConstants.SITE_READY_MSG)) {
                     waiting--;
                 }
             } while (waiting > 0);
