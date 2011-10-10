@@ -2,6 +2,7 @@ package edu.mit.hstore.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -10,10 +11,9 @@ import org.apache.log4j.Logger;
 
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransaction;
 
 public class NewOrderInspector {
     private static final Logger LOG = Logger.getLogger(NewOrderInspector.class);
@@ -24,27 +24,31 @@ public class NewOrderInspector {
     }
     
     private final HStoreSite hstore_site;
-    private final HStoreConf hstore_conf;
+    private final AbstractHasher hasher;
+    private final ParameterMangler mangler;
     
     /**
-     * W_ID String -> W_ID Short
+     * PartitionId -> PartitionId Singleton Sets
      */
-    private final Map<String, Short> neworder_hack_w_id;
+    private final Map<Integer, Collection<Integer>> singlePartitionSets = new HashMap<Integer, Collection<Integer>>();
+    
     /**
      * W_ID Short -> PartitionId
      */
-    private final Map<Short, Integer> neworder_hack_hashes;
+    private final Map<Short, Integer> neworder_hack_hashes = new HashMap<Short, Integer>();
     
+    /**
+     * Constructor
+     * @param hstore_site
+     */
     public NewOrderInspector(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
-        this.hstore_conf = hstore_site.getHStoreConf();
+        this.hasher = hstore_site.getHasher();
+        this.mangler = hstore_site.getParameterMangler("neworder");
+        assert(this.mangler != null);
         
-        AbstractHasher hasher = hstore_site.getHasher();
-        this.neworder_hack_hashes = new HashMap<Short, Integer>();
-        this.neworder_hack_w_id = new HashMap<String, Short>();
-        for (Short w_id = 0; w_id < 256; w_id++) {
-            this.neworder_hack_w_id.put(w_id.toString(), w_id);
-            this.neworder_hack_hashes.put(w_id, hasher.hash(w_id.intValue()));
+        for (Integer p : this.hstore_site.getLocalPartitionIds()) {
+            this.singlePartitionSets.put(p, Collections.singleton(p));
         } // FOR
     }
     
@@ -54,36 +58,36 @@ public class NewOrderInspector {
      * @param args
      * @return
      */
-    public Collection<Integer> initializeTransaction(LocalTransaction ts, Object args[]) {
-//        assert(ts.getProcedureName().equalsIgnoreCase("neworder")) : "Unable to use NewOrder cheat for " + ts;
-        Short w_id = this.neworder_hack_w_id.get(args[0].toString());
+    public Collection<Integer> initializeTransaction(Object args[]) {
+        Object mangled[] = this.mangler.convert(args);
+        
+        if (debug.get())
+            LOG.debug("Checking NewOrder input parameters:\n" + this.mangler.toString(mangled));
+        
+        final Short w_id = (Short)mangled[0];
         assert(w_id != null);
-        Integer w_id_partition = this.neworder_hack_hashes.get(w_id);
-        assert(w_id_partition != null);
-        short inner[] = (short[])args[5];
+        short s_w_ids[] = (short[])args[5];
         
-        boolean predict_singlePartition = true;
-        Collection<Integer> predict_touchedPartitions = new HashSet<Integer>();
-        if (hstore_conf.site.exec_neworder_cheat_done_partitions == false)
-            predict_touchedPartitions.addAll(this.hstore_site.getAllPartitionIds());
+        Integer base_partition = this.neworder_hack_hashes.get(w_id);
+        if (base_partition == null) {
+            base_partition = this.hasher.hash(w_id);
+            this.neworder_hack_hashes.put(w_id, base_partition);
+        }
+        assert(base_partition != null);
         
-        short last_w_id = w_id.shortValue();
-        Integer last_partition = w_id_partition;
-        if (hstore_conf.site.exec_neworder_cheat_done_partitions)
-            predict_touchedPartitions.add(w_id_partition);
-        for (short s_w_id : inner) {
-            if (s_w_id != last_w_id) {
-                last_partition = this.neworder_hack_hashes.get(s_w_id);
-                last_w_id = s_w_id;
-            }
-            if (w_id_partition.equals(last_partition) == false) {
-                predict_singlePartition = false;
-                if (hstore_conf.site.exec_neworder_cheat_done_partitions) {
-                    predict_touchedPartitions.add(last_partition);
-                } else break;
+        Collection<Integer> touchedPartitions = this.singlePartitionSets.get(base_partition);
+        assert(touchedPartitions != null) : "base_partition = " + base_partition;
+        for (short s_w_id : s_w_ids) {
+            if (s_w_id != w_id) {
+                if (touchedPartitions.size() == 1) {
+                    touchedPartitions = new HashSet<Integer>(touchedPartitions);
+                }
+                touchedPartitions.add(this.neworder_hack_hashes.get(s_w_id));
             }
         } // FOR
-        if (trace.get()) LOG.trace(String.format("%s - SinglePartitioned=%s, W_ID=%d, S_W_IDS=%s", ts, predict_singlePartition, w_id, Arrays.toString(inner)));
-        return (predict_touchedPartitions);
+        if (debug.get())
+            LOG.debug(String.format("NewOrder - Partitions=%s, W_ID=%d, S_W_IDS=%s",
+                                    touchedPartitions, w_id, Arrays.toString(s_w_ids)));
+        return (touchedPartitions);
     }
 }

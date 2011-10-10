@@ -197,14 +197,6 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_neworder_cheat;
-        
-        @ConfigProperty(
-            description="Used in conjunction with ${site.force_neworderinspect} to figure out when TPC-C NewOrder transactions " +
-                        "are finished with partitions. This will crash the system when used with other benchmarks.",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean exec_neworder_cheat_done_partitions;
     
         @ConfigProperty(
             description="Whether the VoltProcedure should crash the HStoreSite when a transaction is mispredicted. A " +

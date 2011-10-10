@@ -7,17 +7,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
-import edu.brown.utils.CountingPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -32,34 +28,6 @@ public class DependencyInfo implements Poolable {
     }
     private static boolean d = debug.get();
     private static boolean t = trace.get();
-    
-    /**
-     * Object Pool Factory
-     */
-    private static class Factory extends CountingPoolableObjectFactory<DependencyInfo> {
-        public Factory(boolean enable_tracking) {
-            super(enable_tracking);
-        }
-        @Override
-        public DependencyInfo makeObjectImpl() throws Exception {
-            return (new DependencyInfo());
-        }   
-    }
-    
-    /**
-     * DependencyInfo Object Pool
-     */
-    public static ObjectPool INFO_POOL;
-    
-    /**
-     * Initialize the global object pool
-     * @param hstore_conf
-     */
-    public synchronized static void initializePool(HStoreConf hstore_conf) {
-        if (INFO_POOL == null) {
-            INFO_POOL = new StackObjectPool(new Factory(hstore_conf.site.pool_profiling), hstore_conf.site.pool_dependencyinfos_idle);
-        }
-    }
     
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
@@ -94,10 +62,8 @@ public class DependencyInfo implements Poolable {
     
     /**
      * Constructor
-     * @param stmt_index
-     * @param dependency_id
      */
-    private DependencyInfo() {
+    public DependencyInfo() {
         // Nothing...
     }
     

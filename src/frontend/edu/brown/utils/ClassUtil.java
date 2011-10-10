@@ -38,6 +38,14 @@ public abstract class ClassUtil {
         return (obj != null ? obj.getClass().isArray() : false);
     }
     
+    public static boolean[] isArray(final Object objs[]) {
+        boolean is_array[] = new boolean[objs.length];
+        for (int i = 0; i < objs.length; i++) {
+            is_array[i] = ClassUtil.isArray(objs[i]);
+        } // FOR
+        return (is_array);
+    }
+    
     /**
      * Convert a Enum array to a Field array
      * This assumes that the name of each Enum element corresponds to a data member in the clas

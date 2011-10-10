@@ -48,6 +48,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
 import edu.mit.hstore.callbacks.RemoteTransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -535,7 +536,7 @@ public class HStoreMessenger implements Shutdownable {
             // until we get back results from all of the partitions
             TransactionWorkCallback callback = null;
             try {
-                callback = (TransactionWorkCallback)HStoreObjectPools.POOL_TXNWORK.borrowObject();
+                callback = (TransactionWorkCallback)HStoreObjectPools.CALLBACKS_TXN_WORK.borrowObject();
                 callback.init(txn_id, request.getFragmentsCount(), done);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -606,7 +607,7 @@ public class HStoreMessenger implements Shutdownable {
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
-                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.POOL_TXNREDIRECT_RESPONSE.borrowObject();
+                callback = (TransactionRedirectResponseCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECTRESPONSE.borrowObject();
                 callback.init(local_site_id, request.getSenderId(), done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
@@ -656,7 +657,7 @@ public class HStoreMessenger implements Shutdownable {
      * @param ts
      * @param callback
      */
-    public void transactionInit(LocalTransaction ts, RpcCallback<Hstore.TransactionInitResponse> callback) {
+    public void transactionInit(LocalTransaction ts, LocalTransactionInitCallback callback) {
         Hstore.TransactionInitRequest request = Hstore.TransactionInitRequest.newBuilder()
                                                          .setTransactionId(ts.getTransactionId())
                                                          .addAllPartitions(ts.getPredictTouchedPartitions())

@@ -64,7 +64,7 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
         if (trace) LOG.trace("Sent our ClientResponse back. Returning to regularly scheduled program...");
         try {
             this.finish();
-            HStoreObjectPools.POOL_TXNREDIRECT_RESPONSE.returnObject(this);
+            HStoreObjectPools.CALLBACKS_TXN_REDIRECTRESPONSE.returnObject(this);
         } catch (Exception ex) {
             throw new RuntimeException("Funky failure", ex);
         }

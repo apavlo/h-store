@@ -15,8 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.ObjectPool;
-import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -33,6 +31,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.TypedStackObjectPool;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
@@ -64,9 +63,9 @@ public class TransactionEstimator implements Loggable {
      */
     private static final double RECOMPUTE_TOLERANCE = (double) 0.5;
 
-    public static ObjectPool POOL_ESTIMATORS;
+    public static TypedStackObjectPool<MarkovPathEstimator> POOL_ESTIMATORS;
     
-    public static ObjectPool POOL_STATES;
+    public static TypedStackObjectPool<TransactionEstimator.State> POOL_STATES;
     
     
     // ----------------------------------------------------------------------------
@@ -343,10 +342,14 @@ public class TransactionEstimator implements Loggable {
         synchronized (LOG) {
             if (POOL_STATES == null) {
                 if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
-                POOL_STATES = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().site.pool_estimatorstates_idle);
+                CountingPoolableObjectFactory<TransactionEstimator.State> s_factory = new State.Factory(this.num_partitions); 
+                POOL_STATES = new TypedStackObjectPool<TransactionEstimator.State>(s_factory,
+                        HStoreConf.singleton().site.pool_estimatorstates_idle);
                 
                 if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
-                POOL_ESTIMATORS = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().site.pool_pathestimators_idle);
+                CountingPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.num_partitions);
+                POOL_ESTIMATORS = new TypedStackObjectPool<MarkovPathEstimator>(m_factory,
+                        HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC
     }

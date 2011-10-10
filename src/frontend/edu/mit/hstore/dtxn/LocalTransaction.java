@@ -25,7 +25,17 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -51,8 +61,8 @@ import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
-import edu.mit.hstore.dtxn.AbstractTransaction.RoundState;
 
 /**
  * 
@@ -90,20 +100,15 @@ public class LocalTransaction extends AbstractTransaction {
      * This will only get set when the transaction starts running.
      */
     private ExecutionState state;
-    
+
     /**
-     * This callback is used to keep track of what partitions have replied that they are 
-     * ready to commit/abort our transaction. This is only needed for distributed transactions.
+     * 
      */
-    private TransactionPrepareCallback prepare_callback; 
-    
-    /**
-     * Final RpcCallback to the client
-     */
-    private RpcCallback<byte[]> client_callback;
-    
     private Long orig_txn_id;
     
+    /**
+     * 
+     */
     private Procedure catalog_proc;
 
     /**
@@ -111,7 +116,9 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public boolean sysproc;
 
-    /** Whether this txn is being executed specutatively */
+    /**
+     * Whether this txn is being executed specutatively
+     */
     private boolean exec_speculative = false;
 
     /**
@@ -123,6 +130,29 @@ public class LocalTransaction extends AbstractTransaction {
      * 
      */
     public final TransactionProfile profiler;
+    
+    // ----------------------------------------------------------------------------
+    // CALLBACKS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * This callback is used to release the transaction once we get
+     * the acknowledgments back from all of the partitions that we're going to access.
+     * This is only needed for distributed transactions. 
+     */
+    private LocalTransactionInitCallback init_callback;
+    
+    /**
+     * This callback is used to keep track of what partitions have replied that they are 
+     * ready to commit/abort our transaction.
+     * This is only needed for distributed transactions.
+     */
+    private TransactionPrepareCallback prepare_callback; 
+    
+    /**
+     * Final RpcCallback to the client
+     */
+    private RpcCallback<byte[]> client_callback;
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -142,7 +172,10 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.predict_touchedPartitions != null);
         if (this.predict_touchedPartitions.size() > 1) {
             try {
-                this.prepare_callback = (TransactionPrepareCallback)HStoreObjectPools.POOL_TXNPREPARE.borrowObject();
+                this.init_callback = HStoreObjectPools.CALLBACKS_TXN_LOCALINIT.borrowObject(); 
+                this.init_callback.init(this);
+                
+                this.prepare_callback = (TransactionPrepareCallback)HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
                 this.prepare_callback.init(this);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -150,22 +183,6 @@ public class LocalTransaction extends AbstractTransaction {
         }
         return ((LocalTransaction)super.init(txnId, clientHandle, base_partition,
                                              predict_readOnly, predict_canAbort, true));
-    }
-    
-    /**
-     * Testing Constructor
-     * @param txnId
-     * @param clientHandle
-     * @param base_partition
-     * @param predict_touchedPartitions
-     * @param predict_readOnly
-     * @param predict_canAbort
-     * @return
-     */
-    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
-                                    Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort) {
-        this.predict_touchedPartitions = predict_touchedPartitions;
-        return this.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort);
     }
 
     /**
@@ -227,6 +244,23 @@ public class LocalTransaction extends AbstractTransaction {
         return this.init(txnId, orig.client_handle, base_partition, predict_readOnly, predict_abortable);
     }
     
+    /**
+     * Testing Constructor
+     * @param txnId
+     * @param clientHandle
+     * @param base_partition
+     * @param predict_touchedPartitions
+     * @param predict_readOnly
+     * @param predict_canAbort
+     * @return
+     */
+    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
+                                    Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort) {
+        this.predict_touchedPartitions = predict_touchedPartitions;
+        return this.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort);
+    }
+    
+    
     public void setExecutionState(ExecutionState state) {
         assert(this.state == null);
         this.state = state;
@@ -242,15 +276,20 @@ public class LocalTransaction extends AbstractTransaction {
         super.finish();
 
         try {
+            // Return our LocalTransactionInitCallback
+            if (this.init_callback != null) {
+                HStoreObjectPools.CALLBACKS_TXN_LOCALINIT.returnObject(this.init_callback);
+                this.init_callback = null;
+            }
+            // Return our TransactionPrepareCallback
+            if (this.prepare_callback != null) {
+                HStoreObjectPools.CALLBACKS_TXN_PREPARE.returnObject(this.prepare_callback);
+                this.prepare_callback = null;
+            }
             // Return our TransactionEstimator.State handle
             if (this.estimator_state != null) {
                 TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
                 this.estimator_state = null;
-            }
-            // Return our TransactionPrepareCallback
-            if (this.prepare_callback != null) {
-                HStoreObjectPools.POOL_TXNPREPARE.returnObject(this.prepare_callback);
-                this.prepare_callback = null;
             }
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -391,6 +430,20 @@ public class LocalTransaction extends AbstractTransaction {
     public synchronized void setPendingError(RuntimeException error) {
         this.setPendingError(error, true);
     }
+
+    // ----------------------------------------------------------------------------
+    // CALLBACK METHODS
+    // ----------------------------------------------------------------------------
+    
+    public LocalTransactionInitCallback getTransactionInitCallback() {
+        return (this.init_callback);
+    }
+    public TransactionPrepareCallback getTransactionPrepareCallback() {
+        return (this.prepare_callback);
+    }
+    public RpcCallback<byte[]> getClientCallback() {
+        return (this.client_callback);
+    }
     
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
@@ -401,12 +454,6 @@ public class LocalTransaction extends AbstractTransaction {
     }
     public StoredProcedureInvocation getInvocation() {
         return invocation;
-    }
-    public TransactionPrepareCallback getPrepareCallback() {
-        return (this.prepare_callback);
-    }
-    public RpcCallback<byte[]> getClientCallback() {
-        return (this.client_callback);
     }
 
     /**
@@ -527,6 +574,10 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.predict_touchedPartitions.size() == 1);
     }
     
+    // ----------------------------------------------------------------------------
+    // ProtoRpcController CACHE
+    // ----------------------------------------------------------------------------
+    
     private ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
         if (cache[site_id] == null) {
             cache[site_id] = new ProtoRpcController();
@@ -573,7 +624,7 @@ public class LocalTransaction extends AbstractTransaction {
             // If there is nothing local, then we have to go get an object from the global pool
             } else {
                 try {
-                    dinfo = (DependencyInfo)DependencyInfo.INFO_POOL.borrowObject();
+                    dinfo = HStoreObjectPools.STATES_DEPENDENCYINFO.borrowObject();
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
