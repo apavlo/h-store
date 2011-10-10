@@ -420,8 +420,8 @@ public class HStoreMessenger implements Shutdownable {
             if (local_partitions.size() > 0) this.sendLocal(ts.getTransactionId(), msg, local_partitions);
             
             if (debug.get())
-                LOG.debug(String.format("Sent %d %s to %d partitions for txn #%d ",
-                                        ts.getTransactionId(), msg.getClass().getSimpleName(), partitions.size()));
+                LOG.debug(String.format("Sent %d %s to %d partitions for %s",
+                                        ctr, msg.getClass().getSimpleName(),  partitions.size(), ts));
         }
         
         /**
@@ -697,12 +697,13 @@ public class HStoreMessenger implements Shutdownable {
      * @param callback
      * @param partitions
      */
-    public void transactionPrepare(LocalTransaction ts, RpcCallback<Hstore.TransactionPrepareResponse> callback, Collection<Integer> partitions) {
+    public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, Collection<Integer> partitions) {
         Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .addAllPartitions(ts.getDonePartitions())
                                                         .build();
         this.router_transactionPrepare.sendMessages(ts, request, callback, partitions);
+        
     }
 
     /**

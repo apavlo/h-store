@@ -118,7 +118,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     public static final String SITE_READY_MSG = "Site is ready for action";
-    private static final VoltTable EMPTY_RESULT[] = new VoltTable[0];
+    public static final VoltTable EMPTY_RESULT[] = new VoltTable[0];
     
     /**
      * Formatted site name
@@ -1303,12 +1303,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
+        boolean is_local = (ts instanceof LocalTransaction);
         
         int spec_cnt = 0;
         for (Integer p : partitions) {
             if (this.local_partitions.contains(p) == false) continue;
-            if (updated != null) updated.add(p);
-            
             // TODO(cjl16): Always tell the queue stuff that the transaction is finished at this partition
             
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
@@ -1320,6 +1319,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     LOG.debug(String.format("Partition %d - Speculative Execution!", p));
                 }
             }
+            
+            if (updated != null) updated.add(p);
+            if (is_local) ((LocalTransaction)ts).getPrepareCallback().decrementCounter(1);
+
         } // FOR
         if (debug.get() && spec_cnt > 0)
             LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
@@ -1334,7 +1337,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionFinish(long txn_id, Hstore.Status status, Collection<Integer> partitions) {
         if (d) 
-            LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s]", txn_id, status));
+            LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]", txn_id, status, partitions));
         boolean commit = (status == Hstore.Status.OK);
         
         // We only need to call commit/abort if 
@@ -1389,6 +1392,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        if (d)
+            LOG.debug(String.format("Sending back ClientResponse for " + ts));
         Hstore.Status status = cresponse.getStatus();
         assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
         
@@ -1407,10 +1412,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
             this.transactionMispredict(ts, ts.getClientCallback());
         }
-        
-        // But make sure we always call HStoreSite.completeTransaction() so that we cleanup whatever internal
-        // state that we may have for this txn regardless of how it finished
-        this.completeTransaction(ts.getTransactionId(), status);
     }
 
     /**

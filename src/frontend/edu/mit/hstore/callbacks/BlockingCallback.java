@@ -89,6 +89,16 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         this.finishImpl();
     }
     
+    /**
+     * This allows you to decrement the counter with actually
+     * creating a message.
+     */
+    public void decrementCounter(int ctr) {
+        if (this.counter.addAndGet(-1 * ctr) == 0) {
+            this.unblockCallback();
+        }
+    }
+    
     public int getCounter() {
         return this.counter.get();
     }

@@ -93,8 +93,6 @@ public abstract class VoltProcedure implements Poolable {
     // STATIC CONSTANTS
     // ----------------------------------------------------------------------------
     
-    private static final VoltTable[] EMPTY_RESULT = new VoltTable[0];
-    
     // Used to get around the "abstract" for StmtProcedures.
     // Path of least resistance?
     protected static class StmtProcedure extends VoltProcedure {}
@@ -172,7 +170,7 @@ public abstract class VoltProcedure implements Poolable {
     private int last_batchQueryStmtIndex = 0;
     private final Object[] batchQueryArgs[] = new Object[1000][];
     private int batchQueryArgsIndex = 0;
-    private VoltTable[] results = EMPTY_RESULT;
+    private VoltTable[] results = HStoreSite.EMPTY_RESULT;
     private Hstore.Status status = Hstore.Status.OK;
     private SerializableException error = null;
     private String status_msg = "";
@@ -371,7 +369,7 @@ public abstract class VoltProcedure implements Poolable {
         this.m_currentTxnState = null;
         this.m_localTxnState = null;
         this.client_handle = -1;
-        this.results = EMPTY_RESULT;
+        this.results = HStoreSite.EMPTY_RESULT;
         this.status = Hstore.Status.OK;
         this.error = null;
         this.status_msg = "";
@@ -549,7 +547,7 @@ public abstract class VoltProcedure implements Poolable {
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
-                if (this.results == null) results = EMPTY_RESULT;
+                if (this.results == null) results = HStoreSite.EMPTY_RESULT;
             } catch (IllegalAccessException e) {
                 // If reflection fails, invoke the same error handling that other exceptions do
                 throw new InvocationTargetException(e);
@@ -969,7 +967,7 @@ public abstract class VoltProcedure implements Poolable {
         assert(batchArgs != null);
         assert(batchStmts.length > 0);
         assert(batchArgs.length > 0);
-        if (batchSize == 0) return (EMPTY_RESULT);
+        if (batchSize == 0) return (HStoreSite.EMPTY_RESULT);
         
         if (hstore_conf.site.txn_profiling) {
             this.m_localTxnState.profiler.stopExecJava();
