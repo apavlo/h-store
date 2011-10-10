@@ -50,7 +50,9 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreObjectPools;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
+import edu.mit.hstore.dtxn.AbstractTransaction.RoundState;
 
 /**
  * 
@@ -614,7 +616,9 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ftask
      */
     public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
-        assert(this.round_state[this.base_partition] == RoundState.INITIALIZED) : "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
+        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[this.base_partition];
+        assert(this.round_state[offset] == RoundState.INITIALIZED) :
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, this.base_partition);
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
@@ -693,17 +697,17 @@ public class LocalTransaction extends AbstractTransaction {
      * @param result
      */
     private void processResultResponse(final int partition, final int dependency_id, final int key, VoltTable result) {
+        int base_offset = HStoreSite.LOCAL_PARTITION_OFFSETS[this.base_partition];
         assert(result != null);
-        assert(this.round_state[this.base_partition] == RoundState.INITIALIZED || this.round_state[this.base_partition] == RoundState.STARTED) :
-            "Invalid round state " + this.round_state + " for txn #" + this.txn_id;
-
+        assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[base_offset], this, this.base_partition);
         DependencyInfo dinfo = null;
         Map<Integer, Queue<Integer>> stmt_ctr = this.state.results_dependency_stmt_ctr;
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
         synchronized (this.state) {
-            if (this.round_state[this.base_partition] == RoundState.INITIALIZED) {
+            if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                 assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
                 this.state.queued_results.put(key, result);
                 if (t) LOG.trace("Queued result " + key + " for txn #" + this.txn_id + " until the round is started");

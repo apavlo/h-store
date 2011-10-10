@@ -160,9 +160,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     public static final int NULL_DEPENDENCY_ID = -1;
 
-    public static final int NODE_THREAD_POOL_SIZE = 1;
-
-    
     public static final long DISABLE_UNDO_LOGGING_TOKEN = Long.MAX_VALUE;
     
     // ----------------------------------------------------------------------------
