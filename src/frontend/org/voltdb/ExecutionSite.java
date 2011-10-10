@@ -112,7 +112,6 @@ import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
-import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.ExecutionState;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
@@ -470,8 +469,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.partitionId = 0;
         this.localPartitionIds = null;
         this.execState = null;
-        
-        DependencyInfo.initializePool(HStoreConf.singleton());
     }
 
     /**
@@ -495,7 +492,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.siteId = this.site.getId();
         
         this.execState = new ExecutionState(this);
-        DependencyInfo.initializePool(hstore_conf);
         
         this.backend_target = target;
         this.cluster = CatalogUtil.getCluster(catalog);
@@ -623,7 +619,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.localPartitionIds = hstore_site.getLocalPartitionIds();
         
         if (hstore_conf.site.exec_profiling) {
-            EventObservable eo = this.hstore_site.getWorkloadObservable();
+            EventObservable eo = this.hstore_site.getStartWorkloadObservable();
             this.work_idle_time.resetOnEvent(eo);
             this.work_exec_time.resetOnEvent(eo);
         }
@@ -1959,8 +1955,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
                                     ts, this.partitionId, cresponse.getClientHandle(), status,
                                     ts.isExecSinglePartition(), ts.isExecLocal(this.partitionId)));
-            LOG.debug("Touched Partitions: " + ts.getTouchedPartitions());
-            LOG.debug("Done Partitions: " + ts.getDonePartitions());
+            if (t) {
+                LOG.trace(ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
+                LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
+            }
         }
         
         // ALL: Single-Partition Transactions
@@ -1970,19 +1968,20 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // Then send the result back to the client!
             this.hstore_site.sendClientResponse(ts, cresponse);
+            this.hstore_site.completeTransaction(ts.getTransactionId(), status);
         } 
         // COMMIT: Distributed Transaction
         else if (status == Hstore.Status.OK) {
             // Store the ClientResponse in the TransactionPrepareCallback so that
             // when we get all of our 
-            TransactionPrepareCallback callback = ts.getPrepareCallback();
+            TransactionPrepareCallback callback = ts.getTransactionPrepareCallback();
             assert(callback != null);
             callback.setClientResponse(cresponse);
             
             // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
             Collection<Integer> partitions = CollectionUtils.subtract(ts.getPredictTouchedPartitions(), ts.getDonePartitions());
-            this.hstore_messenger.transactionPrepare(ts, ts.getPrepareCallback(), partitions);
+            this.hstore_messenger.transactionPrepare(ts, ts.getTransactionPrepareCallback(), partitions);
         }
         // ABORT: Distributed Transaction
         else {
@@ -2005,7 +2004,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param commit
      */
     private void finishWork(AbstractTransaction ts, boolean commit) {
-        assert(ts.isEE_Finished(this.partitionId) == false);
+        assert(ts.isFinishedEE(this.partitionId) == false);
         
         // This can be null if they haven't submitted anything
         Long undoToken = ts.getLastUndoToken(this.partitionId);
@@ -2045,7 +2044,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // We always need to do the following things regardless if we hit up the EE or not
         if (commit) this.lastCommittedTxnId = ts.getTransactionId();
-        ts.setEE_Finished(this.partitionId);
+        ts.setFinishedEE(this.partitionId);
     }
     
     /**

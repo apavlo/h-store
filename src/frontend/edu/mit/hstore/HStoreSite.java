@@ -72,7 +72,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
@@ -84,7 +83,16 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
 import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
@@ -377,13 +385,19 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.messenger = new HStoreMessenger(this);
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
+        // Create all of our parameter manglers
+        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc()) continue;
+            this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
+        } // FOR
+        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
+        
         // Static Object Pools
         HStoreObjectPools.initialize(this);
         
         // Reusable Cached Messages
         ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, HStoreConstants.EMPTY_RESULT, "");
         this.cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
-        
         
         // NewOrder Hack
         if (hstore_conf.site.exec_neworder_cheat) {
@@ -437,10 +451,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
+    public ParameterMangler getParameterMangler(String proc_name) {
+        Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
+        assert(catalog_proc != null) : "Invalid Procedure name '" + proc_name + "'";
+        return (this.param_manglers.get(catalog_proc));
+    }
+    
     public EstimationThresholds getThresholds() {
         return thresholds;
     }
-    
     private void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
 //         if (d) 
@@ -503,7 +522,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Relative marker used 
      */
-    public int getNextRequestCounter() {
+    private int getNextRequestCounter() {
         return (this.request_counter.getAndIncrement());
     }
     
@@ -529,13 +548,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (d) LOG.debug("Starting HStoreMessenger for " + this.getSiteName());
         this.messenger.start();
-
-        // Create all of our parameter manglers
-        for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
-            if (catalog_proc.getSystemproc()) continue;
-            this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
-        } // FOR
-        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
 
         // Start Status Monitor
         if (hstore_conf.site.status_interval > 0) {
@@ -635,10 +647,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Get the Observable handle for this HStoreSite that can alert others when the party is
      * getting started
-     * @return
      */
     public EventObservable getReadyObservable() {
         return (this.ready_observable);
+    }
+    /**
+     * Get the Observable handle for this HStore for when the first non-sysproc
+     * transaction request arrives and we are technically beginning the workload
+     * portion of a benchmark run.
+     */
+    public EventObservable getStartWorkloadObservable() {
+        return (this.startWorkload_observable);
     }
 
     /**
@@ -659,9 +678,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected Histogram<String> getIncomingListenerHistogram() {
         return (this.incoming_listeners);
     }
-    public EventObservable getWorkloadObservable() {
-        return (this.startWorkload_observable);
-    }
+
     public ProfileMeasurement getEmptyQueueTime() {
         return (this.idle_time);
     }
@@ -914,7 +931,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             base_partition = this.local_partitions.get((int)(Math.abs(request.getClientHandle()) % this.num_local_partitions));
         }
         
-        if (d) LOG.debug(String.format("%s Invocation [handle=%d, partition=%d]",
+        if (d) LOG.debug(String.format("Incoming %s transaction request [handle=%d, partition=%d]",
                                        request.getProcName(), request.getClientHandle(), base_partition));
         
         // -------------------------------
@@ -929,7 +946,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // we will just forward it back to the client. How sweet is that??
             TransactionRedirectCallback callback = null;
             try {
-                callback = (TransactionRedirectCallback)HStoreObjectPools.POOL_TXNREDIRECT_REQUEST.borrowObject();
+                callback = (TransactionRedirectCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
                 callback.init(done);
             } catch (Exception ex) {
                 throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);
@@ -967,13 +984,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        
         // Grab a new LocalTransactionState object from the target base partition's ExecutionSite object pool
         // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
         long txn_id = id_generator.getNextUniqueTransactionId();
         LocalTransaction ts = null;
         try {
-            ts = HStoreObjectPools.localTxnPool.borrowObject();
+            ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
         } catch (Exception ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for txn #" + txn_id);
             throw new RuntimeException(ex);
@@ -1005,7 +1021,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // out what partitions it's going to need to touch
         } else if (hstore_conf.site.exec_neworder_cheat && catalog_proc.getName().equalsIgnoreCase("neworder")) {
             if (t) LOG.trace(String.format("%s - Executing neworder argument hack for VLDB paper", ts));
-            predict_touchedPartitions = this.tpcc_inspector.initializeTransaction(ts, args);
+            predict_touchedPartitions = this.tpcc_inspector.initializeTransaction(args);
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
@@ -1082,8 +1098,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.startWorkload == false && sysproc == false) {
             synchronized (this) {
                 if (this.startWorkload == false) {
-                    if (d) LOG.debug(String.format("First non-sysproc transaction request recieved. Notifying %d observers [proc=%s]",
-                                                   this.startWorkload_observable.countObservers(), catalog_proc.getName()));
                     this.startWorkload = true;
                     this.startWorkload_observable.notifyObservers();
                 }
@@ -1171,17 +1185,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
-            if (t) LOG.trace("Using InitiateCallback for " + ts);
-            LocalTransactionInitCallback callback = null;
-            try {
-                callback = HStoreObjectPools.POOL_TXN_LOCALINIT.borrowObject();
-                callback.init(ts);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            
             if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-            this.messenger.transactionInit(ts, callback);
+            this.messenger.transactionInit(ts, ts.getTransactionInitCallback());
         }
         
         this.checkEnableThrottling(base_partition);
@@ -1266,7 +1271,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (ts == null) {
             try {
                 // Remote Transaction
-                ts = (RemoteTransaction)HStoreObjectPools.remoteTxnPool.borrowObject();
+                ts = (RemoteTransaction)HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
                 ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
                 if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
                                                ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false));
@@ -1317,7 +1322,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             if (updated != null) updated.add(p);
-            if (is_local) ((LocalTransaction)ts).getPrepareCallback().decrementCounter(1);
+            if (is_local) ((LocalTransaction)ts).getTransactionPrepareCallback().decrementCounter(1);
 
         } // FOR
         if (debug.get() && spec_cnt > 0)
@@ -1464,7 +1469,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 TransactionRedirectCallback callback;
                 try {
-                    callback = (TransactionRedirectCallback)HStoreObjectPools.POOL_TXNREDIRECT_REQUEST.borrowObject();
+                    callback = (TransactionRedirectCallback)HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.borrowObject();
                     callback.init(orig_callback);
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
@@ -1486,7 +1491,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
         LocalTransaction new_ts = null;
         try {
-            new_ts = HStoreObjectPools.localTxnPool.borrowObject();
+            new_ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
         } catch (Exception ex) {
             LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
             throw new RuntimeException(ex);
@@ -1523,7 +1528,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
-//        this.queue_size.incrementAndGet();
         this.ready_responses.add(new Object[]{es, ts, cr});
     }
 
@@ -1540,7 +1544,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // return the object back into the pool
         if (abstract_ts instanceof RemoteTransaction) {
             try {
-                HStoreObjectPools.remoteTxnPool.returnObject(abstract_ts);
+                HStoreObjectPools.STATES_TXN_REMOTE.returnObject(abstract_ts);
             } catch (Exception ex) {
                 LOG.fatal("Failed to return RemoteTransaction to ObjectPool for " + abstract_ts, ex);
                 throw new RuntimeException(ex);
@@ -1619,7 +1623,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d)
             LOG.debug("Returning LocalTransaction back to ObjectPool [hashCode=" + ts.hashCode() + "]");
         try {
-            HStoreObjectPools.localTxnPool.returnObject(ts);
+            HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);
         } catch (Exception ex) {
             LOG.fatal("Failed to return LocalTransaction to ObjectPool for " + ts, ex);
             throw new RuntimeException(ex);

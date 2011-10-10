@@ -36,13 +36,11 @@ public class ParameterMangler {
         this.has_arrays = found_array;
     }
     
-    public String toString(Object mangled[]) {
-//        Object mangled[] = this.convert(args);
-        
+    public static String toString(Object mangled[], boolean is_array[]) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < mangled.length; i++) {
             sb.append(String.format("  [%02d] ", i));
-            if (this.param_isarray[i]) {
+            if (is_array[i]) {
                 sb.append(Arrays.toString((Object[])mangled[i]));
             } else {
                 sb.append(mangled[i]);
@@ -50,6 +48,10 @@ public class ParameterMangler {
             sb.append("\n");
         } // FOR
         return (sb.toString());
+    }
+    
+    public String toString(Object mangled[]) {
+        return ParameterMangler.toString(mangled, this.param_isarray);
     }
     
     public Object[] convert(Object orig[]) {

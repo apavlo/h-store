@@ -52,6 +52,14 @@ public abstract class CountingPoolableObjectFactory<T extends Poolable> extends 
         return (this.destroyed.get());
     }
     
+    /**
+     * 
+     * @param <X>
+     * @param clazz
+     * @param enable_tracking
+     * @param args
+     * @return
+     */
     public static <X extends Poolable> CountingPoolableObjectFactory<X> makeFactory(final Class<X> clazz, final boolean enable_tracking, final Object...args) {
         Class<?> argsClazz[] = new Class[args.length];
         for (int i = 0; i < args.length; i++) {

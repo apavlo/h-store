@@ -1,14 +1,25 @@
 package edu.mit.hstore;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Observable;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.BatchPlanner;
@@ -20,14 +31,14 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.dtxn.DependencyInfo;
-import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.dtxn.AbstractTransaction;
+import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.interfaces.Shutdownable;
 import edu.mit.hstore.util.TxnCounter;
 
@@ -86,7 +97,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private TableUtil.Format txn_profile_format;
     private String txn_profiler_header[];
     
-    final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
     final Map<String, Object> header = new ListOrderedMap<String, Object>();
     
     final TreeSet<Thread> sortedThreads = new TreeSet<Thread>(new Comparator<Thread>() {
@@ -96,23 +106,36 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         }
     });
     
+    /**
+     * Constructor
+     * @param hstore_site
+     * @param hstore_conf
+     */
     public HStoreSiteStatus(HStoreSite hstore_site, HStoreConf hstore_conf) {
         this.hstore_site = hstore_site;
         this.hstore_conf = hstore_conf;
-        
-        // Pull the parameters we need from HStoreConf
         this.interval = hstore_conf.site.status_interval;
         
         this.executors = new TreeMap<Integer, ExecutionSite>();
-        
         for (Integer partition : hstore_site.getLocalPartitionIds()) {
             this.executors.put(partition, hstore_site.getExecutionSite(partition));
         } // FOR
+
+        // Print a debug message when the first non-sysproc shows up
+        this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver() {
+            @Override
+            public void update(Observable arg0, Object arg1) {
+                if (debug.get())
+                    LOG.debug(HStoreConstants.SITE_FIRST_TXN);
+            }
+        });
         
-        this.initTxnProfileInfo(hstore_site.catalog_db);
-        
+        // Pre-Compute Header
         this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), hstore_site.getSiteName());
         this.header.put("Number of Partitions", this.executors.size());
+        
+        // Pre-Compute TransactionProfile Information
+        this.initTxnProfileInfo(hstore_site.catalog_db);
     }
     
     @Override
@@ -636,6 +659,59 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     // ----------------------------------------------------------------------------
+    // OBJECT POOL PROFILING
+    // ----------------------------------------------------------------------------
+    private Map<String, Object> poolInfo() {
+        
+        // HStoreObjectPools
+        Map<String, StackObjectPool> pools = HStoreObjectPools.getAllPools(); 
+        
+        // MarkovPathEstimators
+        pools.put("Estimators", (StackObjectPool)TransactionEstimator.POOL_ESTIMATORS); 
+
+        // TransactionEstimator.States
+        pools.put("EstimationStates", (StackObjectPool)TransactionEstimator.POOL_STATES);
+        
+        
+        final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
+        for (String key : pools.keySet()) {
+            StackObjectPool pool = pools.get(key);
+            CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+            m_pool.put(key, this.formatPoolCounts(pool, factory));
+        } // FOR
+
+//        // Partition Specific
+//        String labels[] = new String[] {
+//            "LocalTxnState",
+//            "RemoteTxnState",
+//        };
+//        int total_active[] = new int[labels.length];
+//        int total_idle[] = new int[labels.length];
+//        int total_created[] = new int[labels.length];
+//        int total_passivated[] = new int[labels.length];
+//        int total_destroyed[] = new int[labels.length];
+//        for (int i = 0, cnt = labels.length; i < cnt; i++) {
+//            total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
+//            pool = (StackObjectPool)(i == 0 ? HStoreObjectPools.STATES_TXN_LOCAL : HStoreObjectPools.STATES_TXN_REMOTE);   
+//            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+//            
+//            total_active[i] += pool.getNumActive();
+//            total_idle[i] += pool.getNumIdle(); 
+//            total_created[i] += factory.getCreatedCount();
+//            total_passivated[i] += factory.getPassivatedCount();
+//            total_destroyed[i] += factory.getDestroyedCount();
+//            i += 1;
+//        } // FOR
+//        
+//        for (int i = 0, cnt = labels.length; i < cnt; i++) {
+//            m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
+//        } // FOR
+        
+        return (m_pool);
+    }
+    
+    
+    // ----------------------------------------------------------------------------
     // SNAPSHOT PRETTY PRINTER
     // ----------------------------------------------------------------------------
     
@@ -680,64 +756,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // ----------------------------------------------------------------------------
         // Object Pool Information
         // ----------------------------------------------------------------------------
-        m_pool.clear();
-        if (show_poolinfo) {
-            // BatchPlanners
-            // m_pool.put("BatchPlanners", ExecutionSite.POOL_BATCH_PLANNERS.size());
-
-            // MarkovPathEstimators
-            StackObjectPool pool = (StackObjectPool)TransactionEstimator.POOL_ESTIMATORS;
-            CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m_pool.put("Estimators", this.formatPoolCounts(pool, factory));
-
-            // TransactionEstimator.States
-            pool = (StackObjectPool)TransactionEstimator.POOL_STATES;
-            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m_pool.put("EstimationStates", this.formatPoolCounts(pool, factory));
-            
-            // DependencyInfos
-            pool = (StackObjectPool)DependencyInfo.INFO_POOL;
-            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m_pool.put("DependencyInfos", this.formatPoolCounts(pool, factory));
-            
-            // ForwardTxnRequestCallbacks
-            pool = (StackObjectPool)HStoreObjectPools.POOL_TXNREDIRECT_REQUEST;
-            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m_pool.put("ForwardTxnRequests", this.formatPoolCounts(pool, factory));
-            
-            // ForwardTxnResponseCallbacks
-            pool = (StackObjectPool)HStoreObjectPools.POOL_TXNREDIRECT_RESPONSE;
-            factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-            m_pool.put("ForwardTxnResponses", this.formatPoolCounts(pool, factory));
-            
-            // Partition Specific
-            String labels[] = new String[] {
-                "LocalTxnState",
-                "RemoteTxnState",
-            };
-            int total_active[] = new int[labels.length];
-            int total_idle[] = new int[labels.length];
-            int total_created[] = new int[labels.length];
-            int total_passivated[] = new int[labels.length];
-            int total_destroyed[] = new int[labels.length];
-            for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                total_active[i] = total_idle[i] = total_created[i] = total_passivated[i] = total_destroyed[i] = 0;
-                pool = (StackObjectPool)(i == 0 ? HStoreObjectPools.localTxnPool : HStoreObjectPools.remoteTxnPool);   
-                factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
-                
-                total_active[i] += pool.getNumActive();
-                total_idle[i] += pool.getNumIdle(); 
-                total_created[i] += factory.getCreatedCount();
-                total_passivated[i] += factory.getPassivatedCount();
-                total_destroyed[i] += factory.getDestroyedCount();
-                i += 1;
-            } // FOR
-            
-            for (int i = 0, cnt = labels.length; i < cnt; i++) {
-                m_pool.put(labels[i], String.format(POOL_FORMAT, total_active[i], total_idle[i], total_created[i], total_destroyed[i], total_passivated[i]));
-            } // FOR
-        }
-        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, m_pool));
+        Map<String, Object> poolInfo = null;
+        if (show_poolinfo) poolInfo = this.poolInfo();
+        
+        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo));
     }
     
     private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {
