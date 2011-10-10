@@ -386,8 +386,7 @@ public class HStoreMessenger implements Shutdownable {
             // If this flag is true, then we'll invoke the local method
             // We want to do this *after* we send out all the messages to the remote sites
             // so that we don't have to wait as long for the responses to come back over the network
-            Collection<Integer> local_partitions = null;
-            
+            boolean send_local = false;
             boolean site_sent[] = new boolean[HStoreMessenger.this.num_sites];
             int ctr = 0;
             for (Integer p : partitions) {
@@ -402,8 +401,7 @@ public class HStoreMessenger implements Shutdownable {
                 
                 // Local Partition
                 if (HStoreMessenger.this.local_site_id == dest_site_id) {
-                    if (local_partitions == null) local_partitions = new HashSet<Integer>(); // XXX: ObjectPool?
-                    local_partitions.add(p);
+                    send_local = true;
                 // Remote Partition
                 } else {
                     HStoreService channel = HStoreMessenger.this.channels.get(dest_site_id);
@@ -417,7 +415,7 @@ public class HStoreMessenger implements Shutdownable {
             } // FOR
             // Optimization: We'll invoke sendLocal() after we have sent out
             // all of the mesages to remote sites
-            if (local_partitions.size() > 0) this.sendLocal(ts.getTransactionId(), msg, local_partitions);
+            if (send_local) this.sendLocal(ts.getTransactionId(), msg, partitions);
             
             if (debug.get())
                 LOG.debug(String.format("Sent %d %s to %d partitions for %s",
@@ -698,6 +696,9 @@ public class HStoreMessenger implements Shutdownable {
      * @param partitions
      */
     public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, Collection<Integer> partitions) {
+        if (debug.get())
+            LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
+        
         Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .addAllPartitions(ts.getDonePartitions())

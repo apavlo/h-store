@@ -107,6 +107,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreMessenger;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
@@ -155,17 +156,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // GLOBAL CONSTANTS
     // ----------------------------------------------------------------------------
     
-    /**
-     * Represents a null dependency id
-     */
-    public static final int NULL_DEPENDENCY_ID = -1;
-
-    public static final long DISABLE_UNDO_LOGGING_TOKEN = Long.MAX_VALUE;
-    
-    // ----------------------------------------------------------------------------
-    // OBJECT POOLS
-    // ----------------------------------------------------------------------------
-
     /**
      * Create a new instance of the corresponding VoltProcedure for the given Procedure catalog object
      */
@@ -1308,7 +1298,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      */
     protected VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
-        long undoToken = ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN;
+        long undoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
         
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
         // then we can go back and check whether we want to disable undo logging for the rest of the transaction
@@ -1748,15 +1738,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param dependency_ids
      * @return
      */
-    protected VoltTable[] waitForResponses(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batch_size) {
+    protected VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
         if (d) LOG.debug(String.format("Dispatching %d messages and waiting for the results for %s", ftasks.size(), ts));
         
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise
         // there is a race condition that a task with input dependencies will start running as soon as we
         // get one response back from another executor
         ts.initRound(this.partitionId, this.getNextUndoToken());
-        assert(batch_size > 0);
-        ts.setBatchSize(batch_size);
+        ts.setBatchSize(batchSize);
         boolean first = true;
         boolean read_only = ts.isExecReadOnly(this.partitionId);
         boolean predict_singlePartition = ts.isPredictSinglePartition();
@@ -1966,10 +1955,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         boolean is_singlepartitioned = ts.isExecSinglePartition();
         Hstore.Status status = cresponse.getStatus();
 
-        if (d)
+        if (d) {
             LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
                                     ts, this.partitionId, cresponse.getClientHandle(), status,
                                     ts.isExecSinglePartition(), ts.isExecLocal(this.partitionId)));
+            LOG.debug("Touched Partitions: " + ts.getTouchedPartitions());
+            LOG.debug("Done Partitions: " + ts.getDonePartitions());
+        }
         
         // ALL: Single-Partition Transactions
         if (is_singlepartitioned) {
@@ -1989,7 +1981,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
-            Collection<Integer> partitions =  CollectionUtils.subtract(ts.getPredictTouchedPartitions(), ts.getDonePartitions());
+            Collection<Integer> partitions = CollectionUtils.subtract(ts.getPredictTouchedPartitions(), ts.getDonePartitions());
             this.hstore_messenger.transactionPrepare(ts, ts.getPrepareCallback(), partitions);
         }
         // ABORT: Distributed Transaction
@@ -2025,7 +2017,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
         if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != null) {
-            if (undoToken == ExecutionSite.DISABLE_UNDO_LOGGING_TOKEN) {
+            if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
                     LOG.fatal(ts.debug());
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));

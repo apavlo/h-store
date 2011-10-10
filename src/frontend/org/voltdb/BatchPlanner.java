@@ -66,6 +66,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 
 /**
  * @author pavlo
@@ -84,12 +85,6 @@ public class BatchPlanner {
     
     private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(9000);
 
-    public static final int MAX_ROUND_SIZE = 10;
-    
-    public static final int MAX_BATCH_SIZE = 128;
-
-    public static final int PLAN_POOL_INITIAL_SIZE = 200;
-
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     
     private static boolean ENABLE_PROFILING = false;
@@ -107,6 +102,7 @@ public class BatchPlanner {
     private final List<PlanFragment> sorted_singlep_fragments[];
     private final List<PlanFragment> sorted_multip_fragments[];
     private final int batchSize;
+    private final int maxRoundSize;
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
@@ -290,12 +286,12 @@ public class BatchPlanner {
          * Must call init() before this BatchPlan can be used
          */
         @SuppressWarnings("unchecked")
-        public BatchPlan() {
+        public BatchPlan(int max_round_size) {
             int batch_size = BatchPlanner.this.batchSize;
             int num_partitions = BatchPlanner.this.num_partitions;
             
             // Round Data
-            this.rounds = (Set<PlanVertex>[][])new Set<?>[MAX_ROUND_SIZE][];
+            this.rounds = (Set<PlanVertex>[][])new Set<?>[max_round_size][];
             for (int i = 0; i < this.rounds.length; i++) {
                 this.rounds[i] = (Set<PlanVertex>[])new Set<?>[num_partitions];
                 for (int ii = 0; ii < num_partitions; ii++) {
@@ -448,19 +444,22 @@ public class BatchPlanner {
         assert(catalog_proc != null);
         assert(p_estimator != null);
 
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        
         this.batchSize = batchSize;
+        this.maxRoundSize = hstore_conf.site.planner_max_round_size;
         this.catalog_proc = catalog_proc;
         this.catalog = catalog_proc.getCatalog();
         this.p_estimator = p_estimator;
         this.hasher = p_estimator.getHasher();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
-        this.plan = new BatchPlan();
+        this.plan = new BatchPlan(this.maxRoundSize);
         
         // Initialize static members
         if (BatchPlanner.INITIALIZED.get() == false && BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
             BatchPlanner.preload(CatalogUtil.getDatabase(catalog_proc));
-            BatchPlanner.ENABLE_PROFILING = HStoreConf.singleton().site.planner_profiling;
-            BatchPlanner.ENABLE_CACHING = HStoreConf.singleton().site.planner_caching;
+            BatchPlanner.ENABLE_PROFILING = hstore_conf.site.planner_profiling;
+            BatchPlanner.ENABLE_CACHING = hstore_conf.site.planner_caching;
         }
 
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
@@ -806,7 +805,7 @@ public class BatchPlanner {
         else if (BatchPlanner.ENABLE_CACHING && cache_singlePartitionPlans[base_partition] == null && plan.isSingledPartitionedAndLocal()) {
             cache_singlePartitionPlans[base_partition] = plan;
             plan.cached = true;
-            plan = new BatchPlan();
+            plan = new BatchPlan(this.maxRoundSize);
             return cache_singlePartitionPlans[base_partition];
         }
 
@@ -954,7 +953,7 @@ public class BatchPlanner {
             graph.max_rounds = Math.max(num_fragments, graph.max_rounds);
             
             // Generate the synthetic DependencyIds for the query
-            int last_output_id = ExecutionSite.NULL_DEPENDENCY_ID;
+            int last_output_id = HStoreConstants.NULL_DEPENDENCY_ID;
             for (int round = 0, cnt = num_fragments; round < cnt; round++) {
                 PlanFragment catalog_frag = fragments.get(round);
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
@@ -976,7 +975,7 @@ public class BatchPlanner {
 
         // Setup Edges
         for (PlanVertex v0 : graph.getVertices()) {
-            if (v0.input_dependency_id == ExecutionSite.NULL_DEPENDENCY_ID) continue;
+            if (v0.input_dependency_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
             for (PlanVertex v1 : graph.getOutputDependencies(v0.input_dependency_id)) {
                 assert(!v0.equals(v1)) : v0;
                 if (!graph.findEdgeSet(v0, v1).isEmpty()) continue;

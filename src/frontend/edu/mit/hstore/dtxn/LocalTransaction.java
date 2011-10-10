@@ -33,7 +33,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
@@ -49,6 +48,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
@@ -779,7 +779,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
             int input_d_id = ftask.getOnlyInputDepId(i);
-            if (input_d_id == ExecutionSite.NULL_DEPENDENCY_ID) continue;
+            if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
             int stmt_index = ftask.getFragmentStmtIndexes()[i];
 
             DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);

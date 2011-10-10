@@ -55,7 +55,6 @@ import org.voltdb.ExecutionSitePostProcessor;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
@@ -116,9 +115,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         d = debug.get();
         t = trace.get();
     }
-    
-    public static final String SITE_READY_MSG = "Site is ready for action";
-    public static final VoltTable EMPTY_RESULT[] = new VoltTable[0];
     
     /**
      * Formatted site name
@@ -385,7 +381,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         HStoreObjectPools.initialize(this);
         
         // Reusable Cached Messages
-        ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, EMPTY_RESULT, "");
+        ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, HStoreConstants.EMPTY_RESULT, "");
         this.cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
         
         
@@ -622,7 +618,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // This message must always be printed in order for the BenchmarkController
         // to know that we're ready!
         LOG.info(String.format("%s [site=%s, ports=%s, #partitions=%d]",
-                               HStoreSite.SITE_READY_MSG,
+                               HStoreConstants.SITE_READY_MSG,
                                this.getSiteName(),
                                CatalogUtil.getExecutionSitePorts(catalog_site),
                                this.local_partitions.size()));
@@ -881,7 +877,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, Hstore.Status.OK, EMPTY_RESULT, "");
+                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
                 FastSerializer out = new FastSerializer();
                 try {
                     out.writeObject(cresponse);
@@ -1539,8 +1535,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         assert(abstract_ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
-        // Nothing else to do for RemoteTransactions
+
+        // Nothing else to do for RemoteTransactions other than to just
+        // return the object back into the pool
         if (abstract_ts instanceof RemoteTransaction) {
+            try {
+                HStoreObjectPools.remoteTxnPool.returnObject(abstract_ts);
+            } catch (Exception ex) {
+                LOG.fatal("Failed to return RemoteTransaction to ObjectPool for " + abstract_ts, ex);
+                throw new RuntimeException(ex);
+            }
             return;
         }
         
@@ -1612,14 +1616,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
+        if (d)
+            LOG.debug("Returning LocalTransaction back to ObjectPool [hashCode=" + ts.hashCode() + "]");
         try {
-            if (ts instanceof LocalTransaction) {
-                HStoreObjectPools.localTxnPool.returnObject(ts);
-            } else {
-                HStoreObjectPools.remoteTxnPool.returnObject(ts);
-            }
+            HStoreObjectPools.localTxnPool.returnObject(ts);
         } catch (Exception ex) {
-            LOG.fatal("Failed to return TransactionState to ObjectPool for txn #" + txn_id, ex);
+            LOG.fatal("Failed to return LocalTransaction to ObjectPool for " + ts, ex);
             throw new RuntimeException(ex);
         }
     }

@@ -26,6 +26,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.DependencyInfo;
@@ -130,7 +131,7 @@ public class TestTransactionState extends BaseTestCase {
                 this.dependency_ids.add(ftask.getOutputDependencyIds()[i]);
                 
                 for (Integer input_dep_id : ftask.getInputDepIds(i)) {
-                    if (input_dep_id != ExecutionSite.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
+                    if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                 } // FOR
             } // FOR
         } // FOR

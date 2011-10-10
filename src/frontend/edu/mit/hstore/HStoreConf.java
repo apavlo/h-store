@@ -359,6 +359,20 @@ public final class HStoreConf {
         )
         public boolean planner_caching;
         
+        @ConfigProperty(
+            description="The maximum number of execution rounds allowed per batch.",
+            defaultInt=10,
+            experimental=false
+        )
+        public int planner_max_round_size;
+        
+        @ConfigProperty(
+            description="The maximum number of SQLStmts that can be queued per batch in a transaction.",
+            defaultInt=128,
+            experimental=false
+        )
+        public int planner_max_batch_size;
+        
         // ----------------------------------------------------------------------------
         // HStoreMessenger
         // ----------------------------------------------------------------------------

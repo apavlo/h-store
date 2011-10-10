@@ -2,7 +2,6 @@ package org.voltdb;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +34,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    protected VoltTable[] waitForResponses(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
+    protected VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
         return (new VoltTable[]{ });
     }
     

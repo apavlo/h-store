@@ -46,11 +46,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     
     public void init(LocalTransaction ts) {
         this.ts = ts;
-        
-        // We need to wait for N-1 partitions to send back their acknowledgments
-        // The minus one part is so that we don't wait for the base partition to send
-        // and acknowledgment.
-        super.init(this.ts.getPredictTouchedPartitions().size() - 1, ts.getClientCallback());
+        super.init(this.ts.getPredictTouchedPartitions().size(), ts.getClientCallback());
     }
     
     public void setClientResponse(ClientResponseImpl cresponse) {
@@ -80,6 +76,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         // So that means we can send back the result to the client and then 
         // send the 2PC COMMIT message to all of our friends.
         this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+        this.hstore_site.completeTransaction(this.ts.getTransactionId(), Hstore.Status.OK);
     }
     
     @Override
