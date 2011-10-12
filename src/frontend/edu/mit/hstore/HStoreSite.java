@@ -170,6 +170,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public static int LOCAL_PARTITION_OFFSETS[];
     
+    /**
+     * For a given offset from LOCAL_PARTITION_OFFSETS, this array
+     * will contain the partition id
+     */
+    public static int LOCAL_PARTITION_REVERSE[];
+    
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
     // ----------------------------------------------------------------------------
@@ -332,11 +338,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
         
         final int num_partitions = this.all_partitions.size();
+        this.num_local_partitions = executors.size();
         
         LOCAL_PARTITION_OFFSETS = new int[num_partitions];
+        LOCAL_PARTITION_REVERSE = new int[this.num_local_partitions];
         int offset = 0;
         for (Integer p : executors.keySet()) {
-            LOCAL_PARTITION_OFFSETS[p.intValue()] = offset++;
+            LOCAL_PARTITION_OFFSETS[p.intValue()] = offset;
+            LOCAL_PARTITION_REVERSE[offset] = p.intValue(); 
+            offset++;
         } // FOR
         
         this.executors = new ExecutionSite[num_partitions];
@@ -365,7 +375,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
         } // FOR
-        this.num_local_partitions = this.local_partitions.size();
         this.threadManager = new HStoreThreadManager(this);
         this.voltListeners = new VoltProcedureListener[this.num_local_partitions];
         this.procEventLoops = new NIOEventLoop[this.num_local_partitions];
