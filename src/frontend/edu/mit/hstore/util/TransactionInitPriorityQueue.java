@@ -179,9 +179,9 @@ public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
                 newState = QueueState.BLOCKED_ORDERING;
             }
             else {
-                if (ts > m_lastSafeTxnId) {
-                    newState = QueueState.BLOCKED_SAFETY;
-                }
+//                if (ts > m_lastSafeTxnId) {
+//                    newState = QueueState.BLOCKED_SAFETY;
+//                }
             }
         }
         if (newState != m_state) {
