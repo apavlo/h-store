@@ -77,20 +77,20 @@ public class TestTransactionQueue extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        /*this.queue.insert(txn_id, partitions, outer_callback);
-        Thread t = new Thread() {
-            public void run() {
-                while (queue.isEmpty() == false) {
-                    queue.checkQueues();
-                    ThreadUtil.sleep(10);
-                }
-            }
-        };
+        this.queue.insert(txn_id, partitions, outer_callback);
+//        Thread t = new Thread() {
+//            public void run() {
+//                while (queue.isEmpty() == false) {
+//                    queue.checkQueues();
+//                    ThreadUtil.sleep(10);
+//                }
+//            }
+//        };
 //        t.start();
         queue.checkQueues();
         
         // Block on the MockCallback's lock until our thread above is able to release everybody.
-        inner_callback.lock.acquire();*/
+        inner_callback.lock.acquire();
         
     }
     
