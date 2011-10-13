@@ -6,6 +6,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * 
@@ -19,8 +20,8 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
     /**
      * Default Constructor
      */
-    public TransactionWorkCallback() {
-        super();
+    public TransactionWorkCallback(HStoreSite hstore_site) {
+        super(hstore_site);
     }
     
     public void init(long txn_id, int num_partitions, RpcCallback<Hstore.TransactionWorkResponse> orig_callback) {

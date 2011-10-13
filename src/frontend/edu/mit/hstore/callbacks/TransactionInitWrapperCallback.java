@@ -9,6 +9,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * This callback is used to wrap around the network-outbound TransactionInitResponse callback on
@@ -28,8 +29,8 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     private Hstore.TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
     
-    public TransactionInitWrapperCallback() {
-        super();
+    public TransactionInitWrapperCallback(HStoreSite hstore_site) {
+        super(hstore_site);
     }
     
     public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {

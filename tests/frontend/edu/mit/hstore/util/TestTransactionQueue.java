@@ -72,7 +72,7 @@ public class TestTransactionQueue extends BaseTestCase {
         Collection<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         
         MockCallback inner_callback = new MockCallback();
-        TransactionInitWrapperCallback outer_callback = new TransactionInitWrapperCallback();
+        TransactionInitWrapperCallback outer_callback = new TransactionInitWrapperCallback(hstore_site);
         outer_callback.init(txn_id, partitions, inner_callback);
         
         // Insert the txn into our queue and then call check

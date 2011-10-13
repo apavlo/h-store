@@ -53,6 +53,7 @@ public class TransactionQueue implements Runnable {
     public TransactionQueue(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.localPartitions = hstore_site.getLocalPartitionIds();
+        assert(this.localPartitions.isEmpty() == false);
         
         int num_ids = this.localPartitions.size();
         this.txn_queues = new TransactionInitPriorityQueue[num_ids];
@@ -88,11 +89,13 @@ public class TransactionQueue implements Runnable {
         if (debug.get())
             LOG.debug("Starting distributed transaction queue manager thread");
         while (true) {
-            try {
-                wait();
-            } catch (InterruptedException e) {
-                // Nothing...
-            }
+            synchronized (this) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    // Nothing...
+                }
+            } // SYNCH
             checkQueues();
         }
     }
@@ -163,13 +166,19 @@ public class TransactionQueue implements Runnable {
             if (this.localPartitions.contains(p) == false) continue;
             
             int offset = hstore_site.getLocalPartitionOffset(p.intValue());
+            assert(offset >= 0 && offset < txn_queues.length) :
+                String.format("Invalid offset %d for local partition #%d [length=%d]", offset, p, txn_queues.length);
             txn_queues[offset].noteTransactionRecievedAndReturnLastSeen(txn_id);
             txn_queues[offset].add(txn_id);
             if (!working_partitions[offset]) {
                 should_notify = true;
             }
         } // FOR
-        if (should_notify) notifyAll();
+        if (should_notify) {
+            synchronized (this) {
+                notifyAll();
+            } // SYNCH
+        }
     }
     
     /**
@@ -183,6 +192,8 @@ public class TransactionQueue implements Runnable {
         
         int offset = hstore_site.getLocalPartitionOffset(partition);
         working_partitions[offset] = false;
-        notifyAll();
+        synchronized (this) {
+            notifyAll();
+        } // SYNCH
     }
 }

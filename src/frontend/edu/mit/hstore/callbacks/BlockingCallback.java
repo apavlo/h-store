@@ -11,6 +11,7 @@ import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * 
@@ -25,6 +26,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    protected final HStoreSite hstore_site;
     private final AtomicInteger counter = new AtomicInteger(0);
     private RpcCallback<T> orig_callback;
 
@@ -38,8 +40,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     /**
      * Default Constructor
      */
-    protected BlockingCallback() {
-        // Nothing!
+    protected BlockingCallback(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
     }
     
     /**
