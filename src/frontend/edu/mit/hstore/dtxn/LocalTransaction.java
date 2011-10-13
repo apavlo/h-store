@@ -170,6 +170,8 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalTransaction init(long txnId, long clientHandle, int base_partition,
                                  boolean predict_readOnly, boolean predict_canAbort) {
         assert(this.predict_touchedPartitions != null);
+        super.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort, true);
+        
         if (this.predict_touchedPartitions.size() > 1) {
             try {
                 this.init_callback = HStoreObjectPools.CALLBACKS_TXN_INIT.borrowObject(); 
@@ -181,8 +183,7 @@ public class LocalTransaction extends AbstractTransaction {
                 throw new RuntimeException(ex);
             }
         }
-        return ((LocalTransaction)super.init(txnId, clientHandle, base_partition,
-                                             predict_readOnly, predict_canAbort, true));
+        return (this);
     }
 
     /**
