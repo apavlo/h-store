@@ -62,7 +62,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Observable;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,6 +92,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
@@ -115,12 +115,10 @@ public class BenchmarkController {
     public static final String BENCHMARK_PARAM_PREFIX = "benchmark.";
 
     // ProcessSetManager Failure Callback
-    final EventObserver failure_observer = new EventObserver() {
+    final EventObserver<String> failure_observer = new EventObserver<String>() {
         @Override
-        public void update(Observable o, Object arg) {
+        public void update(EventObservable<String> o, String arg) {
             assert(arg != null);
-            assert(arg instanceof String); // No generics :-(
-
             String processName = (String)arg;
             synchronized (BenchmarkController.this) {
                 if (BenchmarkController.this.stop == false) {

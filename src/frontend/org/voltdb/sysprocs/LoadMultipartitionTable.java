@@ -143,7 +143,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         pfs[0].multipartition = false;
         pfs[0].nonExecSites = false;
         pfs[0].parameters = new ParameterSet();
-        pfs[0].destPartitionId = base_partition;
+        pfs[0].destPartitionId = partitionId;
 
         return (pfs);
     }
@@ -211,7 +211,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
         // a final plan fragment to aggregate the results
         pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = base_partition;
+        pfs[0].destPartitionId = partitionId;
         pfs[0].fragmentId = SysProcFragmentId.PF_loadAggregate;
         pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
         pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };

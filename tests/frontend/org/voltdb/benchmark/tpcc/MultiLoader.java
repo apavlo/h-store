@@ -54,6 +54,7 @@ import org.voltdb.VoltType;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
@@ -861,13 +862,11 @@ public class MultiLoader extends BenchmarkComponent {
     @Override
     public void runLoop() throws NoConnectionsException {
         final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
-        handler.addObserver(new EventObserver() {
-            @Override
-            public void update(Observable o, Object obj) {
-                Throwable e = (Throwable)obj;
-                e.printStackTrace();
-                System.exit(-1);
-            }
+        handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
+            public void update(edu.brown.utils.EventObservable<Pair<Thread,Throwable>> o, Pair<Thread,Throwable> t) {
+                t.getSecond().printStackTrace();
+                System.exit(-1);                
+            };
         });
         
         ArrayList<Integer> warehouseIds = new ArrayList<Integer>();

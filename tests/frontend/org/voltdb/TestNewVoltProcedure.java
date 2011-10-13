@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Observable;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -17,6 +16,7 @@ import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
@@ -71,9 +71,9 @@ public class TestNewVoltProcedure extends BaseTestCase {
     public void testCall() throws Exception {
         // Use this callback to attach to the VoltProcedure and get the ClientResponse
         final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
-        EventObserver observer = new EventObserver() {
+        EventObserver<ClientResponse> observer = new EventObserver<ClientResponse>() {
             @Override
-            public void update(Observable o, Object arg) {
+            public void update(EventObservable<ClientResponse> o, ClientResponse arg) {
                 assert(arg != null);
                 lock.offer((ClientResponse)arg);
             }

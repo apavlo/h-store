@@ -54,14 +54,15 @@ public class DesignerVisualization extends AbstractViewer {
     // ----------------------------------------------
     // OBSERVERS
     // ----------------------------------------------
-    protected final EventObserver OBSERVER_VERTEX = new EventObserver() {
-        public void update(Observable o, Object arg) {
+    protected final EventObserver<DesignerVertex> OBSERVER_VERTEX = new EventObserver<DesignerVertex>() {
+        public void update(EventObservable<DesignerVertex> o, DesignerVertex arg) {
             DesignerVisualization.this.showVertexInformation((DesignerVertex)arg);
         }
     };
-    protected final EventObserver OBSERVER_EDGE = new EventObserver() {
-        public void update(Observable o, Object arg) {
-            DesignerVisualization.this.showEdgeInformation((DesignerEdge)arg);
+    protected final EventObserver<DesignerEdge> OBSERVER_EDGE = new EventObserver<DesignerEdge>() {
+        @Override
+        public void update(EventObservable<DesignerEdge> o, DesignerEdge t) {
+            DesignerVisualization.this.showEdgeInformation((DesignerEdge)t);
         }
     };
     
