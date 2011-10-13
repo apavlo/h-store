@@ -41,7 +41,7 @@ public abstract class LoggerUtil {
         }
     }
     
-    private static class LoggerObserver extends EventObserver {
+    private static class LoggerObserver extends EventObserver<Object> {
         
         private final Logger logger;
         private final LoggerBoolean debug;
@@ -54,7 +54,7 @@ public abstract class LoggerUtil {
         }
         
         @Override
-        public void update(Observable o, Object arg) {
+        public void update(EventObservable o, Object arg) {
             this.debug.set(this.logger.isDebugEnabled());
             this.trace.set(this.logger.isTraceEnabled());
         }
@@ -73,7 +73,7 @@ public abstract class LoggerUtil {
         }
         
         @Override
-        public void update(Observable o, Object arg) {
+        public void update(EventObservable o, Object arg) {
             this.debug.lazySet(this.logger.isDebugEnabled());
             this.trace.lazySet(this.logger.isTraceEnabled());
         }

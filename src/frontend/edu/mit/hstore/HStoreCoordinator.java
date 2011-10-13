@@ -687,7 +687,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
-                                                        .addAllPartitions(ts.getDonePartitions())
+                                                        .addAllPartitions(partitions)
                                                         .build();
         this.router_transactionPrepare.sendMessages(ts, request, callback, partitions);
         
@@ -701,15 +701,13 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      */
     public void transactionFinish(LocalTransaction ts, Hstore.Status status, RpcCallback<Hstore.TransactionFinishResponse> callback) {
+        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
         Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .setStatus(status)
-                                                        .addAllPartitions(ts.getDonePartitions())
+                                                        .addAllPartitions(partitions)
                                                         .build();
-        this.router_transactionFinish.sendMessages(ts,
-                                                   request,
-                                                   callback,
-                                                   ts.getTouchedPartitions().values());
+        this.router_transactionFinish.sendMessages(ts, request, callback, partitions);
     }
     
     /**

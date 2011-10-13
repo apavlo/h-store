@@ -6,10 +6,12 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.BlockingCallback;
+import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 
 public class TransactionQueue implements Runnable {
     public static final Logger LOG = Logger.getLogger(TransactionQueue.class);
@@ -44,7 +46,7 @@ public class TransactionQueue implements Runnable {
     /**
      * maps txn IDs to their callbacks
      */
-    private final Map<Long, BlockingCallback<?, Integer>> txn_callbacks = new HashMap<Long, BlockingCallback<?,Integer>>();
+    private final Map<Long, TransactionInitWrapperCallback> txn_callbacks = new HashMap<Long, TransactionInitWrapperCallback>();
     
     /**
      * Constructor
@@ -130,9 +132,32 @@ public class TransactionQueue implements Runnable {
                 continue;
             }
             
+            TransactionInitWrapperCallback callback = txn_callbacks.get(next_id);
+            assert(callback != null) : "Unexpected null callback for txn #" + next_id;
+            
             if (next_id < last_txns[offset]) {
-                assert(false) : "FIXME";
-                // return an ABORT_RETRY message to client
+                if (trace.get())
+                    LOG.trace(String.format("The next id for Partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting...",
+                                            partition, next_id, last_txns[offset]));
+                
+                // First send back an ABORT message to the initiating HStoreSite
+                try {
+                    callback.abort(Hstore.Status.ABORT_REJECT);
+                } catch (Throwable ex) {
+                    throw new RuntimeException("Unexpected error when trying to abort txn #" + next_id, ex);
+                }
+                
+                // Then mark the txn as done at all the partitions that we set as
+                // as the current txn. Not sure how this will work...
+                for (int p : callback.getPartitions()) {
+                    int callback_offset = hstore_site.getLocalPartitionOffset(p);
+                    if (next_id == last_txns[callback_offset]) {
+                        this.done(next_id, p);
+                    } else {
+                        txn_queues[callback_offset].remove(next_id);
+                    }
+                } // FOR
+                break;
             }
 
             // otherwise send the init request to the specified partition
@@ -140,7 +165,6 @@ public class TransactionQueue implements Runnable {
                 LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
             last_txns[offset] = next_id;
             working_partitions[offset] = true;
-            BlockingCallback<?, Integer> callback = txn_callbacks.get(next_id);
             callback.run(partition);
             txn_released = true;
             
@@ -150,7 +174,7 @@ public class TransactionQueue implements Runnable {
                     LOG.trace(String.format("All partitions needed by txn #%d have been claimed. Removing callback", next_id));
                 txn_callbacks.remove(next_id);
             }
-        }
+        } // FOR
         return txn_released;
     }
     
@@ -160,7 +184,7 @@ public class TransactionQueue implements Runnable {
      * @param partitions
      * @param callback
      */
-    public synchronized void insert(long txn_id, Collection<Integer> partitions, BlockingCallback<?, Integer> callback) {
+    public synchronized void insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
         if (debug.get())
             LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]", txn_id, partitions));
         

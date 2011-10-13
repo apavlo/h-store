@@ -29,9 +29,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Observable;
 import java.util.Random;
-import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
@@ -68,8 +66,9 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.AbstractTransaction;
+import edu.mit.hstore.dtxn.LocalTransaction;
+import edu.mit.hstore.interfaces.Loggable;
 
 /**
  * Wraps the stored procedure object created by the user
@@ -80,7 +79,7 @@ import edu.mit.hstore.dtxn.AbstractTransaction;
  * Consider this when specifying access privileges.
  *
  */
-public abstract class VoltProcedure implements Poolable {
+public abstract class VoltProcedure implements Poolable, Loggable {
     private static final Logger LOG = Logger.getLogger(VoltProcedure.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -137,7 +136,7 @@ public abstract class VoltProcedure implements Poolable {
     protected HStoreConf hstore_conf;
     
     /** The local partition id where this VoltProcedure is running */
-    protected int base_partition = -1;
+    protected int partitionId = -1;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
     private EventObservable observable = null;
@@ -239,8 +238,8 @@ public abstract class VoltProcedure implements Poolable {
         this.catalog = this.catalog_proc.getCatalog();
         this.isNative = (eeType != BackendTarget.HSQLDB_BACKEND);
         this.hsql = hsql;
-        this.base_partition = this.executor.getPartitionId();
-        assert(this.base_partition != -1);
+        this.partitionId = this.executor.getPartitionId();
+        assert(this.partitionId != -1);
         
         this.enable_tracing = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
                               (ProcedureProfiler.workloadTrace != null);
@@ -249,7 +248,7 @@ public abstract class VoltProcedure implements Poolable {
         this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
         
-        if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.base_partition));
+        if (d) LOG.debug(String.format("Initialized VoltProcedure for %s [partition=%d]", this.procedure_name, this.partitionId));
         
         if (catalog_proc.getHasjava()) {
             int tempParamTypesLength = 0;
@@ -364,13 +363,15 @@ public abstract class VoltProcedure implements Poolable {
     
     @Override
     public void finish() {
-        t = trace.get();
-        d = debug.get();
-        
         this.m_currentTxnState = null;
         this.m_localTxnState = null;
         this.client_handle = -1;
-
+    }
+    
+    @Override
+    public void updateLogging() {
+        t = trace.get();
+        d = debug.get();
     }
         
     final void initSQLStmt(SQLStmt stmt) {
@@ -486,7 +487,7 @@ public abstract class VoltProcedure implements Poolable {
      */
     public final ClientResponse call(LocalTransaction txnState, Object... paramList) {
         if (d) {
-            Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.base_partition));
+            Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.partitionId));
             if (t) LOG.trace("Setting up internal state for " + txnState);
         }
 
@@ -544,7 +545,7 @@ public abstract class VoltProcedure implements Poolable {
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         try {
             if (t) LOG.trace(String.format("Invoking %s [class=%s, partition=%d]",
-                                           this.m_currentTxnState, this.procedure_name, getClass().getSimpleName(), this.base_partition));
+                                           this.m_currentTxnState, getClass().getSimpleName(), this.partitionId));
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
@@ -606,7 +607,7 @@ public abstract class VoltProcedure implements Poolable {
                 this.status_msg = "CONSTRAINT FAILURE: " + ex.getMessage();
                 
             // -------------------------------
-            // Everthing Else
+            // Everything Else
             // -------------------------------
             } else {
                 StringWriter sw = new StringWriter();
@@ -632,6 +633,8 @@ public abstract class VoltProcedure implements Poolable {
                 }
                 status = Hstore.Status.ABORT_UNEXPECTED;
                 status_msg = "UNEXPECTED ABORT: " + statusMsg;
+                
+                if (d) LOG.debug("Unpexpected error when executing " + this.m_currentTxnState, ex);
             }
         // -------------------------------
         // Something really bad happened. Just bomb out!
@@ -1000,7 +1003,7 @@ public abstract class VoltProcedure implements Poolable {
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
         this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(), this.client_handle,
-                                      this.base_partition, params, this.predict_singlepartition);
+                                      this.partitionId, params, this.predict_singlepartition);
         assert(this.plan != null);
         if (d) LOG.debug("BatchPlan for " + this.m_currentTxnState + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();

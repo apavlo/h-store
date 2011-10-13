@@ -1,8 +1,13 @@
 package edu.brown.gui.common;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.geom.Line2D;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.geom.Point2D;
 import java.lang.reflect.Method;
 
@@ -11,27 +16,33 @@ import javax.swing.JFrame;
 import org.apache.commons.collections15.Transformer;
 
 import edu.brown.designer.PartitionTree;
-import edu.brown.graphs.*;
+import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-
-import edu.uci.ics.jung.algorithms.layout.*;
-import edu.uci.ics.jung.graph.*;
-import edu.uci.ics.jung.graph.util.Context;
-import edu.uci.ics.jung.graph.util.Pair;
+import edu.uci.ics.jung.algorithms.layout.CircleLayout;
+import edu.uci.ics.jung.algorithms.layout.DAGLayout;
+import edu.uci.ics.jung.algorithms.layout.FRLayout;
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.algorithms.layout.TreeLayout;
+import edu.uci.ics.jung.graph.DelegateForest;
+import edu.uci.ics.jung.graph.Forest;
+import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.visualization.Layer;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
-import edu.uci.ics.jung.visualization.control.*;
-import edu.uci.ics.jung.visualization.decorators.*;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ViewScalingControl;
+import edu.uci.ics.jung.visualization.decorators.EdgeShape;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import edu.uci.ics.jung.visualization.renderers.Renderer.VertexLabel.Position;
 
 public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     private static final long serialVersionUID = 1L;
     
-    public final EventObservable EVENT_SELECT_VERTEX = new EventObservable();
-    public final EventObservable EVENT_SELECT_EDGE = new EventObservable();
+    public final EventObservable<V> EVENT_SELECT_VERTEX = new EventObservable<V>();
+    public final EventObservable<E> EVENT_SELECT_EDGE = new EventObservable<E>();
     
     protected final Graph<V, E> graph;
     
@@ -131,7 +142,7 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         return (ret);
     }
     
-    public static <V, E> GraphVisualizationPanel<V, E> factory(Graph<V, E> graph, EventObserver v_observer, EventObserver e_observer) {
+    public static <V, E> GraphVisualizationPanel<V, E> factory(Graph<V, E> graph, EventObserver<V> v_observer, EventObserver<E> e_observer) {
         GraphVisualizationPanel<V, E> ret = GraphVisualizationPanel.factory(graph);
         if (v_observer != null) ret.EVENT_SELECT_VERTEX.addObserver(v_observer);
         if (e_observer != null) ret.EVENT_SELECT_EDGE.addObserver(e_observer);

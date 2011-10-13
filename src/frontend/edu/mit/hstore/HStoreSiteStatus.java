@@ -31,6 +31,7 @@ import org.voltdb.catalog.Procedure;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
@@ -124,7 +125,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // Print a debug message when the first non-sysproc shows up
         this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver() {
             @Override
-            public void update(Observable arg0, Object arg1) {
+            public void update(EventObservable arg0, Object arg1) {
                 if (debug.get())
                     LOG.debug(HStoreConstants.SITE_FIRST_TXN);
             }

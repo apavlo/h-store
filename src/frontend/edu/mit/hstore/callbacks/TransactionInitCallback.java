@@ -69,7 +69,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
 
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed
-        this.hstore_site.transactionMispredict(this.ts, this.ts.getClientCallback());
+        this.hstore_site.transactionRestart(this.ts, status);
         this.hstore_site.completeTransaction(this.ts.getTransactionId(), status);
     }
     

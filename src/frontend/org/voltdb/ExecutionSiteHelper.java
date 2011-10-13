@@ -33,6 +33,7 @@ import org.apache.log4j.Logger;
 
 import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -83,9 +84,9 @@ public class ExecutionSiteHelper implements Runnable {
      * Shutdown Observer
      * This gets invoked when the HStoreSite is shutting down
      */
-    private final EventObserver shutdown_observer = new EventObserver() {
+    private final EventObserver<?> shutdown_observer = new EventObserver() {
         @Override
-        public void update(Observable o, Object arg) {
+        public void update(EventObservable o, Object t) {
             ExecutionSiteHelper.this.shutdown();
             LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
         }

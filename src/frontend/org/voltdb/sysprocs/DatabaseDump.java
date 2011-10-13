@@ -146,7 +146,7 @@ public class DatabaseDump extends VoltSystemProcedure {
 
         // a final plan fragment to aggregate the results
         pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = base_partition;
+        pfs[0].destPartitionId = partitionId;
         pfs[0].fragmentId = SysProcFragmentId.PF_dumpAggregate;
         pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
         pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpAggregate };

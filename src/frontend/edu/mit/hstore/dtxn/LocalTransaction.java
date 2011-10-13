@@ -267,6 +267,15 @@ public class LocalTransaction extends AbstractTransaction {
         this.state = state;
     }
     
+    /**
+     * Returns true if this LocalTransaction was actually started
+     * in the ExecutionSite.
+     * @return
+     */
+    public boolean wasExecuted() {
+        return (this.state != null);
+    }
+    
     @Override
     public boolean isInitialized() {
         return (this.catalog_proc != null);
@@ -301,6 +310,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.catalog_proc = null;
         this.sysproc = false;
         this.exec_speculative = false;
+        this.predict_touchedPartitions = null;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -464,8 +474,8 @@ public class LocalTransaction extends AbstractTransaction {
     public Long getOriginalTransactionId() {
         return (this.orig_txn_id);
     }
-    public Set<Integer> getDonePartitions() {
-        return this.state.done_partitions;
+    public Collection<Integer> getDonePartitions() {
+        return (this.state.done_partitions);
     }
     public Histogram<Integer> getTouchedPartitions() {
         return (this.state.exec_touchedPartitions);
@@ -852,7 +862,7 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return (this.getProcedureName() + " #" + this.txn_id);
+            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
         } else {
             return ("<Uninitialized>");
         }

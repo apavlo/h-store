@@ -86,7 +86,7 @@ public class ProfileMeasurement implements JSONSerializable {
     public void resetOnEvent(EventObservable e) {
         e.addObserver(new EventObserver() {
             @Override
-            public void update(Observable o, Object arg) {
+            public void update(EventObservable o, Object arg) {
                 ProfileMeasurement.this.reset();
             }
         });
