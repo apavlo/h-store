@@ -32,7 +32,6 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         }
     };
     
-    private final HStoreSite hstore_site;
     private LocalTransaction ts;
     private ClientResponseImpl cresponse;
 
@@ -41,7 +40,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
      * @param hstore_site
      */
     public TransactionPrepareCallback(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
+        super(hstore_site);
     }
     
     public void init(LocalTransaction ts) {

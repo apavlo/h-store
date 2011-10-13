@@ -31,11 +31,10 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         }
     };
     
-    private final HStoreSite hstore_site;
     private LocalTransaction ts;
     
     public TransactionInitCallback(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
+        super(hstore_site);
     }
 
     public void init(LocalTransaction ts) {

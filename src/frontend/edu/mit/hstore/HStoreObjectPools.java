@@ -2,6 +2,7 @@ package edu.mit.hstore;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -85,21 +86,26 @@ public abstract class HStoreObjectPools {
         assert(hstore_site != null);
         if (CALLBACKS_TXN_REDIRECT_REQUEST == null) {
             HStoreConf hstore_conf = hstore_site.getHStoreConf();
+            
+            CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
+                    hstore_conf.site.pool_localtxninit_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
+            CALLBACKS_TXN_INITWRAPPER = TypedStackObjectPool.factory(TransactionInitWrapperCallback.class,
+                    hstore_conf.site.pool_localtxninit_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
+            CALLBACKS_TXN_WORK = TypedStackObjectPool.factory(TransactionWorkCallback.class,
+                    hstore_conf.site.pool_forwardtxnresponses_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
+            CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
+                    hstore_conf.site.pool_txnprepare_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
+            
             CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
                     hstore_conf.site.pool_forwardtxnrequests_idle,
                     hstore_conf.site.pool_profiling);
             CALLBACKS_TXN_REDIRECTRESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
                     hstore_conf.site.pool_forwardtxnresponses_idle,
                     hstore_conf.site.pool_profiling);
-            CALLBACKS_TXN_WORK = TypedStackObjectPool.factory(TransactionWorkCallback.class,
-                    hstore_conf.site.pool_forwardtxnresponses_idle,
-                    hstore_conf.site.pool_profiling);
-            CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
-                    hstore_conf.site.pool_txnprepare_idle,
-                    hstore_conf.site.pool_profiling, hstore_site);
-            CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
-                    hstore_conf.site.pool_localtxninit_idle,
-                    hstore_conf.site.pool_profiling, hstore_site);
 
             STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
                     hstore_conf.site.pool_localtxnstate_idle,
@@ -111,14 +117,9 @@ public abstract class HStoreObjectPools {
                     hstore_conf.site.pool_dependencyinfos_idle,
                     hstore_conf.site.pool_profiling);
         }
-        assert(CALLBACKS_TXN_REDIRECT_REQUEST != null);
-        assert(CALLBACKS_TXN_REDIRECTRESPONSE != null);
-        assert(CALLBACKS_TXN_WORK != null);
-        assert(CALLBACKS_TXN_PREPARE != null);
-        assert(CALLBACKS_TXN_INIT != null);
-        assert(STATES_TXN_REMOTE != null);
-        assert(STATES_TXN_LOCAL != null);
-        assert(STATES_DEPENDENCYINFO != null);
+        for (Entry<String, StackObjectPool> e : getAllPools().entrySet()) {
+            assert(e.getValue() != null) : e.getKey() + " is null!";
+        } // FOR
     }
     
     public static Map<String, StackObjectPool> getAllPools() {

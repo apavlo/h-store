@@ -83,21 +83,10 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ParameterMangler;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
-import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
 import edu.mit.hstore.callbacks.BlockingCallback;
-import edu.mit.hstore.callbacks.TransactionInitCallback;
-import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
@@ -336,7 +325,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // We have to setup the partition offsets before we do anything else here
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
-        this.num_local_partitions = executors.size();
+        this.local_partitions.addAll(executors.keySet());
+        this.num_local_partitions = this.local_partitions.size();
         LOCAL_PARTITION_OFFSETS = new int[num_partitions];
         LOCAL_PARTITION_REVERSE = new int[this.num_local_partitions];
         int offset = 0;
@@ -373,7 +363,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int partition : executors.keySet()) {
             this.executors[partition] = executors.get(partition);
             this.txnid_managers[partition] = new TransactionIdManager(partition);
-            this.local_partitions.add(partition);
             this.inflight_txns_ctr[partition] = new AtomicInteger(0); 
             this.incoming_throttle[partition] = false;
             this.incoming_throttle_time[partition] = new ProfileMeasurement("incoming-" + partition);
