@@ -1144,7 +1144,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         t_state, catalog_proc, request, done);
         if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
         if (d) {
-            LOG.debug(String.format("Executing %s on partition %d [touchedPartition=%s, readOnly=%s, abortable=%s, handle=%d]",
+            LOG.debug(String.format("Initializing %s on partition %d [touchedPartition=%s, readOnly=%s, abortable=%s, handle=%d]",
                                     ts, base_partition,
                                     predict_touchedPartitions, predict_readOnly, predict_abortable,
                                     request.getClientHandle()));
@@ -1274,8 +1274,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionStart(LocalTransaction ts) {
         long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
-        if (d) LOG.debug(String.format("Starting %s on partition %d", ts, base_partition));
-        
+        if (d) 
+            LOG.debug(String.format("Starting %s on partition %d", ts, base_partition));
         
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
@@ -1344,7 +1344,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int spec_cnt = 0;
         for (Integer p : partitions) {
             if (this.local_partitions.contains(p) == false) continue;
-            // TODO(cjl16): Always tell the queue stuff that the transaction is finished at this partition
+            
+            // Always tell the queue stuff that the transaction is finished at this partition
+            this.txnQueueManager.done(txn_id, p.intValue());
             
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
             // for this partition

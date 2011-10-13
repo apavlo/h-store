@@ -167,7 +167,7 @@ public class DependencyInfo implements Poolable {
         if (flip_local_partition) {
             int idx = this.results.indexOf(local_partition);
             if (idx != -1) {
-                if (d) LOG.debug(String.format("Copying BytBuffer for DependencyId %d from Partition %d", this.dependency_id, local_partition));
+                if (d) LOG.debug(String.format("Copying ByteBuffer for DependencyId %d from Partition %d", this.dependency_id, local_partition));
                 VoltTable vt = this.results_list.get(idx);
                 assert(vt != null);
                 ByteBuffer buffer = vt.getTableDataReference();

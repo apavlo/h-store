@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionInitResponse;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -35,7 +36,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     
     public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
         if (debug.get())
-            LOG.debug("Starting new TransactionInitWrapperCallback for txn #" + txn_id);
+            LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         super.init(partitions.size(), orig_callback);
         this.partitions = partitions;
         this.builder = Hstore.TransactionInitResponse.newBuilder()
@@ -54,9 +55,12 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     
     @Override
     public void unblockCallback() {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug(String.format("Sending back TransactionInitResponse with status %s for txn #%d",
-                                    this.builder.getStatus(), this.builder.getTransactionId()));
+        if (debug.get()) {
+            LOG.debug(String.format("Sending %s to %s with status %s for txn #%d",
+                                    TransactionInitResponse.class.getSimpleName(),
+                                    this.getOrigCallback().getClass().getSimpleName(),
+                                    this.builder.getStatus(),
+                                    this.builder.getTransactionId()));
         }
         this.getOrigCallback().run(this.builder.build());
     }
@@ -64,7 +68,8 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     @Override
     protected void abortCallback(Hstore.Status status) {
         if (debug.get())
-            LOG.debug(String.format("Aborting TransactionInitWrapperCallback for txn #%d [status=%s]",
+            LOG.debug(String.format("Aborting %s for txn #%d [status=%s]",
+                                    this.getClass().getSimpleName(),
                                     this.builder.getTransactionId(), status));
         this.builder.setStatus(status);
         this.unblockCallback();
@@ -72,6 +77,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     
     @Override
     protected int runImpl(Integer parameter) {
+        this.builder.addPartitions(parameter.intValue());
         return 1;
     }
 }

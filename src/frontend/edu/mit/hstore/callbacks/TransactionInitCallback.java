@@ -39,7 +39,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
 
     public void init(LocalTransaction ts) {
         if (debug.get())
-            LOG.debug("Starting new LocalTransactionInitCallback for txn #" + ts.getTransactionId());
+            LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         super.init(ts.getPredictTouchedPartitions().size(), null);
     }
@@ -51,6 +51,8 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     
     @Override
     protected void unblockCallback() {
+        if (debug.get())
+            LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
         hstore_site.transactionStart(ts);
     }
     
@@ -73,6 +75,10 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     
     @Override
     protected int runImpl(Hstore.TransactionInitResponse parameter) {
+        if (debug.get())
+            LOG.debug(String.format("Got %s with %d partitions for %s",
+                                    parameter.getClass().getSimpleName(), parameter.getPartitionsCount(), this.ts));
+        
         if (parameter.getStatus() != Hstore.Status.OK) {
             this.abort(parameter.getStatus());
         }
