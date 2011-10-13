@@ -95,8 +95,9 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
-import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
-import edu.mit.hstore.callbacks.RemoteTransactionInitCallback;
+import edu.mit.hstore.callbacks.BlockingCallback;
+import edu.mit.hstore.callbacks.TransactionInitCallback;
+import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
@@ -105,6 +106,7 @@ import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 import edu.mit.hstore.util.NewOrderInspector;
+import edu.mit.hstore.util.TransactionQueue;
 import edu.mit.hstore.util.TxnCounter;
 
 /**
@@ -182,12 +184,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     private final HStoreThreadManager threadManager;
     
+    private final TransactionQueue txnQueueManager;
+    
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
     private final TransactionIdManager txnid_managers[];
     
-    private final HStoreMessenger messenger;
+    private final HStoreCoordinator hstore_coordinator;
 
     /**
      * Local ExecutionSite Stuff
@@ -323,23 +327,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(catalog_site != null);
         assert(p_estimator != null);
         
-        // General Stuff
         this.hstore_conf = HStoreConf.singleton();
-        this.catalog_site = catalog_site;
-        this.site_id = this.catalog_site.getId();
-        this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
-        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
-        this.p_estimator = p_estimator;
-        this.hasher = this.p_estimator.getHasher();
-        this.thresholds = new EstimationThresholds(); // default values
-
-        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_site)) {
-            this.partition_site_xref.put(catalog_part.getId(), ((Site)catalog_part.getParent()).getId());
-        } // FOR
         
+        // **IMPORTANT**
+        // We have to setup the partition offsets before we do anything else here
+        this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
         this.num_local_partitions = executors.size();
-        
         LOCAL_PARTITION_OFFSETS = new int[num_partitions];
         LOCAL_PARTITION_REVERSE = new int[this.num_local_partitions];
         int offset = 0;
@@ -348,6 +342,23 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOCAL_PARTITION_REVERSE[offset] = p.intValue(); 
             offset++;
         } // FOR
+        for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_site)) {
+            this.partition_site_xref.put(catalog_part.getId(), ((Site)catalog_part.getParent()).getId());
+        } // FOR
+        
+        // Static Object Pools
+        HStoreObjectPools.initialize(this);
+        
+        // General Stuff
+        this.catalog_site = catalog_site;
+        this.site_id = this.catalog_site.getId();
+        this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
+        this.p_estimator = p_estimator;
+        this.hasher = this.p_estimator.getHasher();
+        this.thresholds = new EstimationThresholds(); // default values
+
+        // Distributed Transaction Queue Manager
+        this.txnQueueManager = new TransactionQueue(this);
         
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
@@ -391,7 +402,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
             } // FOR
         }
-        this.messenger = new HStoreMessenger(this);
+        this.hstore_coordinator = new HStoreCoordinator(this);
         this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // Create all of our parameter manglers
@@ -400,9 +411,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
-        
-        // Static Object Pools
-        HStoreObjectPools.initialize(this);
         
         // Reusable Cached Messages
         ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, HStoreConstants.EMPTY_RESULT, "");
@@ -414,6 +422,28 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             this.tpcc_inspector = null;
         }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // LOCAL PARTITION OFFSETS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     * @param partition
+     * @return
+     */
+    public int getLocalPartitionOffset(int partition) {
+        return HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+    }
+    
+    /**
+     * 
+     * @param offset
+     * @return
+     */
+    public int getLocalPartitionFromOffset(int offset) {
+        return HStoreSite.LOCAL_PARTITION_REVERSE[offset];
     }
     
     // ----------------------------------------------------------------------------
@@ -454,8 +484,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public Collection<ExecutionSitePostProcessor> getExecutionSitePostProcessors() {
         return (this.processors);
     }
-    public HStoreMessenger getMessenger() {
-        return (this.messenger);
+    public HStoreCoordinator getCoordinator() {
+        return (this.hstore_coordinator);
     }
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
@@ -465,7 +495,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(catalog_proc != null) : "Invalid Procedure name '" + proc_name + "'";
         return (this.param_manglers.get(catalog_proc));
     }
-    
+    protected TransactionQueue getTransactionQueueManager() {
+        return (this.txnQueueManager);
+    }
     public EstimationThresholds getThresholds() {
         return thresholds;
     }
@@ -556,13 +588,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
         if (d) LOG.debug("Starting HStoreMessenger for " + this.getSiteName());
-        this.messenger.start();
+        this.hstore_coordinator.start();
 
+        // Start TransactionQueueManager
+        Thread t = new Thread(this.txnQueueManager);
+        t.setDaemon(true);
+        t.start();
+        
         // Start Status Monitor
         if (hstore_conf.site.status_interval > 0) {
             if (d) LOG.debug("Starting HStoreSiteStatus monitor thread");
             this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
-            Thread t = new Thread(this.status_monitor);
+            t = new Thread(this.status_monitor);
             t.setPriority(Thread.MIN_PRIORITY);
             t.setDaemon(true);
             t.start();
@@ -571,7 +608,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Start the ExecutionSitePostProcessor
         if (hstore_conf.site.exec_postprocessing_thread) {
             for (ExecutionSitePostProcessor espp : this.processors) {
-                Thread t = new Thread(espp);
+                t = new Thread(espp);
                 t.setDaemon(true);
                 t.start();    
             } // FOR
@@ -595,7 +632,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ExecutionSite executor = this.getExecutionSite(partition);
             executor.initHStoreSite(this);
 
-            Thread t = new Thread(executor);
+            t = new Thread(executor);
             t.setDaemon(true);
             t.setPriority(Thread.MAX_PRIORITY); // Probably does nothing...
             this.executor_threads[partition] = t;
@@ -761,7 +798,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     public static void crash() {
         if (SHUTDOWN_HANDLE != null) {
-            SHUTDOWN_HANDLE.messenger.shutdownCluster();
+            SHUTDOWN_HANDLE.hstore_coordinator.shutdownCluster();
         } else {
             LOG.fatal("H-Store has encountered an unrecoverable error and is exiting.");
             LOG.fatal("The log may contain additional information.");
@@ -787,7 +824,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public void prepareShutdown() {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
-        this.messenger.prepareShutdown();
+        this.hstore_coordinator.prepareShutdown();
         for (ExecutionSitePostProcessor espp : this.processors) {
             espp.prepareShutdown();
         } // FOR
@@ -912,7 +949,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 done.run(out.getBytes());
                 // Non-blocking....
-                this.messenger.shutdownCluster(new Exception("Shutdown command received at " + this.getSiteName()), false);
+                this.hstore_coordinator.shutdownCluster(new Exception("Shutdown command received at " + this.getSiteName()), false);
                 return;
             }
         // DB2-style Transaction Redirection
@@ -965,7 +1002,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             assert(request.hasBasePartition() == false) : "Trying to redirect " + request.getProcName() + " transaction more than once!";
             StoredProcedureInvocation.markRawBytesAsRedirected(base_partition, serializedRequest);
             
-            this.messenger.transactionRedirect(serializedRequest, callback, base_partition);
+            this.hstore_coordinator.transactionRedirect(serializedRequest, callback, base_partition);
             if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(catalog_proc);
             return;
         }
@@ -1145,7 +1182,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 String msg = "Duplicate transaction id #" + txn_id;
                 LOG.fatal("ORIG TRANSACTION:\n" + dupe);
                 LOG.fatal("NEW TRANSACTION:\n" + ts);
-                this.messenger.shutdownCluster(new Exception(msg), true);
+                this.hstore_coordinator.shutdownCluster(new Exception(msg), true);
             }
             LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
             txn_id = new_txn_id;
@@ -1195,7 +1232,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
             if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
-            this.messenger.transactionInit(ts, ts.getTransactionInitCallback());
+            this.hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
         }
         
         this.checkEnableThrottling(base_partition);
@@ -1237,8 +1274,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      * @param callback
      */
-    public void transactionInit(long txn_id, RemoteTransactionInitCallback callback) {
-        // TODO(cjl16): Replace this code with the call to the TransactionQueue
+    public void transactionInit(long txn_id, Collection<Integer> partitions, BlockingCallback<?, Integer> callback) {
+        this.txnQueueManager.insert(txn_id, partitions, callback);
     }
 
     /**
@@ -1471,7 +1508,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     serializedRequest = FastSerializer.serialize(spi);
                 } catch (IOException ex) {
                     LOG.fatal("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts);
-                    this.messenger.shutdownCluster(ex, false);
+                    this.hstore_coordinator.shutdownCluster(ex, false);
                     return;
                 }
                 assert(serializedRequest != null);
@@ -1483,7 +1520,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to get ForwardTxnRequestCallback", ex);   
                 }
-                this.messenger.transactionRedirect(serializedRequest, callback, redirect_partition);
+                this.hstore_coordinator.transactionRedirect(serializedRequest, callback, redirect_partition);
                 if (hstore_conf.site.status_show_txn_info) TxnCounter.REDIRECTED.inc(orig_ts.getProcedure());
                 return;
                 
@@ -1696,7 +1733,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (error != null && hstore_site.isShuttingDown() == false) {
                         LOG.warn(String.format("Procedure Listener #%d is stopping! [error=%s, hstore_shutdown=%s]",
                                                id, (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
-                        hstore_site.messenger.shutdownCluster(error);
+                        hstore_site.hstore_coordinator.shutdownCluster(error);
                     }
                 };
             });
@@ -1726,7 +1763,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         hstore_site.ready_latch.await();
                     } catch (Exception ex) {
                         LOG.error("Unexpected interuption while waiting for engines to start", ex);
-                        hstore_site.messenger.shutdownCluster(ex);
+                        hstore_site.hstore_coordinator.shutdownCluster(ex);
                     }
                 }
                 hstore_site.ready();

@@ -17,8 +17,8 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  * partitions at this HStoreSite will we invoke the original callback.
  * @author pavlo
  */
-public class RemoteTransactionInitCallback extends BlockingCallback<Hstore.TransactionInitResponse, Integer> {
-    private static final Logger LOG = Logger.getLogger(RemoteTransactionInitCallback.class);
+public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.TransactionInitResponse, Integer> {
+    private static final Logger LOG = Logger.getLogger(TransactionInitWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -28,13 +28,13 @@ public class RemoteTransactionInitCallback extends BlockingCallback<Hstore.Trans
     private Hstore.TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
     
-    public RemoteTransactionInitCallback() {
+    public TransactionInitWrapperCallback() {
         super();
     }
     
     public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
         if (debug.get())
-            LOG.debug("Starting new RemoteTransactionInitCallback for txn #" + txn_id);
+            LOG.debug("Starting new TransactionInitWrapperCallback for txn #" + txn_id);
         super.init(partitions.size(), orig_callback);
         this.partitions = partitions;
         this.builder = Hstore.TransactionInitResponse.newBuilder()
@@ -63,7 +63,7 @@ public class RemoteTransactionInitCallback extends BlockingCallback<Hstore.Trans
     @Override
     protected void abortCallback(Hstore.Status status) {
         if (debug.get())
-            LOG.debug(String.format("Aborting RemoteTransactionInitCallback for txn #%d [status=%s]",
+            LOG.debug(String.format("Aborting TransactionInitWrapperCallback for txn #%d [status=%s]",
                                     this.builder.getTransactionId(), status));
         this.builder.setStatus(status);
         this.unblockCallback();

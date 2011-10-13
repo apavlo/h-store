@@ -652,7 +652,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Collection<Integer> getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
-        return (Collections.synchronizedCollection(cache.PARTITION_XREF.asList()));
+        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
     }
 
     /**

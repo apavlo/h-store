@@ -7,8 +7,8 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 
 import edu.brown.utils.TypedStackObjectPool;
-import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
-import edu.mit.hstore.callbacks.RemoteTransactionInitCallback;
+import edu.mit.hstore.callbacks.TransactionInitCallback;
+import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
@@ -26,12 +26,12 @@ public abstract class HStoreObjectPools {
     /**
      * 
      */
-    public static TypedStackObjectPool<LocalTransactionInitCallback> CALLBACKS_TXN_LOCALINIT;
+    public static TypedStackObjectPool<TransactionInitCallback> CALLBACKS_TXN_INIT;
     
     /**
      * 
      */
-    public static TypedStackObjectPool<RemoteTransactionInitCallback> CALLBACKS_TXN_REMOTEINIT;
+    public static TypedStackObjectPool<TransactionInitWrapperCallback> CALLBACKS_TXN_INITWRAPPER;
     
     /**
      * 
@@ -97,7 +97,7 @@ public abstract class HStoreObjectPools {
             CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
                     hstore_conf.site.pool_txnprepare_idle,
                     hstore_conf.site.pool_profiling, hstore_site);
-            CALLBACKS_TXN_LOCALINIT = TypedStackObjectPool.factory(LocalTransactionInitCallback.class,
+            CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
                     hstore_conf.site.pool_localtxninit_idle,
                     hstore_conf.site.pool_profiling, hstore_site);
 
@@ -115,7 +115,7 @@ public abstract class HStoreObjectPools {
         assert(CALLBACKS_TXN_REDIRECTRESPONSE != null);
         assert(CALLBACKS_TXN_WORK != null);
         assert(CALLBACKS_TXN_PREPARE != null);
-        assert(CALLBACKS_TXN_LOCALINIT != null);
+        assert(CALLBACKS_TXN_INIT != null);
         assert(STATES_TXN_REMOTE != null);
         assert(STATES_TXN_LOCAL != null);
         assert(STATES_DEPENDENCYINFO != null);

@@ -37,7 +37,7 @@ import edu.brown.utils.ThreadUtil;
  * 
  * @author pavlo
  */
-public class TestHStoreMessenger extends BaseTestCase {
+public class TestHStoreCoordinator extends BaseTestCase {
 
     private final int NUM_HOSTS               = 1;
     private final int NUM_SITES_PER_HOST      = 4;
@@ -45,7 +45,7 @@ public class TestHStoreMessenger extends BaseTestCase {
     private final int NUM_SITES               = (NUM_HOSTS * NUM_SITES_PER_HOST);
     
     private final HStoreSite sites[] = new HStoreSite[NUM_SITES_PER_HOST];
-    private final HStoreMessenger messengers[] = new HStoreMessenger[NUM_SITES_PER_HOST];
+    private final HStoreCoordinator messengers[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
     private final VoltTable.ColumnInfo columns[] = {
         new VoltTable.ColumnInfo("key", VoltType.STRING),
@@ -70,7 +70,7 @@ public class TestHStoreMessenger extends BaseTestCase {
             } // FOR
             
             this.sites[i] = new HStoreSite(catalog_site, executors, p_estimator);
-            this.messengers[i] = this.sites[i].getMessenger();
+            this.messengers[i] = this.sites[i].getCoordinator();
         } // FOR
 
         this.startMessengers();
@@ -83,7 +83,7 @@ public class TestHStoreMessenger extends BaseTestCase {
         this.stopMessengers();
         
         // Check to make sure all of the ports are free for each messenger
-        for (HStoreMessenger m : this.messengers) {
+        for (HStoreCoordinator m : this.messengers) {
             // assert(m.isStopped()) : "Site #" + m.getLocalSiteId() + " wasn't stopped";
             int port = m.getLocalMessengerPort();
             ServerSocketChannel channel = ServerSocketChannel.open();
@@ -122,7 +122,7 @@ public class TestHStoreMessenger extends BaseTestCase {
         // We have to fire of threads in parallel because HStoreMessenger.start() blocks!
         List<Thread> threads = new ArrayList<Thread>();
         AssertThreadGroup group = new AssertThreadGroup();
-        for (final HStoreMessenger m : this.messengers) {
+        for (final HStoreCoordinator m : this.messengers) {
             threads.add(new Thread(group, "Site#" + m.getLocalSiteId()) {
                 @Override
                 public void run() {
@@ -142,11 +142,11 @@ public class TestHStoreMessenger extends BaseTestCase {
      */
     private void stopMessengers() throws Exception {
         // Tell everyone to prepare to stop
-        for (final HStoreMessenger m : this.messengers) {
+        for (final HStoreCoordinator m : this.messengers) {
             if (m.isStarted()) m.prepareShutdown();
         } // FOR
         // Now stop everyone for real!
-        for (final HStoreMessenger m : this.messengers) {
+        for (final HStoreCoordinator m : this.messengers) {
             if (m.isStarted() && m.isShuttingDown() == false) {
                 System.err.println("STOP: " + m);
                 m.shutdown();
@@ -159,7 +159,7 @@ public class TestHStoreMessenger extends BaseTestCase {
 	 */
 	@Test
 	public void testStartConnection() throws Exception {
-		for (final HStoreMessenger m : this.messengers) {
+		for (final HStoreCoordinator m : this.messengers) {
 			// Check that the messenger state is correct
 			assert (m.isStarted());
 
@@ -189,7 +189,7 @@ public class TestHStoreMessenger extends BaseTestCase {
         //      so you test whether they are alive or not. It's not a big deal either way, since 
         //      HStore isn't a production database, but it would be nice to know.
 		for (int i = 0; i < NUM_SITES_PER_HOST; i++) {
-			HStoreMessenger m = this.messengers[i];
+			HStoreCoordinator m = this.messengers[i];
 			// stop messenger
 			m.shutdown();
 			assertEquals(m.getListenerThread().getState(), State.TERMINATED);

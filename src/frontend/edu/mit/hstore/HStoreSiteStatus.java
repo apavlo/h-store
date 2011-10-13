@@ -164,7 +164,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 this.last_completed == completed && hstore_site.getInflightTxnCount() > 0) {
                 String msg = String.format("HStoreSite #%d is hung! Killing the cluster!", hstore_site.getSiteId()); 
                 LOG.fatal(msg);
-                this.hstore_site.getMessenger().shutdownCluster(new RuntimeException(msg));
+                this.hstore_site.getCoordinator().shutdownCluster(new RuntimeException(msg));
             }
             this.last_completed = completed;
         } // WHILE

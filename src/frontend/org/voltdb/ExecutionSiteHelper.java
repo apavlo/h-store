@@ -173,7 +173,7 @@ public class ExecutionSiteHelper implements Runnable {
             m.calculateProbabilities();
             if (d && m.isValid() == false) {
                 LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
-                this.hstore_site.getMessenger().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
+                this.hstore_site.getCoordinator().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
             }
         } // WHILE
     }

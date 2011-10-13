@@ -108,7 +108,7 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
-import edu.mit.hstore.HStoreMessenger;
+import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
@@ -266,7 +266,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
 
     protected HStoreSite hstore_site;
-    protected HStoreMessenger hstore_messenger;
+    protected HStoreCoordinator hstore_messenger;
     protected HStoreConf hstore_conf;
     protected ExecutionSiteHelper helper = null;
     
@@ -613,7 +613,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (t) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
-        this.hstore_messenger = hstore_site.getMessenger();
+        this.hstore_messenger = hstore_site.getCoordinator();
         this.helper = hstore_site.getExecutionSiteHelper();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         this.localPartitionIds = hstore_site.getLocalPartitionIds();
@@ -770,7 +770,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
-    public HStoreMessenger getHStoreMessenger() {
+    public HStoreCoordinator getHStoreMessenger() {
         return (this.hstore_messenger);
     }
 

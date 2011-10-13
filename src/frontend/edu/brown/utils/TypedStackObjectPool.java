@@ -17,6 +17,14 @@ public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
     public synchronized T borrowObject() throws Exception {
         return (T)super.borrowObject();
     }
+    
+    public void returnObject(T t) {
+        try {
+            super.returnObject(t);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
     /**
      * 
