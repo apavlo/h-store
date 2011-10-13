@@ -21,7 +21,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.RemoteTransactionInitCallback;
+import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 
 public class TestTransactionQueue extends BaseTestCase {
 
@@ -72,7 +72,7 @@ public class TestTransactionQueue extends BaseTestCase {
         Collection<Integer> partitions = CatalogUtil.getAllPartitionIds(catalog_db);
         
         MockCallback inner_callback = new MockCallback();
-        RemoteTransactionInitCallback outer_callback = new RemoteTransactionInitCallback();
+        TransactionInitWrapperCallback outer_callback = new TransactionInitWrapperCallback();
         outer_callback.init(txn_id, partitions, inner_callback);
         
         // Insert the txn into our queue and then call check

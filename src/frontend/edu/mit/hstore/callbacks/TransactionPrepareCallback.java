@@ -70,7 +70,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         assert(this.cresponse != null) : "Trying to send back ClientResponse for " + ts + " before it was set!";
         
         // Everybody returned ok, so we'll tell them all commit right now
-        this.hstore_site.getMessenger().transactionFinish(this.ts, Hstore.Status.OK, commit_callback);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, Hstore.Status.OK, commit_callback);
         
         // At this point all of our HStoreSites came back with an OK on the 2PC PREPARE
         // So that means we can send back the result to the client and then 
@@ -82,7 +82,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     @Override
     protected void abortCallback(Status status) {
         // Let everybody know that the party is over!
-        this.hstore_site.getMessenger().transactionFinish(this.ts, status, commit_callback);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, commit_callback);
         
         // Change the response's status and send back the result to the client
         this.cresponse.setStatus(status);

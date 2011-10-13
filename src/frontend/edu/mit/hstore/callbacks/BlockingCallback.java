@@ -42,6 +42,12 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         // Nothing!
     }
     
+    /**
+     * The implementation of the run method to process a new entry for this callback
+     * This method should return how much we should decrement from the blocking counter
+     * @param parameter Needs to be >=0
+     * @return
+     */
     protected abstract int runImpl(U parameter);
     
     /**

@@ -14,13 +14,10 @@ import edu.mit.hstore.dtxn.LocalTransaction;
 /**
  * This callback is meant to block a transaction from executing until all of the
  * partitions that it needs come back and say they're ready to execute it
- * Currently we use a CountDownLatch, but this is probably not what we to actually
- * do because that means a thread will have to block on it. So we need a better way of notifying
- * ourselves that we can now execute a transaction.
  * @author pavlo
  */
-public class LocalTransactionInitCallback extends BlockingCallback<Hstore.TransactionInitResponse, Hstore.TransactionInitResponse> {
-    private static final Logger LOG = Logger.getLogger(LocalTransactionInitCallback.class);
+public class TransactionInitCallback extends BlockingCallback<Hstore.TransactionInitResponse, Hstore.TransactionInitResponse> {
+    private static final Logger LOG = Logger.getLogger(TransactionInitCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -37,7 +34,7 @@ public class LocalTransactionInitCallback extends BlockingCallback<Hstore.Transa
     private final HStoreSite hstore_site;
     private LocalTransaction ts;
     
-    public LocalTransactionInitCallback(HStoreSite hstore_site) {
+    public TransactionInitCallback(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
     }
 
@@ -67,7 +64,7 @@ public class LocalTransactionInitCallback extends BlockingCallback<Hstore.Transa
         // Note that we do this *even* if we haven't heard back from the remote
         // HStoreSite that they've acknowledged our tranasction
         // We don't care when we get the response for this
-        this.hstore_site.getMessenger().transactionFinish(this.ts, status, abort_callback);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, abort_callback);
 
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed

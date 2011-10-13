@@ -61,7 +61,7 @@ import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.LocalTransactionInitCallback;
+import edu.mit.hstore.callbacks.TransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
 /**
@@ -140,7 +140,7 @@ public class LocalTransaction extends AbstractTransaction {
      * the acknowledgments back from all of the partitions that we're going to access.
      * This is only needed for distributed transactions. 
      */
-    private LocalTransactionInitCallback init_callback;
+    private TransactionInitCallback init_callback;
     
     /**
      * This callback is used to keep track of what partitions have replied that they are 
@@ -172,7 +172,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.predict_touchedPartitions != null);
         if (this.predict_touchedPartitions.size() > 1) {
             try {
-                this.init_callback = HStoreObjectPools.CALLBACKS_TXN_LOCALINIT.borrowObject(); 
+                this.init_callback = HStoreObjectPools.CALLBACKS_TXN_INIT.borrowObject(); 
                 this.init_callback.init(this);
                 
                 this.prepare_callback = (TransactionPrepareCallback)HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
@@ -278,7 +278,7 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             // Return our LocalTransactionInitCallback
             if (this.init_callback != null) {
-                HStoreObjectPools.CALLBACKS_TXN_LOCALINIT.returnObject(this.init_callback);
+                HStoreObjectPools.CALLBACKS_TXN_INIT.returnObject(this.init_callback);
                 this.init_callback = null;
             }
             // Return our TransactionPrepareCallback
@@ -435,7 +435,7 @@ public class LocalTransaction extends AbstractTransaction {
     // CALLBACK METHODS
     // ----------------------------------------------------------------------------
     
-    public LocalTransactionInitCallback getTransactionInitCallback() {
+    public TransactionInitCallback getTransactionInitCallback() {
         return (this.init_callback);
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {

@@ -1,6 +1,5 @@
 package edu.mit.hstore.util;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +9,7 @@ import org.apache.log4j.Logger;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.RemoteTransactionInitCallback;
+import edu.mit.hstore.callbacks.BlockingCallback;
 
 public class TransactionQueue implements Runnable {
     public static final Logger LOG = Logger.getLogger(TransactionQueue.class);
@@ -25,38 +24,43 @@ public class TransactionQueue implements Runnable {
      */
     private final HStoreSite hstore_site;
     
+    private final Collection<Integer> localPartitions;
+    
     /**
      * contains one queue for every partition managed by this coordinator
      */
-    private TransactionInitPriorityQueue[] txn_queues;
+    private final TransactionInitPriorityQueue[] txn_queues;
     
     /**
      * the last txn ID that was executed for each partition
      */
-    private long[] last_txns;
+    private final long[] last_txns;
     
     /**
      * indicates which partitions are currently executing a job
      */
-    private boolean[] working_partitions;
+    private final boolean[] working_partitions;
     
     /**
      * maps txn IDs to their callbacks
      */
-    private Map<Long, RemoteTransactionInitCallback> txn_callbacks;
+    private final Map<Long, BlockingCallback<?, Integer>> txn_callbacks = new HashMap<Long, BlockingCallback<?,Integer>>();
     
-    public TransactionQueue(HStoreSite site) {
-        this.hstore_site = site;
-        Collection<Integer> ids = hstore_site.getLocalPartitionIds();
-        int num_ids = ids.size();
-
+    /**
+     * Constructor
+     * @param hstore_site
+     */
+    public TransactionQueue(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
+        this.localPartitions = hstore_site.getLocalPartitionIds();
+        
+        int num_ids = this.localPartitions.size();
         this.txn_queues = new TransactionInitPriorityQueue[num_ids];
         this.last_txns = new long[num_ids];
         this.working_partitions = new boolean[num_ids];
-        this.txn_callbacks = new HashMap<Long, RemoteTransactionInitCallback>();
         
-        for (int p : ids) {
-            int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[p];
+        for (int p : this.localPartitions) {
+            int offset = hstore_site.getLocalPartitionOffset(p);
             txn_queues[offset] = new TransactionInitPriorityQueue(hstore_site.getSiteId());
             last_txns[offset] = -1;
             working_partitions[offset] = false;
@@ -75,10 +79,19 @@ public class TransactionQueue implements Runnable {
      */
     @Override
     public void run() {
+        Thread self = Thread.currentThread();
+        self.setName(HStoreSite.getThreadName(hstore_site, "queue"));
+        if (hstore_site.getHStoreConf().site.cpu_affinity) {
+            hstore_site.getThreadManager().registerProcessingThread();
+        }
+        
+        if (debug.get())
+            LOG.debug("Starting distributed transaction queue manager thread");
         while (true) {
             try {
                 wait();
             } catch (InterruptedException e) {
+                // Nothing...
             }
             checkQueues();
         }
@@ -96,7 +109,7 @@ public class TransactionQueue implements Runnable {
             LOG.debug("Checking queues");
         
         for (int offset = 0; offset < txn_queues.length; ++offset) {
-            int partition = HStoreSite.LOCAL_PARTITION_REVERSE[offset];
+            int partition = hstore_site.getLocalPartitionFromOffset(offset);
             if (working_partitions[offset]) {
                 if (trace.get())
                     LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
@@ -122,7 +135,7 @@ public class TransactionQueue implements Runnable {
                 LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
             last_txns[offset] = next_id;
             working_partitions[offset] = true;
-            RemoteTransactionInitCallback callback = txn_callbacks.get(next_id);
+            BlockingCallback<?, Integer> callback = txn_callbacks.get(next_id);
             callback.run(partition);
             
             // remove the callback when this partition is the last one to start the job
@@ -134,14 +147,22 @@ public class TransactionQueue implements Runnable {
         }
     }
     
-    public synchronized void insert(long txn_id, Collection<Integer> partitions, RemoteTransactionInitCallback callback) {
+    /**
+     * 
+     * @param txn_id
+     * @param partitions
+     * @param callback
+     */
+    public synchronized void insert(long txn_id, Collection<Integer> partitions, BlockingCallback<?, Integer> callback) {
         if (debug.get())
             LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]", txn_id, partitions));
         
         txn_callbacks.put(txn_id, callback);
         boolean should_notify = false;
-        for (int p : partitions) {
-            int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[p];
+        for (Integer p : partitions) {
+            if (this.localPartitions.contains(p) == false) continue;
+            
+            int offset = hstore_site.getLocalPartitionOffset(p.intValue());
             txn_queues[offset].noteTransactionRecievedAndReturnLastSeen(txn_id);
             txn_queues[offset].add(txn_id);
             if (!working_partitions[offset]) {
@@ -151,11 +172,16 @@ public class TransactionQueue implements Runnable {
         if (should_notify) notifyAll();
     }
     
+    /**
+     * 
+     * @param txn_id
+     * @param partition
+     */
     public void done(long txn_id, int partition) {
         if (debug.get())
             LOG.debug(String.format("Marking txn #%d as done on partition %d", txn_id, partition));
         
-        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        int offset = hstore_site.getLocalPartitionOffset(partition);
         working_partitions[offset] = false;
         notifyAll();
     }
