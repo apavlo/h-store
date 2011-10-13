@@ -107,9 +107,11 @@ public class TransactionQueue implements Runnable {
         return (true);
     }
     
-    protected synchronized void checkQueues() {
+    protected synchronized boolean checkQueues() {
         if (debug.get())
             LOG.debug("Checking queues");
+        
+        boolean txn_released = false;
         
         for (int offset = 0; offset < txn_queues.length; ++offset) {
             int partition = hstore_site.getLocalPartitionFromOffset(offset);
@@ -140,6 +142,7 @@ public class TransactionQueue implements Runnable {
             working_partitions[offset] = true;
             BlockingCallback<?, Integer> callback = txn_callbacks.get(next_id);
             callback.run(partition);
+            txn_released = true;
             
             // remove the callback when this partition is the last one to start the job
             if (callback.getCounter() == 0) {
@@ -148,6 +151,7 @@ public class TransactionQueue implements Runnable {
                 txn_callbacks.remove(next_id);
             }
         }
+        return txn_released;
     }
     
     /**
