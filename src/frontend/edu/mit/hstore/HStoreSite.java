@@ -328,6 +328,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(p_estimator != null);
         
         this.hstore_conf = HStoreConf.singleton();
+        this.catalog_site = catalog_site;
+        this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
+        this.site_id = this.catalog_site.getId();
         
         // **IMPORTANT**
         // We have to setup the partition offsets before we do anything else here
@@ -350,9 +353,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         HStoreObjectPools.initialize(this);
         
         // General Stuff
-        this.catalog_site = catalog_site;
-        this.site_id = this.catalog_site.getId();
-        this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
         this.thresholds = new EstimationThresholds(); // default values
