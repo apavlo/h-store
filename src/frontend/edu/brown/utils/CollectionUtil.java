@@ -56,7 +56,8 @@ public abstract class CollectionUtil {
         int ret[] = new int[items.size()];
         int idx = 0;
         for (Integer i : items) {
-            ret[idx++] = i.intValue();
+            if (i != null) ret[idx] = i.intValue();
+            idx++;
         }
         return (ret);
     }

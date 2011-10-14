@@ -804,29 +804,21 @@ public class LocalTransaction extends AbstractTransaction {
                 if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
                 if (t) LOG.trace("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
             }
-        } // SYNC
-        // Check whether we need to start running stuff now
-        if (!this.state.blocked_tasks.isEmpty() && dinfo.hasTasksReady()) {
-            this.executeBlockedTasks(dinfo);
-        }
-    }
-
-    /**
-     * Note the arrival of a new result that this txn needs
-     * @param dependency_id
-     * @param result
-     */
-    private void executeBlockedTasks(DependencyInfo dinfo) {
-        Set<FragmentTaskMessage> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
-        // Always double check whether somebody beat us to the punch
-        if (to_unblock == null) {
-            if (t) LOG.trace(String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
-            return;
-        }
-        if (d) LOG.debug(String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
-                                       to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
-        this.state.blocked_tasks.removeAll(to_unblock);
-        this.state.unblocked_tasks.add(to_unblock);
+            
+            // Check whether we need to start running stuff now
+            if (!this.state.blocked_tasks.isEmpty() && dinfo.hasTasksReady()) {
+                // Always double check whether somebody beat us to the punch
+                Collection<FragmentTaskMessage> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
+                if (to_unblock == null) {
+                    if (t) LOG.trace(String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
+                    return;
+                }
+                if (d) LOG.debug(String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
+                                               to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
+                this.state.blocked_tasks.removeAll(to_unblock);
+                this.state.unblocked_tasks.add(to_unblock);
+            }
+        } // SYNCH
     }
 
     /**
@@ -863,7 +855,7 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
+            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
         } else {
             return ("<Uninitialized>");
         }

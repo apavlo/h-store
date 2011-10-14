@@ -81,7 +81,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                            ts, es.getPartitionId(), cr.getStatus()));
             try {
-                es.processClientResponse(ts, cr);
+                es.sendClientResponse(ts, cr);
             } catch (Throwable ex) {
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);
                 break;
