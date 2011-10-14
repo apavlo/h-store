@@ -54,6 +54,11 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     }
     
     @Override
+    public boolean isInitialized() {
+        return (this.builder != null && super.isInitialized());
+    }
+    
+    @Override
     public void unblockCallback() {
         if (debug.get()) {
             LOG.debug(String.format("Sending %s to %s with status %s for txn #%d",

@@ -124,7 +124,7 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
         return (m_dependencies[index] != null);
     }
 
-    public RuntimeException getException() {
+    public SerializableException getException() {
         return m_exception;
     }
 

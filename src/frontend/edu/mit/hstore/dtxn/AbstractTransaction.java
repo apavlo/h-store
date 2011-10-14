@@ -33,6 +33,7 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.exceptions.SerializableException;
 
 import edu.brown.utils.Poolable;
 import edu.mit.hstore.HStoreConstants;
@@ -64,7 +65,7 @@ public abstract class AbstractTransaction implements Poolable {
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
-    protected RuntimeException pending_error;
+    protected SerializableException pending_error;
     
     // ----------------------------------------------------------------------------
     // PREDICTIONS FLAGS
@@ -251,6 +252,12 @@ public abstract class AbstractTransaction implements Poolable {
     public boolean isPredictReadOnly() {
         return (this.predict_readOnly);
     }
+    /**
+     * Returns true if this Transaction was originally predicted to be single-partitioned
+     */
+    public boolean isPredictSinglePartition() {
+        return (false);
+    }
     
     // ----------------------------------------------------------------------------
     // EXECUTION FLAG METHODS
@@ -341,7 +348,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Does not clear it.
      * @return
      */
-    public RuntimeException getPendingError() {
+    public SerializableException getPendingError() {
         return (this.pending_error);
     }
     public String getPendingErrorMessage() {
@@ -352,7 +359,7 @@ public abstract class AbstractTransaction implements Poolable {
      * 
      * @param error
      */
-    public synchronized void setPendingError(RuntimeException error) {
+    public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
             if (d) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");

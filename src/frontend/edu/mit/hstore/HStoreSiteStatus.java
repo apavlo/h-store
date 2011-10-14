@@ -1,19 +1,7 @@
 package edu.mit.hstore;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Observable;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,7 +18,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
@@ -123,11 +111,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         } // FOR
 
         // Print a debug message when the first non-sysproc shows up
-        this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver() {
+        this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<AbstractTransaction>() {
             @Override
-            public void update(EventObservable arg0, Object arg1) {
+            public void update(EventObservable<AbstractTransaction> arg0, AbstractTransaction arg1) {
                 if (debug.get())
-                    LOG.debug(HStoreConstants.SITE_FIRST_TXN);
+                    LOG.debug(HStoreConstants.SITE_FIRST_TXN + " - " + arg1);
             }
         });
         
@@ -677,7 +665,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
         for (String key : pools.keySet()) {
             StackObjectPool pool = pools.get(key);
-            CountingPoolableObjectFactory<?> factory = (CountingPoolableObjectFactory<?>)pool.getFactory();
+            TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
             m_pool.put(key, this.formatPoolCounts(pool, factory));
         } // FOR
 
@@ -763,7 +751,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo));
     }
     
-    private String formatPoolCounts(StackObjectPool pool, CountingPoolableObjectFactory<?> factory) {
+    private String formatPoolCounts(StackObjectPool pool, TypedPoolableObjectFactory<?> factory) {
         return (String.format(POOL_FORMAT, pool.getNumActive(),
                                            pool.getNumIdle(),
                                            factory.getCreatedCount(),

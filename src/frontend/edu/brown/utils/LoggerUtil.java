@@ -3,7 +3,6 @@ package edu.brown.utils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Observable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
@@ -20,7 +19,7 @@ public abstract class LoggerUtil {
     private static File PROPERTIES_FILE = null;
     private static Thread REFRESH_THREAD = null;
     private static long LAST_TIMESTAMP = 0;
-    private static final EventObservable OBSERVABLE = new EventObservable();
+    private static final EventObservable<Object> OBSERVABLE = new EventObservable<Object>();
     private static HStoreThreadManager THREAD_MANAGER;
     
     public static class LoggerBoolean {
@@ -54,13 +53,13 @@ public abstract class LoggerUtil {
         }
         
         @Override
-        public void update(EventObservable o, Object arg) {
+        public void update(EventObservable<Object> o, Object arg) {
             this.debug.set(this.logger.isDebugEnabled());
             this.trace.set(this.logger.isTraceEnabled());
         }
     }
     
-    private static class AtomicObserver extends EventObserver {
+    private static class AtomicObserver extends EventObserver<Object> {
         
         private final Logger logger;
         private final AtomicBoolean debug;
@@ -73,7 +72,7 @@ public abstract class LoggerUtil {
         }
         
         @Override
-        public void update(EventObservable o, Object arg) {
+        public void update(EventObservable<Object> o, Object arg) {
             this.debug.lazySet(this.logger.isDebugEnabled());
             this.trace.lazySet(this.logger.isTraceEnabled());
         }
@@ -178,7 +177,7 @@ public abstract class LoggerUtil {
         LoggerUtil.attachObserver(new AtomicObserver(logger, debug, trace));
     }
     
-    public static void attachObserver(EventObserver observer) {
+    public static void attachObserver(EventObserver<Object> observer) {
         observer.update(null, null);
         LoggerUtil.OBSERVABLE.addObserver(observer);
     }

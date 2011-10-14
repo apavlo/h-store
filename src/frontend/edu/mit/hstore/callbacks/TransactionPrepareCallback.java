@@ -55,7 +55,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     
     @Override
     public boolean isInitialized() {
-        return (this.ts != null);
+        return (this.ts != null && super.isInitialized());
     }
     
     @Override

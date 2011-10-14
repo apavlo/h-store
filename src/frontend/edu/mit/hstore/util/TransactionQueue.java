@@ -1,20 +1,20 @@
 package edu.mit.hstore.util;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.BlockingCallback;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 
 public class TransactionQueue implements Runnable {
-    public static final Logger LOG = Logger.getLogger(TransactionQueue.class);
+    private static final Logger LOG = Logger.getLogger(TransactionQueue.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -46,7 +46,7 @@ public class TransactionQueue implements Runnable {
     /**
      * maps txn IDs to their callbacks
      */
-    private final Map<Long, TransactionInitWrapperCallback> txn_callbacks = new HashMap<Long, TransactionInitWrapperCallback>();
+    private final Map<Long, TransactionInitWrapperCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitWrapperCallback>();
     
     /**
      * Constructor
@@ -62,9 +62,9 @@ public class TransactionQueue implements Runnable {
         this.last_txns = new long[num_ids];
         this.working_partitions = new boolean[num_ids];
         
-        for (int p : this.localPartitions) {
-            int offset = hstore_site.getLocalPartitionOffset(p);
-            txn_queues[offset] = new TransactionInitPriorityQueue(hstore_site.getSiteId());
+        for (int partition : this.localPartitions) {
+            int offset = hstore_site.getLocalPartitionOffset(partition);
+            txn_queues[offset] = new TransactionInitPriorityQueue(hstore_site.getSiteId(), partition);
             last_txns[offset] = -1;
             working_partitions[offset] = false;
         } // FOR
@@ -115,8 +115,8 @@ public class TransactionQueue implements Runnable {
         
         boolean txn_released = false;
         
-        for (int offset = 0; offset < txn_queues.length; ++offset) {
-            int partition = hstore_site.getLocalPartitionFromOffset(offset);
+        for (int partition : this.localPartitions) {
+            int offset = hstore_site.getLocalPartitionOffset(partition);
             if (working_partitions[offset]) {
                 if (trace.get())
                     LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
@@ -136,27 +136,10 @@ public class TransactionQueue implements Runnable {
             assert(callback != null) : "Unexpected null callback for txn #" + next_id;
             
             if (next_id < last_txns[offset]) {
-                if (trace.get())
-                    LOG.trace(String.format("The next id for Partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting...",
+                if (trace.get()) 
+                    LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting...",
                                             partition, next_id, last_txns[offset]));
-                
-                // First send back an ABORT message to the initiating HStoreSite
-                try {
-                    callback.abort(Hstore.Status.ABORT_REJECT);
-                } catch (Throwable ex) {
-                    throw new RuntimeException("Unexpected error when trying to abort txn #" + next_id, ex);
-                }
-                
-                // Then mark the txn as done at all the partitions that we set as
-                // as the current txn. Not sure how this will work...
-                for (int p : callback.getPartitions()) {
-                    int callback_offset = hstore_site.getLocalPartitionOffset(p);
-                    if (next_id == last_txns[callback_offset]) {
-                        this.done(next_id, p);
-                    } else {
-                        txn_queues[callback_offset].remove(next_id);
-                    }
-                } // FOR
+                this.rejectTransaction(next_id, callback);
                 break;
             }
 
@@ -172,10 +155,37 @@ public class TransactionQueue implements Runnable {
             if (callback.getCounter() == 0) {
                 if (trace.get())
                     LOG.trace(String.format("All partitions needed by txn #%d have been claimed. Removing callback", next_id));
-                txn_callbacks.remove(next_id);
+                this.cleanupTransaction(next_id);
             }
         } // FOR
         return txn_released;
+    }
+    
+    private void cleanupTransaction(long txn_id) {
+        TransactionInitWrapperCallback callback = this.txn_callbacks.remove(txn_id);
+//        if (callback != null) {
+//            HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.returnObject(callback);
+//        }
+    }
+    
+    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback) {
+        // First send back an ABORT message to the initiating HStoreSite
+        try {
+            callback.abort(Hstore.Status.ABORT_REJECT);
+        } catch (Throwable ex) {
+            throw new RuntimeException("Unexpected error when trying to abort txn #" + txn_id, ex);
+        }
+        
+        // Then mark the txn as done at all the partitions that we set as
+        // as the current txn. Not sure how this will work...
+        for (int p : callback.getPartitions()) {
+            int offset = hstore_site.getLocalPartitionOffset(p);
+            txn_queues[offset].remove(txn_id);
+            if (txn_id == last_txns[offset]) {
+                this.done(txn_id, p);
+            }
+        } // FOR
+        this.cleanupTransaction(txn_id);
     }
     
     /**
@@ -184,7 +194,7 @@ public class TransactionQueue implements Runnable {
      * @param partitions
      * @param callback
      */
-    public synchronized void insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+    public void insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
         if (debug.get())
             LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]", txn_id, partitions));
         
@@ -196,7 +206,15 @@ public class TransactionQueue implements Runnable {
             int offset = hstore_site.getLocalPartitionOffset(p.intValue());
             assert(offset >= 0 && offset < txn_queues.length) :
                 String.format("Invalid offset %d for local partition #%d [length=%d]", offset, p, txn_queues.length);
-            txn_queues[offset].noteTransactionRecievedAndReturnLastSeen(txn_id);
+            long next_safe = txn_queues[offset].noteTransactionRecievedAndReturnLastSeen(txn_id);
+            if (next_safe > txn_id) {
+                if (trace.get()) 
+                    LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
+                                            p, next_safe, txn_id));
+                this.rejectTransaction(txn_id, callback);
+                break;
+            }
+            
             txn_queues[offset].add(txn_id);
             if (!working_partitions[offset]) {
                 should_notify = true;
@@ -219,9 +237,11 @@ public class TransactionQueue implements Runnable {
             LOG.debug(String.format("Marking txn #%d as done on partition %d", txn_id, partition));
         
         int offset = hstore_site.getLocalPartitionOffset(partition);
-        working_partitions[offset] = false;
-        synchronized (this) {
-            notifyAll();
-        } // SYNCH
+        if (last_txns[offset] == txn_id) {
+            working_partitions[offset] = false;
+            synchronized (this) {
+                notifyAll();
+            } // SYNCH
+        }
     }
 }

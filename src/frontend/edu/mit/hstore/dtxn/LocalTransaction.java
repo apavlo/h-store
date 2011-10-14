@@ -46,6 +46,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
@@ -204,7 +205,7 @@ public class LocalTransaction extends AbstractTransaction {
                                  Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
                                  TransactionEstimator.State estimator_state,
                                  Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
-        assert(predict_touchedPartitions.isEmpty() == false);
+        assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
         
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.estimator_state = estimator_state;
@@ -333,7 +334,7 @@ public class LocalTransaction extends AbstractTransaction {
             synchronized (this.state) {
                 super.initRound(partition, undoToken);
                 // Reset these guys here so that we don't waste time in the last round
-                if (this.last_undo_token != null) this.state.clearRound();
+                if (this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] != null) this.state.clearRound();
             } // SYNCHRONIZED
         } else {
             super.initRound(partition, undoToken);
@@ -387,10 +388,10 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void finishRound(int partition) {
-        assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for txn #" + this.txn_id + " before it was started"; 
-        assert(this.state.queued_results.isEmpty()) : "Trying to finish round for txn #" + this.txn_id + " but there are " + this.state.queued_results.size() + " queued results";
-        
         if (this.base_partition == partition) {
+            assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for " + this + " before it was started"; 
+            assert(this.state.queued_results.isEmpty()) : "Trying to finish round for " + this + " but there are " + this.state.queued_results.size() + " queued results";
+
             synchronized (this.state) {
                 super.finishRound(partition);
                 
@@ -411,7 +412,7 @@ public class LocalTransaction extends AbstractTransaction {
      * and therefore we don't need any locks
      */
     public void fastFinishRound(int partition) {
-        this.round_state[partition] = RoundState.STARTED;
+        this.round_state[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = RoundState.STARTED;
         super.finishRound(partition);
     }
     
@@ -424,7 +425,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param error
      * @param wakeThread
      */
-    public void setPendingError(RuntimeException error, boolean wakeThread) {
+    public void setPendingError(SerializableException error, boolean wakeThread) {
         boolean spin_latch = (this.pending_error == null);
         super.setPendingError(error);
         if (wakeThread == false) return;
@@ -438,7 +439,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     @Override
-    public synchronized void setPendingError(RuntimeException error) {
+    public synchronized void setPendingError(SerializableException error) {
         this.setPendingError(error, true);
     }
 
@@ -871,13 +872,10 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String debug() {
         List<Map<String, Object>> maps = new ArrayList<Map<String,Object>>();
-        ListOrderedMap<String, Object> m;
-        
-        // Header
-        maps.add(super.getDebugMap());
+        Map<String, Object> m;
         
         // Basic Info
-        m = new ListOrderedMap<String, Object>();
+        m = super.getDebugMap();
         m.put("Procedure", this.getProcedureName());
         m.put("SysProc", this.sysproc);
         maps.add(m);

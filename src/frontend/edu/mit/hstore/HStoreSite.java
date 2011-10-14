@@ -199,7 +199,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Other components of the system can attach to the EventObservable to be told when this occurs 
      */
     private boolean startWorkload = false;
-    private final EventObservable startWorkload_observable = new EventObservable();
+    private final EventObservable<AbstractTransaction> startWorkload_observable = new EventObservable<AbstractTransaction>();
     
     /**
      * 
@@ -695,7 +695,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * transaction request arrives and we are technically beginning the workload
      * portion of a benchmark run.
      */
-    public EventObservable getStartWorkloadObservable() {
+    public EventObservable<AbstractTransaction> getStartWorkloadObservable() {
         return (this.startWorkload_observable);
     }
 
@@ -1134,6 +1134,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
+        ts.init(txn_id, request.getClientHandle(), base_partition,
+                        predict_touchedPartitions, predict_readOnly, predict_abortable,
+                        t_state, catalog_proc, request, done);
+        if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
+        if (d) {
+            LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, touchedPartition=%s, readOnly=%s, abortable=%s]",
+                                    ts, base_partition,
+                                    request.getClientHandle(),
+                                    predict_touchedPartitions, predict_readOnly, predict_abortable));
+        }
+        
         // If this is the first non-sysproc transaction that we've seen, then
         // we will notify anybody that is waiting for this event. This is used to clear
         // out any counters or profiling information that got recorded when we were loading data
@@ -1145,17 +1156,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
             } // SYNCH
         }
-
-        ts.init(txn_id, request.getClientHandle(), base_partition,
-                        predict_touchedPartitions, predict_readOnly, predict_abortable,
-                        t_state, catalog_proc, request, done);
-        if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
-        if (d) {
-            LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, touchedPartition=%s, readOnly=%s, abortable=%s]",
-                                    ts, base_partition,
-                                    request.getClientHandle(),
-                                    predict_touchedPartitions, predict_readOnly, predict_abortable));
-        }
+        
         this.initializeInvocation(ts);
     }
 
@@ -1350,30 +1351,31 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      */
     public void transactionFinish(long txn_id, Hstore.Status status, Collection<Integer> partitions) {
-        if (d) 
-            LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]", txn_id, status, partitions));
+        if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
+                                       txn_id, status, partitions));
         boolean commit = (status == Hstore.Status.OK);
         
-        // We only need to call commit/abort if 
-        // (1) This txn is executing on a remote partition
-        // (2) This txn wasn't a single-partition transaction
+        // If we don't have a AbstractTransaction handle, then we know that we never did anything
+        // for this transaction and we can just ignore this finish request. We do have to tell
+        // the TransactionQueue manager that we're done though
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
-        if (ts == null || (ts instanceof LocalTransaction && ((LocalTransaction)ts).isPredictSinglePartition() == false)) {
-            if (debug.get())
-                LOG.debug(String.format("Calling finishWork for txn #%d on %d partitions", txn_id, partitions.size()));
-            for (Integer p : partitions) {
-                if (this.local_partitions.contains(p) == false) continue;
-                
-                // TODO(cjl16): We only need to tell the queue stuff that the transaction is finished
-                // on an ABORT_REJECT because there won't be a 2PC:PREPARE message
-                if (status == Hstore.Status.ABORT_REJECT) {
-                    
-                }
+        for (int p : partitions) {
+            if (this.local_partitions.contains(p) == false) continue;
+            
+            // We only need to tell the queue stuff that the transaction is finished
+            // on an ABORT_REJECT because there won't be a 2PC:PREPARE message
+            if (status == Hstore.Status.ABORT_REJECT) {
+                this.txnQueueManager.done(txn_id, p);
+            }
 
-                // Then actually commit the transaction in the execution engine
-                this.executors[p.intValue()].finishTransaction(ts, commit);
-            } // FOR
-        }
+            // Then actually commit the transaction in the execution engine
+            // We only need to do this for distributed transactions, because all single-partition
+            // transactions will commit/abort immediately
+            if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
+                if (d) LOG.debug(String.format("Calling finishTransaction for %s on partition %d", ts, p));
+                this.executors[p].finishTransaction(ts, commit);
+            }
+        } // FOR            
     }
 
     public ByteBuffer serializeClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
@@ -1609,6 +1611,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (this.status_monitor != null) TxnCounter.COMPLETED.inc(catalog_proc);
                     break;
                 case ABORT_MISPREDICT:
+                case ABORT_REJECT:
                     if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                     if (t_estimator != null) t_estimator.mispredict(txn_id);
                     if (hstore_conf.site.status_show_txn_info) {
