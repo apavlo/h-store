@@ -19,7 +19,7 @@ import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
@@ -46,7 +46,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
      * 
      * @author pavlo
      */
-    public static class Factory extends CountingPoolableObjectFactory<MarkovPathEstimator> {
+    public static class Factory extends TypedPoolableObjectFactory<MarkovPathEstimator> {
         private final int num_partitions;
         
         public Factory(int num_partitions) {

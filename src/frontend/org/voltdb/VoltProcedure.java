@@ -139,7 +139,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     protected int partitionId = -1;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
-    private EventObservable observable = null;
+    private EventObservable<ClientResponse> observable = null;
 
     // data from hsql wrapper
     private final ArrayList<VoltTable> queryResults = new ArrayList<VoltTable>();
@@ -441,14 +441,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         return hashCode;
     }
 
-    public synchronized void registerCallback(EventObserver observer) {
+    protected synchronized void registerCallback(EventObserver<ClientResponse> observer) {
         if (this.observable == null) {
-            this.observable = new EventObservable();
+            this.observable = new EventObservable<ClientResponse>();
         }
         this.observable.addObserver(observer);
     }
 
-    public void unregisterCallback(EventObserver observer) {
+    protected void unregisterCallback(EventObserver<ClientResponse> observer) {
         this.observable.deleteObserver(observer);
     }
     
@@ -569,13 +569,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             Throwable ex = itex.getCause();
             Class<?> ex_class = ex.getClass();
             
-            if (this.m_localTxnState.hasPendingError() == false) {
-                this.m_localTxnState.setPendingError(new RuntimeException(ex), false);
-            }
-            
             // Pass the exception back to the client if it is serializable
             if (ex instanceof SerializableException) {
+                if (this.m_localTxnState.hasPendingError() == false) {
+                    this.m_localTxnState.setPendingError(new SerializableException(ex), false);
+                }    
                 this.error = (SerializableException)ex;
+            // Otherwise shoot it up the stack like a punk bitch...
             } else if (ex instanceof AssertionError) {
                 throw (AssertionError)ex;
             }

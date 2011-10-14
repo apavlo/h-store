@@ -32,7 +32,7 @@ public class TestCountingPoolableObjectFactory extends TestCase {
      * testMakeFactoryNoArguments
      */
     public void testMakeFactoryNoArguments() throws Exception {
-        CountingPoolableObjectFactory<MockObject> factory = CountingPoolableObjectFactory.makeFactory(MockObject.class, true);
+        TypedPoolableObjectFactory<MockObject> factory = TypedPoolableObjectFactory.makeFactory(MockObject.class, true);
         assertNotNull(factory);
         
         StackObjectPool pool = new StackObjectPool(factory);
@@ -48,7 +48,7 @@ public class TestCountingPoolableObjectFactory extends TestCase {
     public void testMakeFactoryArguments() throws Exception {
         Integer expected0 = 12345;
         String expected1 = "ABC";
-        CountingPoolableObjectFactory<MockObjectWithArgs> factory = CountingPoolableObjectFactory.makeFactory(MockObjectWithArgs.class, true, expected0, expected1);
+        TypedPoolableObjectFactory<MockObjectWithArgs> factory = TypedPoolableObjectFactory.makeFactory(MockObjectWithArgs.class, true, expected0, expected1);
         assertNotNull(factory);
         
         StackObjectPool pool = new StackObjectPool(factory);

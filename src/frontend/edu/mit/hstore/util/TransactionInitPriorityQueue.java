@@ -2,6 +2,11 @@ package edu.mit.hstore.util;
 
 import java.util.PriorityQueue;
 
+import org.apache.log4j.Logger;
+
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+
 /**
  * <p>Extends a PriorityQueue such that is only stores transaction state
  * objects, and it only releases them (to a poll() call) if they are
@@ -15,6 +20,13 @@ import java.util.PriorityQueue;
  * <p>This class manages all that state.</p>
  */
 public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
+    private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     private static final long serialVersionUID = 1L;
 
     public enum QueueState {
@@ -32,6 +44,7 @@ public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
 
     long m_newestCandidateTransaction = -1;
     final int m_siteId;
+    final int m_partitionId;
     long m_txnsPopped = 0;
     long m_lastTxnPopped = 0;
     long m_blockTime = 0;
@@ -41,9 +54,11 @@ public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
      * Tell this queue about all initiators. If any initiators
      * are later referenced that aren't in this list, trip
      * an assertion.
+     * @param partitionId TODO
      */
-    public TransactionInitPriorityQueue(int siteId) {
+    public TransactionInitPriorityQueue(int siteId, int partitionId) {
         m_siteId = siteId;
+        m_partitionId = partitionId;
     }
 
     /**
@@ -107,11 +122,8 @@ public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
 
         // we've decided that this can happen, and it's fine... just ignore it
         if (m_lastTxnPopped > txnId) {
-            StringBuilder msg = new StringBuilder();
-            msg.append("Txn ordering deadlock (QUEUE) at site ").append(m_siteId).append(":\n");
-            msg.append("   txn ").append(m_lastTxnPopped).append(" (");
-            msg.append("   txn ").append(txnId).append(" (");
-            System.err.print(msg.toString());
+            LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %d / NewTxn: %d",
+                                   m_partitionId, m_lastTxnPopped, txnId));
         }
 
         // update the latest transaction for the specified initiator

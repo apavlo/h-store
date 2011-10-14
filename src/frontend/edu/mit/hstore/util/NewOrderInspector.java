@@ -52,6 +52,16 @@ public class NewOrderInspector {
         } // FOR
     }
     
+    private Integer getPartition(Short w_id) {
+        Integer partition = this.neworder_hack_hashes.get(w_id);
+        if (partition == null) {
+            partition = this.hasher.hash(w_id);
+            this.neworder_hack_hashes.put(w_id, partition);
+        }
+        assert(partition != null);
+        return (partition);
+    }
+    
     /**
      * 
      * @param ts
@@ -68,13 +78,7 @@ public class NewOrderInspector {
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
         
-        Integer base_partition = this.neworder_hack_hashes.get(w_id);
-        if (base_partition == null) {
-            base_partition = this.hasher.hash(w_id);
-            this.neworder_hack_hashes.put(w_id, base_partition);
-        }
-        assert(base_partition != null);
-        
+        Integer base_partition = this.getPartition(w_id);
         Collection<Integer> touchedPartitions = this.singlePartitionSets.get(base_partition);
         assert(touchedPartitions != null) : "base_partition = " + base_partition;
         for (short s_w_id : s_w_ids) {
@@ -82,7 +86,8 @@ public class NewOrderInspector {
                 if (touchedPartitions.size() == 1) {
                     touchedPartitions = new HashSet<Integer>(touchedPartitions);
                 }
-                touchedPartitions.add(this.neworder_hack_hashes.get(s_w_id));
+                
+                touchedPartitions.add(this.getPartition(s_w_id));
             }
         } // FOR
         if (debug.get())

@@ -26,7 +26,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
@@ -118,7 +118,7 @@ public class TransactionEstimator implements Loggable {
         /**
          * State Factory
          */
-        public static class Factory extends CountingPoolableObjectFactory<State> {
+        public static class Factory extends TypedPoolableObjectFactory<State> {
             private int num_partitions;
             
             public Factory(int num_partitions) {
@@ -342,12 +342,12 @@ public class TransactionEstimator implements Loggable {
         synchronized (LOG) {
             if (POOL_STATES == null) {
                 if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
-                CountingPoolableObjectFactory<TransactionEstimator.State> s_factory = new State.Factory(this.num_partitions); 
+                TypedPoolableObjectFactory<TransactionEstimator.State> s_factory = new State.Factory(this.num_partitions); 
                 POOL_STATES = new TypedStackObjectPool<TransactionEstimator.State>(s_factory,
                         HStoreConf.singleton().site.pool_estimatorstates_idle);
                 
                 if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
-                CountingPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.num_partitions);
+                TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.num_partitions);
                 POOL_ESTIMATORS = new TypedStackObjectPool<MarkovPathEstimator>(m_factory,
                         HStoreConf.singleton().site.pool_pathestimators_idle);
             }

@@ -97,6 +97,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     protected final void init(int counter_val, RpcCallback<T> orig_callback) {
+        assert(this.isInitialized() == false) : String.format("Trying to reuse %s before it is finished!", this.getClass().getSimpleName());
         if (debug.get())
             LOG.debug(String.format("Initialized new %s with counter = %d", this.getClass().getSimpleName(), counter_val));
         this.counter.set(counter_val);
