@@ -280,6 +280,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * When we get the response for these txn, we know we can commit/abort the speculatively executed transactions
      */
     private AbstractTransaction current_dtxn = null;
+    
+    private Semaphore dtxn_lock = new Semaphore(1);
 
     /**
      * Sets of InitiateTaskMessages that are blocked waiting for the outstanding dtxn to commit
@@ -693,6 +695,36 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         throw new RuntimeException("No transaction state for txn #" + work.getTxnId());
                     }
                     FragmentTaskMessage ftask = (FragmentTaskMessage)work;
+                    
+                    // If there is already a DTXN for this partition and it's not us, then we 
+                    // we have to block.
+                    // TODO: We should have a HStoreConf option that determines whether we should
+                    // block or insert ourselves back into the queue so that we can maybe execute
+                    // some other transactions.
+                    if (this.current_dtxn != null && ts != this.current_dtxn) {
+                        if (d) LOG.debug("Blocking " + ts + " on DTXN lock");
+                        this.dtxn_lock.acquire();
+                    }
+                    
+                    // At this point we know that we are either the current dtxn or the current dtxn is null
+                    if (this.current_dtxn == null) {
+                        synchronized (this.exec_mode) {
+                            this.setCurrentDtxn(ts);
+                            if (hstore_conf.site.exec_speculative_execution) {
+                                this.setExecutionMode(ts, ftask.isReadOnly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
+                            } else {
+                                this.setExecutionMode(ts, ExecutionMode.DISABLED);
+                            }
+                            
+                            if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
+                                                           ts, this.partitionId, this.exec_mode));                    
+                        } // SYNCH
+
+                    // Check whether we should drop down to a less permissive speculative execution mode
+                    } else if (hstore_conf.site.exec_speculative_execution && ftask.isReadOnly() == false) {
+                        this.setExecutionMode(ts, ExecutionMode.COMMIT_NONE);
+                    }
+                    
                     this.processFragmentTaskMessage(ts, ftask);
 
                 // -------------------------------
@@ -856,6 +888,23 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public VoltProcedure getVoltProcedure(String proc_name) {
         return (this.procedures.get(proc_name));
     }
+    
+    
+    /**
+     * 
+     * @param ts
+     */
+    private void setCurrentDtxn(AbstractTransaction ts) {
+        // There can never be another current dtxn still unfinished at this partition!
+        assert(ts == null || this.current_dtxn_blocked.isEmpty()) :
+            String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
+                          this.partitionId, this.current_dtxn, ts, this.current_dtxn_blocked.size());
+        assert(ts == null || this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
+            String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
+                          this.partitionId, this.current_dtxn, ts, this.current_dtxn_blocked.size());
+        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition #%d", ts, this.partitionId));
+        this.current_dtxn = ts;
+    }
 
     // ---------------------------------------------------------------
     // WORK QUEUE PROCESSING METHODS
@@ -878,16 +927,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
         if (ts.isExecReadOnly(this.partitionId)) {
-            if (d) 
-                LOG.debug(String.format("Attempting to enable %s speculative execution at partition %d [txn=%s]",
-                                        this.exec_mode, partitionId, ts));
+            if (d) LOG.debug(String.format("Attempting to enable %s speculative execution at partition %d [txn=%s]",
+                                           this.exec_mode, partitionId, ts));
             synchronized (this.exec_mode) {
                 if (this.current_dtxn == ts && this.exec_mode != ExecutionMode.DISABLED) {
                     this.setExecutionMode(ts, ExecutionMode.COMMIT_READONLY);
                     this.releaseBlockedTransactions(ts, true);
-                    if (d) 
-                        LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=%s]",
-                                                this.exec_mode, partitionId, ts));
+                    if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=%s]",
+                                                   this.exec_mode, partitionId, ts));
                     return (true);
                 }
             } // SYNCH
@@ -926,12 +973,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Execute a new transaction based on an InitiateTaskMessage
      * @param itask
      */
-    protected void processInitiateTaskMessage(LocalTransaction ts, InitiateTaskMessage itask) {
+    protected void processInitiateTaskMessage(LocalTransaction ts, InitiateTaskMessage itask) throws InterruptedException {
         if (hstore_conf.site.txn_profiling) ts.profiler.startExec();
-        
-        // Always reset the ExecutionState
-        this.execState.clear();
-        ts.setExecutionState(this.execState);
         
         ExecutionMode spec_exec = ExecutionMode.COMMIT_ALL;
         boolean release_latch = false;
@@ -943,14 +986,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // If this is going to be a multi-partition transaction, then we will mark it as the current dtxn
             // for this ExecutionSite.
             if (predict_singlePartition == false) {
-                // There can never be another current dtxn still unfinished at this partition!
-                assert(this.current_dtxn_blocked.isEmpty()) :
-                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                                  this.partitionId, this.current_dtxn, ts);
-                assert(this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
-                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                                   this.partitionId, this.current_dtxn, ts);
-                this.current_dtxn = ts;
+                if (d) LOG.debug("Blocking " + ts + " on DTXN lock");
+                this.dtxn_lock.acquire();
+                this.setCurrentDtxn(ts);
                 if (hstore_conf.site.exec_speculative_execution) {
                     this.setExecutionMode(ts, ts.getProcedure().getReadonly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
                 } else {
@@ -988,6 +1026,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
             }
         } // SYNCH
+        
+        // Always reset the ExecutionState
+        this.execState.clear();
+        ts.setExecutionState(this.execState);
         
         VoltProcedure volt_proc = this.procedures.get(itask.getStoredProcedureName());
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
@@ -1118,6 +1160,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @throws Exception
      */
     private void processFragmentTaskMessage(AbstractTransaction ts, FragmentTaskMessage ftask) {
+        
         // A txn is "local" if the Java is executing at the same site as we are
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
@@ -1486,32 +1529,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     public void queueWork(AbstractTransaction ts, FragmentTaskMessage task, RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
         assert(ts.isInitialized());
-
-        if (ts != this.current_dtxn) {
-            if (d) LOG.debug(String.format("Attempting to add %s for %s to partition %d' queue",
-                                           task.getClass().getSimpleName(), ts, this.partitionId));
-            synchronized (this.exec_mode) {
-                assert(this.current_dtxn_blocked.isEmpty()) :
-                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                                  this.partitionId, this.current_dtxn, ts);
-                assert(this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
-                    String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s]",
-                                  this.partitionId, this.current_dtxn, ts);
-                this.current_dtxn = ts;
-                if (hstore_conf.site.exec_speculative_execution) {
-                    this.setExecutionMode(ts, task.isReadOnly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
-                } else {
-                    this.setExecutionMode(ts, ExecutionMode.DISABLED);
-                }
-                
-                if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
-                                               ts, this.partitionId, this.exec_mode));                    
-            } // SYNCH
-
-        // Check whether we should drop down to a less permissive speculative execution mode
-        } else if (hstore_conf.site.exec_speculative_execution && task.isReadOnly() == false) {
-            this.setExecutionMode(ts, ExecutionMode.COMMIT_NONE);
-        }
 
         // Remote Work
         if (callback != null) {
@@ -2063,38 +2080,38 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
     public void finishTransaction(AbstractTransaction ts, boolean commit) {
-        boolean cleanup_dtxn = (this.current_dtxn == ts);
-        if (d) LOG.debug(String.format("Processing finishWork request for %s at partition %d [currentDtxn=%s, cleanup=%s]", ts, this.partitionId, this.current_dtxn, cleanup_dtxn));
+        assert(this.current_dtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.current_dtxn;
+        if (d) LOG.debug(String.format("Processing finishWork request for %s at partition %d", ts, this.partitionId));
         
         this.finishWork(ts, commit);
         
         // Check whether this is the response that the speculatively executed txns have been waiting for
         // We could have turned off speculative execution mode beforehand 
-        if (cleanup_dtxn) {
-            if (d) LOG.debug(String.format("Attempting to unmark %s as the current DTXN at partition %d and setting execution mode to %s",
-                                           this.current_dtxn, this.partitionId, ExecutionMode.COMMIT_ALL));
-            synchronized (this.exec_mode) {
-                // Resetting the current_dtxn variable has to come *before* we change the execution mode
-                this.current_dtxn = null;
-                this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
+        if (d) LOG.debug(String.format("Attempting to unmark %s as the current DTXN at partition %d and setting execution mode to %s",
+                                       this.current_dtxn, this.partitionId, ExecutionMode.COMMIT_ALL));
+        synchronized (this.exec_mode) {
+            // Resetting the current_dtxn variable has to come *before* we change the execution mode
+            this.setCurrentDtxn(null);
+            this.setExecutionMode(ts, ExecutionMode.COMMIT_ALL);
+            
+            // We can always commit our boys no matter what if we know that this multi-partition txn 
+            // was read-only at the given partition
+            if (hstore_conf.site.exec_speculative_execution) {
+                if (d) 
+                    LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
+                                            this.partitionId, ts));
+                Boolean readonly = ts.isExecReadOnly(this.partitionId);
+                this.releaseQueuedResponses(readonly != null && readonly == true ? true : commit);
                 
-                // We can always commit our boys no matter what if we know that this multi-partition txn 
-                // was read-only at the given partition
-                if (hstore_conf.site.exec_speculative_execution) {
-                    if (d) 
-                        LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
-                                                this.partitionId, ts));
-                    Boolean readonly = ts.isExecReadOnly(this.partitionId);
-                    this.releaseQueuedResponses(readonly != null && readonly == true ? true : commit);
-                    
-                    this.exec_latch.release();
-                    assert(this.exec_latch.availablePermits() <= 1) : String.format("Invalid exec latch state [permits=%d, mode=%s]", this.exec_latch.availablePermits(), this.exec_mode);
-                }
+                this.exec_latch.release();
+                assert(this.exec_latch.availablePermits() <= 1) : String.format("Invalid exec latch state [permits=%d, mode=%s]", this.exec_latch.availablePermits(), this.exec_mode);
+            }
 
-                // Release blocked transactions
-                this.releaseBlockedTransactions(ts, false);
-            } // SYNCH
-        }
+            // Release blocked transactions
+            this.releaseBlockedTransactions(ts, false);
+        } // SYNCH
+        if (d) LOG.debug("Releasing DTXN lock");
+        this.dtxn_lock.release();
     }    
     /**
      * 
@@ -2103,15 +2120,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private void releaseBlockedTransactions(AbstractTransaction ts, boolean speculative) {
         if (this.current_dtxn_blocked.isEmpty() == false) {
-            if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of %s",
-                                           this.current_dtxn_blocked.size(), this.partitionId, ts));
-            this.work_queue.addAll(this.current_dtxn_blocked);
-//            for (TransactionInfoBaseMessage task : this.current_dtxn_blocked) {
-//                if (speculative) release_ts.setSpeculative(true);
-//                this.work_queue.add(task);
-//            } // FOR
-            this.current_dtxn_blocked.clear();
+            synchronized (this.exec_mode) {
+                if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of %s",
+                                               this.current_dtxn_blocked.size(), this.partitionId, ts));
+                this.work_queue.addAll(this.current_dtxn_blocked);
+                this.current_dtxn_blocked.clear();
+            } // SYNCH
         }
+        assert(this.current_dtxn_blocked.isEmpty());
     }
     
     /**

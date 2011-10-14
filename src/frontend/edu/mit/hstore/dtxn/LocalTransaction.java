@@ -880,13 +880,6 @@ public class LocalTransaction extends AbstractTransaction {
         m = new ListOrderedMap<String, Object>();
         m.put("Procedure", this.getProcedureName());
         m.put("SysProc", this.sysproc);
-        m.put("Dependency Ctr", this.state.dependency_ctr);
-        m.put("Internal Ctr", this.state.internal_dependencies.size());
-        m.put("Received Ctr", this.state.received_ctr);
-        m.put("CountdownLatch", this.state.dependency_latch);
-        m.put("# of Blocked Tasks", this.state.blocked_tasks.size());
-        m.put("# of Statements", this.state.batch_size);
-        m.put("Expected Results", this.state.results_dependency_stmt_ctr.keySet());
         maps.add(m);
         
         // Predictions
@@ -899,12 +892,21 @@ public class LocalTransaction extends AbstractTransaction {
         maps.add(m);
         
         // Actual Execution
-        m = new ListOrderedMap<String, Object>();
-        m.put("Exec Single-Partitioned", this.isExecSinglePartition());
-        m.put("Speculative Execution", this.exec_speculative);
-        m.put("Touched Partitions", this.state.exec_touchedPartitions);
-        m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
-        maps.add(m);
+        if (this.state != null) {
+            m = new ListOrderedMap<String, Object>();
+            m.put("Exec Single-Partitioned", this.isExecSinglePartition());
+            m.put("Speculative Execution", this.exec_speculative);
+            m.put("Exec Read Only", Arrays.toString(this.exec_readOnly));
+            m.put("Touched Partitions", this.state.exec_touchedPartitions);
+            m.put("Dependency Ctr", this.state.dependency_ctr);
+            m.put("Internal Ctr", this.state.internal_dependencies.size());
+            m.put("Received Ctr", this.state.received_ctr);
+            m.put("CountdownLatch", this.state.dependency_latch);
+            m.put("# of Blocked Tasks", this.state.blocked_tasks.size());
+            m.put("# of Statements", this.state.batch_size);
+            m.put("Expected Results", this.state.results_dependency_stmt_ctr.keySet());
+            maps.add(m);
+        }
 
         // Additional Info
         m = new ListOrderedMap<String, Object>();
@@ -918,54 +920,56 @@ public class LocalTransaction extends AbstractTransaction {
         
         StringBuilder sb = new StringBuilder();
         sb.append(StringUtil.formatMaps(maps.toArray(new Map<?, ?>[maps.size()])));
-        sb.append(StringUtil.SINGLE_LINE);
-
-        String stmt_debug[] = new String[this.state.batch_size];
-        for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
-            Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.state.dependencies[stmt_index]); 
-            Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
-            String inner = "";
-            inner += "  Statement #" + stmt_index + "\n";
-            inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
-            
-            inner += "  Dependency Partitions:\n";
-            for (Integer dependency_id : dependency_ids) {
-                inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
-            } // FOR
-            
-            inner += "  Dependency Results:\n";
-            for (Integer dependency_id : dependency_ids) {
-                inner += "    [" + dependency_id + "] => [";
-                String add = "";
-                for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
-                    inner += add + (vt == null ? vt : "{" + vt.getRowCount() + " tuples}");
-                    add = ",";
-                }
-                inner += "]\n";
-            } // FOR
-            
-            inner += "  Blocked FragmentTaskMessages:\n";
-            boolean none = true;
-            for (Integer dependency_id : dependency_ids) {
-                DependencyInfo d = s_dependencies.get(dependency_id);
-                for (FragmentTaskMessage task : d.getBlockedFragmentTaskMessages()) {
-                    if (task == null) continue;
+        
+        if (this.state != null) {
+            sb.append(StringUtil.SINGLE_LINE);
+            String stmt_debug[] = new String[this.state.batch_size];
+            for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
+                Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.state.dependencies[stmt_index]); 
+                Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
+                String inner = "";
+                inner += "  Statement #" + stmt_index + "\n";
+                inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
+                
+                inner += "  Dependency Partitions:\n";
+                for (Integer dependency_id : dependency_ids) {
+                    inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
+                } // FOR
+                
+                inner += "  Dependency Results:\n";
+                for (Integer dependency_id : dependency_ids) {
                     inner += "    [" + dependency_id + "] => [";
                     String add = "";
-                    for (long id : task.getFragmentIds()) {
-                        inner += add + id;
-                        add = ", ";
-                    } // FOR
-                    inner += "]";
-                    if (d.hasTasksReady()) inner += " READY!"; 
-                    inner += "\n";
-                    none = false;
-                }
-            } // FOR
-            if (none) inner += "    <none>\n";
-            stmt_debug[stmt_index] = inner;
-        } // (dependencies)
-        sb.append(StringUtil.columns(stmt_debug));
+                    for (VoltTable vt : s_dependencies.get(dependency_id).getResults()) {
+                        inner += add + (vt == null ? vt : "{" + vt.getRowCount() + " tuples}");
+                        add = ",";
+                    }
+                    inner += "]\n";
+                } // FOR
+                
+                inner += "  Blocked FragmentTaskMessages:\n";
+                boolean none = true;
+                for (Integer dependency_id : dependency_ids) {
+                    DependencyInfo d = s_dependencies.get(dependency_id);
+                    for (FragmentTaskMessage task : d.getBlockedFragmentTaskMessages()) {
+                        if (task == null) continue;
+                        inner += "    [" + dependency_id + "] => [";
+                        String add = "";
+                        for (long id : task.getFragmentIds()) {
+                            inner += add + id;
+                            add = ", ";
+                        } // FOR
+                        inner += "]";
+                        if (d.hasTasksReady()) inner += " READY!"; 
+                        inner += "\n";
+                        none = false;
+                    }
+                } // FOR
+                if (none) inner += "    <none>\n";
+                stmt_debug[stmt_index] = inner;
+            } // (dependencies)
+            sb.append(StringUtil.columns(stmt_debug));
+        }
         
         return (sb.toString());
     }

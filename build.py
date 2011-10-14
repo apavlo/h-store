@@ -43,7 +43,7 @@ CTX = BuildContext(sys.argv)
 #  specific targets
 CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
             -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
-            -Winit-self -Wno-sign-compare -Wno-unused-parameter
+            -Winit-self -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable
             -pthread
             -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
             -fno-omit-frame-pointer
