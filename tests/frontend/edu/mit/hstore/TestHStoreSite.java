@@ -35,7 +35,7 @@ public class TestHStoreSite extends BaseTestCase {
     private static final long CLIENT_HANDLE = 1l;
     
     private MockDtxnCoordinator dtxnCoordinator;
-    private HStoreSite coordinator;
+//    private HStoreSite hstore_site;
     private PartitionEstimator p_estimator;
     private StoredProcedureInvocation invocation;
     private byte[] invocation_bytes;
@@ -57,7 +57,7 @@ public class TestHStoreSite extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-        coordinator = new HStoreSite(catalog_site, executors, p_estimator);
+//        hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
         // FIXME coordinator.addDtxnCoordinator(dtxnCoordinator);
     }
     
