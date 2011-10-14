@@ -1624,7 +1624,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (hstore_conf.site.status_show_txn_info) TxnCounter.ABORTED.inc(catalog_proc);
                     break;
                 default:
-                    assert(false) : String.format("Unexpected status %s for %s", status, ts);
+                    LOG.warn(String.format("Unexpected status %s for %s", status, ts));
             } // SWITCH
         } catch (Throwable ex) {
             LOG.error(String.format("Unexpected error when cleaning up %s transaction %s", status, ts), ex);

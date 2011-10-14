@@ -483,7 +483,8 @@ public class BatchPlanner {
             if (BatchPlanner.ENABLE_CACHING) {
                 Collection<Integer> param_idxs = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
                 if (param_idxs != null && param_idxs.isEmpty() == false) {
-                    this.cache_fastLookups[i] = CollectionUtil.toIntArray(param_idxs);
+                    int temp[] = CollectionUtil.toIntArray(param_idxs);
+                    this.cache_fastLookups[i] = temp;
                 }
             }
         } // FOR

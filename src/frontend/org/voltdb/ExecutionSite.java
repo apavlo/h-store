@@ -626,7 +626,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.localPartitionIds = hstore_site.getLocalPartitionIds();
         
         if (hstore_conf.site.exec_profiling) {
-            EventObservable eo = this.hstore_site.getStartWorkloadObservable();
+            EventObservable<AbstractTransaction> eo = this.hstore_site.getStartWorkloadObservable();
             this.work_idle_time.resetOnEvent(eo);
             this.work_exec_time.resetOnEvent(eo);
         }
@@ -1061,45 +1061,45 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug(String.format("Finished execution of %s [status=%s, beforeMode=%s, currentMode=%s]", ts, status, before_mode, this.exec_mode));
 
         // Process the ClientResponse immediately if:
-        //  (1) This is the multi-partition transaction that everyone is waiting for
-        //  (2) The transaction was not executed under speculative execution mode 
-        //  (3) The transaction does not need to wait for the multi-partition transaction to finish first
-        if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, before_mode)) {
-            if (hstore_conf.site.exec_postprocessing_thread) {
-                if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, status));
-                hstore_site.queueClientResponse(this, ts, cresponse);
-            } else {
-                if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, status));
-                this.processClientResponse(ts, cresponse);
-            }
 
-        // Otherwise always queue our response, since we know that whatever thread is out there
-        // is waiting for us to finish before it drains the queued responses
+        //
+        // We assume that most transactions are not speculatively executed and are successful
+        // Therefore we don't want to grab the exec_mode lock here.
+        if (this.canProcessClientResponseNow(ts, status, before_mode)) {
+            this.processClientResponse(ts, cresponse);
         } else {
-            // If the transaction aborted, then we can't execute any transaction that touch the tables that this guy touches
-            // But since we can't just undo this transaction without undoing everything that came before it, we'll just
-            // disable executing all transactions until the multi-partition transaction commits
-            // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
-            // that there already was a multi-partition transaction hanging around.
-            if (status != Hstore.Status.OK) {
-                this.setExecutionMode(ts, ExecutionMode.DISABLED);
-                synchronized (this.work_queue) {
-                    FragmentTaskMessage ftask = null;
-                    if (this.work_queue.peekFirst() instanceof FragmentTaskMessage) {
-                        ftask = (FragmentTaskMessage)this.work_queue.pollFirst();
-                        assert(ftask != null);
+            synchronized (this.exec_mode) {
+                if (this.canProcessClientResponseNow(ts, status, before_mode)) {
+                    this.processClientResponse(ts, cresponse);
+                // Otherwise always queue our response, since we know that whatever thread is out there
+                // is waiting for us to finish before it drains the queued responses
+                } else {
+                    // If the transaction aborted, then we can't execute any transaction that touch the tables that this guy touches
+                    // But since we can't just undo this transaction without undoing everything that came before it, we'll just
+                    // disable executing all transactions until the multi-partition transaction commits
+                    // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
+                    // that there already was a multi-partition transaction hanging around.
+                    if (status != Hstore.Status.OK) {
+                        this.setExecutionMode(ts, ExecutionMode.DISABLED);
+                        synchronized (this.work_queue) {
+                            FragmentTaskMessage ftask = null;
+                            if (this.work_queue.peekFirst() instanceof FragmentTaskMessage) {
+                                ftask = (FragmentTaskMessage)this.work_queue.pollFirst();
+                                assert(ftask != null);
+                            }
+                            if (t) LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s [hasFTask=%s]",
+                                                           this.work_queue.size(), this.partitionId, this.exec_mode, (ftask != null)));
+                            this.work_queue.drainTo(this.current_dtxn_blocked);
+                            if (ftask != null) this.work_queue.add(ftask);
+                        } // SYNCH
+                        if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
                     }
-                    if (t) LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s [hasFTask=%s]",
-                                                   this.work_queue.size(), this.partitionId, this.exec_mode, (ftask != null)));
-                    this.work_queue.drainTo(this.current_dtxn_blocked);
-                    if (ftask != null) this.work_queue.add(ftask);
-                } // SYNCH
-                if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
-            }
-            if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, hasLatch=%s, latchQueue=%s, dtxn=%s]",
-                                           ts, cresponse.getStatus(), before_mode, this.exec_mode,
-                                           release_latch, this.exec_latch.getQueueLength(), this.current_dtxn));
-            this.queueClientResponse(ts, cresponse);
+                    if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, hasLatch=%s, latchQueue=%s, dtxn=%s]",
+                                                   ts, cresponse.getStatus(), before_mode, this.exec_mode,
+                                                   release_latch, this.exec_latch.getQueueLength(), this.current_dtxn));
+                    this.queueClientResponse(ts, cresponse);
+                }
+            } // SYNCH
         }
         
         // Release the latch in case anybody is waiting for us to finish
@@ -1114,10 +1114,23 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         volt_proc.finish();
     }
+    
+    private void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        if (hstore_conf.site.exec_postprocessing_thread) {
+            if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
+            hstore_site.queueClientResponse(this, ts, cresponse);
+        } else {
+            if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
+            this.sendClientResponse(ts, cresponse);
+        }
+    }
 
     /**
      * Determines whether a finished transaction that executed locally can have their ClientResponse processed immediately
      * or if it needs to wait for the response from the outstanding multi-partition transaction for this partition 
+     * (1) This is the multi-partition transaction that everyone is waiting for
+     * (2) The transaction was not executed under speculative execution mode 
+     * (3) The transaction does not need to wait for the multi-partition transaction to finish first
      * @param ts
      * @param status
      * @param spec_exec
@@ -1127,7 +1140,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, mode=%s]",
                                        ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), spec_exec));
         // Commit All
-        if (this.exec_mode == ExecutionMode.COMMIT_ALL) {
+        if (ts.isPredictSinglePartition() == false || this.exec_mode == ExecutionMode.COMMIT_ALL) {
             return (true);
             
         // Process successful txns based on the mode that it was executed under
@@ -1953,25 +1966,28 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /**
      * Queue a speculatively executed transaction to send its ClientResponseImpl message
      */
-    protected void queueClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    private void queueClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         if (d) LOG.debug(String.format("Queuing ClientResponse for %s [handle=%s, status=%s]",
                                        ts, ts.getClientHandle(), cresponse.getStatus()));
         assert(ts.isPredictSinglePartition() == true) :
             String.format("Specutatively executed multi-partition %s [mode=%s, status=%s]",
                           ts, this.exec_mode, cresponse.getStatus());
         assert(ts.isSpeculative() == true) :
-            String.format("Queuing non-specutative %s [mode=%s, status=%s]",
+            String.format("Queuing ClientResponse for non-specutative %s [mode=%s, status=%s]",
+                          ts, this.exec_mode, cresponse.getStatus());
+        assert(cresponse.getStatus() != Hstore.Status.ABORT_MISPREDICT) : 
+            String.format("Trying to queue ClientResponse for mispredicted %s [mode=%s, status=%s]",
                           ts, this.exec_mode, cresponse.getStatus());
         assert(this.exec_mode != ExecutionMode.COMMIT_ALL) :
-            String.format("Queuing %s when in non-specutative mode [mode=%s, status=%s]",
+            String.format("Queuing ClientResponse for %s when in non-specutative mode [mode=%s, status=%s]",
                           ts, this.exec_mode, cresponse.getStatus());
-        assert(cresponse.getStatus() != Hstore.Status.ABORT_MISPREDICT) : "Trying to queue mispredicted " + ts;
-        // FIXME if (hstore_conf.site.txn_profiling) ts.profiler.finish_time.stop();
+
         this.queued_responses.add(Pair.of(ts, cresponse));
+
         if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
     }
     
-    protected void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    protected void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
@@ -2002,7 +2018,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // Store the ClientResponse in the TransactionPrepareCallback so that
             // when we get all of our 
             TransactionPrepareCallback callback = ts.getTransactionPrepareCallback();
-            assert(callback != null);
+            assert(callback != null) : "Missing TransactionPrepareCallback for " + ts + " [initialized=" + ts.isInitialized() + "]";
             callback.setClientResponse(cresponse);
             
             // We have to send a prepare message to all of our remote HStoreSites
@@ -2207,7 +2223,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 hstore_site.queueClientResponse(this, ts, cr);
             } else {
                 if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
-                this.processClientResponse(ts, cr);
+                this.sendClientResponse(ts, cr);
             }
         } // WHILE
         if (d && skip_commit > 0 && hstore_conf.site.exec_queued_response_ee_bypass) {

@@ -2,6 +2,7 @@ package edu.mit.hstore.dtxn;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -127,7 +128,7 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public Set<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
+    public Collection<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
         if (this.blocked_tasks_released.compareAndSet(false, true)) {
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
             return (this.blocked_tasks);
