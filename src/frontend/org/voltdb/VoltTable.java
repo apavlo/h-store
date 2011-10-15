@@ -892,6 +892,10 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
      */
     @Override
     public String toString() {
+        return this.toString(true);
+    }
+    
+    public String toString(boolean includeData) {
         assert(verifyTableInvariants());
         StringBuffer buffer = new StringBuffer();
 
@@ -921,61 +925,65 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
             buffer.append("(").append(getColumnName(i)).append(":").append(getColumnType(i).name()).append("), ");
         buffer.append("\n");
 
-        buffer.append(" rows -\n");
-
-        VoltTableRow r = cloneRow();
-        r.resetRowPosition();
-        while (r.advanceRow()) {
-            buffer.append("  ");
-            for (int i = 0; i < m_colCount; i++) {
-                switch(getColumnType(i)) {
-                case TINYINT:
-                case SMALLINT:
-                case INTEGER:
-                case BIGINT:
-                    long lval = r.getLong(i);
-                    if (r.wasNull())
-                        buffer.append("NULL, ");
-                    else
-                        buffer.append(lval + ", ");
-                    break;
-                case FLOAT:
-                    double dval = r.getDouble(i);
-                    if (r.wasNull())
-                        buffer.append("NULL, ");
-                    else
-                        buffer.append(dval + ", ");
-                    break;
-                case TIMESTAMP:
-                    TimestampType tstamp = r.getTimestampAsTimestamp(i);
-                    if (r.wasNull()) {
-                        buffer.append("NULL, ");
-                        assert (tstamp == null);
-                    } else {
-                        buffer.append(tstamp + ", ");
+        if (includeData) {
+            buffer.append(" rows -\n");
+    
+            VoltTableRow r = cloneRow();
+            r.resetRowPosition();
+            while (r.advanceRow()) {
+                buffer.append("  ");
+                for (int i = 0; i < m_colCount; i++) {
+                    switch(getColumnType(i)) {
+                    case TINYINT:
+                    case SMALLINT:
+                    case INTEGER:
+                    case BIGINT:
+                        long lval = r.getLong(i);
+                        if (r.wasNull())
+                            buffer.append("NULL, ");
+                        else
+                            buffer.append(lval + ", ");
+                        break;
+                    case FLOAT:
+                        double dval = r.getDouble(i);
+                        if (r.wasNull())
+                            buffer.append("NULL, ");
+                        else
+                            buffer.append(dval + ", ");
+                        break;
+                    case TIMESTAMP:
+                        TimestampType tstamp = r.getTimestampAsTimestamp(i);
+                        if (r.wasNull()) {
+                            buffer.append("NULL, ");
+                            assert (tstamp == null);
+                        } else {
+                            buffer.append(tstamp + ", ");
+                        }
+                        break;
+                    case STRING:
+                        String string = r.getString(i);
+                        if (r.wasNull()) {
+                            buffer.append("NULL, ");
+                            assert (string == null);
+                        } else {
+                            buffer.append(string + ", ");
+                        }
+                        break;
+                    case DECIMAL:
+                        BigDecimal bd = r.getDecimalAsBigDecimal(i);
+                        if (r.wasNull()) {
+                            buffer.append("NULL, ");
+                            assert (bd == null);
+                        } else {
+                            buffer.append(bd.toString() + ", ");
+                        }
+                        break;
                     }
-                    break;
-                case STRING:
-                    String string = r.getString(i);
-                    if (r.wasNull()) {
-                        buffer.append("NULL, ");
-                        assert (string == null);
-                    } else {
-                        buffer.append(string + ", ");
-                    }
-                    break;
-                case DECIMAL:
-                    BigDecimal bd = r.getDecimalAsBigDecimal(i);
-                    if (r.wasNull()) {
-                        buffer.append("NULL, ");
-                        assert (bd == null);
-                    } else {
-                        buffer.append(bd.toString() + ", ");
-                    }
-                    break;
                 }
+                buffer.append("\n");
             }
-            buffer.append("\n");
+        } else {
+            buffer.append(" rows - " + this.getRowCount() + "\n");
         }
 
         assert(verifyTableInvariants());

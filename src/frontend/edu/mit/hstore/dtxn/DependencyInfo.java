@@ -164,19 +164,30 @@ public class DependencyInfo implements Poolable {
         return (this.results_list);
     }
     
-    protected List<VoltTable> getResults(int local_partition, boolean flip_local_partition) {
+    /**
+     * This is a very important method but it actually sucks
+     * In order to use a VoltTable that was produce by another partition on the same HStoreSite,
+     * we have to make a copy of this data into a new ByteBuffer.
+     * This is a horrible hack and will need to be revisited once we start figuring things out
+     * @param local_partition
+     * @param flip_local_partition
+     * @return
+     */
+    protected List<VoltTable> getResults(Collection<Integer> local_partitions, boolean flip_local_partition) {
         if (flip_local_partition) {
-            int idx = this.results.indexOf(local_partition);
-            if (idx != -1) {
-                if (d) LOG.debug(String.format("Copying ByteBuffer for DependencyId %d from Partition %d", this.dependency_id, local_partition));
-                VoltTable vt = this.results_list.get(idx);
-                assert(vt != null);
-                ByteBuffer buffer = vt.getTableDataReference();
-                byte arr[] = new byte[vt.getUnderlyingBufferSize()];
-                buffer.get(arr, 0, arr.length);
-                // LOG.info("FLIP: " + Arrays.toString(newBuffer.array()));
-                this.results_list.set(idx, new VoltTable(ByteBuffer.wrap(arr), true));
-            }
+            for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
+                Integer partition = this.results.get(i);
+                if (local_partitions.contains(partition)) {
+                    if (d) LOG.debug(String.format("Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
+                                                    this.dependency_id, partition));
+                    VoltTable vt = this.results_list.get(i);
+                    assert(vt != null);
+                    ByteBuffer buffer = vt.getTableDataReference();
+                    byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
+                    buffer.get(arr, 0, arr.length);
+                    this.results_list.set(i, new VoltTable(ByteBuffer.wrap(arr), true));
+                }
+            } // FOR
         }
         return (this.results_list);
     }

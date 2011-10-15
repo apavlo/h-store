@@ -170,7 +170,7 @@ public abstract class AbstractTransaction implements Poolable {
         } // FOR
 
         if (debug.get())
-            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d",
+            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d]",
                                    txn_id, this.hashCode()));
         this.txn_id = -1;
     }
@@ -368,7 +368,7 @@ public abstract class AbstractTransaction implements Poolable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
+            if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + " - " + error.getMessage());
             this.pending_error = error;
         }
     }
