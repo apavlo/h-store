@@ -13,8 +13,8 @@ import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 
-public class TransactionQueue implements Runnable {
-    private static final Logger LOG = Logger.getLogger(TransactionQueue.class);
+public class TransactionQueueManager implements Runnable {
+    private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -52,7 +52,7 @@ public class TransactionQueue implements Runnable {
      * Constructor
      * @param hstore_site
      */
-    public TransactionQueue(HStoreSite hstore_site) {
+    public TransactionQueueManager(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.localPartitions = hstore_site.getLocalPartitionIds();
         assert(this.localPartitions.isEmpty() == false);

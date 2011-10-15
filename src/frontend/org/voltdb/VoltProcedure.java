@@ -1002,6 +1002,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         // At this point we have to calculate exactly what we need to do on each partition
         // for this batch. So somehow right now we need to fire this off to either our
         // local executor or to Evan's magical distributed transaction manager
+        assert(this.predict_singlepartition == this.m_currentTxnState.isPredictSinglePartition()) :
+            String.format("%s != %s\n%s", this.predict_singlepartition, this.m_currentTxnState.isPredictSinglePartition(), this.m_currentTxnState.debug());
         this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(), this.client_handle,
                                       this.partitionId, params, this.predict_singlepartition);
         assert(this.plan != null);

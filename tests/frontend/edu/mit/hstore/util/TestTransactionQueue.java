@@ -28,7 +28,7 @@ public class TestTransactionQueue extends BaseTestCase {
     private static final int NUM_PARTITONS = 4;
     
     HStoreSite hstore_site;
-    TransactionQueue queue;
+    TransactionQueueManager queue;
     
     class MockCallback implements RpcCallback<Hstore.TransactionInitResponse> {
         Semaphore lock = new Semaphore(0);
@@ -59,7 +59,7 @@ public class TestTransactionQueue extends BaseTestCase {
             site.initHStoreSite(hstore_site);    
         } // FOR
         
-        this.queue = new TransactionQueue(hstore_site);
+        this.queue = new TransactionQueueManager(hstore_site);
     }
     
     /**

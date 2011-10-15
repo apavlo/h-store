@@ -88,7 +88,7 @@ import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
 import edu.mit.hstore.util.NewOrderInspector;
-import edu.mit.hstore.util.TransactionQueue;
+import edu.mit.hstore.util.TransactionQueueManager;
 import edu.mit.hstore.util.TxnCounter;
 
 /**
@@ -166,7 +166,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     private final HStoreThreadManager threadManager;
     
-    private final TransactionQueue txnQueueManager;
+    private final TransactionQueueManager txnQueueManager;
     
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
@@ -341,7 +341,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.thresholds = new EstimationThresholds(); // default values
 
         // Distributed Transaction Queue Manager
-        this.txnQueueManager = new TransactionQueue(this);
+        this.txnQueueManager = new TransactionQueueManager(this);
         
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
@@ -477,7 +477,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(catalog_proc != null) : "Invalid Procedure name '" + proc_name + "'";
         return (this.param_manglers.get(catalog_proc));
     }
-    protected TransactionQueue getTransactionQueueManager() {
+    protected TransactionQueueManager getTransactionQueueManager() {
         return (this.txnQueueManager);
     }
     public EstimationThresholds getThresholds() {
@@ -517,12 +517,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return this.partition_site_xref.get(partition_id);
     }
     
-    public LocalTransaction getLocalTransaction(long txn_id) {
-        return ((LocalTransaction)this.inflight_txns.get(txn_id));
-    }
-    
-    public RemoteTransaction getRemoteTransaction(long txn_id) {
-        return ((RemoteTransaction)this.inflight_txns.get(txn_id));
+    @SuppressWarnings("unchecked")
+    public <T extends AbstractTransaction> T getTransaction(long txn_id) {
+        return ((T)this.inflight_txns.get(txn_id));
     }
     
     /**
@@ -1517,8 +1514,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         Collection<Integer> predict_touchedPartitions = null;
         if (status == Hstore.Status.ABORT_REJECT) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
+        } else if (orig_ts.getOriginalTransactionId() == null) {
+            predict_touchedPartitions = new HashSet<Integer>(orig_ts.getTouchedPartitions().values());
         } else {
-            predict_touchedPartitions = (orig_ts.getOriginalTransactionId() == null ? orig_ts.getTouchedPartitions().values() : this.all_partitions);
+            predict_touchedPartitions = this.all_partitions;
         }
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME

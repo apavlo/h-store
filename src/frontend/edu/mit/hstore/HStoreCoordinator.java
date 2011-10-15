@@ -21,7 +21,6 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.VoltMessage;
-import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.Pair;
 
 import ca.evanjones.protorpc.NIOEventLoop;
@@ -49,7 +48,6 @@ import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
-import edu.mit.hstore.util.TransactionQueue;
 
 /**
  * 

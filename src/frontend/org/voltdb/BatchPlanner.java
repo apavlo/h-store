@@ -26,17 +26,7 @@
 package org.voltdb;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -85,11 +75,6 @@ public class BatchPlanner {
     
     private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(9000);
 
-    private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
-    
-    private static boolean ENABLE_PROFILING = false;
-    private static boolean ENABLE_CACHING = false;
-    
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -108,6 +93,9 @@ public class BatchPlanner {
     private final int num_partitions;
     private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>(); 
+    
+    private final boolean enable_profiling;
+    private final boolean enable_caching;
     
     // FAST SINGLE-PARTITION LOOKUP CACHE
     private final int cache_fastLookups[][];
@@ -454,14 +442,9 @@ public class BatchPlanner {
         this.hasher = p_estimator.getHasher();
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
         this.plan = new BatchPlan(this.maxRoundSize);
+        this.enable_profiling = hstore_conf.site.planner_profiling;
+        this.enable_caching = hstore_conf.site.planner_caching; 
         
-        // Initialize static members
-        if (BatchPlanner.INITIALIZED.get() == false && BatchPlanner.INITIALIZED.compareAndSet(false, true)) {
-            BatchPlanner.preload(CatalogUtil.getDatabase(catalog_proc));
-            BatchPlanner.ENABLE_PROFILING = hstore_conf.site.planner_profiling;
-            BatchPlanner.ENABLE_CACHING = hstore_conf.site.planner_caching;
-        }
-
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         
@@ -469,8 +452,8 @@ public class BatchPlanner {
         this.stmt_is_readonly = new boolean[this.batchSize];
         this.stmt_is_replicatedonly = new boolean[this.batchSize];
         
-        this.cache_fastLookups = (BatchPlanner.ENABLE_CACHING ? new int[this.batchSize][] : null);
-        this.cache_singlePartitionPlans = (BatchPlanner.ENABLE_CACHING ? new BatchPlan[this.num_partitions] : null);
+        this.cache_fastLookups = (this.enable_caching ? new int[this.batchSize][] : null);
+        this.cache_singlePartitionPlans = (this.enable_caching ? new BatchPlan[this.num_partitions] : null);
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].catStmt;
             this.stmt_is_readonly[i] = batchStmts[i].catStmt.getReadonly();
@@ -480,17 +463,16 @@ public class BatchPlanner {
             // Since most batches are going to be single-partition, we will cache
             // the parameter offsets on how to determine whether a Statement is
             // multi-partition or not 
-            if (BatchPlanner.ENABLE_CACHING) {
+            if (this.enable_caching) {
                 Collection<Integer> param_idxs = p_estimator.getStatementEstimationParameters(this.catalog_stmts[i]);
                 if (param_idxs != null && param_idxs.isEmpty() == false) {
-                    int temp[] = CollectionUtil.toIntArray(param_idxs);
-                    this.cache_fastLookups[i] = temp;
+                    this.cache_fastLookups[i] = CollectionUtil.toIntArray(param_idxs);
                 }
             }
         } // FOR
         
         // PROFILING
-        if (BatchPlanner.ENABLE_PROFILING) {
+        if (this.enable_profiling) {
             this.time_plan = new ProfileMeasurement("BuildPlan");
             this.time_fragmentTaskMessages = new ProfileMeasurement("BuildFragments");
             this.time_planGraph = new ProfileMeasurement("BuildGraph");
@@ -539,23 +521,28 @@ public class BatchPlanner {
      * @return
      */
     public BatchPlan plan(long txn_id, long client_handle, int base_partition, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
-        if (BatchPlanner.ENABLE_PROFILING) time_plan.start();
-        if (debug.get()) LOG.debug(String.format("Constructing a new %s BatchPlan for txn #%d", this.catalog_proc.getName(), txn_id));
+        if (this.enable_profiling) time_plan.start();
+        if (debug.get())
+            LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
+                                    this.catalog_proc.getName(), (predict_singlepartitioned ? "single-partition" : "distributed"), txn_id));
         
         // OPTIMIZATION: Check whether we can use a cached single-partition BatchPlan
         boolean cache_isSinglePartition[] = null;
-        if (BatchPlanner.ENABLE_CACHING) {
+        if (this.enable_caching) {
             boolean is_allSinglePartition = true;
             cache_isSinglePartition = new boolean[this.batchSize];
             for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
                 Object params[] = batchArgs[stmt_index].toArray();
                 
                 if (cache_fastLookups[stmt_index] == null) {
+                    if (debug.get())
+                        LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
+                                                txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
                     cache_isSinglePartition[stmt_index] = false;
                 } else {
                     if (debug.get())
-                        LOG.debug(String.format("[%02d] Using fast-lookup caching for %s: %s",
-                                                stmt_index,
+                        LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s",
+                                                txn_id, stmt_index,
                                                 this.catalog_stmts[stmt_index].fullName(),
                                                 Arrays.toString(cache_fastLookups[stmt_index])));
                     cache_isSinglePartition[stmt_index] = true;    
@@ -566,17 +553,21 @@ public class BatchPlanner {
                         }
                     } // FOR
                 }
+                if (debug.get())
+                    LOG.debug(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s",
+                                            txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName(), cache_isSinglePartition[stmt_index]));
                 is_allSinglePartition = is_allSinglePartition && cache_isSinglePartition[stmt_index];
             } // FOR (Statement)
             if (trace.get())
-                LOG.trace("is_allSinglePartition = " + is_allSinglePartition);
+                LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
             
             // If all of the Statements are single-partition, then we can use the cached BatchPlan
             // if we already have one. This saves a lot of trouble
             if (is_allSinglePartition && cache_singlePartitionPlans[base_partition] != null) {
                 if (debug.get())
-                    LOG.debug(String.format("Using cached BatchPlan at partition #%02d: %s", base_partition, Arrays.toString(this.catalog_stmts)));
-                if (BatchPlanner.ENABLE_PROFILING) time_plan.stop();
+                    LOG.debug(String.format("[#%d] Using cached BatchPlan at partition #%02d: %s",
+                                            txn_id, base_partition, Arrays.toString(this.catalog_stmts)));
+                if (this.enable_profiling) time_plan.stop();
                 return (cache_singlePartitionPlans[base_partition]);
             }
         }
@@ -605,7 +596,9 @@ public class BatchPlanner {
             assert(catalog_stmt != null) : "The Statement at index " + stmt_index + " is null for " + this.catalog_proc;
             final ParameterSet paramSet = batchArgs[stmt_index];
             final Object params[] = paramSet.toArray();
-            if (trace.get()) LOG.trace(String.format("[%02d] Constructing fragment plans for %s", stmt_index, catalog_stmt.fullName()));
+            if (trace.get())
+                LOG.trace(String.format("[#%d-%02d] Calculating touched partitions plans for %s",
+                                        txn_id, stmt_index, catalog_stmt.fullName()));
             
             Map<PlanFragment, Set<Integer>> frag_partitions = plan.frag_partitions[stmt_index];
             Set<Integer> stmt_all_partitions = plan.stmt_partitions[stmt_index];
@@ -624,9 +617,11 @@ public class BatchPlanner {
             if (cache_isSinglePartition[stmt_index] || (is_replicated_only && is_read_only)) {
                 if (trace.get()) {
                     if (cache_isSinglePartition[stmt_index]) {
-                        LOG.trace(String.format("[%02d] Using fast-lookup for %s. Skipping PartitionEstimator", stmt_index, catalog_stmt.fullName()));
+                        LOG.trace(String.format("[#%d-%02d] Using fast-lookup for %s. Skipping PartitionEstimator",
+                                                txn_id, stmt_index, catalog_stmt.fullName()));
                     } else {
-                        LOG.trace(String.format("[%02d] %s is read-only and replicate-only. Skipping PartitionEstimator", stmt_index, catalog_stmt.fullName()));
+                        LOG.trace(String.format("[#%d-%02d] %s is read-only and replicate-only. Skipping PartitionEstimator",
+                                                txn_id, stmt_index, catalog_stmt.fullName()));
                     }
                 }
                 assert(has_singlepartition_plan);
@@ -644,6 +639,10 @@ public class BatchPlanner {
                 
             // Otherwise figure out whether the query can execute as single-partitioned or not
             else {
+                if (trace.get())
+                    LOG.trace(String.format("[#%d-%02d] Computing touched partitions %s in txn #%d with the PartitionEstimator",
+                                            txn_id, stmt_index, catalog_stmt.fullName(), txn_id));
+                
                 try {
                     // OPTIMIZATION: If we were told that the transaction is suppose to be single-partitioned, then we will
                     // throw the single-partitioned PlanFragments at the PartitionEstimator to get back what partitions
@@ -660,11 +659,11 @@ public class BatchPlanner {
                         fragments = (is_singlepartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
                         
                         // PARTITION ESTIMATOR
-                        if (BatchPlanner.ENABLE_PROFILING) ProfileMeasurement.swap(this.time_plan, this.time_partitionEstimator);
+                        if (this.enable_profiling) ProfileMeasurement.swap(this.time_plan, this.time_partitionEstimator);
                         this.p_estimator.getAllFragmentPartitions(frag_partitions,
                                                                   stmt_all_partitions,
                                                                   fragments, params, plan.base_partition);
-                        if (BatchPlanner.ENABLE_PROFILING) ProfileMeasurement.swap(this.time_partitionEstimator, this.time_plan);
+                        if (this.enable_profiling) ProfileMeasurement.swap(this.time_partitionEstimator, this.time_plan);
                         
                         int stmt_all_partitions_size = stmt_all_partitions.size();
                         
@@ -683,7 +682,8 @@ public class BatchPlanner {
                         is_local = (stmt_all_partitions_size == 1 && stmt_all_partitions.contains(plan.base_partition));
                         if (is_local == false && predict_singlepartitioned) {
                             // Again, this is not what was suppose to happen!
-                            if (trace.get()) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions"));
+                            if (trace.get()) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions %s",
+                                                                     txn_id, stmt_all_partitions));
                             mispredict = true;
                             break;
                         }
@@ -694,8 +694,8 @@ public class BatchPlanner {
                 } catch (Exception ex) {
                     String msg = "";
                     for (int i = 0; i < this.batchSize; i++) {
-                        msg += String.format("[%02d] %s %s\n%5s\n",
-                                             i,
+                        msg += String.format("[#%d-%02d] %s %s\n%5s\n",
+                                             txn_id, i,
                                              catalog_stmt.fullName(),
                                              catalog_stmt.getSqltext(),
                                              Arrays.toString(batchArgs[i].toArray()));
@@ -704,6 +704,9 @@ public class BatchPlanner {
                     throw new RuntimeException("Unexpected error when planning " + catalog_stmt.fullName(), ex);
                 }
             }
+            if (debug.get())
+                LOG.debug(String.format("[#%d-%02d] is_singlepartition=%s, partitions=%s",
+                                        txn_id, stmt_index, is_singlepartition, stmt_all_partitions));
 
             // Get a sorted list of the PlanFragments that we need to execute for this query
             if (is_singlepartition) {
@@ -793,7 +796,7 @@ public class BatchPlanner {
         plan.graph = graph;
         plan.rounds_length = graph.max_rounds;
 
-        if (BatchPlanner.ENABLE_PROFILING) time_plan.stop();
+        if (this.enable_profiling) time_plan.stop();
         
         // Create the MispredictException if any Statement in the loop above hit it
         // We don't want to throw it because whoever called us may want to look at the plan first 
@@ -803,7 +806,7 @@ public class BatchPlanner {
         // If this a single-partition plan and we have caching enabled, we'll add this
         // to our cached listing. We'll mark it as cached so that it is never returned back
         // to the BatchPlan object pool
-        else if (BatchPlanner.ENABLE_CACHING && cache_singlePartitionPlans[base_partition] == null && plan.isSingledPartitionedAndLocal()) {
+        else if (this.enable_caching && cache_singlePartitionPlans[base_partition] == null && plan.isSingledPartitionedAndLocal()) {
             cache_singlePartitionPlans[base_partition] = plan;
             plan.cached = true;
             plan = new BatchPlan(this.maxRoundSize);
@@ -821,7 +824,7 @@ public class BatchPlanner {
      * @return
      */
     private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<FragmentTaskMessage> ftasks, final ParameterSet[] batchArgs) {
-        if (BatchPlanner.ENABLE_PROFILING) time_fragmentTaskMessages.start();
+        if (this.enable_profiling) time_fragmentTaskMessages.start();
         long txn_id = plan.txn_id;
         long client_handle = plan.client_handle;
         if (debug.get())
@@ -929,7 +932,7 @@ public class BatchPlanner {
         assert(ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
         if (debug.get())
             LOG.debug("Created " + ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
-        if (BatchPlanner.ENABLE_PROFILING) time_fragmentTaskMessages.stop();
+        if (this.enable_profiling) time_fragmentTaskMessages.stop();
     }
 
     
@@ -939,7 +942,7 @@ public class BatchPlanner {
      * @return
      */
     private PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
-        if (BatchPlanner.ENABLE_PROFILING) ProfileMeasurement.swap(this.time_plan, this.time_planGraph);
+        if (this.enable_profiling) ProfileMeasurement.swap(this.time_plan, this.time_planGraph);
         PlanGraph graph = new PlanGraph(CatalogUtil.getDatabase(this.catalog_proc));
 
         graph.max_rounds = 0;
@@ -1000,15 +1003,10 @@ public class BatchPlanner {
             i += 1;        
         } // FOR
         
-        if (BatchPlanner.ENABLE_PROFILING) ProfileMeasurement.swap(this.time_planGraph, this.time_plan);
+        if (this.enable_profiling) ProfileMeasurement.swap(this.time_planGraph, this.time_plan);
         return (graph);
     }
-    
-    private static void preload(Database catalog_db) {
-        assert(catalog_db != null);
-        
-    }
-    
+
     private static Comparator<PlanVertex> PLANVERTEX_COMPARATOR = new Comparator<PlanVertex>() {
         @Override
         public int compare(PlanVertex o1, PlanVertex o2) {
