@@ -1563,12 +1563,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Nothing else to do for RemoteTransactions other than to just
         // return the object back into the pool
         if (abstract_ts instanceof RemoteTransaction) {
-            try {
-                HStoreObjectPools.STATES_TXN_REMOTE.returnObject(abstract_ts);
-            } catch (Exception ex) {
-                LOG.fatal("Failed to return RemoteTransaction to ObjectPool for " + abstract_ts, ex);
-                throw new RuntimeException(ex);
-            }
+            HStoreObjectPools.STATES_TXN_REMOTE.returnObject((RemoteTransaction)abstract_ts);
             return;
         }
         
@@ -1609,24 +1604,29 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // in order to check whether we are hung or not
                     if (this.status_monitor != null) TxnCounter.COMPLETED.inc(catalog_proc);
                     break;
+                case ABORT_USER:
+                    if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
+                    if (t_estimator != null) t_estimator.abort(txn_id);
+                    if (hstore_conf.site.status_show_txn_info)
+                        TxnCounter.ABORTED.inc(catalog_proc);
+                    break;
                 case ABORT_MISPREDICT:
-                case ABORT_REJECT:
                     if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
                     if (t_estimator != null) t_estimator.mispredict(txn_id);
                     if (hstore_conf.site.status_show_txn_info) {
                         (ts.isSpeculative() ? TxnCounter.RESTARTED : TxnCounter.MISPREDICTED).inc(catalog_proc);
                     }
                     break;
-                case ABORT_USER:
-                    if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
-                    if (t_estimator != null) t_estimator.abort(txn_id);
-                    if (hstore_conf.site.status_show_txn_info) TxnCounter.ABORTED.inc(catalog_proc);
+                case ABORT_REJECT:
+                    if (hstore_conf.site.status_show_txn_info)
+                        TxnCounter.REJECTED.inc(catalog_proc);
                     break;
                 default:
                     LOG.warn(String.format("Unexpected status %s for %s", status, ts));
             } // SWITCH
         } catch (Throwable ex) {
-            LOG.error(String.format("Unexpected error when cleaning up %s transaction %s", status, ts), ex);
+            LOG.error(String.format("Unexpected error when cleaning up %s transaction %s",
+                                    status, ts), ex);
             // Pass...
         }
         
@@ -1641,14 +1641,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
-        if (d)
-            LOG.debug("Returning LocalTransaction back to ObjectPool [hashCode=" + ts.hashCode() + "]");
-        try {
-            HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);
-        } catch (Exception ex) {
-            LOG.fatal("Failed to return LocalTransaction to ObjectPool for " + ts, ex);
-            throw new RuntimeException(ex);
-        }
+        HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);
     }
 
     // ----------------------------------------------------------------------------

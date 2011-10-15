@@ -818,13 +818,13 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s/%s]",
+        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
                                 m_clients.size(),
                                 m_config.clients.length,
                                 hstore_conf.client.processesperclient,
                                 hstore_conf.client.txnrate,
                                 hstore_conf.client.blocking,
-                                (hstore_conf.client.blocking ? hstore_conf.client.blocking_concurrent : "-")
+                                (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
                                 
         ));
         
