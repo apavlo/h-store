@@ -1,6 +1,6 @@
 package edu.mit.hstore.util;
 
-import java.util.PriorityQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 
@@ -19,7 +19,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  *
  * <p>This class manages all that state.</p>
  */
-public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
+public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
     private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -98,6 +98,7 @@ public class TransactionInitPriorityQueue extends PriorityQueue<Long> {
      */
     @Override
     public boolean add(Long txnID) {
+        assert(txnID != null);
         boolean retval = super.add(txnID);
         // update the queue state
         if (retval) checkQueueState();

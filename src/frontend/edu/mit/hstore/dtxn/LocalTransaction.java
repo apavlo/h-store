@@ -279,7 +279,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public boolean isInitialized() {
-        return (this.catalog_proc != null);
+        return (this.predict_touchedPartitions != null && super.isInitialized());
     }
     
     @Override
@@ -786,8 +786,8 @@ public class LocalTransaction extends AbstractTransaction {
                 String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
                               partition, dependency_id, this);
             assert(queue.isEmpty() == false) :
-                String.format("No more statements for {Partition:%d, Dependency:%d} in %s\nresults_dependency_stmt_ctr = %s",
-                              partition, dependency_id, this, this.state.results_dependency_stmt_ctr);
+                String.format("No more statements for {Partition:%d, Dependency:%d} in %s [key=%d]\nresults_dependency_stmt_ctr = %s",
+                              partition, dependency_id, this, key, this.state.results_dependency_stmt_ctr);
             
             int stmt_index = queue.remove().intValue();
             dinfo = this.getDependencyInfo(stmt_index, dependency_id);
@@ -855,7 +855,8 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
+            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
+//            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
         } else {
             return ("<Uninitialized>");
         }

@@ -35,7 +35,9 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
@@ -44,8 +46,11 @@ import edu.mit.hstore.HStoreSite;
  */
 public abstract class AbstractTransaction implements Poolable {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
-    private static final boolean d = LOG.isDebugEnabled();
-//    private static final boolean t = LOG.isTraceEnabled();
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /**
      * Internal state for the transaction
@@ -148,25 +153,26 @@ public abstract class AbstractTransaction implements Poolable {
      */
     @Override
     public void finish() {
-        this.txn_id = -1;
         this.predict_readOnly = false;
         this.predict_abortable = true;
         this.pending_error = null;
+        this.touched_partitions.clear();
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[i];
-            if (this.round_state[offset] != null) {
-                this.round_state[offset] = null;
-                this.round_ctr[offset] = 0;
-                this.finished[offset] = false;
-                this.last_undo_token[offset] = null;
-                this.exec_readOnly[offset] = true;
-                this.exec_eeWork[offset] = false;
-                this.exec_noUndoBuffer[offset] = false;
-            }
+            this.finished[offset] = false;
+            this.round_state[offset] = null;
+            this.round_ctr[offset] = 0;
+            this.last_undo_token[offset] = null;
+            this.exec_readOnly[offset] = true;
+            this.exec_eeWork[offset] = false;
+            this.exec_noUndoBuffer[offset] = false;
         } // FOR
-        
-        this.touched_partitions.clear();
+
+        if (debug.get())
+            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d",
+                                   txn_id, this.hashCode()));
+        this.txn_id = -1;
     }
 
     // ----------------------------------------------------------------------------
@@ -206,7 +212,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.round_state[offset] = RoundState.INITIALIZED;
 //        this.pending_error = null;
         
-        if (d) LOG.debug(String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
+        if (debug.get()) LOG.debug(String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
     }
     
     /**
@@ -219,7 +225,7 @@ public abstract class AbstractTransaction implements Poolable {
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
         this.round_state[offset] = RoundState.STARTED;
-        if (d) LOG.debug(String.format("Starting batch round #%d for %s", this.round_ctr[offset], this));
+        if (debug.get()) LOG.debug(String.format("Starting batch round #%d for %s", this.round_ctr[offset], this));
     }
     
     /**
@@ -231,7 +237,7 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (d) LOG.debug(String.format("Finishing batch round #%d for %s", this.round_ctr[offset], this));
+        if (debug.get()) LOG.debug(String.format("Finishing batch round #%d for %s", this.round_ctr[offset], this));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }
@@ -362,7 +368,7 @@ public abstract class AbstractTransaction implements Poolable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (d) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
+            if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + ". Aborting...");
             this.pending_error = error;
         }
     }
@@ -375,6 +381,8 @@ public abstract class AbstractTransaction implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
+        if (debug.get()) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
+                                                 this, partition, Arrays.toString(this.finished)));
         this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
     }
     
@@ -397,6 +405,8 @@ public abstract class AbstractTransaction implements Poolable {
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void setFinishedEE(int partition) {
+        if (debug.get()) LOG.debug(String.format("Marking %s as finished on partition %d %s",
+                                                 this, partition, Arrays.toString(this.finished)));
         this.finished[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
     }
     /**
@@ -420,8 +430,6 @@ public abstract class AbstractTransaction implements Poolable {
     public Long getLastUndoToken(int partition) {
         return this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]];
     }
-    
-
     
     @Override
     public boolean equals(Object obj) {
