@@ -112,6 +112,13 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
+            description="ExecutionEngine log level.",
+            defaultInt=500,
+            experimental=false
+        )
+        public int exec_ee_log_level;
+        
+        @ConfigProperty(
             description="Enable execution site profiling. This will keep track of how busy each ExecutionSite thread" +
                         "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
                         "waiting for work to be added to its queue).",

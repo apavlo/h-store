@@ -302,7 +302,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         } // FOR
         
         // Incoming Partition Distribution
-        m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 10) + "\n");
+        if (hstore_site.getIncomingPartitionHistogram().isEmpty() == false) {
+            m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 10) + "\n");
+        }
         
         // Incoming Listenger Thread Distribution
         m_exec.put("Incoming Listeners", hstore_site.getIncomingListenerHistogram().toString(50, 10));
@@ -666,7 +668,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         for (String key : pools.keySet()) {
             StackObjectPool pool = pools.get(key);
             TypedPoolableObjectFactory<?> factory = (TypedPoolableObjectFactory<?>)pool.getFactory();
-            m_pool.put(key, this.formatPoolCounts(pool, factory));
+            if (factory.getCreatedCount() > 0) m_pool.put(key, this.formatPoolCounts(pool, factory));
         } // FOR
 
 //        // Partition Specific

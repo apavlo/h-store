@@ -223,7 +223,7 @@ import org.voltdb.types.VoltDecimalHelper;
             b.append("NULL");
         } else {
             for (int i = 0; i < m_params.length; ++i) {
-                b.append(",param[" + i + "]=" + (m_params[i] == null ? "NULL"
+                b.append((i > 0 ? "," : "") + "param[" + i + "]=" + (m_params[i] == null ? "NULL"
                         : m_params[i].toString() + "(" + m_params[i].getClass().getName() + ")"));
             }
         }

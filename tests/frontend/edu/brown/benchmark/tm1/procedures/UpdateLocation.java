@@ -42,24 +42,24 @@ import edu.brown.benchmark.tm1.TM1Constants;
 public class UpdateLocation extends VoltProcedure{
 
     public final SQLStmt getSubscriber = new SQLStmt(
-            "SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?");
+        "SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?");
     
     public final SQLStmt updateSubscriber = new SQLStmt(
-            "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE s_id = ?");
+        "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE s_id = ?");
     
-     public final SQLStmt update = new SQLStmt(
-         "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE sub_nbr = ?");
+    public final SQLStmt update = new SQLStmt(
+        "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE sub_nbr = ?");
 
-     public long run(long location, String sub_nbr) {
-         voltQueueSQL(getSubscriber, sub_nbr);
-         VoltTable results[] = voltExecuteSQL();
-         if (results[0].getRowCount() > 0) {
-             long s_id = results[0].asScalarLong();
-             voltQueueSQL(updateSubscriber, location, s_id);
-             results = voltExecuteSQL();
-             assert results.length == 1;
-             return results[0].asScalarLong();
-         }
-         return 0;
-     }
+    public long run(long location, String sub_nbr) {
+        voltQueueSQL(getSubscriber, sub_nbr);
+        VoltTable results[] = voltExecuteSQL();
+        if (results[0].getRowCount() > 0) {
+            long s_id = results[0].asScalarLong();
+            voltQueueSQL(updateSubscriber, location, s_id);
+            results = voltExecuteSQL();
+            assert results.length == 1;
+            return results[0].asScalarLong();
+        }
+        return 0;
+    }
 }

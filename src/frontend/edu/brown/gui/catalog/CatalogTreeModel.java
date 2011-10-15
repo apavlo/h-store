@@ -232,16 +232,16 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         buildSearchIndex(statement_cat, statement_node);
                         
                         // Plan Trees
-                        for (boolean is_singlesited : new boolean[] { true, false }) {
-                            if (is_singlesited && !statement_cat.getHas_singlesited()) continue;
-                            if (!is_singlesited && !statement_cat.getHas_multisited()) continue;
+                        for (boolean is_singlepartition : new boolean[] { true, false }) {
+                            if (is_singlepartition && !statement_cat.getHas_singlesited()) continue;
+                            if (!is_singlepartition && !statement_cat.getHas_multisited()) continue;
 
-                            String label = (is_singlesited ? "Single" : "Multi") + "-Sited Plan Fragments";
+                            String label = (is_singlepartition ? "Single-Partition" : "Distributed") + " Plan Fragments";
 //                            String attributes = "";
                             AbstractPlanNode node = null;
                             
                             try {
-                                node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlesited);
+                                node = PlanNodeUtil.getRootPlanNodeForStatement(statement_cat, is_singlepartition);
                             } catch (Exception e) {
                                 String msg = e.getMessage();
                                 if (msg == null || msg.length() == 0) {
@@ -254,7 +254,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             statement_node.add(planNode);
                             
                             // Plan Fragments
-                            CatalogMap<PlanFragment> fragments = (is_singlesited ? statement_cat.getFragments() : statement_cat.getMs_fragments());
+                            CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
                             for (PlanFragment fragment_cat : fragments) {
                                 DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
                                 planNode.add(fragment_node);

@@ -215,6 +215,9 @@ public class TransactionQueueManager implements Runnable {
                 break;
             }
             
+            if (trace.get()) 
+                LOG.trace(String.format("Adding txn #%d to queue for partition %d [working=%s, size=%d]",
+                                        txn_id, p, this.working_partitions[offset], this.txn_queues[offset].size()));
             txn_queues[offset].add(txn_id);
             if (!working_partitions[offset]) {
                 should_notify = true;
@@ -238,8 +241,8 @@ public class TransactionQueueManager implements Runnable {
         
         int offset = hstore_site.getLocalPartitionOffset(partition);
         if (last_txns[offset] == txn_id) {
-            working_partitions[offset] = false;
             synchronized (this) {
+                working_partitions[offset] = false;
                 notifyAll();
             } // SYNCH
         }

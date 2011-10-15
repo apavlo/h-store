@@ -663,6 +663,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             if (d) LOG.debug("Starting ExecutionSite run loop...");
             while (stop == false && this.isShuttingDown() == false) {
+                txn_id = -1;
                 work = null;
                 
                 // -------------------------------
@@ -819,6 +820,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
     public int getPartitionId() {
         return (this.partitionId);
+    }
+    public Collection<Integer> getLocalPartitionIds() {
+        return (this.localPartitionIds);
     }
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
@@ -1415,9 +1419,27 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (t) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
-                m.put("Parameters", Arrays.toString(parameterSets));
-                m.put("Input Dependencies", Arrays.toString(input_depIds));
+                
+                Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
+                for (int i = 0; i < parameterSets.length; i++)
+                    inner.put(i, parameterSets[i].toString());
+                m.put("Parameters", inner);
+                
+                if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    inner = new ListOrderedMap<Integer, Object>();
+                    for (int i = 0; i < input_depIds.length; i++) {
+                        List<VoltTable> deps = this.ee_dependencies.get(input_depIds[i]);
+                        if (deps != null) {
+                            inner.put(input_depIds[i], StringUtil.join("\n", deps));
+                        } else {
+                            inner.put(input_depIds[i], "???");
+                        }
+                    }
+                    m.put("Input Dependencies", inner);
+                }
+                
                 m.put("Output Dependencies", Arrays.toString(output_depIds));
+                
                 sb.append("\n" + StringUtil.formatMaps(m)); 
             }
             LOG.debug(sb.toString());
@@ -1429,7 +1451,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 //            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
             ee.stashWorkUnitDependencies(this.ee_dependencies);
         }
-        ts.setSubmittedEE(this.partitionId);
         
         // Check whether this fragments are read-only
         if (ts.isExecReadOnly(this.partitionId)) {
@@ -1440,6 +1461,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             }
         }
         
+        ts.setSubmittedEE(this.partitionId);
         DependencySet result = null;
         try {
             if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));

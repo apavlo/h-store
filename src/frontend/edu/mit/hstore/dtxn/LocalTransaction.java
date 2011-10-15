@@ -830,8 +830,10 @@ public class LocalTransaction extends AbstractTransaction {
      * @return
      */
     public synchronized Map<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final Map<Integer, List<VoltTable>> results) {
-        if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d", this.state.internal_dependencies.size(), this.txn_id));
+        if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d",
+                                       this.state.internal_dependencies.size(), this.txn_id));
         
+        Collection<Integer> localPartitionIds = this.state.executor.getLocalPartitionIds();
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
             int input_d_id = ftask.getOnlyInputDepId(i);
             if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
@@ -841,13 +843,13 @@ public class LocalTransaction extends AbstractTransaction {
             assert(dinfo != null);
             int num_tables = dinfo.results.size();
             assert(dinfo.getPartitions().size() == num_tables) :
-                "Number of results retrieved for <Stmt #" + stmt_index + ", DependencyId #" + input_d_id + "> is " + num_tables +
-                " but we were expecting " + dinfo.getPartitions().size() + " in txn #" + this.txn_id +
-                " [" + this.getProcedureName() + "]\n" + 
-                this.toString() + "\n" +
-                ftask.toString();
-            results.put(input_d_id, dinfo.getResults(this.base_partition, true));
-            if (d) LOG.debug(String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables", stmt_index, input_d_id, results.get(input_d_id).size()));
+                String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
+                              "but we were expecting %d in %s txn #%d\n%s\n%s", 
+                              stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this.getProcedureName(), this.txn_id,
+                              this.toString(), ftask.toString()); 
+            results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
+            if (d) LOG.debug(String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables",
+                                           stmt_index, input_d_id, results.get(input_d_id).size()));
         } // FOR
         return (results);
     }

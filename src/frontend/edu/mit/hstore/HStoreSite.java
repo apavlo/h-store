@@ -1360,10 +1360,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.local_partitions.contains(p) == false) continue;
             
             // We only need to tell the queue stuff that the transaction is finished
-            // on an ABORT_REJECT because there won't be a 2PC:PREPARE message
-            if (status == Hstore.Status.ABORT_REJECT) {
-                this.txnQueueManager.done(txn_id, p);
-            }
+            // if it's not an commit because there won't be a 2PC:PREPARE message
+            if (commit == false) this.txnQueueManager.done(txn_id, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
@@ -1405,8 +1403,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        if (d)
-            LOG.debug(String.format("Sending back ClientResponse for " + ts));
         Hstore.Status status = cresponse.getStatus();
         assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
         
@@ -1415,6 +1411,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
         if (status != Hstore.Status.ABORT_MISPREDICT) {
+            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
+
             // Send result back to client!
             ts.getClientCallback().run(this.serializeClientResponse(ts, cresponse).array());
         }
