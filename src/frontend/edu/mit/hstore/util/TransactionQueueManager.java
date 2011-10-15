@@ -163,9 +163,9 @@ public class TransactionQueueManager implements Runnable {
     
     private void cleanupTransaction(long txn_id) {
         TransactionInitWrapperCallback callback = this.txn_callbacks.remove(txn_id);
-//        if (callback != null) {
-//            HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.returnObject(callback);
-//        }
+        if (callback != null) {
+            HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.returnObject(callback);
+        }
     }
     
     private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback) {

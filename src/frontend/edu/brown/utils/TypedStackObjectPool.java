@@ -1,8 +1,17 @@
 package edu.brown.utils;
 
 import org.apache.commons.pool.impl.StackObjectPool;
+import org.apache.log4j.Logger;
+
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
+    private static final Logger LOG = Logger.getLogger(TypedStackObjectPool.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public TypedStackObjectPool(TypedPoolableObjectFactory<T> factory) {
         super(factory);
@@ -23,6 +32,9 @@ public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
     }
     
     public void returnObject(T t) {
+        if (debug.get())
+            LOG.debug(String.format("Returning %s back to ObjectPool [hashCode=%d]",
+                                    t.getClass().getSimpleName(), t.hashCode()));
         try {
             super.returnObject(t);
         } catch (Exception ex) {

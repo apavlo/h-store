@@ -236,7 +236,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * If this flag is enabled, then we need to shut ourselves down and stop running txns
      */
     private Shutdownable.ShutdownState shutdown_state = Shutdownable.ShutdownState.INITIALIZED;
-    private CountDownLatch shutdown_latch;
+    private Semaphore shutdown_latch;
     
     /**
      * Catalog objects
@@ -651,16 +651,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             this.hstore_site.getThreadManager().registerEEThread(partition);
         }
         
-        // Setup the shutdown latch
-        assert(this.shutdown_latch == null);
-        this.shutdown_latch = new CountDownLatch(1);
-
         // Things that we will need in the loop below
         TransactionInfoBaseMessage work = null;
         boolean stop = false;
+        long txn_id = -1;
         AbstractTransaction ts = null;
         
         try {
+            // Setup shutdown lock
+            this.shutdown_latch = new Semaphore(0);
+            
             if (d) LOG.debug("Starting ExecutionSite run loop...");
             while (stop == false && this.isShuttingDown() == false) {
                 work = null;
@@ -681,9 +681,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     break;
                 }
                 
-                ts = hstore_site.getTransaction(work.getTxnId());
+                txn_id = work.getTxnId();
+                ts = hstore_site.getTransaction(txn_id);
                 if (ts == null) {
-                    String msg = "No transaction state for txn #" + work.getTxnId();
+                    String msg = "No transaction state for txn #" + txn_id;
                     LOG.fatal(msg);
                     throw new RuntimeException(msg);
                 }
@@ -751,10 +752,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
 //            if (d) 
-                LOG.info("ExecutionSite is stopping." + (ts != null ? " In-Flight Txn: " + ts : ""));
+                LOG.info("ExecutionSite is stopping." + (txn_id > 0 ? " In-Flight Txn: #" + txn_id : ""));
             
             // Release the shutdown latch in case anybody waiting for us
-            this.shutdown_latch.countDown();
+            this.shutdown_latch.release();
             
             // Stop HStoreMessenger (because we're nice)
             if (this.isShuttingDown() == false) {
@@ -2235,7 +2236,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         if (this.shutdown_latch != null) {
             try {
-                this.shutdown_latch.await();
+                this.shutdown_latch.acquire();
             } catch (InterruptedException ex) {
                 // Ignore
             } catch (Exception ex) {
