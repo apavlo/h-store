@@ -1154,13 +1154,24 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // A txn is "local" if the Java is executing at the same site as we are
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
-        if (t) LOG.trace(String.format("Executing FragmentTaskMessage %s [partition=%d, is_local=%s, is_dtxn=%s, fragments=%s]",
+        if (t) LOG.trace(String.format("Executing FragmentTaskMessage %s [basePartition=%d, isLocal=%s, isDtxn=%s, fragments=%s]",
                                        ts, ftask.getSourcePartitionId(), is_local, is_dtxn, Arrays.toString(ftask.getFragmentIds())));
 
         // If this txn isn't local, then we have to update our undoToken
         if (is_local == false) {
             ts.initRound(this.partitionId, this.getNextUndoToken());
             ts.startRound(this.partitionId);
+            
+            // Copy the input dependencies from the txn's base partition into our "thread memory"
+            // TODO: This should be optimized using something down in the EE
+            if (is_dtxn == false && ftask.hasInputDependencies()) {
+                this.tmp_removeDependenciesMap.clear();
+                ((LocalTransaction)ts).removeInternalDependencies(ftask, this.tmp_removeDependenciesMap);
+                if (t) LOG.trace(String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
+                for (Entry<Integer, List<VoltTable>> e : this.tmp_removeDependenciesMap.entrySet()) {
+                    ftask.attachResults(e.getKey(), e.getValue());
+                } // FOR
+            }
         }
         
         DependencySet result = null;
@@ -1490,8 +1501,15 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             new RuntimeException(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
         }
         
-        if (t) LOG.trace(String.format("Executed fragments %s and got back results %s",
-                                       Arrays.toString(fragmentIds), Arrays.toString(result.depIds))); //  + "\n" + Arrays.toString(result.dependencies));
+        if (d) {
+            if (result != null) {
+                LOG.debug(String.format("Executed fragments for %s and got back results", ts));
+                if (t) LOG.trace(String.format("FRAGMENTS: %s\nRESULTS: %s",
+                                               Arrays.toString(fragmentIds), Arrays.toString(result.depIds))); 
+            } else {
+                LOG.debug(String.format("Executed fragments for %s but got back null results? That seems bad...", ts));
+            }
+        }
         return (result);
     }
     
@@ -1768,7 +1786,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param dependency_ids
      * @return
      */
-    protected VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
+    public VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
         if (d) LOG.debug(String.format("Dispatching %d messages and waiting for the results for %s", ftasks.size(), ts));
         
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise
