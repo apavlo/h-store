@@ -192,7 +192,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private boolean ready = false;
     private CountDownLatch ready_latch;
-    private final EventObservable ready_observable = new EventObservable();
+    private final EventObservable<Object> ready_observable = new EventObservable<Object>();
     
     /**
      * This flag is set to true when we receive the first non-sysproc stored procedure
@@ -205,7 +205,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      */
     private Shutdownable.ShutdownState shutdown_state = ShutdownState.INITIALIZED;
-    private final EventObservable shutdown_observable = new EventObservable();
+    private final EventObservable<Object> shutdown_observable = new EventObservable<Object>();
     
     /** Catalog Stuff **/
     protected final Site catalog_site;
@@ -680,21 +680,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public boolean isReady() {
         return (this.ready);
     }
-    /**
-     * Get the Observable handle for this HStoreSite that can alert others when the party is
-     * getting started
-     */
-    public EventObservable getReadyObservable() {
-        return (this.ready_observable);
-    }
-    /**
-     * Get the Observable handle for this HStore for when the first non-sysproc
-     * transaction request arrives and we are technically beginning the workload
-     * portion of a benchmark run.
-     */
-    public EventObservable<AbstractTransaction> getStartWorkloadObservable() {
-        return (this.startWorkload_observable);
-    }
 
     /**
      * Returns true if this HStoreSite is throttling incoming transactions
@@ -717,6 +702,32 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     public ProfileMeasurement getEmptyQueueTime() {
         return (this.idle_time);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // EVENT OBSERVABLES
+    // ----------------------------------------------------------------------------
+    /**
+     * Get the Observable handle for this HStoreSite that can alert others when the party is
+     * getting started
+     */
+    public EventObservable<Object> getReadyObservable() {
+        return (this.ready_observable);
+    }
+    /**
+     * Get the Observable handle for this HStore for when the first non-sysproc
+     * transaction request arrives and we are technically beginning the workload
+     * portion of a benchmark run.
+     */
+    public EventObservable<AbstractTransaction> getStartWorkloadObservable() {
+        return (this.startWorkload_observable);
+    }
+    /**
+     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
+     * @return
+     */
+    public EventObservable<Object> getShutdownObservable() {
+        return (this.shutdown_observable);
     }
     
     // ----------------------------------------------------------------------------
@@ -878,14 +889,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.shutdown_state == ShutdownState.SHUTDOWN || this.shutdown_state == ShutdownState.PREPARE_SHUTDOWN);
     }
     
-    /**
-     * Get the Oberservable handle for this HStoreSite that can alert others when the party is ending
-     * @return
-     */
-    public void addShutdownObservable(EventObserver<?> observer) {
-        this.shutdown_observable.addObserver(observer);
-    }
-
     // ----------------------------------------------------------------------------
     // EXECUTION METHODS
     // ----------------------------------------------------------------------------

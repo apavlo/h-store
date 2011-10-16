@@ -382,7 +382,7 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public void setSubmittedEE(int partition) {
         if (debug.get()) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
-                                                 this, partition, Arrays.toString(this.finished)));
+                                                 this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
     }
     

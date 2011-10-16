@@ -26,7 +26,6 @@
 package org.voltdb;
 
 import java.util.Collection;
-import java.util.Observable;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
@@ -38,7 +37,6 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.AbstractTransaction;
 
 /**
  * 
@@ -84,9 +82,9 @@ public class ExecutionSiteHelper implements Runnable {
      * Shutdown Observer
      * This gets invoked when the HStoreSite is shutting down
      */
-    private final EventObserver<?> shutdown_observer = new EventObserver() {
+    private final EventObserver<Object> shutdown_observer = new EventObserver<Object>() {
         @Override
-        public void update(EventObservable o, Object t) {
+        public void update(EventObservable<Object> o, Object t) {
             ExecutionSiteHelper.this.shutdown();
             LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
         }
@@ -112,7 +110,7 @@ public class ExecutionSiteHelper implements Runnable {
         assert(this.executors.size() > 0) : "No ExecutionSites for helper";
         ExecutionSite executor = CollectionUtil.first(this.executors);
         assert(executor != null);
-        this.hstore_site.addShutdownObservable(this.shutdown_observer);
+        this.hstore_site.getShutdownObservable().addObserver(this.shutdown_observer);
 
         if (debug.get()) LOG.debug(String.format("Instantiated new ExecutionSiteHelper [txn_expire=%d, per_round=%d]",
                                                  this.txn_expire, this.txn_per_round));
