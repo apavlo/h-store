@@ -687,29 +687,29 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // TODO: We should have a HStoreConf option that determines whether we should
                     // block or insert ourselves back into the queue so that we can maybe execute
                     // some other transactions.
-                    if (this.current_dtxn != null && ts != this.current_dtxn) {
+                    if (this.current_dtxn == null || ts != this.current_dtxn) {
                         if (d) LOG.debug("Blocking " + ts + " on DTXN lock");
                         this.dtxn_lock.acquire();
                     }
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null
-                    if (this.current_dtxn == null) {
-                        synchronized (this.exec_mode) {
+                    synchronized (this.exec_mode) {
+                        if (this.current_dtxn == null) {
                             this.setCurrentDtxn(ts);
                             if (hstore_conf.site.exec_speculative_execution) {
                                 this.setExecutionMode(ts, ftask.isReadOnly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
                             } else {
                                 this.setExecutionMode(ts, ExecutionMode.DISABLED);
                             }
-                            
+                                
                             if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
                                                            ts, this.partitionId, this.exec_mode));                    
-                        } // SYNCH
-
-                    // Check whether we should drop down to a less permissive speculative execution mode
-                    } else if (hstore_conf.site.exec_speculative_execution && ftask.isReadOnly() == false) {
-                        this.setExecutionMode(ts, ExecutionMode.COMMIT_NONE);
-                    }
+    
+                        // Check whether we should drop down to a less permissive speculative execution mode
+                        } else if (hstore_conf.site.exec_speculative_execution && ftask.isReadOnly() == false) {
+                            this.setExecutionMode(ts, ExecutionMode.COMMIT_NONE);
+                        }
+                    } // SYNCH                    
                     
                     this.processFragmentTaskMessage(ts, ftask);
 
@@ -731,11 +731,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
             } // WHILE
         } catch (final Throwable ex) {
-            if (this.isShuttingDown() == false) {
+//            if (this.isShuttingDown() == false) {
                 LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
                                         this.partitionId, (ts != null ? " - " + ts.toString() : "")), ex);
                 if (ts != null) LOG.fatal("TransactionState Dump:\n" + ts.debug());
-            }
+//            }
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
 //            if (d) 
@@ -1540,14 +1540,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void queueWork(AbstractTransaction ts, FragmentTaskMessage task, RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
+    public void queueWork(AbstractTransaction ts, FragmentTaskMessage task) {
         assert(ts.isInitialized());
-
-        // Remote Work
-        if (callback != null) {
-            if (t) LOG.trace(String.format("Storing FragmentTask callback in TransactionState for %s at partition %d", ts, this.partitionId));
-            ((RemoteTransaction)ts).setFragmentTaskCallback(callback);
-        }
         
         // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
         // from swapping the work queue to the block task list
@@ -1576,12 +1570,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
         // Otherwise figure out whether this txn needs to be blocked or not
         } else {
-            if (d) LOG.debug(String.format("Attempting to add %s for %s to partition %d' queue",
+            if (d) LOG.debug(String.format("Attempting to add %s for %s to partition %d queue",
                                            task.getClass().getSimpleName(), ts, this.partitionId));
             synchronized (this.exec_mode) {
                 // No outstanding DTXN
                 if (this.current_dtxn == null && this.exec_mode != ExecutionMode.DISABLED) {
-                    if (t) LOG.trace(String.format("Adding single-partition %s to work queue [size=%d]", ts, this.work_queue.size()));
+                    if (t) LOG.trace(String.format("Adding %s to work queue [size=%d]", ts, this.work_queue.size()));
                     this.work_queue.add(task);
                 } else {
                     if (t) LOG.trace(String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
@@ -1893,7 +1887,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                    this.tmp_localSiteFragmentList.size(), ts));
                     for (FragmentTaskMessage ftask : this.tmp_localSiteFragmentList) {
                         try {
-                            hstore_site.getExecutionSite(ftask.getDestinationPartitionId()).queueWork(ts, ftask, null);
+                            hstore_site.getExecutionSite(ftask.getDestinationPartitionId()).queueWork(ts, ftask);
                         } catch (Throwable ex) {
                             throw new RuntimeException(String.format("Unexpected error when executing local site fragments for %s on partition %d",
                                                                      ts, ftask.getDestinationPartitionId()), ex);

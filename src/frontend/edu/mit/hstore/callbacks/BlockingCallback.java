@@ -87,8 +87,9 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     public void run(U parameter) {
         int delta = this.runImpl(parameter);
         if (debug.get())
-            LOG.debug(String.format("Txn #%d - %s.run() / Current:%d / Decrement:%d",
-                                    this.txn_id, this.getClass().getSimpleName(), this.counter.get(), delta));
+            LOG.debug(String.format("Txn #%d - %s.run() / COUNTER: %d - %d = %d",
+                                    this.txn_id, this.getClass().getSimpleName(),
+                                    this.counter.get(), delta, (this.counter.get() - delta)));
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()

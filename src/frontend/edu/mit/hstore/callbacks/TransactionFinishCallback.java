@@ -58,7 +58,12 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionFinishResponse parameter) {
-        return (parameter.getPartitionsCount());
+    protected int runImpl(Hstore.TransactionFinishResponse response) {
+        if (debug.get())
+            LOG.debug(String.format("Got %s with for %s [partitions=%s]",
+                                    response.getClass().getSimpleName(),
+                                    this.ts, response.getPartitionsList()));
+        
+        return (response.getPartitionsCount());
     }
 }

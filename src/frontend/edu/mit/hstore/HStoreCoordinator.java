@@ -41,12 +41,14 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.callbacks.TransactionFinishCallback;
 import edu.mit.hstore.callbacks.TransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
+import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
@@ -529,15 +531,11 @@ public class HStoreCoordinator implements Shutdownable {
             // back anything right away. The ExecutionSite will use our wrapped callback handle
             // to send back whatever response it needs to, but we won't actually send it
             // until we get back results from all of the partitions
-            TransactionWorkCallback callback = null;
-            try {
-                callback = (TransactionWorkCallback)HStoreObjectPools.CALLBACKS_TXN_WORK.borrowObject();
-                callback.init(txn_id, request.getFragmentsCount(), done);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            
+            // TODO: The base information of a set of FragmentTaskMessages should be moved into
+            // the message wrapper (e.g., base partition, client handle)
+            RemoteTransaction ts = hstore_site.getTransaction(txn_id);
             FragmentTaskMessage ftask = null;
+            boolean first = true;
             for (PartitionFragment partition_task : request.getFragmentsList()) {
                 // Decode the inner VoltMessage
                 try {
@@ -545,9 +543,25 @@ public class HStoreCoordinator implements Shutdownable {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                assert(txn_id == ftask.getTxnId());
-            
-                hstore_site.transactionWork(txn_id, ftask, callback);
+                assert(txn_id == ftask.getTxnId()) :
+                    String.format("%s is for txn #%d but the %s has txn #%d",
+                                  request.getClass().getSimpleName(), txn_id,
+                                  ftask.getClass().getSimpleName(), ftask.getTxnId());
+
+                // If this is the first time we've been here, then we need to create a RemoteTransaction handle
+                if (ts == null) {
+                    ts = hstore_site.createRemoteTransaction(txn_id, ftask);
+                }
+                
+                // Always initialize the TransactionWorkCallback for the first callback 
+                if (first) {
+                    TransactionWorkCallback callback = ts.getFragmentTaskCallback();
+                    if (callback.isInitialized()) callback.finish();
+                    callback.init(txn_id, request.getFragmentsCount(), done);
+                }
+                
+                hstore_site.transactionWork(ts, ftask);
+                first = false;
             } // FOR
             
             // We don't need to send back a response right here.
@@ -591,6 +605,10 @@ public class HStoreCoordinator implements Shutdownable {
             for (Integer p : request.getPartitionsList()) {
                 if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
             }
+            if (debug.get())
+                LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
+                                        TransactionFinishResponse.class.getSimpleName(), txn_id,
+                                        request.getStatus(), builder.getPartitionsList()));
             done.run(builder.build());
             
             // Always tell the HStoreSite to clean-up any state for this txn
@@ -675,10 +693,16 @@ public class HStoreCoordinator implements Shutdownable {
         for (Entry<Integer, Hstore.TransactionWorkRequest.Builder> e : builders.entrySet()) {
             int site_id = e.getKey().intValue();
             assert(e.getValue().getFragmentsCount() > 0);
+            Hstore.TransactionWorkRequest request = e.getValue().build();
             
             // We should never get work for our local partitions
             assert(site_id != this.local_site_id);
-            this.channels.get(site_id).transactionWork(ts.getTransactionWorkController(site_id), e.getValue().build(), callback);
+            assert(ts.getTransactionId() == request.getTransactionId()) :
+                String.format("%s is for txn #%d but the %s has txn #%d",
+                              ts.getClass().getSimpleName(), ts.getTransactionId(),
+                              request.getClass().getSimpleName(), request.getTransactionId());
+            
+            this.channels.get(site_id).transactionWork(ts.getTransactionWorkController(site_id), request, callback);
         } // FOR
     }
     
@@ -703,12 +727,14 @@ public class HStoreCoordinator implements Shutdownable {
 
     /**
      * Notify all remote HStoreSites that the distributed transaction is done with data
-     * at the given partitions and that they need to commit/abort the results. 
+     * at the given partitions and that they need to commit/abort the results.
+     * IMPORTANT: Any data that you need from the LocalTransaction handle should be taken
+     * care of before this is invoked, because it may clean-up that object before it returns
      * @param ts
      * @param status
      * @param callback
      */
-    public void transactionFinish(LocalTransaction ts, Hstore.Status status, RpcCallback<Hstore.TransactionFinishResponse> callback) {
+    public void transactionFinish(LocalTransaction ts, Hstore.Status status, TransactionFinishCallback callback) {
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
@@ -719,6 +745,18 @@ public class HStoreCoordinator implements Shutdownable {
                                                         .addAllPartitions(partitions)
                                                         .build();
         this.router_transactionFinish.sendMessages(ts, request, callback, partitions);
+        
+        // HACK: At this point we can tell the local partitions that the txn is done
+        // through its callback. This is just so that we don't have to serialize a
+        // TransactionFinishResponse message
+        for (Integer p : partitions) {
+            if (this.local_partitions.contains(p)) {
+                if (trace.get())
+                    LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
+                                            callback.getClass().getSimpleName(), ts, p));
+                callback.decrementCounter(1);
+            }
+        } // FOR
     }
     
     /**
@@ -748,6 +786,8 @@ public class HStoreCoordinator implements Shutdownable {
      * @param blocking
      */
     public void shutdownCluster(final Throwable ex, final boolean blocking) {
+        if (debug.get())
+            LOG.debug(String.format("Invoking shutdown protocol [blocking=%s, ex=%s]", blocking, ex));
         if (blocking) {
             this.shutdownCluster(null);
         } else {
@@ -775,7 +815,6 @@ public class HStoreCoordinator implements Shutdownable {
     /**
      * Shutdown the cluster. If the given Exception is not null, then all the nodes will
      * exit with a non-zero status. This is will never return
-     * Will not return.
      * @param ex
      */
     public synchronized void shutdownCluster(Throwable ex) {

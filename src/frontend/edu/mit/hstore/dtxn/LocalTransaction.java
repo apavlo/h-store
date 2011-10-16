@@ -299,29 +299,25 @@ public class LocalTransaction extends AbstractTransaction {
     public void finish() {
         super.finish();
 
-        try {
-            // Return our LocalTransactionInitCallback
-            if (this.init_callback != null) {
-                HStoreObjectPools.CALLBACKS_TXN_INIT.returnObject(this.init_callback);
-                this.init_callback = null;
-            }
-            // Return our TransactionPrepareCallback
-            if (this.prepare_callback != null) {
-                HStoreObjectPools.CALLBACKS_TXN_PREPARE.returnObject(this.prepare_callback);
-                this.prepare_callback = null;
-            }
-            // Return our TransactionFinishCallback
-            if (this.finish_callback != null) {
-                HStoreObjectPools.CALLBACKS_TXN_FINISH.returnObject(this.finish_callback);
-                this.finish_callback = null;
-            }
-            // Return our TransactionEstimator.State handle
-            if (this.estimator_state != null) {
-                TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
-                this.estimator_state = null;
-            }
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+        // Return our LocalTransactionInitCallback
+        if (this.init_callback != null) {
+            HStoreObjectPools.CALLBACKS_TXN_INIT.returnObject(this.init_callback);
+            this.init_callback = null;
+        }
+        // Return our TransactionPrepareCallback
+        if (this.prepare_callback != null) {
+            HStoreObjectPools.CALLBACKS_TXN_PREPARE.returnObject(this.prepare_callback);
+            this.prepare_callback = null;
+        }
+        // Return our TransactionFinishCallback
+        if (this.finish_callback != null) {
+            HStoreObjectPools.CALLBACKS_TXN_FINISH.returnObject(this.finish_callback);
+            this.finish_callback = null;
+        }
+        // Return our TransactionEstimator.State handle
+        if (this.estimator_state != null) {
+            TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
+            this.estimator_state = null;
         }
         
         this.state = null;

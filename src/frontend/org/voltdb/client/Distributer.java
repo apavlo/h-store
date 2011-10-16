@@ -335,7 +335,7 @@ class Distributer {
             }
 
             if (cb != null) {
-                if (status != Hstore.Status.ABORT_REJECT) {
+                if (status != Hstore.Status.ABORT_THROTTLED) {
                     response.setClientRoundtrip(delta);
                     cb.clientCallback(response);
                 }

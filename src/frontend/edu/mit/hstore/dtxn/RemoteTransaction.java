@@ -27,13 +27,11 @@ package edu.mit.hstore.dtxn;
 
 import org.apache.log4j.Logger;
 
-import com.google.protobuf.RpcCallback;
-
-import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.TransactionWorkCallback;
 
 /**
  * A RemoteTransaction is one whose Java control code is executing at a 
@@ -48,10 +46,11 @@ public class RemoteTransaction extends AbstractTransaction {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> fragment_callback;
+    private final TransactionWorkCallback fragment_callback;
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
+        this.fragment_callback = new TransactionWorkCallback(hstore_site);
     }
     
     @Override
@@ -63,7 +62,6 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public void finish() {
         super.finish();
-        this.fragment_callback = null;
     }
     
     @Override
@@ -79,18 +77,8 @@ public class RemoteTransaction extends AbstractTransaction {
      * Return the previously stored callback for a FragmentTaskMessage
      * @return
      */
-    public RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> getFragmentTaskCallback() {
+    public TransactionWorkCallback getFragmentTaskCallback() {
         return (this.fragment_callback);
-    }
-    
-    /**
-     * Store a callback specifically for one FragmentTaskMessage 
-     * @param callback
-     */
-    public void setFragmentTaskCallback(RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback) {
-        // assert(callback != null) : "Null callback for txn #" + this.txn_id;
-        if (trace.get()) LOG.trace("Storing FragmentTask callback for txn #" + this.txn_id);
-        this.fragment_callback = callback;
     }
     
     @Override

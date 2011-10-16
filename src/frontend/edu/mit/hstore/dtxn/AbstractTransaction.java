@@ -461,7 +461,8 @@ public abstract class AbstractTransaction implements Poolable {
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("Last UndoToken", Arrays.toString(this.last_undo_token));
         m.put("# of Rounds", Arrays.toString(this.round_ctr));
-        m.put("Pending Error", (this.pending_error != null ? this.pending_error.toString() : null));
+        if (this.pending_error != null)
+            m.put("Pending Error", this.pending_error);
         return (m);
     }
     

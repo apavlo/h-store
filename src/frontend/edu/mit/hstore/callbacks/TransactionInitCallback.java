@@ -60,6 +60,12 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     protected void abortCallback(Status status) {
         assert(status == Hstore.Status.ABORT_REJECT);
         
+        // Then re-queue the transaction. We want to make sure that
+        // we use a new LocalTransaction handle because this one is going to get freed
+        // We want to do this first because the transaction state could get
+        // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
+        this.hstore_site.transactionRestart(this.ts, status);
+        
         // If we abort, then we have to send out an ABORT_REJECT to
         // all of the partitions that we originally sent INIT requests too
         // Note that we do this *even* if we haven't heard back from the remote
@@ -67,27 +73,24 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         // We don't care when we get the response for this
         TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(status);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
-
-        // Then re-queue the transaction. We want to make sure that
-        // we use a new LocalTransaction handle because this one is going to get freed
-        this.hstore_site.transactionRestart(this.ts, status);
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionInitResponse parameter) {
+    protected int runImpl(Hstore.TransactionInitResponse response) {
         if (debug.get())
             LOG.debug(String.format("Got %s with %d partitions for %s",
-                                    parameter.getClass().getSimpleName(),
-                                    parameter.getPartitionsCount(),
+                                    response.getClass().getSimpleName(),
+                                    response.getPartitionsCount(),
                                     this.ts));
         assert(this.ts != null) :
-            String.format("Missing LocalTransaction handle for txn #%d", parameter.getTransactionId());
-        assert(parameter.getPartitionsCount() > 0) :
-            String.format("No partitions returned in %s for %s", parameter.getClass().getSimpleName(), this.ts);
+            String.format("Missing LocalTransaction handle for txn #%d", response.getTransactionId());
+        assert(response.getPartitionsCount() > 0) :
+            String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
-        if (parameter.getStatus() != Hstore.Status.OK) {
-            this.abort(parameter.getStatus());
+        if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
+            this.abort(response.getStatus());
+            return (0);
         }
-        return (parameter.getPartitionsCount());
+        return (response.getPartitionsCount());
     }
 }

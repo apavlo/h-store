@@ -162,7 +162,7 @@ public class TransactionQueueManager implements Runnable {
             // remove the callback when this partition is the last one to start the job
             if (callback.getCounter() == 0) {
                 if (trace.get())
-                    LOG.trace(String.format("All partitions needed by txn #%d have been claimed. Removing callback", next_id));
+                    LOG.trace(String.format("All local partitions needed by txn #%d have been claimed. Removing callback", next_id));
                 this.cleanupTransaction(next_id);
             }
         } // FOR
@@ -249,6 +249,11 @@ public class TransactionQueueManager implements Runnable {
             LOG.debug(String.format("Marking txn #%d as done on partition %d", txn_id, partition));
         
         int offset = hstore_site.getLocalPartitionOffset(partition);
+        
+        // Always remove it from this partition's queue
+        this.txn_queues[offset].remove(txn_id);
+        
+        // Then free up the partition if it was actually running
         if (last_txns[offset] == txn_id) {
             synchronized (this) {
                 working_partitions[offset] = false;
