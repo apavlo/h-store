@@ -286,7 +286,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                     this.hstore_site.incoming_throttle_time[partition].getTotalThinkTimeMS()
             ));
             if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
-                LOG.warn(String.format("Partition #%02d is throttled when it should not be! [inflight=%d, release=%d]",
+                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
                                         partition, queue_size, queue_release));
             }
             

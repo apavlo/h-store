@@ -58,14 +58,18 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     public void unblockCallback() {
         assert(this.cresponse != null) : "Trying to send back ClientResponse for " + ts + " before it was set!";
         
+        // At this point all of our HStoreSites came back with an OK on the 2PC PREPARE
+        // So that means we can send back the result to the client and then 
+        // send the 2PC COMMIT message to all of our friends.
+        // We want to do this first because the transaction state could get
+        // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
+        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+        
         // Everybody returned ok, so we'll tell them all commit right now
         TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(Hstore.Status.OK);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, Hstore.Status.OK, finish_callback);
         
-        // At this point all of our HStoreSites came back with an OK on the 2PC PREPARE
-        // So that means we can send back the result to the client and then 
-        // send the 2PC COMMIT message to all of our friends.
-        this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+
     }
     
     @Override
@@ -81,6 +85,11 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     
     @Override
     protected int runImpl(Hstore.TransactionPrepareResponse response) {
+        if (debug.get())
+            LOG.debug(String.format("Got %s with %d partitions for %s",
+                                    response.getClass().getSimpleName(),
+                                    response.getPartitionsCount(),
+                                    this.ts));
         final Hstore.Status status = response.getStatus();
         
         // If any TransactionPrepareResponse comes back with anything but an OK,

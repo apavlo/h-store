@@ -28,13 +28,17 @@ package edu.mit.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -42,7 +46,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
-import org.voltdb.ExecutionSiteHelper;
 import org.voltdb.ExecutionSitePostProcessor;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
@@ -76,12 +79,22 @@ import edu.brown.markov.containers.MarkovGraphContainersUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObservableExceptionHandler;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
-import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
@@ -278,7 +291,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * For whatever...
      */
-    private final Random rand = new Random();
+//    private final Random rand = new Random();
 
     private final boolean incoming_throttle[];
     private final int incoming_queue_max[];
@@ -395,7 +408,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
         
         // Reusable Cached Messages
-        ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_REJECT, HStoreConstants.EMPTY_RESULT, "");
+        ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_THROTTLED, HStoreConstants.EMPTY_RESULT, "");
         this.cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
         
         // NewOrder Hack
@@ -662,6 +675,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             LOG.warn("Already told that we were ready... Ignoring");
             return;
         }
+        this.shutdown_state = ShutdownState.STARTED;
         
         // This message must always be printed in order for the BenchmarkController
         // to know that we're ready!
@@ -738,7 +752,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      * @param partition
      */
-    public void checkEnableThrottling(int partition) {
+    private void checkEnableThrottling(int partition) {
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
         int queue_size = this.inflight_txns_ctr[partition].incrementAndGet();
@@ -749,26 +763,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         // This partition is not throttled, but now the queue size is greater than our 
         // max limit. So we're going to need to throttle it
-        if (this.incoming_throttle[partition] == false && queue_size > this.incoming_queue_max[partition]) {
-            if (d) LOG.debug(String.format("INCOMING overloaded at partition %d!. Waiting for queue to drain [size=%d, trigger=%d]",
-                                           partition, queue_size, this.incoming_queue_release[partition]));
-            this.incoming_throttle[partition] = true;
-            if (hstore_conf.site.status_show_executor_info) 
-                ProfileMeasurement.start(true, this.incoming_throttle_time[partition]);
-            
-            // HACK: Randomly discard some distributed TransactionStates because we can't
-            // tell the Dtxn.Coordinator to prune its queue.
-            if (hstore_conf.site.txn_enable_queue_pruning && rand.nextBoolean() == true) {
-                int ctr = 0;
-                for (Long dtxn_id : this.inflight_txns.keySet()) {
-                    LocalTransaction _ts = (LocalTransaction)this.inflight_txns.get(dtxn_id);
-                    if (_ts == null) continue;
-                    if (_ts.isPredictSinglePartition() == false && _ts.hasStarted(partition) == false && rand.nextInt(10) == 0) {
-                        _ts.markAsRejected();
-                        ctr++;
-                    }
-                } // FOR
-                if (d && ctr > 0) LOG.debug("Pruned " + ctr + " queued distributed transactions to try to free up the queue");
+        if (this.incoming_throttle[partition] == false && queue_size == this.incoming_queue_max[partition]) {
+            if (this.incoming_throttle[partition] == false) {
+                if (d) 
+                    LOG.debug(String.format("INCOMING overloaded at partition %d!. Waiting for queue to drain [size=%d, trigger=%d]",
+                                            partition, queue_size, this.incoming_queue_release[partition]));
+                this.incoming_throttle[partition] = true;
+                if (hstore_conf.site.status_show_executor_info) 
+                    ProfileMeasurement.start(true, this.incoming_throttle_time[partition]);
             }
         }
     }
@@ -779,15 +781,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      * @return
      */
-    public boolean checkDisableThrottling(long txn_id, int partition) {
+    private boolean checkDisableThrottling(long txn_id, int partition) {
         if (this.incoming_throttle[partition] && this.shutdown_state == ShutdownState.STARTED) {
             int queue_size = this.inflight_txns_ctr[partition].get(); // XXX - this.ready_responses.size(); 
             if (this.incoming_throttle[partition] && queue_size < this.incoming_queue_release[partition]) {
                 this.incoming_throttle[partition] = false;
                 if (hstore_conf.site.status_show_executor_info)
                     ProfileMeasurement.stop(true, this.incoming_throttle_time[partition]);
-                if (d) LOG.debug(String.format("Disabling INCOMING throttling for Partition %2d because txn #%d finished [inflight=%d, release=%d]",
-                                               partition, txn_id, queue_size, this.incoming_queue_release[partition]));
+                if (d) 
+                    LOG.debug(String.format("Disabling INCOMING throttling for Partition %2d because txn #%d finished [inflight=%d, release=%d]",
+                                            partition, txn_id, queue_size, this.incoming_queue_release[partition]));
             }
         }
         return (this.incoming_throttle[partition]);
@@ -1021,7 +1024,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 ClientResponseImpl.setClientHandle(this.cached_ClientResponse, clientHandle);
                 done.run(this.cached_ClientResponse.array());
             } // SYNCH
-            if (hstore_conf.site.status_show_txn_info) TxnCounter.REJECTED.inc(request.getProcName());
+            if (hstore_conf.site.status_show_txn_info) TxnCounter.THROTTLED.inc(request.getProcName());
             return;
         }
         
@@ -1227,7 +1230,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 assert(est != null);
                 predict_touchedPartitions.addAll(est.getTouchedPartitions(this.thresholds));
             }
-            assert(predict_touchedPartitions.isEmpty() == false) : "Trying to mark " + ts + " as done at EVERY partition!";
+            assert(predict_touchedPartitions.isEmpty() == false) : "Trying to mark " + ts + " as done at EVERY partition!\n" + ts.debug();
 
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
@@ -1269,9 +1272,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         executor.queueNewTransaction(ts, wrapper);
         
         if (hstore_conf.site.status_show_txn_info) {
-            assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id;
+            assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id + "\n" + ts;
             TxnCounter.EXECUTED.inc(ts.getProcedure());
         }
+    }
+    
+    protected RemoteTransaction createRemoteTransaction(long txn_id, FragmentTaskMessage ftask) {
+        RemoteTransaction ts = null;
+        try {
+            // Remote Transaction
+            ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
+            ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
+            if (debug.get())
+                LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
+                                        ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false));
+        } catch (Exception ex) {
+            LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
+            throw new RuntimeException(ex);
+        }
+        this.inflight_txns.put(txn_id, ts);
+        if (t) LOG.trace(String.format("Stored new transaction state for %s at partition %d", ts, ftask.getDestinationPartitionId()));
+        return (ts);
     }
     
     /**
@@ -1279,28 +1300,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @param done
      */
-    public void transactionWork(long txn_id, FragmentTaskMessage ftask, TransactionWorkCallback callback) {
-        // TODO: The HStoreSite should pass a AbstractTransaction handle here so 
-        // that we can re-use the same handle per HStoreSite
-        RemoteTransaction ts = (RemoteTransaction)this.inflight_txns.get(txn_id);
-        if (ts == null) {
-            try {
-                // Remote Transaction
-                ts = (RemoteTransaction)HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
-                ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
-                if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
-                                               ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false));
-            } catch (Exception ex) {
-                LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
-                throw new RuntimeException(ex);
-            }
-            this.inflight_txns.put(txn_id, ts);
-            if (t) LOG.trace(String.format("Stored new transaction state for %s at partition %d", ts, ftask.getDestinationPartitionId()));
-        }
+    public void transactionWork(RemoteTransaction ts, FragmentTaskMessage ftask) {
         if (t)
             LOG.trace(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
-                                    ftask.getDestinationPartitionId(), txn_id));
-        this.executors[ftask.getDestinationPartitionId()].queueWork(ts, ftask, callback);
+                                    ftask.getDestinationPartitionId(), ts.getTransactionId()));
+        this.executors[ftask.getDestinationPartitionId()].queueWork(ts, ftask);
     }
 
 
@@ -1415,6 +1419,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param cresponse
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+        assert(cresponse != null) : "Missing ClientResponse for " + ts;
         Hstore.Status status = cresponse.getStatus();
         assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
         
@@ -1529,6 +1534,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             predict_touchedPartitions = this.all_partitions;
         }
+        if (predict_touchedPartitions.isEmpty()) predict_touchedPartitions = this.all_partitions;
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME
         new_ts.init(new_txn_id, base_partition, orig_ts, predict_touchedPartitions, predict_readOnly, predict_abortable);
@@ -1577,8 +1583,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                           txn_id, status));
             return;
         }
-        
-        assert(abstract_ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
 
         // Nothing else to do for RemoteTransactions other than to just
         // return the object back into the pool

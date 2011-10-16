@@ -14,7 +14,6 @@ import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
-import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
@@ -29,27 +28,18 @@ public abstract class HStoreObjectPools {
      * 
      */
     public static TypedStackObjectPool<TransactionInitCallback> CALLBACKS_TXN_INIT;
-    
     /**
      * 
      */
     public static TypedStackObjectPool<TransactionInitWrapperCallback> CALLBACKS_TXN_INITWRAPPER;
-    
-    /**
-     * 
-     */
-    public static TypedStackObjectPool<TransactionWorkCallback> CALLBACKS_TXN_WORK;
-
     /**
      * 
      */
     public static TypedStackObjectPool<TransactionPrepareCallback> CALLBACKS_TXN_PREPARE;
-    
     /**
      * 
      */
     public static TypedStackObjectPool<TransactionFinishCallback> CALLBACKS_TXN_FINISH;
-    
     /**
      * ForwardTxnRequestCallback Pool
      */
@@ -98,9 +88,6 @@ public abstract class HStoreObjectPools {
                     hstore_conf.site.pool_profiling, hstore_site);
             CALLBACKS_TXN_INITWRAPPER = TypedStackObjectPool.factory(TransactionInitWrapperCallback.class,
                     hstore_conf.site.pool_localtxninit_idle,
-                    hstore_conf.site.pool_profiling, hstore_site);
-            CALLBACKS_TXN_WORK = TypedStackObjectPool.factory(TransactionWorkCallback.class,
-                    hstore_conf.site.pool_forwardtxnresponses_idle,
                     hstore_conf.site.pool_profiling, hstore_site);
             CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
                     hstore_conf.site.pool_txnprepare_idle,
