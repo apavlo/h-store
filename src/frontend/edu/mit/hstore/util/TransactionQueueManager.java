@@ -109,6 +109,14 @@ public class TransactionQueueManager implements Runnable {
         return (true);
     }
     
+    public Long getCurrentTransaction(int partition) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        if (working_partitions[offset]) {
+            return (this.last_txns[offset]);
+        }
+        return (null);
+    }
+    
     protected synchronized boolean checkQueues() {
         if (debug.get())
             LOG.debug("Checking queues");
@@ -179,6 +187,7 @@ public class TransactionQueueManager implements Runnable {
         // Then mark the txn as done at all the partitions that we set as
         // as the current txn. Not sure how this will work...
         for (int p : callback.getPartitions()) {
+            if (this.localPartitions.contains(p) == false) continue;
             int offset = hstore_site.getLocalPartitionOffset(p);
             txn_queues[offset].remove(txn_id);
             if (txn_id == last_txns[offset]) {

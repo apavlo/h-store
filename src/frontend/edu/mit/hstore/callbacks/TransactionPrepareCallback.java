@@ -3,11 +3,8 @@ package edu.mit.hstore.callbacks;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -24,13 +21,6 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
-    private static final RpcCallback<Hstore.TransactionFinishResponse> commit_callback = new RpcCallback<TransactionFinishResponse>() {
-        @Override
-        public void run(TransactionFinishResponse parameter) {
-            // Ignore!
-        }
-    };
     
     private LocalTransaction ts;
     private ClientResponseImpl cresponse;
@@ -45,7 +35,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     
     public void init(LocalTransaction ts) {
         this.ts = ts;
-        super.init(this.ts.getPredictTouchedPartitions().size(), ts.getClientCallback());
+        super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), ts.getClientCallback());
     }
     
     public void setClientResponse(ClientResponseImpl cresponse) {
@@ -69,24 +59,24 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         assert(this.cresponse != null) : "Trying to send back ClientResponse for " + ts + " before it was set!";
         
         // Everybody returned ok, so we'll tell them all commit right now
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, Hstore.Status.OK, commit_callback);
+        TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(Hstore.Status.OK);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, Hstore.Status.OK, finish_callback);
         
         // At this point all of our HStoreSites came back with an OK on the 2PC PREPARE
         // So that means we can send back the result to the client and then 
         // send the 2PC COMMIT message to all of our friends.
         this.hstore_site.sendClientResponse(this.ts, this.cresponse);
-        this.hstore_site.completeTransaction(this.ts.getTransactionId(), Hstore.Status.OK);
     }
     
     @Override
     protected void abortCallback(Status status) {
         // Let everybody know that the party is over!
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, commit_callback);
+        TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(status);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
         
         // Change the response's status and send back the result to the client
         this.cresponse.setStatus(status);
         this.hstore_site.sendClientResponse(this.ts, this.cresponse);
-        this.hstore_site.completeTransaction(this.ts.getTransactionId(), status);
     }
     
     @Override

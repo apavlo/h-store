@@ -33,6 +33,7 @@ import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * A RemoteTransaction is one whose Java control code is executing at a 
@@ -49,8 +50,8 @@ public class RemoteTransaction extends AbstractTransaction {
     
     private RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> fragment_callback;
     
-    public RemoteTransaction() {
-        super();
+    public RemoteTransaction(HStoreSite hstore_site) {
+        super(hstore_site);
     }
     
     @Override

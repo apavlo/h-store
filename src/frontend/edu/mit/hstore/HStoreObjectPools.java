@@ -8,6 +8,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 
 import edu.brown.utils.TypedStackObjectPool;
+import edu.mit.hstore.callbacks.TransactionFinishCallback;
 import edu.mit.hstore.callbacks.TransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
@@ -43,6 +44,11 @@ public abstract class HStoreObjectPools {
      * 
      */
     public static TypedStackObjectPool<TransactionPrepareCallback> CALLBACKS_TXN_PREPARE;
+    
+    /**
+     * 
+     */
+    public static TypedStackObjectPool<TransactionFinishCallback> CALLBACKS_TXN_FINISH;
     
     /**
      * ForwardTxnRequestCallback Pool
@@ -99,6 +105,9 @@ public abstract class HStoreObjectPools {
             CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
                     hstore_conf.site.pool_txnprepare_idle,
                     hstore_conf.site.pool_profiling, hstore_site);
+            CALLBACKS_TXN_FINISH = TypedStackObjectPool.factory(TransactionFinishCallback.class,
+                    hstore_conf.site.pool_txnprepare_idle,
+                    hstore_conf.site.pool_profiling, hstore_site);
             
             CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
                     hstore_conf.site.pool_forwardtxnrequests_idle,
@@ -109,10 +118,10 @@ public abstract class HStoreObjectPools {
 
             STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
                     hstore_conf.site.pool_localtxnstate_idle,
-                    hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_profiling, hstore_site);
             STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
                     hstore_conf.site.pool_remotetxnstate_idle,
-                    hstore_conf.site.pool_profiling);
+                    hstore_conf.site.pool_profiling, hstore_site);
             STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
                     hstore_conf.site.pool_dependencyinfos_idle,
                     hstore_conf.site.pool_profiling);

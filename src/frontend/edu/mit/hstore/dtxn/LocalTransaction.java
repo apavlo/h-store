@@ -25,17 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -53,15 +43,17 @@ import ca.evanjones.protorpc.ProtoRpcController;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.TransactionFinishCallback;
 import edu.mit.hstore.callbacks.TransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 
@@ -132,6 +124,14 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public final TransactionProfile profiler;
     
+    /**
+     * Cached ProtoRpcControllers
+     */
+    public final ProtoRpcController rpc_transactionInit[];
+    public final ProtoRpcController rpc_transactionWork[];
+    public final ProtoRpcController rpc_transactionPrepare[];
+    public final ProtoRpcController rpc_transactionFinish[];
+    
     // ----------------------------------------------------------------------------
     // CALLBACKS
     // ----------------------------------------------------------------------------
@@ -150,6 +150,8 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private TransactionPrepareCallback prepare_callback; 
     
+    private TransactionFinishCallback finish_callback;
+    
     /**
      * Final RpcCallback to the client
      */
@@ -162,9 +164,15 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * Constructor
      */
-    public LocalTransaction() {
-        super();
-        this.profiler = (HStoreConf.singleton().site.txn_profiling ? new TransactionProfile() : null);
+    public LocalTransaction(HStoreSite hstore_site) {
+        super(hstore_site);
+        this.profiler = (hstore_site.getHStoreConf().site.txn_profiling ? new TransactionProfile() : null);
+        
+        int num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
+        this.rpc_transactionInit = new ProtoRpcController[num_sites];
+        this.rpc_transactionWork = new ProtoRpcController[num_sites];
+        this.rpc_transactionPrepare = new ProtoRpcController[num_sites];
+        this.rpc_transactionFinish = new ProtoRpcController[num_sites];
     }
 
     @SuppressWarnings("unchecked")
@@ -178,8 +186,13 @@ public class LocalTransaction extends AbstractTransaction {
                 this.init_callback = HStoreObjectPools.CALLBACKS_TXN_INIT.borrowObject(); 
                 this.init_callback.init(this);
                 
-                this.prepare_callback = (TransactionPrepareCallback)HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
+                this.prepare_callback = HStoreObjectPools.CALLBACKS_TXN_PREPARE.borrowObject();
                 this.prepare_callback.init(this);
+                
+                // Don't initialize this until later, because we need to know 
+                // what the final status of the txn
+                this.finish_callback = HStoreObjectPools.CALLBACKS_TXN_FINISH.borrowObject();
+                
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -334,7 +347,7 @@ public class LocalTransaction extends AbstractTransaction {
             synchronized (this.state) {
                 super.initRound(partition, undoToken);
                 // Reset these guys here so that we don't waste time in the last round
-                if (this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] != null) this.state.clearRound();
+                if (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != null) this.state.clearRound();
             } // SYNCHRONIZED
         } else {
             super.initRound(partition, undoToken);
@@ -412,7 +425,7 @@ public class LocalTransaction extends AbstractTransaction {
      * and therefore we don't need any locks
      */
     public void fastFinishRound(int partition) {
-        this.round_state[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = RoundState.STARTED;
+        this.round_state[hstore_site.getLocalPartitionOffset(partition)] = RoundState.STARTED;
         super.finishRound(partition);
     }
     
@@ -452,6 +465,11 @@ public class LocalTransaction extends AbstractTransaction {
     }
     public TransactionPrepareCallback getTransactionPrepareCallback() {
         return (this.prepare_callback);
+    }
+    public TransactionFinishCallback getTransactionFinishCallback(Hstore.Status status) {
+        assert(this.finish_callback.isInitialized() == false);
+        this.finish_callback.init(this, status);
+        return (this.finish_callback);
     }
     public RpcCallback<byte[]> getClientCallback() {
         return (this.client_callback);
@@ -600,16 +618,16 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public ProtoRpcController getTransactionInitController(int site_id) {
-        return this.getProtoRpcController(this.state.rpc_transactionInit, site_id);
+        return this.getProtoRpcController(this.rpc_transactionInit, site_id);
     }
     public ProtoRpcController getTransactionWorkController(int site_id) {
-        return this.getProtoRpcController(this.state.rpc_transactionWork, site_id);
+        return this.getProtoRpcController(this.rpc_transactionWork, site_id);
     }
     public ProtoRpcController getTransactionPrepareController(int site_id) {
-        return this.getProtoRpcController(this.state.rpc_transactionPrepare, site_id);
+        return this.getProtoRpcController(this.rpc_transactionPrepare, site_id);
     }
     public ProtoRpcController getTransactionFinishController(int site_id) {
-        return this.getProtoRpcController(this.state.rpc_transactionFinish, site_id);
+        return this.getProtoRpcController(this.rpc_transactionFinish, site_id);
     }
     
     // ----------------------------------------------------------------------------
@@ -679,7 +697,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ftask
      */
     public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
-        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[this.base_partition];
+        int offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, this.base_partition);
         
@@ -760,7 +778,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param result
      */
     private void processResultResponse(final int partition, final int dependency_id, final int key, VoltTable result) {
-        int base_offset = HStoreSite.LOCAL_PARTITION_OFFSETS[this.base_partition];
+        int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
         assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[base_offset], this, this.base_partition);
@@ -833,7 +851,7 @@ public class LocalTransaction extends AbstractTransaction {
         if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d",
                                        this.state.internal_dependencies.size(), this.txn_id));
         
-        Collection<Integer> localPartitionIds = this.state.executor.getLocalPartitionIds();
+        Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
         for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
             int input_d_id = ftask.getOnlyInputDepId(i);
             if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;

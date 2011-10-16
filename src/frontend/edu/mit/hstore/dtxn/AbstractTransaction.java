@@ -65,6 +65,8 @@ public abstract class AbstractTransaction implements Poolable {
     // GLOBAL DATA MEMBERS
     // ----------------------------------------------------------------------------
     
+    protected final HStoreSite hstore_site;
+    
     protected long txn_id = -1;
     protected long client_handle;
     protected int base_partition;
@@ -108,10 +110,10 @@ public abstract class AbstractTransaction implements Poolable {
      * Constructor
      * @param executor
      */
-    public AbstractTransaction() {
-        assert(HStoreSite.LOCAL_PARTITION_OFFSETS != null);
+    public AbstractTransaction(HStoreSite hstore_site) {
+        this.hstore_site = hstore_site;
         
-        int cnt = HStoreSite.LOCAL_PARTITION_OFFSETS.length;
+        int cnt = hstore_site.getLocalPartitionIds().size();
         this.finished = new boolean[cnt];
         this.last_undo_token = new Long[cnt];
         this.round_state = new RoundState[cnt];
@@ -159,7 +161,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.touched_partitions.clear();
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
-            int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[i];
+            int offset = hstore_site.getLocalPartitionOffset(i);
             this.finished[offset] = false;
             this.round_state[offset] = null;
             this.round_ctr[offset] = 0;
@@ -199,7 +201,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @param undoToken
      */
     public void initRound(int partition, long undoToken) {
-        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == null || this.round_state[offset] == RoundState.FINISHED) : 
             String.format("Invalid batch round state %s for %s at partition %d [hashCode=%d]", this.round_state[offset], this, partition, this.hashCode());
         
@@ -220,7 +222,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @return
      */
     public void startRound(int partition) {
-        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
@@ -233,7 +235,7 @@ public abstract class AbstractTransaction implements Poolable {
      * dependency tracking information that we have
      */
     public void finishRound(int partition) {
-        int offset = HStoreSite.LOCAL_PARTITION_OFFSETS[partition];
+        int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
@@ -273,22 +275,22 @@ public abstract class AbstractTransaction implements Poolable {
      * Mark this transaction as have performed some modification on this partition
      */
     public void markExecNotReadOnly(int partition) {
-        this.exec_readOnly[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = false;
+        this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
     /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public boolean isExecReadOnly(int partition) {
-        return (this.exec_readOnly[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
+        return (this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)]);
     }
     /**
      * Returns true if this transaction executed without undo buffers at some point
      */
     public boolean isExecNoUndoBuffer(int partition) {
-        return (this.exec_noUndoBuffer[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
+        return (this.exec_noUndoBuffer[hstore_site.getLocalPartitionOffset(partition)]);
     }
     public void markExecNoUndoBuffer(int partition) {
-        this.exec_noUndoBuffer[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
+        this.exec_noUndoBuffer[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     /**
      * Returns true if this transaction's control code running at this partition 
@@ -333,14 +335,14 @@ public abstract class AbstractTransaction implements Poolable {
      * Returns true if this transaction has done something at this partition
      */
     public boolean hasStarted(int partition) {
-        return (this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] != null);
+        return (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != null);
     }
     
     /**
      * Get the current batch/round counter
      */
     public int getCurrentRound(int partition) {
-        return (this.round_ctr[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
+        return (this.round_ctr[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
     /**
@@ -383,18 +385,18 @@ public abstract class AbstractTransaction implements Poolable {
     public void setSubmittedEE(int partition) {
         if (debug.get()) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
                                                  this, partition, Arrays.toString(this.exec_eeWork)));
-        this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
+        this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     
     public void unsetSubmittedEE(int partition) {
-        this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = false;
+        this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
     /**
      * Returns true if this txn has submitted work to the EE that needs to be rolled back
      * @return
      */
     public boolean hasSubmittedEE(int partition) {
-        return (this.exec_eeWork[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
+        return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
     // ----------------------------------------------------------------------------
@@ -407,14 +409,14 @@ public abstract class AbstractTransaction implements Poolable {
     public void setFinishedEE(int partition) {
         if (debug.get()) LOG.debug(String.format("Marking %s as finished on partition %d %s",
                                                  this, partition, Arrays.toString(this.finished)));
-        this.finished[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]] = true;
+        this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     /**
      * Is this TransactionState marked as finished
      * @return
      */
     public boolean isFinishedEE(int partition) {
-        return (this.finished[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
+        return (this.finished[hstore_site.getLocalPartitionOffset(partition)]);
     }
 
     /**
@@ -422,13 +424,13 @@ public abstract class AbstractTransaction implements Poolable {
      * Used only for testing  
      */
     protected RoundState getCurrentRoundState(int partition) {
-        return (this.round_state[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]]);
+        return (this.round_state[hstore_site.getLocalPartitionOffset(partition)]);
     }
     /**
      * Get the last undo token used for this transaction
      */
     public Long getLastUndoToken(int partition) {
-        return this.last_undo_token[HStoreSite.LOCAL_PARTITION_OFFSETS[partition]];
+        return this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)];
     }
     
     @Override

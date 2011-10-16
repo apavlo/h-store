@@ -95,7 +95,6 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
@@ -110,6 +109,7 @@ import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.TransactionFinishCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.ExecutionState;
@@ -268,7 +268,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     protected HStoreSite hstore_site;
     protected HStoreCoordinator hstore_messenger;
     protected HStoreConf hstore_conf;
-    protected ExecutionSiteHelper helper = null;
+//    protected ExecutionSiteHelper helper = null;
     
     // ----------------------------------------------------------------------------
     // Execution State
@@ -390,20 +390,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
     }; // END CLASS
 
-    /**
-     * 
-     */
-    private final RpcCallback<Hstore.TransactionFinishResponse> abort_callback = new RpcCallback<TransactionFinishResponse>() {
-        @Override
-        public void run(TransactionFinishResponse parameter) {
-            // Nothing...
-//            long txn_id = parameter.getTransactionId();
-//            if (hstore_site.getLocalTransaction(txn_id) != null) {
-//                hstore_site.completeTransaction(txn_id, Hstore.Status.ABORT_USER); // ???
-//            }
-        }
-    };
-    
     // ----------------------------------------------------------------------------
     // SYSPROC STUFF
     // ----------------------------------------------------------------------------
@@ -417,7 +403,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (!m_registeredSysProcPlanFragments.containsKey(pfId)) {
                 assert(m_registeredSysProcPlanFragments.containsKey(pfId) == false) : "Trying to register the same sysproc more than once: " + pfId;
                 m_registeredSysProcPlanFragments.put(pfId, proc);
-                LOG.trace("Registered " + proc.getClass().getSimpleName() + " sysproc handle for FragmentId #" + pfId);
+                LOG.trace("Registered @" + proc.getClass().getSimpleName() + " sysproc handle for FragmentId #" + pfId);
             }
         } // SYNCH
     }
@@ -620,7 +606,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_messenger = hstore_site.getCoordinator();
-        this.helper = hstore_site.getExecutionSiteHelper();
+//        this.helper = hstore_site.getExecutionSiteHelper();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         this.localPartitionIds = hstore_site.getLocalPartitionIds();
         
@@ -1620,10 +1606,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
         BBContainer bc = fresponse.getBufferForMessaging(buffer_pool);
         assert(bc.b.hasArray());
-        ByteString bs = ByteString.copyFrom(bc.b.array());
+        ByteString bs = ByteString.copyFrom(bc.b.array()); // XXX
         if (d) LOG.debug(String.format("Sending FragmentResponseMessage for %s [partition=%d, size=%d]", ts, this.partitionId, bs.size()));
         Hstore.TransactionWorkResponse.PartitionResult.Builder builder = Hstore.TransactionWorkResponse.PartitionResult.newBuilder()
                                                                                     .setOutput(bs)
+                                                                                    .setPartitionId(this.partitionId)
                                                                                     .setError(fresponse.getException() != null);
         callback.run(builder.build());
         bc.discard();
@@ -2045,14 +2032,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // Then send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the
             // results back because we'll start working on new txns right away.
-            this.hstore_messenger.transactionFinish(ts, status, this.abort_callback);
+            TransactionFinishCallback finish_callback = ts.getTransactionFinishCallback(status);
+            this.hstore_messenger.transactionFinish(ts, status, finish_callback);
             
             // Send back the result to the client right now, since there's no way 
             // that we're magically going to be able to recover this and get them a result
             // This has to come before the network messages above because this will clean-up the 
             // LocalTransaction state information
             this.hstore_site.sendClientResponse(ts, cresponse);
-            this.hstore_site.completeTransaction(ts.getTransactionId(), status);
         }
     }
         

@@ -37,11 +37,19 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
-        super.init(partitions.size(), orig_callback);
+
+        // Only include local partitions
+        int counter = 0;
+        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
+        for (Integer p : partitions) {
+            if (localPartitions.contains(p)) counter++;
+        } // FOR
+        assert(counter > 0);
         this.partitions = partitions;
         this.builder = Hstore.TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id)
                              .setStatus(Hstore.Status.OK);
+        super.init(txn_id, counter, orig_callback);
     }
     
     public Collection<Integer> getPartitions() {
@@ -61,11 +69,11 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     @Override
     public void unblockCallback() {
         if (debug.get()) {
-            LOG.debug(String.format("Sending %s to %s with status %s for txn #%d",
+            LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
+                                    this.txn_id,
                                     TransactionInitResponse.class.getSimpleName(),
                                     this.getOrigCallback().getClass().getSimpleName(),
-                                    this.builder.getStatus(),
-                                    this.builder.getTransactionId()));
+                                    this.builder.getStatus()));
         }
         this.getOrigCallback().run(this.builder.build());
     }
@@ -73,10 +81,15 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     @Override
     protected void abortCallback(Hstore.Status status) {
         if (debug.get())
-            LOG.debug(String.format("Aborting %s for txn #%d [status=%s]",
-                                    this.getClass().getSimpleName(),
-                                    this.builder.getTransactionId(), status));
+            LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
+                                    this.txn_id, this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
+        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
+        for (Integer p : this.partitions) {
+            if (localPartitions.contains(p) && this.builder.getPartitionsList().contains(p) == false) {
+                this.builder.addPartitions(p.intValue());
+            }
+        } // FOR
         this.unblockCallback();
     }
     
