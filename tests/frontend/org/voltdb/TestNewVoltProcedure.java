@@ -82,7 +82,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
         Collection<Integer> partitions = Collections.singleton(LOCAL_PARTITION);
-        LocalTransaction ts = new LocalTransaction().init(xact_id, CLIENT_HANDLE++, LOCAL_PARTITION, partitions, false, true);
+        LocalTransaction ts = new LocalTransaction(hstore_site).init(xact_id, CLIENT_HANDLE++, LOCAL_PARTITION, partitions, false, true);
         // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure

@@ -20,9 +20,6 @@ import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
-import ca.evanjones.protorpc.ProtoRpcController;
-
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -84,14 +81,6 @@ public class ExecutionState {
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
     protected final Set<Integer> done_partitions = new HashSet<Integer>();
-    
-    /**
-     * Cached ProtoRpcControllers
-     */
-    public final ProtoRpcController rpc_transactionInit[];
-    public final ProtoRpcController rpc_transactionWork[];
-    public final ProtoRpcController rpc_transactionPrepare[];
-    public final ProtoRpcController rpc_transactionFinish[];
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
@@ -183,12 +172,6 @@ public class ExecutionState {
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
-        
-        int num_sites = CatalogUtil.getNumberOfSites(this.executor.getPartition());
-        this.rpc_transactionInit = new ProtoRpcController[num_sites];
-        this.rpc_transactionWork = new ProtoRpcController[num_sites];
-        this.rpc_transactionPrepare = new ProtoRpcController[num_sites];
-        this.rpc_transactionFinish = new ProtoRpcController[num_sites];
     }
     
     public void clear() {

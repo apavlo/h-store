@@ -1028,7 +1028,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             MarkovGraph markov = (s != null ? s.getMarkovGraph() : null); 
             if (hstore_conf.site.markov_mispredict_recompute && markov != null) {
                 if (d) LOG.debug("Recomputing MarkovGraph probabilities because " + m_localTxnState + " mispredicted");
-                this.executor.helper.queueMarkovToRecompute(markov);
+                // FIXME this.executor.helper.queueMarkovToRecompute(markov);
             }
             
             if (d || hstore_conf.site.exec_mispredict_crash) {

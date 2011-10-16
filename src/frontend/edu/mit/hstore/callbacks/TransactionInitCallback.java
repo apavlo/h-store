@@ -2,8 +2,6 @@ package edu.mit.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
 import edu.brown.utils.LoggerUtil;
@@ -24,15 +22,12 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private static final RpcCallback<Hstore.TransactionFinishResponse> abort_callback = new RpcCallback<Hstore.TransactionFinishResponse>() {
-        @Override
-        public void run(Hstore.TransactionFinishResponse parameter) {
-            // Ignore!
-        }
-    };
-    
     private LocalTransaction ts;
     
+    /**
+     * Constructor
+     * @param hstore_site
+     */
     public TransactionInitCallback(HStoreSite hstore_site) {
         super(hstore_site);
     }
@@ -41,12 +36,17 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
-        super.init(ts.getPredictTouchedPartitions().size(), null);
+        super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
     }
     
     @Override
     protected void finishImpl() {
         this.ts = null;
+    }
+    
+    @Override
+    public boolean isInitialized() {
+        return (this.ts != null && super.isInitialized());
     }
     
     @Override
@@ -65,19 +65,25 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         // Note that we do this *even* if we haven't heard back from the remote
         // HStoreSite that they've acknowledged our tranasction
         // We don't care when we get the response for this
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, abort_callback);
+        TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(status);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
 
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed
         this.hstore_site.transactionRestart(this.ts, status);
-        this.hstore_site.completeTransaction(this.ts.getTransactionId(), status);
     }
     
     @Override
     protected int runImpl(Hstore.TransactionInitResponse parameter) {
         if (debug.get())
             LOG.debug(String.format("Got %s with %d partitions for %s",
-                                    parameter.getClass().getSimpleName(), parameter.getPartitionsCount(), this.ts));
+                                    parameter.getClass().getSimpleName(),
+                                    parameter.getPartitionsCount(),
+                                    this.ts));
+        assert(this.ts != null) :
+            String.format("Missing LocalTransaction handle for txn #%d", parameter.getTransactionId());
+        assert(parameter.getPartitionsCount() > 0) :
+            String.format("No partitions returned in %s for %s", parameter.getClass().getSimpleName(), this.ts);
         
         if (parameter.getStatus() != Hstore.Status.OK) {
             this.abort(parameter.getStatus());

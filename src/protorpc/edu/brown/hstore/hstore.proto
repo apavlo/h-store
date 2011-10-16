@@ -40,6 +40,9 @@ message TransactionInitRequest {
     // with this transaction.
     repeated int32 partitions = 2 [packed=true];
 
+    // MapReduce Job
+    optional bool mapreduce = 3 [default=false];
+
     // TODO: Embed the first queries that need to execute at the remote partitions
     // if they are known ahead of time.
 }
@@ -125,6 +128,7 @@ message TransactionFinishRequest {
 
 message TransactionFinishResponse {
     required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
 }
 
 // -----------------------------------

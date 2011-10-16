@@ -25,7 +25,7 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
     }
     
     public void init(long txn_id, int num_partitions, RpcCallback<Hstore.TransactionWorkResponse> orig_callback) {
-        super.init(num_partitions, orig_callback);
+        super.init(txn_id, num_partitions, orig_callback);
         this.builder = Hstore.TransactionWorkResponse.newBuilder()
                                             .setTransactionId(txn_id)
                                             .setStatus(Hstore.Status.OK);
@@ -39,8 +39,8 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
     @Override
     public void unblockCallback() {
         if (LOG.isDebugEnabled()) {
-            LOG.debug(String.format("Sending back %d partition results for txn #%d",
-                                    this.builder.getResultsCount(), this.builder.getTransactionId()));
+            LOG.debug(String.format("Txn #%d - Sending back %d partition results",
+                                    this.txn_id, this.builder.getResultsCount()));
         }
         this.getOrigCallback().run(this.builder.build());
     }

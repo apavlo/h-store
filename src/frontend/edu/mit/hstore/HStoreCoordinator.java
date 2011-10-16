@@ -191,7 +191,7 @@ public class HStoreCoordinator implements Shutdownable {
         }
         
         // Wrap the listener in a daemon thread
-        this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "request"));
+        this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
     }
@@ -496,6 +496,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionInitResponse> callback) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // Wrap the callback around a TransactionInitWrapperCallback that will wait until
             // our HStoreSite gets an acknowledgment from all the
@@ -519,6 +521,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionWorkResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // This is work from a transaction executing at another node
             // Any other message can just be sent along to the ExecutionSite without sending
@@ -556,6 +560,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionPrepareResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             Collection<Integer> updated = new HashSet<Integer>();
             hstore_site.transactionPrepare(txn_id, request.getPartitionsList(), updated);
@@ -574,14 +580,18 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionFinishResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
 
             hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
             
             // Send back a FinishResponse to let them know we're cool with everything...
-            Hstore.TransactionFinishResponse response = Hstore.TransactionFinishResponse.newBuilder()
-                                                              .setTransactionId(txn_id)
-                                                              .build();
-            done.run(response);
+            Hstore.TransactionFinishResponse.Builder builder = Hstore.TransactionFinishResponse.newBuilder()
+                                                              .setTransactionId(txn_id);
+            for (Integer p : request.getPartitionsList()) {
+                if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
+            }
+            done.run(builder.build());
             
             // Always tell the HStoreSite to clean-up any state for this txn
             hstore_site.completeTransaction(txn_id, request.getStatus());
@@ -629,7 +639,7 @@ public class HStoreCoordinator implements Shutdownable {
             done.run(response);
             LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
             if (debug.get())
-                LOG.info(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
+                LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                                        forwardDispatcher.idleTime.getTotalThinkTimeMS()));
             ThreadUtil.sleep(1000); // HACK
             LogManager.shutdown();
@@ -700,6 +710,9 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionFinish(LocalTransaction ts, Hstore.Status status, RpcCallback<Hstore.TransactionFinishResponse> callback) {
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        if (debug.get())
+            LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
+        
         Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .setStatus(status)

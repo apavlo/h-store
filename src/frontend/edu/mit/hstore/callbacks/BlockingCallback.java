@@ -27,6 +27,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     protected final HStoreSite hstore_site;
+    protected long txn_id = -1;
     private final AtomicInteger counter = new AtomicInteger(0);
     private RpcCallback<T> orig_callback;
 
@@ -69,7 +70,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     private void unblock() {
         if (debug.get())
-            LOG.debug(String.format("Invoking %s.unblockCallback()", this.getClass().getSimpleName()));
+            LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
+                                    this.txn_id, this.getClass().getSimpleName()));
         this.unblockCallback();
     }
     
@@ -83,11 +85,14 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     @Override
     public void run(U parameter) {
-        int counter = this.runImpl(parameter);
+        int delta = this.runImpl(parameter);
+        if (debug.get())
+            LOG.debug(String.format("Txn #%d - %s.run() / Current:%d / Decrement:%d",
+                                    this.txn_id, this.getClass().getSimpleName(), this.counter.get(), delta));
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if (this.aborted.get() == false && this.counter.addAndGet(-1 * counter) == 0) {
+        if (this.aborted.get() == false && this.counter.addAndGet(-1 * delta) == 0) {
             this.unblock();
         }
     }
@@ -96,12 +101,13 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         return (this.aborted.get());
     }
     
-    protected final void init(int counter_val, RpcCallback<T> orig_callback) {
-        assert(this.isInitialized() == false) : String.format("Trying to reuse %s before it is finished!", this.getClass().getSimpleName());
+    protected void init(long txn_id, int counter_val, RpcCallback<T> orig_callback) {
         if (debug.get())
-            LOG.debug(String.format("Initialized new %s with counter = %d", this.getClass().getSimpleName(), counter_val));
+            LOG.debug(String.format("Txn #%d - Initialized new %s with counter = %d",
+                                    txn_id, this.getClass().getSimpleName(), counter_val));
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
+        this.txn_id = txn_id;
     }
     
     @Override
@@ -113,6 +119,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     public void finish() {
         this.aborted.set(false);
         this.orig_callback = null;
+        this.txn_id = -1;
         this.finishImpl();
     }
     
@@ -122,7 +129,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     public void decrementCounter(int ctr) {
         if (debug.get())
-            LOG.debug(String.format("Decrementing %s counter by %d", this.getClass().getSimpleName(), ctr));
+            LOG.debug(String.format("Txn #%d - Decrementing %s counter by %d",
+                                    txn_id, this.getClass().getSimpleName(), ctr));
         if (this.counter.addAndGet(-1 * ctr) == 0) {
             this.unblock();
         }
