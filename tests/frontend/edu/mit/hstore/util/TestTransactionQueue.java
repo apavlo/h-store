@@ -54,7 +54,7 @@ public class TestTransactionQueue extends BaseTestCase {
             ExecutionSite site = new MockExecutionSite(p, catalog, p_estimator);
             executors.put(p, site);
         } // FOR
-        HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
+        hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
         for (ExecutionSite site : executors.values()) {
             site.initHStoreSite(hstore_site);    
         } // FOR

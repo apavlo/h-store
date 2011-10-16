@@ -310,6 +310,11 @@ public class LocalTransaction extends AbstractTransaction {
                 HStoreObjectPools.CALLBACKS_TXN_PREPARE.returnObject(this.prepare_callback);
                 this.prepare_callback = null;
             }
+            // Return our TransactionFinishCallback
+            if (this.finish_callback != null) {
+                HStoreObjectPools.CALLBACKS_TXN_FINISH.returnObject(this.finish_callback);
+                this.finish_callback = null;
+            }
             // Return our TransactionEstimator.State handle
             if (this.estimator_state != null) {
                 TransactionEstimator.POOL_STATES.returnObject(this.estimator_state);
