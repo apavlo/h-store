@@ -22,6 +22,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
@@ -485,7 +486,7 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="The scale factor to apply to the object pool values.",
+            description="The scale factor to apply to the object pool configuration values.",
             defaultDouble=1.0,
             experimental=false
         )
@@ -498,52 +499,30 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean pool_profiling;
-
-        @ConfigProperty(
-            description="The max number of VoltProcedure instances to keep in the pool " + 
-                        "(per ExecutionSite + per Procedure)",
-            defaultInt=10000,
-            experimental=false
-        )
-        public int pool_voltprocedure_idle;
-    
-        @ConfigProperty(
-            description="The number of LocalTransactionState objects to preload",
-            defaultInt=500,
-            experimental=false
-        )
-        public int pool_localtxnstate_preload;
         
         @ConfigProperty(
-            description="The max number of LocalTransactionStates to keep in the pool (per partition)",
+            description="The max number of LocalTransactionStates to keep in the pool",
             defaultInt=5000,
             experimental=false
         )
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
-            description="The number of RemoteTransactionState objects to preload",
-            defaultInt=500,
-            experimental=false
-        )
-        public int pool_remotetxnstate_preload;
-        
-        @ConfigProperty(
-            description="The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)",
+            description="The max number of RemoteTransactionStates to keep in the pool",
             defaultInt=500,
             experimental=false
         )
         public int pool_remotetxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of MarkovPathEstimators to keep in the pool (global)",
+            description="The max number of MarkovPathEstimators to keep in the pool",
             defaultInt=1000,
             experimental=false
         )
         public int pool_pathestimators_idle;
         
         @ConfigProperty(
-            description="The max number of TransactionEstimator.States to keep in the pool (global). " + 
+            description="The max number of TransactionEstimator.States to keep in the pool. " + 
                         "Should be the same as the number of MarkovPathEstimators.",
             defaultInt=1000,
             experimental=false
@@ -551,40 +530,40 @@ public final class HStoreConf {
         public int pool_estimatorstates_idle;
         
         @ConfigProperty(
-            description="The max number of DependencyInfos to keep in the pool (global). " +
+            description="The max number of DependencyInfos to keep in the pool. " +
                         "Should be the same as the number of MarkovPathEstimators. ",
-            defaultInt=50000,
+            defaultInt=500,
             experimental=false
         )
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
-            description="The number of DependencyInfo objects to preload in the pool.",
+            description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
             defaultInt=10000,
             experimental=false
         )
-        public int pool_preload_dependency_infos;
+        public int pool_txnredirect_idle;
         
         @ConfigProperty(
-            description="The max number of ForwardTxnRequestCallbacks to keep idle in the pool",
+            description="The max number of TransactionRedirectResponseCallbacks to keep idle in the pool.",
             defaultInt=2500,
             experimental=false
         )
-        public int pool_forwardtxnrequests_idle;
+        public int pool_txnredirectresponses_idle;
         
         @ConfigProperty(
-            description="The max number of ForwardTxnResponseCallbacks to keep idle in the pool.",
+            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
             defaultInt=2500,
             experimental=false
         )
-        public int pool_forwardtxnresponses_idle;
+        public int pool_txninit_idle;
         
         @ConfigProperty(
-            description="The max number of LocalTransactionInitCallbacks to keep idle in the pool.",
+            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
             defaultInt=2500,
             experimental=false
         )
-        public int pool_localtxninit_idle;
+        public int pool_txninitwrapper_idle;
         
         @ConfigProperty(
             description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",

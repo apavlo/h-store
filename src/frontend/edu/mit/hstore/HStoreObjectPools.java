@@ -84,33 +84,33 @@ public abstract class HStoreObjectPools {
             HStoreConf hstore_conf = hstore_site.getHStoreConf();
             
             CALLBACKS_TXN_INIT = TypedStackObjectPool.factory(TransactionInitCallback.class,
-                    hstore_conf.site.pool_localtxninit_idle,
+                    (int)(hstore_conf.site.pool_txninit_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             CALLBACKS_TXN_INITWRAPPER = TypedStackObjectPool.factory(TransactionInitWrapperCallback.class,
-                    hstore_conf.site.pool_localtxninit_idle,
+                    (int)(hstore_conf.site.pool_txninitwrapper_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             CALLBACKS_TXN_PREPARE = TypedStackObjectPool.factory(TransactionPrepareCallback.class,
-                    hstore_conf.site.pool_txnprepare_idle,
+                    (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             CALLBACKS_TXN_FINISH = TypedStackObjectPool.factory(TransactionFinishCallback.class,
-                    hstore_conf.site.pool_txnprepare_idle,
+                    (int)(hstore_conf.site.pool_txnprepare_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             
             CALLBACKS_TXN_REDIRECT_REQUEST = TypedStackObjectPool.factory(TransactionRedirectCallback.class,
-                    hstore_conf.site.pool_forwardtxnrequests_idle,
+                    (int)(hstore_conf.site.pool_txnredirect_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling);
             CALLBACKS_TXN_REDIRECTRESPONSE = TypedStackObjectPool.factory(TransactionRedirectResponseCallback.class,
-                    hstore_conf.site.pool_forwardtxnresponses_idle,
+                    (int)(hstore_conf.site.pool_txnredirectresponses_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling);
 
             STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
-                    hstore_conf.site.pool_localtxnstate_idle,
+                    (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
-                    hstore_conf.site.pool_remotetxnstate_idle,
+                    (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             STATES_DEPENDENCYINFO = TypedStackObjectPool.factory(DependencyInfo.class,
-                    hstore_conf.site.pool_dependencyinfos_idle,
+                    (int)(hstore_conf.site.pool_dependencyinfos_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling);
         }
         for (Entry<String, StackObjectPool> e : getAllPools().entrySet()) {
