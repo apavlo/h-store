@@ -23,19 +23,22 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     }
     
     private LocalTransaction ts;
+    private long orig_txn_id;
+    private TransactionFinishCallback finish_callback;
     
     /**
      * Constructor
      * @param hstore_site
      */
     public TransactionInitCallback(HStoreSite hstore_site) {
-        super(hstore_site);
+        super(hstore_site, true);
     }
 
     public void init(LocalTransaction ts) {
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
+        this.finish_callback = null;
         super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
     }
     
@@ -46,19 +49,25 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     
     @Override
     public boolean isInitialized() {
-        return (this.ts != null && super.isInitialized());
+        return (this.ts != null);
     }
     
     @Override
     protected void unblockCallback() {
-        if (debug.get())
-            LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
-        hstore_site.transactionStart(ts);
+        if (this.isAborted() == false) {
+            if (debug.get())
+                LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
+            hstore_site.transactionStart(ts);
+        } else {
+            assert(this.finish_callback != null);
+            this.finish_callback.allowTransactionCleanup();
+        }
     }
     
     @Override
     protected void abortCallback(Status status) {
         assert(status == Hstore.Status.ABORT_REJECT);
+        assert(this.isInitialized()) : "ORIG TXN: " + orig_txn_id;
         
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed
@@ -69,19 +78,21 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         // If we abort, then we have to send out an ABORT_REJECT to
         // all of the partitions that we originally sent INIT requests too
         // Note that we do this *even* if we haven't heard back from the remote
-        // HStoreSite that they've acknowledged our tranasction
+        // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
-        TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(status);
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
+        this.finish_callback = this.ts.getTransactionFinishCallback(status);
+        this.finish_callback.disableTransactionCleanup();
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, this.finish_callback);
     }
     
     @Override
     protected int runImpl(Hstore.TransactionInitResponse response) {
         if (debug.get())
-            LOG.debug(String.format("Got %s with %d partitions for %s",
+            LOG.debug(String.format("Got %s with status %s for %s [partitions=%s]",
                                     response.getClass().getSimpleName(),
-                                    response.getPartitionsCount(),
-                                    this.ts));
+                                    response.getStatus(),
+                                    this.ts, 
+                                    response.getPartitionsList()));
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d", response.getTransactionId());
         assert(response.getPartitionsCount() > 0) :

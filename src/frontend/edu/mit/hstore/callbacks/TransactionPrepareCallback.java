@@ -30,7 +30,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
      * @param hstore_site
      */
     public TransactionPrepareCallback(HStoreSite hstore_site) {
-        super(hstore_site);
+        super(hstore_site, false);
     }
     
     public void init(LocalTransaction ts) {

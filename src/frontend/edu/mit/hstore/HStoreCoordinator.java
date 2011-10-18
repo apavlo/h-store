@@ -470,17 +470,17 @@ public class HStoreCoordinator implements Shutdownable {
         }
     };
     // Shutdown
-    private final MessageRouter<ShutdownRequest, ShutdownResponse> router_shutdown = new MessageRouter<ShutdownRequest, ShutdownResponse>() {
-        protected void sendLocal(long txn_id, ShutdownRequest request, Collection<Integer> partitions, RpcCallback<ShutdownResponse> callback) {
-            
-        }
-        protected void sendRemote(HStoreService channel, ProtoRpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> callback) {
-            channel.shutdown(controller, request, callback);
-        }
-        protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
-            return new ProtoRpcController();
-        }
-    };
+//    private final MessageRouter<ShutdownRequest, ShutdownResponse> router_shutdown = new MessageRouter<ShutdownRequest, ShutdownResponse>() {
+//        protected void sendLocal(long txn_id, ShutdownRequest request, Collection<Integer> partitions, RpcCallback<ShutdownResponse> callback) {
+//            
+//        }
+//        protected void sendRemote(HStoreService channel, ProtoRpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> callback) {
+//            channel.shutdown(controller, request, callback);
+//        }
+//        protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
+//            return new ProtoRpcController();
+//        }
+//    };
 
     
     // ----------------------------------------------------------------------------

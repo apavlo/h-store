@@ -21,11 +21,21 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     private Hstore.Status status;
     
     /**
+     * This is important so bare with me here...
+     * When we abort a txn from the TransactionInitCallback, it may get all
+     * the FINISH acknowledgments back from the remote sites before we get the
+     * INIT acknowledgments back. So this flag just says that we're not allowed to
+     * call HStoreSite.completeTransaction() until we know that everybody that we were
+     * waiting to hear responses from has sent them.
+     */
+    private boolean can_complete;
+    
+    /**
      * Constructor
      * @param hstore_site
      */
     public TransactionFinishCallback(HStoreSite hstore_site) {
-        super(hstore_site);
+        super(hstore_site, false);
     }
 
     public void init(LocalTransaction ts, Hstore.Status status) {
@@ -33,6 +43,7 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
             LOG.debug("Initializing " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.status = status;
+        this.can_complete = true;
         super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
     }
     
@@ -49,7 +60,8 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     
     @Override
     protected void unblockCallback() {
-        hstore_site.completeTransaction(txn_id, status);
+        if (this.can_complete)
+            hstore_site.completeTransaction(txn_id, status);
     }
     
     @Override
@@ -65,5 +77,20 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
                                     this.ts, response.getPartitionsList()));
         
         return (response.getPartitionsCount());
+    }
+    
+    public void disableTransactionCleanup() {
+        assert(this.can_complete);
+        if (debug.get())
+            LOG.debug(String.format("Blocking completeTransaction() for %s", this.ts));
+        this.can_complete = false;
+    }
+    
+    public void allowTransactionCleanup() {
+        assert(this.can_complete == false);
+        if (debug.get())
+            LOG.debug(String.format("Allowing completeTransaction() for %s", this.ts));
+        this.can_complete = true;
+        if (this.getCounter() == 0) this.unblockCallback();
     }
 }

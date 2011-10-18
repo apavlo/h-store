@@ -21,7 +21,7 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
      * Default Constructor
      */
     public TransactionWorkCallback(HStoreSite hstore_site) {
-        super(hstore_site);
+        super(hstore_site, false);
     }
     
     public void init(long txn_id, int num_partitions, RpcCallback<Hstore.TransactionWorkResponse> orig_callback) {

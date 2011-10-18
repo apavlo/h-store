@@ -117,9 +117,14 @@ public class TransactionQueueManager implements Runnable {
         return (null);
     }
     
+    public int getQueueSize(int partition) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.txn_queues[offset].size());
+    }
+    
     protected synchronized boolean checkQueues() {
-        if (debug.get())
-            LOG.debug("Checking queues");
+        if (trace.get())
+            LOG.trace("Checking queues");
         
         boolean txn_released = false;
         
@@ -152,8 +157,8 @@ public class TransactionQueueManager implements Runnable {
             }
 
             // otherwise send the init request to the specified partition
-            if (trace.get())
-                LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
+            if (debug.get())
+                LOG.debug(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
             last_txns[offset] = next_id;
             working_partitions[offset] = true;
             callback.run(partition);

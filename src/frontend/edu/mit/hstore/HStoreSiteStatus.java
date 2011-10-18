@@ -209,14 +209,16 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      * @return
      */
     protected Map<String, Object> executorInfo() {
+        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
         int inflight_cur = hstore_site.getInflightTxnCount();
+        int inflight_local = hstore_site.getDTXNQueueSize();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
         if (inflight_max == null || inflight_cur > inflight_max) inflight_max = inflight_cur;
         
         ListOrderedMap<String, Object> m_exec = new ListOrderedMap<String, Object>();
-        m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
-        m_exec.put("Total InFlight Txns", String.format("%-5d [totalMin=%d, totalMax=%d]",
+        m_exec.put("InFlight Txns", String.format("%-5d total / %-5d dtxn [totalMin=%d, totalMax=%d]",
                         inflight_cur,
+                        inflight_local,
                         inflight_min,
                         inflight_max
         ));
@@ -227,6 +229,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                         pm.getTotalThinkTimeMS(),
                         pm.getAverageThinkTimeMS()
         ));
+        
+        m_exec.put("Completed Txns", TxnCounter.COMPLETED.get());
         
         if (hstore_conf.site.exec_postprocessing_thread) {
             int processing_cur = hstore_site.getQueuedResponseCount();
@@ -249,11 +253,11 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         m_exec.put(" ", null);
 
         // EXECUTION ENGINES
-        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             ExecutionSite es = e.getValue();
             int partition = e.getKey().intValue();
-            AbstractTransaction ts = es.getCurrentDtxn();
+            AbstractTransaction current_dtxn = es.getCurrentDtxn();
+            AbstractTransaction current_txn = es.getCurrentTxn();
             
             boolean is_throttled = this.hstore_site.isIncomingThrottled(partition);
             int queue_size = hstore_site.getInflightTxnCount(partition);
@@ -298,11 +302,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getAverageThinkTimeMS()));                
             }
             
-            m.put("Current Mode", String.format("%-10s / %s", es.getExecutionMode(), (ts == null ? "-" : ts)));
+            m.put("Current Mode", String.format("%-10s / %s", es.getExecutionMode(), (current_txn == null ? "-" : current_txn)));
+            if (current_dtxn != null)
+                m.put("Current DTXN", current_dtxn);
             
             // Queue Info
             Long txn_id = manager.getCurrentTransaction(partition);
-            m.put("Current Queue Txn", (txn_id != null ? "#" + txn_id : txn_id));
+            m.put("DTXN Queue", String.format("%d total / %s", manager.getQueueSize(partition),
+                                                                (txn_id != null ? "#" + txn_id : "-")));
             
             m_exec.put(String.format("    Partition[%02d]", partition), StringUtil.formatMaps(m) + "\n");
         } // FOR
