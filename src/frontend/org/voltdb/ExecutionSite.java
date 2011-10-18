@@ -2132,12 +2132,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private void releaseBlockedTransactions(AbstractTransaction ts, boolean speculative) {
         if (this.current_dtxn_blocked.isEmpty() == false) {
+            if (d) LOG.debug(String.format("Attempting to release %d blocked transactions at partition %d because of %s",
+                                           this.current_dtxn_blocked.size(), this.partitionId, ts));
             synchronized (this.exec_mode) {
-                if (d) LOG.debug(String.format("Releasing %d transactions at partition %d because of %s",
-                                               this.current_dtxn_blocked.size(), this.partitionId, ts));
                 this.work_queue.addAll(this.current_dtxn_blocked);
                 this.current_dtxn_blocked.clear();
             } // SYNCH
+            if (t) LOG.trace(String.format("Released all blocked transactions at partition %d because of %s",
+                                           this.partitionId, ts));
         }
         assert(this.current_dtxn_blocked.isEmpty());
     }

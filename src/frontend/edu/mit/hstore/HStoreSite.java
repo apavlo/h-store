@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1530,7 +1531,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status == Hstore.Status.ABORT_REJECT) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
         } else if (orig_ts.getOriginalTransactionId() == null) {
-            predict_touchedPartitions = new HashSet<Integer>(orig_ts.getTouchedPartitions().values());
+            // HACK: Ignore ConcurrentModificationException
+            predict_touchedPartitions = new HashSet<Integer>();
+            Collection<Integer> orig_touchedPartitions = orig_ts.getTouchedPartitions().values();
+            while (true) {
+                try {
+                    predict_touchedPartitions.addAll(orig_touchedPartitions);
+                } catch (ConcurrentModificationException ex) {
+                    continue;
+                }
+                break;
+            } // WHILE
         } else {
             predict_touchedPartitions = this.all_partitions;
         }
@@ -1572,7 +1583,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      */
     public void completeTransaction(final long txn_id, final Hstore.Status status) {
-        if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
+//        if (d) 
+            LOG.info("Cleaning up internal info for Txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
         // It's ok for us to not have a transaction handle, because it could be

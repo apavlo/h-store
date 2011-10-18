@@ -399,8 +399,8 @@ public class HStoreCoordinator implements Shutdownable {
                 // Skip this HStoreSite if we're already sent it a message 
                 if (site_sent[dest_site_id]) continue;
                 
-                if (debug.get())
-                    LOG.debug(String.format("Sending %s message to %s for %s",
+                if (trace.get())
+                    LOG.trace(String.format("Sending %s message to %s for %s",
                                             request.getClass().getSimpleName(), HStoreSite.formatSiteName(dest_site_id), ts));
                 
                 // Local Partition
@@ -498,8 +498,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionInitResponse> callback) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (trace.get())
+                LOG.trace(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // Wrap the callback around a TransactionInitWrapperCallback that will wait until
             // our HStoreSite gets an acknowledgment from all the
@@ -523,8 +523,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionWorkResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (trace.get())
+                LOG.trace(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // This is work from a transaction executing at another node
             // Any other message can just be sent along to the ExecutionSite without sending
@@ -594,8 +594,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionFinishResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (trace.get())
+                LOG.trace(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
 
             hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
             
@@ -605,8 +605,8 @@ public class HStoreCoordinator implements Shutdownable {
             for (Integer p : request.getPartitionsList()) {
                 if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
             }
-            if (debug.get())
-                LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
+            if (trace.get())
+                LOG.trace(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
                                         TransactionFinishResponse.class.getSimpleName(), txn_id,
                                         request.getStatus(), builder.getPartitionsList()));
             done.run(builder.build());
