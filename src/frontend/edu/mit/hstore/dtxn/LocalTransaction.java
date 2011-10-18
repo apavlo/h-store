@@ -714,6 +714,8 @@ public class LocalTransaction extends AbstractTransaction {
             int output_dependencies[] = ftask.getOutputDependencyIds();
             int stmt_indexes[] = ftask.getFragmentStmtIndexes();
             
+            if (d) LOG.debug(String.format("Attemping to add DependencyInfo for %d fragments in %s",
+                                            num_fragments, this));
             synchronized (this.state) {
                 for (int i = 0; i < num_fragments; i++) {
                     Integer dependency_id = output_dependencies[i];
@@ -732,7 +734,7 @@ public class LocalTransaction extends AbstractTransaction {
                         this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
                     }
                     rest_stmt_ctr.add(stmt_index);
-                    if (d) LOG.debug(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
+                    if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
                 } // FOR
             } // SYNCH
         }

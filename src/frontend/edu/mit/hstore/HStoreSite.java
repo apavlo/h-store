@@ -166,13 +166,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      */
-    public final int LOCAL_PARTITION_OFFSETS[];
+    private final int LOCAL_PARTITION_OFFSETS[];
     
     /**
      * For a given offset from LOCAL_PARTITION_OFFSETS, this array
      * will contain the partition id
      */
-    public final int LOCAL_PARTITION_REVERSE[];
+    private final int LOCAL_PARTITION_REVERSE[];
     
     // ----------------------------------------------------------------------------
     // OBJECT POOLS
@@ -270,7 +270,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Keep track of which txns that we have in-flight right now
      */
     private final ConcurrentHashMap<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
-    private final AtomicInteger inflight_txns_ctr[];
+//    private final AtomicInteger inflight_txns_ctr[];
 
     /**
      * Helper Thread Stuff
@@ -360,7 +360,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         this.txnid_managers = new TransactionIdManager[num_partitions];
-        this.inflight_txns_ctr = new AtomicInteger[num_partitions];
+//        this.inflight_txns_ctr = new AtomicInteger[num_partitions];
         this.incoming_throttle = new boolean[num_partitions];
         this.incoming_throttle_time = new ProfileMeasurement[num_partitions];
         this.incoming_queue_max = new int[num_partitions];
@@ -370,7 +370,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int partition : executors.keySet()) {
             this.executors[partition] = executors.get(partition);
             this.txnid_managers[partition] = new TransactionIdManager(partition);
-            this.inflight_txns_ctr[partition] = new AtomicInteger(0); 
+//            this.inflight_txns_ctr[partition] = new AtomicInteger(0); 
             this.incoming_throttle[partition] = false;
             this.incoming_throttle_time[partition] = new ProfileMeasurement("incoming-" + partition);
             this.incoming_queue_max[partition] = hstore_conf.site.txn_incoming_queue_max_per_partition;
@@ -542,11 +542,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected int getInflightTxnCount() {
         return (this.inflight_txns.size());
     }
+    protected int getDTXNQueueSize() {
+        int ctr = 0;
+        for (Integer p : this.local_partitions) {
+            ctr += this.txnQueueManager.getQueueSize(p.intValue());
+        }
+        return (ctr);
+    }
+    
     /**
      * Get the number of transactions inflight for this partition
      */
     protected int getInflightTxnCount(int partition) {
-        return (this.inflight_txns_ctr[partition].get());
+//        return (this.inflight_txns_ctr[partition].get());
+        return (this.txnQueueManager.getQueueSize(partition));
     }
     
     protected int getQueuedResponseCount() {
@@ -756,7 +765,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void checkEnableThrottling(int partition) {
         // Look at the number of inflight transactions and see whether we should block and wait for the 
         // queue to drain for a bit
-        int queue_size = this.inflight_txns_ctr[partition].incrementAndGet();
+//        int queue_size = this.inflight_txns_ctr[partition].incrementAndGet();
+        int queue_size = this.txnQueueManager.getQueueSize(partition);
         
         // This partition's queue was empty, but now it's not. So we can halt the idle time
         if (hstore_conf.site.status_show_executor_info && queue_size == 1) {
@@ -766,8 +776,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // max limit. So we're going to need to throttle it
         if (this.incoming_throttle[partition] == false && queue_size == this.incoming_queue_max[partition]) {
             if (this.incoming_throttle[partition] == false) {
-                if (d) 
-                    LOG.debug(String.format("INCOMING overloaded at partition %d!. Waiting for queue to drain [size=%d, trigger=%d]",
+//                if (d) 
+                    LOG.info(String.format("INCOMING overloaded at partition %d!. Waiting for queue to drain [size=%d, trigger=%d]",
                                             partition, queue_size, this.incoming_queue_release[partition]));
                 this.incoming_throttle[partition] = true;
                 if (hstore_conf.site.status_show_executor_info) 
@@ -784,13 +794,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private boolean checkDisableThrottling(long txn_id, int partition) {
         if (this.incoming_throttle[partition] && this.shutdown_state == ShutdownState.STARTED) {
-            int queue_size = this.inflight_txns_ctr[partition].get(); // XXX - this.ready_responses.size(); 
+//            int queue_size = this.inflight_txns_ctr[partition].get(); 
+            int queue_size = this.txnQueueManager.getQueueSize(partition);
             if (this.incoming_throttle[partition] && queue_size < this.incoming_queue_release[partition]) {
                 this.incoming_throttle[partition] = false;
                 if (hstore_conf.site.status_show_executor_info)
                     ProfileMeasurement.stop(true, this.incoming_throttle_time[partition]);
-                if (d) 
-                    LOG.debug(String.format("Disabling INCOMING throttling for Partition %2d because txn #%d finished [inflight=%d, release=%d]",
+//                if (d) 
+                    LOG.info(String.format("Disabling INCOMING throttling for Partition %2d because txn #%d finished [inflight=%d, release=%d]",
                                             partition, txn_id, queue_size, this.incoming_queue_release[partition]));
             }
         }
@@ -1015,10 +1026,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             int request_ctr = this.getNextRequestCounter();
             long clientHandle = request.getClientHandle();
             
-            if (d)
-                LOG.debug(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, requestCtr=%d]",
-                                        clientHandle, request_ctr));
-            
+            if (d) LOG.debug(String.format("Throttling is enabled. Rejecting transaction and asking client to wait [clientHandle=%d, requestCtr=%d]",
+                                           clientHandle, request_ctr));
             synchronized (this.cached_ClientResponse) {
                 ClientResponseImpl.setServerTimestamp(this.cached_ClientResponse, request_ctr);
                 ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, this.incoming_throttle[base_partition]);
@@ -1237,9 +1246,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // we get hear back about our our initialization request
             if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
             this.hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
+            
+            this.checkEnableThrottling(base_partition);
         }
-        
-        this.checkEnableThrottling(base_partition);
     }
     
     /**
@@ -1322,8 +1331,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) 
             LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
+        // We could have been asked to participate in a distributed transaction but
+        // they never actually sent us anything, so we should just tell the queue manager
+        // that the txn is done. There is nothing that we need to do at the ExecutionSites
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
-        assert(ts != null) : String.format("Missing TransactionState for txn #%d at site %d", txn_id, this.site_id);
         boolean is_local = (ts instanceof LocalTransaction);
         
         int spec_cnt = 0;
@@ -1335,7 +1346,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
             // for this partition
-            if (hstore_conf.site.exec_speculative_execution) {
+            if (ts != null && hstore_conf.site.exec_speculative_execution) {
                 boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts, false);
                 if (debug.get() && ret) {
                     spec_cnt++;
@@ -1452,6 +1463,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param orig_callback - the original callback to the client
      */
     public void transactionRestart(LocalTransaction orig_ts, Hstore.Status status) {
+        assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute", orig_ts , status));
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.getInvocation();
@@ -1606,9 +1618,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final LocalTransaction ts = (LocalTransaction)abstract_ts; 
         final int base_partition = ts.getBasePartition();
         final Procedure catalog_proc = ts.getProcedure();
+        final boolean singlePartitioned = ts.isPredictSinglePartition();
         
         // If this partition is completely idle, then we will increase the size of its upper limit
-        if (this.inflight_txns_ctr[base_partition].decrementAndGet() == 0) {
+        if (singlePartitioned == false && this.txnQueueManager.getQueueSize(base_partition) == 0) { // inflight_txns_ctr[base_partition].decrementAndGet() == 0) {
             if (this.startWorkload && hstore_conf.site.txn_incoming_queue_increase > 0) {
                 this.incoming_queue_max[base_partition] += hstore_conf.site.txn_incoming_queue_increase;
                 this.incoming_queue_release[base_partition] = Math.max((int)(this.incoming_queue_max[base_partition] * hstore_conf.site.txn_incoming_queue_release_factor), 1); 
@@ -1673,7 +1686,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.sysproc) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Hstore.Status.ABORT_MISPREDICT && ts.isRejected() == false) {
-                (ts.isPredictSinglePartition() ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
+                (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }
         

@@ -31,7 +31,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     private Collection<Integer> partitions = null;
     
     public TransactionInitWrapperCallback(HStoreSite hstore_site) {
-        super(hstore_site);
+        super(hstore_site, false);
     }
     
     public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {

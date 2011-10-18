@@ -38,11 +38,15 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     private final AtomicBoolean aborted = new AtomicBoolean(false);
     
+    private final boolean invoke_even_if_aborted;
+    
     /**
      * Default Constructor
+     * @param invoke_even_if_aborted TODO
      */
-    protected BlockingCallback(HStoreSite hstore_site) {
+    protected BlockingCallback(HStoreSite hstore_site, boolean invoke_even_if_aborted) {
         this.hstore_site = hstore_site;
+        this.invoke_even_if_aborted = invoke_even_if_aborted;
     }
     
     /**
@@ -93,7 +97,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         
         // If this is the last result that we were waiting for, then we'll invoke
         // the unblockCallback()
-        if (this.aborted.get() == false && this.counter.addAndGet(-1 * delta) == 0) {
+        if ((this.aborted.get() == false || this.invoke_even_if_aborted) && this.counter.addAndGet(-1 * delta) == 0) {
             this.unblock();
         }
     }
