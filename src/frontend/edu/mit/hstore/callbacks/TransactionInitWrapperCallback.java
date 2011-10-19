@@ -95,7 +95,8 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     
     @Override
     protected int runImpl(Integer parameter) {
-        this.builder.addPartitions(parameter.intValue());
+        if (this.isAborted() == false)
+            this.builder.addPartitions(parameter.intValue());
         return 1;
     }
 }

@@ -23,7 +23,7 @@ import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 
-public class TestTransactionQueue extends BaseTestCase {
+public class TestTransactionQueueManager extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 4;
     
@@ -78,15 +78,17 @@ public class TestTransactionQueue extends BaseTestCase {
         
         // Insert the txn into our queue and then call check
         // This should immediately release our transaction and invoke the inner_callback
-        this.queue.insert(txn_id, partitions, outer_callback);
+        boolean ret = this.queue.insert(txn_id, partitions, outer_callback);
+        assert(ret);
         
-        while (queue.isEmpty() == false) {
+        int tries = 10;
+        while (queue.isEmpty() == false && tries-- > 0) {
             queue.checkQueues();
-            ThreadUtil.sleep(10);
+            ThreadUtil.sleep(100);
         }
-        
+        assert(inner_callback.lock.availablePermits() > 0);
         // Block on the MockCallback's lock until our thread above is able to release everybody.
-        inner_callback.lock.acquire();
+        // inner_callback.lock.acquire();
     }
     
     /**

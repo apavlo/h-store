@@ -29,6 +29,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.interfaces.Shutdownable;
+import edu.mit.hstore.util.ThrottlingQueue;
 import edu.mit.hstore.util.TransactionQueueManager;
 import edu.mit.hstore.util.TxnCounter;
 
@@ -254,21 +255,22 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 
         // EXECUTION ENGINES
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
-            ExecutionSite es = e.getValue();
             int partition = e.getKey().intValue();
+            ExecutionSite es = e.getValue();
+            ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
+            ThrottlingQueue<?> dtxn_queue = manager.getThrottlingQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             AbstractTransaction current_txn = es.getCurrentTxn();
             
-            boolean is_throttled = this.hstore_site.isIncomingThrottled(partition);
-            int queue_size = hstore_site.getInflightTxnCount(partition);
-            int queue_max = this.hstore_site.getIncomingQueueMax(partition);
-            int queue_release = this.hstore_site.getIncomingQueueRelease(partition);
+//            int queue_size = hstore_site.getInflightTxnCount(partition);
+//            int queue_max = this.hstore_site.getIncomingQueueMax(partition);
+//            int queue_release = this.hstore_site.getIncomingQueueRelease(partition);
             
             // Queue Information
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             
             m.put(String.format("%3d total / %3d queued / %3d blocked / %3d waiting\n",
-                                    queue_size,
+                                    es_queue.size(),
                                     es.getWorkQueueSize(),
                                     es.getBlockedQueueSize(),
                                     es.getWaitingQueueSize()), null);
@@ -283,16 +285,22 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             }
             
             // Execution Info
-             
+            String status = String.format("%-5s [limit=%d, release=%d]%s",
+                                          es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
+                                          (es_queue.isThrottled() ? " *THROTTLED*" : ""));
+            m.put("Exec Queue", status);
             
-            m.put("Incoming Throttle", String.format("%-5s [limit=%d, release=%d, time=%.2fms]",
-                    is_throttled, queue_max, queue_release,
-                    this.hstore_site.incoming_throttle_time[partition].getTotalThinkTimeMS()
-            ));
-            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
-                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
-                                        partition, queue_size, queue_release));
-            }
+            status = String.format("%-5s [limit=%d, release=%d]%s",
+                                   dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
+                                   (dtxn_queue.isThrottled() ? " *THROTTLED*" : ""));
+            Long txn_id = manager.getCurrentTransaction(partition);
+            status += " / " + (txn_id != null ? "#" + txn_id : "-");
+            m.put("DTXN Queue", status);
+            
+//            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
+//                LOG.warn(String.format("Partition %d is throttled when it should not be! [inflight=%d, release=%d]",
+//                                        partition, queue_size, queue_release));
+//            }
             
             
             if (hstore_conf.site.exec_profiling) {
@@ -303,13 +311,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             }
             
             m.put("Current Mode", String.format("%-10s / %s", es.getExecutionMode(), (current_txn == null ? "-" : current_txn)));
-            if (current_dtxn != null)
-                m.put("Current DTXN", current_dtxn);
+            if (current_dtxn != null) m.put("Current DTXN", current_dtxn);
             
-            // Queue Info
-            Long txn_id = manager.getCurrentTransaction(partition);
-            m.put("DTXN Queue", String.format("%d total / %s", manager.getQueueSize(partition),
-                                                                (txn_id != null ? "#" + txn_id : "-")));
             
             m_exec.put(String.format("    Partition[%02d]", partition), StringUtil.formatMaps(m) + "\n");
         } // FOR

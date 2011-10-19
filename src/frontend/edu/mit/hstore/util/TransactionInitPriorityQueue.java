@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreSite;
 
 /**
  * <p>Extends a PriorityQueue such that is only stores transaction state
@@ -19,7 +20,7 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
  *
  * <p>This class manages all that state.</p>
  */
-public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
+public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     private static final Logger LOG = Logger.getLogger(TransactionInitPriorityQueue.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -56,8 +57,12 @@ public class TransactionInitPriorityQueue extends PriorityBlockingQueue<Long> {
      * an assertion.
      * @param partitionId TODO
      */
-    public TransactionInitPriorityQueue(int siteId, int partitionId) {
-        m_siteId = siteId;
+    public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId) {
+        super(new PriorityBlockingQueue<Long>(),
+              hstore_site.getHStoreConf().site.txn_incoming_queue_max_per_partition,
+              hstore_site.getHStoreConf().site.txn_incoming_queue_release_factor,
+              hstore_site.getHStoreConf().site.txn_incoming_queue_increase);
+        m_siteId = hstore_site.getSiteId();
         m_partitionId = partitionId;
     }
 
