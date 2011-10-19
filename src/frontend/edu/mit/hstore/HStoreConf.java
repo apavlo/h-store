@@ -22,7 +22,6 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
-import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
@@ -287,14 +286,42 @@ public final class HStoreConf {
             experimental=false
         )
         public int txn_incoming_queue_increase;
+
+        // ----------------------------------------------------------------------------
+        // Distributed Transaction Queue Options
+        // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Allow queued distributed transctions to be rejected. This should not be used " +
-                        "when trying to measure true throughput.",
-            defaultBoolean=false,
-            experimental=true
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
+            defaultInt=5000,
+            experimental=false
         )
-        public boolean txn_enable_queue_pruning;
+        public int queue_dtxn_max_per_partition;
+        
+        @ConfigProperty(
+            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+                        "will not accept new requests until the number of queued transactions is less than " +
+                        "this percentage. This includes all transactions that are waiting to be executed, " +
+                        "executing, and those that have already executed and are waiting for their results " +
+                        "to be sent back to the client. The incoming queue release is calculated as " +
+                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
+            defaultDouble=0.50,
+            experimental=false
+        )
+        public double queue_dtxn_release_factor;
+        
+        @ConfigProperty(
+            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+                        "value by this amount. The release limit will also be recalculated using the new value " +
+                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+                        "the first non-data loading transaction has been issued from the clients.",
+            defaultInt=100,
+            experimental=false
+        )
+        public int queue_dtxn_increase;
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options

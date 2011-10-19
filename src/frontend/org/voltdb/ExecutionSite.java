@@ -1630,7 +1630,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 if (this.current_dtxn == null && this.exec_mode != ExecutionMode.DISABLED) {
                     if (t) LOG.trace(String.format("Adding %s to work queue [size=%d]", ts, this.work_queue.size()));
                     // Only use the throttler for single-partition txns
-                    success = this.work_throttler.offer(task, (singlePartitioned == false));    
+                    if (singlePartitioned) {
+                        success = this.work_throttler.offer(task, false);
+                    } else {
+                        this.work_queue.addFirst(task);
+                    }
                 } else {
                     if (t) LOG.trace(String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
                     this.current_dtxn_blocked.add(task);

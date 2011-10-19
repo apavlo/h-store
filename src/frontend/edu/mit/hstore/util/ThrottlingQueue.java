@@ -13,6 +13,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
     private boolean throttled;
     private int queue_max;
     private int queue_release;
+    private double queue_release_factor;
     private final int queue_increase;
     private final ProfileMeasurement throttle_time;
             
@@ -21,7 +22,8 @@ public class ThrottlingQueue<E> implements Queue<E> {
         this.throttled = false;
         this.queue_max = queue_max;
         this.queue_increase = queue_increase;
-        this.queue_release = Math.max((int)(this.queue_max * queue_release), 1);
+        this.queue_release_factor = queue_release;
+        this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
         this.throttle_time = new ProfileMeasurement("throttling");
 //        if (hstore_site.getHStoreConf().site.status_show_executor_info) {
 //            this.throttle_time.resetOnEvent(hstore_site.getStartWorkloadObservable());
@@ -65,7 +67,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
         }
         else if (increase && this.throttled == false && size == 0) {
             this.queue_max += this.queue_increase;
-            this.queue_release = Math.max((int)(this.queue_max * this.queue_release), 1);
+            this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
         }
     }
     
@@ -104,6 +106,12 @@ public class ThrottlingQueue<E> implements Queue<E> {
         return (ret);
     }
     @Override
+    public E poll() {
+        E e = this.queue.poll();
+        if (e != null) this.checkThrottling();
+        return (e);
+    }
+    @Override
     public E remove() {
         E e = this.queue.remove();
         if (e != null) this.checkThrottling();
@@ -135,10 +143,6 @@ public class ThrottlingQueue<E> implements Queue<E> {
     @Override
     public E peek() {
         return (this.queue.peek());
-    }
-    @Override
-    public E poll() {
-        return (this.queue.poll());
     }
     @Override
     public boolean contains(Object o) {

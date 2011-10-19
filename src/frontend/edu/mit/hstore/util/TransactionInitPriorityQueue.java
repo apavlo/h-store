@@ -59,9 +59,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      */
     public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId) {
         super(new PriorityBlockingQueue<Long>(),
-              hstore_site.getHStoreConf().site.txn_incoming_queue_max_per_partition,
-              hstore_site.getHStoreConf().site.txn_incoming_queue_release_factor,
-              hstore_site.getHStoreConf().site.txn_incoming_queue_increase);
+              hstore_site.getHStoreConf().site.queue_dtxn_max_per_partition,
+              hstore_site.getHStoreConf().site.queue_dtxn_release_factor,
+              hstore_site.getHStoreConf().site.queue_dtxn_increase);
         m_siteId = hstore_site.getSiteId();
         m_partitionId = partitionId;
     }
@@ -102,9 +102,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public boolean add(Long txnID) {
+    public boolean offer(Long txnID, boolean force) {
         assert(txnID != null);
-        boolean retval = super.add(txnID);
+        boolean retval = super.offer(txnID, force);
         // update the queue state
         if (retval) checkQueueState();
         return retval;

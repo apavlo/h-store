@@ -1157,7 +1157,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param callback
      */
     public void transactionInit(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
-        this.txnQueueManager.insert(txn_id, partitions, callback);
+        // We should always force a txn from a remote partition into the queue manager
+        this.txnQueueManager.insert(txn_id, partitions, callback, true);
     }
 
     /**
@@ -1182,7 +1183,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         executor.queueNewTransaction(ts, wrapper);
         
         if (hstore_conf.site.status_show_txn_info) {
-            assert(ts.getProcedure() != null) : "Null Procedure for txn #" + txn_id + "\n" + ts;
+            assert(ts.getProcedure() != null) : String.format("Null Procedure for txn #%d [hashCode=%d]",
+                                                              txn_id, ts.hashCode());
             TxnCounter.EXECUTED.inc(ts.getProcedure());
         }
     }
@@ -1242,7 +1244,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.local_partitions.contains(p) == false) continue;
             
             // Always tell the queue stuff that the transaction is finished at this partition
-            this.txnQueueManager.done(txn_id, p.intValue());
+            this.txnQueueManager.done(txn_id, Hstore.Status.OK, p.intValue());
             
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
             // for this partition
@@ -1283,7 +1285,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not an commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.done(txn_id, p);
+            if (commit == false) this.txnQueueManager.done(txn_id, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition

@@ -121,13 +121,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id0, partition);
+                        queue.done(txn_id0, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id1, partition);
+                        queue.done(txn_id1, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
@@ -183,19 +183,19 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id0, partition);
+                        queue.done(txn_id0, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id1, partition);
+                        queue.done(txn_id1, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback2.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id2, partition);
+                        queue.done(txn_id2, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
@@ -255,13 +255,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id0, partition);
+                        queue.done(txn_id0, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.done(txn_id1, partition);
+                        queue.done(txn_id1, Hstore.Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
