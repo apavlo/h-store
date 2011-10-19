@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -81,6 +82,8 @@ public class ExecutionState {
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
     protected final Set<Integer> done_partitions = new HashSet<Integer>();
+    
+    protected final ReentrantLock lock = new ReentrantLock();
     
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS

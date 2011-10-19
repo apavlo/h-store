@@ -93,11 +93,13 @@ public class LocalTransaction extends AbstractTransaction {
      * This will only get set when the transaction starts running.
      */
     private ExecutionState state;
-
+    
     /**
      * 
      */
     private Long orig_txn_id;
+    
+    private short restart_ctr = 0;
     
     /**
      * 
@@ -344,14 +346,12 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.state.queued_results.isEmpty()) : 
             String.format("Trying to initialize round for txn #%d but there are %d queued results",
                           this.txn_id, this.state.queued_results.size());
-        if (this.base_partition == partition) {
-            synchronized (this.state) {
-                super.initRound(partition, undoToken);
-                // Reset these guys here so that we don't waste time in the last round
-                if (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != null) this.state.clearRound();
-            } // SYNCHRONIZED
-        } else {
-            super.initRound(partition, undoToken);
+
+        super.initRound(partition, undoToken);
+        
+        // Reset these guys here so that we don't waste time in the last round
+        if (this.base_partition == partition && this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != null) {
+            this.state.clearRound();
         }
     }
     
@@ -365,8 +365,9 @@ public class LocalTransaction extends AbstractTransaction {
             assert(this.state.output_order.isEmpty());
             assert(this.state.batch_size > 0);
             if (d) LOG.debug("Starting round for local txn #" + this.txn_id + " with " + this.state.batch_size + " queued Statements");
-            
-            synchronized (this.state) {
+       
+            state.lock.lock();
+            try {
                 super.startRound(partition);
     
                 // Create our output counters
@@ -394,7 +395,10 @@ public class LocalTransaction extends AbstractTransaction {
                 assert(count >= 0);
                 assert(this.state.dependency_latch == null) : "This should never happen!\n" + this.toString();
                 this.state.dependency_latch = new CountDownLatch(count);
+            } finally {
+                state.lock.unlock();
             } // SYNCH
+            
         } else {
             super.startRound(partition);
         }
@@ -406,7 +410,8 @@ public class LocalTransaction extends AbstractTransaction {
             assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for " + this + " before it was started"; 
             assert(this.state.queued_results.isEmpty()) : "Trying to finish round for " + this + " but there are " + this.state.queued_results.size() + " queued results";
 
-            synchronized (this.state) {
+            state.lock.lock();
+            try {
                 super.finishRound(partition);
                 
                 // Reset our initialization flag so that we can be ready to run more stuff the next round
@@ -415,6 +420,8 @@ public class LocalTransaction extends AbstractTransaction {
                     if (t) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
                     this.state.dependency_latch = null;
                 }
+            } finally {
+                state.lock.unlock();
             } // SYNCH
         } else {
             super.finishRound(partition);
@@ -494,6 +501,13 @@ public class LocalTransaction extends AbstractTransaction {
     public Long getOriginalTransactionId() {
         return (this.orig_txn_id);
     }
+    public short getRestartCounter() {
+        return (this.restart_ctr);
+    }
+    public void setRestartCounter(int val) {
+        this.restart_ctr = (short)val;
+    }
+    
     public Collection<Integer> getDonePartitions() {
         return (this.state.done_partitions);
     }
@@ -716,7 +730,8 @@ public class LocalTransaction extends AbstractTransaction {
             
             if (d) LOG.debug(String.format("Attemping to add DependencyInfo for %d fragments in %s",
                                             num_fragments, this));
-            synchronized (this.state) {
+            state.lock.lock();
+            try {
                 for (int i = 0; i < num_fragments; i++) {
                     Integer dependency_id = output_dependencies[i];
                     Integer stmt_index = stmt_indexes[i];
@@ -736,6 +751,8 @@ public class LocalTransaction extends AbstractTransaction {
                     rest_stmt_ctr.add(stmt_index);
                     if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
                 } // FOR
+            } finally {
+                state.lock.unlock();
             } // SYNCH
         }
         
@@ -743,13 +760,16 @@ public class LocalTransaction extends AbstractTransaction {
         // the executor before it is allowed to start executing
         if (ftask.hasInputDependencies()) {
             if (t) LOG.trace("Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
-            synchronized (this.state) {
+            state.lock.lock();
+            try {
                 for (int i = 0; i < num_fragments; i++) {
                     int dependency_id = ftask.getOnlyInputDepId(i);
                     int stmt_index = ftask.getFragmentStmtIndexes()[i];
                     this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
                     this.state.internal_dependencies.add(dependency_id);
                 } // FOR
+            } finally {
+                state.lock.unlock();
             } // SYNCH
             this.state.blocked_tasks.add(ftask);
             blocked = true;
@@ -790,7 +810,8 @@ public class LocalTransaction extends AbstractTransaction {
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
-        synchronized (this.state) {
+        state.lock.lock();
+        try {
             if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                 assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
                 this.state.queued_results.put(key, result);
@@ -837,8 +858,18 @@ public class LocalTransaction extends AbstractTransaction {
                 if (d) LOG.debug(String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
                                                to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
+                
+                // XXX
+                for (FragmentTaskMessage ftask : to_unblock) {
+                    assert(ftask.executed.get() == 0) : ftask + "\n" + this.debug();
+                    for (Collection<FragmentTaskMessage> c : this.state.unblocked_tasks) {
+                        assert(c.contains(ftask) == false) : ftask + "\n" + this.debug() + "\n" + this.state.unblocked_tasks;
+                    }
+                }
                 this.state.unblocked_tasks.add(to_unblock);
             }
+        } finally {
+            state.lock.unlock();
         } // SYNCH
     }
 

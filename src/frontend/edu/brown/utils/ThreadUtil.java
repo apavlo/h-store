@@ -180,7 +180,7 @@ public abstract class ThreadUtil {
     }
     
     /**
-     * 
+     * Execute all the given Runnables in a new pool 
      * @param <R>
      * @param threads
      */
@@ -223,7 +223,7 @@ public abstract class ThreadUtil {
         try {
             latch.await();
         } catch (InterruptedException ex) {
-            LOG.fatal("ThreadUtil.run() was interuptted!", ex);
+            LOG.fatal("ThreadUtil.run() was interupted!", ex);
             throw new RuntimeException(ex);
         } finally {
             if (handler.hasError()) {

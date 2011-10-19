@@ -286,6 +286,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int txn_incoming_queue_increase;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=4,
+            experimental=false
+        )
+        public int txn_restart_threshold;
 
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options

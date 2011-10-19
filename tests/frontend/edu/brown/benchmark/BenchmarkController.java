@@ -67,6 +67,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -116,11 +117,12 @@ public class BenchmarkController {
 
     // ProcessSetManager Failure Callback
     final EventObserver<String> failure_observer = new EventObserver<String>() {
+        final ReentrantLock lock = new ReentrantLock();
+        
         @Override
-        public void update(EventObservable<String> o, String arg) {
-            assert(arg != null);
-            String processName = (String)arg;
-            synchronized (BenchmarkController.this) {
+        public void update(EventObservable<String> o, String processName) {
+            lock.lock();
+            try {
                 if (BenchmarkController.this.stop == false) {
                     LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
                     BenchmarkController.this.stop = true;
@@ -128,11 +130,10 @@ public class BenchmarkController {
                     m_clientPSM.prepareShutdown();
                     m_sitePSM.prepareShutdown();
                     
-                    if (self != null) {
-                        BenchmarkController.this.self.interrupt();
-                    }
-                    cleanUpBenchmark();
+                    if (self != null) BenchmarkController.this.self.interrupt();
                 }
+            } finally {
+                lock.unlock();
             } // SYNCH
         }
     };
@@ -771,6 +772,7 @@ public class BenchmarkController {
                         if (j > hstore_conf.client.delay_threshold) {
                             long wait = 500 * (j - hstore_conf.client.delay_threshold);
                             curClientArgs.add("WAIT=" + wait);
+                            LOG.info("Start-up Wait Time for " + host_id + ": " + wait);
                         }
         
                         String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
@@ -846,8 +848,9 @@ public class BenchmarkController {
         Client local_client = null;
 
         // spin on whether all clients are ready
-        while (m_clientsNotReady.get() > 0)
+        while (m_clientsNotReady.get() > 0 && this.stop == false)
             Thread.yield();
+        if (this.stop) return;
 
         // start up all the clients
         for (String clientName : m_clients)

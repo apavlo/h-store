@@ -17,6 +17,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.utils.EventObservable;
@@ -177,7 +178,42 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     @Override
     public void shutdown() {
+        hstore_conf.site.status_show_thread_info = true;
         this.printSnapshot();
+        
+        // Quick Sanity Check!
+        for (int i = 0; i < 2; i++) {
+            Histogram<Long> histogram = new Histogram<Long>();
+            Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds(); 
+            TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
+            for (Integer p : localPartitions) {
+                Long txn_id = manager.getCurrentTransaction(p);
+                if (txn_id != null) histogram.put(txn_id);
+            } // FOR
+            if (histogram.isEmpty()) break;
+            for (Long txn_id : histogram.values()) {
+                if (histogram.get(txn_id) == localPartitions.size()) continue;
+                
+                Map<String, String> m = new ListOrderedMap<String, String>();
+                m.put("TxnId", "#" + txn_id);
+                for (Integer p : hstore_site.getLocalPartitionIds()) {
+                    Long cur_id = manager.getCurrentTransaction(p);
+                    String status = "MISSING";
+                    if (txn_id == cur_id) {
+                        status = "READY";
+                    } else if (manager.getQueue(p).contains(txn_id)) {
+                        status = "QUEUED";
+                        status += " / " + cur_id;
+                        status += " / " + manager.getQueue(p); 
+                    }
+                    m.put(String.format("  [%02d]", p), status);
+                } // FOR
+                LOG.info(manager.getClass().getSimpleName() + " Status:\n" + StringUtil.formatMaps(m));
+            } // FOR
+            LOG.info("Checking queue again...");
+            manager.checkQueues();
+        } // FOR
+        
         if (hstore_conf.site.txn_profiling) {
             String csv = this.txnProfileCSV();
             if (csv != null) System.out.println(csv);
@@ -258,7 +294,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             int partition = e.getKey().intValue();
             ExecutionSite es = e.getValue();
             ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
-            ThrottlingQueue<?> dtxn_queue = manager.getThrottlingQueue(partition);
+            ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             AbstractTransaction current_txn = es.getCurrentTxn();
             
