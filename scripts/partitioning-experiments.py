@@ -67,17 +67,21 @@ OPT_EXP_FACTOR_STOP = 25
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
+OPT_FAST = False
 OPT_NO_EXECUTE = False
 OPT_NO_COMPILE = False
+OPT_NO_JAR = False
+OPT_NO_CONF = False
+OPT_NO_UPDATE = False
 OPT_STOP_ON_ERROR = False
 OPT_FORCE_REBOOT = False
 
-OPT_BASE_BLOCKING = False
-OPT_BASE_BLOCKING_CONCURRENT = 1000
+OPT_BASE_BLOCKING = True
+OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 4400  # 2600 # # 3500
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 15
 OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
@@ -107,10 +111,10 @@ BASE_SETTINGS = {
     "site.planner_profiling":                           False,
     "site.planner_caching":                             True,
     "site.status_show_txn_info":                        True,
-    "site.status_kill_if_hung":                         False,
+    "site.status_kill_if_hung":                         True,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
-    "site.status_interval":                             20000,
+    "site.status_interval":                             5000,
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         6,
@@ -273,9 +277,14 @@ if __name__ == '__main__':
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
+        "fast",
         "no-execute",
         "no-compile",
+        "no-update",
+        "no-jar",
+        "no-conf",
         "force-reboot",
+        "stop-on-error",
         "trace",
         
         # Enable debug logging
@@ -313,6 +322,12 @@ if __name__ == '__main__':
             globals()[varname] = val
             LOG.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
+    if OPT_FAST:
+        #OPT_NO_COMPILE = True
+        OPT_NO_UPDATE = True
+        OPT_NO_CONF = True
+        OPT_NO_JAR = True
+    
     if not "partitions" in options:
         raise Exception("Missing 'partitions' parameter")
     if OPT_EXP_TYPE == "motivation":
@@ -345,7 +360,7 @@ if __name__ == '__main__':
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
 
-    updateSVN = True
+    updateSVN = (OPT_NO_UPDATE == False)
     needCompile = (OPT_NO_COMPILE == False)
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
@@ -358,7 +373,7 @@ if __name__ == '__main__':
             all_results = [ ]
                 
             if OPT_EXP_TYPE == "motivation":
-                exp_factors = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 5)
+                exp_factors = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25)
             elif OPT_EXP_TYPE == "throughput":
                 exp_factors = OPT_PARTITION_PLANS
             else:
@@ -373,7 +388,7 @@ if __name__ == '__main__':
             client_inst = fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
-            updateJar = True
+            updateJar = (OPT_NO_JAR == False)
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
@@ -381,7 +396,7 @@ if __name__ == '__main__':
                 
                 results = [ ]
                 attempts = 0
-                updateConf = True
+                updateConf = (OPT_NO_CONF == False)
                 while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
                     ## Only compile for the very first invocation
                     if needCompile:

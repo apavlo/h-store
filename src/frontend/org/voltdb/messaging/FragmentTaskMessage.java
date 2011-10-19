@@ -23,11 +23,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.Pair;
 
 import edu.mit.hstore.HStoreConstants;
 
@@ -54,7 +56,6 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     boolean m_shouldUndo = false;
     boolean m_usingDtxn = false;
     int m_inputDepCount = 0;
-    
 
     /** PAVLO **/
     // Whether we have real input dependencies
@@ -564,5 +565,13 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         }
 
         return sb.toString() + "\n";
+    }
+    
+    // HACK
+    public final AtomicInteger executed = new AtomicInteger(0);
+    public transient List<Pair<Integer, Integer>> stored; 
+    public synchronized void markAsStored(int p, int dep_id) {
+        if (stored == null) stored = new ArrayList<Pair<Integer,Integer>>();
+        stored.add(Pair.of(p, dep_id));
     }
 }

@@ -138,6 +138,17 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         b.put(22, (byte)(flag ? 1 : 0)); // 1 + 4 + 8 + 8 + 1 = 22 
     }
     
+    /**
+     * Set the status without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setStatus(ByteBuffer b, Hstore.Status status) {
+        b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 1 = 23 
+    }
+    
+    // ----------------------------------------------------------------------------
+    
     private void setResults(Hstore.Status status, VoltTable[] results, String statusString) {
         assert results != null;
         for (VoltTable result : results) {

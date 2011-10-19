@@ -73,11 +73,12 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
         switch (status) {
-            case ABORT_REJECT:
+            case ABORT_RESTART:
                 this.hstore_site.transactionRestart(this.ts, status);
                 break;
             case ABORT_THROTTLED:
-                this.hstore_site.transactionThrottle(this.ts);
+            case ABORT_REJECT:
+                this.hstore_site.transactionReject(this.ts, status);
                 break;
             default:
                 assert(false) : String.format("Unexpected status %s for %s", status, this.ts);

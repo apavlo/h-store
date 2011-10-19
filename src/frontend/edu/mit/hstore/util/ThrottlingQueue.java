@@ -173,29 +173,12 @@ public class ThrottlingQueue<E> implements Queue<E> {
         return (this.queue.toArray(a));
     }
 
-
-    
-    /**
-     * Check to see whether this HStoreSite can disable throttling mode, and does so if it can
-     * Returns true if throttling is still enabled.
-     * @param txn_id
-     * @return
-     */
-//    private boolean checkDisableThrottling(Data d, long txn_id) {
-//        if (d.throttled) {
-////            int queue_size = this.inflight_txns_ctr[partition].get(); 
-//            int queue_size = d.
-//            if (this.incoming_throttle[partition] && queue_size < this.incoming_queue_release[partition]) {
-//                this.incoming_throttle[partition] = false;
-//                if (hstore_conf.site.status_show_executor_info)
-//                    ProfileMeasurement.stop(true, this.incoming_throttle_time[partition]);
-////                if (d) 
-//                    LOG.info(String.format("Disabling INCOMING throttling for Partition %2d because txn #%d finished [inflight=%d, release=%d]",
-//                                            partition, txn_id, queue_size, this.incoming_queue_release[partition]));
-//            }
-//        }
-//        return (this.incoming_throttle[partition]);
-//    }
+    @Override
+    public String toString() {
+        return String.format("%s [max=%d / release=%d / increase=%d]",
+                             this.queue.toString(),
+                             this.queue_max, this.queue_release, this.queue_increase);
+    }
 
     
     

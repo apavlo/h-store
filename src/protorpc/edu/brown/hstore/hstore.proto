@@ -24,9 +24,12 @@ enum Status {
     ABORT_MISPREDICT = 5;
     // The transaction could not be initialized because on partition rejected it.
     // The transaction will be retried at the initiaizing HStoreSite
-    ABORT_REJECT = 6;
+    ABORT_RESTART = 6;
+    // The transaction could not be initialized because on partition rejected it.
+    // The transaction will be retried at the initiaizing HStoreSite
+    ABORT_REJECT = 7;
     // The transaction was rejected because the client is being throttled
-    ABORT_THROTTLED = 7;
+    ABORT_THROTTLED = 8;
 }
 
 // -----------------------------------

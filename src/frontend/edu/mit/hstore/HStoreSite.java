@@ -69,6 +69,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
@@ -101,7 +102,6 @@ import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
-import edu.mit.hstore.util.NewOrderInspector;
 import edu.mit.hstore.util.*;
 
 /**
@@ -1109,6 +1109,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
         if (hstore_conf.site.exec_avoid_coordinator && ts.isPredictSinglePartition()) {
+            assert(ts.isInitialized()) : "???? " + ts;
             this.transactionStart(ts);
             if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
@@ -1120,12 +1121,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         else {
             if (d) LOG.debug(String.format("Queuing distributed %s to running at partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
-            
-            // Since we know that this txn came over from the Dtxn.Coordinator, we'll throw it in
-            // our set of coordinator txns. This way we can prevent ourselves from executing
-            // single-partition txns straight at the ExecutionSite
-//            if (d && dtxn_txns.isEmpty()) LOG.debug(String.format("Enabling CANADIAN mode [txn=#%d]", txn_id));
-//            dtxn_txns.add(txn_id);
             
             // Partitions
             // Figure out what partitions we plan on touching for this transaction
@@ -1168,24 +1163,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionStart(LocalTransaction ts) {
         long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
-        if (d) 
-            LOG.debug(String.format("Starting %s on partition %d", ts, base_partition));
+        Procedure catalog_proc = ts.getProcedure();
+        if (d) LOG.debug(String.format("Starting %s on partition %d", ts, base_partition));
         
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
-        InitiateTaskMessage wrapper = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.getInvocation());
+        InitiateTaskMessage itask = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.getInvocation());
         
         // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
         ExecutionSite executor = this.executors[base_partition];
         assert(executor != null) : "No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
-        executor.queueNewTransaction(ts, wrapper);
-        
-        if (hstore_conf.site.status_show_txn_info) {
-            assert(ts.getProcedure() != null) : String.format("Null Procedure for txn #%d [hashCode=%d]",
-                                                              txn_id, ts.hashCode());
-            TxnCounter.EXECUTED.inc(ts.getProcedure());
+        boolean ret = executor.queueNewTransaction(ts, itask);
+        if (hstore_conf.site.status_show_txn_info && ret) {
+            assert(catalog_proc != null) : String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
+            TxnCounter.EXECUTED.inc(catalog_proc);
         }
     }
     
@@ -1359,7 +1352,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * 
      * @param ts
      */
-    public void transactionThrottle(LocalTransaction ts) {
+    public void transactionReject(LocalTransaction ts, Hstore.Status status) {
         assert(ts.isInitialized());
         int request_ctr = this.getNextRequestCounter();
         long clientHandle = ts.getClientHandle();
@@ -1369,11 +1362,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         RpcCallback<byte[]> done = ts.getClientCallback();
         synchronized (this.cached_ClientResponse) {
             ClientResponseImpl.setServerTimestamp(this.cached_ClientResponse, request_ctr);
-            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, true);
             ClientResponseImpl.setClientHandle(this.cached_ClientResponse, clientHandle);
+            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, true);
+            ClientResponseImpl.setStatus(this.cached_ClientResponse, status);
             done.run(this.cached_ClientResponse.array());
         } // SYNCH
-        if (hstore_conf.site.status_show_txn_info) TxnCounter.THROTTLED.inc(ts.getProcedure());
+        if (hstore_conf.site.status_show_txn_info) {
+            if (status == Status.ABORT_THROTTLED) {
+                TxnCounter.THROTTLED.inc(ts.getProcedure());
+            } else if (status == Status.ABORT_REJECT) {
+                TxnCounter.REJECTED.inc(ts.getProcedure());
+            } else {
+                assert(false) : "Unexpected " + ts + ": " + status;
+            }
+        }
     }
 
     /**
@@ -1391,9 +1393,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         StoredProcedureInvocation spi = orig_ts.getInvocation();
         assert(spi != null) : "Missing StoredProcedureInvocation for " + orig_ts;
         
+        // If this txn has been restarted too many times, then we'll just give up
+        // and reject it outright
+        if (orig_ts.getRestartCounter() > hstore_conf.site.txn_restart_threshold) {
+            if (d) LOG.debug(String.format("%s has been restarted %d times! Rejecting...",
+                                           orig_ts, orig_ts.getRestartCounter()));
+            this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
+            return;
+        }
+        
         // Figure out whether this transaction should be redirected based on what partitions it
         // tried to touch before it was aborted 
-        if (status != Hstore.Status.ABORT_REJECT && hstore_conf.site.exec_db2_redirects) {
+        if (status != Hstore.Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Set<Integer> most_touched = touched.getMaxCountValues();
             if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
@@ -1462,9 +1473,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.txn_profiling) new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
         
         Collection<Integer> predict_touchedPartitions = null;
-        if (status == Hstore.Status.ABORT_REJECT) {
+        if (status == Hstore.Status.ABORT_RESTART) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
-        } else if (orig_ts.getOriginalTransactionId() == null) {
+        } else if (orig_ts.getOriginalTransactionId() == null && orig_ts.getTouchedPartitions() != null) {
             // HACK: Ignore ConcurrentModificationException
             predict_touchedPartitions = new HashSet<Integer>();
             Collection<Integer> orig_touchedPartitions = orig_ts.getTouchedPartitions().values();
@@ -1483,6 +1494,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME
         new_ts.init(new_txn_id, base_partition, orig_ts, predict_touchedPartitions, predict_readOnly, predict_abortable);
+        new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
         if (d) {
             LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d",
