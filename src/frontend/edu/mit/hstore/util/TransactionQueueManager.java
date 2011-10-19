@@ -203,7 +203,7 @@ public class TransactionQueueManager implements Runnable {
             int offset = hstore_site.getLocalPartitionOffset(p);
             txn_queues[offset].remove(txn_id);
             if (txn_id == last_txns[offset]) {
-                this.done(txn_id, p);
+                this.done(txn_id, status, p);
             }
         } // FOR
         this.cleanupTransaction(txn_id);
@@ -216,8 +216,20 @@ public class TransactionQueueManager implements Runnable {
      * @param callback
      */
     public boolean insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+        return this.insert(txn_id, partitions, callback, false);
+    }
+    
+    /**
+     * 
+     * @param txn_id
+     * @param partitions
+     * @param callback
+     * @param force
+     * @return
+     */
+    public boolean insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback, boolean force) {
         if (debug.get())
-            LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]", txn_id, partitions));
+            LOG.debug(String.format("Adding new distributed txn #%d into queue [force=%s, partitions=%s]", txn_id, force, partitions));
         
         txn_callbacks.put(txn_id, callback);
         boolean should_notify = false;
@@ -236,7 +248,7 @@ public class TransactionQueueManager implements Runnable {
                 this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_REJECT);
                 ret = false;
                 break;
-            } else if (txn_queues[offset].add(txn_id) == false) {
+            } else if (txn_queues[offset].offer(txn_id, false) == false) {
                 if (trace.get()) 
                     LOG.trace(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
                                             p, next_safe, txn_id));
@@ -248,7 +260,7 @@ public class TransactionQueueManager implements Runnable {
             }
             
             if (trace.get()) 
-                LOG.trace(String.format("Added txn #%d to queue for partition %d [working=%s, size=%d]",
+                LOG.trace(String.format("Added txn #%d to queue for partition %d [working=%s, queueSize=%d]",
                                         txn_id, p, this.working_partitions[offset], this.txn_queues[offset].size()));
         } // FOR
         if (should_notify) {
@@ -264,9 +276,10 @@ public class TransactionQueueManager implements Runnable {
      * @param txn_id
      * @param partition
      */
-    public void done(long txn_id, int partition) {
+    public void done(long txn_id, Hstore.Status status, int partition) {
         if (debug.get())
-            LOG.debug(String.format("Marking txn #%d as done on partition %d", txn_id, partition));
+            LOG.debug(String.format("Marking txn #%d as done on partition %d [status=%s]",
+                                    txn_id, partition, status));
         
         int offset = hstore_site.getLocalPartitionOffset(partition);
         
