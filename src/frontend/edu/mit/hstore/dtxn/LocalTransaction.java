@@ -292,7 +292,7 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public boolean isInitialized() {
-        return (this.predict_touchedPartitions != null && super.isInitialized());
+        return (this.catalog_proc != null && super.isInitialized());
     }
     
     @Override

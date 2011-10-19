@@ -64,7 +64,7 @@ public class TransactionQueueManager implements Runnable {
         
         for (int partition : this.localPartitions) {
             int offset = hstore_site.getLocalPartitionOffset(partition);
-            txn_queues[offset] = new TransactionInitPriorityQueue(hstore_site.getSiteId(), partition);
+            txn_queues[offset] = new TransactionInitPriorityQueue(hstore_site, partition);
             last_txns[offset] = -1;
             working_partitions[offset] = false;
         } // FOR
@@ -122,6 +122,12 @@ public class TransactionQueueManager implements Runnable {
         return (this.txn_queues[offset].size());
     }
     
+    public TransactionInitPriorityQueue getThrottlingQueue(int partition) {
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        return (this.txn_queues[offset]);
+    }
+    
+    
     protected synchronized boolean checkQueues() {
         if (trace.get())
             LOG.trace("Checking queues");
@@ -141,7 +147,8 @@ public class TransactionQueueManager implements Runnable {
             // so we'll just skip to the next one
             if (next_id == null) {
                 if (trace.get())
-                    LOG.trace(String.format("Partition #%d does not have a transaction ready to run. Skipping...", partition));
+                    LOG.trace(String.format("Partition #%d does not have a transaction ready to run. Skipping... [size=%d]",
+                                            partition, txn_queues[offset].size()));
                 continue;
             }
             
@@ -152,7 +159,7 @@ public class TransactionQueueManager implements Runnable {
                 if (trace.get()) 
                     LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting...",
                                             partition, next_id, last_txns[offset]));
-                this.rejectTransaction(next_id, callback);
+                this.rejectTransaction(next_id, callback, Hstore.Status.ABORT_REJECT);
                 break;
             }
 
@@ -181,10 +188,10 @@ public class TransactionQueueManager implements Runnable {
         }
     }
     
-    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback) {
+    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstore.Status status) {
         // First send back an ABORT message to the initiating HStoreSite
         try {
-            callback.abort(Hstore.Status.ABORT_REJECT);
+            callback.abort(status);
         } catch (Throwable ex) {
             throw new RuntimeException("Unexpected error when trying to abort txn #" + txn_id, ex);
         }
@@ -208,12 +215,13 @@ public class TransactionQueueManager implements Runnable {
      * @param partitions
      * @param callback
      */
-    public void insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+    public boolean insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
         if (debug.get())
             LOG.debug(String.format("Adding new distributed txn #%d into queue [partitions=%s]", txn_id, partitions));
         
         txn_callbacks.put(txn_id, callback);
         boolean should_notify = false;
+        boolean ret = true;
         for (Integer p : partitions) {
             if (this.localPartitions.contains(p) == false) continue;
             
@@ -225,23 +233,30 @@ public class TransactionQueueManager implements Runnable {
                 if (trace.get()) 
                     LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
                                             p, next_safe, txn_id));
-                this.rejectTransaction(txn_id, callback);
+                this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_REJECT);
+                ret = false;
                 break;
+            } else if (txn_queues[offset].add(txn_id) == false) {
+                if (trace.get()) 
+                    LOG.trace(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
+                                            p, next_safe, txn_id));
+                this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_THROTTLED);
+                ret = false;
+                break;
+            } else if (!working_partitions[offset]) {
+                should_notify = true;
             }
             
             if (trace.get()) 
-                LOG.trace(String.format("Adding txn #%d to queue for partition %d [working=%s, size=%d]",
+                LOG.trace(String.format("Added txn #%d to queue for partition %d [working=%s, size=%d]",
                                         txn_id, p, this.working_partitions[offset], this.txn_queues[offset].size()));
-            txn_queues[offset].add(txn_id);
-            if (!working_partitions[offset]) {
-                should_notify = true;
-            }
         } // FOR
         if (should_notify) {
             synchronized (this) {
                 notifyAll();
             } // SYNCH
         }
+        return (ret);
     }
     
     /**

@@ -66,16 +66,24 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     
     @Override
     protected void abortCallback(Status status) {
-        assert(status == Hstore.Status.ABORT_REJECT);
         assert(this.isInitialized()) : "ORIG TXN: " + orig_txn_id;
         
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
-        this.hstore_site.transactionRestart(this.ts, status);
+        switch (status) {
+            case ABORT_REJECT:
+                this.hstore_site.transactionRestart(this.ts, status);
+                break;
+            case ABORT_THROTTLED:
+                this.hstore_site.transactionThrottle(this.ts);
+                break;
+            default:
+                assert(false) : String.format("Unexpected status %s for %s", status, this.ts);
+        } // SWITCH
         
-        // If we abort, then we have to send out an ABORT_REJECT to
+        // If we abort, then we have to send out an ABORT to
         // all of the partitions that we originally sent INIT requests too
         // Note that we do this *even* if we haven't heard back from the remote
         // HStoreSite that they've acknowledged our transaction
