@@ -77,11 +77,11 @@ OPT_STOP_ON_ERROR = False
 OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = True
-OPT_BASE_BLOCKING_CONCURRENT = 1
-OPT_BASE_TXNRATE_PER_PARTITION = 4400  # 2600 # # 3500
+OPT_BASE_BLOCKING_CONCURRENT = 300
+OPT_BASE_TXNRATE_PER_PARTITION = 5000
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 15
+OPT_BASE_CLIENT_COUNT = 3
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
 OPT_BASE_SCALE_FACTOR = 50
 
 BASE_SETTINGS = {
@@ -114,10 +114,10 @@ BASE_SETTINGS = {
     "site.status_kill_if_hung":                         True,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
-    "site.status_interval":                             5000,
+    "site.status_interval":                             10000,
     
     "site.sites_per_host":                              1,
-    "site.partitions_per_site":                         6,
+    "site.partitions_per_site":                         4,
     "site.memory":                                      60020,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
@@ -189,10 +189,10 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["benchmark.neworder_multip"] = (exp_factor > 0)
             if exp_factor == 0:
                 OPT_BASE_TXNRATE_PER_PARTITION = 4400 
-                env["site.txn_enable_queue_pruning"] = False
+                env["client.blocking"] = False
             else:
-                OPT_BASE_TXNRATE_PER_PARTITION = 2600
-                env["site.txn_enable_queue_pruning"] = True
+                OPT_BASE_TXNRATE_PER_PARTITION = 4400
+                env["client.blocking"] = True
             
         elif exp_setting == 1:
             if exp_factor == 0:

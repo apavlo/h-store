@@ -27,6 +27,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.TransactionProfile;
 import edu.mit.hstore.interfaces.Shutdownable;
@@ -178,41 +179,42 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     @Override
     public void shutdown() {
-        hstore_conf.site.status_show_thread_info = true;
+//        hstore_conf.site.status_show_thread_info = true;
         this.printSnapshot();
         
         // Quick Sanity Check!
-        for (int i = 0; i < 2; i++) {
-            Histogram<Long> histogram = new Histogram<Long>();
-            Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds(); 
-            TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
-            for (Integer p : localPartitions) {
-                Long txn_id = manager.getCurrentTransaction(p);
-                if (txn_id != null) histogram.put(txn_id);
-            } // FOR
-            if (histogram.isEmpty()) break;
-            for (Long txn_id : histogram.values()) {
-                if (histogram.get(txn_id) == localPartitions.size()) continue;
-                
-                Map<String, String> m = new ListOrderedMap<String, String>();
-                m.put("TxnId", "#" + txn_id);
-                for (Integer p : hstore_site.getLocalPartitionIds()) {
-                    Long cur_id = manager.getCurrentTransaction(p);
-                    String status = "MISSING";
-                    if (txn_id == cur_id) {
-                        status = "READY";
-                    } else if (manager.getQueue(p).contains(txn_id)) {
-                        status = "QUEUED";
-                        status += " / " + cur_id;
-                        status += " / " + manager.getQueue(p); 
-                    }
-                    m.put(String.format("  [%02d]", p), status);
-                } // FOR
-                LOG.info(manager.getClass().getSimpleName() + " Status:\n" + StringUtil.formatMaps(m));
-            } // FOR
-            LOG.info("Checking queue again...");
-            manager.checkQueues();
-        } // FOR
+//        for (int i = 0; i < 2; i++) {
+//            Histogram<Long> histogram = new Histogram<Long>();
+//            Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds(); 
+//            TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
+//            for (Integer p : localPartitions) {
+//                Long txn_id = manager.getCurrentTransaction(p);
+//                if (txn_id != null) histogram.put(txn_id);
+//            } // FOR
+//            if (histogram.isEmpty()) break;
+//            for (Long txn_id : histogram.values()) {
+//                if (histogram.get(txn_id) == localPartitions.size()) continue;
+//                
+//                Map<String, String> m = new ListOrderedMap<String, String>();
+//                m.put("TxnId", "#" + txn_id);
+//                for (Integer p : hstore_site.getLocalPartitionIds()) {
+//                    Long cur_id = manager.getCurrentTransaction(p);
+//                    String status = "MISSING";
+//                    if (txn_id == cur_id) {
+//                        status = "READY";
+//                    } else if (manager.getQueue(p).contains(txn_id)) {
+//                        status = "QUEUED";
+//                        // status += " / " + manager.getQueue(p); 
+//                    }
+//                    status += " / " + cur_id;
+//                    m.put(String.format("  [%02d]", p), status);
+//                } // FOR
+//                LOG.info(manager.getClass().getSimpleName() + " Status:\n" + StringUtil.formatMaps(m));
+//            } // FOR
+//            LOG.info("Checking queue again...");
+//            manager.checkQueues();
+//            break;
+//        } // FOR
         
         if (hstore_conf.site.txn_profiling) {
             String csv = this.txnProfileCSV();
@@ -326,11 +328,20 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                           (es_queue.isThrottled() ? " *THROTTLED*" : ""));
             m.put("Exec Queue", status);
             
-            status = String.format("%-5s [limit=%d, release=%d]%s",
+            status = String.format("%-5s [limit=%d, release=%d]%s / ",
                                    dtxn_queue.size(), dtxn_queue.getQueueMax(), dtxn_queue.getQueueRelease(),
                                    (dtxn_queue.isThrottled() ? " *THROTTLED*" : ""));
             Long txn_id = manager.getCurrentTransaction(partition);
-            status += " / " + (txn_id != null ? "#" + txn_id : "-");
+            if (txn_id != null) {
+                TransactionInitWrapperCallback callback = manager.getCallback(txn_id);
+                int len = status.length();
+                status += "#" + txn_id;
+                if (callback != null) {
+                    status += "\n" + StringUtil.repeat(" ", len);
+                    status += String.format("Partitions=%s / Remaining=%d", callback.getPartitions(), callback.getCounter());
+                }
+            }
+            
             m.put("DTXN Queue", status);
             
 //            if (is_throttled && queue_size < queue_release && hstore_site.isShuttingDown() == false) {
@@ -536,7 +547,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         sortedThreads.addAll(threads.keySet());
         
         m_thread.put("Number of Threads", threads.size());
-        
         for (Thread t : sortedThreads) {
             StackTraceElement stack[] = threads.get(t);
             
@@ -547,7 +557,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             String trace = null;
             if (stack.length == 0) {
-                trace += "<NO STACK TRACE>";
+                trace = "<NO STACK TRACE>";
 //            } else if (t.getName().startsWith("Thread-")) {
 //                trace = Arrays.toString(stack);
             } else {
@@ -714,7 +724,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 
         // TransactionEstimator.States
         pools.put("EstimationStates", (StackObjectPool)TransactionEstimator.POOL_STATES);
-        
         
         final Map<String, Object> m_pool = new ListOrderedMap<String, Object>();
         for (String key : pools.keySet()) {

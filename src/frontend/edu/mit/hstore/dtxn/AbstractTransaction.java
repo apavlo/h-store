@@ -161,19 +161,18 @@ public abstract class AbstractTransaction implements Poolable {
         this.touched_partitions.clear();
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
-            int offset = hstore_site.getLocalPartitionOffset(i);
-            this.finished[offset] = false;
-            this.round_state[offset] = null;
-            this.round_ctr[offset] = 0;
-            this.last_undo_token[offset] = null;
-            this.exec_readOnly[offset] = true;
-            this.exec_eeWork[offset] = false;
-            this.exec_noUndoBuffer[offset] = false;
+            this.finished[i] = false;
+            this.round_state[i] = null;
+            this.round_ctr[i] = 0;
+            this.last_undo_token[i] = null;
+            this.exec_readOnly[i] = true;
+            this.exec_eeWork[i] = false;
+            this.exec_noUndoBuffer[i] = false;
         } // FOR
 
         if (debug.get())
-            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d]",
-                                   txn_id, this.hashCode()));
+            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+                                    txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = -1;
     }
 
@@ -407,8 +406,10 @@ public abstract class AbstractTransaction implements Poolable {
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void setFinishedEE(int partition) {
-        if (debug.get()) LOG.debug(String.format("Marking %s as finished on partition %d %s",
-                                                 this, partition, Arrays.toString(this.finished)));
+        if (debug.get()) 
+            LOG.debug(String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
+                                   this, partition, Arrays.toString(this.finished),
+                                   this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     /**

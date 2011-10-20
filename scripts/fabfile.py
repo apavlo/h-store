@@ -392,6 +392,7 @@ def setup_env():
     ## WITH
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
+    sudo("ntpdate-debian")
     
     first_setup = False
     with settings(warn_only=True):

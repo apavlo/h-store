@@ -498,8 +498,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionInitResponse> callback) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (trace.get())
-                LOG.trace(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // Wrap the callback around a TransactionInitWrapperCallback that will wait until
             // our HStoreSite gets an acknowledgment from all the
@@ -523,8 +523,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionWorkResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (trace.get())
-                LOG.trace(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // This is work from a transaction executing at another node
             // Any other message can just be sent along to the ExecutionSite without sending
@@ -594,8 +594,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionFinishResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (trace.get())
-                LOG.trace(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
 
             hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
             
@@ -605,8 +605,8 @@ public class HStoreCoordinator implements Shutdownable {
             for (Integer p : request.getPartitionsList()) {
                 if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
             }
-            if (trace.get())
-                LOG.trace(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
+            if (debug.get())
+                LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
                                         TransactionFinishResponse.class.getSimpleName(), txn_id,
                                         request.getStatus(), builder.getPartitionsList()));
             done.run(builder.build());
@@ -621,8 +621,8 @@ public class HStoreCoordinator implements Shutdownable {
             // We need to create a wrapper callback so that we can get the output that
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
-            if (trace.get()) 
-                LOG.trace(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
+            if (debug.get()) 
+                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {

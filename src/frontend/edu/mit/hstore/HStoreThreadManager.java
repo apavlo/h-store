@@ -74,7 +74,7 @@ public class HStoreThreadManager {
         if (debug.get())
             LOG.debug("Registering EE Thread for " + partition + " to execute on CPUs " + getCPUIds(affinity));
         org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
-        if (hstore_site.getHStoreConf().site.status_show_thread_info) this.registerThread(affinity);
+        this.registerThread(affinity);
         
         final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
         for (int ii = 0; ii < endingAffinity.length; ii++) {
@@ -92,7 +92,7 @@ public class HStoreThreadManager {
             LOG.debug("Registering Processing Thread to execute on CPUs " + getCPUIds(this.processing_affinity));
         // This thread cannot run on the EE's cores
         org.voltdb.utils.ThreadUtils.setThreadAffinity(this.processing_affinity);
-        if (hstore_site.getHStoreConf().site.status_show_thread_info) this.registerThread(this.processing_affinity);
+        this.registerThread(this.processing_affinity);
     }
     
     private synchronized void registerThread(boolean affinity[]) {
