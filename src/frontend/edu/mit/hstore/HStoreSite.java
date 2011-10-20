@@ -1188,9 +1188,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
             ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
-            if (debug.get())
-                LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s]",
-                                        ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false));
+            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
+                                           ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
@@ -1206,9 +1205,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param done
      */
     public void transactionWork(RemoteTransaction ts, FragmentTaskMessage ftask) {
-        if (t)
-            LOG.trace(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
-                                    ftask.getDestinationPartitionId(), ts.getTransactionId()));
+        if (d) LOG.debug(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
+                                       ftask.getDestinationPartitionId(), ts.getTransactionId()));
         this.executors[ftask.getDestinationPartitionId()].queueWork(ts, ftask);
     }
 
@@ -1223,8 +1221,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param updated
      */
     public void transactionPrepare(long txn_id, Collection<Integer> partitions, Collection<Integer> updated) {
-        if (d) 
-            LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
+        if (d) LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
         // We could have been asked to participate in a distributed transaction but
         // they never actually sent us anything, so we should just tell the queue manager
@@ -1285,7 +1282,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // transactions will commit/abort immediately
             if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
                 if (d) LOG.debug(String.format("Calling finishTransaction for %s on partition %d", ts, p));
-                this.executors[p].finishTransaction(ts, commit);
+                try {
+                    this.executors[p].finishTransaction(ts, commit);
+                } catch (Throwable ex) {
+                    LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
+                                            ts, ts.hashCode(), status, partitions));
+                    throw new RuntimeException(ex);
+                }
             }
         } // FOR            
     }
@@ -1529,8 +1532,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      */
     public void completeTransaction(final long txn_id, final Hstore.Status status) {
-        if (d) 
-            LOG.debug("Cleaning up internal info for Txn #" + txn_id);
+        if (d) LOG.debug("Cleaning up internal info for Txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
         // It's ok for us to not have a transaction handle, because it could be
@@ -1746,7 +1748,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         HStoreConf.initArgumentsParser(args, catalog_site);
-        if (d) LOG.info("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
+        if (d) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
 
         // HStoreSite Stuff
         final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);

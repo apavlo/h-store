@@ -289,7 +289,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultInt=4,
+            defaultInt=10,
             experimental=false
         )
         public int txn_restart_threshold;

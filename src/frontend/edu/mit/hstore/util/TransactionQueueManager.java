@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.log4j.Logger;
+import org.voltdb.TransactionIdManager;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
@@ -93,7 +94,7 @@ public class TransactionQueueManager implements Runnable {
         while (true) {
             synchronized (this) {
                 try {
-                    wait();
+                    wait(50);
                 } catch (InterruptedException e) {
                     // Nothing...
                 }
@@ -138,7 +139,7 @@ public class TransactionQueueManager implements Runnable {
                     LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
                                             partition, next_id, last_txns[offset], txn_queues[offset].size()));
                 this.rejectTransaction(next_id, callback, Hstore.Status.ABORT_RESTART);
-                break;
+                continue;
             }
 
             // otherwise send the init request to the specified partition
@@ -257,8 +258,9 @@ public class TransactionQueueManager implements Runnable {
      */
     public void done(long txn_id, Hstore.Status status, int partition) {
         if (debug.get())
-            LOG.debug(String.format("Marking txn #%d as done on partition %d [status=%s]",
-                                    txn_id, partition, status));
+            LOG.debug(String.format("Marking txn #%d as done on partition %d [status=%s, basePartition=%d]",
+                                    txn_id, partition, status,
+                                    TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
         
         int offset = hstore_site.getLocalPartitionOffset(partition);
         
@@ -266,12 +268,12 @@ public class TransactionQueueManager implements Runnable {
         this.txn_queues[offset].remove(txn_id);
         
         // Then free up the partition if it was actually running
-        if (last_txns[offset] == txn_id) {
-            synchronized (this) {
+        synchronized (this) {
+            if (last_txns[offset] == txn_id) {
                 working_partitions[offset] = false;
-                notifyAll();
-            } // SYNCH
-        }
+            }
+            notifyAll();
+        } // SYNCH
     }
     
     protected boolean isEmpty() {
@@ -297,5 +299,9 @@ public class TransactionQueueManager implements Runnable {
     public TransactionInitPriorityQueue getQueue(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         return (this.txn_queues[offset]);
+    }
+    
+    public TransactionInitWrapperCallback getCallback(long txn_id) {
+        return (this.txn_callbacks.get(txn_id));
     }
 }

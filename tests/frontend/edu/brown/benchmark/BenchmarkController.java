@@ -772,7 +772,7 @@ public class BenchmarkController {
                         if (j > hstore_conf.client.delay_threshold) {
                             long wait = 500 * (j - hstore_conf.client.delay_threshold);
                             curClientArgs.add("WAIT=" + wait);
-                            LOG.info("Start-up Wait Time for " + host_id + ": " + wait);
+                            if (debug.get()) LOG.debug("Start-up Wait Time for " + host_id + ": " + wait);
                         }
         
                         String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);

@@ -753,11 +753,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 this.work_throttler.checkThrottling(false);
             } // WHILE
         } catch (final Throwable ex) {
-//            if (this.isShuttingDown() == false) {
+            if (this.isShuttingDown() == false) {
                 LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
                                         this.partitionId, (this.current_txn != null ? " - " + this.current_txn : "")), ex);
                 if (this.current_txn != null) LOG.fatal("TransactionState Dump:\n" + this.current_txn.debug());
-//            }
+            }
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
 //            if (d) 
@@ -1609,10 +1609,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
         // from swapping the work queue to the block task list
-        if (t) LOG.trace(String.format("Adding multi-partition %s to front of work queue [size=%d]", ts, this.work_queue.size()));
         synchronized (this.work_queue) {
             this.work_queue.addFirst(task);
         } // SYNCH
+        if (d) LOG.debug(String.format("Added multi-partition %s to front of work queue [size=%d]", ts, this.work_queue.size()));
+
     }
 
     /**
@@ -1647,7 +1648,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     if (singlePartitioned) {
                         success = this.work_throttler.offer(task, false);
                     } else {
-                        this.work_queue.addFirst(task);
+                        // this.work_queue.addFirst(task);
+                        this.work_queue.add(task);
                     }
                 } else {
                     if (t) LOG.trace(String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));

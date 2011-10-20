@@ -3,6 +3,7 @@ package edu.mit.hstore.util;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
+import org.voltdb.TransactionIdManager;
 
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -130,6 +131,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         if (m_lastTxnPopped > txnId) {
             LOG.warn(String.format("Txn ordering deadlock at partition %d -> LastTxn: %d / NewTxn: %d",
                                    m_partitionId, m_lastTxnPopped, txnId));
+            LOG.warn("LAST: " + TransactionIdManager.toString(m_lastTxnPopped));
+            LOG.warn("NEW:  " + TransactionIdManager.toString(txnId));
         }
 
         // update the latest transaction for the specified initiator
