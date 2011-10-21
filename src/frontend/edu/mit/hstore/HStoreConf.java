@@ -415,16 +415,32 @@ public final class HStoreConf {
         public int planner_max_batch_size;
         
         // ----------------------------------------------------------------------------
-        // HStoreMessenger
+        // HStoreCoordinator
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="If this enabled, HStoreMesseger will use a separate thread to process incoming redirect " +
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming initialization " +
+                        "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean coordinator_init_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming finish " +
+                        "requests for restarted transactions from other HStoreSites. ",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean coordinator_finish_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming redirect " +
                         "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
             defaultBoolean=false,
             experimental=false
         )
-        public boolean messenger_redirect_thread;
+        public boolean coordinator_redirect_thread;
 
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
@@ -745,6 +761,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int blocking_concurrent;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean blocking_loader;
 
         @ConfigProperty(
             description="The scaling factor determines how large to make the target benchmark's data set. " +

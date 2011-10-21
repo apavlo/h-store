@@ -77,11 +77,7 @@ public class ExecutionState {
      * List of encoded Partition/Dependency keys
      */
     protected ListOrderedSet<Integer> partition_dependency_keys = new ListOrderedSet<Integer>();
-    
-    /**
-     * The partitions that we told the Dtxn.Coordinator that we were done with
-     */
-    protected final Set<Integer> done_partitions = new HashSet<Integer>();
+
     
     protected final ReentrantLock lock = new ReentrantLock();
     
@@ -180,7 +176,6 @@ public class ExecutionState {
     public void clear() {
         this.exec_touchedPartitions.clear();
         this.dependency_latch = null;
-        this.done_partitions.clear();
     }
     
     // ----------------------------------------------------------------------------

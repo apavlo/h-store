@@ -3,7 +3,6 @@ package edu.mit.hstore;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -17,7 +16,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.VoltMessage;
@@ -29,7 +27,6 @@ import ca.evanjones.protorpc.ProtoRpcController;
 import ca.evanjones.protorpc.ProtoServer;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
@@ -43,12 +40,14 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.callbacks.TransactionFinishCallback;
 import edu.mit.hstore.callbacks.TransactionInitCallback;
-import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
+import edu.mit.hstore.handlers.TransactionFinishHandler;
+import edu.mit.hstore.handlers.TransactionInitHandler;
+import edu.mit.hstore.handlers.TransactionPrepareHandler;
 import edu.mit.hstore.interfaces.Shutdownable;
 
 /**
@@ -72,9 +71,6 @@ public class HStoreCoordinator implements Shutdownable {
     private final int local_site_id;
     private final Collection<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
-    private final int num_sites;
-    
-    private final LinkedBlockingDeque<Pair<byte[], TransactionRedirectResponseCallback>> forwardQueue = new LinkedBlockingDeque<Pair<byte[], TransactionRedirectResponseCallback>>();  
     
     /** SiteId -> HStoreServer */
     private final Map<Integer, HStoreService> channels = new HashMap<Integer, HStoreService>();
@@ -83,8 +79,15 @@ public class HStoreCoordinator implements Shutdownable {
     private final ProtoServer listener;
     private final RemoteSiteHandler handler = new RemoteSiteHandler();
     
-    private final ForwardTxnDispatcher forwardDispatcher = new ForwardTxnDispatcher();
-    private final Thread forward_thread;
+    private final ForwardTxnDispatcher forwardDispatcher;
+    
+    private final TransactionInitHandler router_transactionInit;
+    private final InitDispatcher initDispatcher;
+    
+    private final TransactionPrepareHandler router_transactionPrepare;
+    
+    private final TransactionFinishHandler router_transactionFinish;
+    private final FinishDispatcher finishDispatcher;
     
     private boolean shutting_down = false;
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
@@ -111,7 +114,7 @@ public class HStoreCoordinator implements Shutdownable {
             
             if (error != null) {
                 if (hstore_site.isShuttingDown() == false) {
-                    LOG.error("HStoreMessenger.Listener stopped!", error);
+                    LOG.error(this.getClass().getSimpleName() + " has stopped!", error);
                 }
                 
                 Throwable cause = null;
@@ -136,32 +139,73 @@ public class HStoreCoordinator implements Shutdownable {
         }
     }
     
-    /**
-     * 
-     */
-    private class ForwardTxnDispatcher implements Runnable {
+    public abstract class Dispatcher<E> implements Runnable {
         final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
+        final LinkedBlockingDeque<E> queue = new LinkedBlockingDeque<E>();
         
         @Override
-        public void run() {
+        public final void run() {
             if (hstore_conf.site.cpu_affinity)
                 hstore_site.getThreadManager().registerProcessingThread();
-            Pair<byte[], TransactionRedirectResponseCallback> p = null;
+            E e = null;
             while (HStoreCoordinator.this.shutting_down == false) {
                 try {
                     idleTime.start();
-                    p = HStoreCoordinator.this.forwardQueue.take();
+                    e = this.queue.take();
                     idleTime.stop();
                 } catch (InterruptedException ex) {
                     break;
                 }
                 try {
-                    HStoreCoordinator.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+                    this.runImpl(e);
                 } catch (Throwable ex) {
-                    LOG.warn("Failed to invoke forwarded transaction", ex);
+                    LOG.warn("Failed to process queued element " + e, ex);
                     continue;
                 }
             } // WHILE
+        }
+        public void queue(E e) {
+            this.queue.offer(e);
+        }
+        public abstract void runImpl(E e);
+        
+        
+    }
+    
+    /**
+     * 
+     */
+    private class ForwardTxnDispatcher extends Dispatcher<Pair<byte[], TransactionRedirectResponseCallback>> {
+        @Override
+        public void runImpl(Pair<byte[], TransactionRedirectResponseCallback> p) {
+            HStoreCoordinator.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+        }
+    }
+    
+    /**
+     * 
+     */
+    private class InitDispatcher extends Dispatcher<Object[]> {
+        @SuppressWarnings("unchecked")
+        @Override
+        public void runImpl(Object o[]) {
+            RpcController controller = (RpcController)o[0];
+            TransactionInitRequest request = (TransactionInitRequest)o[1];
+            RpcCallback<TransactionInitResponse> callback = (RpcCallback<TransactionInitResponse>)o[2];
+            router_transactionInit.remoteHandler(controller, request, callback);
+        }
+    }
+    /**
+     * 
+     */
+    private class FinishDispatcher extends Dispatcher<Object[]> {
+        @SuppressWarnings("unchecked")
+        @Override
+        public void runImpl(Object o[]) {
+            RpcController controller = (RpcController)o[0];
+            TransactionFinishRequest request = (TransactionFinishRequest)o[1];
+            RpcCallback<TransactionFinishResponse> callback = (RpcCallback<TransactionFinishResponse>)o[2];
+            router_transactionFinish.remoteHandler(controller, request, callback);
         }
     }
     
@@ -174,20 +218,20 @@ public class HStoreCoordinator implements Shutdownable {
         this.hstore_conf = hstore_site.getHStoreConf();
         this.catalog_site = hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
-        this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
         this.local_partitions = hstore_site.getLocalPartitionIds();
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + this.local_partitions);
 
         // This listener thread will process incoming messages
         this.listener = new ProtoServer(this.eventLoop);
         
-        // Special thread to handle forward requests
-        if (hstore_conf.site.messenger_redirect_thread) {
-            this.forward_thread = new Thread(forwardDispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
-            this.forward_thread.setDaemon(true);
-        } else {
-            this.forward_thread = null;
-        }
+        // Special dispatcher threads to handle forward requests
+        this.initDispatcher = (hstore_conf.site.coordinator_init_thread ? new InitDispatcher() : null);
+        this.finishDispatcher = (hstore_conf.site.coordinator_finish_thread ? new FinishDispatcher() : null);
+        this.forwardDispatcher = (hstore_conf.site.coordinator_redirect_thread ? new ForwardTxnDispatcher() : null);
+
+        this.router_transactionInit = new TransactionInitHandler(hstore_site, initDispatcher);
+        this.router_transactionPrepare = new TransactionPrepareHandler(hstore_site);
+        this.router_transactionFinish = new TransactionFinishHandler(hstore_site, finishDispatcher);
         
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
@@ -207,9 +251,23 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get()) LOG.debug("Initializing connections");
         this.initConnections();
 
-        if (this.forward_thread != null) {
+        if (this.initDispatcher != null) {
+            if (debug.get()) LOG.debug("Starting InitTransaction dispatcher thread");
+            Thread t = new Thread(initDispatcher, HStoreSite.getThreadName(this.hstore_site, "init"));
+            t.setDaemon(true);
+            t.start();
+        }
+        if (this.finishDispatcher != null) {
+            if (debug.get()) LOG.debug("Starting FinishTransaction dispatcher thread");
+            Thread t = new Thread(finishDispatcher, HStoreSite.getThreadName(this.hstore_site, "finish"));
+            t.setDaemon(true);
+            t.start();
+        }
+        if (this.forwardDispatcher != null) {
             if (debug.get()) LOG.debug("Starting ForwardTxn dispatcher thread");
-            this.forward_thread.start();
+            Thread t = new Thread(forwardDispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
+            t.setDaemon(true);
+            t.start();
         }
         
         if (debug.get()) LOG.debug("Starting listener thread");
@@ -282,6 +340,13 @@ public class HStoreCoordinator implements Shutdownable {
     }
     protected final Thread getListenerThread() {
         return (this.listener_thread);
+    }
+    
+    public HStoreService getChannel(int site_id) {
+        return (this.channels.get(site_id));
+    }
+    public HStoreService getHandler() {
+        return (this.handler);
     }
     
 //    private int getNumLocalPartitions(Collection<Integer> partitions) {
@@ -372,100 +437,9 @@ public class HStoreCoordinator implements Shutdownable {
     // ----------------------------------------------------------------------------
     // MESSAGE ROUTERS
     // ----------------------------------------------------------------------------
-
-    /**
-     * A MessageRouter is a wrapper around the invocation methods for some action
-     * There is a local and remote method to send a message to the necessary HStoreSites
-     * for a transaction. The sendMessages() method is the main entry point that the 
-     * HStoreCoordinator's convenience methods will use. 
-     * @param <T>
-     * @param <U>
-     */
-    private abstract class MessageRouter<T extends GeneratedMessage, U extends GeneratedMessage> {
-        
-        public void sendMessages(LocalTransaction ts, T request, RpcCallback<U> callback, Collection<Integer> partitions) {
-            // If this flag is true, then we'll invoke the local method
-            // We want to do this *after* we send out all the messages to the remote sites
-            // so that we don't have to wait as long for the responses to come back over the network
-            boolean send_local = false;
-            boolean site_sent[] = new boolean[HStoreCoordinator.this.num_sites];
-            int ctr = 0;
-            for (Integer p : partitions) {
-                int dest_site_id = hstore_site.getSiteIdForPartitionId(p).intValue();
-
-                // Skip this HStoreSite if we're already sent it a message 
-                if (site_sent[dest_site_id]) continue;
-                
-                if (trace.get())
-                    LOG.trace(String.format("Sending %s message to %s for %s",
-                                            request.getClass().getSimpleName(), HStoreSite.formatSiteName(dest_site_id), ts));
-                
-                // Local Partition
-                if (HStoreCoordinator.this.local_site_id == dest_site_id) {
-                    send_local = true;
-                // Remote Partition
-                } else {
-                    HStoreService channel = HStoreCoordinator.this.channels.get(dest_site_id);
-                    assert(channel != null) : "Invalid partition id '" + p + "' at " + HStoreCoordinator.this.hstore_site.getSiteName();
-                    ProtoRpcController controller = this.getProtoRpcController(ts, dest_site_id);
-                    assert(controller != null) : "Invalid " + request.getClass().getSimpleName() + " ProtoRpcController for site #" + dest_site_id;
-                    this.sendRemote(channel, controller, request, callback);
-                }
-                site_sent[dest_site_id] = true;
-                ctr++;
-            } // FOR
-            // Optimization: We'll invoke sendLocal() after we have sent out
-            // all of the mesages to remote sites
-            if (send_local) this.sendLocal(ts.getTransactionId(), request, partitions, callback);
-            
-            if (debug.get())
-                LOG.debug(String.format("Sent %d %s to %d partitions for %s",
-                                        ctr, request.getClass().getSimpleName(),  partitions.size(), ts));
-        }
-        
-        protected abstract void sendLocal(long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
-        protected abstract void sendRemote(HStoreService channel, ProtoRpcController controller, T request, RpcCallback<U> callback);
-        protected abstract ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id);
-    }
     
-    // TransactionInit
-    private final MessageRouter<TransactionInitRequest, TransactionInitResponse> router_transactionInit = new MessageRouter<TransactionInitRequest, TransactionInitResponse>() {
-        protected void sendLocal(long txn_id, TransactionInitRequest request, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> callback) {
-            handler.transactionInit(null, request, callback);
-        }
-        protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionInitRequest request, RpcCallback<TransactionInitResponse> callback) {
-            channel.transactionInit(controller, request, callback);
-        }
-        protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
-            return ts.getTransactionInitController(site_id);
-        }
-    };
-    // TransactionPrepare
-    private final MessageRouter<TransactionPrepareRequest, TransactionPrepareResponse> router_transactionPrepare = new MessageRouter<TransactionPrepareRequest, TransactionPrepareResponse>() {
-        protected void sendLocal(long txn_id, TransactionPrepareRequest request, Collection<Integer> partitions, RpcCallback<TransactionPrepareResponse> callback) {
-            // We don't care whether we actually updated anybody locally, so we don't need to
-            // pass in a set to get the partitions that were updated here.
-            hstore_site.transactionPrepare(txn_id, partitions, null);
-        }
-        protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionPrepareRequest request, RpcCallback<TransactionPrepareResponse> callback) {
-            channel.transactionPrepare(controller, request, callback);
-        }
-        protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
-            return ts.getTransactionPrepareController(site_id);
-        }
-    };
     // TransactionFinish
-    private final MessageRouter<TransactionFinishRequest, TransactionFinishResponse> router_transactionFinish = new MessageRouter<TransactionFinishRequest, TransactionFinishResponse>() {
-        protected void sendLocal(long txn_id, TransactionFinishRequest request, Collection<Integer> partitions, RpcCallback<TransactionFinishResponse> callback) {
-            hstore_site.transactionFinish(txn_id, request.getStatus(), partitions);
-        }
-        protected void sendRemote(HStoreService channel, ProtoRpcController controller, TransactionFinishRequest request, RpcCallback<TransactionFinishResponse> callback) {
-            channel.transactionFinish(controller, request, callback);
-        }
-        protected ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id) {
-            return ts.getTransactionFinishController(site_id);
-        }
-    };
+    
     // Shutdown
 //    private final MessageRouter<ShutdownRequest, ShutdownResponse> router_shutdown = new MessageRouter<ShutdownRequest, ShutdownResponse>() {
 //        protected void sendLocal(long txn_id, ShutdownRequest request, Collection<Integer> partitions, RpcCallback<ShutdownResponse> callback) {
@@ -493,26 +467,7 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void transactionInit(RpcController controller, TransactionInitRequest request,
                 RpcCallback<TransactionInitResponse> callback) {
-            assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
-            long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
-            
-            // Wrap the callback around a TransactionInitWrapperCallback that will wait until
-            // our HStoreSite gets an acknowledgment from all the
-            // TODO: Figure out how we're going to return this callback to its ObjectPool
-            TransactionInitWrapperCallback wrapper = null;
-            try {
-                wrapper = HStoreObjectPools.CALLBACKS_TXN_INITWRAPPER.borrowObject();
-                wrapper.init(txn_id, request.getPartitionsList(), callback);
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-            hstore_site.transactionInit(txn_id, request.getPartitionsList(), wrapper);
-            
-            // We don't need to send back a response right here.
-            // TransactionInitWrapperCallback will wait until it has results from all of the partitions 
-            // the tasks were sent to and then send back everything in a single response message
+             router_transactionInit.remoteQueue(controller, request, callback);
         }
         
         @Override
@@ -560,6 +515,9 @@ public class HStoreCoordinator implements Shutdownable {
                 hstore_site.transactionWork(ts, ftask);
                 first = false;
             } // FOR
+            assert(ts != null);
+            assert(txn_id == ts.getTransactionId()) :
+                String.format("Mismatched %s - Expected[%d] != Actual[%s]", ts, txn_id, ts.getTransactionId());
             
             // We don't need to send back a response right here.
             // TransactionWorkCallback will wait until it has results from all of the partitions 
@@ -568,49 +526,14 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void transactionPrepare(RpcController controller, TransactionPrepareRequest request,
-                RpcCallback<TransactionPrepareResponse> done) {
-            assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
-            long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
-            
-            Collection<Integer> updated = new HashSet<Integer>();
-            hstore_site.transactionPrepare(txn_id, request.getPartitionsList(), updated);
-            assert(updated.isEmpty() == false);
-            
-            Hstore.TransactionPrepareResponse response = Hstore.TransactionPrepareResponse.newBuilder()
-                                                                   .setTransactionId(txn_id)
-                                                                   .addAllPartitions(updated)
-                                                                   .setStatus(Hstore.Status.OK)
-                                                                   .build();
-            done.run(response);
+                RpcCallback<TransactionPrepareResponse> callback) {
+            router_transactionPrepare.remoteQueue(controller, request, callback);
         }
         
         @Override
         public void transactionFinish(RpcController controller, TransactionFinishRequest request,
-                RpcCallback<TransactionFinishResponse> done) {
-            assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
-            long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d [status=%s]",
-                                        request.getClass().getSimpleName(), txn_id, request.getStatus()));
-
-            hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
-            
-            // Send back a FinishResponse to let them know we're cool with everything...
-            Hstore.TransactionFinishResponse.Builder builder = Hstore.TransactionFinishResponse.newBuilder()
-                                                              .setTransactionId(txn_id);
-            for (Integer p : request.getPartitionsList()) {
-                if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
-            }
-            if (debug.get())
-                LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
-                                        TransactionFinishResponse.class.getSimpleName(), txn_id,
-                                        request.getStatus(), builder.getPartitionsList()));
-            done.run(builder.build());
-            
-            // Always tell the HStoreSite to clean-up any state for this txn
-            hstore_site.completeTransaction(txn_id, request.getStatus());
+                RpcCallback<TransactionFinishResponse> callback) {
+            router_transactionFinish.remoteQueue(controller, request, callback);
         }
         
         @Override
@@ -630,8 +553,8 @@ public class HStoreCoordinator implements Shutdownable {
                 throw new RuntimeException("Failed to get ForwardTxnResponseCallback", ex);
             }
             
-            if (HStoreCoordinator.this.forward_thread != null) {
-                HStoreCoordinator.this.forwardQueue.add(Pair.of(serializedRequest, callback));
+            if (HStoreCoordinator.this.forwardDispatcher != null) {
+                HStoreCoordinator.this.forwardDispatcher.queue.add(Pair.of(serializedRequest, callback));
             } else {
                 hstore_site.procedureInvocation(serializedRequest, callback);
             }

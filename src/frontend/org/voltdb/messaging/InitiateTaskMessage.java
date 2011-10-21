@@ -211,6 +211,7 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         sb.append(m_invocation != null ? m_invocation.getProcName() : "null");
         sb.append("\n  PARAMS: ");
         sb.append(m_invocation != null ? m_invocation.getParams().toString() : "null");
+        sb.append("\n  HASHCODE: " + this.hashCode());
 
         return sb.toString();
     }

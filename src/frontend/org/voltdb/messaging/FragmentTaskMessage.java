@@ -563,6 +563,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
 
             }
         }
+        sb.append("\n  HASHCODE: " + this.hashCode());
 
         return sb.toString() + "\n";
     }

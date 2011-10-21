@@ -97,6 +97,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -364,6 +365,10 @@ public class BenchmarkController {
                     config.snapshotPrefix);
         }
     }
+    
+    public String getProjectName() {
+        return (m_projectBuilder.getProjectName().toUpperCase());
+    }
 
     public void registerInterest(BenchmarkInterest interest) {
         synchronized(m_interested) {
@@ -396,6 +401,8 @@ public class BenchmarkController {
         } else {
             if (debug.get()) LOG.debug("Skipping benchmark project compilation");
         }
+        
+        LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
         
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
@@ -492,13 +499,17 @@ public class BenchmarkController {
             m_localserver.waitForInitialization();
         }
 
+        final ProfileMeasurement load_time = new ProfileMeasurement("load").start();
         final int numClients = (m_config.clients.length * hstore_conf.client.processesperclient);
         if (m_loaderClass != null && m_config.noLoader == false) {
             this.startLoader(catalog, numClients);
         } else if (m_config.noLoader) {
             LOG.info("Skipping data loading phase");
         }
-        LOG.info("Completed loading phase");
+        load_time.stop();
+        LOG.info(String.format("Completed %s loading phase in %.2f sec",
+                               m_projectBuilder.getProjectName().toUpperCase(),
+                               load_time.getTotalThinkTimeSeconds()));
 
         // Start the clients
         if (m_config.noExecute == false) this.startClients(numClients);
@@ -571,11 +582,15 @@ public class BenchmarkController {
                 throw new RuntimeException("Failed to start all HStoreSites. Halting benchmark");
             }
         }
-        LOG.info("All remote HStoreSites are initialized");
+        if (debug.get()) LOG.debug("All remote HStoreSites are initialized");
     }
     
     public void startLoader(final Catalog catalog, final int numClients) {
-        if (debug.get()) LOG.debug("Starting loader: " + m_loaderClass);
+        LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
+        LOG.info(String.format("Starting %s Benchmark Loader - %s [blocking=%s]",
+                               m_projectBuilder.getProjectName().toUpperCase(),
+                               m_loaderClass.getSimpleName(),
+                               hstore_conf.client.blocking_loader)); 
         final ArrayList<String> allLoaderArgs = new ArrayList<String>();
         final ArrayList<String> loaderCommand = new ArrayList<String>();
 
@@ -820,7 +835,9 @@ public class BenchmarkController {
      */
     public void runBenchmark() {
         if (this.stop) return;
-        LOG.info(String.format("Starting execution phase with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
+        LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
+        LOG.info(String.format("Starting %s execution with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
+                                m_projectBuilder.getProjectName().toUpperCase(),
                                 m_clients.size(),
                                 m_config.clients.length,
                                 hstore_conf.client.processesperclient,

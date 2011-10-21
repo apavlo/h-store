@@ -89,6 +89,11 @@ public class LocalTransaction extends AbstractTransaction {
     private Collection<Integer> predict_touchedPartitions;
     
     /**
+     * The partitions that we told the Dtxn.Coordinator that we were done with
+     */
+    protected final Set<Integer> done_partitions = new HashSet<Integer>();
+    
+    /**
      * A handle to the execution state of this transaction
      * This will only get set when the transaction starts running.
      */
@@ -328,6 +333,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.sysproc = false;
         this.exec_speculative = false;
         this.predict_touchedPartitions = null;
+        this.done_partitions.clear();
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -509,7 +515,7 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     public Collection<Integer> getDonePartitions() {
-        return (this.state.done_partitions);
+        return (this.done_partitions);
     }
     public Histogram<Integer> getTouchedPartitions() {
         return (this.state.exec_touchedPartitions);
@@ -909,8 +915,8 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
-//            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
+//            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
+            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
         } else {
             return ("<Uninitialized>");
         }

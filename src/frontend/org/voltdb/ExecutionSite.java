@@ -685,9 +685,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 current_txn = hstore_site.getTransaction(txn_id);
                 if (current_txn == null) {
                     String msg = "No transaction state for txn #" + txn_id;
-                    LOG.warn(msg);
-                    continue;
-//                    throw new RuntimeException(msg);
+                    LOG.error(msg + "\n" + work.toString());
+                    throw new RuntimeException(msg);
                 }
                 if (hstore_conf.site.exec_profiling) {
                     this.currentTxnId = txn_id;
@@ -765,8 +764,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             }
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
-//            if (d) 
-                LOG.info("ExecutionSite is stopping." + (txn_id > 0 ? " In-Flight Txn: #" + txn_id : ""));
+            LOG.warn(String.format("Partition %d ExecutionSite is stopping.%s",
+                                   this.partitionId, (txn_id > 0 ? " In-Flight Txn: #" + txn_id : "")));
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.release();
@@ -950,12 +949,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
         if (ts.isExecReadOnly(this.partitionId)) {
-            if (d) LOG.debug(String.format("Attempting to enable %s speculative execution at partition %d [txn=%s]",
-                                           this.exec_mode, partitionId, ts));
+            ExecutionMode newMode = ExecutionMode.COMMIT_READONLY;
+            if (d) LOG.debug(String.format("Attempting to enable %s speculative execution at partition %d [currentMode=%s, txn=%s]",
+                                           newMode, partitionId, this.exec_mode, ts));
             exec_lock.lock();
             try {
                 if (this.current_dtxn == ts && this.exec_mode != ExecutionMode.DISABLED) {
-                    this.setExecutionMode(ts, ExecutionMode.COMMIT_READONLY);
+                    this.setExecutionMode(ts, newMode);
                     this.releaseBlockedTransactions(ts, true);
                     if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=%s]",
                                                    this.exec_mode, partitionId, ts));
@@ -1007,8 +1007,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         ExecutionMode before_mode = ExecutionMode.COMMIT_ALL;
         boolean predict_singlePartition = ts.isPredictSinglePartition();
         
-        if (d) LOG.debug(String.format("Attempting to begin processing %s for %s on partition %d",
-                                       itask.getClass().getSimpleName(), ts, this.partitionId));
+        if (d) LOG.debug(String.format("Attempting to begin processing %s for %s on partition %d [taskHash=%d]",
+                                       itask.getClass().getSimpleName(), ts, this.partitionId, itask.hashCode()));
         // If this is going to be a multi-partition transaction, then we will mark it as the current dtxn
         // for this ExecutionSite.
         if (predict_singlePartition == false) {
@@ -1636,8 +1636,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean success = true;
         
-        if (d) LOG.debug(String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s]",
-                                       ts, this.partitionId, this.current_dtxn, this.exec_mode));
+        if (d) LOG.debug(String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
+                                       ts, this.partitionId, this.current_dtxn, this.exec_mode, task.hashCode()));
         
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.exec_mode != ExecutionMode.DISABLED) {
@@ -2120,7 +2120,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // We have to send a prepare message to all of our remote HStoreSites
             // We want to make sure that we don't go back to ones that we've already told
-            Collection<Integer> partitions = CollectionUtils.subtract(ts.getPredictTouchedPartitions(), ts.getDonePartitions());
+            Collection<Integer> predictPartitions = ts.getPredictTouchedPartitions();
+            Collection<Integer> donePartitions = ts.getDonePartitions();
+            Collection<Integer> partitions = CollectionUtils.subtract(predictPartitions, donePartitions);
             this.hstore_messenger.transactionPrepare(ts, ts.getTransactionPrepareCallback(), partitions);
         }
         // ABORT: Distributed Transaction
@@ -2224,6 +2226,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
             // Release blocked transactions
             this.releaseBlockedTransactions(ts, false);
+        } catch (Throwable ex) {
+            throw new RuntimeException(String.format("Failed to finish %s at partition %d", ts, this.partitionId), ex);
         } finally {
             exec_lock.unlock();
         } // SYNCH
@@ -2309,12 +2313,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
             }
             
-            if (hstore_conf.site.exec_postprocessing_thread) {
-                if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
-                hstore_site.queueClientResponse(this, ts, cr);
-            } else {
-                if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
-                this.sendClientResponse(ts, cr);
+            try {
+                if (hstore_conf.site.exec_postprocessing_thread) {
+                    if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
+                    hstore_site.queueClientResponse(this, ts, cr);
+                } else {
+                    if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
+                    this.sendClientResponse(ts, cr);
+                }
+            } catch (Throwable ex) {
+                throw new RuntimeException("Failed to complete queued " + ts, ex);
             }
         } // WHILE
         if (d && skip_commit > 0 && hstore_conf.site.exec_queued_response_ee_bypass) {
