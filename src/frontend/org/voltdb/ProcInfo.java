@@ -43,4 +43,6 @@ public @interface ProcInfo {
      * @return True if all statements run on the same partition always, false otherwise.
      */
     boolean singlePartition() default false;
+    
+    boolean mapReduce() default false;
 }

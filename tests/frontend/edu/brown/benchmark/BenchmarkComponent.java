@@ -64,6 +64,7 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -267,6 +268,7 @@ public abstract class BenchmarkComponent {
     private int m_tickCounter = 0;
     
     private final boolean m_noUploading;
+    private final ReentrantLock m_loaderBlock = new ReentrantLock();
     private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, Hstore.Status.OK, new VoltTable[0], "");
     
     /**
@@ -966,14 +968,19 @@ public abstract class BenchmarkComponent {
         // Load up this dirty mess...
         ClientResponse cr = null;
         if (m_noUploading == false) {
-//            synchronized (this) { // FOR TESTING
+            boolean locked = m_hstoreConf.client.blocking_loader;
+            if (locked) m_loaderBlock.lock();
             try {
-                cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
-            } catch (Exception e) {
-                throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
-            }
-            LOG.info(String.format("Load %s: txn #%d / %s / %d", tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
-//            }
+                try {
+                    cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
+                } catch (Exception e) {
+                    throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
+                }
+                if (debug.get()) LOG.debug(String.format("Load %s: txn #%d / %s / %d",
+                                                         tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
+            } finally {
+                if (locked) m_loaderBlock.unlock();
+            } // SYNCH
         } else {
             cr = m_dummyResponse;
         }

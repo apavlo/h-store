@@ -378,7 +378,7 @@ public class TransactionQueueManager implements Runnable {
             Pair<Long, LocalTransaction> p = this.blocked_dtxns.peek();
             if (p.getFirst() < last_txn_id) {
                 this.blocked_dtxns.remove();
-                hstore_site.requeueTransaction(p.getSecond());
+                hstore_site.transactionRequeue(p.getSecond());
             } else break;
         } // WHILE
     }
