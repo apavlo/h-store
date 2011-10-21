@@ -73,6 +73,7 @@ OPT_NO_COMPILE = False
 OPT_NO_JAR = False
 OPT_NO_CONF = False
 OPT_NO_UPDATE = False
+OPT_NO_SYNC = False
 OPT_STOP_ON_ERROR = False
 OPT_FORCE_REBOOT = False
 
@@ -118,7 +119,7 @@ BASE_SETTINGS = {
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         4,
-    "site.memory":                                      60020,
+    "site.memory":                                      14336, # 60020,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
     "site.txn_incoming_queue_increase":                 10,
@@ -211,7 +212,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## THROUGHPUT
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
-        env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        # env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         
         base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
         env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
@@ -230,6 +231,10 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     elif benchmark == "airline":
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
+    elif benchmark == "tm1":
+        env["client.scalefactor"] = 100
+        env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
+        OPT_BASE_TXNRATE_PER_PARTITION = 4000
 
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
@@ -283,6 +288,7 @@ if __name__ == '__main__':
         "no-update",
         "no-jar",
         "no-conf",
+        "no-sync",
         "force-reboot",
         "stop-on-error",
         "trace",
@@ -327,6 +333,7 @@ if __name__ == '__main__':
         OPT_NO_UPDATE = True
         OPT_NO_CONF = True
         OPT_NO_JAR = True
+        OPT_NO_SYNC = True
     
     if not "partitions" in options:
         raise Exception("Missing 'partitions' parameter")
@@ -360,7 +367,8 @@ if __name__ == '__main__':
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
 
-    updateSVN = (OPT_NO_UPDATE == False)
+    needUpdate = (OPT_NO_UPDATE == False)
+    needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
@@ -384,6 +392,10 @@ if __name__ == '__main__':
                 fabfile.start_cluster()
                 if OPT_NO_EXECUTE: sys.exit(0)
             ## IF
+            
+            ## Synchronize Instance Times
+            if needSync: fabfile.sync_time()
+            needSync = False
                 
             client_inst = fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
@@ -423,7 +435,7 @@ if __name__ == '__main__':
                                                                     trace=OPT_TRACE, \
                                                                     updateJar=updateJar,
                                                                     updateConf=updateConf,
-                                                                    updateSVN=updateSVN)
+                                                                    updateSVN=needUpdate)
                             data = parseResultsOutput(output)
                             txnrate = float(data["TXNPERSECOND"])
                             if int(txnrate) == 0: pass
@@ -450,7 +462,7 @@ if __name__ == '__main__':
                         raise
                         break
                     finally:
-                        updateSVN = False
+                        needUpdate = False
                         updateJar = False
                         updateConf = False
                     ## TRY

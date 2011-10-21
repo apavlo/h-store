@@ -359,6 +359,7 @@ def start_cluster():
             first = False
         ## WITH
     ## FOR
+    sync_time()
 ## DEF
 
 ## ----------------------------------------------
@@ -737,6 +738,19 @@ def stop_cluster(terminate=False):
     else:
         LOG.info("No running H-Store instances were found")
 ## DEF
+
+## ----------------------------------------------
+## sync_time
+## ----------------------------------------------
+@task
+def sync_time():
+    __getInstances__()
+    for inst in env["ec2.running_instances"]:
+        with settings(host_string=inst.public_dns_name):
+            sudo("ntpdate-debian -b")
+    ## FOR
+## DEF
+    
 
 ## ----------------------------------------------
 ## __startInstances__

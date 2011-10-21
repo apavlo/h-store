@@ -966,14 +966,14 @@ public abstract class BenchmarkComponent {
         // Load up this dirty mess...
         ClientResponse cr = null;
         if (m_noUploading == false) {
-            synchronized (this) { // FOR TESTING
+//            synchronized (this) { // FOR TESTING
             try {
                 cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
             } catch (Exception e) {
                 throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
             }
-            // LOG.info(String.format("Load %s: txn #%d / %s", tableName, cr.getTransactionId(), cr.getStatus()))
-            }
+            LOG.info(String.format("Load %s: txn #%d / %s / %d", tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
+//            }
         } else {
             cr = m_dummyResponse;
         }

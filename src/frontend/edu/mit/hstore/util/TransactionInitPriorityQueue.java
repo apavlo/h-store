@@ -50,6 +50,8 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
     long m_txnsPopped = 0;
     long m_lastTxnPopped = 0;
     long m_blockTime = 0;
+    Long m_nextTxn = null;
+    final long m_waitTime;
     QueueState m_state = QueueState.BLOCKED_EMPTY;
 
     /**
@@ -58,29 +60,40 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * an assertion.
      * @param partitionId TODO
      */
-    public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId) {
+    public TransactionInitPriorityQueue(HStoreSite hstore_site, int partitionId, long wait) {
         super(new PriorityBlockingQueue<Long>(),
               hstore_site.getHStoreConf().site.queue_dtxn_max_per_partition,
               hstore_site.getHStoreConf().site.queue_dtxn_release_factor,
               hstore_site.getHStoreConf().site.queue_dtxn_increase);
         m_siteId = hstore_site.getSiteId();
         m_partitionId = partitionId;
+        m_waitTime = wait;
     }
 
     /**
      * Only return transaction state objects that are ready to run.
      */
     @Override
-    public Long poll() {
+    public synchronized Long poll() {
         Long retval = null;
-        if (m_state == QueueState.UNBLOCKED) {
+        if (m_state == QueueState.BLOCKED_SAFETY) {
+            if (System.currentTimeMillis() >= m_blockTime) {
+                retval = super.poll();
+                assert(retval != null);
+            }
+        } else if (m_state == QueueState.UNBLOCKED) {
             assert(checkQueueState() == QueueState.UNBLOCKED);
             retval = super.poll();
             assert(retval != null);
-            m_txnsPopped++;
-            m_lastTxnPopped = retval;
+        }
+        if (retval != null) {
+            assert(m_nextTxn == retval);
+            m_nextTxn = null;
+            
             // call this again to check
             checkQueueState();
+            m_txnsPopped++;
+            m_lastTxnPopped = retval;
         }
         return retval;
     }
@@ -103,7 +116,7 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
      * Drop data for unknown initiators. This is the only valid add interface.
      */
     @Override
-    public boolean offer(Long txnID, boolean force) {
+    public synchronized boolean offer(Long txnID, boolean force) {
         assert(txnID != null);
         boolean retval = super.offer(txnID, force);
         // update the queue state
@@ -173,15 +186,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         return m_newestCandidateTransaction;
     }
 
-    /**
-     * Return the largest confirmed txn id for the initiator given.
-     * Used to figure out what to do after an initiator fails.
-     * @param initiatorId The id of the initiator that has failed.
-     */
-    public long getNewestSafeTransactionForInitiator(int initiatorId) {
-        return m_lastSafeTxnId;
-    }
-
     public void shutdown() throws InterruptedException {
     }
 
@@ -189,39 +193,30 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         return m_state;
     }
 
-    QueueState checkQueueState() {
+    private synchronized QueueState checkQueueState() {
         QueueState newState = QueueState.UNBLOCKED;
         Long ts = super.peek();
+        long now = System.currentTimeMillis();
         if (ts == null) {
+            if (debug.get()) LOG.debug(String.format("Partition %d - Queue is empty.", m_partitionId));
             newState = QueueState.BLOCKED_EMPTY;
         }
-        else {
-            if (ts > m_newestCandidateTransaction) {
-                newState = QueueState.BLOCKED_ORDERING;
-            }
-            else {
-//                if (ts > m_lastSafeTxnId) {
-//                    newState = QueueState.BLOCKED_SAFETY;
-//                }
-            }
+        // Check whether can unblock now
+        else if (ts == m_nextTxn && now >= m_blockTime) {
+            if (debug.get()) LOG.debug(String.format("Partition %d - Wait time for txn #%d has passed. Unblocking...", m_partitionId, m_nextTxn));
+            newState = QueueState.UNBLOCKED;
         }
+        // This is a new txn and we should wait...
+        else if (m_nextTxn == null || m_nextTxn != ts) {
+            if (debug.get()) LOG.debug(String.format("Partition %d - Blocking next txn #%d for %d ms", m_partitionId, ts, m_waitTime));
+            newState = QueueState.BLOCKED_SAFETY;
+            m_blockTime = now + this.m_waitTime;
+            m_nextTxn = ts;
+        }
+        
         if (newState != m_state) {
-            // THIS CODE IS HERE TO HANDLE A STATE CHANGE
-
-            // note if we get non-empty but blocked
-            if ((newState == QueueState.BLOCKED_ORDERING) || (newState == QueueState.BLOCKED_SAFETY)) {
-                m_blockTime = System.currentTimeMillis();
-            }
-            if ((m_state == QueueState.BLOCKED_ORDERING) || (m_state == QueueState.BLOCKED_SAFETY)) {
-                assert(m_state != QueueState.BLOCKED_EMPTY);
-            }
-
-            // if now blocked, send a heartbeat response
-            if (newState == QueueState.BLOCKED_SAFETY) {
-                assert(ts != null);
-            }
-
             m_state = newState;
+            if (debug.get()) LOG.debug(String.format("Partition %d - State:%s / NextTxn:%s", m_partitionId, m_state, m_nextTxn));
         }
         return m_state;
     }
