@@ -8,6 +8,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
+import edu.mit.hstore.util.TransactionQueueManager;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
@@ -111,6 +112,11 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
             this.abort(response.getStatus());
             return (0);
         }
+//        long txn_id = response.getTransactionId();
+//        TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
+//        for (int partition : response.getPartitionsList()) {
+//            manager.markAsLastTxnId(partition, txn_id);
+//        } // FOR
         return (response.getPartitionsCount());
     }
 }

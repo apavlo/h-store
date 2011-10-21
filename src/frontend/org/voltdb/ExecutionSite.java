@@ -282,7 +282,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private AbstractTransaction current_dtxn = null;
     
-    private volatile AbstractTransaction current_txn = null;
     
     private final ReentrantLock exec_lock = new ReentrantLock();
     
@@ -299,19 +298,15 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private final LinkedBlockingDeque<Pair<LocalTransaction, ClientResponseImpl>> queued_responses = new LinkedBlockingDeque<Pair<LocalTransaction,ClientResponseImpl>>();
     private ExecutionMode exec_mode = ExecutionMode.COMMIT_ALL;
     
-    /**
-     * The time in ms since epoch of the last call to ExecutionEngine.tick(...)
-     */
+    private Long currentTxnId = null;
+    
+    /** The time in ms since epoch of the last call to ExecutionEngine.tick(...) */
     private long lastTickTime = 0;
-
-    /**
-     * The last txn id that we committed
-     */
+    /** The last txn id that we executed (either local or remote) */
+    private volatile Long lastExecutedTxnId = null;
+    /** The last txn id that we committed */
     private volatile long lastCommittedTxnId = -1;
-
-    /**
-     * The last undoToken that we handed out
-     */
+    /** The last undoToken that we handed out */
     private final AtomicLong lastUndoToken = new AtomicLong(0l);
 
     /**
@@ -348,7 +343,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /**
      * PartitionId -> List<VoltTable>
      */
-    private final Map<Integer, List<VoltTable>> ee_dependencies = new HashMap<Integer, List<VoltTable>>();
+    private final Map<Integer, List<VoltTable>> tmp_EEdependencies = new HashMap<Integer, List<VoltTable>>();
     
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
@@ -655,6 +650,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         
         // Things that we will need in the loop below
+        AbstractTransaction current_txn = null;
         TransactionInfoBaseMessage work = null;
         boolean stop = false;
         long txn_id = -1;
@@ -686,11 +682,15 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
                 
                 txn_id = work.getTxnId();
-                this.current_txn = hstore_site.getTransaction(txn_id);
-                if (this.current_txn == null) {
+                current_txn = hstore_site.getTransaction(txn_id);
+                if (current_txn == null) {
                     String msg = "No transaction state for txn #" + txn_id;
-                    LOG.fatal(msg);
-                    throw new RuntimeException(msg);
+                    LOG.warn(msg);
+                    continue;
+//                    throw new RuntimeException(msg);
+                }
+                if (hstore_conf.site.exec_profiling) {
+                    this.currentTxnId = txn_id;
                 }
                 
                 // -------------------------------
@@ -704,8 +704,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // TODO: We should have a HStoreConf option that determines whether we should
                     // block or insert ourselves back into the queue so that we can maybe execute
                     // some other transactions.
-                    if (this.current_dtxn == null || this.current_txn != this.current_dtxn) {
-                        if (d) LOG.debug("Blocking " + this.current_txn + " on DTXN lock");
+                    if (this.current_dtxn == null || current_txn != this.current_dtxn) {
+                        if (d) LOG.debug("Blocking " + current_txn + " on DTXN lock");
                         this.dtxn_lock.acquire();
                     }
                     
@@ -713,25 +713,25 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     exec_lock.lock();
                     try {
                         if (this.current_dtxn == null) {
-                            this.setCurrentDtxn(this.current_txn);
+                            this.setCurrentDtxn(current_txn);
                             if (hstore_conf.site.exec_speculative_execution) {
-                                this.setExecutionMode(this.current_txn, ftask.isReadOnly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
+                                this.setExecutionMode(current_txn, ftask.isReadOnly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
                             } else {
-                                this.setExecutionMode(this.current_txn, ExecutionMode.DISABLED);
+                                this.setExecutionMode(current_txn, ExecutionMode.DISABLED);
                             }
                                 
                             if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
-                                                           this.current_txn, this.partitionId, this.exec_mode));                    
+                                                           current_txn, this.partitionId, this.exec_mode));                    
     
                         // Check whether we should drop down to a less permissive speculative execution mode
                         } else if (hstore_conf.site.exec_speculative_execution && ftask.isReadOnly() == false) {
-                            this.setExecutionMode(this.current_txn, ExecutionMode.COMMIT_NONE);
+                            this.setExecutionMode(current_txn, ExecutionMode.COMMIT_NONE);
                         }
                     } finally {
                         exec_lock.unlock();
                     } // SYNCH
                     
-                    this.processFragmentTaskMessage(this.current_txn, ftask);
+                    this.processFragmentTaskMessage(current_txn, ftask);
 
                 // -------------------------------
                 // Invoke Stored Procedure
@@ -739,7 +739,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 } else if (work instanceof InitiateTaskMessage) {
                     if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
                     InitiateTaskMessage itask = (InitiateTaskMessage)work;
-                    this.processInitiateTaskMessage((LocalTransaction)this.current_txn, itask);
+                    this.processInitiateTaskMessage((LocalTransaction)current_txn, itask);
                     if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
                     
                 // -------------------------------
@@ -751,12 +751,17 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
                 // Is there a better way to do this?
                 this.work_throttler.checkThrottling(false);
+                
+                if (hstore_conf.site.exec_profiling && this.currentTxnId != null) {
+                    this.lastExecutedTxnId = this.currentTxnId;
+                    this.currentTxnId = null;
+                }
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
                 LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
-                                        this.partitionId, (this.current_txn != null ? " - " + this.current_txn : "")), ex);
-                if (this.current_txn != null) LOG.fatal("TransactionState Dump:\n" + this.current_txn.debug());
+                                        this.partitionId, (current_txn != null ? " - " + current_txn : "")), ex);
+                if (current_txn != null) LOG.fatal("TransactionState Dump:\n" + current_txn.debug());
             }
             this.hstore_messenger.shutdownCluster(new Exception(ex));
         } finally {
@@ -835,6 +840,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public Collection<Integer> getLocalPartitionIds() {
         return (this.localPartitionIds);
     }
+    
+    public Long getLastExecutedTxnId() {
+        return (this.lastExecutedTxnId);
+    }
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
     }
@@ -870,8 +879,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public AbstractTransaction getCurrentDtxn() {
         return (this.current_dtxn);
     }
-    public AbstractTransaction getCurrentTxn() {
-        return (this.current_txn);
+    public Long getCurrentTxnId() {
+        return (this.currentTxnId);
     }
     
     public int getBlockedQueueSize() {
@@ -1350,10 +1359,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             }
         } // FOR
         
-        this.ee_dependencies.clear();
+        this.tmp_EEdependencies.clear();
         if (ftask.hasAttachedResults()) {
             if (t) LOG.trace("Retrieving internal dependency results attached to FragmentTaskMessage for " + ts);
-            this.ee_dependencies.putAll(ftask.getAttachedResults());
+            this.tmp_EEdependencies.putAll(ftask.getAttachedResults());
         }
         
         LocalTransaction local_ts = null;
@@ -1361,7 +1370,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             local_ts = (LocalTransaction)ts; 
             if (local_ts.getInternalDependencyIds().isEmpty() == false) {
                 if (t) LOG.trace("Retrieving internal dependency results from TransactionState for " + ts);
-                local_ts.removeInternalDependencies(ftask, this.ee_dependencies);
+                local_ts.removeInternalDependencies(ftask, this.tmp_EEdependencies);
             }
         }
 
@@ -1381,7 +1390,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // HACK: We have to set the TransactionState for sysprocs manually
             volt_proc.setTransactionState(ts);
             ts.markExecNotReadOnly(this.partitionId);
-            result = volt_proc.executePlanFragment(ts.getTransactionId(), this.ee_dependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
+            result = volt_proc.executePlanFragment(ts.getTransactionId(), this.tmp_EEdependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
             if (t) LOG.trace("Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
         // -------------------------------
         // REGULAR FRAGMENTS
@@ -1487,7 +1496,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
                     inner = new ListOrderedMap<Integer, Object>();
                     for (int i = 0; i < input_depIds.length; i++) {
-                        List<VoltTable> deps = this.ee_dependencies.get(input_depIds[i]);
+                        List<VoltTable> deps = this.tmp_EEdependencies.get(input_depIds[i]);
                         if (deps != null) {
                             inner.put(input_depIds[i], StringUtil.join("\n", deps));
                         } else {
@@ -1505,10 +1514,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
 
         // pass attached dependencies to the EE (for non-sysproc work).
-        if (this.ee_dependencies.isEmpty() == false) {
-            if (t) LOG.trace("Stashing Dependencies: " + this.ee_dependencies.keySet());
+        if (this.tmp_EEdependencies.isEmpty() == false) {
+            if (t) LOG.trace("Stashing Dependencies: " + this.tmp_EEdependencies.keySet());
 //            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
-            ee.stashWorkUnitDependencies(this.ee_dependencies);
+            ee.stashWorkUnitDependencies(this.tmp_EEdependencies);
         }
         
         // Check whether this fragments are read-only
@@ -1638,7 +1647,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Otherwise figure out whether this txn needs to be blocked or not
         } else {
             if (d) LOG.debug(String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
-                                           task.getClass().getSimpleName(), ts, this.partitionId, this.current_txn));
+                                           task.getClass().getSimpleName(), ts, this.partitionId, this.currentTxnId));
             exec_lock.lock();
             try {
                 // No outstanding DTXN
@@ -1662,7 +1671,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         if (success == false) {
             if (d) LOG.debug(String.format("%s got throttled by partition %d [currentTxn=%s, throttled=%s]",
-                                           ts, this.partitionId, this.current_txn, this.work_throttler.isThrottled()));
+                                           ts, this.partitionId, this.currentTxnId, this.work_throttler.isThrottled()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.getTransactionFinishCallback(Hstore.Status.ABORT_THROTTLED);
                 hstore_messenger.transactionFinish(ts, Hstore.Status.ABORT_THROTTLED, finish_callback);

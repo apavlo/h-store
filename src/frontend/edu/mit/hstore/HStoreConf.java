@@ -256,6 +256,13 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
+            description="", // TODO
+            defaultInt=25,
+            experimental=true
+        )
+        public int txn_incoming_delay;
+        
+        @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=1000,

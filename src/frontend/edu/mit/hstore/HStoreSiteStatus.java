@@ -298,7 +298,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
             ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
-            AbstractTransaction current_txn = es.getCurrentTxn();
             
 //            int queue_size = hstore_site.getInflightTxnCount(partition);
 //            int queue_max = this.hstore_site.getIncomingQueueMax(partition);
@@ -351,15 +350,22 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             
             if (hstore_conf.site.exec_profiling) {
+                txn_id = es.getCurrentTxnId();
+                m.put("Current Txn", String.format("%s / %s", (txn_id != null ? "#"+txn_id : "-"), es.getExecutionMode()));
+                
+                m.put("Current DTXN", (current_dtxn == null ? "-" : current_dtxn));
+                
+                txn_id = es.getLastExecutedTxnId();
+                m.put("Last Executed Txn", (txn_id != null ? "#"+txn_id : "-"));
+                
+                txn_id = es.getLastCommittedTxnId();
+                m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
+                
                 pm = es.getWorkIdleTime();
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
                                                 pm.getTotalThinkTimeMS(),
-                                                pm.getAverageThinkTimeMS()));                
+                                                pm.getAverageThinkTimeMS()));
             }
-            
-            m.put("Current Mode", String.format("%-10s / %s", es.getExecutionMode(), (current_txn == null ? "-" : current_txn)));
-            if (current_dtxn != null) m.put("Current DTXN", current_dtxn);
-            
             
             m_exec.put(String.format("    Partition[%02d]", partition), StringUtil.formatMaps(m) + "\n");
         } // FOR
@@ -562,13 +568,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 //                trace = Arrays.toString(stack);
             } else {
                 // Find the first line that is interesting to us
-                for (int i = 0; i < stack.length; i++) {
-                    if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
-                        trace += stack[i].toString();
-                        break;
-                    }
-                } // FOR
-                if (trace == null) stack[0].toString();
+                trace = StringUtil.join("\n", stack);
+//                for (int i = 0; i < stack.length; i++) {
+//                    // if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
+//                        trace += stack[i].toString();
+////                        break;
+////                    }
+//                } // FOR
+//                if (trace == null) stack[0].toString();
             }
             m_thread.put(name, trace);
         } // FOR

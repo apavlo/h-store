@@ -67,9 +67,10 @@ public class HStoreCoordinator implements Shutdownable {
 //    private static final ByteString ok = ByteString.copyFrom("OK".getBytes());
     
     private final HStoreSite hstore_site;
+    private final HStoreConf hstore_conf;
     private final Site catalog_site;
     private final int local_site_id;
-    private final Set<Integer> local_partitions;
+    private final Collection<Integer> local_partitions;
     private final NIOEventLoop eventLoop = new NIOEventLoop();
     private final int num_sites;
     
@@ -95,7 +96,7 @@ public class HStoreCoordinator implements Shutdownable {
     private class MessengerListener implements Runnable {
         @Override
         public void run() {
-            if (hstore_site.getHStoreConf().site.cpu_affinity)
+            if (hstore_conf.site.cpu_affinity)
                 hstore_site.getThreadManager().registerProcessingThread();
             Throwable error = null;
             try {
@@ -143,7 +144,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         @Override
         public void run() {
-            if (hstore_site.getHStoreConf().site.cpu_affinity)
+            if (hstore_conf.site.cpu_affinity)
                 hstore_site.getThreadManager().registerProcessingThread();
             Pair<byte[], TransactionRedirectResponseCallback> p = null;
             while (HStoreCoordinator.this.shutting_down == false) {
@@ -170,22 +171,18 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public HStoreCoordinator(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.catalog_site = hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
         this.num_sites = CatalogUtil.getNumberOfSites(this.catalog_site);
-        
-        Set<Integer> partitions = new HashSet<Integer>();
-        for (Partition catalog_part : this.catalog_site.getPartitions()) {
-            partitions.add(catalog_part.getId());
-        } // FOR
-        this.local_partitions = Collections.unmodifiableSet(partitions);
+        this.local_partitions = hstore_site.getLocalPartitionIds();
         if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + this.local_partitions);
 
         // This listener thread will process incoming messages
         this.listener = new ProtoServer(this.eventLoop);
         
         // Special thread to handle forward requests
-        if (this.hstore_site.getHStoreConf().site.messenger_redirect_thread) {
+        if (hstore_conf.site.messenger_redirect_thread) {
             this.forward_thread = new Thread(forwardDispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
             this.forward_thread.setDaemon(true);
         } else {
@@ -595,7 +592,8 @@ public class HStoreCoordinator implements Shutdownable {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
             if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+                LOG.debug(String.format("Got %s for txn #%d [status=%s]",
+                                        request.getClass().getSimpleName(), txn_id, request.getStatus()));
 
             hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
             
