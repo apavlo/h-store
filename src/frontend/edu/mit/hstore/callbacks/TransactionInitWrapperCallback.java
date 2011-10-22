@@ -75,7 +75,16 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
                                     this.getOrigCallback().getClass().getSimpleName(),
                                     this.builder.getStatus()));
         }
+        assert(this.getOrigCounter() == builder.getPartitionsCount()) :
+            String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
+                          builder.getClass().getSimpleName(), txn_id, builder.getPartitionsCount(), this.getOrigCounter());
         this.getOrigCallback().run(this.builder.build());
+    }
+    
+    public void abort(Hstore.Status status, int partition, long txn_id) {
+        this.builder.setRejectPartition(partition);
+        this.builder.setRejectTransactionId(txn_id);
+        this.abort(status);
     }
     
     @Override
@@ -94,7 +103,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     }
     
     @Override
-    protected int runImpl(Integer parameter) {
+    protected synchronized int runImpl(Integer parameter) {
         if (this.isAborted() == false)
             this.builder.addPartitions(parameter.intValue());
         return 1;

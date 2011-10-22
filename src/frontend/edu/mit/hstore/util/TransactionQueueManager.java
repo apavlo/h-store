@@ -57,6 +57,19 @@ public class TransactionQueueManager implements Runnable {
     private final Map<Long, TransactionInitWrapperCallback> txn_callbacks = new ConcurrentHashMap<Long, TransactionInitWrapperCallback>();
     
     /**
+     * Blocked Queue Comparator
+     */
+    private Comparator<Pair<Long, LocalTransaction>> blocked_comparator = new Comparator<Pair<Long,LocalTransaction>>() {
+        @Override
+        public int compare(Pair<Long, LocalTransaction> o1, Pair<Long, LocalTransaction> o2) {
+            if (o1.getFirst() != o2.getFirst()) return (o1.getFirst().compareTo(o2.getFirst()));
+            return (int)(o1.getSecond().getClientHandle() - o1.getSecond().getClientHandle());
+        }
+    };
+    
+    private PriorityBlockingQueue<Pair<Long, LocalTransaction>> blocked_dtxns = new PriorityBlockingQueue<Pair<Long,LocalTransaction>>(100, blocked_comparator);
+    
+    /**
      * Constructor
      * @param hstore_site
      */
@@ -160,7 +173,7 @@ public class TransactionQueueManager implements Runnable {
                 if (trace.get()) 
                     LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
                                             partition, next_id, last_txns[partition], txn_queues[partition].size()));
-                this.rejectTransaction(next_id, callback, Hstore.Status.ABORT_RESTART);
+                this.rejectTransaction(next_id, callback, Hstore.Status.ABORT_RESTART, partition, last_txns[partition]);
                 continue;
             }
 
@@ -206,7 +219,7 @@ public class TransactionQueueManager implements Runnable {
         }
     }
     
-    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstore.Status status) {
+    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstore.Status status, int reject_partition, long last_txn_id) {
         // First send back an ABORT message to the initiating HStoreSite
         try {
             callback.abort(status);
@@ -261,7 +274,7 @@ public class TransactionQueueManager implements Runnable {
                     if (trace.get()) 
                         LOG.trace(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                                 partition, this.last_txns[partition], txn_id));
-                    this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART);
+                    this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART, partition, this.last_txns[partition]);
                     ret = false;
                     break;
                 }
@@ -273,14 +286,14 @@ public class TransactionQueueManager implements Runnable {
                 if (trace.get()) 
                     LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
                                             partition, next_safe, txn_id));
-                this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART);
+                this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART, partition, next_safe);
                 ret = false;
                 break;
             } else if (txn_queues[partition].offer(txn_id, false) == false) {
                 if (trace.get()) 
                     LOG.trace(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
                                             partition, next_safe, txn_id));
-                this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_THROTTLED);
+                this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_THROTTLED, partition, next_safe);
                 ret = false;
                 break;
             } else if (!working_partitions[partition]) {
@@ -354,21 +367,17 @@ public class TransactionQueueManager implements Runnable {
     public synchronized void markAsLastTxnId(int partition, long txn_id) {
         if (debug.get())
             LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
-        this.last_txns[partition] = txn_id;
+        if (last_txns[partition] < txn_id) {
+            last_txns[partition] = txn_id;
+        }
     }
     
-    private Comparator<Pair<Long, LocalTransaction>> blocked_comparator = new Comparator<Pair<Long,LocalTransaction>>() {
-        @Override
-        public int compare(Pair<Long, LocalTransaction> o1, Pair<Long, LocalTransaction> o2) {
-            if (o1.getFirst() != o2.getFirst()) return (o1.getFirst().compareTo(o2.getFirst()));
-            return (int)(o1.getSecond().getClientHandle() - o1.getSecond().getClientHandle());
+    public void queueBlockedDTXN(LocalTransaction ts, int partition, long txn_id) {
+        LOG.info(String.format("Blocking %s until after a txn greater than %d is created", ts, txn_id));
+        this.blocked_dtxns.offer(Pair.of(txn_id, ts));
+        if (this.localPartitions.contains(partition) == false) {
+            this.markAsLastTxnId(partition, txn_id);
         }
-    };
-    
-    private PriorityBlockingQueue<Pair<Long, LocalTransaction>> blocked_dtxns = new PriorityBlockingQueue<Pair<Long,LocalTransaction>>(100, blocked_comparator);
-    
-    public void queueBlockedDTXN(long after_id, LocalTransaction ts) {
-        blocked_dtxns.offer(Pair.of(after_id, ts));
     }
     public void checkBlockedDTXNs(long last_txn_id) {
         if (this.blocked_dtxns.isEmpty() == false)

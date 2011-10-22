@@ -56,6 +56,8 @@ message TransactionInitResponse {
     required int64 transaction_id = 1;
     repeated int32 partitions = 2 [packed=true];
     required Status status = 3;
+    optional int32 reject_partition = 4;
+    optional int64 reject_transaction_id = 5;
 }
 
 // -----------------------------------

@@ -219,9 +219,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     
-    /** Cached Rejection Response **/
-    private final ByteBuffer cached_ClientResponse;
-    
     /** All of the partitions in the cluster */
     private final Collection<Integer> all_partitions;
 
@@ -261,13 +258,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Keep track of which txns that we have in-flight right now
      */
     private final ConcurrentHashMap<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
-//    private final AtomicInteger inflight_txns_ctr[];
-
-    /**
-     * Helper Thread Stuff
-     */
-//    private ExecutionSiteHelper helper;
-//    private final ScheduledExecutorService helper_pool;
     
     /**
      * TPC-C NewOrder Cheater
@@ -375,10 +365,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
-        
-        // Reusable Cached Messages
-        ClientResponseImpl cresponse = new ClientResponseImpl(-1, -1, Hstore.Status.ABORT_THROTTLED, HStoreConstants.EMPTY_RESULT, "");
-        this.cached_ClientResponse = ByteBuffer.wrap(FastSerializer.serialize(cresponse));
         
         // NewOrder Hack
         if (hstore_conf.site.exec_neworder_cheat) {
@@ -1151,7 +1137,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            ts, partition, last_txn_id));
                     LOG.warn("LAST: " + TransactionIdManager.toString(last_txn_id));
                     LOG.warn("NEW:  " + TransactionIdManager.toString(txn_id));
-                    this.txnQueueManager.queueBlockedDTXN(last_txn_id, ts);
+                    this.txnQueueManager.queueBlockedDTXN(ts, partition, last_txn_id);
                     return;
                 }
             } // FOR
@@ -1163,18 +1149,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
 
-    public void transactionRequeue(LocalTransaction ts) {
-        long old_txn_id = ts.getTransactionId();
-
-        // Make sure that we remove the old txn
-        this.inflight_txns.remove(old_txn_id);
-        
-        long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
-        ts.setTransactionId(new_txn_id);
-        this.dispatchInvocation(ts);
-        LOG.info(String.format("Released blocked txn #%d as new %s", old_txn_id, ts));
-    }
-    
     /**
      * 
      * @param txn_id
@@ -1380,6 +1354,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
+    // ----------------------------------------------------------------------------
+    // FAILED TRANSACTIONS (REQUEUE / REJECT / RESTART)
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     * @param ts
+     */
+    public void transactionRequeue(LocalTransaction ts) {
+        long old_txn_id = ts.getTransactionId();
+
+        // Make sure that we remove the old txn
+        this.inflight_txns.remove(old_txn_id);
+        
+        long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
+        ts.setTransactionId(new_txn_id);
+        this.dispatchInvocation(ts);
+        LOG.info(String.format("Released blocked txn #%d as new %s", old_txn_id, ts));
+    }
+    
     /**
      * 
      * @param ts
@@ -1435,9 +1429,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
-        if (orig_ts.getRestartCounter() > hstore_conf.site.txn_restart_threshold) {
-            if (d) LOG.debug(String.format("%s has been restarted %d times! Rejecting...",
-                                           orig_ts, orig_ts.getRestartCounter()));
+        if (orig_ts.getRestartCounter() > hstore_conf.site.txn_restart_limit) {
+            LOG.warn(String.format("%s has been restarted %d times! Rejecting...",
+                                   orig_ts, orig_ts.getRestartCounter()));
+            assert(false);
             this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
             return;
         }

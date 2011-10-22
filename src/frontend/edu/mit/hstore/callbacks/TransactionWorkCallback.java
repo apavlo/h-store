@@ -6,6 +6,8 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -13,7 +15,12 @@ import edu.mit.hstore.HStoreSite;
  * @author pavlo
  */
 public class TransactionWorkCallback extends BlockingCallback<Hstore.TransactionWorkResponse, Hstore.TransactionWorkResponse.PartitionResult> {
-    private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
+    private static final Logger LOG = Logger.getLogger(TransactionWorkCallback.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     protected Hstore.TransactionWorkResponse.Builder builder = null;
 
@@ -38,22 +45,32 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
 
     @Override
     public void unblockCallback() {
-        if (LOG.isDebugEnabled()) {
+        if (debug.get()) {
             LOG.debug(String.format("Txn #%d - Sending back %d partition results",
                                     this.txn_id, this.builder.getResultsCount()));
         }
+        
+        assert(this.getOrigCounter() == builder.getResultsCount()) :
+            String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
+                          builder.getClass().getSimpleName(), txn_id, builder.getResultsCount(), this.getOrigCounter());
         this.getOrigCallback().run(this.builder.build());
     }
     
     @Override
     protected void abortCallback(Status status) {
-        // Nothing...
+        assert(false) : String.format("Unexpected %s for txn #%d", status, txn_id);
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionWorkResponse.PartitionResult parameter) {
+    protected synchronized int runImpl(Hstore.TransactionWorkResponse.PartitionResult parameter) {
         this.builder.addResults(parameter);
-        if (parameter.hasError()) this.builder.setStatus(Hstore.Status.ABORT_UNEXPECTED);
+        if (debug.get()) LOG.debug(String.format("Added new %s from partition %d for txn #%d",
+                                                 parameter.getClass().getSimpleName(), parameter.getPartitionId(), txn_id));
+        if (parameter.hasError()) {
+            if (debug.get()) LOG.debug(String.format("Marking response for txn #%d with an error from partition %d",
+                                                     txn_id, parameter.getPartitionId()));    
+            this.builder.setStatus(Hstore.Status.ABORT_UNEXPECTED);
+        }
         return (1);
     }
 }

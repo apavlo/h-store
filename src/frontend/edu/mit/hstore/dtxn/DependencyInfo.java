@@ -5,15 +5,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
@@ -232,7 +235,6 @@ public class DependencyInfo implements Poolable {
             return ("<UNINITIALIZED>");
         }
         
-        StringBuilder b = new StringBuilder();
         String status = null;
         if (this.results.size() == this.partitions.size()) {
             if (this.blocked_tasks_released.get() == false) {
@@ -246,12 +248,20 @@ public class DependencyInfo implements Poolable {
             status = "BLOCKED";
         }
         
-        b.append("DependencyInfo[#").append(this.dependency_id).append("]\n")
-         .append("  Partitions: ").append(this.partitions).append("\n")
-         .append("  Results:    ").append(this.results.size()).append("\n")
-         .append("  Blocked:    ").append(this.blocked_tasks).append("\n")
-         .append("  Status:     ").append(status).append("\n");
-        return b.toString();
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("  Partitions", this.partitions);
+        
+        Map<String, Object> inner = new ListOrderedMap<String, Object>();
+        for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
+            int partition = this.results.get(i);
+            VoltTable vt = this.results_list.get(i);
+            inner.put(String.format("Partition %02d",partition), String.format("{%d tuples}", vt.getRowCount()));  
+        }
+        m.put("  Results", inner);
+        m.put("  Blocked", this.blocked_tasks);
+        m.put("  Status", status);
+
+        return String.format("DependencyInfo[#%d]\n%s", this.dependency_id, StringUtil.formatMaps(m));
     }
 
 }

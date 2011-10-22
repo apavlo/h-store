@@ -8,7 +8,6 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.util.TransactionQueueManager;
 
 /**
  * This callback is meant to block a transaction from executing until all of the
@@ -25,6 +24,8 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     
     private LocalTransaction ts;
     private long orig_txn_id;
+    private Integer reject_partition = null;
+    private Long reject_txnId = null;
     private TransactionFinishCallback finish_callback;
     
     /**
@@ -40,6 +41,8 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
         this.finish_callback = null;
+        this.reject_partition = null;
+        this.reject_txnId = null;
         super.init(ts.getTransactionId(), ts.getPredictTouchedPartitions().size(), null);
     }
     
@@ -74,9 +77,16 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         // We want to do this first because the transaction state could get
         // cleaned-up right away when we call HStoreCoordinator.transactionFinish()
         switch (status) {
-            case ABORT_RESTART:
-                this.hstore_site.transactionRestart(this.ts, status);
+            case ABORT_RESTART: {
+                // If we have the transaction that we got busted up with at the remote site
+                // then we'll tell the TransactionQueueManager to unblock it when it gets released
+                if (this.reject_txnId != null) {
+                    this.hstore_site.getTransactionQueueManager().queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
+                } else {
+                    this.hstore_site.transactionRestart(this.ts, status);
+                }
                 break;
+            }
             case ABORT_THROTTLED:
             case ABORT_REJECT:
                 this.hstore_site.transactionReject(this.ts, status);
@@ -109,6 +119,17 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
         if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
+            if (response.hasRejectTransactionId()) {
+                assert(response.hasRejectPartition());
+                LOG.info(String.format("%s was rejected at partition by txn #%d",
+                                       this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
+                synchronized (this) {
+                    if (this.reject_txnId == null) {
+                        this.reject_partition = response.getRejectPartition();
+                        this.reject_txnId = response.getRejectTransactionId();
+                    }
+                } // SYNCH
+            }
             this.abort(response.getStatus());
             return (0);
         }
