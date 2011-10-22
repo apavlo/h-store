@@ -16,7 +16,20 @@ public class ThrottlingQueue<E> implements Queue<E> {
     private double queue_release_factor;
     private final int queue_increase;
     private final ProfileMeasurement throttle_time;
-            
+         
+//    public static class ThrottleException extends RuntimeException {
+//        private static final long serialVersionUID = 1L;
+//        private final Object element;
+//        
+//        public ThrottleException(Object e) {
+//            super("The queue was throttled when trying to add '" + e + "'");
+//            this.element = e;
+//        }
+//        public <E> E getElement() {
+//            return ((E)this.element);
+//        }
+//    }
+    
     public ThrottlingQueue(Queue<E> queue, int queue_max, double queue_release, int queue_increase) {
         this.queue = queue;
         this.throttled = false;

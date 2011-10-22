@@ -1715,7 +1715,7 @@ DESIGNER
 <target name='catalog-fix'
         description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
     <basename property="jar.filename" file="${jar}"/>
-    <property name="jar.backup" location="${global.temp_dir}/${jar.filename}-BACKUP" />
+    <property name="jar.backup" location="${global.temp_dir}/backup/${jar.filename}" />
     <copy file="${jar}" tofile="${jar.backup}" />
     <echo message="Copied back-up to ${jar.backup}" />
     <unjar src="${jar}" dest="${global.temp_dir}/fixcatalog/"/>

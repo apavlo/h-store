@@ -312,15 +312,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                     es.getBlockedQueueSize(),
                                     es.getWaitingQueueSize()), null);
             
-            // Queue Time
-            if (hstore_conf.site.exec_profiling) {
-                pm = es.getWorkExecTime();
-                m.put("Txn Execution", String.format("%d total / %.2fms total / %.2fms avg",
-                                                pm.getInvocations(),
-                                                pm.getTotalThinkTimeMS(),
-                                                pm.getAverageThinkTimeMS()));
-            }
-            
             // Execution Info
             String status = String.format("%-5s [limit=%d, release=%d]%s",
                                           es_queue.size(), es_queue.getQueueMax(), es_queue.getQueueRelease(),
@@ -360,6 +351,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 
                 txn_id = es.getLastCommittedTxnId();
                 m.put("Last Committed Txn", (txn_id != null ? "#"+txn_id : "-"));
+                
+                pm = es.getWorkExecTime();
+                m.put("Txn Execution", String.format("%d total / %.2fms total / %.2fms avg",
+                                                pm.getInvocations(),
+                                                pm.getTotalThinkTimeMS(),
+                                                pm.getAverageThinkTimeMS()));
                 
                 pm = es.getWorkIdleTime();
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
