@@ -521,6 +521,12 @@ public class LocalTransaction extends AbstractTransaction {
     public Histogram<Integer> getTouchedPartitions() {
         return (this.state.exec_touchedPartitions);
     }
+    public boolean hasTouchedPartitions() {
+        if (this.state != null) {
+            return (this.state.exec_touchedPartitions != null);
+        }
+        return (false);
+    }
     public String getProcedureName() {
         return (this.catalog_proc != null ? this.catalog_proc.getName() : null);
     }
