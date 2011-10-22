@@ -96,7 +96,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, args, SINGLE_PARTITIONED);
+            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, SINGLE_PARTITIONED);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages(args);
             assertFalse(ftasks.isEmpty());

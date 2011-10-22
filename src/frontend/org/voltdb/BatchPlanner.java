@@ -520,7 +520,7 @@ public class BatchPlanner {
      * @param predict_singlepartitioned
      * @return
      */
-    public BatchPlan plan(long txn_id, long client_handle, int base_partition, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
+    public BatchPlan plan(long txn_id, long client_handle, int base_partition, Collection<Integer> predict_partitions, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
         if (this.enable_profiling) time_plan.start();
         if (debug.get())
             LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
@@ -684,6 +684,12 @@ public class BatchPlanner {
                             // Again, this is not what was suppose to happen!
                             if (trace.get()) LOG.trace(String.format("Mispredicted txn #%d - Remote Partitions %s",
                                                                      txn_id, stmt_all_partitions));
+                            mispredict = true;
+                            break;
+                        } else if (predict_partitions.containsAll(stmt_all_partitions) == false) {
+                            // Again, this is not what was suppose to happen!
+                            if (trace.get()) LOG.trace(String.format("Mispredicted txn #%d - Unallocated Partitions %s / %s",
+                                                                     txn_id, stmt_all_partitions, predict_partitions));
                             mispredict = true;
                             break;
                         }

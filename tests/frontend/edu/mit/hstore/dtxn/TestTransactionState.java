@@ -102,7 +102,7 @@ public class TestTransactionState extends BaseTestCase {
             hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
             
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, args, SINGLE_PARTITIONED);
+            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, SINGLE_PARTITIONED);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages(args);
             System.err.println("FTASKS: " + ftasks);

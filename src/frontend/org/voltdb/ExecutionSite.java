@@ -96,6 +96,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
@@ -1163,27 +1164,28 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * (3) The transaction does not need to wait for the multi-partition transaction to finish first
      * @param ts
      * @param status
-     * @param spec_exec
+     * @param before_mode
      * @return
      */
-    private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode spec_exec) {
-        if (t) LOG.trace(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, mode=%s]",
-                                       ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), spec_exec));
+    private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode before_mode) {
+        if (d) LOG.debug(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
+                                       ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.exec_mode));
         // Commit All
         if (ts.isPredictSinglePartition() == false || this.exec_mode == ExecutionMode.COMMIT_ALL) {
             return (true);
             
         // Process successful txns based on the mode that it was executed under
         } else if (status == Hstore.Status.OK) {
-            switch (spec_exec) {
+            switch (before_mode) {
                 case COMMIT_ALL:
                     return (true);
                 case COMMIT_READONLY:
                     return (ts.isExecReadOnly(this.partitionId));
-                case COMMIT_NONE:
+                case COMMIT_NONE: {
                     return (false);
+                }
                 default:
-                    throw new RuntimeException("Unexpectd execution mode: " + spec_exec); 
+                    throw new RuntimeException("Unexpectd execution mode: " + before_mode); 
             } // SWITCH
         // Anything mispredicted should be processed right away
         } else if (status == Hstore.Status.ABORT_MISPREDICT) {
@@ -1692,7 +1694,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param fresponse
      */
     public void sendFragmentResponseMessage(RemoteTransaction ts, FragmentTaskMessage ftask, FragmentResponseMessage fresponse) {
-        RpcCallback<Hstore.TransactionWorkResponse.PartitionResult> callback = ts.getFragmentTaskCallback();
+        RpcCallback<TransactionWorkResponse.PartitionResult> callback = ts.getFragmentTaskCallback();
         if (callback == null) {
             LOG.fatal("Unable to send FragmentResponseMessage:\n" + fresponse.toString());
             LOG.fatal("Orignal FragmentTaskMessage:\n" + ftask);
@@ -1705,9 +1707,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         ByteString bs = ByteString.copyFrom(bc.b.array()); // XXX
         if (d) LOG.debug(String.format("Sending FragmentResponseMessage for %s [partition=%d, bytes=%d, error=%s]",
                                        ts, this.partitionId, bs.size(), fresponse.getException()));            
-        Hstore.TransactionWorkResponse.PartitionResult.Builder builder = Hstore.TransactionWorkResponse.PartitionResult.newBuilder()
-                                                                                    .setOutput(bs)
-                                                                                    .setPartitionId(this.partitionId);
+        TransactionWorkResponse.PartitionResult.Builder builder = TransactionWorkResponse.PartitionResult.newBuilder()
+                                                                      .setOutput(bs)
+                                                                      .setPartitionId(this.partitionId);
         if (fresponse.getException() != null) {
             if (d) LOG.debug(String.format("Marking PartitionResult from partition %d for %s with an error because of FragmentResponse exception -> %s",
                                            this.partitionId, ts, fresponse.getException().getMessage()));
@@ -1953,8 +1955,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 
                 // Look at each task and figure out whether it should be executed remotely or locally
                 for (FragmentTaskMessage ftask : ftasks) {
-                    is_localSite = localPartitionIds.contains(ftask.getDestinationPartitionId());
-                    is_localPartition = (is_localSite && ftask.getDestinationPartitionId() == this.partitionId);
+                    int partition = ftask.getDestinationPartitionId();
+                    is_localSite = localPartitionIds.contains(partition);
+                    is_localPartition = (is_localSite && partition == this.partitionId);
                     all_local = all_local && is_localPartition;
                     if (first == false || ts.addFragmentTaskMessage(ftask) == false) {
                         if (is_localPartition) {
@@ -2138,17 +2141,17 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         // ABORT: Distributed Transaction
         else {
-            // Then send a message all the partitions involved that the party is over
-            // and that they need to abort the transaction. We don't actually care when we get the
-            // results back because we'll start working on new txns right away.
-            TransactionFinishCallback finish_callback = ts.getTransactionFinishCallback(status);
-            this.hstore_messenger.transactionFinish(ts, status, finish_callback);
-            
             // Send back the result to the client right now, since there's no way 
             // that we're magically going to be able to recover this and get them a result
             // This has to come before the network messages above because this will clean-up the 
             // LocalTransaction state information
             this.hstore_site.sendClientResponse(ts, cresponse);
+            
+            // Then send a message all the partitions involved that the party is over
+            // and that they need to abort the transaction. We don't actually care when we get the
+            // results back because we'll start working on new txns right away.
+            TransactionFinishCallback finish_callback = ts.getTransactionFinishCallback(status);
+            this.hstore_messenger.transactionFinish(ts, status, finish_callback);
         }
     }
         
@@ -2210,6 +2213,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
     public void finishTransaction(AbstractTransaction ts, boolean commit) {
+        if (this.current_dtxn != ts) {
+            return;
+        }
         assert(this.current_dtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.current_dtxn;
         if (d) LOG.debug(String.format("Processing finishWork request for %s at partition %d", ts, this.partitionId));
         
@@ -2228,9 +2234,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // We can always commit our boys no matter what if we know that this multi-partition txn 
             // was read-only at the given partition
             if (hstore_conf.site.exec_speculative_execution) {
-                if (d) 
-                    LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
-                                            this.partitionId, ts));
+                if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
+                                               this.partitionId, ts));
                 Boolean readonly = ts.isExecReadOnly(this.partitionId);
                 this.releaseQueuedResponses(readonly != null && readonly == true ? true : commit);
             }

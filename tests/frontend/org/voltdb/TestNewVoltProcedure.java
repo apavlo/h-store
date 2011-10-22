@@ -125,7 +125,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, args, true);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, true);
         assertNotNull(plan);
         
         // Only try to execute a BatchPlan if we have the real EE

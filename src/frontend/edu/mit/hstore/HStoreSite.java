@@ -55,6 +55,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
@@ -175,7 +176,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * This is the thing that we will actually use to generate txn ids used by our H-Store specific code
      */
-    private final TransactionIdManager txnid_managers[];
     private final TransactionIdManager txnid_manager;
     
     private final HStoreCoordinator hstore_coordinator;
@@ -224,6 +224,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /** List of local partitions at this HStoreSite */
     private final ListOrderedSet<Integer> local_partitions = new ListOrderedSet<Integer>();
+    
     
     private final Collection<Integer> single_partition_sets[]; 
     
@@ -330,13 +331,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.executors = new ExecutionSite[num_partitions];
         this.executor_threads = new Thread[num_partitions];
-        this.txnid_managers = new TransactionIdManager[num_partitions];
         this.txnid_manager = new TransactionIdManager(this.site_id);
         this.single_partition_sets = new Collection[num_partitions];
         
         for (int partition : executors.keySet()) {
             this.executors[partition] = executors.get(partition);
-            this.txnid_managers[partition] = new TransactionIdManager(partition);
 //            this.inflight_txns_ctr[partition] = new AtomicInteger(0); 
             this.single_partition_sets[partition] = Collections.singleton(partition); 
         } // FOR
@@ -897,7 +896,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If the dest_partition isn't local, then we need to ship it off to the right location
         // -------------------------------
         TransactionIdManager id_generator = this.txnid_manager; //  this.txnid_managers[base_partition];
-        if (this.txnid_managers[base_partition] == null) {
+        if (this.single_partition_sets[base_partition] == null) {
             if (d) LOG.debug(String.format("Forwarding %s request to partition %d", request.getProcName(), base_partition));
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
@@ -1283,7 +1282,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            if (ts != null && ts.isPredictSinglePartition() == false && ts.hasStarted(p)) {
+            if (ts != null && ts.isPredictSinglePartition() == false && (ts.hasStarted(p) || ts.getBasePartition() == p)) {
                 if (d) LOG.debug(String.format("Calling finishTransaction for %s on partition %d", ts, p));
                 try {
                     this.executors[p].finishTransaction(ts, commit);
@@ -1422,7 +1421,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void transactionRestart(LocalTransaction orig_ts, Hstore.Status status) {
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
-        if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute", orig_ts , status));
+        assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
+        if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
+                                   orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.getInvocation();
         assert(spi != null) : "Missing StoredProcedureInvocation for " + orig_ts;
@@ -1507,12 +1508,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Restart the new transaction
         if (hstore_conf.site.txn_profiling) new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
         
+        boolean malloc = false;
         Collection<Integer> predict_touchedPartitions = null;
         if (status == Hstore.Status.ABORT_RESTART) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
-        } else if (orig_ts.getOriginalTransactionId() == null && orig_ts.getTouchedPartitions() != null) {
+        } else if (orig_ts.getOriginalTransactionId() == null && orig_ts.hasTouchedPartitions()) {
             // HACK: Ignore ConcurrentModificationException
             predict_touchedPartitions = new HashSet<Integer>();
+            malloc = true;
             Collection<Integer> orig_touchedPartitions = orig_ts.getTouchedPartitions().values();
             while (true) {
                 try {
@@ -1525,15 +1528,41 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } else {
             predict_touchedPartitions = this.all_partitions;
         }
+        
+        if (status == Hstore.Status.ABORT_MISPREDICT && orig_ts.getPendingError() instanceof MispredictionException) {
+            MispredictionException ex = (MispredictionException)orig_ts.getPendingError();
+            Collection<Integer> partitions = ex.getPartitions().values();
+            if (predict_touchedPartitions.containsAll(partitions) == false) {
+                if (malloc == false) {
+                    predict_touchedPartitions = new HashSet<Integer>(predict_touchedPartitions);
+                    malloc = true;
+                }
+                predict_touchedPartitions.addAll(partitions);
+            }
+            if (d) LOG.debug(orig_ts + " Mispredicted Partitions: " + partitions);
+        }
+        
+        if (predict_touchedPartitions.contains(base_partition) == false) {
+            if (malloc == false) {
+                predict_touchedPartitions = new HashSet<Integer>(predict_touchedPartitions);
+                malloc = true;
+            }
+            predict_touchedPartitions.add(base_partition);
+        }
+        
         if (predict_touchedPartitions.isEmpty()) predict_touchedPartitions = this.all_partitions;
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME
         new_ts.init(new_txn_id, base_partition, orig_ts, predict_touchedPartitions, predict_readOnly, predict_abortable);
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
-        if (d) {
-            LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d",
-                                    orig_ts, (predict_touchedPartitions.size() == 1 ? "single" : "multi"), new_ts, base_partition));
+         if (d) {
+            LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
+                                    orig_ts,
+                                    (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
+                                    new_ts,
+                                    base_partition,
+                                    predict_touchedPartitions));
             if (t && status == Hstore.Status.ABORT_MISPREDICT)
                 LOG.trace(String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
         }
@@ -1652,6 +1681,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }
+        
+        // SANITY CHECK
+        for (int p : this.local_partitions) {
+            assert(ts.equals(this.executors[p].getCurrentDtxn()) == false) :
+                String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
+        } // FOR
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
         if (d) LOG.debug(String.format("Returning %s to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
