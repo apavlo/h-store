@@ -15,6 +15,7 @@ import edu.brown.hstore.Hstore.TransactionFinishRequest;
 import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreCoordinator.Dispatcher;
 import edu.mit.hstore.dtxn.LocalTransaction;
@@ -29,8 +30,8 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     
     final Dispatcher<Object[]> finishDispatcher; 
     
-    public TransactionFinishHandler(HStoreSite hstore_site, Dispatcher<Object[]> finishDispatcher) {
-        super(hstore_site);
+    public TransactionFinishHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, Dispatcher<Object[]> finishDispatcher) {
+        super(hstore_site, hstore_coord);
         this.finishDispatcher = finishDispatcher;
     }
     

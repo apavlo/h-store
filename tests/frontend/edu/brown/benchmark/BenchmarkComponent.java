@@ -96,6 +96,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -269,7 +270,7 @@ public abstract class BenchmarkComponent {
     
     private final boolean m_noUploading;
     private final ReentrantLock m_loaderBlock = new ReentrantLock();
-    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, Hstore.Status.OK, new VoltTable[0], "");
+    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
     
     /**
      * Keep track of the number of tuples loaded so that we can generate table statistics
@@ -971,19 +972,22 @@ public abstract class BenchmarkComponent {
             boolean locked = m_hstoreConf.client.blocking_loader;
             if (locked) m_loaderBlock.lock();
             try {
-                try {
-                    cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
-                } catch (Exception e) {
-                    throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
-                }
-                if (debug.get()) LOG.debug(String.format("Load %s: txn #%d / %s / %d",
-                                                         tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
+                cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
+            } catch (Exception e) {
+                throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
             } finally {
                 if (locked) m_loaderBlock.unlock();
             } // SYNCH
+            if (debug.get()) LOG.debug(String.format("Load %s: txn #%d / %s / %d",
+                                                     tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
         } else {
             cr = m_dummyResponse;
         }
+        if (cr.getStatus() != Hstore.Status.OK) {
+            LOG.warn(String.format("Failed to load %d rows for '%s': %s", rowCount, tableName, cr.getStatusString()), cr.getException()); 
+            return (cr);
+        }
+        
         m_tableTuples.put(tableName, rowCount);
         m_tableBytes.put(tableName, byteCount);
         

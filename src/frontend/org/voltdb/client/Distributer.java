@@ -684,9 +684,6 @@ class Distributer {
         int queuedInvocations = 0;
         long now = System.currentTimeMillis();
         
-        if (debug.get()) LOG.debug(String.format("Queuing new %s Request [clientHandle=%d]",
-                                                 invocation.getProcName(), invocation.getClientHandle()));
-        
         /*
          * Synchronization is necessary to ensure that m_connections is not modified
          * as well as to ensure that backpressure is reported correctly
@@ -732,6 +729,10 @@ class Distributer {
                 }
             }
         } // SYNCH
+        
+        if (debug.get()) 
+            LOG.debug(String.format("Queuing new %s Request [clientHandle=%d, siteId=%s]",
+                                    invocation.getProcName(), invocation.getClientHandle(), site_id));
 
         /*
          * Do the heavy weight serialization outside the synchronized block.

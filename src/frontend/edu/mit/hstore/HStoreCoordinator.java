@@ -229,9 +229,9 @@ public class HStoreCoordinator implements Shutdownable {
         this.finishDispatcher = (hstore_conf.site.coordinator_finish_thread ? new FinishDispatcher() : null);
         this.forwardDispatcher = (hstore_conf.site.coordinator_redirect_thread ? new ForwardTxnDispatcher() : null);
 
-        this.router_transactionInit = new TransactionInitHandler(hstore_site, initDispatcher);
-        this.router_transactionPrepare = new TransactionPrepareHandler(hstore_site);
-        this.router_transactionFinish = new TransactionFinishHandler(hstore_site, finishDispatcher);
+        this.router_transactionInit = new TransactionInitHandler(hstore_site, this, initDispatcher);
+        this.router_transactionPrepare = new TransactionPrepareHandler(hstore_site, this);
+        this.router_transactionFinish = new TransactionFinishHandler(hstore_site, this, finishDispatcher);
         
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
@@ -475,8 +475,8 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionWorkResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-            if (debug.get())
-                LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+//            if (debug.get())
+                LOG.info(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
             
             // This is work from a transaction executing at another node
             // Any other message can just be sent along to the ExecutionSite without sending
