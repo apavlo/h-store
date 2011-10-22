@@ -299,7 +299,7 @@ public final class HStoreConf {
             defaultInt=10,
             experimental=false
         )
-        public int txn_restart_threshold;
+        public int txn_restart_limit;
 
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options

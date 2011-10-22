@@ -334,6 +334,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.exec_speculative = false;
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
+        this.restart_ctr = 0;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -814,8 +815,8 @@ public class LocalTransaction extends AbstractTransaction {
         DependencyInfo dinfo = null;
         Map<Integer, Queue<Integer>> stmt_ctr = this.state.results_dependency_stmt_ctr;
         
-        LOG.info(String.format("Attemping to add new result for {Partition:%d, Dependency:%d} in %s [numRows=%d]",
-                partition, dependency_id, this, result.getRowCount()));
+        if (debug.get()) LOG.debug(String.format("Attemping to add new result for {Partition:%d, Dependency:%d} in %s [numRows=%d]",
+                                                  partition, dependency_id, this, result.getRowCount()));
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
@@ -831,9 +832,9 @@ public class LocalTransaction extends AbstractTransaction {
             // Each partition+dependency_id should be unique for a Statement batch.
             // So as the results come back to us, we have to figure out which Statement it belongs to
             Queue<Integer> queue = stmt_ctr.get(key);
-            if (d) {
-                LOG.debug("Storing new result for key " + key + " in txn #" + this.txn_id);
-                LOG.debug("Result stmt_ctr(key=" + key + "): " + queue);
+            if (t) {
+                LOG.trace("Storing new result for key " + key + " in txn #" + this.txn_id);
+                LOG.trace("Result stmt_ctr(key=" + key + "): " + queue);
             }
             assert(queue != null) :
                 String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
@@ -856,6 +857,14 @@ public class LocalTransaction extends AbstractTransaction {
                 long count = this.state.dependency_latch.getCount();
                 if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
                 if (d) LOG.debug("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
+            }
+            
+            if (d) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Blocked Tasks", this.state.blocked_tasks.size());
+                m.put("DependencyInfo", dinfo);
+                m.put("hasTasksReady", dinfo.hasTasksReady());
+                LOG.debug(this + "\n" + StringUtil.formatMaps(m));
             }
             
             // Check whether we need to start running stuff now
@@ -912,8 +921,8 @@ public class LocalTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-//            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
-            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
+            return (String.format("%s #%d/%d", this.getProcedureName(), this.txn_id, this.base_partition));
+//            return (String.format("%s #%d/%d/%d", this.getProcedureName(), this.txn_id, this.base_partition, this.hashCode()));
         } else {
             return ("<Uninitialized>");
         }
@@ -932,10 +941,11 @@ public class LocalTransaction extends AbstractTransaction {
         
         // Predictions
         m = new ListOrderedMap<String, Object>();
-        m.put("Predict Single-Partitioned", this.isPredictSinglePartition());
+        m.put("Predict Single-Partitioned", (this.predict_touchedPartitions != null ? this.isPredictSinglePartition() : "???"));
         m.put("Predict Touched Partitions", this.getPredictTouchedPartitions());
         m.put("Predict Read Only", this.isPredictReadOnly());
         m.put("Predict Abortable", this.isPredictAbortable());
+        m.put("Restart Counter", this.restart_ctr);
         m.put("Estimator State", this.estimator_state);
         maps.add(m);
         

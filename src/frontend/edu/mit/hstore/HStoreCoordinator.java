@@ -475,8 +475,9 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<TransactionWorkResponse> done) {
             assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
             long txn_id = request.getTransactionId();
-//            if (debug.get())
-                LOG.info(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            if (debug.get())
+                LOG.debug(String.format("Got %s for txn #%d [partitionFragments=%d]",
+                                       request.getClass().getSimpleName(), txn_id, request.getFragmentsCount()));
             
             // This is work from a transaction executing at another node
             // Any other message can just be sent along to the ExecutionSite without sending

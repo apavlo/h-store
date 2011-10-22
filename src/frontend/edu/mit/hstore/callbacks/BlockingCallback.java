@@ -20,8 +20,8 @@ import edu.mit.hstore.HStoreSite;
  */
 public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable {
     private static final Logger LOG = Logger.getLogger(BlockingCallback.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -29,6 +29,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     protected final HStoreSite hstore_site;
     protected long txn_id = -1;
     private final AtomicInteger counter = new AtomicInteger(0);
+    private int orig_counter;
     private RpcCallback<T> orig_callback;
 
     /**
@@ -50,66 +51,15 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     /**
-     * The implementation of the run method to process a new entry for this callback
-     * This method should return how much we should decrement from the blocking counter
-     * @param parameter Needs to be >=0
-     * @return
+     * Initialize the BlockingCallback's counter and transaction info
+     * @param txn_id
+     * @param counter_val
+     * @param orig_callback
      */
-    protected abstract int runImpl(U parameter);
-    
-    /**
-     * This method is invoked once all of the T messages are recieved 
-     */
-    protected abstract void unblockCallback();
-    
-    /**
-     * 
-     */
-    protected abstract void abortCallback(Hstore.Status status);
-    
-    /**
-     * 
-     */
-    protected abstract void finishImpl();
-    
-    private void unblock() {
-        if (debug.get())
-            LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
-                                    this.txn_id, this.getClass().getSimpleName()));
-        this.unblockCallback();
-    }
-    
-    public final void abort(Hstore.Status status) {
-        // If this is the first response that told us to abort, then we'll
-        // send the abort message out 
-        if (this.aborted.compareAndSet(false, true)) {
-            this.abortCallback(status);
-        }
-    }
-    
-    @Override
-    public void run(U parameter) {
-        int delta = this.runImpl(parameter);
-        if (debug.get())
-            LOG.debug(String.format("Txn #%d - %s.run() / COUNTER: %d - %d = %d",
-                                    this.txn_id, this.getClass().getSimpleName(),
-                                    this.counter.get(), delta, (this.counter.get() - delta)));
-        
-        // If this is the last result that we were waiting for, then we'll invoke
-        // the unblockCallback()
-        if ((this.aborted.get() == false || this.invoke_even_if_aborted) && this.counter.addAndGet(-1 * delta) == 0) {
-            this.unblock();
-        }
-    }
-    
-    public boolean isAborted() {
-        return (this.aborted.get());
-    }
-    
     protected void init(long txn_id, int counter_val, RpcCallback<T> orig_callback) {
-        if (debug.get())
-            LOG.debug(String.format("Txn #%d - Initialized new %s with counter = %d",
-                                    txn_id, this.getClass().getSimpleName(), counter_val));
+        if (debug.get()) LOG.debug(String.format("Txn #%d - Initialized new %s with counter = %d",
+                                                 txn_id, this.getClass().getSimpleName(), counter_val));
+        this.orig_counter = counter_val;
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
         this.txn_id = txn_id;
@@ -119,13 +69,36 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     public boolean isInitialized() {
         return (this.orig_callback != null);
     }
+
+    
+    public int getCounter() {
+        return this.counter.get();
+    }
+    public int getOrigCounter() {
+        return (this.orig_counter);
+    }
+    public RpcCallback<T> getOrigCallback() {
+        return this.orig_callback;
+    }
+    
+    // ----------------------------------------------------------------------------
+    // RUN
+    // ----------------------------------------------------------------------------
     
     @Override
-    public void finish() {
-        this.aborted.set(false);
-        this.orig_callback = null;
-        this.txn_id = -1;
-        this.finishImpl();
+    public final void run(U parameter) {
+        int delta = this.runImpl(parameter);
+        int new_count = this.counter.addAndGet(-1 * delta);
+        if (debug.get())
+            LOG.debug(String.format("Txn #%d - %s.run() / COUNTER: %d - %d = %d\n%s",
+                                    this.txn_id, this.getClass().getSimpleName(),
+                                    new_count+delta, delta, new_count, parameter));
+        
+        // If this is the last result that we were waiting for, then we'll invoke
+        // the unblockCallback()
+        if ((this.aborted.get() == false || this.invoke_even_if_aborted) && new_count == 0) {
+            this.unblock();
+        }
     }
     
     /**
@@ -141,10 +114,72 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         }
     }
     
-    public int getCounter() {
-        return this.counter.get();
+    /**
+     * The implementation of the run method to process a new entry for this callback
+     * This method should return how much we should decrement from the blocking counter
+     * @param parameter Needs to be >=0
+     * @return
+     */
+    protected abstract int runImpl(U parameter);
+    
+    // ----------------------------------------------------------------------------
+    // SUCCESSFUL UNBLOCKING
+    // ----------------------------------------------------------------------------
+    
+    
+    private void unblock() {
+        if (debug.get())
+            LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
+                                    this.txn_id, this.getClass().getSimpleName()));
+        this.unblockCallback();
     }
-    public RpcCallback<T> getOrigCallback() {
-        return this.orig_callback;
+    
+    /**
+     * This method is invoked once all of the T messages are recieved 
+     */
+    protected abstract void unblockCallback();
+    
+    // ----------------------------------------------------------------------------
+    // ABORT
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     */
+    public final void abort(Hstore.Status status) {
+        // If this is the first response that told us to abort, then we'll
+        // send the abort message out 
+        if (this.aborted.compareAndSet(false, true)) {
+            this.abortCallback(status);
+        }
     }
+    
+    public boolean isAborted() {
+        return (this.aborted.get());
+    }
+    
+    /**
+     * 
+     */
+    protected abstract void abortCallback(Hstore.Status status);
+
+    // ----------------------------------------------------------------------------
+    // FINISH
+    // ----------------------------------------------------------------------------
+
+    
+    @Override
+    public final void finish() {
+        this.aborted.set(false);
+        this.orig_callback = null;
+        this.txn_id = -1;
+        this.finishImpl();
+    }
+    
+    /**
+     * 
+     */
+    protected abstract void finishImpl();
+    
+
 }

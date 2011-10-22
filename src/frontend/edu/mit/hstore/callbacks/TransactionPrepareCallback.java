@@ -68,8 +68,6 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         // Everybody returned ok, so we'll tell them all commit right now
         TransactionFinishCallback finish_callback = this.ts.getTransactionFinishCallback(Hstore.Status.OK);
         this.hstore_site.getCoordinator().transactionFinish(this.ts, Hstore.Status.OK, finish_callback);
-        
-
     }
     
     @Override

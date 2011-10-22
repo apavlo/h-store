@@ -18,13 +18,16 @@
 package org.voltdb;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Map;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.messaging.*;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ClientResponse;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.utils.StringUtil;
 
 /**
  * Packages up the data to be sent back to the client as a stored
@@ -49,10 +52,9 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean throttle = false;
     private boolean singlepartition = false;
 
-
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
-
+    
     public ClientResponseImpl() {}
 
     /**
@@ -331,5 +333,25 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     @Override
     public String getAppStatusString() {
         return appStatusString;
+    }
+    
+
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Status", this.status + " / " + this.statusString);
+        m.put("Handle", this.clientHandle);
+        m.put("Timestamp", this.timestamp);
+        m.put("Throttle", this.throttle);
+        m.put("SinglePartition", this.singlepartition);
+        m.put("Exception", m_exception);
+        
+        Map<String, Object> inner = new ListOrderedMap<String, Object>();
+        for (int i = 0; i < results.length; i++) {
+            inner.put(String.format("[%d]", i), results[i].toString());
+        }
+        m.put("Results", inner);
+        
+        return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
 }
