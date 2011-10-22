@@ -16,6 +16,7 @@ import edu.brown.hstore.Hstore.TransactionPrepareRequest;
 import edu.brown.hstore.Hstore.TransactionPrepareResponse;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -27,8 +28,8 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public TransactionPrepareHandler(HStoreSite hstore_site) {
-        super(hstore_site);
+    public TransactionPrepareHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
+        super(hstore_site, hstore_coord);
     }
     
     @Override

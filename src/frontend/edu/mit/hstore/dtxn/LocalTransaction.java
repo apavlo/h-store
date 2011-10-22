@@ -814,6 +814,9 @@ public class LocalTransaction extends AbstractTransaction {
         DependencyInfo dinfo = null;
         Map<Integer, Queue<Integer>> stmt_ctr = this.state.results_dependency_stmt_ctr;
         
+        LOG.info(String.format("Attemping to add new result for {Partition:%d, Dependency:%d} in %s [numRows=%d]",
+                partition, dependency_id, this, result.getRowCount()));
+        
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
         state.lock.lock();
@@ -821,15 +824,17 @@ public class LocalTransaction extends AbstractTransaction {
             if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                 assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
                 this.state.queued_results.put(key, result);
-                if (t) LOG.trace("Queued result " + key + " for txn #" + this.txn_id + " until the round is started");
+                if (d) LOG.debug("Queued result " + key + " for txn #" + this.txn_id + " until the round is started");
                 return;
             }
 
             // Each partition+dependency_id should be unique for a Statement batch.
             // So as the results come back to us, we have to figure out which Statement it belongs to
-            if (t) LOG.trace("Storing new result for key " + key + " in txn #" + this.txn_id);
             Queue<Integer> queue = stmt_ctr.get(key);
-            if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + queue);
+            if (d) {
+                LOG.debug("Storing new result for key " + key + " in txn #" + this.txn_id);
+                LOG.debug("Result stmt_ctr(key=" + key + "): " + queue);
+            }
             assert(queue != null) :
                 String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
                               partition, dependency_id, this);
@@ -850,7 +855,7 @@ public class LocalTransaction extends AbstractTransaction {
                 // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
                 long count = this.state.dependency_latch.getCount();
                 if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
-                if (t) LOG.trace("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
+                if (d) LOG.debug("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
             }
             
             // Check whether we need to start running stuff now
@@ -858,20 +863,12 @@ public class LocalTransaction extends AbstractTransaction {
                 // Always double check whether somebody beat us to the punch
                 Collection<FragmentTaskMessage> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
                 if (to_unblock == null) {
-                    if (t) LOG.trace(String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
+                    if (d) LOG.debug(String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
                     return;
                 }
                 if (d) LOG.debug(String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
                                                to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
-                
-                // XXX
-                for (FragmentTaskMessage ftask : to_unblock) {
-                    assert(ftask.executed.get() == 0) : ftask + "\n" + this.debug();
-                    for (Collection<FragmentTaskMessage> c : this.state.unblocked_tasks) {
-                        assert(c.contains(ftask) == false) : ftask + "\n" + this.debug() + "\n" + this.state.unblocked_tasks;
-                    }
-                }
                 this.state.unblocked_tasks.add(to_unblock);
             }
         } finally {

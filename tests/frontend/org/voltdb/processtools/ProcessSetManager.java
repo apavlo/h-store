@@ -292,7 +292,7 @@ public class ProcessSetManager implements Shutdownable {
             });
         } // FOR
         if (runnables.isEmpty() == false) {
-            LOG.info(String.format("Killing %d processes in parallel", runnables.size()));
+            if (debug.get()) LOG.debug(String.format("Killing %d processes in parallel", runnables.size()));
             try {
                 ThreadUtil.runNewPool(runnables);
             } catch (Throwable ex) {

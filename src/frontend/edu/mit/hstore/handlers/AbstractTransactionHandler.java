@@ -40,9 +40,9 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     protected final int num_sites;
     protected final int local_site_id;
     
-    public AbstractTransactionHandler(HStoreSite hstore_site) {
+    public AbstractTransactionHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord) {
         this.hstore_site = hstore_site;
-        this.hstore_coord = hstore_site.getCoordinator();
+        this.hstore_coord = hstore_coord;
         this.handler = this.hstore_coord.getHandler();
         this.num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
         this.local_site_id = hstore_site.getSiteId();

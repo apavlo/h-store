@@ -14,6 +14,7 @@ import edu.brown.hstore.Hstore.TransactionInitRequest;
 import edu.brown.hstore.Hstore.TransactionInitResponse;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreCoordinator.Dispatcher;
@@ -31,8 +32,8 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     
     private final Dispatcher<Object[]> initDispatcher;
     
-    public TransactionInitHandler(HStoreSite hstore_site, Dispatcher<Object[]> initDispatcher) {
-        super(hstore_site);
+    public TransactionInitHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, Dispatcher<Object[]> initDispatcher) {
+        super(hstore_site, hstore_coord);
         this.initDispatcher = initDispatcher;
     }
     
