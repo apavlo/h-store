@@ -487,9 +487,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         this.work_throttler = new ThrottlingQueue<TransactionInfoBaseMessage>(
                 this.work_queue,
-                hstore_conf.site.txn_incoming_queue_max_per_partition,
-                hstore_conf.site.txn_incoming_queue_release_factor,
-                hstore_conf.site.txn_incoming_queue_increase
+                hstore_conf.site.queue_incoming_max_per_partition,
+                hstore_conf.site.queue_incoming_release_factor,
+                hstore_conf.site.queue_incoming_increase
         );
         
         this.catalog = catalog;

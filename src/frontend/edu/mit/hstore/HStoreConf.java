@@ -257,42 +257,10 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultInt=25,
+            defaultInt=10,
             experimental=true
         )
         public int txn_incoming_delay;
-        
-        @ConfigProperty(
-            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
-                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=1000,
-            experimental=false
-        )
-        public int txn_incoming_queue_max_per_partition;
-        
-        @ConfigProperty(
-            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
-                        "will not accept new requests until the number of queued transactions is less than " +
-                        "this percentage. This includes all transactions that are waiting to be executed, " +
-                        "executing, and those that have already executed and are waiting for their results " +
-                        "to be sent back to the client. The incoming queue release is calculated as " +
-                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
-            defaultDouble=0.25,
-            experimental=false
-        )
-        public double txn_incoming_queue_release_factor;
-        
-        @ConfigProperty(
-            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
-                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
-                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
-                        "value by this amount. The release limit will also be recalculated using the new value " +
-                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
-                        "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=100,
-            experimental=false
-        )
-        public int txn_incoming_queue_increase;
         
         @ConfigProperty(
             description="", // TODO
@@ -304,6 +272,38 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options
         // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
+            defaultInt=1000,
+            experimental=false
+        )
+        public int queue_incoming_max_per_partition;
+        
+        @ConfigProperty(
+            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+                        "will not accept new requests until the number of queued transactions is less than " +
+                        "this percentage. This includes all transactions that are waiting to be executed, " +
+                        "executing, and those that have already executed and are waiting for their results " +
+                        "to be sent back to the client. The incoming queue release is calculated as " +
+                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
+            defaultDouble=0.25,
+            experimental=false
+        )
+        public double queue_incoming_release_factor;
+        
+        @ConfigProperty(
+            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+                        "value by this amount. The release limit will also be recalculated using the new value " +
+                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+                        "the first non-data loading transaction has been issued from the clients.",
+            defaultInt=100,
+            experimental=false
+        )
+        public int queue_incoming_increase;
         
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
