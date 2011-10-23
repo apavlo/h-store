@@ -28,6 +28,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     protected final HStoreSite hstore_site;
     protected long txn_id = -1;
+    private long orig_txn_id = -1;
     private final AtomicInteger counter = new AtomicInteger(0);
     private int orig_counter;
     private RpcCallback<T> orig_callback;
@@ -63,6 +64,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         this.counter.set(counter_val);
         this.orig_callback = orig_callback;
         this.txn_id = txn_id;
+        this.orig_txn_id = txn_id;
     }
     
     @Override
@@ -70,7 +72,12 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         return (this.orig_callback != null);
     }
 
-    
+    public long getTransactionId() {
+        return (this.txn_id);
+    }
+    public long getOrigTransactionId() {
+        return (this.orig_txn_id);
+    }
     public int getCounter() {
         return this.counter.get();
     }
@@ -173,6 +180,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         this.aborted.set(false);
         this.orig_callback = null;
         this.txn_id = -1;
+        this.orig_txn_id = -1;
         this.finishImpl();
     }
     

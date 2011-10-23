@@ -132,10 +132,12 @@ public class TransactionQueueManager implements Runnable {
                 // Keep checking the queue as long as they have more stuff in there
                 // for us to process
             }
-            txn_id = idManager.getLastTxnId();
-            if (last_id == txn_id) txn_id = idManager.getNextUniqueTransactionId();
-            checkBlockedDTXNs(txn_id);
-            last_id = txn_id;
+            if (this.blocked_dtxns.isEmpty() == false) {
+                txn_id = idManager.getLastTxnId();
+                if (last_id == txn_id) txn_id = idManager.getNextUniqueTransactionId();
+                checkBlockedDTXNs(txn_id);
+                last_id = txn_id;
+            }
         }
     }
     
@@ -219,10 +221,10 @@ public class TransactionQueueManager implements Runnable {
         }
     }
     
-    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstore.Status status, int reject_partition, long last_txn_id) {
+    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstore.Status status, int reject_partition, long reject_txnId) {
         // First send back an ABORT message to the initiating HStoreSite
         try {
-            callback.abort(status);
+            callback.abort(status, reject_partition, reject_txnId);
         } catch (Throwable ex) {
             String msg = "Unexpected error when trying to abort txn #" + txn_id;
             throw new RuntimeException(msg, ex);

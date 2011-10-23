@@ -1393,13 +1393,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                                               statusString);
         this.sendClientResponse(ts, cresponse);
         
-//        synchronized (this.cached_ClientResponse) {
-//            ClientResponseImpl.setServerTimestamp(this.cached_ClientResponse, request_ctr);
-//            ClientResponseImpl.setClientHandle(this.cached_ClientResponse, clientHandle);
-//            ClientResponseImpl.setThrottleFlag(this.cached_ClientResponse, true);
-//            ClientResponseImpl.setStatus(this.cached_ClientResponse, status);
-//            done.run(this.cached_ClientResponse.array());
-//        } // SYNCH
+
         if (hstore_conf.site.status_show_txn_info) {
             if (status == Status.ABORT_THROTTLED) {
                 TxnCounter.THROTTLED.inc(ts.getProcedure());

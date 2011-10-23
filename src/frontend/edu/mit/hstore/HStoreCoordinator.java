@@ -79,15 +79,13 @@ public class HStoreCoordinator implements Shutdownable {
     private final ProtoServer listener;
     private final RemoteSiteHandler handler = new RemoteSiteHandler();
     
-    private final ForwardTxnDispatcher forwardDispatcher;
-    
     private final TransactionInitHandler router_transactionInit;
-    private final InitDispatcher initDispatcher;
-    
     private final TransactionPrepareHandler router_transactionPrepare;
-    
     private final TransactionFinishHandler router_transactionFinish;
+    
+    private final InitDispatcher initDispatcher;
     private final FinishDispatcher finishDispatcher;
+    private final ForwardTxnDispatcher forwardDispatcher;    
     
     private boolean shutting_down = false;
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
