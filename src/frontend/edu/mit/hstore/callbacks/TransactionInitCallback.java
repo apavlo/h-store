@@ -68,6 +68,11 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         }
     }
     
+    public synchronized void setRejectionInfo(int partition, long txn_id) {
+        this.reject_partition = partition;
+        this.reject_txnId = txn_id;
+    }
+    
     @Override
     protected void abortCallback(Status status) {
         assert(this.isInitialized()) : "ORIG TXN: " + orig_txn_id;
@@ -80,11 +85,13 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
             case ABORT_RESTART: {
                 // If we have the transaction that we got busted up with at the remote site
                 // then we'll tell the TransactionQueueManager to unblock it when it gets released
-                if (this.reject_txnId != null) {
-                    this.hstore_site.getTransactionQueueManager().queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
-                } else {
-                    this.hstore_site.transactionRestart(this.ts, status);
-                }
+                synchronized (this) {
+                    if (this.reject_txnId != null) {
+                        this.hstore_site.getTransactionQueueManager().queueBlockedDTXN(this.ts, this.reject_partition, this.reject_txnId);
+                    } else {
+                        this.hstore_site.transactionRestart(this.ts, status);
+                    }
+                } // SYNCH
                 break;
             }
             case ABORT_THROTTLED:
@@ -108,15 +115,28 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     @Override
     protected int runImpl(Hstore.TransactionInitResponse response) {
         if (debug.get())
-            LOG.debug(String.format("Got %s with status %s for %s [partitions=%s]",
+            LOG.debug(String.format("Got %s with status %s for %s [partitions=%s, rejectPartition=%s, rejectTxn=%s]",
                                     response.getClass().getSimpleName(),
                                     response.getStatus(),
                                     this.ts, 
-                                    response.getPartitionsList()));
+                                    response.getPartitionsList(),
+                                    (response.hasRejectPartition() ? response.getRejectPartition() : "-"),
+                                    (response.hasRejectTransactionId() ? response.getRejectTransactionId() : "-")));
         assert(this.ts != null) :
             String.format("Missing LocalTransaction handle for txn #%d", response.getTransactionId());
         assert(response.getPartitionsCount() > 0) :
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
+        
+        // If we get a response that matches our original txn but the LocalTransaction handle 
+        // has changed, then we need to will just ignore it
+        if (this.orig_txn_id == response.getTransactionId() && this.orig_txn_id != this.ts.getTransactionId()) {
+            return (0);
+        }
+        
+        // Otherwise, make sure it's legit
+        assert(this.ts.getTransactionId() == response.getTransactionId()) :
+            String.format("Unexpected %s for a different transaction %s != #%d",
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId());
         
         if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
             if (response.hasRejectTransactionId()) {
@@ -124,7 +144,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
                 LOG.info(String.format("%s was rejected at partition by txn #%d",
                                        this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
                 synchronized (this) {
-                    if (this.reject_txnId == null) {
+                    if (this.reject_txnId == null || this.reject_txnId < response.getRejectTransactionId()) {
                         this.reject_partition = response.getRejectPartition();
                         this.reject_txnId = response.getRejectTransactionId();
                     }

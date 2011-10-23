@@ -88,6 +88,9 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
                                     response.getClass().getSimpleName(),
                                     response.getPartitionsCount(),
                                     this.ts));
+        assert(this.ts.getTransactionId() == response.getTransactionId()) :
+            String.format("Unexpected %s for a different transaction %s != #%d",
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId());
         final Hstore.Status status = response.getStatus();
         
         // If any TransactionPrepareResponse comes back with anything but an OK,

@@ -136,7 +136,7 @@ public class ProcessSetManager implements Shutdownable {
                 // IGNORE
             } finally {
                 if (shutting_down == false) {
-                    LOG.warn(String.format("'%s' has stopped", this.name));
+                    LOG.warn(String.format("'%s' has stopped [wasAlive=%s]", this.name, this.is_alive));
                 }
                 this.is_alive = false;
             }

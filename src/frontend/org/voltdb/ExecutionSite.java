@@ -2045,7 +2045,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
                 }
                 if (done) break;
-                LOG.warn("Still waiting for responses for " + ts + "\n" + ts.debug());
+                if (this.isShuttingDown() == false)
+                    LOG.warn("Still waiting for responses for " + ts + "\n" + ts.debug());
             } // WHILE
         }
         

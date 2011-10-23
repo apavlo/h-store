@@ -75,6 +75,9 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
             LOG.debug(String.format("Got %s with for %s %s [partitions=%s, counter=%d]",
                                     response.getClass().getSimpleName(),
                                     this.ts, this.status, response.getPartitionsList(), this.getCounter()));
+        assert(this.ts.getTransactionId() == response.getTransactionId()) :
+            String.format("Unexpected %s for a different transaction %s != #%d",
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId());
         
         return (response.getPartitionsCount());
     }

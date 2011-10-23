@@ -77,11 +77,11 @@ OPT_NO_SYNC = False
 OPT_STOP_ON_ERROR = False
 OPT_FORCE_REBOOT = False
 
-OPT_BASE_BLOCKING = True
-OPT_BASE_BLOCKING_CONCURRENT = 300
-OPT_BASE_TXNRATE_PER_PARTITION = 5000
+OPT_BASE_BLOCKING = False
+OPT_BASE_BLOCKING_CONCURRENT = 5
+OPT_BASE_TXNRATE_PER_PARTITION = 5000   
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 3
+OPT_BASE_CLIENT_COUNT = 5
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
 OPT_BASE_SCALE_FACTOR = 50
 
@@ -104,7 +104,8 @@ BASE_SETTINGS = {
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
-    "client.memory":                    512,
+    "client.memory":                    128,
+    "client.blocking_loader":           False,
     
     "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
@@ -116,10 +117,13 @@ BASE_SETTINGS = {
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             10000,
+    "site.txn_incoming_delay":                          25,
+    "site.coordinator_init_thread":                     False,
+    "site.coordinator_finish_thread":                   False,
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         4,
-    "site.memory":                                      14336, # 60020,
+    "site.memory":                                      60020,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
     "site.txn_incoming_queue_increase":                 10,
@@ -179,6 +183,8 @@ OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 ## updateEnv
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
+    global OPT_BASE_TXNRATE_PER_PARTITION
+  
     ## MOTIVATION
     if exp_type == "motivation":
         env["benchmark.neworder_only"] = True
@@ -189,10 +195,10 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["benchmark.neworder_multip_mix"] = exp_factor
             env["benchmark.neworder_multip"] = (exp_factor > 0)
             if exp_factor == 0:
-                OPT_BASE_TXNRATE_PER_PARTITION = 4400 
+                #OPT_BASE_TXNRATE_PER_PARTITION = 4400 
                 env["client.blocking"] = False
             else:
-                OPT_BASE_TXNRATE_PER_PARTITION = 4400
+                #OPT_BASE_TXNRATE_PER_PARTITION = 10000
                 env["client.blocking"] = True
             
         elif exp_setting == 1:
@@ -381,7 +387,15 @@ if __name__ == '__main__':
             all_results = [ ]
                 
             if OPT_EXP_TYPE == "motivation":
-                exp_factors = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25)
+                # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
+                # range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 18)
+                exp_factors = [ ]
+                for f in [ 0, 18, 43, 80, 100 ]:
+                    if f > OPT_EXP_FACTOR_STOP: break
+                    if f >= OPT_EXP_FACTOR_START:
+                        exp_factors.append(f)
+                ## FOR
+                    
             elif OPT_EXP_TYPE == "throughput":
                 exp_factors = OPT_PARTITION_PLANS
             else:

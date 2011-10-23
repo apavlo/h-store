@@ -49,6 +49,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     public void remoteQueue(RpcController controller, TransactionInitRequest request,
             RpcCallback<TransactionInitResponse> callback) {
         if (initDispatcher != null) {
+            if (debug.get()) LOG.debug("Queuing request for txn #" + request.getTransactionId());
             Object o[] = { controller, request, callback };
             initDispatcher.queue(o);
         } else {
