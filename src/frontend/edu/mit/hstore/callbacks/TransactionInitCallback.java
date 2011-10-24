@@ -135,8 +135,8 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         
         // Otherwise, make sure it's legit
         assert(this.ts.getTransactionId() == response.getTransactionId()) :
-            String.format("Unexpected %s for a different transaction %s != #%d",
-                          response.getClass().getSimpleName(), this.ts, response.getTransactionId());
+            String.format("Unexpected %s for a different transaction %s != #%d [origTxn=#%d]",
+                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getOrigTransactionId());
         
         if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
             if (response.hasRejectTransactionId()) {
