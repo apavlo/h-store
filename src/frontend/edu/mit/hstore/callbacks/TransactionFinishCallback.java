@@ -75,9 +75,22 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
             LOG.debug(String.format("Got %s with for %s %s [partitions=%s, counter=%d]",
                                     response.getClass().getSimpleName(),
                                     this.ts, this.status, response.getPartitionsList(), this.getCounter()));
-        assert(this.ts.getTransactionId() == response.getTransactionId()) :
-            String.format("Unexpected %s for a different transaction %s != #%d",
-                          response.getClass().getSimpleName(), this.ts, response.getTransactionId());
+        
+        long orig_txn_id = this.getOrigTransactionId();
+        long resp_txn_id = response.getTransactionId();
+        long ts_txn_id = this.ts.getTransactionId();
+        
+        // If we get a response that matches our original txn but the LocalTransaction handle 
+        // has changed, then we need to will just ignore it
+        if (orig_txn_id == resp_txn_id && orig_txn_id != ts_txn_id) {
+            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [expected=#%d]",
+                                                     response.getClass().getSimpleName(), resp_txn_id, ts_txn_id));
+            return (0);
+        }
+        // Otherwise, make sure it's legit
+        assert(ts_txn_id == resp_txn_id) :
+            String.format("Unexpected %s for a different transaction %s != #%d [origTxn=#%d]",
+                          response.getClass().getSimpleName(), this.ts, resp_txn_id, orig_txn_id);
         
         return (response.getPartitionsCount());
     }

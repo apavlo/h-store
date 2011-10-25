@@ -40,6 +40,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
      */
     private final AtomicBoolean aborted = new AtomicBoolean(false);
     
+    private final AtomicBoolean invoked = new AtomicBoolean(false);
+    
     private final boolean invoke_even_if_aborted;
     
     /**
@@ -138,7 +140,13 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Invoking %s.unblockCallback()",
                                     this.txn_id, this.getClass().getSimpleName()));
-        this.unblockCallback();
+        if (this.invoked.compareAndSet(false, true)) {
+            this.unblockCallback();
+        } else {
+            assert(false) :
+                String.format("Txn #%d - Tried to invoke %s.unblockCallback() twice!",
+                              this.txn_id, this.getClass().getSimpleName());
+        }
     }
     
     /**
@@ -178,6 +186,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     @Override
     public final void finish() {
         this.aborted.set(false);
+        this.invoked.set(false);
         this.orig_callback = null;
         this.txn_id = -1;
         this.orig_txn_id = -1;
