@@ -23,7 +23,6 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     }
     
     private LocalTransaction ts;
-    private long orig_txn_id;
     private Integer reject_partition = null;
     private Long reject_txnId = null;
     private TransactionFinishCallback finish_callback;
@@ -75,7 +74,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     
     @Override
     protected void abortCallback(Status status) {
-        assert(this.isInitialized()) : "ORIG TXN: " + orig_txn_id;
+        assert(this.isInitialized()) : "ORIG TXN: " + this.getOrigTransactionId();
         
         // Then re-queue the transaction. We want to make sure that
         // we use a new LocalTransaction handle because this one is going to get freed
@@ -127,16 +126,21 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         assert(response.getPartitionsCount() > 0) :
             String.format("No partitions returned in %s for %s", response.getClass().getSimpleName(), this.ts);
         
+        long orig_txn_id = this.getOrigTransactionId();
+        long resp_txn_id = response.getTransactionId();
+        long ts_txn_id = this.ts.getTransactionId();
+        
         // If we get a response that matches our original txn but the LocalTransaction handle 
         // has changed, then we need to will just ignore it
-        if (this.orig_txn_id == response.getTransactionId() && this.orig_txn_id != this.ts.getTransactionId()) {
+        if (orig_txn_id == resp_txn_id && orig_txn_id != ts_txn_id) {
+            if (debug.get()) LOG.debug(String.format("Ignoring %s for a different transaction #%d [origTxn=#%d]",
+                                                     response.getClass().getSimpleName(), resp_txn_id, orig_txn_id));
             return (0);
         }
-        
         // Otherwise, make sure it's legit
-        assert(this.ts.getTransactionId() == response.getTransactionId()) :
-            String.format("Unexpected %s for a different transaction %s != #%d [origTxn=#%d]",
-                          response.getClass().getSimpleName(), this.ts, response.getTransactionId(), this.getOrigTransactionId());
+        assert(ts_txn_id == resp_txn_id) :
+            String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
+                          response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
         
         if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
             if (response.hasRejectTransactionId()) {

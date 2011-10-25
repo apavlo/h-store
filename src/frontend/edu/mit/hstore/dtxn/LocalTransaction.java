@@ -637,6 +637,7 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     private ProtoRpcController getProtoRpcController(ProtoRpcController cache[], int site_id) {
+//        return new ProtoRpcController();
         if (cache[site_id] == null) {
             cache[site_id] = new ProtoRpcController();
         } else {
