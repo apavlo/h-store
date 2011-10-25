@@ -144,11 +144,13 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         
         if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
             if (response.hasRejectTransactionId()) {
-                assert(response.hasRejectPartition());
-                LOG.info(String.format("%s was rejected at partition by txn #%d",
-                                       this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
+                assert(response.hasRejectPartition()) :
+                    String.format("%s has a reject txn #%d but is missing reject partition [txn=#%d]",
+                                  response.getClass().getSimpleName(), resp_txn_id, this.ts);
                 synchronized (this) {
                     if (this.reject_txnId == null || this.reject_txnId < response.getRejectTransactionId()) {
+                        if (debug.get()) LOG.debug(String.format("%s was rejected at partition by txn #%d",
+                                                                 this.ts, response.getRejectPartition(), response.getRejectTransactionId()));
                         this.reject_partition = response.getRejectPartition();
                         this.reject_txnId = response.getRejectTransactionId();
                     }

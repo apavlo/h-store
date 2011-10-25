@@ -135,9 +135,11 @@ public class ProcessSetManager implements Shutdownable {
             } catch (InterruptedException ex) {
                 // IGNORE
             } finally {
-                if (shutting_down == false) {
-                    LOG.warn(String.format("'%s' has stopped [wasAlive=%s]", this.name, this.is_alive));
-                }
+                synchronized (ProcessSetManager.this) {
+                    if (shutting_down == false) {
+                        LOG.warn(String.format("'%s' has stopped [wasAlive=%s]", this.name, this.is_alive));
+                    }
+                } // SYNCH
                 this.is_alive = false;
             }
         }
@@ -386,16 +388,18 @@ public class ProcessSetManager implements Shutdownable {
             out.flush();
         } catch (IOException e) {
             if (processName.contains("client-")) return;
-            if (this.shutting_down == false) {
-                String msg = "";
-                if (data.trim().isEmpty()) {
-                    msg = String.format("Failed to poll '%s'", processName);
-                } else {
-                    msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
+            synchronized (this) {
+                if (this.shutting_down == false) {
+                    String msg = "";
+                    if (data.trim().isEmpty()) {
+                        msg = String.format("Failed to poll '%s'", processName);
+                    } else {
+                        msg = String.format("Failed to write '%s' command to '%s'", data.trim(), processName);
+                    }
+                    if (LOG.isDebugEnabled()) LOG.fatal(msg, e);
+                    else LOG.fatal(msg);
                 }
-                if (LOG.isDebugEnabled()) LOG.fatal(msg, e);
-                else LOG.fatal(msg);
-            }
+            } // SYNCH
             this.failure_observable.notifyObservers(processName);
         }
     }
@@ -430,7 +434,9 @@ public class ProcessSetManager implements Shutdownable {
                 try {
                     pd.process.waitFor();
                 } catch (InterruptedException e) {
-                    if (shutting_down == false) e.printStackTrace();
+                    synchronized (this) {
+                        if (shutting_down == false) e.printStackTrace();
+                    } // SYNCH
                 }
                 latch.countDown();
             }
@@ -466,7 +472,9 @@ public class ProcessSetManager implements Shutdownable {
             pd.process.waitFor();
             retval = pd.process.exitValue();
         } catch (InterruptedException e) {
-            if (this.shutting_down == false) e.printStackTrace();
+            synchronized (this) {
+                if (this.shutting_down == false) e.printStackTrace();
+            } // SYNCH
         }
 
         synchronized(createdProcesses) {
