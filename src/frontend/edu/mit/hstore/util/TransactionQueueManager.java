@@ -8,7 +8,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
@@ -59,15 +58,22 @@ public class TransactionQueueManager implements Runnable {
     /**
      * Blocked Queue Comparator
      */
-    private Comparator<Pair<Long, LocalTransaction>> blocked_comparator = new Comparator<Pair<Long,LocalTransaction>>() {
+    private Comparator<LocalTransaction> blocked_comparator = new Comparator<LocalTransaction>() {
         @Override
-        public int compare(Pair<Long, LocalTransaction> o1, Pair<Long, LocalTransaction> o2) {
-            if (o1.getFirst() != o2.getFirst()) return (o1.getFirst().compareTo(o2.getFirst()));
-            return (int)(o1.getSecond().getClientHandle() - o1.getSecond().getClientHandle());
+        public int compare(LocalTransaction o0, LocalTransaction o1) {
+            Long txnId0 = blocked_dtxn_release.get(o0);
+            Long txnId1 = blocked_dtxn_release.get(o1);
+            if (txnId0 == null && txnId1 == null) return (0);
+            if (txnId0 == null) return (1);
+            if (txnId1 == null) return (-1);
+            if (txnId0.equals(txnId1) == false) return (txnId0.compareTo(txnId1));
+            return (int)(o0.getClientHandle() - o1.getClientHandle());
         }
     };
     
-    private PriorityBlockingQueue<Pair<Long, LocalTransaction>> blocked_dtxns = new PriorityBlockingQueue<Pair<Long,LocalTransaction>>(100, blocked_comparator);
+    private ConcurrentHashMap<LocalTransaction, Long> blocked_dtxn_release = new ConcurrentHashMap<LocalTransaction, Long>();
+    
+    private PriorityBlockingQueue<LocalTransaction> blocked_dtxns = new PriorityBlockingQueue<LocalTransaction>(100, blocked_comparator);
     
     /**
      * Constructor
@@ -366,32 +372,66 @@ public class TransactionQueueManager implements Runnable {
         return (this.txn_callbacks.get(txn_id));
     }
     
+    /**
+     * 
+     * @param partition
+     * @param txn_id
+     */
     public synchronized void markAsLastTxnId(int partition, long txn_id) {
-        if (debug.get())
-            LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
         if (last_txns[partition] < txn_id) {
+            if (debug.get())
+                LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
             last_txns[partition] = txn_id;
         }
     }
     
+    /**
+     * 
+     * @param ts
+     * @param partition
+     * @param txn_id
+     */
     public void queueBlockedDTXN(LocalTransaction ts, int partition, long txn_id) {
-        LOG.info(String.format("Blocking %s until after a txn greater than %d is created", ts, txn_id));
-        this.blocked_dtxns.offer(Pair.of(txn_id, ts));
+        if (debug.get()) 
+            LOG.debug(String.format("Blocking %s until after a txn greater than #%d is created for partition %d",
+                                                 ts, txn_id, partition));
+        synchronized (this.blocked_dtxns) {
+            if (this.blocked_dtxn_release.put(ts, txn_id) == null) {
+                this.blocked_dtxns.offer(ts);
+            }
+        } // SYNCH
         if (this.localPartitions.contains(partition) == false) {
             this.markAsLastTxnId(partition, txn_id);
         }
     }
-    public void checkBlockedDTXNs(long last_txn_id) {
-        if (this.blocked_dtxns.isEmpty() == false)
-            LOG.info(String.format("Checking whether we can release %d dtxn [txnId=%d]", this.blocked_dtxns.size(), last_txn_id));
+    
+    /**
+     * 
+     * @param last_txn_id
+     */
+    private void checkBlockedDTXNs(long last_txn_id) {
+        if (debug.get() && this.blocked_dtxns.isEmpty() == false)
+            LOG.debug(String.format("Checking whether we can release %d blocked dtxns [lastTxnId=%d]", this.blocked_dtxns.size(), last_txn_id));
         
         while (this.blocked_dtxns.isEmpty() == false) {
-            Pair<Long, LocalTransaction> p = this.blocked_dtxns.peek();
-            if (p.getFirst() < last_txn_id) {
-                this.blocked_dtxns.remove();
-                hstore_site.transactionRestart(p.getSecond(), Hstore.Status.ABORT_RESTART);
-//                hstore_site.transactionRequeue(p.getSecond());
-            } else break;
+            synchronized (this.blocked_dtxns) {
+                LocalTransaction ts = this.blocked_dtxns.peek();
+                Long releaseTxnId = this.blocked_dtxn_release.get(ts);
+                if (releaseTxnId == null) {
+                    if (debug.get()) LOG.warn("Missing release TxnId for " + ts);
+                    this.blocked_dtxns.remove();
+                    continue;
+                }
+                if (releaseTxnId < last_txn_id) {
+                    if (debug.get())
+                        LOG.debug(String.format("Releasing blocked %s because the lastest txn was #%d [release=%d]",
+                                                ts, last_txn_id, releaseTxnId));
+                    this.blocked_dtxns.remove();
+                    this.blocked_dtxn_release.remove(ts);
+                    hstore_site.transactionRestart(ts, Hstore.Status.ABORT_RESTART);
+    //                hstore_site.transactionRequeue(p.getSecond());
+                } else break;
+            } // SYNCH
         } // WHILE
     }
 }

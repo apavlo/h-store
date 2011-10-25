@@ -1134,8 +1134,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // we generate a txn_id with a greater value and then re-add ourselves
                     LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
                                            ts, partition, last_txn_id));
-                    LOG.warn("LAST: " + TransactionIdManager.toString(last_txn_id));
-                    LOG.warn("NEW:  " + TransactionIdManager.toString(txn_id));
+                    if (debug.get())
+                        LOG.warn(String.format("LastTxnId:#%d / NewTxnId:#%d",
+                                               TransactionIdManager.toString(last_txn_id),
+                                               TransactionIdManager.toString(txn_id)));
                     this.txnQueueManager.queueBlockedDTXN(ts, partition, last_txn_id);
                     return;
                 }
@@ -1425,11 +1427,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
         if (orig_ts.getRestartCounter() > hstore_conf.site.txn_restart_limit) {
-            LOG.warn(String.format("%s has been restarted %d times! Rejecting...",
-                                   orig_ts, orig_ts.getRestartCounter()));
-            assert(false);
-            this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
-            return;
+            if (orig_ts.sysproc) {
+                throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
+                                           orig_ts, orig_ts.getRestartCounter()));
+            } else {
+                this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
+                return;
+            }
         }
         
         // Figure out whether this transaction should be redirected based on what partitions it

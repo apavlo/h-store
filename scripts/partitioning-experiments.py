@@ -109,7 +109,7 @@ BASE_SETTINGS = {
     
     "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
-    "site.pool_profiling":                              False,
+    "site.pool_profiling":                              True,
     "site.planner_profiling":                           False,
     "site.planner_caching":                             True,
     "site.status_show_txn_info":                        True,
@@ -117,7 +117,7 @@ BASE_SETTINGS = {
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             10000,
-    "site.txn_incoming_delay":                          25,
+    "site.txn_incoming_delay":                          5,
     "site.coordinator_init_thread":                     False,
     "site.coordinator_finish_thread":                   False,
     
