@@ -152,6 +152,30 @@ public abstract class BenchmarkComponent {
         public final String display;
     };
 
+    private static Client globalClient;
+    private static Catalog globalCatalog;
+    
+    public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
+        if (globalClient == null) {
+            globalClient = ClientFactory.createClient(
+                    messageSize,
+                    null,
+                    heavyWeight,
+                    statsSettings,
+                    catalog
+            );
+        }
+        return (globalClient);
+    }
+    
+    public static synchronized Catalog getCatalog(File catalogPath) {
+        // Read back the catalog and populate catalog object
+        if (globalCatalog == null) {
+            globalCatalog =  CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+        }
+        return (globalCatalog);
+    }
+    
     /**
      * Client initialized here and made available for use in derived classes
      */
@@ -823,12 +847,11 @@ public abstract class BenchmarkComponent {
             }
         }
 
-        Client new_client = ClientFactory.createClient(
+        Client new_client = BenchmarkComponent.getClient(
+                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null),
                 getExpectedOutgoingMessageSize(),
-                null,
                 useHeavyweightClient(),
-                statsSettings,
-                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null)
+                statsSettings
         );
         if (m_blocking) {
             if (debug.get()) 
@@ -1267,7 +1290,7 @@ public abstract class BenchmarkComponent {
     public Catalog getCatalog() {
         // Read back the catalog and populate catalog object
         if (m_catalog == null) {
-            m_catalog =  CatalogUtil.loadCatalogFromJar(m_catalogPath.getAbsolutePath());
+            m_catalog = getCatalog(m_catalogPath);
         }
         return (m_catalog);
     }

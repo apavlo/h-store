@@ -146,7 +146,7 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public void close() throws InterruptedException {
         this.inner.close();
-        LOG.info("Client Idle Time: " + this.idle.toString(true));
+        if (LOG.isDebugEnabled()) LOG.debug("Client Idle Time: " + this.idle.toString(true));
     }
 
     /* (non-Javadoc)

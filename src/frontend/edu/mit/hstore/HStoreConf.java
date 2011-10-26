@@ -268,6 +268,15 @@ public final class HStoreConf {
             experimental=false
         )
         public int txn_restart_limit;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=10,
+            experimental=false
+        )
+        public int txn_restart_limit_sysproc;
+        
+        
 
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options

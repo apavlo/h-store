@@ -674,7 +674,7 @@ public class BenchmarkController {
                 params.add("HOST=" + address);
                 if (trace.get()) 
                     LOG.trace(String.format("HStoreSite %s: %s", HStoreSite.formatSiteName(catalog_site.getId()), address));
-//                    break;
+                break;
             } // FOR
         } // FOR
     }
@@ -734,38 +734,30 @@ public class BenchmarkController {
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (final String clientHost : m_config.clients) {
             m_clients.add(clientHost);
+            final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
+            final List<Integer> clientIds = new ArrayList<Integer>();
+            for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
+                int clientId = clientIndex.getAndIncrement();
+                m_clientThreads.add(getClientName(clientHost, clientId));   
+                clientIds.add(clientId);
+            } // FOR
+            
             runnables.add(new Runnable() {
                 @Override
                 public void run() {
-                    List<String> curClientArgs = new ArrayList<String>(allClientArgs);
-                    List<String> clientIds = new ArrayList<String>();
-                    
-                    for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
-                        int clientId = clientIndex.getAndIncrement();
-                        m_clientThreads.add(getClientName(clientHost, clientId));
-//                        String host_id = String.format("client-%02d-%s", clientId, clientHost);
-                        
+                    for (int i = 0, cnt = clientIds.size(); i < cnt; i++) {
                         if (m_config.listenForDebugger) {
                             String arg = "-agentlib:jdwp=transport=dt_socket,address="
-                                + (8003 + j) + ",server=y,suspend=n ";
+                                + (8003 + i) + ",server=y,suspend=n ";
                             curClientArgs.set(1, arg);
                         }
                         
                         // Check whether we need to send files to this client
+                        int clientId = clientIds.get(i);
                         if (m_clientFileUploader.hasFilesToSend(clientId)) {
                             Collection<String> uploadArgs = processClientFileUploads(clientHost, clientId, sent_files);
                             if (uploadArgs.isEmpty() == false) curClientArgs.addAll(uploadArgs);
                         }
-                        
-                        
-//                        curClientArgs.add("NUMCLIENTS=" + numClients);
-//                        if (j > hstore_conf.client.delay_threshold) {
-//                            long wait = 500 * (j - hstore_conf.client.delay_threshold);
-//                            curClientArgs.add("WAIT=" + wait);
-//                            if (debug.get()) LOG.debug("Start-up Wait Time for " + host_id + ": " + wait);
-//                        }
-        
-                        clientIds.add(Integer.toString(clientId));
                     } // FOR
                     
                     curClientArgs.add("ID=" + StringUtil.join(",", clientIds));
@@ -782,6 +774,9 @@ public class BenchmarkController {
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
         m_clientsNotReady.set(m_clientThreads.size());
+        assert(m_clientThreads.size() == (m_config.clients.length * hstore_conf.client.processesperclient)) :
+            String.format("%d != %d", m_clientThreads.size(),
+                                      (m_config.clients.length * hstore_conf.client.processesperclient));
 
         ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter() : new ResultsPrinter());
         registerInterest(rp);
@@ -861,7 +856,7 @@ public class BenchmarkController {
         LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
         LOG.info(String.format("Starting %s execution with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
                                 m_projectBuilder.getProjectName().toUpperCase(),
-                                m_clients.size(),
+                                m_clientThreads.size(),
                                 m_config.clients.length,
                                 hstore_conf.client.processesperclient,
                                 hstore_conf.client.txnrate,
