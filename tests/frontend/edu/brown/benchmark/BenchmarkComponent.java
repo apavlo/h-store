@@ -51,6 +51,7 @@ package edu.brown.benchmark;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
@@ -112,7 +113,7 @@ public abstract class BenchmarkComponent {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public static String CONTROL_PREFIX = "{HSTORE} ";
+    public static String CONTROL_PREFIX = "{HSTORE}";
     
     public enum Command {
         START,
@@ -159,7 +160,7 @@ public abstract class BenchmarkComponent {
     /**
      * Manage input and output to the framework
      */
-    private final ControlPipe m_controlPipe = new ControlPipe();
+    private ControlPipe m_controlPipe;
 
     /**
      * State of this client
@@ -292,13 +293,16 @@ public abstract class BenchmarkComponent {
     private final HStoreConf m_hstoreConf;
     
 
-    public static void printControlMessage(ControlState state) {
+    public void printControlMessage(ControlState state) {
         printControlMessage(state, null);
     }
     
-    public static void printControlMessage(ControlState state, String message) {
+    public void printControlMessage(ControlState state, String message) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%s%d,%s", CONTROL_PREFIX, System.currentTimeMillis(), state.display)); // PREFIX TIMESTAMP, STATE
+        sb.append(String.format("%s %d,%d,%s", CONTROL_PREFIX,
+                                               this.getClientId(),
+                                               System.currentTimeMillis(),
+                                               state.display));
         if (message != null && message.isEmpty() == false) {
             sb.append(",").append(message);
         }
@@ -310,14 +314,16 @@ public abstract class BenchmarkComponent {
      * Hypothetically, you can extend this and override the answerPoll() and
      * answerStart() methods for other clients.
      */
-    class ControlPipe implements Runnable {
+    protected class ControlPipe implements Runnable {
+        final InputStream in;
+        
+        public ControlPipe(InputStream in) {
+            this.in = in;
+        }
 
         public void run() {
             final Thread self = Thread.currentThread();
             self.setName(String.format("client-%02d", m_id));
-            
-            final InputStreamReader reader = new InputStreamReader(System.in);
-            final BufferedReader in = new BufferedReader(reader);
 
             Command command = null;
             
@@ -330,10 +336,12 @@ public abstract class BenchmarkComponent {
                 LOG.error(m_controlState.display + " " + m_reason);
             }
 
+            final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
             while (true) {
                 try {
                     command = Command.get(in.readLine());
-                    if (debug.get()) LOG.debug(String.format("Recieved Message: '%s'", command));
+                    if (debug.get()) 
+                        LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
@@ -636,7 +644,7 @@ public abstract class BenchmarkComponent {
             HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
-        if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true));
+        if (trace.get()) LOG.trace("HStore Conf\n" + m_hstoreConf.toString(true));
         
         int transactionRate = m_hstoreConf.client.txnrate;
         boolean blocking = m_hstoreConf.client.blocking;
@@ -739,7 +747,7 @@ public abstract class BenchmarkComponent {
                 m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
         }
-        if (debug.get()) {
+        if (trace.get()) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("BenchmarkComponent", componentParams);
             m.put("Extra Client", m_extraParams);
@@ -934,8 +942,8 @@ public abstract class BenchmarkComponent {
                 clientMain.invokeCallbackStop();
             }
             else {
-                if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
-                clientMain.start();
+                // if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
+                // clientMain.start();
             }
         }
         catch (final Throwable e) {
@@ -1193,8 +1201,14 @@ public abstract class BenchmarkComponent {
     }
 
     // update the client state and start waiting for a message.
-    private void start() {
+    public void start(InputStream in) {
+        m_controlPipe = new ControlPipe(in);
         m_controlPipe.run(); // blocking
+    }
+    
+    public ControlPipe createControlPipe(InputStream in) {
+        m_controlPipe = new ControlPipe(in);
+        return (m_controlPipe);
     }
 
     /**
