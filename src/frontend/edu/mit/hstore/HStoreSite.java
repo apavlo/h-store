@@ -1427,10 +1427,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
-        if (orig_ts.getRestartCounter() > hstore_conf.site.txn_restart_limit) {
+        int restart_limit = (orig_ts.sysproc ? hstore_conf.site.txn_restart_limit_sysproc :
+                                               hstore_conf.site.txn_restart_limit);
+        if (orig_ts.getRestartCounter() > restart_limit) {
             if (orig_ts.sysproc) {
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
-                                           orig_ts, orig_ts.getRestartCounter()));
+                                                         orig_ts, orig_ts.getRestartCounter()));
             } else {
                 this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
                 return;

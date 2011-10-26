@@ -81,10 +81,10 @@ OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 5000   
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 50
+OPT_BASE_CLIENT_COUNT = 2
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 200
 OPT_BASE_SCALE_FACTOR = 50
-OPT_BASE_PARTITIONS_PER_SITE = 4
+OPT_BASE_PARTITIONS_PER_SITE = 6
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
@@ -101,11 +101,11 @@ BASE_SETTINGS = {
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
     "client.duration":                  60000,
-    "client.warmup":                    00000,
+    "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
-    "client.memory":                    128,
+    "client.memory":                    6000,
     "client.blocking_loader":           False,
     
     "site.exec_profiling":                              False,
@@ -118,9 +118,11 @@ BASE_SETTINGS = {
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             20000,
-    "site.txn_incoming_delay":                          2,
+    "site.txn_incoming_delay":                          5,
     "site.coordinator_init_thread":                     False,
     "site.coordinator_finish_thread":                   False,
+    "site.txn_restart_limit":                           15,
+    "site.txn_restart_limit_sysproc":                   100,
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
@@ -392,7 +394,7 @@ if __name__ == '__main__':
                 # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
                 # range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 18)
                 exp_factors = [ ]
-                for f in [ 0, 5, 10, 80, 100 ]:
+                for f in [ 0, 3, 10, 80, 100 ]:
                     if f > OPT_EXP_FACTOR_STOP: break
                     if f >= OPT_EXP_FACTOR_START:
                         exp_factors.append(f)

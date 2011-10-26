@@ -68,7 +68,7 @@ public class BenchmarkResults {
         public long totalTxnCount;
         public double txnPerSecond;
         public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
-        public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
+        private final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
         
         public FinalResult(BenchmarkResults results) {
             
@@ -248,7 +248,8 @@ public class BenchmarkResults {
         // make sure all
         if (m_data.size() < m_clientCount)
             return 0;
-        assert(m_data.size() == m_clientCount) : String.format("%d != %d", m_data.size(), m_clientCount);
+        assert(m_data.size() == m_clientCount) : 
+            String.format("%d != %d", m_data.size(), m_clientCount);
 
         int min = Integer.MAX_VALUE;
         String txnName = m_transactionNames.iterator().next();

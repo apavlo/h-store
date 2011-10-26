@@ -408,7 +408,7 @@ def setup_env():
     ## WITH
     
     ## We may be running a large cluster, in which case we will have a lot of connections
-    handlesAllowed = 2048
+    handlesAllowed = 4096
     for key in [ "soft", "hard" ]:
         update_line = "* %s nofile %d" % (key, handlesAllowed)
         if not contains("/etc/security/limits.conf", update_line):
