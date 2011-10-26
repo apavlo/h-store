@@ -1132,12 +1132,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 if (txn_id < last_txn_id) {
                     // If we catch it here, then we can just block ourselves until
                     // we generate a txn_id with a greater value and then re-add ourselves
-                    LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
-                                           ts, partition, last_txn_id));
-                    if (debug.get())
+                    if (debug.get()) {
+                        LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
+                                       ts, partition, last_txn_id));
                         LOG.warn(String.format("LastTxnId:#%d / NewTxnId:#%d",
-                                               TransactionIdManager.toString(last_txn_id),
-                                               TransactionIdManager.toString(txn_id)));
+                                           TransactionIdManager.toString(last_txn_id),
+                                           TransactionIdManager.toString(txn_id)));
+                    }
                     this.txnQueueManager.queueBlockedDTXN(ts, partition, last_txn_id);
                     return;
                 }

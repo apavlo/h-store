@@ -75,6 +75,7 @@ import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
@@ -146,7 +147,8 @@ public class BenchmarkController {
     final ProcessSetManager m_sitePSM;
     
     BenchmarkResults m_currentResults = null;
-    Set<String> m_clients = new HashSet<String>();
+    final Set<String> m_clients = new HashSet<String>();
+    final Set<String> m_clientThreads = new HashSet<String>();
     ClientStatusThread m_statusThread = null;
     Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     long m_maxCompletedPoll = 0;
@@ -194,7 +196,7 @@ public class BenchmarkController {
 
         @Override
         public void run() {
-            long resultsToRead = m_pollCount * m_clients.size();
+            long resultsToRead = m_pollCount * m_clientThreads.size();
 
             while (resultsToRead > 0) {
                 ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
@@ -233,15 +235,18 @@ public class BenchmarkController {
                         continue;
                     }
     
+                    int clientId = -1;
                     long time = -1;
                     try {
-                        time = Long.parseLong(parts[0]);
+                        clientId = Integer.parseInt(parts[0]);
+                        time = Long.parseLong(parts[1]);
                     } catch (NumberFormatException ex) {
+                        LOG.warn("Failed to parse line '" + control_line + "'", ex);
                         continue; // IGNORE
                     }
-                    String status = parts[1];
+                    String status = parts[2];
                     
-                    if (trace.get()) LOG.trace(String.format("Client '%s' Status: %s", line.processName, status));
+                    if (trace.get()) LOG.trace(String.format("Client %s/%d Status: %s", line.processName, clientId, status));
     
                     if (status.equals("READY")) {
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
@@ -264,12 +269,12 @@ public class BenchmarkController {
                         // System.out.println("Got running message: " + Arrays.toString(parts));
                         HashMap<String, Long> results = new HashMap<String, Long>();
                         if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
-                        if ((parts.length % 2) != 0) {
+                        if ((parts.length % 2) != 1) {
                             m_clientPSM.killProcess(line.processName);
                             LOG.error("Invalid response from client: " + line);
                             continue;
                         }
-                        for (int i = 2; i < parts.length; i += 2) {
+                        for (int i = 3; i < parts.length; i += 2) {
                             String txnName = parts[i];
                             long txnCount = Long.valueOf(parts[i+1]);
                             results.put(txnName, txnCount);
@@ -277,9 +282,9 @@ public class BenchmarkController {
                         resultsToRead--;
                         try {
                             if (debug.get()) LOG.debug("UPDATE: " + line);
-                            setPollResponseInfo(line.processName, time, results, null);
+                            setPollResponseInfo(getClientName(line.processName, clientId), time, results, null);
                         } catch (Throwable ex) {
-                            LOG.error("Invalid response: " + line.toString());
+                            LOG.error("Invalid response: " + line.toString(), ex);
                             throw new RuntimeException(ex);
                         }
                     }
@@ -706,7 +711,11 @@ public class BenchmarkController {
         allClientArgs.add("-cp");
         allClientArgs.add("\"" + classpath + "\"");
 
+        // The first parameter must be the BenchmarkComponentSet class name
+        // Follow by the Client class name.
+        allClientArgs.add(BenchmarkComponentSet.class.getCanonicalName());
         allClientArgs.add(m_clientClass.getCanonicalName());
+        
         for (Entry<String,String> userParam : m_config.clientParameters.entrySet()) {
             allClientArgs.add(userParam.getKey() + "=" + userParam.getValue());
         }
@@ -724,14 +733,17 @@ public class BenchmarkController {
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         for (final String clientHost : m_config.clients) {
+            m_clients.add(clientHost);
             runnables.add(new Runnable() {
                 @Override
                 public void run() {
+                    List<String> curClientArgs = new ArrayList<String>(allClientArgs);
+                    List<String> clientIds = new ArrayList<String>();
                     
                     for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
                         int clientId = clientIndex.getAndIncrement();
-                        String host_id = String.format("client-%02d-%s", clientId, clientHost);
-                        List<String> curClientArgs = new ArrayList<String>(allClientArgs);
+                        m_clientThreads.add(getClientName(clientHost, clientId));
+//                        String host_id = String.format("client-%02d-%s", clientId, clientHost);
                         
                         if (m_config.listenForDebugger) {
                             String arg = "-agentlib:jdwp=transport=dt_socket,address="
@@ -741,75 +753,86 @@ public class BenchmarkController {
                         
                         // Check whether we need to send files to this client
                         if (m_clientFileUploader.hasFilesToSend(clientId)) {
-                            for (Entry<String, Pair<File, File>> e : m_clientFileUploader.getFilesToSend(clientId).entrySet()) {
-                                String param = e.getKey();
-                                File local_file = e.getValue().getFirst();
-                                File remote_file = e.getValue().getSecond();
-                                if (local_file.exists() == false) {
-                                    LOG.warn(String.format("Not sending %s file to client %d. The local file '%s' does not exist", param, clientId, local_file));
-                                    continue;
-                                }
-                                boolean skip = false;
-                                synchronized (sent_files) {
-                                    Map<File, File> files = sent_files.get(clientHost);
-                                    if (files == null) {
-                                        files = new HashMap<File, File>();
-                                        sent_files.put(clientHost, files);
-                                    }
-                                    // Check whether we have already written to this remote file on the client host
-                                    // If we have, then we need to check whether it's the same local file.
-                                    // If it is, then we're ok. If it's not, well then that's a paddlin'...
-                                    File previous = files.get(remote_file);
-                                    if (previous != null) {
-                                        if (previous.equals(local_file)) {
-                                            skip = true;
-                                        } else {
-                                            throw new RuntimeException(String.format("Trying to write two different local files ['%s', '%s'] to the same remote file '%s' on client host '%s'",
-                                                                                     local_file, previous, remote_file, clientHost));
-                                        }
-                                    }
-                                } // SYNCH
-                                
-                                if (skip) {
-                                    if (debug.get()) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
-                                } else {
-                                    if (debug.get()) LOG.info(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
-                                		                                 param, local_file, remote_file, clientHost, clientId)); 
-                                    SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
-                                }
-                                LOG.info(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
-                                curClientArgs.add(param + "=" + remote_file.getPath());
-                            } // FOR
+                            Collection<String> uploadArgs = processClientFileUploads(clientHost, clientId, sent_files);
+                            if (uploadArgs.isEmpty() == false) curClientArgs.addAll(uploadArgs);
                         }
                         
-                        curClientArgs.add("ID=" + clientId);
-                        curClientArgs.add("NUMCLIENTS=" + numClients);
-                        if (j > hstore_conf.client.delay_threshold) {
-                            long wait = 500 * (j - hstore_conf.client.delay_threshold);
-                            curClientArgs.add("WAIT=" + wait);
-                            if (debug.get()) LOG.debug("Start-up Wait Time for " + host_id + ": " + wait);
-                        }
+                        
+//                        curClientArgs.add("NUMCLIENTS=" + numClients);
+//                        if (j > hstore_conf.client.delay_threshold) {
+//                            long wait = 500 * (j - hstore_conf.client.delay_threshold);
+//                            curClientArgs.add("WAIT=" + wait);
+//                            if (debug.get()) LOG.debug("Start-up Wait Time for " + host_id + ": " + wait);
+//                        }
         
-                        String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
-                        String fullCommand = StringUtil.join(" ", args);
-        
-                        resultsUploader.setCommandLineForClient(host_id, fullCommand);
-                        if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
-                        m_clientPSM.startProcess(host_id, args);
+                        clientIds.add(Integer.toString(clientId));
                     } // FOR
+                    
+                    curClientArgs.add("ID=" + StringUtil.join(",", clientIds));
+                    
+                    String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
+                    String fullCommand = StringUtil.join(" ", args);
+    
+                    String host_id = clientHost;
+                    resultsUploader.setCommandLineForClient(host_id, fullCommand);
+                    if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
+                    m_clientPSM.startProcess(host_id, args);
                 }
             });
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
-
-        String[] clientNames = m_clientPSM.getProcessNames();
-        for (String name : clientNames) {
-            m_clients.add(name);
-        }
-        m_clientsNotReady.set(m_clientPSM.size());
+        m_clientsNotReady.set(m_clientThreads.size());
 
         ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter() : new ResultsPrinter());
         registerInterest(rp);
+    }
+    
+    private String getClientName(String host, int id) {
+        return String.format("%s-%02d", host, id);
+    }
+    
+    protected List<String> processClientFileUploads(String clientHost, int clientId, Map<String, Map<File, File>> sent_files) {
+        List<String> newArgs = new ArrayList<String>();
+        for (Entry<String, Pair<File, File>> e : m_clientFileUploader.getFilesToSend(clientId).entrySet()) {
+            String param = e.getKey();
+            File local_file = e.getValue().getFirst();
+            File remote_file = e.getValue().getSecond();
+            if (local_file.exists() == false) {
+                LOG.warn(String.format("Not sending %s file to client %d. The local file '%s' does not exist", param, clientId, local_file));
+                continue;
+            }
+            boolean skip = false;
+            synchronized (sent_files) {
+                Map<File, File> files = sent_files.get(clientHost);
+                if (files == null) {
+                    files = new HashMap<File, File>();
+                    sent_files.put(clientHost, files);
+                }
+                // Check whether we have already written to this remote file on the client host
+                // If we have, then we need to check whether it's the same local file.
+                // If it is, then we're ok. If it's not, well then that's a paddlin'...
+                File previous = files.get(remote_file);
+                if (previous != null) {
+                    if (previous.equals(local_file)) {
+                        skip = true;
+                    } else {
+                        throw new RuntimeException(String.format("Trying to write two different local files ['%s', '%s'] to the same remote file '%s' on client host '%s'",
+                                                                 local_file, previous, remote_file, clientHost));
+                    }
+                }
+            } // SYNCH
+            
+            if (skip) {
+                if (debug.get()) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
+            } else {
+                if (debug.get()) LOG.info(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
+                                                     param, local_file, remote_file, clientHost, clientId)); 
+                SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+            }
+            LOG.info(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
+            newArgs.add(param + "=" + remote_file.getPath());
+        } // FOR
+        return (newArgs);
     }
 
     protected Client getClientConnection() {
@@ -833,7 +856,7 @@ public class BenchmarkController {
     /**
      * RUN BENCHMARK
      */
-    public void runBenchmark() {
+    public void runBenchmark() throws Exception {
         if (this.stop) return;
         LOG.info(StringUtil.header("BENCHMARK EXECUTE :: " + this.getProjectName()));
         LOG.info(String.format("Starting %s execution with %d clients [hosts=%d, perhost=%d, txnrate=%s, blocking=%s%s]",
@@ -854,7 +877,9 @@ public class BenchmarkController {
             ThreadUtil.sleep(gdb_sleep*1000);
         }
         
-        m_currentResults = new BenchmarkResults(hstore_conf.client.interval, hstore_conf.client.duration, m_clients.size());
+        m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
+                                                hstore_conf.client.duration,
+                                                m_clientThreads.size());
         m_statusThread = new ClientStatusThread();
         m_statusThread.setDaemon(true);
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
@@ -865,8 +890,10 @@ public class BenchmarkController {
         Client local_client = null;
 
         // spin on whether all clients are ready
-        while (m_clientsNotReady.get() > 0 && this.stop == false)
-            Thread.yield();
+        while (m_clientsNotReady.get() > 0 && this.stop == false) {
+            if (debug.get()) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
+            Thread.sleep(500);
+        } // WHILE
         if (this.stop) return;
 
         // start up all the clients
