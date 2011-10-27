@@ -4,9 +4,12 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Queue;
 
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProfileMeasurement;
+import edu.mit.hstore.dtxn.AbstractTransaction;
 
-public class ThrottlingQueue<E> implements Queue<E> {
+public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> implements Queue<E> {
 
     private final Queue<E> queue;
     
@@ -16,6 +19,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
     private double queue_release_factor;
     private final int queue_increase;
     private final ProfileMeasurement throttle_time;
+    private boolean allow_increase = false;
          
 //    public static class ThrottleException extends RuntimeException {
 //        private static final long serialVersionUID = 1L;
@@ -67,7 +71,7 @@ public class ThrottlingQueue<E> implements Queue<E> {
      * We don't need to worry if this is 100% accurate, so we won't block here
      */
     public void checkThrottling() {
-        this.checkThrottling(true);
+        this.checkThrottling(this.allow_increase);
     }
     
     public void checkThrottling(boolean increase) {
@@ -193,6 +197,8 @@ public class ThrottlingQueue<E> implements Queue<E> {
                              this.queue_max, this.queue_release, this.queue_increase);
     }
 
-    
-    
+    @Override
+    public void update(EventObservable<AbstractTransaction> o, AbstractTransaction arg) {
+        this.allow_increase = true;
+    }
 }

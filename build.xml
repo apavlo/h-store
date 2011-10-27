@@ -1777,6 +1777,8 @@ DESIGNER
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog=${catalog}" />
+        <arg value="partitionplan=${partitionplan}" />
+        <arg value="partitionplan.apply=true" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>

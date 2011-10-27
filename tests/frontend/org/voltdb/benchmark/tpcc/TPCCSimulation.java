@@ -387,8 +387,8 @@ public class TPCCSimulation {
             quantity[i] = generator.number(1, Constants.MAX_OL_QUANTITY);
         }
         // Whether to force this transaction to be multi-partitioned
-        if (remote_warehouses == 0) {
-            if (config.neworder_all_multip || (generator.number(1, 100) <= config.neworder_multip_mix)) {
+        if (remote_warehouses == 0 && config.neworder_multip) {
+            if (config.neworder_multip_mix > 0 && (generator.number(1, 100) <= config.neworder_multip_mix)) {
                 if (trace.get()) LOG.trace("Forcing Multi-Partition NewOrder Transaction");
                 // Flip a random one
                 int idx = generator.number(0, ol_cnt-1);

@@ -38,7 +38,8 @@ public abstract class BuildDirectoryUtils {
         if (System.getenv("TEST_DIR") != null) {
             path = System.getenv("TEST_DIR") + File.separator + rootPath + dir;
         } else {
-            if (rootPath == null) {
+            String temp_rootPath = "/tmp/";
+            if (rootPath == null && HStoreConf.isInitialized()) {
                 synchronized (BuildDirectoryUtils.class) {
                     if (rootPath == null) {
                         rootPath = HStoreConf.singleton().global.temp_dir +
@@ -47,7 +48,9 @@ public abstract class BuildDirectoryUtils {
                     }
                 } // SYNCH
             }
-            path = rootPath + dir;
+            if (rootPath != null) temp_rootPath = rootPath;
+            assert(temp_rootPath != null);
+            path = temp_rootPath + dir;
         }
         File d = new File(path);
         d.mkdirs();

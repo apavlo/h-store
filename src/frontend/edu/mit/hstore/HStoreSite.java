@@ -90,9 +90,11 @@ import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
+import edu.mit.hstore.estimators.AbstractEstimator;
+import edu.mit.hstore.estimators.TM1Estimator;
+import edu.mit.hstore.estimators.TPCCEstimator;
 import edu.mit.hstore.interfaces.Loggable;
 import edu.mit.hstore.interfaces.Shutdownable;
-import edu.mit.hstore.util.NewOrderInspector;
 import edu.mit.hstore.util.TransactionQueueManager;
 import edu.mit.hstore.util.TxnCounter;
 
@@ -261,9 +263,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final ConcurrentHashMap<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
     
     /**
-     * TPC-C NewOrder Cheater
+     * Fixed Markov Estimator
      */
-    private final NewOrderInspector tpcc_inspector;
+    private final AbstractEstimator fixed_estimator;
     
     /**
      * Status Monitor
@@ -365,11 +367,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
         if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
         
-        // NewOrder Hack
+        // HACK
         if (hstore_conf.site.exec_neworder_cheat) {
-            this.tpcc_inspector = new NewOrderInspector(this);
+            if (catalog_db.getProcedures().containsKey("neworder")) {
+                this.fixed_estimator = new TPCCEstimator(this);
+            } else if (catalog_db.getProcedures().containsKey("UpdateLocation")) {
+                this.fixed_estimator = new TM1Estimator(this);
+            } else {
+                this.fixed_estimator = null;
+            }
         } else {
-            this.tpcc_inspector = null;
+            this.fixed_estimator = null;
         }
     }
     
@@ -438,6 +446,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
+    }
+    public Map<Procedure, ParameterMangler> getParameterManglers() {
+        return (this.param_manglers);
     }
     public ParameterMangler getParameterMangler(String proc_name) {
         Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
@@ -957,9 +968,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
-        } else if (hstore_conf.site.exec_neworder_cheat && catalog_proc.getName().equalsIgnoreCase("neworder")) {
-            if (t) LOG.trace(String.format("Using neworder argument hack for VLDB paper [clientHandle=%d]", request.getClientHandle()));
-            predict_touchedPartitions = this.tpcc_inspector.initializeTransaction(args);
+        } else if (hstore_conf.site.exec_neworder_cheat) {
+            if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", request.getClientHandle()));
+            if (this.fixed_estimator != null)
+                predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, args);
+            if (predict_touchedPartitions == null)
+                predict_touchedPartitions = this.single_partition_sets[base_partition];
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
@@ -1711,8 +1725,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinatorPort
      * @throws Exception
      */
-    public static void launch(final HStoreSite hstore_site,
-                              final String hstore_conf_path, final String dtxnengine_path, final String dtxncoordinator_path,
+    public static void launch(final HStoreSite hstore_site, final String hstore_conf_path, 
                               final String coordinatorHost, final int coordinatorPort) throws Exception {
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Site catalog_site = hstore_site.getSite();
@@ -1908,10 +1921,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Bombs Away!
         // ----------------------------------------------------------------------------
         LOG.info("Instantiating HStoreSite network connections...");
-        HStoreSite.launch(site,
-                args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
-                args.getParam(ArgumentsParser.PARAM_DTXN_ENGINE),
-                args.getParam(ArgumentsParser.PARAM_DTXN_COORDINATOR),
-                coordinatorHost, coordinatorPort);
+        HStoreSite.launch(site, args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
+                          coordinatorHost, coordinatorPort);
     }
 }

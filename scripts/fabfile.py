@@ -580,7 +580,6 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
-        "coordinator.host":             env["ec2.running_instances"][0].private_dns_name,
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
         "client.processesperclient":    env["client.processesperclient"],
@@ -633,7 +632,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 @task
 def write_conf(project, removals=[ ]):
     assert project
-    prefix_include = [ 'site', 'coordinator', 'client', 'global', 'benchmark' ]
+    prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
     hstoreConf_updates = { }

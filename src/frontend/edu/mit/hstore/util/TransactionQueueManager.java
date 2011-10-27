@@ -96,6 +96,7 @@ public class TransactionQueueManager implements Runnable {
             if (this.localPartitions.contains(partition)) {
                 txn_queues[partition] = new TransactionInitPriorityQueue(hstore_site, partition, this.wait_time);
                 working_partitions[partition] = false;
+                hstore_site.getStartWorkloadObservable().addObserver(txn_queues[partition]);
             }
         } // FOR
         
