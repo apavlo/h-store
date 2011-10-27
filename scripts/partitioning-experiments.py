@@ -81,7 +81,7 @@ OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 5000   
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 2
+OPT_BASE_CLIENT_COUNT = 4
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 200
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 6
@@ -106,7 +106,7 @@ BASE_SETTINGS = {
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
-    "client.blocking_loader":           False,
+    "client.blocking_loader":           True,
     
     "site.exec_profiling":                              False,
     "site.txn_profiling":                               False,
