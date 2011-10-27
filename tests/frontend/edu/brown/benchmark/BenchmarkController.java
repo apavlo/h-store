@@ -108,8 +108,8 @@ import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
     private static final Logger LOG = Logger.getLogger(BenchmarkController.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.setupLogging();
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -1412,7 +1412,7 @@ public class BenchmarkController {
                 
             } else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
                 partitionPlanPath = parts[1];
-                clientParams.put(parts[0].toUpperCase(), parts[1]);
+                clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_APPLY, "true");
                 

@@ -1,36 +1,25 @@
-package edu.mit.hstore.util;
+package edu.mit.hstore.estimators;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.voltdb.catalog.Procedure;
 
-import edu.brown.hashing.AbstractHasher;
 import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
 
-public class NewOrderInspector {
-    private static final Logger LOG = Logger.getLogger(NewOrderInspector.class);
-    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+public class TPCCEstimator extends AbstractEstimator {
+    private static final Logger LOG = Logger.getLogger(TPCCEstimator.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
-    private final HStoreSite hstore_site;
-    private final AbstractHasher hasher;
-    private final ParameterMangler mangler;
-    
-    /**
-     * PartitionId -> PartitionId Singleton Sets
-     */
-    private final Map<Integer, Collection<Integer>> singlePartitionSets = new HashMap<Integer, Collection<Integer>>();
     
     /**
      * W_ID Short -> PartitionId
@@ -41,15 +30,8 @@ public class NewOrderInspector {
      * Constructor
      * @param hstore_site
      */
-    public NewOrderInspector(HStoreSite hstore_site) {
-        this.hstore_site = hstore_site;
-        this.hasher = hstore_site.getHasher();
-        this.mangler = hstore_site.getParameterMangler("neworder");
-        assert(this.mangler != null);
-        
-        for (Integer p : this.hstore_site.getLocalPartitionIds()) {
-            this.singlePartitionSets.put(p, Collections.singleton(p));
-        } // FOR
+    public TPCCEstimator(HStoreSite hstore_site) {
+        super(hstore_site);
     }
     
     private Integer getPartition(Short w_id) {
@@ -62,18 +44,28 @@ public class NewOrderInspector {
         return (partition);
     }
     
-    /**
-     * 
-     * @param ts
-     * @param args
-     * @return
-     */
-    public Collection<Integer> initializeTransaction(Object args[]) {
-        Object mangled[] = this.mangler.convert(args);
+    @Override
+    protected Collection<Integer> initializeTransactionImpl(Procedure catalog_proc, Object args[], Object mangled[]) {
+        String procName = catalog_proc.getName();
+        Collection<Integer> ret = null;
         
-        if (debug.get())
-            LOG.debug("Checking NewOrder input parameters:\n" + this.mangler.toString(mangled));
-        
+        if (procName.equalsIgnoreCase("neworder")) {
+            ret = this.newOrder(args, mangled);
+        } else if (procName.startsWith("payment")) {
+            Integer hash_w_id = this.getPartition((Short)mangled[0]);
+            Integer hash_c_w_id = this.getPartition((Short)mangled[3]);
+            if (hash_w_id.equals(hash_c_w_id)) {
+                ret = this.singlePartitionSets.get(hash_w_id);
+            } else {
+                ret = new HashSet<Integer>();
+                ret.add(hash_w_id);
+                ret.add(hash_c_w_id);
+            }
+        }
+        return (ret);
+    }
+    
+    private Collection<Integer> newOrder(Object args[], Object mangled[]) {
         final Short w_id = (Short)mangled[0];
         assert(w_id != null);
         short s_w_ids[] = (short[])args[5];
@@ -86,13 +78,12 @@ public class NewOrderInspector {
                 if (touchedPartitions.size() == 1) {
                     touchedPartitions = new HashSet<Integer>(touchedPartitions);
                 }
-                
                 touchedPartitions.add(this.getPartition(s_w_id));
             }
         } // FOR
         if (debug.get())
             LOG.debug(String.format("NewOrder - Partitions=%s, W_ID=%d, S_W_IDS=%s",
                                     touchedPartitions, w_id, Arrays.toString(s_w_ids)));
-        return (touchedPartitions);
+        return (touchedPartitions);        
     }
 }

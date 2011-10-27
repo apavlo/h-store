@@ -79,10 +79,10 @@ OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
-OPT_BASE_TXNRATE_PER_PARTITION = 5000   
+OPT_BASE_TXNRATE_PER_PARTITION = 10000   
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 200
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 400
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 6
 
@@ -100,8 +100,8 @@ BASE_SETTINGS = {
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
-    "client.duration":                  60000,
-    "client.warmup":                    60000,
+    "client.duration":                  30000,
+    "client.warmup":                    20000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
@@ -118,10 +118,10 @@ BASE_SETTINGS = {
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             20000,
-    "site.txn_incoming_delay":                          5,
+    "site.txn_incoming_delay":                          1,
     "site.coordinator_init_thread":                     False,
     "site.coordinator_finish_thread":                   False,
-    "site.txn_restart_limit":                           15,
+    "site.txn_restart_limit":                           5,
     "site.txn_restart_limit_sysproc":                   100,
     
     "site.sites_per_host":                              1,
@@ -146,7 +146,6 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
             "site.exec_neworder_cheat":          True,
-            "site.exec_neworder_cheat_done_partitions": True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
         {
@@ -163,7 +162,6 @@ EXPERIMENT_SETTINGS = {
             
             "benchmark.neworder_only":          True,
             "benchmark.neworder_abort":         False,
-            "benchmark.neworder_all_multip":    False,
             "benchmark.neworder_multip":        False,
         },
     ],
@@ -171,7 +169,7 @@ EXPERIMENT_SETTINGS = {
         {
             "benchmark.neworder_only":          False,
             "benchmark.neworder_abort":         True,
-            "benchmark.neworder_all_multip":    False,
+            "site.exec_neworder_cheat":         True
         }
         
     ],
@@ -192,7 +190,6 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     if exp_type == "motivation":
         env["benchmark.neworder_only"] = True
         env["benchmark.neworder_abort"] = False
-        env["benchmark.neworder_all_multip"] = False
 
         if exp_setting == 0:
             env["benchmark.neworder_multip_mix"] = exp_factor
@@ -221,15 +218,19 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## THROUGHPUT
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
-        # env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["benchmark.neworder_multip_mix"] = -1
+        env["benchmark.neworder_multip"] = True
         
-        base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
-        env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
+        #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
+        #env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
         
         ## Everything but LNS has to use the DB2 redirects
         if exp_factor != "lns":
+            env["site.exec_neworder_cheat"] = False
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
+            env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         ## IF
     ## IF
 
@@ -249,10 +250,6 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
     env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
 
-    if env["site.partitions"] > 16:
-        env["coordinator.delay"] = 10000
-    else:
-        env["coordinator.delay"] = 0
 ## DEF
 
 ## ==============================================
@@ -323,7 +320,7 @@ if __name__ == '__main__':
     ## Global Options
     for key in options:
         varname = "OPT_" + key.replace("-", "_").upper()
-        if varname in globals() and len(options[key]) == 1:
+        if varname in globals():
             orig_type = type(globals()[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
@@ -331,7 +328,7 @@ if __name__ == '__main__':
                 if not varname+"_changed" in globals(): ## HACK
                     globals()[varname] = [ ]
                     globals()[varname+"_changed"] = True
-                val = globals()[varname] + [ options[key][0] ] # HACK    
+                val = globals()[varname] + options[key] # HACK    
             else: 
                 val = orig_type(options[key][0])
             globals()[varname] = val

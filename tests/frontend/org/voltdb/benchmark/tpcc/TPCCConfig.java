@@ -18,7 +18,6 @@ public final class TPCCConfig {
     public boolean neworder_only = false;
     public boolean neworder_abort = false;
     public boolean neworder_multip = false;
-    public boolean neworder_all_multip = false;
     public boolean neworder_skew_warehouse = false;
 
     /** If set to true, then we will use temporal skew for generating warehouse ids */
@@ -65,17 +64,13 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("neworder_multip") && !val.isEmpty()) {
                 neworder_multip = Boolean.parseBoolean(val);
             }
-            // ALL NEWORDERS ARE DTXNS
-            else if (key.equalsIgnoreCase("neworder_all_multip") && !val.isEmpty()) {
-                neworder_all_multip = Boolean.parseBoolean(val);
+            // % OF MULTI-PARTITION NEWORDERS
+            else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
+                neworder_multip_mix = Integer.parseInt(val);
             }
             // SKEW NEWORDERS W_IDS
             else if (key.equalsIgnoreCase("neworder_skew_warehouse") && !val.isEmpty()) {
                 neworder_skew_warehouse = Boolean.parseBoolean(val);
-            }
-            // % OF MULTI-PARTITION NEWORDERS
-            else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
-                neworder_multip_mix = Integer.parseInt(val);
             }
             // TEMPORAL SKEW
             else if (key.equalsIgnoreCase("temporal_skew") && !val.isEmpty()) {

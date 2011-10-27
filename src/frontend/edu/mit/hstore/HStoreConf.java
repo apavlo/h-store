@@ -195,15 +195,6 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean exec_force_localexecution;
-        
-        @ConfigProperty(
-            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
-                        "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
-                        "system when used with other benchmarks. See edu.mit.hstore.util.NewOrderInspector",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean exec_neworder_cheat;
     
         @ConfigProperty(
             description="Whether the VoltProcedure should crash the HStoreSite when a transaction is mispredicted. A " +
@@ -385,6 +376,15 @@ public final class HStoreConf {
             experimental=true
         )
         public int markov_batch_caching_min;
+        
+        @ConfigProperty(
+            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
+                        "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
+                        "system when used with other benchmarks. See edu.mit.hstore.util.NewOrderInspector",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_neworder_cheat;
 
         // ----------------------------------------------------------------------------
         // BatchPlanner

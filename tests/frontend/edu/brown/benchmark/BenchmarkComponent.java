@@ -92,6 +92,7 @@ import edu.brown.hstore.Hstore;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
@@ -154,6 +155,7 @@ public abstract class BenchmarkComponent {
 
     private static Client globalClient;
     private static Catalog globalCatalog;
+    private static PartitionPlan globalPartitionPlan;
     
     public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
         if (globalClient == null) {
@@ -174,6 +176,20 @@ public abstract class BenchmarkComponent {
             globalCatalog =  CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
         }
         return (globalCatalog);
+    }
+    
+    public static synchronized void applyPartitionPlan(Database catalog_db, String partitionPlanPath) {
+        if (globalPartitionPlan == null) {
+            LOG.info("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
+            globalPartitionPlan = new PartitionPlan();
+            try {
+                globalPartitionPlan.load(partitionPlanPath, catalog_db);
+                globalPartitionPlan.apply(catalog_db);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
+            }
+        }
+        return;
     }
     
     /**
@@ -760,7 +776,7 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("WAIT")) {
                 startupWait = Long.parseLong(parts[1]);
             }
-            else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
                 assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
             }
@@ -825,26 +841,13 @@ public abstract class BenchmarkComponent {
             }
         }
         
+        // HACK: This will instantiate m_catalog for us...
         if (m_catalogPath != null) {
-            try {
-                // HACK: This will instantiate m_catalog for us...
-                this.getCatalog();
-            } catch (Exception ex) {
-                LOG.fatal("Failed to load catalog", ex);
-                System.exit(1);
-            }
+            this.getCatalog();
         }
         
         if (partitionPlanPath != null) {
-            LOG.info("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
-            Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
-            PartitionPlan pplan = new PartitionPlan();
-            try {
-                pplan.load(partitionPlanPath, catalog_db);
-                pplan.apply(catalog_db);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
-            }
+            this.applyPartitionPlan(partitionPlanPath);
         }
 
         Client new_client = BenchmarkComponent.getClient(
@@ -1296,6 +1299,10 @@ public abstract class BenchmarkComponent {
     }
     public void setCatalog(Catalog catalog) {
         m_catalog = catalog;
+    }
+    public void applyPartitionPlan(String partitionPlanPath) {
+        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        BenchmarkComponent.applyPartitionPlan(catalog_db, partitionPlanPath);
     }
 
     /**
