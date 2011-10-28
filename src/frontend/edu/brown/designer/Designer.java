@@ -24,6 +24,7 @@ import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.IGraph;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.workload.Workload;
+import edu.mit.hstore.HStoreConf;
 
 public class Designer {
     private static final Logger LOG = Logger.getLogger(Designer.class.getName());
@@ -254,6 +255,7 @@ public class Designer {
             ArgumentsParser.PARAM_STATS,
             ArgumentsParser.PARAM_MAPPINGS
         );
+        HStoreConf.initArgumentsParser(args);
         
         if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
             ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));

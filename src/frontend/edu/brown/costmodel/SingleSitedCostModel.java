@@ -35,6 +35,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
@@ -1217,21 +1218,28 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        costmodel.setEntropyWeight(4.0);
 //        costmodel.setJavaExecutionWeightEnabled(true);
 //        costmodel.setJavaExecutionWeight(100);
-
+        
+        // XXX: 2011-10-28
+        costmodel.setCachingEnabled(true);
         Histogram<String> hist = new Histogram<String>();
-        for (AbstractTraceElement<? extends CatalogType> element : args.workload) {
-            if (element instanceof TransactionTrace) {
-                total++;
-                TransactionTrace xact = (TransactionTrace) element;
-                boolean is_singlesited = costmodel.processTransaction(args.catalog_db, xact, null).singlesited;
-                if (is_singlesited) {
-                    singlepartition++;
-                    hist.put(xact.getCatalogItemName());
-                } else {
-                    multipartition++;
-                    if (!hist.contains(xact.getCatalogItemName())) hist.put(xact.getCatalogItemName(), 0);
+        for (int i = 0; i < 2; i++) {
+            ProfileMeasurement time = new ProfileMeasurement("costmodel").start();
+            hist.clear();
+            for (AbstractTraceElement<? extends CatalogType> element : args.workload) {
+                if (element instanceof TransactionTrace) {
+                    total++;
+                    TransactionTrace xact = (TransactionTrace) element;
+                    boolean is_singlesited = costmodel.processTransaction(args.catalog_db, xact, null).singlesited;
+                    if (is_singlesited) {
+                        singlepartition++;
+                        hist.put(xact.getCatalogItemName());
+                    } else {
+                        multipartition++;
+                        if (!hist.contains(xact.getCatalogItemName())) hist.put(xact.getCatalogItemName(), 0);
+                    }
                 }
-            }
+            } // FOR
+            System.err.println("ESTIMATE TIME: " + time.stop().getTotalThinkTimeSeconds());
         } // FOR
 //        long total_partitions_touched_txns = costmodel.getTxnPartitionAccessHistogram().getSampleCount();
 //        long total_partitions_touched_queries = costmodel.getQueryPartitionAccessHistogram().getSampleCount();
