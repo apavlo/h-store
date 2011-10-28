@@ -1490,6 +1490,10 @@ public final class HStoreConf {
         return HStoreConf.init(f, null);
     }
     
+    public static HStoreConf initArgumentsParser(ArgumentsParser args) {
+        return HStoreConf.initArgumentsParser(args, null);
+    }
+    
     public synchronized static HStoreConf initArgumentsParser(ArgumentsParser args, Site catalog_site) {
         if (conf != null) throw new RuntimeException("Trying to initialize HStoreConf more than once");
         conf = new HStoreConf(args, catalog_site);
