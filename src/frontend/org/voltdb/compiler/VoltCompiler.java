@@ -81,6 +81,7 @@ import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.RecomputeMarkovs;
 import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.types.IndexType;
@@ -1181,6 +1182,8 @@ public class VoltCompiler {
         {DatabaseDump.class.getCanonicalName(),                 "true",    "false"},
         {RecomputeMarkovs.class.getCanonicalName(),             "true",    "true"},
         {Shutdown.class.getCanonicalName(),                     "false",   "false"},
+        {NoOp.class.getCanonicalName(),                         "true",    "false"},
+        
 //         {"org.voltdb.sysprocs.AdHoc",                        "false",    "false"},
 //         {"org.voltdb.sysprocs.Quiesce",                      "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotSave",                 "false",    "false"},

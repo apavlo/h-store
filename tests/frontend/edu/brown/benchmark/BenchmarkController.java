@@ -75,7 +75,6 @@ import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Site;
@@ -85,6 +84,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.processtools.ProcessSetManager;
 import org.voltdb.processtools.SSHTools;
+import org.voltdb.sysprocs.NoOp;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
@@ -732,6 +732,7 @@ public class BenchmarkController {
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
+        final Client local_client = (m_clientFileUploader.hasFilesToSend() ? getClientConnection(): null);
         for (final String clientHost : m_config.clients) {
             m_clients.add(clientHost);
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
@@ -757,6 +758,14 @@ public class BenchmarkController {
                         if (m_clientFileUploader.hasFilesToSend(clientId)) {
                             Collection<String> uploadArgs = processClientFileUploads(clientHost, clientId, sent_files);
                             if (uploadArgs.isEmpty() == false) curClientArgs.addAll(uploadArgs);
+                            
+                            if (local_client != null && i % 3 == 0) {
+                                try {
+                                    local_client.callProcedure(NoOp.getNoOpCallback(), "@NoOp"); 
+                                } catch (Exception ex) {
+                                    throw new RuntimeException(ex);
+                                }        
+                            }
                         }
                     } // FOR
                     
@@ -786,8 +795,9 @@ public class BenchmarkController {
         return String.format("%s-%02d", host, id);
     }
     
-    protected List<String> processClientFileUploads(String clientHost, int clientId, Map<String, Map<File, File>> sent_files) {
+    private List<String> processClientFileUploads(String clientHost, int clientId, Map<String, Map<File, File>> sent_files) {
         List<String> newArgs = new ArrayList<String>();
+        Map<File, File> files = null;
         for (Entry<String, Pair<File, File>> e : m_clientFileUploader.getFilesToSend(clientId).entrySet()) {
             String param = e.getKey();
             File local_file = e.getValue().getFirst();
@@ -798,7 +808,7 @@ public class BenchmarkController {
             }
             boolean skip = false;
             synchronized (sent_files) {
-                Map<File, File> files = sent_files.get(clientHost);
+                files = sent_files.get(clientHost);
                 if (files == null) {
                     files = new HashMap<File, File>();
                     sent_files.put(clientHost, files);
@@ -820,11 +830,12 @@ public class BenchmarkController {
             if (skip) {
                 if (debug.get()) LOG.warn(String.format("Skipping duplicate file '%s' on client host '%s'", local_file, clientHost));
             } else {
-                if (debug.get()) LOG.info(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
+                if (debug.get()) LOG.debug(String.format("Copying %s file '%s' to '%s' on client %s [clientId=%d]",
                                                      param, local_file, remote_file, clientHost, clientId)); 
                 SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
+                files.put(remote_file, local_file);
             }
-            LOG.info(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
+            if (debug.get()) LOG.debug(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
             newArgs.add(param + "=" + remote_file.getPath());
         } // FOR
         return (newArgs);

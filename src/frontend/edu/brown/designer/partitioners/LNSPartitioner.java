@@ -494,7 +494,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             LOG.debug("Initial Solution:\n" + this.initial_solution);
         }
         if (hints.shouldLogSolutionCosts()) {
-            hints.logSolutionCost(this.initial_cost);
+            double singlep_txns = this.costmodel.getSinglePartitionProcedureHistogram().getSampleCount() /
+                                  (double)this.costmodel.getProcedureHistogram().getSampleCount();
+            hints.logSolutionCost(this.initial_cost, singlep_txns);
         }
     }
     
