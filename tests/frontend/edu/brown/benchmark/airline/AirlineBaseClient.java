@@ -343,8 +343,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * Load all the histograms used in the benchmark
      */
     protected void loadHistograms() {
-        LOG.info(String.format("Loading in %d histograms from files stored in '%s'",
-                               AirlineConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
+        if (debug.get()) LOG.debug(String.format("Loading in %d histograms from files stored in '%s'",
+                                                 AirlineConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
         
         // Now load in the histograms that we will need for generating the flight data
         for (String histogramName : AirlineConstants.HISTOGRAM_DATA_FILES) {

@@ -1133,7 +1133,8 @@ public abstract class BenchmarkComponent {
      */
     public void sendFileToAllClients(String parameter, File local_file) throws IOException {
         for (int i = 0, cnt = this.getNumClients(); i < cnt; i++) {
-            this.sendFileToClient(i, parameter, local_file);
+            sendFileToClient(i, parameter, local_file, local_file);
+//            this.sendFileToClient(i, parameter, local_file);
         } // FOR
     }
     

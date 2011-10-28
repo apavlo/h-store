@@ -250,7 +250,7 @@ public class AirlineLoader extends AirlineBaseClient {
         // to all of the clients
         this.saveProfile();
 
-        LOG.info("Airline loader done.");
+        LOG.debug("Airline loader done.");
     }
     
     /**
@@ -440,9 +440,7 @@ public class AirlineLoader extends AirlineBaseClient {
             throw new RuntimeException("Failed to save benchmark profile", ex);
         }
         try {
-            for (int i = 0; i < this.getNumClients(); i++) {
-                this.sendFileToClient(i, "BENCHMARK.PROFILE", f);
-            } // FOR
+            this.sendFileToAllClients("BENCHMARK.PROFILE", f);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

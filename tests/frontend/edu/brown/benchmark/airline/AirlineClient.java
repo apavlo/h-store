@@ -191,7 +191,7 @@ public class AirlineClient extends AirlineBaseClient {
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
         
         // Load Histograms
-        LOG.info("Loading data files for histograms");
+        if (debug.get()) LOG.debug("Loading data files for histograms");
         this.loadHistograms();
     }
 
@@ -408,7 +408,7 @@ public class AirlineClient extends AirlineBaseClient {
             incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (results.length != 1) {
-                LOG.warn("Results is " + results.length);
+                if (debug.get()) LOG.warn("Results is " + results.length);
                 return;
             }
             assert (results[0].getRowCount() < 150);

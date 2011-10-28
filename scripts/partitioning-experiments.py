@@ -82,7 +82,7 @@ OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 10000   
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 400
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 200
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 6
 
@@ -100,8 +100,8 @@ BASE_SETTINGS = {
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
-    "client.duration":                  30000,
-    "client.warmup":                    20000,
+    "client.duration":                  60000,
+    "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
@@ -167,6 +167,7 @@ EXPERIMENT_SETTINGS = {
     ],
     "throughput": [
         {
+            "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_only":          False,
             "benchmark.neworder_abort":         True,
             "site.exec_neworder_cheat":         True
