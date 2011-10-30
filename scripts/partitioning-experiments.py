@@ -484,13 +484,15 @@ if __name__ == '__main__':
                     ## TRY
                     
                 ## FOR (TRIALS)
-                if results: all_results.append((exp_factor, results, attempts))
+                if results: all_results.append((benchmark, exp_factor, results, attempts))
                 stop = stop or (attempts == totalAttempts)
                 if stop: break
             ## FOR (EXP_FACTOR)
             if len(all_results) > 0: final_results[partitions] = all_results
-            if stop: break
+            # if stop: break
+            stop = False
         ## FOR (PARTITIONS)
+        stop = False
     ## FOR (BENCHMARKS)
     
     LOG.info("Disconnecting and dumping results")
@@ -500,8 +502,8 @@ if __name__ == '__main__':
         for partitions in sorted(final_results.keys()):
             all_results = final_results[partitions]
             print "%s - Partitions %d" % (OPT_EXP_TYPE.upper(), partitions)
-            for exp_factor, results, attempts in all_results:
-                print "   EXP FACTOR %s [Attempts:%d/%d]" % (exp_factor, attempts, totalAttempts)
+            for benchmark, exp_factor, results, attempts in all_results:
+                print "   %s EXP FACTOR %s [Attempts:%d/%d]" % (benchmark.upper(), exp_factor, attempts, totalAttempts)
                 for trial in range(len(results)):
                     print "      TRIAL #%d: %.4f" % (trial, results[trial])
                 ## FOR
