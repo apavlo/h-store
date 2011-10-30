@@ -1236,12 +1236,18 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 default:
                     throw new RuntimeException("Unexpectd execution mode: " + before_mode); 
             } // SWITCH
+        }
         // Anything mispredicted should be processed right away
-        } else if (status == Hstore.Status.ABORT_MISPREDICT) {
+        else if (status == Hstore.Status.ABORT_MISPREDICT) {
             return (true);
-            
+        }    
         // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        } else if (status != Hstore.Status.OK && ts.isExecReadOnly(this.partitionId)) {
+        else if (status != Hstore.Status.OK && ts.isExecReadOnly(this.partitionId)) {
+            return (true);
+        }
+        // If this txn threw a user abort, and the current outstanding dtxn is read-only
+        // then it's safe for us to rollback
+        else if (status == Hstore.Status.ABORT_USER && (this.current_dtxn != null && this.current_dtxn.isExecReadOnly(this.partitionId))) {
             return (true);
         }
         
