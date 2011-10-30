@@ -486,6 +486,9 @@ public class LocalTransaction extends AbstractTransaction {
         this.finish_callback.init(this, status);
         return (this.finish_callback);
     }
+    public TransactionFinishCallback getTransactionFinishCallback() {
+        return (this.finish_callback);
+    }
     public RpcCallback<byte[]> getClientCallback() {
         return (this.client_callback);
     }

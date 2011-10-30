@@ -58,6 +58,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.utils.Pair;
@@ -71,6 +72,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
@@ -85,6 +87,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
+import edu.mit.hstore.callbacks.TransactionCleanupCallback;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.dtxn.AbstractTransaction;
@@ -862,7 +865,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
+                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
                 FastSerializer out = new FastSerializer();
                 try {
                     out.writeObject(cresponse);
@@ -1289,6 +1292,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // for this transaction and we can just ignore this finish request. We do have to tell
         // the TransactionQueue manager that we're done though
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
+        if (ts != null && ts instanceof RemoteTransaction) {
+            TransactionCleanupCallback cleanup_callback = ((RemoteTransaction)ts).getCleanupCallback();
+            cleanup_callback.init((RemoteTransaction)ts, status, partitions);
+        }
+        
+        FinishTaskMessage ftask = null;
         for (int p : partitions) {
             if (this.local_partitions.contains(p) == false) continue;
             
@@ -1301,8 +1310,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // transactions will commit/abort immediately
             if (ts != null && ts.isPredictSinglePartition() == false && (ts.hasStarted(p) || ts.getBasePartition() == p)) {
                 if (d) LOG.debug(String.format("Calling finishTransaction for %s on partition %d", ts, p));
+                
+                if (ftask == null) ftask = ts.getFinishTaskMessage(status);
                 try {
-                    this.executors[p].finishTransaction(ts, commit);
+//                     this.executors[p].finishTransaction(ts, commit);
+                    this.executors[p].queueFinish(ts, ftask);
                 } catch (Throwable ex) {
                     LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
                                             ts, ts.hashCode(), status, partitions));
@@ -1405,6 +1417,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         String statusString = String.format("Transaction was rejected by %s [restarts=%d]", this.getSiteName(), ts.getRestartCounter());
         ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
                                                               ts.getClientHandle(),
+                                                              ts.getBasePartition(),
                                                               status,
                                                               HStoreConstants.EMPTY_RESULT,
                                                               statusString);

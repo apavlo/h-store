@@ -23,7 +23,7 @@ public class TestClientResponseImpl extends TestCase {
     
     @Override
     protected void setUp() throws Exception {
-        cr = new ClientResponseImpl(txn_id, client_handle, status, results, statusString);
+        cr = new ClientResponseImpl(txn_id, client_handle, 1, status, results, statusString);
         assertNotNull(cr);
     }
     

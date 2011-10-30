@@ -182,6 +182,18 @@ public class MockVoltClient implements Client {
             public void setServerTimestamp(int val) {
                 // TODO Auto-generated method stub
             }
+
+            @Override
+            public int getBasePartition() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
+
+            @Override
+            public void setBasePartition(int val) {
+                // TODO Auto-generated method stub
+                
+            }
         };
     }
 

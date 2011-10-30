@@ -202,8 +202,7 @@ class Distributer {
         public void createWork(long now, long handle, String name, BBContainer c, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
-                    final ClientResponse r = new ClientResponseImpl(-1,
-                            -1, Hstore.Status.ABORT_CONNECTION_LOST,
+                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_CONNECTION_LOST,
                             new VoltTable[0], "Connection to database host (" + m_hostname +
                             ") was lost before a response was received");
                     callback.clientCallback(r);
@@ -218,8 +217,7 @@ class Distributer {
         public void createWork(long now, long handle, String name, FastSerializable f, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
-                    final ClientResponse r = new ClientResponseImpl(-1,
-                            -1, Hstore.Status.ABORT_CONNECTION_LOST,
+                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_CONNECTION_LOST,
                             new VoltTable[0], "Connection to database host (" + m_hostname +
                             ") was lost before a response was received");
                     callback.clientCallback(r);
@@ -396,8 +394,7 @@ class Distributer {
 
                 //Invoke callbacks for all queued invocations with a failure response
                 final ClientResponse r =
-                    new ClientResponseImpl(-1,
-                        -1, Hstore.Status.ABORT_CONNECTION_LOST,
+                    new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_CONNECTION_LOST,
                         new VoltTable[0], "Connection to database host (" + m_hostname +
                         ") was lost before a response was received");
                 for (final CallbackValues cbv : m_callbacks.values()) {

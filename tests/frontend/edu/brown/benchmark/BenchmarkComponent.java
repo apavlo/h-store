@@ -64,12 +64,14 @@ import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -94,6 +96,8 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -250,12 +254,6 @@ public abstract class BenchmarkComponent {
     private String m_reason = "";
 
     /**
-     * Count of transactions invoked by this client. This is updated by derived
-     * classes directly
-     */
-    private final AtomicLong m_counts[];
-
-    /**
      * Display names for each transaction.
      */
     private final String m_countDisplayNames[];
@@ -311,7 +309,7 @@ public abstract class BenchmarkComponent {
     
     private final boolean m_noUploading;
     private final ReentrantLock m_loaderBlock = new ReentrantLock();
-    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
+    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, -1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
     
     /**
      * Keep track of the number of tuples loaded so that we can generate table statistics
@@ -321,6 +319,7 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableTuples = new Histogram<String>();
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
+    private final TransactionCounter m_txnStats = new TransactionCounter();
 
     /**
      * 
@@ -348,6 +347,41 @@ public abstract class BenchmarkComponent {
         }
         System.out.println(sb);
     }
+    
+    public static class TransactionCounter implements JSONSerializable {
+        
+        public Histogram<Integer> basePartitions = new Histogram<Integer>();
+        public Histogram<String> transactions = new Histogram<String>();
+
+        public void clear() {
+            this.basePartitions.clear();
+            this.transactions.clear();
+        }
+        
+        // ----------------------------------------------------------------------------
+        // SERIALIZATION METHODS
+        // ----------------------------------------------------------------------------
+        @Override
+        public void load(String input_path, Database catalog_db) throws IOException {
+            JSONUtil.load(this, catalog_db, input_path);
+        }
+        @Override
+        public void save(String output_path) throws IOException {
+            JSONUtil.save(this, output_path);
+        }
+        @Override
+        public String toJSONString() {
+            return (JSONUtil.toJSONString(this));
+        }
+        @Override
+        public void toJSON(JSONStringer stringer) throws JSONException {
+            JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, JSONUtil.getSerializableFields(this.getClass()));
+        }
+        @Override
+        public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+            JSONUtil.fieldsFromJSON(json_object, catalog_db, this, TransactionCounter.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        }
+    } // END CLASS
     
     /**
      * Implements the simple state machine for the remote controller protocol.
@@ -427,9 +461,7 @@ public abstract class BenchmarkComponent {
                         break;
                     }
                     case CLEAR: {
-                        for (AtomicLong cnt : m_counts) {
-                            cnt.set(0);
-                        } // FOR
+                        m_txnStats.clear();
                         answerOk();
                         break;
                     }
@@ -497,16 +529,16 @@ public abstract class BenchmarkComponent {
         }
 
         public void answerPoll() {
-            final StringBuilder txncounts = new StringBuilder();
-            synchronized (m_counts) {
-                for (int i = 0; i < m_counts.length; ++i) {
-                    if (i > 0) txncounts.append(",");
-                    txncounts.append(m_countDisplayNames[i]);
-                    txncounts.append(",");
-                    txncounts.append(m_counts[i].get());
-                }
+            JSONStringer stringer = new JSONStringer();
+            try {
+                stringer.object();
+                m_txnStats.toJSON(stringer);
+                m_txnStats.basePartitions.clear();
+                stringer.endObject();
+                printControlMessage(m_controlState, stringer.toString());
+            } catch (JSONException ex) {
+                throw new RuntimeException(ex);
             }
-            printControlMessage(m_controlState, txncounts.toString()); 
         }
 
         public void answerOk() {
@@ -613,6 +645,21 @@ public abstract class BenchmarkComponent {
             }
         }
     }
+
+    /**
+     * Implemented by derived classes. Loops indefinitely invoking stored
+     * procedures. Method never returns and never receives any updates.
+     */
+    abstract protected void runLoop() throws IOException;
+    
+    /**
+     * Get the display names of the transactions that will be invoked by the
+     * dervied class. As a side effect this also retrieves the number of
+     * transactions that can be invoked.
+     *
+     * @return
+     */
+    abstract protected String[] getTransactionDisplayNames();
     
     /**
      * Increment the internal transaction counter. This should be invoked
@@ -621,8 +668,9 @@ public abstract class BenchmarkComponent {
      * is the same order as the array returned by getTransactionDisplayNames
      * @param txn_idx
      */
-    protected final void incrementTransactionCounter(int txn_idx) {
-        this.m_counts[txn_idx].incrementAndGet();
+    protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
+        m_txnStats.basePartitions.put(cresponse.getBasePartition());
+        m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
     }
 
     public BenchmarkComponent(final Client client) {
@@ -640,7 +688,6 @@ public abstract class BenchmarkComponent {
         m_numClients = 1;
         m_noConnections = false;
         m_numPartitions = 0;
-        m_counts = null;
         m_countDisplayNames = null;
         m_checkTransaction = 0;
         m_checkTables = false;
@@ -907,10 +954,10 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
 
         m_countDisplayNames = getTransactionDisplayNames();
-        m_counts = new AtomicLong[m_countDisplayNames.length];
-        for (int ii = 0; ii < m_counts.length; ii++) {
-            m_counts[ii] = new AtomicLong(0);
-        }
+        m_txnStats.transactions.setKeepZeroEntries(true);
+        for (String txnName : m_countDisplayNames) {
+            m_txnStats.transactions.put(txnName, 0);
+        } // FOR
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread
@@ -1142,21 +1189,6 @@ public abstract class BenchmarkComponent {
         assert(this.uploader == null);
         this.uploader = uploader;
     }
-    
-    /**
-     * Implemented by derived classes. Loops indefinitely invoking stored
-     * procedures. Method never returns and never receives any updates.
-     */
-    abstract protected void runLoop() throws IOException;
-    
-    /**
-     * Get the display names of the transactions that will be invoked by the
-     * dervied class. As a side effect this also retrieves the number of
-     * transactions that can be invoked.
-     *
-     * @return
-     */
-    abstract protected String[] getTransactionDisplayNames();
     
     private final void invokeCallbackStop() {
         // If we were generating stats, then get the final WorkloadStatistics object

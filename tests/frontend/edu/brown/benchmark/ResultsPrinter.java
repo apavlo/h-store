@@ -86,6 +86,7 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         } // FOR
         sb.append(TableUtil.table(rows));
         sb.append("\n=======================================================================================\n");
+        sb.append(results.getBasePartitions());
         
         return (sb.toString());
     }

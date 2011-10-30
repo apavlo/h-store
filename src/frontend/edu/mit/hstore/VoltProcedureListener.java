@@ -207,7 +207,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
         // Serialize the results
         Hstore.Status status = Hstore.Status.OK;
         String extra = null;
-        ClientResponseImpl response = new ClientResponseImpl(-1, clientHandle, status, results, extra);
+        ClientResponseImpl response = new ClientResponseImpl(-1, clientHandle, -1, status, results, extra);
         response.setClientHandle(clientHandle);
         FastSerializer out = new FastSerializer();
         try {

@@ -514,7 +514,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             LOG.error(msg);
             status = Hstore.Status.ABORT_GRACEFUL;
             status_msg = msg;
-            response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, status, results, status_msg); 
+            response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, status, results, status_msg); 
             if (this.observable != null) this.observable.notifyObservers(response);
             return (response); 
         }
@@ -528,7 +528,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 LOG.error(msg, e);
                 status = Hstore.Status.ABORT_GRACEFUL;
                 status_msg = msg;
-                response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.status, this.results, this.status_msg);
+                response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, this.status, this.results, this.status_msg);
                 if (this.observable != null) this.observable.notifyObservers(response);
                 return (response);
             }
@@ -660,7 +660,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             System.exit(1);
         }
         
-        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.status, this.results, this.status_msg, this.error);
+        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, this.status, this.results, this.status_msg, this.error);
         if (this.observable != null) this.observable.notifyObservers(response);
         return (response);
     }
@@ -1499,6 +1499,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
         return new ClientResponseImpl(
                 this.m_currentTxnState.getTransactionId(),
+                this.partitionId,
                 status,
                 m_statusCode,
                 m_statusString,

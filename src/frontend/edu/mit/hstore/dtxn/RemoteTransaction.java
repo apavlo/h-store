@@ -31,6 +31,7 @@ import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.callbacks.TransactionCleanupCallback;
 import edu.mit.hstore.callbacks.TransactionWorkCallback;
 
 /**
@@ -47,10 +48,13 @@ public class RemoteTransaction extends AbstractTransaction {
     }
     
     private final TransactionWorkCallback fragment_callback;
+    private final TransactionCleanupCallback cleanup_callback;
+    
     
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.fragment_callback = new TransactionWorkCallback(hstore_site);
+        this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
     }
     
     @Override
@@ -62,6 +66,7 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public void finish() {
         super.finish();
+        this.cleanup_callback.finish();
     }
     
     @Override
@@ -79,6 +84,10 @@ public class RemoteTransaction extends AbstractTransaction {
      */
     public TransactionWorkCallback getFragmentTaskCallback() {
         return (this.fragment_callback);
+    }
+    
+    public TransactionCleanupCallback getCleanupCallback() {
+        return (this.cleanup_callback);
     }
     
     @Override

@@ -1752,6 +1752,14 @@ DESIGNER
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.removedupes=true" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.sampling=${sampling}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -2053,6 +2061,7 @@ DESIGNER
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
+        <arg value="conf=${conf}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${type}" />
         <arg value="catalog.hosts=${hosts}" />
@@ -2082,8 +2091,8 @@ DESIGNER
 
 <target name='designer-estimate'
         description="Estimate the cost of executing the workload for a given PartitionPlan">
-<!--     <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel"> -->
-    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.TimeIntervalCostModel">
+    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel">
+<!--     <java fork="yes" failonerror="true" classname="edu.brown.costmodel.TimeIntervalCostModel"> -->
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />

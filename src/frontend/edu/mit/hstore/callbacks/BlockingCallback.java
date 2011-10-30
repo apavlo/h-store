@@ -185,6 +185,8 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     
     @Override
     public final void finish() {
+        if (debug.get())
+            LOG.debug(String.format("Txn #%d - Finishing %s", txn_id, this.getClass().getSimpleName()));
         this.aborted.set(false);
         this.invoked.set(false);
         this.orig_callback = null;

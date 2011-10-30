@@ -669,14 +669,14 @@ public class HStoreCoordinator implements Shutdownable {
         // HACK: At this point we can tell the local partitions that the txn is done
         // through its callback. This is just so that we don't have to serialize a
         // TransactionFinishResponse message
-        for (Integer p : partitions) {
-            if (this.local_partitions.contains(p)) {
-                if (trace.get())
-                    LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
-                                            callback.getClass().getSimpleName(), ts, p));
-                callback.decrementCounter(1);
-            }
-        } // FOR
+//        for (Integer p : partitions) {
+//            if (this.local_partitions.contains(p)) {
+//                if (trace.get())
+//                    LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
+//                                            callback.getClass().getSimpleName(), ts, p));
+//                callback.decrementCounter(1);
+//            }
+//        } // FOR
     }
     
     /**

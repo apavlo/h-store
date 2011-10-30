@@ -564,7 +564,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                         */
                 }
             }
-            incrementTransactionCounter(TPCCSimulation.Transaction.DELIVERY.ordinal());
+            incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.DELIVERY.ordinal());
         }
     }
 
@@ -604,7 +604,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                 boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
                 assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatus();
             }
-            incrementTransactionCounter(TPCCSimulation.Transaction.NEW_ORDER.ordinal());
+            incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.NEW_ORDER.ordinal());
         }
 
         private boolean cbRollback;
@@ -664,7 +664,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                 assert status;
             }
             if (m_transactionType != null) {
-                incrementTransactionCounter(m_transactionType.ordinal());
+                incrementTransactionCounter(clientResponse, m_transactionType.ordinal());
             }
         }
     }
@@ -821,7 +821,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                                   false);
                 assert status;
             }
-            incrementTransactionCounter(TPCCSimulation.Transaction.STOCK_LEVEL.ordinal());
+            incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.STOCK_LEVEL.ordinal());
         }
       }
 
@@ -856,7 +856,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (checkTransaction(null, clientResponse, false, false))
-                incrementTransactionCounter(TPCCSimulation.Transaction.RESET_WAREHOUSE.ordinal());
+                incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.RESET_WAREHOUSE.ordinal());
         }
     }
 

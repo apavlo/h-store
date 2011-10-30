@@ -281,7 +281,7 @@ public class AirlineClient extends AirlineBaseClient {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.DELETE_RESERVATION.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.DELETE_RESERVATION.ordinal());
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 // TODO
             } else if (debug.get()) {
@@ -330,7 +330,7 @@ public class AirlineClient extends AirlineBaseClient {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.FIND_FLIGHTS.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.FIND_FLIGHTS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (results.length > 1) {
                 // Convert the data into a FlightIds that other transactions can use
@@ -405,7 +405,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (results.length != 1) {
                 if (debug.get()) LOG.warn("Results is " + results.length);
@@ -472,7 +472,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.NEW_RESERVATION.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert(results.length > 1);
@@ -520,7 +520,7 @@ public class AirlineClient extends AirlineBaseClient {
     class UpdateCustomerCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_CUSTOMER.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.UPDATE_CUSTOMER.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert (results.length >= 1);
@@ -568,7 +568,7 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.UPDATE_RESERVATION.ordinal());
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert (clientResponse.getResults().length == 1);
                 assert (clientResponse.getResults()[0].getRowCount() == 1);

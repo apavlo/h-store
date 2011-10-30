@@ -57,10 +57,11 @@ public class ClientBenchmark extends BenchmarkComponent {
 
     public static final String m_jarFileName = "dedupe.jar";
 
-    static class AsyncCallback implements ProcedureCallback {
+    class AsyncCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             final Hstore.Status status = clientResponse.getStatus();
+            incrementTransactionCounter(clientResponse, 0);
 
             if (status != Hstore.Status.OK) {
                 System.err.println("Failed to execute!!!");
@@ -110,8 +111,6 @@ public class ClientBenchmark extends BenchmarkComponent {
                 }
             }
         }
-
-        incrementTransactionCounter(0);
     }
 
     @Override
