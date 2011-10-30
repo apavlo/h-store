@@ -51,6 +51,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private int timestamp = -1;
     private boolean throttle = false;
     private boolean singlepartition = false;
+    private int basePartition = -1;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
@@ -64,8 +65,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param results
      * @param extra
      */
-    public ClientResponseImpl(long txn_id, long client_handle, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
-        this(txn_id, client_handle, status, appStatus, appStatusString, results, statusString, null);
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
+        this(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, null);
     }
 
     /**
@@ -75,8 +76,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param results
      * @param extra
      */
-    public ClientResponseImpl(long txn_id, long client_handle, Hstore.Status status, VoltTable[] results, String statusString) {
-        this(txn_id, client_handle, status, Byte.MIN_VALUE, null, results, statusString, null);
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, VoltTable[] results, String statusString) {
+        this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, null);
     }
 
     /**
@@ -86,8 +87,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param extra
      * @param e
      */
-    public ClientResponseImpl(long txn_id, long client_handle, Hstore.Status status, VoltTable[] results, String statusString, SerializableException e) {
-        this(txn_id, client_handle, status, Byte.MIN_VALUE, null, results, statusString, e);
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, VoltTable[] results, String statusString, SerializableException e) {
+        this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
     }
 
     /**
@@ -97,13 +98,14 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param extra
      * @param e
      */
-    public ClientResponseImpl(long txn_id, Hstore.Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
-        this(txn_id, -1, status, appStatus, appStatusString, results, extra, e);
+    public ClientResponseImpl(long txn_id, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
+        this(txn_id, -1, basePartition, status, appStatus, appStatusString, results, extra, e);
     }
 
-    public ClientResponseImpl(long txn_id, long client_handle, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
-        this.clientHandle = client_handle;
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
         this.txn_id = txn_id;
+        this.clientHandle = client_handle;
+        this.basePartition = basePartition;
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         setResults(status, results, statusString, e);
@@ -141,12 +143,21 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     }
     
     /**
+     * Set the base partition for the client response without deserializing it
+     * @param arr
+     * @param flag
+     */
+    public static void setBasePartition(ByteBuffer b, int basePartition) {
+        b.putInt(22, basePartition); // 1 + 4 + 8 + 8 + 1 + 1 = 23 
+    }
+    
+    /**
      * Set the status without deserializing it first
      * @param arr
      * @param flag
      */
     public static void setStatus(ByteBuffer b, Hstore.Status status) {
-        b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 1 = 23 
+        b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 1 + 4 = 27 
     }
     
     // ----------------------------------------------------------------------------
@@ -246,6 +257,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
         throttle = in.readBoolean();
+        basePartition = in.readInt();
         
         byte presentFields = in.readByte();
         status = Hstore.Status.valueOf(in.readByte());
@@ -279,6 +291,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
         out.writeBoolean(throttle);
+        out.writeInt(basePartition);
+        
         byte presentFields = 0;
         if (appStatusString != null) {
             presentFields |= 1 << 7;
@@ -344,6 +358,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m.put("Timestamp", this.timestamp);
         m.put("Throttle", this.throttle);
         m.put("SinglePartition", this.singlepartition);
+        m.put("BasePartition", this.basePartition);
         m.put("Exception", m_exception);
         
         Map<String, Object> inner = new ListOrderedMap<String, Object>();
@@ -353,5 +368,15 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         m.put("Results", inner);
         
         return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
+    }
+
+    @Override
+    public int getBasePartition() {
+        return (this.basePartition);
+    }
+
+    @Override
+    public void setBasePartition(int val) {
+        this.basePartition = val;
     }
 }

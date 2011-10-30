@@ -208,13 +208,12 @@ public class ConstraintPropagator {
                         if (vp_candidates == null) {
                             try {
                                 vp_candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
-                            } catch (Exception ex) {
-                                throw new RuntimeException("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
+                                col_vps.put(catalog_col, vp_candidates);
+                            } catch (Throwable ex) {
+                                LOG.warn("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
                             }
-                            col_vps.put(catalog_col, vp_candidates);
                         }
-                        assert(vp_candidates != null);
-                        candidates.addAll(vp_candidates);
+                        if (vp_candidates != null) candidates.addAll(vp_candidates);
                     }
                     // Add in the MultiColumns
                     if (hints.enable_multi_partitioning && this.multicolumns.containsKey(catalog_col)) {

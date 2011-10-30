@@ -34,7 +34,9 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
+import org.voltdb.messaging.FinishTaskMessage;
 
+import edu.brown.hstore.Hstore;
 import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
@@ -73,6 +75,7 @@ public abstract class AbstractTransaction implements Poolable {
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
     protected SerializableException pending_error;
+    private final FinishTaskMessage finish_task;
     
     // ----------------------------------------------------------------------------
     // PREDICTIONS FLAGS
@@ -121,6 +124,8 @@ public abstract class AbstractTransaction implements Poolable {
         this.exec_readOnly = new boolean[cnt];
         this.exec_eeWork = new boolean[cnt];
         this.exec_noUndoBuffer = new boolean[cnt];
+        
+        this.finish_task = new FinishTaskMessage(this, Hstore.Status.OK);
     }
 
     /**
@@ -372,6 +377,12 @@ public abstract class AbstractTransaction implements Poolable {
             if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + " - " + error.getMessage());
             this.pending_error = error;
         }
+    }
+    
+    public FinishTaskMessage getFinishTaskMessage(Hstore.Status status) {
+        this.finish_task.setTxnId(this.getTransactionId());
+        this.finish_task.setStatus(status);
+        return (this.finish_task);
     }
     
     // ----------------------------------------------------------------------------

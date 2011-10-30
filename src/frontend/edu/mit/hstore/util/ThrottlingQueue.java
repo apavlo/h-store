@@ -4,13 +4,23 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Queue;
 
+import org.apache.log4j.Logger;
+
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 
 public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> implements Queue<E> {
-
+    public static final Logger LOG = Logger.getLogger(ThrottlingQueue.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     private final Queue<E> queue;
     
     private boolean throttled;
@@ -76,15 +86,17 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     
     public void checkThrottling(boolean increase) {
         int size = this.queue.size();
-        if (size > this.queue_max) {
-            this.throttled = true;
-        } 
-        else if (size > this.queue_release) {
-            this.throttled = false;
+        if (this.throttled == false) {
+            if (size > this.queue_max) this.throttled = true;
+            else if (increase && size == 0) {
+                this.queue_max += this.queue_increase;
+                this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+            }
         }
-        else if (increase && this.throttled == false && size == 0) {
-            this.queue_max += this.queue_increase;
-            this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+        else if (this.throttled && size > this.queue_release) {
+            if (debug.get()) LOG.debug(String.format("Unthrottling queue [size=%d > release=%d]",
+                                                     size, this.queue_release));
+            this.throttled = false;
         }
     }
     

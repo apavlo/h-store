@@ -698,7 +698,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (trace.get()) LOG.trace("clientCallback(cid = " + getClientId() + "):: txn = " + txn.getDisplayName());
-            incrementTransactionCounter(this.txn.ordinal());
+            incrementTransactionCounter(clientResponse, this.txn.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 try {

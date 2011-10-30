@@ -256,6 +256,7 @@ public class Designer {
             ArgumentsParser.PARAM_MAPPINGS
         );
         HStoreConf.initArgumentsParser(args);
+        System.err.println("TEMP DIR: " + HStoreConf.singleton().global.temp_dir);
         
         if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
             ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));

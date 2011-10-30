@@ -54,6 +54,12 @@ public interface ClientResponse {
     public void setSinglePartition(boolean val);
     
     /**
+     * Base Partition
+     */
+    public int getBasePartition();
+    public void setBasePartition(int val);
+    
+    /**
      * Get the transaction id for this response
      * @return
      */

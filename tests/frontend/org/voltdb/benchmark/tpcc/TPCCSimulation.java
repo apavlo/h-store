@@ -227,7 +227,11 @@ public class TPCCSimulation {
         // TEMPORAL SKEW
         else if (config.temporal_skew) {
             if (generator.number(1, 100) <= config.temporal_skew_mix) {
-                w_id = (short)((this.tick_counter % parameters.warehouses) + parameters.starting_warehouse);
+                if (config.temporal_skew_rotate) {
+                    w_id = (short)((this.tick_counter % parameters.warehouses) + parameters.starting_warehouse);
+                } else {
+                    w_id = (short)config.firstWarehouse;
+                }
                 this.temporal_counter++;
             } else {
                 w_id = (short)generator.number(parameters.starting_warehouse, this.max_w_id);

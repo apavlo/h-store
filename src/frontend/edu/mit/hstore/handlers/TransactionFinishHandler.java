@@ -18,7 +18,9 @@ import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreCoordinator.Dispatcher;
+import edu.mit.hstore.callbacks.TransactionCleanupCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
+import edu.mit.hstore.dtxn.RemoteTransaction;
 
 public class TransactionFinishHandler extends AbstractTransactionHandler<TransactionFinishRequest, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishHandler.class);
@@ -61,7 +63,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d [status=%s]",
                                     request.getClass().getSimpleName(), txn_id, request.getStatus()));
-
+        
         hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
         
         // Send back a FinishResponse to let them know we're cool with everything...
@@ -78,7 +80,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         callback.run(builder.build());
         
         // Always tell the HStoreSite to clean-up any state for this txn
-        hstore_site.completeTransaction(txn_id, request.getStatus());
+        // hstore_site.completeTransaction(txn_id, request.getStatus());
         
     }
     @Override

@@ -71,6 +71,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
@@ -269,20 +271,31 @@ public class BenchmarkController {
                         // System.out.println("Got running message: " + Arrays.toString(parts));
                         HashMap<String, Long> results = new HashMap<String, Long>();
                         if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
-                        if ((parts.length % 2) != 1) {
-                            m_clientPSM.killProcess(line.processName);
-                            LOG.error("Invalid response from client: " + line);
-                            continue;
+                        
+                        // HACK
+                        BenchmarkComponent.TransactionCounter tc = new BenchmarkComponent.TransactionCounter();
+                        int offset = 1;
+                        for (int i = 0; i < 3; i++) {
+                            offset += parts[i].length() + 1;
+                        } // FOR
+                        try {
+                            JSONObject json_object = new JSONObject(control_line.substring(offset));
+                            tc.fromJSON(json_object, CatalogUtil.getDatabase(catalog));
+                        } catch (JSONException ex) {
+                            System.err.println(control_line.substring(offset));
+                            throw new RuntimeException(ex);
                         }
-                        for (int i = 3; i < parts.length; i += 2) {
-                            String txnName = parts[i];
-                            long txnCount = Long.valueOf(parts[i+1]);
-                            results.put(txnName, txnCount);
-                        }
+                        if (trace.get()) LOG.trace("Base Partitions:\n " + tc.basePartitions); 
+                        
+                        for (String txnName : tc.transactions.values()) {
+                            results.put(txnName, tc.transactions.get(txnName));
+                        } // FOR
+                        
                         resultsToRead--;
                         try {
                             if (debug.get()) LOG.debug("UPDATE: " + line);
                             setPollResponseInfo(getClientName(line.processName, clientId), time, results, null);
+                            m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
                         } catch (Throwable ex) {
                             LOG.error("Invalid response: " + line.toString(), ex);
                             throw new RuntimeException(ex);
