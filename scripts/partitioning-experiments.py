@@ -71,6 +71,7 @@ OPT_FAST = False
 OPT_NO_EXECUTE = False
 OPT_NO_COMPILE = False
 OPT_NO_JAR = False
+OPT_NO_JSON = False
 OPT_NO_CONF = False
 OPT_NO_UPDATE = False
 OPT_NO_SYNC = False
@@ -79,7 +80,7 @@ OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
-OPT_BASE_TXNRATE_PER_PARTITION = 10000   
+OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 4
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 200
@@ -239,13 +240,16 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     if benchmark == "tpcc":
         env["benchmark.warehouses"] = env["site.partitions"]
         env["benchmark.loadthreads"] = env["site.partitions"]
+        env["benchmark.temporal_skew"] = True
+        env["benchmark.temporal_skew_rotate"] = True
+        env["benchmark.temporal_skew_mix"] = 100
     elif benchmark == "airline":
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
     elif benchmark == "tm1":
         env["client.scalefactor"] = 100
-        env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
-        OPT_BASE_TXNRATE_PER_PARTITION = 4000
+        #env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
+        #OPT_BASE_TXNRATE_PER_PARTITION = 4000
 
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
@@ -296,6 +300,7 @@ if __name__ == '__main__':
         "no-jar",
         "no-conf",
         "no-sync",
+        "no-json",
         "force-reboot",
         "stop-on-error",
         "trace",
@@ -447,21 +452,23 @@ if __name__ == '__main__':
                         with settings(host_string=client_inst.public_dns_name):
                             output, workloads = fabfile.exec_benchmark(project=benchmark, \
                                                                     removals=conf_remove, \
-                                                                    json=True, \
+                                                                    json=(OPT_NO_JSON == False), \
                                                                     trace=OPT_TRACE, \
                                                                     updateJar=updateJar,
                                                                     updateConf=updateConf,
                                                                     updateSVN=needUpdate)
-                            data = parseResultsOutput(output)
-                            txnrate = float(data["TXNPERSECOND"])
-                            if int(txnrate) == 0: pass
-                            results.append(txnrate)
-                            if OPT_TRACE and workloads != None:
-                                for f in workloads:
-                                    LOG.info("Workload File: %s" % f)
-                                ## FOR
+                            if OPT_NO_JSON == False:
+                                data = parseResultsOutput(output)
+                                txnrate = float(data["TXNPERSECOND"])
+                                if int(txnrate) == 0: pass
+                                results.append(txnrate)
+                                if OPT_TRACE and workloads != None:
+                                    for f in workloads:
+                                        LOG.info("Workload File: %s" % f)
+                                    ## FOR
+                                ## IF
+                                LOG.info("Throughput: %.2f" % txnrate)
                             ## IF
-                            LOG.info("Throughput: %.2f" % txnrate)
                         ## WITH
                     except KeyboardInterrupt:
                         stop = True
