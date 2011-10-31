@@ -28,6 +28,8 @@ import org.voltdb.catalog.*;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.Histogram;
@@ -1174,6 +1176,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
         return (txn_entry);
     }
 
+    /**
+     * MAIN!
+     * @param vargs
+     * @throws Exception
+     */
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
@@ -1182,6 +1189,11 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 ArgumentsParser.PARAM_PARTITION_PLAN
         );
         assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload_path;
+        
+        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+        }
         
         // Enable compact output
         final boolean table_output = (args.getOptParams().contains("table"));
@@ -1240,6 +1252,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 }
             } // FOR
             System.err.println("ESTIMATE TIME: " + time.stop().getTotalThinkTimeSeconds());
+            break; // XXX
         } // FOR
 //        long total_partitions_touched_txns = costmodel.getTxnPartitionAccessHistogram().getSampleCount();
 //        long total_partitions_touched_queries = costmodel.getQueryPartitionAccessHistogram().getSampleCount();

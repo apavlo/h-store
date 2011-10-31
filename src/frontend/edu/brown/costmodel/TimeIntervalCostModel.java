@@ -23,6 +23,8 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
@@ -706,6 +708,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         } // FOR
     }
     
+    /**
+     * MAIN!
+     * @param vargs
+     * @throws Exception
+     */
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
@@ -716,6 +723,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 //                ArgumentsParser.PARAM_DESIGNER_HINTS
         );
         assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload;
+       
+        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+        }
         
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
