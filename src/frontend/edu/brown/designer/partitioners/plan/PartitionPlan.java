@@ -13,6 +13,7 @@ import org.voltdb.types.*;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.*;
@@ -102,6 +103,14 @@ public class PartitionPlan implements JSONSerializable {
     public ProcedureEntry getProcedureEntry(Procedure catalog_proc) {
         assert(catalog_proc != null);
         return (this.proc_entries.get(catalog_proc));
+    }
+    public void setNullProcParameter(Procedure catalog_proc) {
+        ProcedureEntry entry = new ProcedureEntry(PartitionMethodType.NONE);
+        this.proc_entries.put(catalog_proc, entry);
+    }
+    public void setRandomProcParameter(Procedure catalog_proc) {
+        ProcedureEntry entry = new ProcedureEntry(PartitionMethodType.RANDOM);
+        this.proc_entries.put(catalog_proc, entry);
     }
     
     public int getTableCount() {
@@ -241,7 +250,10 @@ public class PartitionPlan implements JSONSerializable {
             ProcParameter catalog_proc_param = null;
             switch (pentry.getMethod()) {
                 case NONE:
-                    catalog_proc_param = NullProcParameter.getNullProcParameter(catalog_proc);
+                    catalog_proc_param = NullProcParameter.singleton(catalog_proc);
+                    break;
+                case RANDOM:
+                    catalog_proc_param = RandomProcParameter.singleton(catalog_proc);
                     break;
                 case HASH:
                     catalog_proc_param = pentry.getAttribute();
@@ -375,7 +387,7 @@ public class PartitionPlan implements JSONSerializable {
         for (Entry<Procedure, ProcedureEntry> e : this.proc_entries.entrySet()) {
             switch (e.getValue().getMethod()) {
                 case NONE:
-                    map.put(e.getKey(), NullProcParameter.getNullProcParameter(e.getKey()));
+                    map.put(e.getKey(), NullProcParameter.singleton(e.getKey()));
                     break;
                 case HASH:
                     map.put(e.getKey(), e.getValue().getAttribute());
@@ -572,7 +584,7 @@ public class PartitionPlan implements JSONSerializable {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
                 continue;
             } else if (catalog_proc.getPartitionparameter() == NullProcParameter.PARAM_IDX) {
-                pplan_map.put(catalog_proc, NullProcParameter.getNullProcParameter(catalog_proc));
+                pplan_map.put(catalog_proc, NullProcParameter.singleton(catalog_proc));
             } else {
                 int param_idx = catalog_proc.getPartitionparameter();
                 assert(param_idx >= 0);

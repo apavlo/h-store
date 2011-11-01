@@ -20,8 +20,11 @@ import org.voltdb.utils.*;
 import org.voltdb.catalog.*;
 import org.voltdb.expressions.*;
 
+import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.catalog.special.SpecialProcParameter;
 import edu.brown.designer.ColumnSet;
 import edu.brown.expressions.ExpressionTreeWalker;
 import edu.brown.expressions.ExpressionUtil;
@@ -427,7 +430,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (catalog_proc.getParameters().size() > 0 && !catalog_proc.getSystemproc()) {
             int idx = catalog_proc.getPartitionparameter();
             if (idx == NullProcParameter.PARAM_IDX) {
-                catalog_param = NullProcParameter.getNullProcParameter(catalog_proc);
+                catalog_param = NullProcParameter.singleton(catalog_proc);
             } else {
                 catalog_param = catalog_proc.getParameters().get(idx);
                 assert (catalog_param != null) : "Unexpected Null ProcParameter for "
@@ -460,6 +463,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         List<ProcParameter> params = new ArrayList<ProcParameter>();
         for (ProcParameter catalog_param : catalog_proc.getParameters()) {
             if (catalog_param.getIsarray()) params.add(catalog_param);
+        } // FOR
+        return (params);
+    }
+    
+    /**
+     * Return the list of every ProcParameter except for SpecialProcParameters
+     */
+    public static List<ProcParameter> getRegularProcParameters(final Procedure catalog_proc) {
+        List<ProcParameter> params = new ArrayList<ProcParameter>();
+        for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+            if (catalog_param instanceof SpecialProcParameter) continue;
+            params.add(catalog_param);
         } // FOR
         return (params);
     }

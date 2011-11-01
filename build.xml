@@ -2091,8 +2091,12 @@ DESIGNER
 
 <target name='designer-estimate'
         description="Estimate the cost of executing the workload for a given PartitionPlan">
-    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel">
-<!--     <java fork="yes" failonerror="true" classname="edu.brown.costmodel.TimeIntervalCostModel"> -->
+    <condition property="costmodel" value="edu.brown.costmodel.SingleSitedCostModel">
+        <not>
+            <isset property="costmodel"/>
+        </not>
+    </condition>
+    <java fork="yes" failonerror="true" classname="${costmodel}">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />
@@ -2112,6 +2116,8 @@ DESIGNER
         <arg value="designer.intervals=${intervals}" />
         <arg value="designer.hints=${hints}" />
         <arg value="partitionplan=${partitionplan}" />
+        <arg value="partitionplan.removeprocs=${partitionplan.removeprocs}" />
+        <arg value="partitionplan.randomprocs=${partitionplan.randomprocs}" />
         <arg line="${extraparams}" />
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>

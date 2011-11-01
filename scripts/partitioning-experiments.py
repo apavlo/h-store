@@ -63,7 +63,7 @@ OPT_EXP_TYPE = "motivation"
 OPT_EXP_TRIALS = 3
 OPT_EXP_SETTINGS = 0
 OPT_EXP_FACTOR_START = 0
-OPT_EXP_FACTOR_STOP = 25
+OPT_EXP_FACTOR_STOP = 100
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
@@ -89,7 +89,8 @@ OPT_BASE_PARTITIONS_PER_SITE = 6
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
-    "ec2.site_type":                    "m2.4xlarge",
+    "ec2.site_type":                  "c1.xlarge",
+    #"ec2.site_type":                    "m2.4xlarge",
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     
@@ -127,7 +128,7 @@ BASE_SETTINGS = {
     
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
-    "site.memory":                                      60020,
+    "site.memory":                                      6002,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
     "site.txn_incoming_queue_increase":                 10,
@@ -160,6 +161,7 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_multip":         False,
             "benchmark.temporal_skew":           True,
             "benchmark.temporal_skew_mix":       0,
+            "benchmark.temporal_skew_rotate":    False,
             
             "benchmark.neworder_only":          True,
             "benchmark.neworder_abort":         False,
@@ -179,7 +181,7 @@ EXPERIMENT_SETTINGS = {
 
 # Thoughput Experiments
 OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
-OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'airline', 'auctionmark' ]
+OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'airline', 'auctionmark' ]
 OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 
 ## ==============================================
@@ -233,16 +235,23 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
             env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
+        else:
+            env["site.exec_neworder_cheat"] = True
         ## IF
     ## IF
 
     ## BENCHMARK TYPE
-    if benchmark == "tpcc":
+    if benchmark.startswith("tpcc"):
         env["benchmark.warehouses"] = env["site.partitions"]
         env["benchmark.loadthreads"] = env["site.partitions"]
-        env["benchmark.temporal_skew"] = True
-        env["benchmark.temporal_skew_rotate"] = True
-        env["benchmark.temporal_skew_mix"] = 100
+        if benchmark.endswith("-skewed"):
+            env["benchmark.temporal_skew"] = True
+            env["benchmark.temporal_skew_rotate"] = False
+            env["benchmark.temporal_skew_mix"] = 100
+        else:
+            env["benchmark.temporal_skew"] = False
+            env["benchmark.temporal_skew_rotate"] = False
+            env["benchmark.temporal_skew_mix"] = -1
     elif benchmark == "airline":
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
@@ -386,6 +395,7 @@ if __name__ == '__main__':
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
         stop = False
+        benchmarkType = benchmark.replace("-skewed", "")
         
         for partitions in map(int, options["partitions"]):
             LOG.info("%s - %s - %d Partitions - Experiment #%d" % (OPT_EXP_TYPE.upper(), benchmark.upper(), partitions, OPT_EXP_SETTINGS))
@@ -397,7 +407,11 @@ if __name__ == '__main__':
                 # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
                 # range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 18)
                 exp_factors = [ ]
-                for f in [ 0, 3, 10, 80, 100 ]:
+                if OPT_EXP_SETTINGS == 0:
+                    values = [ 0, 3, 10, 80, 100 ]
+                else:
+                    values = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25)
+                for f in values:
                     if f > OPT_EXP_FACTOR_STOP: break
                     if f >= OPT_EXP_FACTOR_START:
                         exp_factors.append(f)
@@ -450,7 +464,7 @@ if __name__ == '__main__':
                     ))
                     try:
                         with settings(host_string=client_inst.public_dns_name):
-                            output, workloads = fabfile.exec_benchmark(project=benchmark, \
+                            output, workloads = fabfile.exec_benchmark(project=benchmarkType, \
                                                                     removals=conf_remove, \
                                                                     json=(OPT_NO_JSON == False), \
                                                                     trace=OPT_TRACE, \

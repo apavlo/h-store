@@ -146,6 +146,8 @@ public class ArgumentsParser {
     public static final String PARAM_PARTITION_PLAN         = "partitionplan";
     public static final String PARAM_PARTITION_PLAN_OUTPUT  = PARAM_PARTITION_PLAN + ".output";
     public static final String PARAM_PARTITION_PLAN_APPLY   = PARAM_PARTITION_PLAN + ".apply";
+    public static final String PARAM_PARTITION_PLAN_REMOVE_PROCS = PARAM_PARTITION_PLAN + ".removeprocs";
+    public static final String PARAM_PARTITION_PLAN_RANDOM_PROCS = PARAM_PARTITION_PLAN + ".randomprocs";
     
     public static final String PARAM_PARTITION_MAP          = "partitionmap";
     public static final String PARAM_PARTITION_MAP_OUTPUT   = PARAM_PARTITION_MAP + ".output";

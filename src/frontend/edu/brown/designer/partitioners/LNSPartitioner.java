@@ -258,7 +258,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (hints.enable_array_procparameter_candidates == false) {
                 params.removeAll(CatalogUtil.getArrayProcParameters(catalog_proc));
             }
-            params.add(NullProcParameter.getNullProcParameter(catalog_proc));
+            params.add(NullProcParameter.singleton(catalog_proc));
             this.orig_proc_attributes.put(catalog_proc, params);
             
             // Add multi-column partitioning parameters for each table
