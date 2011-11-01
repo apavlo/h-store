@@ -187,6 +187,10 @@ public class PartitionPlan implements JSONSerializable {
      * @param catalog_db
      */
     public void apply(Database catalog_db) {
+        this.apply(catalog_db, true);
+    }
+        
+    public void apply(Database catalog_db, boolean enableVerticalPartitions) {
         final boolean debug = LOG.isDebugEnabled();
         if (debug) LOG.debug("Applying PartitionPlan to catalog");
         
@@ -202,11 +206,16 @@ public class PartitionPlan implements JSONSerializable {
                     catalog_tbl.setIsreplicated(true);
                     catalog_tbl.setPartitioncolumn(ReplicatedColumn.get(catalog_tbl));
                 } else {
+                    Column catalog_col = (Column)pentry.getAttribute();
+                    assert(catalog_col != null);
+                    if (catalog_col instanceof VerticalPartitionColumn && enableVerticalPartitions == false) {
+                        catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
+                    }
+                    catalog_tbl.setPartitioncolumn(catalog_col);
                     catalog_tbl.setIsreplicated(false);
-                    catalog_tbl.setPartitioncolumn((Column)pentry.getAttribute());
-                    assert(catalog_tbl.getPartitioncolumn() != null);
                 }
                 if (catalog_tbl.getPartitioncolumn() instanceof VerticalPartitionColumn) {
+                    assert(enableVerticalPartitions) : "Unexpected " + catalog_tbl.getPartitioncolumn().fullName();
                     VerticalPartitionColumn vp_col = (VerticalPartitionColumn)catalog_tbl.getPartitioncolumn();
                     vp_cols.add(vp_col);
                 }

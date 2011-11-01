@@ -177,6 +177,12 @@ EXPERIMENT_SETTINGS = {
         }
         
     ],
+    "breakdown": [
+        {
+            
+        }
+        
+    ],
 }
 
 # Thoughput Experiments
@@ -232,6 +238,27 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         else:
             env["site.exec_neworder_cheat"] = True
         ## IF
+        
+    ## BREAKDOWN
+    elif exp_type == "breakdown":
+        ## FULL DESIGN
+        if exp_setting == 0:
+            pplan = "%s.%s.pplan" % (benchmark, "lns")
+            
+        ## WITH SECONDARY INDEX, NO ROUTING
+        elif exp_setting == 1:
+            pplan = "%s.%s.pplan" % (benchmark, "lns")
+            env["client.txn_hints"] = False
+            env["site.exec_db2_redirects"] = True
+            
+        ## WITH ROUTING, NO SECONDARY INDEX
+        elif exp_setting == 2:
+            pplan = "%s.%s.pplan" % (benchmark, "lns")
+            env["client.txn_hints"] = True
+            env["site.exec_db2_redirects"] = False
+            env["hstore.exec_prefix"] += "-Dpartitionplan.noindexes=true "
+        ## IF
+        env["hstore.exec_prefix"] += "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
     ## IF
 
     ## BENCHMARK TYPE
@@ -249,10 +276,6 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     elif benchmark == "airline":
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
-    elif benchmark == "tm1":
-        env["client.scalefactor"] = 100
-        #env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
-        #OPT_BASE_TXNRATE_PER_PARTITION = 4000
 
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
