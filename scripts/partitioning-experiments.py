@@ -198,12 +198,6 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         if exp_setting == 0:
             env["benchmark.neworder_multip_mix"] = exp_factor
             env["benchmark.neworder_multip"] = (exp_factor > 0)
-            if exp_factor == 0:
-                #OPT_BASE_TXNRATE_PER_PARTITION = 4400 
-                env["client.blocking"] = False
-            else:
-                #OPT_BASE_TXNRATE_PER_PARTITION = 10000
-                env["client.blocking"] = True
             
         elif exp_setting == 1:
             if exp_factor == 0:
@@ -248,10 +242,10 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["benchmark.temporal_skew"] = True
             env["benchmark.temporal_skew_rotate"] = False
             env["benchmark.temporal_skew_mix"] = 100
-        else:
-            env["benchmark.temporal_skew"] = False
-            env["benchmark.temporal_skew_rotate"] = False
-            env["benchmark.temporal_skew_mix"] = -1
+        #else:
+            #env["benchmark.temporal_skew"] = False
+            #env["benchmark.temporal_skew_rotate"] = False
+            #env["benchmark.temporal_skew_mix"] = -1
     elif benchmark == "airline":
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
@@ -410,7 +404,7 @@ if __name__ == '__main__':
                 if OPT_EXP_SETTINGS == 0:
                     values = [ 0, 3, 10, 80, 100 ]
                 else:
-                    values = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 25)
+                    values = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 2)
                 for f in values:
                     if f > OPT_EXP_FACTOR_STOP: break
                     if f >= OPT_EXP_FACTOR_START:
