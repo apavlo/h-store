@@ -1830,8 +1830,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         ArgumentsParser args = ArgumentsParser.load(vargs,
                     ArgumentsParser.PARAM_CATALOG,
                     ArgumentsParser.PARAM_SITE_ID,
-                    ArgumentsParser.PARAM_DTXN_CONF,
-                    ArgumentsParser.PARAM_DTXN_ENGINE,
                     ArgumentsParser.PARAM_CONF
         );
         
@@ -1845,10 +1843,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         HStoreConf.initArgumentsParser(args, catalog_site);
         if (d) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
-
-        if (FileUtil.exists(args.getParam(ArgumentsParser.PARAM_DTXN_CONF)) == false) {
-            throw new IOException("The Dtxn.Coordinator file '" + args.getParam(ArgumentsParser.PARAM_DTXN_CONF) + "' does not exist");
-        }
         
         // For every partition in our local site, we want to setup a new ExecutionSite
         // Thankfully I had enough sense to have PartitionEstimator take in the local partition

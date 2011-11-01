@@ -148,6 +148,7 @@ public class ArgumentsParser {
     public static final String PARAM_PARTITION_PLAN_APPLY   = PARAM_PARTITION_PLAN + ".apply";
     public static final String PARAM_PARTITION_PLAN_REMOVE_PROCS = PARAM_PARTITION_PLAN + ".removeprocs";
     public static final String PARAM_PARTITION_PLAN_RANDOM_PROCS = PARAM_PARTITION_PLAN + ".randomprocs";
+    public static final String PARAM_PARTITION_PLAN_NO_SECONDARY = PARAM_PARTITION_PLAN + ".nosecondary";
     
     public static final String PARAM_PARTITION_MAP          = "partitionmap";
     public static final String PARAM_PARTITION_MAP_OUTPUT   = PARAM_PARTITION_MAP + ".output";
@@ -786,8 +787,9 @@ public class ArgumentsParser {
             
             // Apply!
             if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
-                LOG.info("Applying PartitionPlan '" + path.getName() + "' to catalog");
-                this.pplan.apply(this.catalog_db);
+                boolean secondaryIndexes = this.getBooleanParam(PARAM_PARTITION_PLAN_NO_SECONDARY, false) == false;
+                LOG.info(String.format("Applying PartitionPlan '%s' to catalog [enableSecondary=%s]", path.getName(), secondaryIndexes));
+                this.pplan.apply(this.catalog_db, secondaryIndexes);
             }
         }
         

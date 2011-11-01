@@ -545,7 +545,9 @@ public class BenchmarkController {
         siteBaseCommand.add("-Dcoordinator.host=" + m_config.coordinatorHost);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
         for (Entry<String, String> e : m_config.siteParameters.entrySet()) {
-            siteBaseCommand.add(String.format("-D%s=%s", e.getKey(), e.getValue()));
+            String opt = String.format("-D%s=%s", e.getKey(), e.getValue());
+            siteBaseCommand.add(opt);
+            LOG.info("  " + opt);
         } // FOR
 
         for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
@@ -1434,11 +1436,15 @@ public class BenchmarkController {
                 assert(catalog != null);
                 num_partitions = CatalogUtil.getNumberOfPartitions(catalog);
                 
-            } else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
+            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_APPLY, "true");
+                
+            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY)) {
+                clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
+                siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("COMPILE")) {
                 /*
@@ -1511,7 +1517,6 @@ public class BenchmarkController {
                 clientParams.put(parts[0].toLowerCase(), parts[1]);
             }
         }
-        assert(coordinatorHost != null) : "Missing CoordinatorHost";
 
         // Initialize HStoreConf
         assert(hstore_conf_path != null) : "Missing HStoreConf file";

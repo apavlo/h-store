@@ -1458,7 +1458,8 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${coordinator.host}" />
-        <arg value="PARTITIONPLAN=${partitionplan}" />
+        <arg value="partitionplan=${partitionplan}" />
+        <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -2268,12 +2269,6 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
-    <unzip src="${benchmark.jar}" dest="${global.temp_dir}">
-        <patternset>
-            <include name="dtxn.conf"/>
-        </patternset>
-    </unzip>
-
     <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
@@ -2303,10 +2298,6 @@ H-STORE REMIX
         <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
         <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
         <arg value="site.enable_profiling=${site.enable_profiling}" />
-        <arg value="coordinator.host=${coordinator.host}" />
-        <arg value="coordinator.port=${coordinator.port}" />
-        <arg value="dtxn.conf=${global.temp_dir}/dtxn.conf" />
-        <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -2314,6 +2305,7 @@ H-STORE REMIX
         <arg value="mappings=${mappings}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
+        <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         <classpath refid='project.classpath' />
