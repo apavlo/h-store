@@ -1738,8 +1738,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param coordinatorPort
      * @throws Exception
      */
-    public static void launch(final HStoreSite hstore_site, final String hstore_conf_path, 
-                              final String coordinatorHost, final int coordinatorPort) throws Exception {
+    public static void launch(final HStoreSite hstore_site, final String hstore_conf_path) throws Exception {
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Site catalog_site = hstore_site.getSite();
         
@@ -1830,8 +1829,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs,
                     ArgumentsParser.PARAM_CATALOG,
-                    ArgumentsParser.PARAM_COORDINATOR_HOST,
-                    ArgumentsParser.PARAM_COORDINATOR_PORT,
                     ArgumentsParser.PARAM_SITE_ID,
                     ArgumentsParser.PARAM_DTXN_CONF,
                     ArgumentsParser.PARAM_DTXN_ENGINE,
@@ -1848,10 +1845,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         HStoreConf.initArgumentsParser(args, catalog_site);
         if (d) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
-
-        // HStoreSite Stuff
-        final String coordinatorHost = args.getParam(ArgumentsParser.PARAM_COORDINATOR_HOST);
-        final int coordinatorPort = args.getIntParam(ArgumentsParser.PARAM_COORDINATOR_PORT);
 
         if (FileUtil.exists(args.getParam(ArgumentsParser.PARAM_DTXN_CONF)) == false) {
             throw new IOException("The Dtxn.Coordinator file '" + args.getParam(ArgumentsParser.PARAM_DTXN_CONF) + "' does not exist");
@@ -1934,7 +1927,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Bombs Away!
         // ----------------------------------------------------------------------------
         LOG.info("Instantiating HStoreSite network connections...");
-        HStoreSite.launch(site, args.getParam(ArgumentsParser.PARAM_DTXN_CONF), 
-                          coordinatorHost, coordinatorPort);
+        HStoreSite.launch(site, args.getParam(ArgumentsParser.PARAM_DTXN_CONF));
     }
 }

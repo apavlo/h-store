@@ -31,6 +31,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.FixCatalog;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
@@ -902,7 +903,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // base partition (where the java executes), then yeah let's do that part here
         int proc_param_idx = catalog_proc.getPartitionparameter();
         if (proc_param_idx != NullProcParameter.PARAM_IDX && txn_entry.base_partition == null) {
-            assert (proc_param_idx >= 0) : "Invalid ProcParameter Index " + proc_param_idx;
+            assert (proc_param_idx == RandomProcParameter.PARAM_IDX || proc_param_idx >= 0) : "Invalid ProcParameter Index " + proc_param_idx;
             assert (proc_param_idx < catalog_proc.getParameters().size()) : "Invalid ProcParameter Index " + proc_param_idx;
             
             Integer base_partition = null; 
@@ -912,7 +913,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 LOG.error("Unexpected error from PartitionEstimator for " + txn_trace, ex);
             }
             this.setBasePartition(txn_entry, base_partition);
-            if (trace.get()) LOG.trace("Base partition for " + catalog_proc + " is '" + txn_entry.base_partition + "' using parameter #" + catalog_proc.getParameters().get(proc_param_idx));
+            if (trace.get()) 
+                LOG.trace("Base partition for " + txn_entry + " is '" + txn_entry.base_partition + "' using parameter #" + proc_param_idx);
         }
 
         if (trace.get())
@@ -1012,6 +1014,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
                 }
                 assert (!table_partitions.isEmpty()) : "Failed to get back table partitions for " + query_trace;
                 for (Entry<String, Set<Integer>> e : table_partitions.entrySet()) {
+                    assert(e.getValue() != null) : "Null table partitions for '" + e.getKey() + "'";
+                    
                     // If we didn't get anything back, then that means that we know we need to touch this
                     // table but the PartitionEstimator doesn't have enough information yet
                     if (e.getValue().isEmpty()) continue;
@@ -1200,13 +1204,22 @@ public class SingleSitedCostModel extends AbstractCostModel {
         
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
-//        if (pplan_path.exists()) {
-            PartitionPlan pplan = new PartitionPlan();
-            pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
-            pplan.apply(args.catalog_db);
+        PartitionPlan pplan = new PartitionPlan();
+        pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+        if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
+            for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
+                pplan.setNullProcParameter(catalog_proc); 
+            } // FOR
+        }
+        if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_RANDOM_PROCS, false)) {
+            for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
+                pplan.setRandomProcParameter(catalog_proc); 
+            } // FOR
+        }
+        pplan.apply(args.catalog_db);
             
-            System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
-            System.out.print(StringUtil.DOUBLE_LINE);
+        System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
+        System.out.print(StringUtil.DOUBLE_LINE);
 //            if (!table_output) {
 //                
 //            }
@@ -1221,6 +1234,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
         }
             
         System.out.flush();
+        
+        // TODO: REMOVE STORED PROCEDURE ROUTING FOR SCHISM
 
         long singlepartition = 0;
         long multipartition = 0;
@@ -1289,17 +1304,21 @@ public class SingleSitedCostModel extends AbstractCostModel {
             System.out.print(StringUtil.DOUBLE_LINE);
         }
 
-        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+        Map<String, Object> maps[] = new Map[2];
+        int idx = 0;
+        ListOrderedMap<String, Object> m = null;
         
         // Execution Cost
+        m = new ListOrderedMap<String, Object>();
         m.put("SINGLE-PARTITION", singlepartition);
         m.put("MULTI-PARTITION", multipartition);
         m.put("TOTAL", total + " [" + singlepartition / (double) total + "]");
         m.put("PARTITIONS TOUCHED (TXNS)", costmodel.getTxnPartitionAccessHistogram().getSampleCount());
         m.put("PARTITIONS TOUCHED (QUERIES)", costmodel.getQueryPartitionAccessHistogram().getSampleCount());
-        m.put("XXX", null);
+        maps[idx++] = m;
 
         // Utilization
+        m = new ListOrderedMap<String, Object>();
         costmodel.getJavaExecutionHistogram().setKeepZeroEntries(false);
         int active_partitions = costmodel.getJavaExecutionHistogram().getValueCount();
         m.put("ACTIVE PARTITIONS", active_partitions);
@@ -1316,13 +1335,8 @@ public class SingleSitedCostModel extends AbstractCostModel {
 //        timecostmodel.estimateCost(args.catalog_db, args.workload);
 //        double entropy = timecostmodel.getLastEntropyCost()
         m.put("UTILIZATION",  (costmodel.getJavaExecutionHistogram().getValueCount() / (double)all_partitions.size()));
+        maps[idx++] = m;
 
-        final String f = "%-25s%s";
-        for (Entry<String, Object> e : m.entrySet()) {
-            if (e.getKey().startsWith("XXX")) System.out.print(StringUtil.DOUBLE_LINE);
-            else {
-                System.out.println(String.format(f, e.getKey().toUpperCase()+":", e.getValue().toString()));
-            }
-        } // FOR
+        System.out.println(StringUtil.formatMaps(maps));
     }
 }

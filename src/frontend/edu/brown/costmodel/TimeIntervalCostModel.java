@@ -734,6 +734,16 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         if (pplan_path.exists()) {
             PartitionPlan pplan = new PartitionPlan();
             pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+            if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
+                for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
+                    pplan.setNullProcParameter(catalog_proc); 
+                } // FOR
+            }
+            if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_RANDOM_PROCS, false)) {
+                for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
+                    pplan.setRandomProcParameter(catalog_proc); 
+                } // FOR
+            }
             pplan.apply(args.catalog_db);
             System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
             System.out.print(StringUtil.DOUBLE_LINE);
