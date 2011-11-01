@@ -353,6 +353,13 @@ public abstract class BenchmarkComponent {
         public Histogram<Integer> basePartitions = new Histogram<Integer>();
         public Histogram<String> transactions = new Histogram<String>();
 
+        public TransactionCounter copy() {
+            TransactionCounter copy = new TransactionCounter();
+            copy.basePartitions.putHistogram(this.basePartitions);
+            copy.transactions.putHistogram(this.transactions);
+            return (copy);
+        }
+        
         public void clear() {
             this.basePartitions.clear();
             this.transactions.clear();
@@ -530,15 +537,16 @@ public abstract class BenchmarkComponent {
 
         public void answerPoll() {
             JSONStringer stringer = new JSONStringer();
+            TransactionCounter copy = m_txnStats; // .copy();
             try {
                 stringer.object();
-                m_txnStats.toJSON(stringer);
-                m_txnStats.basePartitions.clear();
+                copy.toJSON(stringer);
                 stringer.endObject();
                 printControlMessage(m_controlState, stringer.toString());
             } catch (JSONException ex) {
                 throw new RuntimeException(ex);
             }
+            m_txnStats.basePartitions.clear();
         }
 
         public void answerOk() {
