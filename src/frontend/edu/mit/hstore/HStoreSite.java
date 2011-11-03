@@ -72,7 +72,6 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
@@ -194,8 +193,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Procedure Listener Stuff
      */
-    private final VoltProcedureListener voltListeners[];
-    private final NIOEventLoop procEventLoops[];
+    private VoltProcedureListener voltListener;
+    private final NIOEventLoop procEventLoop = new NIOEventLoop();
 
     /**
      * 
@@ -281,7 +280,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     
     private final Histogram<Integer> incoming_partitions = new Histogram<Integer>();
-    private final Histogram<String> incoming_listeners = new Histogram<String>();
     
     /** How long the HStoreSite had no inflight txns */
     protected final ProfileMeasurement idle_time = new ProfileMeasurement("idle");
@@ -345,8 +343,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.single_partition_sets[partition] = Collections.singleton(partition); 
         } // FOR
         this.threadManager = new HStoreThreadManager(this);
-        this.voltListeners = new VoltProcedureListener[this.num_local_partitions];
-        this.procEventLoops = new NIOEventLoop[this.num_local_partitions];
+        this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
         
         if (hstore_conf.site.status_show_executor_info) {
             this.idle_time.resetOnEvent(this.startWorkload_observable);
@@ -690,10 +687,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected Histogram<Integer> getIncomingPartitionHistogram() {
         return (this.incoming_partitions);
     }
-    protected Histogram<String> getIncomingListenerHistogram() {
-        return (this.incoming_listeners);
-    }
-
     public ProfileMeasurement getEmptyQueueTime() {
         return (this.idle_time);
     }
@@ -801,9 +794,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Tell all of our event loops to stop
         if (t) LOG.trace("Telling Procedure Listener event loops to exit");
-        for (NIOEventLoop l : this.procEventLoops) {
-            l.exitLoop();
-        }
+        this.procEventLoop.exitLoop();
         
         // if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
         // this.engineEventLoop.exitLoop();
@@ -853,10 +844,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         // Profiling Updates
         if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(request.getProcName());
-        if (hstore_conf.site.exec_profiling) {
-            if (base_partition != -1)
-                this.incoming_partitions.put(base_partition);
-            this.incoming_listeners.put(Thread.currentThread().getName());
+        if (hstore_conf.site.exec_profiling && base_partition != -1) {
+            this.incoming_partitions.put(base_partition);
         }
         
         // First figure out where this sucker needs to go
@@ -1743,44 +1732,34 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final Site catalog_site = hstore_site.getSite();
         
         // ----------------------------------------------------------------------------
-        // (4) Procedure Request Listener Thread (one per Partition)
+        // (1) Procedure Request Listener Thread (one per Site)
         // ----------------------------------------------------------------------------
-        List<Partition> p = new ArrayList<Partition>(catalog_site.getPartitions());
-        for (int i = 0; i < hstore_site.voltListeners.length; i++) {
-            final int id = i;
-            final Partition catalog_part = p.get(id);
-            final int port = catalog_part.getProc_port();
-            
-            hstore_site.procEventLoops[id] = new NIOEventLoop();
-            hstore_site.voltListeners[id] = new VoltProcedureListener(hstore_site.procEventLoops[id], hstore_site); 
-            
-            runnables.add(new Runnable() {
-                public void run() {
-                    final Thread self = Thread.currentThread();
-                    self.setName(HStoreSite.getThreadName(hstore_site.site_id, "listen", catalog_part.getId()));
-                    if (hstore_site.getHStoreConf().site.cpu_affinity)
-                        hstore_site.getThreadManager().registerProcessingThread();
-                    
-                    // Then fire off this thread to have it do some work as it comes in 
-                    Throwable error = null;
-                    try {
-                        hstore_site.voltListeners[id].bind(port);
-                        hstore_site.procEventLoops[id].setExitOnSigInt(true);
-                        hstore_site.ready_latch.countDown();
-                        hstore_site.procEventLoops[id].run();
-                    } catch (Throwable ex) {
-                        if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
-                            error = ex;
-                        }
+        runnables.add(new Runnable() {
+            public void run() {
+                final Thread self = Thread.currentThread();
+                self.setName(HStoreSite.getThreadName(hstore_site, "listen"));
+                if (hstore_site.getHStoreConf().site.cpu_affinity)
+                    hstore_site.getThreadManager().registerProcessingThread();
+                
+                // Then fire off this thread to have it do some work as it comes in 
+                Throwable error = null;
+                try {
+                    hstore_site.voltListener.bind(catalog_site.getProc_port());
+                    hstore_site.procEventLoop.setExitOnSigInt(true);
+                    hstore_site.ready_latch.countDown();
+                    hstore_site.procEventLoop.run();
+                } catch (Throwable ex) {
+                    if (ex != null && ex.getMessage() != null && ex.getMessage().contains("Connection closed") == false) {
+                        error = ex;
                     }
-                    if (error != null && hstore_site.isShuttingDown() == false) {
-                        LOG.warn(String.format("Procedure Listener #%d is stopping! [error=%s, hstore_shutdown=%s]",
-                                               id, (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
-                        hstore_site.hstore_coordinator.shutdownCluster(error);
-                    }
-                };
-            });
-        } // FOR
+                }
+                if (error != null && hstore_site.isShuttingDown() == false) {
+                    LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
+                                           (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
+                    hstore_site.hstore_coordinator.shutdownCluster(error);
+                }
+            };
+        });
         
         // ----------------------------------------------------------------------------
         // (5) HStoreSite Setup Thread

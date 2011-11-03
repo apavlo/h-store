@@ -372,16 +372,16 @@ public class VoltCompiler {
         }
 
         // Create Dtxn.Coordinator configuration for cluster
-        byte[] dtxnConfBytes = null;
-        try {
-            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
-        } catch (final Exception e1) {
-            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
-            return false;
-        }
+//        byte[] dtxnConfBytes = null;
+//        try {
+//            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
+//        } catch (final Exception e1) {
+//            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
+//            return false;
+//        }
         
         try {
-            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
+//            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
             m_jarBuilder.addEntry("catalog.txt", catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())

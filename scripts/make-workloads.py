@@ -49,10 +49,10 @@ HSTORE_OPTS = {
     "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.processesperclient":    1,
+    "client.processesperclient":    200,
     "client.txnrate":               1000,
-    "client.blocking":              False,
-    "client.blocking_concurrent":   1000,
+    "client.blocking":              True,
+    "client.blocking_concurrent":   1,
     "client.scalefactor":           20,
 }
 

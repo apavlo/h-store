@@ -299,10 +299,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
             
-//            int queue_size = hstore_site.getInflightTxnCount(partition);
-//            int queue_max = this.hstore_site.getIncomingQueueMax(partition);
-//            int queue_release = this.hstore_site.getIncomingQueueRelease(partition);
-            
             // Queue Information
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             
@@ -371,9 +367,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (hstore_site.getIncomingPartitionHistogram().isEmpty() == false) {
             m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 10) + "\n");
         }
-        
-        // Incoming Listenger Thread Distribution
-        m_exec.put("Incoming Listeners", hstore_site.getIncomingListenerHistogram().toString(50, 10));
         
         return (m_exec);
     }

@@ -50,8 +50,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         sb.append(String.format("Transactions per second: %.2f\n", fr.getTxnPerSecond()));
         
         Collection<String> txnNames = fr.getTransactionNames();
-        Collection<String> clientNames = fr.getClientNames();
-        int num_rows = txnNames.size() + clientNames.size() + 1;
+//        Collection<String> clientNames = fr.getClientNames();
+        int num_rows = txnNames.size(); //  + clientNames.size() + 1;
         Object rows[][] = new String[num_rows][COL_FORMATS.length];
         int row_idx = 0;
         
@@ -66,7 +66,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
             row_idx++;
         } // FOR
-        
+
+        /*
         rows[row_idx][0] = "\nBreakdown by client:";
         for (int i = 1; i < COL_FORMATS.length; i++) {
             rows[row_idx][i] = "";
@@ -84,6 +85,7 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
             row_idx++;
         } // FOR
+        */
         sb.append(TableUtil.table(rows));
         sb.append("\n=======================================================================================\n");
         sb.append(results.getBasePartitions());

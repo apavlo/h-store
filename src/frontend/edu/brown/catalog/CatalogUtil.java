@@ -633,21 +633,21 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param engine - Whether to use the direct engine port number 
      * @return
      */
-    public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
-        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
-        Partition catalog_part = cache.PARTITION_XREF.get(id);
-        if (catalog_part == null) {
-            LOG.warn(String.format("Invalid partition id '%d'", id));
-            return (null);
-        }
-        Site catalog_site = catalog_part.getParent();
-        assert(catalog_site != null) : "No site for " + catalog_part; 
-        Host catalog_host = catalog_site.getHost();
-        assert(catalog_host != null) : "No host for " + catalog_site;
-        int port = (engine ? catalog_part.getEngine_port() : catalog_part.getDtxn_port());
-        return (new InetSocketAddress(catalog_host.getIpaddr(), port));
-    }
+//    public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
+//        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
+//        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
+//        Partition catalog_part = cache.PARTITION_XREF.get(id);
+//        if (catalog_part == null) {
+//            LOG.warn(String.format("Invalid partition id '%d'", id));
+//            return (null);
+//        }
+//        Site catalog_site = catalog_part.getParent();
+//        assert(catalog_site != null) : "No site for " + catalog_part; 
+//        Host catalog_host = catalog_site.getHost();
+//        assert(catalog_host != null) : "No host for " + catalog_site;
+//        int port = (engine ? catalog_part.getEngine_port() : catalog_part.getDtxn_port());
+//        return (new InetSocketAddress(catalog_host.getIpaddr(), port));
+//    }
     
     /**
      * Return a Collection of all the Partition catalog objects
@@ -758,11 +758,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     public static Collection<Integer> getExecutionSitePorts(Site catalog_site) {
-        Set<Integer> ports = new TreeSet<Integer>();
-        for (Partition catalog_part : catalog_site.getPartitions()) {
-            ports.add(catalog_part.getProc_port());
-        }
-        return (ports);
+        return Collections.singleton(catalog_site.getProc_port());
     }
     
     /**

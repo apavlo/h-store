@@ -53,9 +53,7 @@ public abstract class FixCatalog {
             LOG.debug("Created new host " + catalog_host + " on node '" + host + "'");
 
             int proc_port = VoltDB.DEFAULT_PORT;
-            int dtxn_port = 30000;
-            int messenger_port = dtxn_port + 10000;
-            int partition_port = messenger_port + 10000;
+            int messenger_port = proc_port + 10000;
             
             // Now create the sites for this host
             for (Integer siteid : cc.getSites(host)) {
@@ -65,7 +63,7 @@ public abstract class FixCatalog {
                 assert(catalog_site != null);
                 catalog_site.setId(siteid);
                 catalog_site.setHost(catalog_host);
-                catalog_site.setDtxn_port(dtxn_port++);
+                catalog_site.setProc_port(proc_port++);
                 catalog_site.setMessenger_port(messenger_port++);
                 
                 // Add all the partitions
@@ -73,14 +71,6 @@ public abstract class FixCatalog {
                     Partition catalog_part = catalog_site.getPartitions().add(partition_id.toString());
                     assert(catalog_part != null);
                     catalog_part.setId(partition_id);
-                    
-                    // 2011-03-24
-                    // The Dtxn.Engine will now bind to the partition port plus the port number
-                    // one above. This second one is the one that the HStoreSite
-                    catalog_part.setDtxn_port(partition_port++);
-                    catalog_part.setEngine_port(partition_port++);
-                    catalog_part.setProc_port(proc_port++);
-                    
                     partition_ctr++;
                 } // FOR
                 
@@ -158,12 +148,10 @@ public abstract class FixCatalog {
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG_TYPE,
-                     ArgumentsParser.PARAM_CATALOG_OUTPUT,
-                     ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
+                     ArgumentsParser.PARAM_CATALOG_OUTPUT);
         
         // ProjectType type = args.catalog_type;
         String catalogOutputPath = args.getParam(ArgumentsParser.PARAM_CATALOG_OUTPUT);
-        String dtxnOutputPath = args.getParam(ArgumentsParser.PARAM_DTXN_CONF_OUTPUT);
         
         // Populate Parameter Mappings
         if (args.hasParam(ArgumentsParser.PARAM_MAPPINGS)) {
@@ -205,14 +193,14 @@ public abstract class FixCatalog {
         }
         
         // Now construct the new Dtxn.Coordinator configuration
-        String new_dtxn = HStoreDtxnConf.toHStoreDtxnConf(new_catalog);
+        // String new_dtxn = HStoreDtxnConf.toHStoreDtxnConf(new_catalog);
         
         // We need to write this things somewhere now...
         FileUtil.writeStringToFile(new File(catalogOutputPath), new_catalog.serialize());
         LOG.info("Wrote updated catalog specification to '" + catalogOutputPath + "'");
         
-        FileUtil.writeStringToFile(new File(dtxnOutputPath), new_dtxn);
-        LOG.info("Wrote updated Dtxn.Coordinator configuration to '" + dtxnOutputPath + "'");
+        // FileUtil.writeStringToFile(new File(dtxnOutputPath), new_dtxn);
+        // LOG.info("Wrote updated Dtxn.Coordinator configuration to '" + dtxnOutputPath + "'");
 
         return;
     }

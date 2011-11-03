@@ -27,23 +27,14 @@ package org.voltdb.catalog;
 public class Partition extends CatalogType {
 
     int m_id;
-    int m_dtxn_port;
-    int m_engine_port;
-    int m_proc_port;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
         this.addField("id", m_id);
-        this.addField("dtxn_port", m_dtxn_port);
-        this.addField("engine_port", m_engine_port);
-        this.addField("proc_port", m_proc_port);
     }
 
     public void update() {
         m_id = (Integer) m_fields.get("id");
-        m_dtxn_port = (Integer) m_fields.get("dtxn_port");
-        m_engine_port = (Integer) m_fields.get("engine_port");
-        m_proc_port = (Integer) m_fields.get("proc_port");
     }
 
     /** GETTER: Partition id */
@@ -51,39 +42,9 @@ public class Partition extends CatalogType {
         return m_id;
     }
 
-    /** GETTER: Port used for DTXN.Coordinator to communicate to the ProtoEngine */
-    public int getDtxn_port() {
-        return m_dtxn_port;
-    }
-
-    /** GETTER: Port used for HStoreSite to communicate to the ProtoEngine */
-    public int getEngine_port() {
-        return m_engine_port;
-    }
-
-    /** GETTER: Port used by VoltProcedureListener */
-    public int getProc_port() {
-        return m_proc_port;
-    }
-
     /** SETTER: Partition id */
     public void setId(int value) {
         m_id = value; m_fields.put("id", value);
-    }
-
-    /** SETTER: Port used for DTXN.Coordinator to communicate to the ProtoEngine */
-    public void setDtxn_port(int value) {
-        m_dtxn_port = value; m_fields.put("dtxn_port", value);
-    }
-
-    /** SETTER: Port used for HStoreSite to communicate to the ProtoEngine */
-    public void setEngine_port(int value) {
-        m_engine_port = value; m_fields.put("engine_port", value);
-    }
-
-    /** SETTER: Port used by VoltProcedureListener */
-    public void setProc_port(int value) {
-        m_proc_port = value; m_fields.put("proc_port", value);
     }
 
 }
