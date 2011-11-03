@@ -10,7 +10,7 @@ import edu.brown.utils.StringUtil;
 
 public final class TPCCConfig {
 
-    public int firstWarehouse = Constants.STARTING_WAREHOUSE;
+    public int firstWarehouse = TPCCConstants.STARTING_WAREHOUSE;
     
     public int loadthreads = 1;
     public boolean warehouse_affinity = false;
