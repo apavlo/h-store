@@ -20,15 +20,14 @@ public final class TPCCConfig {
     public boolean neworder_multip = false;
     public boolean neworder_skew_warehouse = false;
 
+    /** Percentage of neworder txns that are forced to be multi-partitioned */
+    public int neworder_multip_mix = 0;
+    
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;
     /** Percentage of warehouse ids that will be temporally skewed during the benchmark run */
     public int temporal_skew_mix = 0;
-    
     public boolean temporal_skew_rotate = false;
-    
-    /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int neworder_multip_mix = 0;
     
     private TPCCConfig() {
         // Nothing
