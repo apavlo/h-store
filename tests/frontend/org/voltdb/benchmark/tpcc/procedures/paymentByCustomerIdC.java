@@ -57,7 +57,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.types.TimestampType;
 
 /**
@@ -136,13 +136,13 @@ public class paymentByCustomerIdC extends VoltProcedure {
         final double c_ytd_payment = customer.getDouble(C_YTD_PAYMENT_IDX) + h_amount;
         final int c_payment_cnt = (int)customer.getLong(C_PAYMENT_CNT_IDX) + 1;
         byte[] c_data;
-        if (Arrays.equals(c_credit, Constants.BAD_CREDIT_BYTES)) {
+        if (Arrays.equals(c_credit, TPCCConstants.BAD_CREDIT_BYTES)) {
             c_data = customer.getStringAsBytes(C_DATA_IDX);
             byte[] newData = (c_id + " " + c_d_id + " " + c_w_id + " " + d_id + " " + w_id  + " " + h_amount + "|").getBytes();
 
             int newLength = newData.length + c_data.length;
-            if (newLength > Constants.MAX_C_DATA) {
-                newLength = Constants.MAX_C_DATA;
+            if (newLength > TPCCConstants.MAX_C_DATA) {
+                newLength = TPCCConstants.MAX_C_DATA;
             }
             ByteBuilder builder = new ByteBuilder(newLength);
 

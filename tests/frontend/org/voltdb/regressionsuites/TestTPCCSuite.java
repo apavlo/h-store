@@ -31,7 +31,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.TPCDataPrinter;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
 import org.voltdb.benchmark.tpcc.procedures.slev;
@@ -62,7 +62,7 @@ public class TestTPCCSuite extends RegressionSuite {
      * Supplemental classes needed by TPC-C procs.
      */
     public static final Class<?>[] SUPPLEMENTALS = {
-        ByteBuilder.class, Constants.class };
+        ByteBuilder.class, TPCCConstants.class };
 
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.
@@ -133,7 +133,7 @@ public class TestTPCCSuite extends RegressionSuite {
         // This tests case of stock level transaction being called when there
         // are no items with stock and no
         // long w_id, long d_id, long threshold
-        VoltTable[] results = client.callProcedure(Constants.STOCK_LEVEL, (byte)3, (byte)7, 1).getResults();
+        VoltTable[] results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 1).getResults();
         // check one table was returned
         assertEquals(1, results.length);
         // check one tuple was modified
@@ -155,12 +155,12 @@ public class TestTPCCSuite extends RegressionSuite {
 
         try {
             // We expect this to fail because the stock table is empty.
-            results = client.callProcedure(Constants.STOCK_LEVEL, (byte)3, (byte)7, 1L).getResults();
+            results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 1L).getResults();
 
             //
             // If this is true SLEV procedure, then we want to check that we got nothing
             //
-            if (Constants.STOCK_LEVEL.equals(slev.class.getSimpleName())) {
+            if (TPCCConstants.STOCK_LEVEL.equals(slev.class.getSimpleName())) {
                 // check one table was returned
                 assertEquals(1, results.length);
                 // check one tuple was modified
@@ -189,7 +189,7 @@ public class TestTPCCSuite extends RegressionSuite {
                 "INFO", "INFO", 5582L, 152L, 32L, "DATA").getResults();
         assertEquals(1L, isresults[0].asScalarLong());
 
-        results = client.callProcedure(Constants.STOCK_LEVEL, (byte)3, (byte)7, 5000).getResults();
+        results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 5000).getResults();
         // check one table was returned
         assertEquals(1, results.length);
         // check one tuple was modified
@@ -213,7 +213,7 @@ public class TestTPCCSuite extends RegressionSuite {
                 "INFO", "INFO", 5582L, 152L, 32L, "DATA").getResults();
         assertEquals(1L, is2results[0].asScalarLong());
 
-        results = client.callProcedure(Constants.STOCK_LEVEL, (byte)3, (byte)7, 5000).getResults();
+        results = client.callProcedure(TPCCConstants.STOCK_LEVEL, (byte)3, (byte)7, 5000).getResults();
         // check one table was returned
         assertEquals(1, results.length);
         // check one tuple was modified
@@ -277,7 +277,7 @@ public class TestTPCCSuite extends RegressionSuite {
         VoltTable stock2 = client.callProcedure("InsertStock", 5L, W_ID,
                 s_quantities[1], "INFO", "INFO", "INFO", "INFO", "INFO",
                 "INFO", "INFO", "INFO", "INFO", "INFO", INITIAL_S_YTD+10, INITIAL_S_ORDER_CNT+10,
-                32L, "foo" + Constants.ORIGINAL_STRING + "bar").getResults()[0];
+                32L, "foo" + TPCCConstants.ORIGINAL_STRING + "bar").getResults()[0];
         VoltTable stock3 = client.callProcedure("InsertStock", 6L, W_ID,
                 s_quantities[2], "INFO", "INFO", "INFO", "INFO", "INFO",
                 "INFO", "INFO", "INFO", "INFO", "INFO", INITIAL_S_YTD+20, INITIAL_S_ORDER_CNT+20,
@@ -286,11 +286,11 @@ public class TestTPCCSuite extends RegressionSuite {
         final double PRICE = 2341.23;
         // long i_id, long i_im_id, String i_name, double i_price, String i_data
         VoltTable item1 = client.callProcedure("InsertItem", 4L, 4L, "ITEM1",
-                PRICE, Constants.ORIGINAL_STRING).getResults()[0];
+                PRICE, TPCCConstants.ORIGINAL_STRING).getResults()[0];
         VoltTable item2 = client.callProcedure("InsertItem", 5L, 5L, "ITEM2",
-                PRICE, Constants.ORIGINAL_STRING).getResults()[0];
+                PRICE, TPCCConstants.ORIGINAL_STRING).getResults()[0];
         VoltTable item3 = client.callProcedure("InsertItem", 6L, 6L, "ITEM3",
-                PRICE, Constants.ORIGINAL_STRING).getResults()[0];
+                PRICE, TPCCConstants.ORIGINAL_STRING).getResults()[0];
         // check the inserts went through.
         assertEquals(1L, stock1.asScalarLong());
         assertEquals(1L, stock2.asScalarLong());
@@ -357,14 +357,14 @@ public class TestTPCCSuite extends RegressionSuite {
         }
 
         // New order with a missing item
-        items = new int[] { Constants.NUM_ITEMS + 1 };
+        items = new int[] { TPCCConstants.NUM_ITEMS + 1 };
         warehouses = new short[] { W_ID };
         quantities = new int[] { 42 };
         try {
             client.callProcedure("neworder", W_ID, D_ID, C_ID, timestamp,
                     items, warehouses, quantities);
         } catch (ProcCallException e) {
-            assertTrue(e.getMessage().indexOf(Constants.INVALID_ITEM_MESSAGE) > 0);
+            assertTrue(e.getMessage().indexOf(TPCCConstants.INVALID_ITEM_MESSAGE) > 0);
         }
 
         // Verify that we only inserted one new order

@@ -184,7 +184,7 @@ public abstract class BenchmarkComponent {
     
     public static synchronized void applyPartitionPlan(Database catalog_db, String partitionPlanPath) {
         if (globalPartitionPlan == null) {
-            LOG.info("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
+            if (debug.get()) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
             globalPartitionPlan = new PartitionPlan();
             try {
                 globalPartitionPlan.load(partitionPlanPath, catalog_db);

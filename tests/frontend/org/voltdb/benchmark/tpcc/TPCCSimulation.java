@@ -76,11 +76,11 @@ public class TPCCSimulation {
     
     // type used by at least VoltDBClient and JDBCClient
     public static enum Transaction {
-        STOCK_LEVEL("Stock Level", Constants.FREQUENCY_STOCK_LEVEL),
-        DELIVERY("Delivery", Constants.FREQUENCY_DELIVERY),
-        ORDER_STATUS("Order Status", Constants.FREQUENCY_ORDER_STATUS),
-        PAYMENT("Payment", Constants.FREQUENCY_PAYMENT),
-        NEW_ORDER("New Order", Constants.FREQUENCY_NEW_ORDER),
+        STOCK_LEVEL("Stock Level", TPCCConstants.FREQUENCY_STOCK_LEVEL),
+        DELIVERY("Delivery", TPCCConstants.FREQUENCY_DELIVERY),
+        ORDER_STATUS("Order Status", TPCCConstants.FREQUENCY_ORDER_STATUS),
+        PAYMENT("Payment", TPCCConstants.FREQUENCY_PAYMENT),
+        NEW_ORDER("New Order", TPCCConstants.FREQUENCY_NEW_ORDER),
         RESET_WAREHOUSE("Reset Warehouse", 0);
 
         private Transaction(String displayName, int weight) {
@@ -281,8 +281,8 @@ public class TPCCSimulation {
 
     /** Executes a stock level transaction. */
     public void doStockLevel() throws IOException {
-        int threshold = generator.number(Constants.MIN_STOCK_LEVEL_THRESHOLD,
-                                          Constants.MAX_STOCK_LEVEL_THRESHOLD);
+        int threshold = generator.number(TPCCConstants.MIN_STOCK_LEVEL_THRESHOLD,
+                                          TPCCConstants.MAX_STOCK_LEVEL_THRESHOLD);
 
         client.callStockLevel(generateWarehouseId(), generateDistrict(), threshold);
     }
@@ -295,21 +295,21 @@ public class TPCCSimulation {
             // 60%: order status by last name
             String cLast = generator
                     .makeRandomLastName(parameters.customersPerDistrict);
-            client.callOrderStatus(Constants.ORDER_STATUS_BY_NAME,
+            client.callOrderStatus(TPCCConstants.ORDER_STATUS_BY_NAME,
                                    generateWarehouseId(), generateDistrict(), cLast);
 
         } else {
             // 40%: order status by id
             assert y > 60;
-            client.callOrderStatus(Constants.ORDER_STATUS_BY_ID,
+            client.callOrderStatus(TPCCConstants.ORDER_STATUS_BY_ID,
                                    generateWarehouseId(), generateDistrict(), generateCID());
         }
     }
 
     /** Executes a delivery transaction. */
     public void doDelivery()  throws IOException {
-        int carrier = generator.number(Constants.MIN_CARRIER_ID,
-                                        Constants.MAX_CARRIER_ID);
+        int carrier = generator.number(TPCCConstants.MIN_CARRIER_ID,
+                                        TPCCConstants.MAX_CARRIER_ID);
 
         client.callDelivery(generateWarehouseId(), carrier, clock.getDateTime());
     }
@@ -335,8 +335,8 @@ public class TPCCSimulation {
             assert c_w_id != w_id;
             c_d_id = generateDistrict();
         }
-        double h_amount = generator.fixedPoint(2, Constants.MIN_PAYMENT,
-                Constants.MAX_PAYMENT);
+        double h_amount = generator.fixedPoint(2, TPCCConstants.MIN_PAYMENT,
+                TPCCConstants.MAX_PAYMENT);
 
         TimestampType now = clock.getDateTime();
 
@@ -358,7 +358,7 @@ public class TPCCSimulation {
         boolean allow_rollback = config.neworder_abort;
         
         short warehouse_id = generateWarehouseId();
-        int ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
+        int ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
 
         // 1% of transactions roll back
         boolean rollback = (allow_rollback && generator.number(1, 100) == 1);
@@ -388,7 +388,7 @@ public class TPCCSimulation {
                 local_warehouses++;
             }
 
-            quantity[i] = generator.number(1, Constants.MAX_OL_QUANTITY);
+            quantity[i] = generator.number(1, TPCCConstants.MAX_OL_QUANTITY);
         }
         // Whether to force this transaction to be multi-partitioned
         if (remote_warehouses == 0 && config.neworder_multip) {

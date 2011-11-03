@@ -62,8 +62,8 @@ LOG.setLevel(logging.INFO)
 OPT_EXP_TYPE = "motivation"
 OPT_EXP_TRIALS = 3
 OPT_EXP_SETTINGS = 0
-OPT_EXP_FACTOR_START = 0
-OPT_EXP_FACTOR_STOP = 100
+OPT_EXP_FACTOR_START = "0"
+OPT_EXP_FACTOR_STOP = "100"
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
@@ -74,7 +74,7 @@ OPT_NO_JAR = False
 OPT_NO_JSON = False
 OPT_NO_CONF = False
 OPT_NO_UPDATE = False
-OPT_NO_SYNC = False
+OPT_NO_SYNC = True
 OPT_STOP_ON_ERROR = False
 OPT_FORCE_REBOOT = False
 
@@ -83,7 +83,7 @@ OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 200
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 400
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 6
 
@@ -179,7 +179,7 @@ EXPERIMENT_SETTINGS = {
     ],
     "breakdown": [
         {
-            
+            "site.exec_speculative_execution": False
         }
         
     ],
@@ -195,6 +195,9 @@ OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     global OPT_BASE_TXNRATE_PER_PARTITION
+  
+    ## ==============================================
+    ## ----------------------------------------------
   
     ## MOTIVATION
     if exp_type == "motivation":
@@ -242,26 +245,28 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## BREAKDOWN
     elif exp_type == "breakdown":
         ## FULL DESIGN
-        if exp_setting == 0:
+        if exp_factor == "full":
             pplan = "%s.%s.pplan" % (benchmark, "lns")
             
         ## WITH SECONDARY INDEX, NO ROUTING
-        elif exp_setting == 1:
+        elif exp_factor == "norouting":
             pplan = "%s.%s.pplan" % (benchmark, "lns")
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
             
         ## WITH ROUTING, NO SECONDARY INDEX
-        elif exp_setting == 2:
+        elif exp_factor == "noindexes":
             pplan = "%s.%s.pplan" % (benchmark, "lns")
             env["client.txn_hints"] = True
             env["site.exec_db2_redirects"] = False
-            env["hstore.exec_prefix"] += "-Dpartitionplan.noindexes=true "
+            env["hstore.exec_prefix"] += " -Dpartitionplan.nosecondary=true"
+        else:
+            raise Exception("Unexpected factor '%s'" % exp_factor)
         ## IF
-        env["hstore.exec_prefix"] += "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
     ## IF
 
-    ## BENCHMARK TYPE
+    ## CUSTOM BENCHMARK TYPE
     if benchmark.startswith("tpcc"):
         env["benchmark.warehouses"] = env["site.partitions"]
         env["benchmark.loadthreads"] = env["site.partitions"]
@@ -277,6 +282,8 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
 
+        ## MOTIVATION
+        
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
     env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
@@ -367,7 +374,7 @@ if __name__ == '__main__':
             LOG.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
     if OPT_FAST:
-        #OPT_NO_COMPILE = True
+        OPT_NO_COMPILE = True
         OPT_NO_UPDATE = True
         OPT_NO_CONF = True
         OPT_NO_JAR = True
@@ -408,6 +415,7 @@ if __name__ == '__main__':
     needUpdate = (OPT_NO_UPDATE == False)
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
+    forceStop = False
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
@@ -427,7 +435,7 @@ if __name__ == '__main__':
                 if OPT_EXP_SETTINGS == 0:
                     values = [ 0, 3, 10, 80, 100 ]
                 else:
-                    values = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 2)
+                    values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 2)
                 for f in values:
                     if f > OPT_EXP_FACTOR_STOP: break
                     if f >= OPT_EXP_FACTOR_START:
@@ -436,8 +444,14 @@ if __name__ == '__main__':
                     
             elif OPT_EXP_TYPE == "throughput":
                 exp_factors = OPT_PARTITION_PLANS
+            elif OPT_EXP_TYPE == "breakdown":
+                if OPT_EXP_FACTOR_START:
+                    exp_factors = [ OPT_EXP_FACTOR_START ]
+                else:
+                    exp_factors = [ "full", "noindexes", "norouting" ]
+                
             else:
-                assert False
+                raise Exception("Unexpected experiment type '%s'" % OPT_EXP_TYPE)
                 
             if OPT_START_CLUSTER:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
@@ -503,11 +517,13 @@ if __name__ == '__main__':
                         ## WITH
                     except KeyboardInterrupt:
                         stop = True
+                        forceStop = True
                         break
                     except SystemExit:
                         LOG.warn("Failed to complete trial succesfully")
                         if OPT_STOP_ON_ERROR:
                             stop = True
+                            forceStop = True
                             break
                         pass
                     except:
@@ -524,12 +540,13 @@ if __name__ == '__main__':
                 ## FOR (TRIALS)
                 if results: all_results.append((benchmark, exp_factor, results, attempts))
                 stop = stop or (attempts == totalAttempts)
-                if stop: break
+                if stop or forceStop: break
             ## FOR (EXP_FACTOR)
             if len(all_results) > 0: final_results[partitions] = all_results
-            # if stop: break
+            if forceStop: break
             stop = False
         ## FOR (PARTITIONS)
+        if forceStop: break
         stop = False
     ## FOR (BENCHMARKS)
     

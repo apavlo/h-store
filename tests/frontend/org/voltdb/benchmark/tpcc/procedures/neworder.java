@@ -55,7 +55,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.types.TimestampType;
 
 //Notes on Stored Procedure:
@@ -167,7 +167,7 @@ public class neworder extends VoltProcedure {
             if (itemresults[i].getRowCount() == 0) {
                 // note that this will happen with 1% of transactions on purpose.
                 // TPCC defines 1% of neworder gives a wrong itemid, causing rollback.
-                throw new VoltAbortException(Constants.INVALID_ITEM_MESSAGE);
+                throw new VoltAbortException(TPCCConstants.INVALID_ITEM_MESSAGE);
             }
             assert itemresults[i].getRowCount() == 1;
             items[i] = itemresults[i].fetchRow(0);
@@ -199,7 +199,7 @@ public class neworder extends VoltProcedure {
 
         voltQueueSQL(incrementNextOrderId, d_next_o_id + 1, d_id, w_id);
         voltQueueSQL(createOrder, d_next_o_id, d_id, w_id, c_id, timestamp,
-                Constants.NULL_CARRIER_ID, ol_cnt, all_local);
+                TPCCConstants.NULL_CARRIER_ID, ol_cnt, all_local);
         voltQueueSQL(createNewOrder, d_next_o_id, d_id, w_id);
         voltExecuteSQL();
 
@@ -244,8 +244,8 @@ public class neworder extends VoltProcedure {
             voltQueueSQL(updateStock, s_quantity, s_ytd, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id );
 
             byte[] brand_generic;
-            if (indexOf(i_data, Constants.ORIGINAL_BYTES) != -1
-                    && indexOf(s_data, Constants.ORIGINAL_BYTES) != -1) {
+            if (indexOf(i_data, TPCCConstants.ORIGINAL_BYTES) != -1
+                    && indexOf(s_data, TPCCConstants.ORIGINAL_BYTES) != -1) {
                 brand_generic = new byte[]{ 'B' };
             } else {
                 brand_generic = new byte[]{ 'G' };
