@@ -1498,6 +1498,10 @@ BENCHMARKS
         <arg value="client.codespeed_executable=${client.codespeed_executable}" />
         <arg value="client.codespeed_commitid=${client.codespeed_commitid}" />
         <arg value="client.codespeed_branch=${client.codespeed_branch}" />
+        
+        <arg value="client.output_json=${client.output_json}" />
+        <arg value="client.output_clients=${client.output_clients}" />
+        <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />

@@ -352,6 +352,10 @@ public abstract class BenchmarkComponent {
         
         public Histogram<Integer> basePartitions = new Histogram<Integer>();
         public Histogram<String> transactions = new Histogram<String>();
+        {
+            this.basePartitions.setKeepZeroEntries(true);
+            this.transactions.setKeepZeroEntries(true);
+        }
 
         public TransactionCounter copy() {
             TransactionCounter copy = new TransactionCounter();

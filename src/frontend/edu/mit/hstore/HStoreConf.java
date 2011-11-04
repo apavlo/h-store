@@ -941,6 +941,27 @@ public final class HStoreConf {
             experimental=false
         )
         public String codespeed_branch;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_clients;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_basepartitions;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_json;
     }
     
     /**

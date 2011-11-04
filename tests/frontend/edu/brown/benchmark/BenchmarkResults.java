@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,6 +44,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class BenchmarkResults {
@@ -71,6 +73,11 @@ public class BenchmarkResults {
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        
+        @Override
+        public String toString() {
+            return String.format("<TxnCount:%d, Delta:%d>", this.transactionCount, this.benchmarkTimeDelta);
+        }
     }
 
     public static class FinalResult implements JSONSerializable {
@@ -78,7 +85,7 @@ public class BenchmarkResults {
         public long totalTxnCount;
         public double txnPerSecond;
         public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
-        private final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
+        public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
         
         public FinalResult(BenchmarkResults results) {
             
@@ -306,7 +313,9 @@ public class BenchmarkResults {
         
         HashMap<String, ArrayList<Result>> txnResults = m_data.get(clientName);
         ArrayList<Result> results = txnResults.get(transactionName);
-        assert(results != null) : "Null results for " + transactionName;
+        assert(results != null) :
+            String.format("Null results for txn '%s' from client '%s'\n%s",
+                          transactionName, clientName, StringUtil.formatMaps(txnResults));
         long txnsTillNow = 0;
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
@@ -373,7 +382,11 @@ public class BenchmarkResults {
     }
 
     public String toString() {
-        // TODO Auto-generated method stub
-        return super.toString();
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Transaction Names", m_transactionNames);
+        m.put("Transaction Data", m_data);
+        m.put("Base Partitions", m_basePartitions);
+        
+        return "BenchmarkResults\n" + StringUtil.formatMaps(m);
     }
 }
