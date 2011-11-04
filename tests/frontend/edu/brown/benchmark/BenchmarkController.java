@@ -52,6 +52,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.UnknownHostException;
@@ -94,15 +95,7 @@ import edu.brown.benchmark.BenchmarkComponent.Command;
 import edu.brown.benchmark.BenchmarkResults.Result;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
-import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
-import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.ProfileMeasurement;
-import edu.brown.utils.StringUtil;
-import edu.brown.utils.ThreadUtil;
+import edu.brown.utils.*;
 import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
@@ -195,6 +188,10 @@ public class BenchmarkController {
     }
 
     class ClientStatusThread extends Thread {
+        
+        public ClientStatusThread() {
+            super("client-status");
+        }
 
         @Override
         public void run() {
@@ -278,13 +275,16 @@ public class BenchmarkController {
                         for (int i = 0; i < 3; i++) {
                             offset += parts[i].length() + 1;
                         } // FOR
+                        String json_line = control_line.substring(offset);
+                        JSONObject json_object;
                         try {
-                            JSONObject json_object = new JSONObject(control_line.substring(offset));
+                            json_object = new JSONObject(json_line);
                             tc.fromJSON(json_object, CatalogUtil.getDatabase(catalog));
                         } catch (JSONException ex) {
-                            System.err.println(control_line.substring(offset));
+                            LOG.error("Invalid response:\n" + json_line);
                             throw new RuntimeException(ex);
                         }
+                        assert(json_object != null);
                         if (trace.get()) LOG.trace("Base Partitions:\n " + tc.basePartitions); 
                         
                         for (String txnName : tc.transactions.values()) {
@@ -295,9 +295,11 @@ public class BenchmarkController {
                         try {
                             if (debug.get()) LOG.debug("UPDATE: " + line);
                             setPollResponseInfo(getClientName(line.processName, clientId), time, results, null);
-                            m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
+                            synchronized (m_currentResults) {
+                                m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
+                            } // SYNCH
                         } catch (Throwable ex) {
-                            LOG.error("Invalid response: " + line.toString(), ex);
+                            LOG.error("Invalid response:\n" + json_line + "\n" + results + "\n" + JSONUtil.format(json_object), ex);
                             throw new RuntimeException(ex);
                         }
                     }
@@ -802,7 +804,10 @@ public class BenchmarkController {
             String.format("%d != %d", m_clientThreads.size(),
                                       (m_config.clients.length * hstore_conf.client.processesperclient));
 
-        ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter() : new ResultsPrinter());
+        boolean output_clients = hstore_conf.client.output_clients;
+        boolean output_basepartitions = hstore_conf.client.output_basepartitions;
+        ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter(output_clients, output_basepartitions) :
+                                                   new ResultsPrinter(output_clients, output_basepartitions));
         registerInterest(rp);
     }
     
@@ -901,7 +906,19 @@ public class BenchmarkController {
         m_currentResults = new BenchmarkResults(hstore_conf.client.interval,
                                                 hstore_conf.client.duration,
                                                 m_clientThreads.size());
+        EventObservableExceptionHandler eh = new EventObservableExceptionHandler();
+        eh.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
+            final EventObservable<String> inner = new EventObservable<String>();
+            {
+                inner.addObserver(failure_observer);
+            }
+            @Override
+            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
+                inner.notifyObservers(arg.getFirst().getName());
+            }
+        });
         m_statusThread = new ClientStatusThread();
+        m_statusThread.setUncaughtExceptionHandler(eh);
         m_statusThread.setDaemon(true);
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         m_statusThread.start();
@@ -1142,21 +1159,26 @@ public class BenchmarkController {
         }
 
         if (completedCount > m_maxCompletedPoll) {
-            synchronized(m_interested) {
-                // notify interested parties
-                for (BenchmarkInterest interest : m_interested)
-                    interest.benchmarkHasUpdated(resultCopy);
-            }
-            m_maxCompletedPoll = completedCount;
-
-            // get total transactions run for this segment
-            long txnDelta = 0;
-            for (String client : resultCopy.getClientNames()) {
-                for (String txn : resultCopy.getTransactionNames()) {
-                    Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
-                    Result r = rs[rs.length - 1];
-                    txnDelta += r.transactionCount;
-                }
+            try {
+                synchronized(m_interested) {
+                    // notify interested parties
+                    for (BenchmarkInterest interest : m_interested)
+                        interest.benchmarkHasUpdated(resultCopy);
+                } // SYNCH
+                m_maxCompletedPoll = completedCount;
+    
+                // get total transactions run for this segment
+                long txnDelta = 0;
+                for (String client : resultCopy.getClientNames()) {
+                    for (String txn : resultCopy.getTransactionNames()) {
+                        Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
+                        Result r = rs[rs.length - 1];
+                        txnDelta += r.transactionCount;
+                    } // FOR
+                } // FOR
+            } catch (Throwable ex) {
+                // LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
+                throw new RuntimeException(ex);
             }
 
             // if nothing done this segment, dump everything

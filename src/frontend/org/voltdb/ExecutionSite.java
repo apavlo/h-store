@@ -43,15 +43,7 @@
 package org.voltdb;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -319,7 +311,30 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * The entries may be either InitiateTaskMessages (i.e., start a stored procedure) or
      * FragmentTaskMessage (i.e., execute some fragments on behalf of another transaction)
      */
-    private final PriorityBlockingQueue<TransactionInfoBaseMessage> work_queue = new PriorityBlockingQueue<TransactionInfoBaseMessage>(10000, work_comparator); 
+    private final PriorityBlockingQueue<TransactionInfoBaseMessage> work_queue = new PriorityBlockingQueue<TransactionInfoBaseMessage>(10000, work_comparator) {
+        private static final long serialVersionUID = 1L;
+        private final List<TransactionInfoBaseMessage> swap = new ArrayList<TransactionInfoBaseMessage>();
+        
+        @Override
+        public int drainTo(Collection<? super TransactionInfoBaseMessage> c) {
+            assert(c != null);
+            TransactionInfoBaseMessage msg = null;
+            int ctr = 0;
+            this.swap.clear();
+            while ((msg = this.poll()) != null) {
+                // All new transaction requests must be put in the new collection
+                if (msg instanceof InitiateTaskMessage) {
+                    c.add(msg);
+                    ctr++;
+                // Everything else will get added back in afterwards 
+                } else {
+                    this.swap.add(msg);
+                }
+            } // WHILE
+            if (this.swap.isEmpty() == false) this.addAll(this.swap);
+            return (ctr);
+        }
+    };
     private final ThrottlingQueue<TransactionInfoBaseMessage> work_throttler;
     
     private static final Comparator<TransactionInfoBaseMessage> work_comparator = new Comparator<TransactionInfoBaseMessage>() {
@@ -1170,17 +1185,17 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // that there already was a multi-partition transaction hanging around.
                     if (status != Hstore.Status.OK) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
-                        synchronized (this.work_queue) {
-                            FragmentTaskMessage ftask = null;
-                            if (this.work_queue.peek() instanceof FragmentTaskMessage) {
-                                ftask = (FragmentTaskMessage)this.work_queue.poll();
-                                assert(ftask != null);
-                            }
-                            if (t) LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s [hasFTask=%s]",
-                                                           this.work_queue.size(), this.partitionId, this.exec_mode, (ftask != null)));
-                            this.work_queue.drainTo(this.current_dtxn_blocked);
-                            if (ftask != null) this.work_queue.add(ftask);
-                        } // SYNCH
+//                        synchronized (this.work_queue) {
+//                            FragmentTaskMessage ftask = null;
+//                            if (this.work_queue.peek() instanceof FragmentTaskMessage) {
+//                                ftask = (FragmentTaskMessage)this.work_queue.poll();
+//                                assert(ftask != null);
+//                            }
+                            int blocked = this.work_queue.drainTo(this.current_dtxn_blocked);
+                            if (t && blocked > 0)
+                                LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
+                                                        blocked, this.partitionId, this.exec_mode));
+//                        } // SYNCH
                         if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
                     }
                     if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
@@ -1445,9 +1460,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             long fragment_id = (long)fragmentIds[0];
 
             VoltSystemProcedure volt_proc = null;
-            synchronized (this.m_registeredSysProcPlanFragments) {
+            // synchronized (this.m_registeredSysProcPlanFragments) {
                 volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
-            } // SYNCH
+            // } // SYNCH
             if (volt_proc == null) throw new RuntimeException("No sysproc handle exists for FragmentID #" + fragment_id + " :: " + this.m_registeredSysProcPlanFragments);
             
             // HACK: We have to set the TransactionState for sysprocs manually
@@ -1599,7 +1614,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
                 ((LocalTransaction)ts).profiler.startExecEE();
             }
-            synchronized (this.ee) {
+//            synchronized (this.ee) {
                 result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                                 fragmentIds,
                                 batchSize,
@@ -1610,7 +1625,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                 txn_id,
                                 this.lastCommittedTxnId,
                                 undoToken);
-            } // SYNCH
+//            } // SYNCH
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
                 ((LocalTransaction)ts).profiler.stopExecEE();
             }
@@ -1681,9 +1696,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
         // from swapping the work queue to the block task list
-        synchronized (this.work_queue) {
+//        synchronized (this.work_queue) {
             this.work_queue.add(task);
-        } // SYNCH
+//        } // SYNCH
         if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
     }
@@ -1698,10 +1713,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
         // from swapping the work queue to the block task list
-        synchronized (this.work_queue) {
+//        synchronized (this.work_queue) {
             this.work_queue.add(task);
 //            this.work_queue.addFirst(task);
-        } // SYNCH
+//        } // SYNCH
         if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
     }
@@ -2257,7 +2272,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
                 }
             } else {
-                synchronized (this.ee) {
+//                synchronized (this.ee) {
                     if (commit) {
                         if (d) LOG.debug(String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                        ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
@@ -2273,7 +2288,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                        ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                         this.ee.undoUndoToken(undoToken);
                     }
-                } // SYNCH
+//                } // SYNCH
             }
         }
         
