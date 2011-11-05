@@ -322,6 +322,7 @@ public class BenchmarkResults {
             retval[i] = new Result(r.benchmarkTimeDelta, r.transactionCount - txnsTillNow);
             txnsTillNow = r.transactionCount;
         }
+        assert(intervals == results.size());
         return retval;
     }
 
@@ -329,6 +330,10 @@ public class BenchmarkResults {
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;
         long offsetTime = time - benchmarkTime;
 
+        if (debug.get())
+            LOG.debug(String.format("Setting Poll Response Info for '%s' [%d]:\n%s",
+                                    clientName, pollIndex, StringUtil.formatMaps(transactionCounts)));
+        
         if (errMsg != null) {
             Error err = new Error(clientName, errMsg, pollIndex);
             m_errors.add(err);
@@ -351,7 +356,8 @@ public class BenchmarkResults {
                 Result r = new Result(offsetTime, entry.getValue());
                 ArrayList<Result> results = m_data.get(clientName).get(entry.getKey());
                 assert(results != null);
-                assert(results.size() == pollIndex) : String.format("[%d] %s => %s", pollIndex, entry, results);
+                assert(results.size() == pollIndex) :
+                    String.format("%s != %d\n%s => %s", results.size(), pollIndex, entry, results);
                 results.add(r);
             }
         }

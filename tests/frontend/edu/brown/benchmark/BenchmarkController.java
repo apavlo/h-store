@@ -52,7 +52,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.UnknownHostException;
@@ -144,7 +143,7 @@ public class BenchmarkController {
     BenchmarkResults m_currentResults = null;
     final Set<String> m_clients = new HashSet<String>();
     final Set<String> m_clientThreads = new HashSet<String>();
-    ClientStatusThread m_statusThread = null;
+    final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
     Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     long m_maxCompletedPoll = 0;
     long m_pollCount = 0;
@@ -189,8 +188,9 @@ public class BenchmarkController {
 
     class ClientStatusThread extends Thread {
         
-        public ClientStatusThread() {
-            super("client-status");
+        public ClientStatusThread(int i) {
+            super(String.format("client-status-%02d", i));
+            this.setDaemon(true);
         }
 
         @Override
@@ -292,14 +292,15 @@ public class BenchmarkController {
                         } // FOR
                         
                         resultsToRead--;
+                        String clientName = getClientName(line.processName, clientId);
                         try {
                             if (debug.get()) LOG.debug("UPDATE: " + line);
-                            setPollResponseInfo(getClientName(line.processName, clientId), time, results, null);
+                            setPollResponseInfo(clientName, time, results, null);
                             synchronized (m_currentResults) {
                                 m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
                             } // SYNCH
                         } catch (Throwable ex) {
-                            LOG.error("Invalid response:\n" + json_line + "\n" + results + "\n" + JSONUtil.format(json_object), ex);
+                            LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
                             throw new RuntimeException(ex);
                         }
                     }
@@ -917,13 +918,16 @@ public class BenchmarkController {
                 inner.notifyObservers(arg.getFirst().getName());
             }
         });
-        m_statusThread = new ClientStatusThread();
-        m_statusThread.setUncaughtExceptionHandler(eh);
-        m_statusThread.setDaemon(true);
+        
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
-        m_statusThread.start();
-
         long nextIntervalTime = hstore_conf.client.interval;
+        
+        for (int i = 0; i < m_clients.size()+2; i++) {
+            ClientStatusThread t = new ClientStatusThread(i);
+            m_statusThreads.add(t);
+            t.setUncaughtExceptionHandler(eh);
+            t.start();
+        } // FOR
         
         Client local_client = null;
 
@@ -1047,9 +1051,10 @@ public class BenchmarkController {
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
-        LOG.info("Waiting for status thread to finish");
+        LOG.info("Waiting for status threads to finish");
         try {
-            m_statusThread.join(1000);
+            for (Thread t : m_statusThreads)
+                t.join(500);
         } catch (InterruptedException e) {
             LOG.warn(e);
         }
