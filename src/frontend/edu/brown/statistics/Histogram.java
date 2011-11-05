@@ -72,7 +72,7 @@ public class Histogram<X> implements JSONSerializable {
     /**
      * A switchable flag that determines whether non-zero entries are kept or removed
      */
-    private boolean keep_zero_entries = false;
+    protected boolean keep_zero_entries = false;
     
     /**
      * Constructor

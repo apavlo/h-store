@@ -240,6 +240,7 @@ public class TestHistogram extends BaseTestCase {
         String json = h.toJSONString();
         assertNotNull(json);
         for (Histogram.Members element : Histogram.Members.values()) {
+            if (element == Histogram.Members.KEEP_ZERO_ENTRIES) continue;
             assertTrue(json.indexOf(element.name()) != -1);
         } // FOR
     }
