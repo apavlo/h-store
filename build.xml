@@ -2288,8 +2288,12 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-<!--        <jvmarg value="-XX:+UseParNewGC" /> -->
-<!--         <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
+        <!--<jvmarg value="-XX:+UseParNewGC" />
+        <jvmarg value="-XX:+UseConcMarkSweepGC" />-->
+        <jvmarg value="-verbose:gc" />
+        <jvmarg value="-XX:+PrintGCDetails" />
+        <jvmarg value="-XX:+PrintGCTimeStamps" />
+        <jvmarg value="-XX:-TraceClassUnloading" />
 
         <jvmarg value="-Dhstore.preload=${site.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />

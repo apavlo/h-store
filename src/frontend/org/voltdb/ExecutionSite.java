@@ -1185,17 +1185,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // that there already was a multi-partition transaction hanging around.
                     if (status != Hstore.Status.OK) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
-//                        synchronized (this.work_queue) {
-//                            FragmentTaskMessage ftask = null;
-//                            if (this.work_queue.peek() instanceof FragmentTaskMessage) {
-//                                ftask = (FragmentTaskMessage)this.work_queue.poll();
-//                                assert(ftask != null);
-//                            }
-                            int blocked = this.work_queue.drainTo(this.current_dtxn_blocked);
-                            if (t && blocked > 0)
-                                LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
-                                                        blocked, this.partitionId, this.exec_mode));
-//                        } // SYNCH
+                        int blocked = this.work_queue.drainTo(this.current_dtxn_blocked);
+                        if (t && blocked > 0)
+                            LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
+                                                    blocked, this.partitionId, this.exec_mode));
                         if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
                     }
                     if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
@@ -1459,10 +1452,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             assert(fragmentIds.length == 1);
             long fragment_id = (long)fragmentIds[0];
 
-            VoltSystemProcedure volt_proc = null;
-            // synchronized (this.m_registeredSysProcPlanFragments) {
-                volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
-            // } // SYNCH
+            VoltSystemProcedure volt_proc = this.m_registeredSysProcPlanFragments.get(fragment_id);
             if (volt_proc == null) throw new RuntimeException("No sysproc handle exists for FragmentID #" + fragment_id + " :: " + this.m_registeredSysProcPlanFragments);
             
             // HACK: We have to set the TransactionState for sysprocs manually
@@ -1614,18 +1604,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
                 ((LocalTransaction)ts).profiler.startExecEE();
             }
-//            synchronized (this.ee) {
-                result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
-                                fragmentIds,
-                                batchSize,
-                                input_depIds,
-                                output_depIds,
-                                parameterSets,
-                                batchSize,
-                                txn_id,
-                                this.lastCommittedTxnId,
-                                undoToken);
-//            } // SYNCH
+            result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
+                            fragmentIds,
+                            batchSize,
+                            input_depIds,
+                            output_depIds,
+                            parameterSets,
+                            batchSize,
+                            txn_id,
+                            this.lastCommittedTxnId,
+                            undoToken);
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
                 ((LocalTransaction)ts).profiler.stopExecEE();
             }
@@ -1694,11 +1682,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public void queueWork(AbstractTransaction ts, FragmentTaskMessage task) {
         assert(ts.isInitialized());
         
-        // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
-        // from swapping the work queue to the block task list
-//        synchronized (this.work_queue) {
-            this.work_queue.add(task);
-//        } // SYNCH
+        this.work_queue.add(task);
         if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
     }
@@ -1711,12 +1695,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public void queueFinish(AbstractTransaction ts, FinishTaskMessage task) {
         assert(ts.isInitialized());
         
-        // We have to lock the work queue here to prevent a speculatively executed transaction that aborts
-        // from swapping the work queue to the block task list
-//        synchronized (this.work_queue) {
-            this.work_queue.add(task);
-//            this.work_queue.addFirst(task);
-//        } // SYNCH
+        this.work_queue.add(task);
         if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
     }
