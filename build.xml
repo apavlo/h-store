@@ -175,7 +175,7 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="default"
-    depends="protobuf, protorpc, compile, ee"
+    depends="compile, ee"
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"
@@ -186,8 +186,8 @@ PRIMARY ENTRY POINTS
     depends="compile, voltdbipc, junit_quick"
     description="Run a subset of Java testcases and test fragments."
 />
-<target name="all"
-    depends="compile, ee, junit, eecheck, doc, eedoc, jars"
+<target name="build-all"
+    depends="protobuf, protorpc, compile, ee, junit, eecheck, doc, eedoc, jars"
     description="Do all tasks."
 />
 <target name="jars"
@@ -500,7 +500,7 @@ JAVA COMPILATION
     <!-- compile the individual source directories -->
     <javac includeantruntime="false" 
         target="${javac.version}"
-        srcdir="${build.protorpc.dir}"
+        srcdir="${src.protorpc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
         <classpath refid="project.classpath" />
@@ -1349,7 +1349,7 @@ PROTOCOL BUFFERS
 
 <target name="protobuf.java.check">
     <uptodate property="protobuf.java.built"
-              targetfile="${build.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
+              targetfile="${src.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
         <srcfiles dir="${src.protobuf.dir}/java/src/main/java" includes="**/*.proto" />
     </uptodate>
 </target>
@@ -1358,14 +1358,14 @@ PROTOCOL BUFFERS
                              depends="protobuf.compile, protobuf.java.check" 
                              unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
-    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protorpc.dir}">
+    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${src.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
     </ProtobufGenerateJava>
 </target>
 
 <target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
-    <mkdir dir='${build.prod.dir}' />
-    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
+<!--     <mkdir dir='${build.prod.dir}' /> -->
+    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${src.protorpc.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
     </ProtobufCompile>
 </target>
@@ -1386,7 +1386,7 @@ PROTORPC
 <target name="protorpc" description="Generates ProtoRPC files"
                         depends="protobuf, protorpc.check"
                         unless="protorpc.built">
-    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
+    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${src.protorpc.dir}">
         <fileset dir="${src.protorpc.dir}">
             <patternset><include name="**/*.proto" /></patternset>
         </fileset>
