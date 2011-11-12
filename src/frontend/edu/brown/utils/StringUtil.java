@@ -478,7 +478,7 @@ public abstract class StringUtil {
     }
     
     public static <T> String join(String delimiter, final Iterator<T> items) {
-        return (join("", delimiter, CollectionUtil.wrapIterator(items)));
+        return (join("", delimiter, CollectionUtil.iterable(items)));
     }
     
     /**

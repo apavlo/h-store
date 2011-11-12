@@ -43,7 +43,15 @@
 package org.voltdb;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -717,7 +725,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     work = this.work_queue.poll();
                     if (work == null) {
-                        if (d) LOG.debug("Partition " + this.partitionId + " queue is empty. Waiting...");
+                        if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                         work = this.work_queue.take();
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
@@ -1067,7 +1075,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         ExecutionMode before_mode = ExecutionMode.COMMIT_ALL;
         boolean predict_singlePartition = ts.isPredictSinglePartition();
         
-        if (d) LOG.debug(String.format("Attempting to begin processing %s for %s on partition %d [taskHash=%d]",
+        if (t) LOG.trace(String.format("Attempting to begin processing %s for %s on partition %d [taskHash=%d]",
                                        itask.getClass().getSimpleName(), ts, this.partitionId, itask.hashCode()));
         // If this is going to be a multi-partition transaction, then we will mark it as the current dtxn
         // for this ExecutionSite.
@@ -1346,7 +1354,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (is_dtxn == false) {
             // If the transaction is local, store the result directly in the local TransactionState
             if (status == FragmentResponseMessage.SUCCESS) {
-                if (d) LOG.debug("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
+                if (t) LOG.trace("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                 LocalTransaction local_ts = (LocalTransaction)ts;
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = ftask.getOutputDependencyIds()[i];

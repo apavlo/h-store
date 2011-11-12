@@ -121,7 +121,7 @@ public class BenchmarkConfig {
         }
         
         Class<?> confClass = this.getClass();
-        for (Object key : CollectionUtil.wrapIterator(this.config.getKeys())) {
+        for (Object key : CollectionUtil.iterable(this.config.getKeys())) {
             String f_name = key.toString();
             String f_value = this.config.getString(f_name); 
             

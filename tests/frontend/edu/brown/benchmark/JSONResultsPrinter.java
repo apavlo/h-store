@@ -27,7 +27,7 @@ public class JSONResultsPrinter extends ResultsPrinter {
         try {
             json = new JSONObject(fr.toJSONString());
             if (output_clients == false) {
-                for (String key : CollectionUtil.wrapIterator(json.keys())) {
+                for (String key : CollectionUtil.iterable(json.keys())) {
                     if (key.toLowerCase().startsWith("client")) {
                         json.remove(key);        
                     }

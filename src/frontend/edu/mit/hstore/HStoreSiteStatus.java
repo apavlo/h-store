@@ -16,6 +16,7 @@ import org.voltdb.ExecutionSitePostProcessor;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
@@ -46,6 +47,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    private static Logger DEBUG_LOGGERS[] = { HStoreSite.LOG, ExecutionSite.LOG, HStoreCoordinator.LOG };
     
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
     
@@ -123,6 +126,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             }
         });
         
+//        if (hstore_conf.global.ringbuffer_debug) {
+//            LOG.info("Enabling RingBufferAppender loggers");
+//            for (Logger logger : DEBUG_LOGGERS) {
+//                RingBufferAppender.enableRingBufferAppender(logger, 1000);
+//            } // FOR
+//        }
+        
         // Pre-Compute Header
         this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), hstore_site.getSiteName());
         this.header.put("Number of Partitions", this.executors.size());
@@ -179,6 +189,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     
     @Override
     public void shutdown() {
+        // Dump LOG buffers...
+        LOG.info("Looking for RingBufferAppender messages...");
+        for (String msg : RingBufferAppender.getLoggingMessages(Logger.getRootLogger().getLoggerRepository())) {
+            System.out.print(msg);
+        } // FOR
+        
 //        hstore_conf.site.status_show_thread_info = true;
         this.printSnapshot();
         

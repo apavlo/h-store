@@ -65,6 +65,13 @@ public final class HStoreConf {
             experimental=false
         )
         public String defaulthost = "localhost";
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean ringbuffer_debug;
     }
     
     // ============================================================================
@@ -1188,7 +1195,7 @@ public final class HStoreConf {
         }
 
         Pattern p = this.makePattern();
-        for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
+        for (Object obj_k : CollectionUtil.iterable(this.config.getKeys())) {
             String k = obj_k.toString();
             Matcher m = p.matcher(k);
             boolean found = m.matches();

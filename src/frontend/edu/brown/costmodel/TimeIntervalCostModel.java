@@ -299,7 +299,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         // QUEUING THREAD
         tmp_consumers.clear();
-        Producer<TransactionTrace, Pair<TransactionTrace, Integer>> producer = new Producer<TransactionTrace, Pair<TransactionTrace,Integer>>(CollectionUtil.wrapIterator(workload.iterator(filter))) {
+        Producer<TransactionTrace, Pair<TransactionTrace, Integer>> producer = new Producer<TransactionTrace, Pair<TransactionTrace,Integer>>(CollectionUtil.iterable(workload.iterator(filter))) {
             @Override
             public Pair<Consumer<Pair<TransactionTrace, Integer>>, Pair<TransactionTrace, Integer>>  transform(TransactionTrace txn_trace) {
                 int i = workload.getTimeInterval(txn_trace, num_intervals);

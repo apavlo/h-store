@@ -105,7 +105,7 @@ import edu.mit.hstore.util.TxnCounter;
  * @author pavlo
  */
 public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, Loggable {
-    private static final Logger LOG = Logger.getLogger(HStoreSite.class);
+    public static final Logger LOG = Logger.getLogger(HStoreSite.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
@@ -656,7 +656,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // This message must always be printed in order for the BenchmarkController
         // to know that we're ready!
-        LOG.info(String.format("%s [site=%s, ports=%s, #partitions=%d]",
+        System.out.println(String.format("%s [site=%s, ports=%s, #partitions=%d]",
                                HStoreConstants.SITE_READY_MSG,
                                this.getSiteName(),
                                CatalogUtil.getExecutionSitePorts(catalog_site),
@@ -756,6 +756,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (int p : this.local_partitions) {
             this.executors[p].prepareShutdown();
         } // FOR
+        for (AbstractTransaction ts : this.inflight_txns.values()) {
+            // TODO: Reject all of these
+        }
     }
     
     /**
@@ -1141,7 +1144,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (debug.get()) {
                         LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
                                        ts, partition, last_txn_id));
-                        LOG.warn(String.format("LastTxnId:#%d / NewTxnId:#%d",
+                        LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
                                            TransactionIdManager.toString(last_txn_id),
                                            TransactionIdManager.toString(txn_id)));
                     }

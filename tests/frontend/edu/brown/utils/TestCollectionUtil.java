@@ -3,6 +3,7 @@ package edu.brown.utils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +19,29 @@ import edu.brown.rand.DefaultRandomGenerator;
 public class TestCollectionUtil extends TestCase {
     
     private final Random rand = new Random();
+    
+    /**
+     * testIterableEnumeration
+     */
+    public void testIterableEnumeration() {
+        final int size = 10;
+        Enumeration<Integer> e = new Enumeration<Integer>() {
+            int ctr = 0;
+            @Override
+            public Integer nextElement() {
+                return (ctr++);
+            }
+            @Override
+            public boolean hasMoreElements() {
+                return (ctr < size);
+            }
+        };
+        
+        List<Integer> found = new ArrayList<Integer>();
+        for (Integer i : CollectionUtil.iterable(e))
+            found.add(i);
+        assertEquals(size, found.size());
+    }
     
     /**
      * testAddAll

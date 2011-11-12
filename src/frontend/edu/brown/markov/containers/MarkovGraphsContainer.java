@@ -340,12 +340,12 @@ public class MarkovGraphsContainer implements JSONSerializable {
         // MARKOV GRAPHS
         JSONObject json_inner = json_object.getJSONObject(Members.MARKOVS.name());
         List<Runnable> runnables = new ArrayList<Runnable>();
-        for (String id_key : CollectionUtil.wrapIterator(json_inner.keys())) {
+        for (String id_key : CollectionUtil.iterable(json_inner.keys())) {
             final Integer id = Integer.valueOf(id_key);
             final JSONObject json_procs = json_inner.getJSONObject(id_key);
             assert(json_procs != null);
             
-            for (final String proc_key : CollectionUtil.wrapIterator(json_procs.keys())) {
+            for (final String proc_key : CollectionUtil.iterable(json_procs.keys())) {
                 final Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, proc_key, Procedure.class);
                 assert(catalog_proc != null);
                 if (this.load_procedures != null && this.load_procedures.contains(catalog_proc) == false) {
