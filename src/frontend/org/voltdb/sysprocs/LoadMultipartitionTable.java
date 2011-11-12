@@ -39,9 +39,9 @@ import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 @ProcInfo(singlePartition = false)
 /*

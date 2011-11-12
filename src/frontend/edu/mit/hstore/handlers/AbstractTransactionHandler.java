@@ -12,8 +12,8 @@ import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;

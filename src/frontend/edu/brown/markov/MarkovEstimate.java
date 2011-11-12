@@ -7,11 +7,11 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class MarkovEstimate implements Poolable, Estimation {
     private static final Logger LOG = Logger.getLogger(MarkovEstimate.class);

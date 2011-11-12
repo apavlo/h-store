@@ -3,7 +3,8 @@ package edu.brown.utils;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class TypedStackObjectPool<T extends Poolable> extends StackObjectPool {
     private static final Logger LOG = Logger.getLogger(TypedStackObjectPool.class);

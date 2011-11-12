@@ -29,14 +29,14 @@ import edu.brown.utils.CollectionUtil;
 public class RingBufferAppender extends AppenderSkeleton {
     private static final Logger LOG = Logger.getLogger(RingBufferAppender.class);
     
-    private static final int DEFAULT_SIZE = 500;
+    private static final int DEFAULT_SIZE = 1000;
     
     private LoggingEvent[] eventRing;
     private int currentPosition;
     private long counter;
     private int stackOffset = -1;
     
-    private boolean useFastLocation = true;
+    private boolean useFastLocation = false;
     private boolean storeLocation = false;
     private boolean storeThreadName = false;
     
@@ -57,8 +57,9 @@ public class RingBufferAppender extends AppenderSkeleton {
         this.currentPosition = -1;
         this.counter = 0;
         if (LOG.isDebugEnabled())
-            LOG.debug(String.format("Initialized appender with new buffer [size=%d, storeLocation=%s, layout=%s]",
-                                   size, this.storeLocation, this.getLayout()));
+            LOG.debug(String.format("Initialized appender with new buffer [size=%d, useFastLocation=%s, storeLocation=%s, storeThreadName=%s, layout=%s]",
+                                    size, this.useFastLocation, this.storeLocation, this.storeThreadName,
+                                    (this.getLayout() != null ? this.getLayout().getClass().getSimpleName() : null)));
     }
     
     public void setUseFastLocation(boolean val) {
@@ -262,12 +263,7 @@ public class RingBufferAppender extends AppenderSkeleton {
     }
     
     public static Collection<String> getLoggingMessages(RingBufferAppender...appenders) {
-        SortedSet<LoggingEvent> events = new TreeSet<LoggingEvent>(new Comparator<LoggingEvent>() {
-            @Override
-            public int compare(LoggingEvent o1, LoggingEvent o2) {
-                return (int)(o1.timeStamp - o2.timeStamp);
-            }
-        });
+        List<LoggingEvent> events = new ArrayList<LoggingEvent>();
         Layout layout = null; 
         for (RingBufferAppender rba : appenders) {
             LoggingEvent e[] = rba.getLogEvents();
@@ -278,6 +274,12 @@ public class RingBufferAppender extends AppenderSkeleton {
         } // FOR
         if (events.isEmpty() == false) assert(layout != null);
         
+        Collections.sort(events, new Comparator<LoggingEvent>() {
+            @Override
+            public int compare(LoggingEvent o1, LoggingEvent o2) {
+                return (int)(o1.timeStamp - o2.timeStamp);
+            }
+        });
         List<String> messages = new ArrayList<String>();
         for (LoggingEvent event : events) {
             messages.add(layout.format(event));

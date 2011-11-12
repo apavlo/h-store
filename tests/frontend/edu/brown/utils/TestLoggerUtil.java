@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 
 import edu.brown.benchmark.markov.RandomGenerator;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.oltpgenerator.AbstractBenchmark.RandomGenerator.AbstractRandomGenerator;
 
 import junit.framework.TestCase;

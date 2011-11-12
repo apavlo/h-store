@@ -10,9 +10,9 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 
 import edu.brown.benchmark.airline.AirlineConstants;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class HistogramUtil {
     private static final Logger LOG = Logger.getLogger(HistogramUtil.class);

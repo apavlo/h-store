@@ -59,11 +59,11 @@ import org.apache.log4j.Logger;
 import org.voltdb.benchmark.Clock;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class TPCCSimulation {
     private static final Logger LOG = Logger.getLogger(TPCCSimulation.class);

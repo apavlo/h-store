@@ -29,6 +29,7 @@
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
 <property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
+<property name='build.preprocessor.dir'      location='${build.dir}/preprocessor' />
 <property name='dist.dir'                    location='${build.dir}/dist' />
 <property name='dist.examples.dir'           location='${dist.dir}/examples' />
 <property name='dist.examples.auction.dir'   location='${dist.examples.dir}/auction' />
@@ -453,6 +454,13 @@ JAVA COMPILATION
         dir='${src.frontend.dir}/org/voltdb/utils'
         executable='${src.frontend.dir}/org/voltdb/utils/generate_logkeys.py'
         failonerror='true' />
+        
+    <exec dir='.'
+          executable='${tools.dir}/preprocessor.py'
+          failonerror='true' >
+        <arg line='${src.frontend.dir} ${build.preprocessor.dir}' />
+    </exec>
+        
     <depend
         srcdir="${src.hsqldb.dir}:${src.hsqldb.test.dir}:${src.frontend.dir}:${src.test.dir}:${vendor.src.dir}"
         destdir="${build.prod.dir}:${build.test.dir}"
@@ -553,6 +561,14 @@ JAVA COMPILATION
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
         excludes="org/voltdb/benchmark/tpcc/JDBCClient.java,edu/mit/elt/ELTTester**"
+        debug='true'>
+        <classpath refid="project.classpath" />
+    </javac>
+    
+    <javac includeantruntime="false"
+        target="${javac.version}"
+        srcdir="${build.preprocessor.dir}"
+        destdir='${build.prod.dir}'
         debug='true'>
         <classpath refid="project.classpath" />
     </javac>

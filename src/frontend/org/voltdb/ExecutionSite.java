@@ -101,16 +101,16 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.EventObservable;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TypedPoolableObjectFactory;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreCoordinator;
@@ -427,11 +427,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             AbstractTransaction ts = hstore_site.getTransaction(txn_id);
             assert(ts != null) : "No transaction state exists for txn #" + txn_id;
             
-            if (d) LOG.debug(String.format("Processing Hstore.TransactionWorkResponse for %s with %d results",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Processing Hstore.TransactionWorkResponse for %s with %d results",
                                         ts, msg.getResultsCount()));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 PartitionResult result = msg.getResults(i); 
-                if (t) LOG.trace(String.format("Got %s from partition %d for %s [bytes=%d]",
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Got %s from partition %d for %s [bytes=%d]",
                                                result.getClass().getSimpleName(), result.getPartitionId(), ts, result.getOutput().size()));
                 
                 ByteString serialized = result.getOutput();
@@ -462,7 +462,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (!m_registeredSysProcPlanFragments.containsKey(pfId)) {
                 assert(m_registeredSysProcPlanFragments.containsKey(pfId) == false) : "Trying to register the same sysproc more than once: " + pfId;
                 m_registeredSysProcPlanFragments.put(pfId, proc);
-                LOG.trace("Registered @" + proc.getClass().getSimpleName() + " sysproc handle for FragmentId #" + pfId);
+                LOG.trace("__FILE__:__LINE__ " + "Registered @" + proc.getClass().getSimpleName() + " sysproc handle for FragmentId #" + pfId);
             }
         } // SYNCH
     }
@@ -580,7 +580,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         HsqlBackend hsqlTemp = null;
         ExecutionEngine eeTemp = null;
         try {
-            if (d) LOG.debug("Creating EE wrapper with target type '" + target + "'");
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Creating EE wrapper with target type '" + target + "'");
             if (this.backend_target == BackendTarget.HSQLDB_BACKEND) {
                 hsqlTemp = new HsqlBackend(partitionId);
                 final String hexDDL = database.getSchema();
@@ -669,7 +669,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param hstore_site
      */
     public void initHStoreSite(HStoreSite hstore_site) {
-        if (t) LOG.trace(String.format("Initializing HStoreSite components at partition %d", this.partitionId));
+        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Initializing HStoreSite components at partition %d", this.partitionId));
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_messenger = hstore_site.getCoordinator();
@@ -714,7 +714,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // Setup shutdown lock
             this.shutdown_latch = new Semaphore(0);
             
-            if (d) LOG.debug("Starting ExecutionSite run loop...");
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Starting ExecutionSite run loop...");
             while (stop == false && this.isShuttingDown() == false) {
                 txn_id = -1;
                 work = null;
@@ -725,13 +725,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     work = this.work_queue.poll();
                     if (work == null) {
-                        if (t) LOG.trace("Partition " + this.partitionId + " queue is empty. Waiting...");
+                        if (t) LOG.trace("__FILE__:__LINE__ " + "Partition " + this.partitionId + " queue is empty. Waiting...");
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.start();
                         work = this.work_queue.take();
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
                     }
                 } catch (InterruptedException ex) {
-                    if (d && this.isShuttingDown() == false) LOG.debug("Unexpected interuption while polling work queue. Halting ExecutionSite...", ex);
+                    if (d && this.isShuttingDown() == false) LOG.debug("__FILE__:__LINE__ " + "Unexpected interuption while polling work queue. Halting ExecutionSite...", ex);
                     stop = true;
                     break;
                 }
@@ -759,9 +759,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // block or insert ourselves back into the queue so that we can maybe execute
                     // some other transactions.
 //                    if (this.current_dtxn == null || current_txn != this.current_dtxn) {
-//                        if (d) LOG.debug(String.format("Blocking %s on DTXN lock [currentDtxn=%s]", current_txn, current_dtxn));
+//                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking %s on DTXN lock [currentDtxn=%s]", current_txn, current_dtxn));
 //                        this.dtxn_lock.acquire();
-//                        if (d) LOG.debug(current_txn + " has acquired DTXN lock");
+//                        if (d) LOG.debug("__FILE__:__LINE__ " + current_txn + " has acquired DTXN lock");
 //                    }
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null
@@ -775,7 +775,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                 this.setExecutionMode(current_txn, ExecutionMode.DISABLED);
                             }
                                 
-                            if (d) LOG.debug(String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
+                            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
                                                            current_txn, this.partitionId, this.exec_mode));                    
     
                         // Check whether we should drop down to a less permissive speculative execution mode
@@ -933,7 +933,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private void setExecutionMode(AbstractTransaction ts, ExecutionMode mode) {
         if (d && this.exec_mode != mode) {
 //        if (this.exec_mode != mode) {
-            LOG.debug(String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Setting ExecutionMode for partition %d to %s because of %s [currentDtxn=%s, origMode=%s]",
                                     this.partitionId, mode, ts, this.current_dtxn, this.exec_mode));
         }
         assert(mode != ExecutionMode.COMMIT_READONLY || (mode == ExecutionMode.COMMIT_READONLY && this.current_dtxn != null)) :
@@ -991,7 +991,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(ts == null || this.current_dtxn == null || this.current_dtxn.isInitialized() == false) :
             String.format("Concurrent multi-partition transactions at partition %d: Orig[%s] <=> New[%s] / BlockedQueue:%d",
                           this.partitionId, this.current_dtxn, ts, this.current_dtxn_blocked.size());
-        if (d) LOG.debug(String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Setting %s as the current DTXN for partition #%d [previous=%s]",
                                        ts, this.partitionId, this.current_dtxn));
         this.current_dtxn = ts;
     }
@@ -1018,14 +1018,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // If it is, then that means all read-only transactions can commit right away
         if (ts.isExecReadOnly(this.partitionId)) {
             ExecutionMode newMode = ExecutionMode.COMMIT_READONLY;
-            if (d) LOG.debug(String.format("Attempting to enable %s speculative execution at partition %d [currentMode=%s, txn=%s]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Attempting to enable %s speculative execution at partition %d [currentMode=%s, txn=%s]",
                                            newMode, partitionId, this.exec_mode, ts));
             exec_lock.lock();
             try {
                 if (this.current_dtxn == ts && this.exec_mode != ExecutionMode.DISABLED) {
                     this.setExecutionMode(ts, newMode);
                     this.releaseBlockedTransactions(ts, true);
-                    if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=%s]",
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Enabled %s speculative execution at partition %d [txn=%s]",
                                                    this.exec_mode, partitionId, ts));
                     return (true);
                 }
@@ -1042,7 +1042,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param fresponse
      */
     protected void processFragmentResponseMessage(LocalTransaction ts, FragmentResponseMessage fresponse) {
-        if (d) LOG.debug(String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
                                        ts, this.partitionId, fresponse.getSourcePartitionId(), fresponse.getTableCount()));
         
         // If the Fragment failed to execute, then we need to abort the Transaction
@@ -1050,14 +1050,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
         // procedure back up
         if (fresponse.getStatusCode() != FragmentResponseMessage.SUCCESS) {
-            if (t) LOG.trace(String.format("Received non-success response %s from partition %d for %s",
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Received non-success response %s from partition %d for %s",
                                             fresponse.getStatusCodeName(), fresponse.getSourcePartitionId(), ts));
             ts.setPendingError(fresponse.getException());
         }
         for (int i = 0, cnt = fresponse.getTableCount(); i < cnt; i++) {
             assert(fresponse.hasTableAtIndex(i)) : 
                 String.format("Missing result table from FragmentResponseMessage for %s\n%s", ts, fresponse);
-            if (t) LOG.trace(String.format("Storing intermediate result from partition %d for %s",
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Storing intermediate result from partition %d for %s",
                                            fresponse.getSourcePartitionId(), ts));
             ts.addResult(fresponse.getSourcePartitionId(),
                          fresponse.getTableDependencyIdAtIndex(i),
@@ -1075,7 +1075,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         ExecutionMode before_mode = ExecutionMode.COMMIT_ALL;
         boolean predict_singlePartition = ts.isPredictSinglePartition();
         
-        if (t) LOG.trace(String.format("Attempting to begin processing %s for %s on partition %d [taskHash=%d]",
+        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Attempting to begin processing %s for %s on partition %d [taskHash=%d]",
                                        itask.getClass().getSimpleName(), ts, this.partitionId, itask.hashCode()));
         // If this is going to be a multi-partition transaction, then we will mark it as the current dtxn
         // for this ExecutionSite.
@@ -1091,9 +1091,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 //                exec_lock.unlock();
 //            } // SYNCH
 //                
-//            if (d) LOG.debug("Blocking " + ts + " on DTXN lock");
+//            if (d) LOG.debug("__FILE__:__LINE__ " + "Blocking " + ts + " on DTXN lock");
 ////            this.dtxn_lock.acquire();
-//            if (d) LOG.debug(ts + " has acquired DTXN lock");
+//            if (d) LOG.debug("__FILE__:__LINE__ " + ts + " has acquired DTXN lock");
 //            this.exec_lock.lock();
 //            try {
                 this.setCurrentDtxn(ts);
@@ -1102,7 +1102,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 } else {
                     this.setExecutionMode(ts, ExecutionMode.DISABLED);                  
                 }
-                if (d) LOG.debug(String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as current DTXN on Partition %d [isLocal=%s, execMode=%s]",
                                                ts, this.partitionId, true, this.exec_mode));                    
                 before_mode = this.exec_mode;
             } finally {
@@ -1121,7 +1121,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // HACK: If we are currently under DISABLED mode when we get this, then we just need to block the transaction
                     // and return back to the queue. This is easier than having to set all sorts of crazy locks
                     if (this.exec_mode == ExecutionMode.DISABLED) {
-                        if (t) LOG.trace(String.format("Blocking single-partition %s until dtxn #%d finishes [mode=%s]", ts, this.current_dtxn, this.exec_mode));
+                        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Blocking single-partition %s until dtxn #%d finishes [mode=%s]", ts, this.current_dtxn, this.exec_mode));
                         this.current_dtxn_blocked.add(itask);
                         return;
                     }
@@ -1129,7 +1129,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     before_mode = this.exec_mode;
                     if (hstore_conf.site.exec_speculative_execution) {
                         ts.setSpeculative(true);
-                        if (d) LOG.debug(String.format("Marking %s as speculatively executed on partition %d [txnMode=%s, dtxn=%s]", ts, this.partitionId, before_mode, this.current_dtxn));
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as speculatively executed on partition %d [txnMode=%s, dtxn=%s]", ts, this.partitionId, before_mode, this.current_dtxn));
                     }
                 }
             } finally {
@@ -1145,8 +1145,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (d) {
-            LOG.debug(String.format("Starting execution of %s [txnMode=%s, mode=%s]", ts, before_mode, this.exec_mode));
-            if (t) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
+            LOG.debug("__FILE__:__LINE__ " + String.format("Starting execution of %s [txnMode=%s, mode=%s]", ts, before_mode, this.exec_mode));
+            if (t) LOG.trace("__FILE__:__LINE__ " + "Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
             
         ClientResponseImpl cresponse = null;
@@ -1171,7 +1171,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             return;
         }
         Hstore.Status status = cresponse.getStatus();
-        if (d) LOG.debug(String.format("Finished execution of %s [status=%s, beforeMode=%s, currentMode=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Finished execution of %s [status=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, before_mode, this.exec_mode));
 
         // We assume that most transactions are not speculatively executed and are successful
@@ -1195,11 +1195,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
                         int blocked = this.work_queue.drainTo(this.current_dtxn_blocked);
                         if (t && blocked > 0)
-                            LOG.trace(String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
+                            LOG.trace("__FILE__:__LINE__ " + String.format("Blocking %d transactions at partition %d because ExecutionMode is now %s",
                                                     blocked, this.partitionId, this.exec_mode));
-                        if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
                     }
-                    if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
                                                    ts, cresponse.getStatus(), before_mode, this.exec_mode, this.current_dtxn));
                     this.queueClientResponse(ts, cresponse);
                 }
@@ -1213,10 +1213,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     
     private void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         if (hstore_conf.site.exec_postprocessing_thread) {
-            if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
             hstore_site.queueClientResponse(this, ts, cresponse);
         } else {
-            if (t) LOG.trace(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
             this.sendClientResponse(ts, cresponse);
         }
     }
@@ -1233,7 +1233,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode before_mode) {
-        if (d) LOG.debug(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.exec_mode));
         // Commit All
         if (ts.isPredictSinglePartition() == false || this.exec_mode == ExecutionMode.COMMIT_ALL) {
@@ -1283,7 +1283,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // A txn is "local" if the Java is executing at the same site as we are
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
-        if (d) LOG.debug(String.format("Executing FragmentTaskMessage %s [basePartition=%d, isLocal=%s, isDtxn=%s, fragments=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Executing FragmentTaskMessage %s [basePartition=%d, isLocal=%s, isDtxn=%s, fragments=%s]",
                                        ts, ftask.getSourcePartitionId(), is_local, is_dtxn, Arrays.toString(ftask.getFragmentIds())));
 
         // If this txn isn't local, then we have to update our undoToken
@@ -1296,7 +1296,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (is_dtxn == false && ftask.hasInputDependencies()) {
                 this.tmp_removeDependenciesMap.clear();
                 ((LocalTransaction)ts).removeInternalDependencies(ftask, this.tmp_removeDependenciesMap);
-                if (t) LOG.trace(String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
                 for (Entry<Integer, List<VoltTable>> e : this.tmp_removeDependenciesMap.entrySet()) {
                     ftask.attachResults(e.getKey(), e.getValue());
                 } // FOR
@@ -1354,12 +1354,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (is_dtxn == false) {
             // If the transaction is local, store the result directly in the local TransactionState
             if (status == FragmentResponseMessage.SUCCESS) {
-                if (t) LOG.trace("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
+                if (t) LOG.trace("__FILE__:__LINE__ " + "Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                 LocalTransaction local_ts = (LocalTransaction)ts;
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
                     int dep_id = ftask.getOutputDependencyIds()[i];
                     // ts.addResult(result.depIds[i], result.dependencies[i]);
-                    if (t) LOG.trace("Storing DependencyId #" + dep_id  + " for " + ts);
+                    if (t) LOG.trace("__FILE__:__LINE__ " + "Storing DependencyId #" + dep_id  + " for " + ts);
                     try {
                         local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
@@ -1378,7 +1378,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // REMOTE TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("Constructing FragmentResponseMessage %s with %d bytes from partition %d to send back to initial partition %d for %s",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Constructing FragmentResponseMessage %s with %d bytes from partition %d to send back to initial partition %d for %s",
                                            Arrays.toString(ftask.getFragmentIds()),
                                            result.size(), this.partitionId, ftask.getSourcePartitionId(), ts));
             FragmentResponseMessage fresponse = new FragmentResponseMessage(ftask);
@@ -1416,8 +1416,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         
         if (d) {
-            LOG.debug(String.format("Getting ready to kick %d fragments to EE for %s", ftask.getFragmentCount(), ts));
-            if (t) LOG.trace("FragmentTaskIds: " + Arrays.toString(ftask.getFragmentIds()));
+            LOG.debug("__FILE__:__LINE__ " + String.format("Getting ready to kick %d fragments to EE for %s", ftask.getFragmentCount(), ts));
+            if (t) LOG.trace("__FILE__:__LINE__ " + "FragmentTaskIds: " + Arrays.toString(ftask.getFragmentIds()));
         }
         ParameterSet parameterSets[] = new ParameterSet[fragmentIdIndex];
         for (int i = 0; i < fragmentIdIndex; i++) {
@@ -1425,7 +1425,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (paramData != null) {
                 paramData.rewind();
                 final FastDeserializer fds = new FastDeserializer(paramData);
-                if (t) LOG.trace(ts + " ->paramData[" + i + "] => " + fds.buffer());
+                if (t) LOG.trace("__FILE__:__LINE__ " + ts + " ->paramData[" + i + "] => " + fds.buffer());
                 try {
                     parameterSets[i] = fds.readObject(ParameterSet.class);
                 } catch (Exception ex) {
@@ -1440,7 +1440,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         this.tmp_EEdependencies.clear();
         if (ftask.hasAttachedResults()) {
-            if (t) LOG.trace("Retrieving internal dependency results attached to FragmentTaskMessage for " + ts);
+            if (t) LOG.trace("__FILE__:__LINE__ " + "Retrieving internal dependency results attached to FragmentTaskMessage for " + ts);
             this.tmp_EEdependencies.putAll(ftask.getAttachedResults());
         }
         
@@ -1448,7 +1448,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (ftask.hasInputDependencies() && ts != null && ts.isExecLocal(this.partitionId) == true) {
             local_ts = (LocalTransaction)ts; 
             if (local_ts.getInternalDependencyIds().isEmpty() == false) {
-                if (t) LOG.trace("Retrieving internal dependency results from TransactionState for " + ts);
+                if (t) LOG.trace("__FILE__:__LINE__ " + "Retrieving internal dependency results from TransactionState for " + ts);
                 local_ts.removeInternalDependencies(ftask, this.tmp_EEdependencies);
             }
         }
@@ -1467,7 +1467,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             volt_proc.setTransactionState(ts);
             ts.markExecNotReadOnly(this.partitionId);
             result = volt_proc.executePlanFragment(ts.getTransactionId(), this.tmp_EEdependencies, (int)fragmentIds[0], parameterSets[0], this.m_systemProcedureContext);
-            if (t) LOG.trace("Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
+            if (t) LOG.trace("__FILE__:__LINE__ " + "Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
@@ -1496,7 +1496,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (est.isAbortable(this.thresholds) || est.isReadOnlyPartition(this.thresholds, this.partitionId) == false) {
                 undoToken = this.getNextUndoToken();
             } else if (d) {
-                LOG.debug(String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
+                LOG.debug("__FILE__:__LINE__ " + String.format("Bold! Disabling undo buffers for inflight %s [prob=%f]\n%s\n%s",
                                         ts, est.getAbortProbability(), est, plan.toString()));
             }
         } else if (hstore_conf.site.exec_no_undo_logging_all == false) {
@@ -1524,8 +1524,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             for (int i = 0; i < parameterSets.length; i++) {
                 sb.append(String.format("\n [%02d] %s", i, parameterSets[i].toString()));
             }
-            LOG.trace(sb.toString());
-            LOG.trace(String.format("Txn #%d - BATCHPLAN:\n" +
+            LOG.trace("__FILE__:__LINE__ " + sb.toString());
+            LOG.trace("__FILE__:__LINE__ " + String.format("Txn #%d - BATCHPLAN:\n" +
                      "  fragmentIds:     %s\n" + 
                      "  fragmentIdIndex: %s\n" +
                      "  output_depIds:   %s\n" +
@@ -1535,7 +1535,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         DependencySet result = this.executePlanFragments(ts, undoToken, fragmentIdIndex, fragmentIds, parameterSets, output_depIds, input_depIds);
         assert(result != null) : "Unexpected null DependencySet for " + ts; 
-        if (t) LOG.trace("Output:\n" + StringUtil.join("\n", result.dependencies));
+        if (t) LOG.trace("__FILE__:__LINE__ " + "Output:\n" + StringUtil.join("\n", result.dependencies));
         
         ts.fastFinishRound(this.partitionId);
         return (result.dependencies);
@@ -1586,12 +1586,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 
                 sb.append("\n" + StringUtil.formatMaps(m)); 
             }
-            LOG.debug(sb.toString());
+            LOG.debug("__FILE__:__LINE__ " + sb.toString());
         }
 
         // pass attached dependencies to the EE (for non-sysproc work).
         if (this.tmp_EEdependencies.isEmpty() == false) {
-            if (t) LOG.trace("Stashing Dependencies: " + this.tmp_EEdependencies.keySet());
+            if (t) LOG.trace("__FILE__:__LINE__ " + "Stashing Dependencies: " + this.tmp_EEdependencies.keySet());
 //            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
             ee.stashWorkUnitDependencies(this.tmp_EEdependencies);
         }
@@ -1600,7 +1600,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (ts.isExecReadOnly(this.partitionId)) {
             boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, batchSize); 
             if (readonly == false) {
-                if (t) LOG.trace(String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
                 ts.markExecNotReadOnly(this.partitionId);
             }
         }
@@ -1608,7 +1608,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         ts.setSubmittedEE(this.partitionId);
         DependencySet result = null;
         try {
-            if (t) LOG.trace(String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));
             if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
                 ((LocalTransaction)ts).profiler.startExecEE();
             }
@@ -1635,12 +1635,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (d) {
             if (result != null) {
                 if (t) { 
-                    LOG.trace(String.format("Executed fragments for %s and got back results", ts));
-                    LOG.trace(String.format("FRAGMENTS: %s\nRESULTS: %s",
+                    LOG.trace("__FILE__:__LINE__ " + String.format("Executed fragments for %s and got back results", ts));
+                    LOG.trace("__FILE__:__LINE__ " + String.format("FRAGMENTS: %s\nRESULTS: %s",
                                                Arrays.toString(fragmentIds), Arrays.toString(result.depIds)));
                 }
             } else {
-                LOG.debug(String.format("Executed fragments for %s but got back null results? That seems bad...", ts));
+                LOG.debug("__FILE__:__LINE__ " + String.format("Executed fragments for %s but got back null results? That seems bad...", ts));
             }
         }
         return (result);
@@ -1691,7 +1691,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         
         this.work_queue.add(task);
-        if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
     }
     
@@ -1704,7 +1704,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(ts.isInitialized());
         
         this.work_queue.add(task);
-        if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
     }
 
@@ -1719,23 +1719,23 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean success = true;
         
-        if (t) LOG.trace(String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
+        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
                                        ts, this.partitionId, this.current_dtxn, this.exec_mode, task.hashCode()));
         
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.exec_mode != ExecutionMode.DISABLED) {
-            if (t) LOG.trace(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
             success = this.work_throttler.offer(task, false);
             
         // Otherwise figure out whether this txn needs to be blocked or not
         } else {
-            if (t) LOG.trace(String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
                                            task.getClass().getSimpleName(), ts, this.partitionId, this.currentTxnId));
             exec_lock.lock();
             try {
                 // No outstanding DTXN
                 if (this.current_dtxn == null && this.exec_mode != ExecutionMode.DISABLED) {
-                    if (d) LOG.debug(String.format("Adding %s for %s to work queue [size=%d]",
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Adding %s for %s to work queue [size=%d]",
                                                    task.getClass().getSimpleName(), ts, this.work_queue.size()));
                     // Only use the throttler for single-partition txns
                     if (singlePartitioned) {
@@ -1745,7 +1745,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         this.work_queue.add(task);
                     }
                 } else {
-                    if (t) LOG.debug(String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
+                    if (t) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
                     this.current_dtxn_blocked.add(task);
                 }
             } finally {
@@ -1754,7 +1754,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         
         if (success == false) {
-            if (d) LOG.debug(String.format("%s got throttled by partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s got throttled by partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
                                            ts, this.partitionId, this.currentTxnId, this.work_throttler.isThrottled(), this.work_throttler.size()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.getTransactionFinishCallback(Hstore.Status.ABORT_THROTTLED);
@@ -1781,13 +1781,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         BBContainer bc = fresponse.getBufferForMessaging(buffer_pool);
         assert(bc.b.hasArray());
         ByteString bs = ByteString.copyFrom(bc.b.array()); // XXX
-        if (d) LOG.debug(String.format("Sending FragmentResponseMessage for %s [partition=%d, bytes=%d, error=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Sending FragmentResponseMessage for %s [partition=%d, bytes=%d, error=%s]",
                                        ts, this.partitionId, bs.size(), fresponse.getException()));            
         TransactionWorkResponse.PartitionResult.Builder builder = TransactionWorkResponse.PartitionResult.newBuilder()
                                                                       .setOutput(bs)
                                                                       .setPartitionId(this.partitionId);
         if (fresponse.getException() != null) {
-            if (d) LOG.debug(String.format("Marking PartitionResult from partition %d for %s with an error because of FragmentResponse exception -> %s",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking PartitionResult from partition %d for %s with an error because of FragmentResponse exception -> %s",
                                            this.partitionId, ts, fresponse.getException().getMessage()));
             builder.setError(true);
         }
@@ -1811,7 +1811,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             return (false);
         }
         
-        if (d) LOG.debug(String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Checking MarkovEstimate for %s to see whether we can notify any partitions that we're done with them [round=%d]",
                                        ts, ts.getCurrentRound(this.partitionId)));
         
         MarkovEstimate estimate = t_state.getLastEstimate();
@@ -1832,7 +1832,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // Mark the txn done at this partition if the MarkovEstimate said we were done
             for (Integer p : new_done) {
                 if (ts_done_partitions.contains(p) == false && ts_touched.contains(p)) {
-                    if (t) LOG.trace(String.format("Marking partition %d as done for %s", p, ts));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Marking partition %d as done for %s", p, ts));
                     ts_done_partitions.add(p);
                 }
             } // FOR
@@ -1850,7 +1850,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         assert(ts != null);
         long txn_id = ts.getTransactionId();
 
-        if (t) LOG.trace(String.format("Wrapping %d FragmentTaskMessages into a Hstore.TransactionWorkRequest for %s", tasks.size(), ts));
+        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Wrapping %d FragmentTaskMessages into a Hstore.TransactionWorkRequest for %s", tasks.size(), ts));
         
         // If our transaction was originally designated as a single-partitioned, then we need to make
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
@@ -1876,19 +1876,19 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // Make sure things are still legit for our single-partition transaction
             if (predict_singlepartition && target_partition != this.partitionId) {
-                if (d) LOG.debug(String.format("%s on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d",
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d",
                                                ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             } else if (done_partitions.contains(target_partition)) {
-                if (d) LOG.debug(String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
                                                ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             }
             
             int dependency_ids[] = ftask.getOutputDependencyIds();
-            if (t) LOG.trace(String.format("Preparing to request fragments %s on partition %d to generate %d output dependencies for %s",
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Preparing to request fragments %s on partition %d to generate %d output dependencies for %s",
                                            Arrays.toString(ftask.getFragmentIds()), target_partition, dependency_ids.length, ts));
             if (ftask.getFragmentCount() == 0) {
                 LOG.warn("Trying to send a FragmentTask request with 0 fragments for " + ts);
@@ -1900,7 +1900,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (ftask.hasInputDependencies()) {
                 this.tmp_removeDependenciesMap.clear();
                 ts.removeInternalDependencies(ftask, this.tmp_removeDependenciesMap);
-                if (t) LOG.trace(String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
                 for (Entry<Integer, List<VoltTable>> e : this.tmp_removeDependenciesMap.entrySet()) {
                     ftask.attachResults(e.getKey(), e.getValue());
                 } // FOR
@@ -1924,7 +1924,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // Bad mojo! We need to throw a MispredictionException so that the VoltProcedure
         // will catch it and we can propagate the error message all the way back to the HStoreSite
         if (need_restart) {
-            if (t) LOG.trace(String.format("Aborting %s because it was mispredicted", ts));
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Aborting %s because it was mispredicted", ts));
             // This is kind of screwy because we don't actually want to send the touched partitions
             // histogram because VoltProcedure will just do it for us...
             throw new MispredictionException(txn_id, null);
@@ -1932,7 +1932,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Bombs away!
         this.hstore_messenger.transactionWork(ts, tmp_transactionRequestBuildersMap, this.request_work_callback);
-        if (d) LOG.debug(String.format("Work request for %d fragments was sent to %d remote HStoreSites for %s",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Work request for %d fragments was sent to %d remote HStoreSites for %s",
                                        tasks.size(), tmp_transactionRequestBuildersMap.size(), ts));
 
         // TODO: We need to check whether we need to notify other HStoreSites that we didn't send
@@ -1954,7 +1954,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
-        if (d) LOG.debug(String.format("Dispatching %d messages and waiting for the results for %s", ftasks.size(), ts));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Dispatching %d messages and waiting for the results for %s", ftasks.size(), ts));
         
         // We have to store all of the tasks in the TransactionState before we start executing, otherwise
         // there is a race condition that a task with input dependencies will start running as soon as we
@@ -1980,7 +1980,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             // If this is the not first time through the loop, then poll the queue to get our list of fragments
             if (first == false) {
-                if (t) LOG.trace(String.format("Waiting for unblocked tasks for %s on partition %d", ts, this.partitionId));
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Waiting for unblocked tasks for %s on partition %d", ts, this.partitionId));
                 try {
                     ftasks = queue.takeFirst(); // BLOCKING
                 } catch (InterruptedException ex) {
@@ -2012,7 +2012,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
                 
                 for (FragmentTaskMessage ftask : this.tmp_localPartitionFragmentList) {
-                    if (t) LOG.trace(String.format("Got unblocked FragmentTaskMessage for %s. Executing locally...", ts));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Got unblocked FragmentTaskMessage for %s. Executing locally...", ts));
                     assert(ftask.getDestinationPartitionId() == this.partitionId) :
                         String.format("Trying to process FragmentTaskMessage for %s on partition %d but it should have been sent to partition %d [singlePartition=%s]\n%s",
                                       ts, this.partitionId, ftask.getDestinationPartitionId(), predict_singlePartition, ftask);
@@ -2063,14 +2063,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Now request the fragments that aren't local
                 // We want to push these out as soon as possible
                 if (num_remote > 0) {
-                    if (t) LOG.trace(String.format("Requesting %d FragmentTaskMessages to be executed on remote partitions for %s", num_remote, ts));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Requesting %d FragmentTaskMessages to be executed on remote partitions for %s", num_remote, ts));
                     this.requestWork(ts, this.tmp_remoteFragmentList);
                 }
                 
                 // Then dispatch the task that are needed at the same HStoreSite but 
                 // at a different partition than this one
                 if (num_localSite > 0) {
-                    if (d) LOG.debug(String.format("Executing %d FragmentTaskMessages on local site's partitions for %s",
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Executing %d FragmentTaskMessages on local site's partitions for %s",
                                                    num_localSite, ts));
                     for (FragmentTaskMessage ftask : this.tmp_localSiteFragmentList) {
                         try {
@@ -2086,7 +2086,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
                 // to need to get queued up by at the other ExecutionSites
                 if (num_localPartition > 0) {
-                    if (d) LOG.debug(String.format("Executing %d FragmentTaskMessages on local partition for %s",
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Executing %d FragmentTaskMessages on local partition for %s",
                                                    num_localPartition, ts));
                     for (FragmentTaskMessage ftask : this.tmp_localPartitionFragmentList) {
                         try {
@@ -2107,8 +2107,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (latch == null) latch = ts.getDependencyLatch();
         if (latch.getCount() > 0) {
             if (d) {
-                LOG.debug(String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
-                if (t) LOG.trace(ts.toString());
+                LOG.debug("__FILE__:__LINE__ " + String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
+                if (t) LOG.trace("__FILE__:__LINE__ " + ts.toString());
             }
             while (true) {
                 boolean done = false;
@@ -2143,8 +2143,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         VoltTable results[] = ts.getResults();
         ts.finishRound(this.partitionId);
          if (d) {
-            if (t) LOG.trace(ts + " is now running and looking for love in all the wrong places...");
-            LOG.debug(ts + " is returning back " + results.length + " tables to VoltProcedure");
+            if (t) LOG.trace("__FILE__:__LINE__ " + ts + " is now running and looking for love in all the wrong places...");
+            LOG.debug("__FILE__:__LINE__ " + ts + " is returning back " + results.length + " tables to VoltProcedure");
         }
         return (results);
     }
@@ -2157,7 +2157,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * Queue a speculatively executed transaction to send its ClientResponseImpl message
      */
     private void queueClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        if (d) LOG.debug(String.format("Queuing ClientResponse for %s [handle=%s, status=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing ClientResponse for %s [handle=%s, status=%s]",
                                        ts, ts.getClientHandle(), cresponse.getStatus()));
         assert(ts.isPredictSinglePartition() == true) :
             String.format("Specutatively executed multi-partition %s [mode=%s, status=%s]",
@@ -2174,7 +2174,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 
         this.queued_responses.add(Pair.of(ts, cresponse));
 
-        if (d) LOG.debug("Total # of Queued Responses: " + this.queued_responses.size());
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Total # of Queued Responses: " + this.queued_responses.size());
     }
     
     protected void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
@@ -2185,12 +2185,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         Hstore.Status status = cresponse.getStatus();
 
         if (d) {
-            LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
                                     ts, this.partitionId, cresponse.getClientHandle(), status,
                                     ts.isPredictSinglePartition(), ts.isExecLocal(this.partitionId)));
             if (t) {
-                LOG.trace(ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
-                LOG.trace(ts + " Done Partitions: " + ts.getDonePartitions());
+                LOG.trace("__FILE__:__LINE__ " + ts + " Touched Partitions: " + ts.getTouchedPartitions().values());
+                LOG.trace("__FILE__:__LINE__ " + ts + " Done Partitions: " + ts.getDonePartitions());
             }
         }
         
@@ -2261,7 +2261,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } else {
 //                synchronized (this.ee) {
                     if (commit) {
-                        if (d) LOG.debug(String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                        ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                         this.ee.releaseUndoToken(undoToken);
         
@@ -2271,7 +2271,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
                     // we should be able to check whether our undoToken has already been rolled back
                     } else {
-                        if (d) LOG.debug(String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                        ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                         this.ee.undoUndoToken(undoToken);
                     }
@@ -2296,13 +2296,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             return;
         }
         assert(this.current_dtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.current_dtxn;
-        if (d) LOG.debug(String.format("Processing finishWork request for %s at partition %d", ts, this.partitionId));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Processing finishWork request for %s at partition %d", ts, this.partitionId));
         
         this.finishWork(ts, commit);
         
         // Check whether this is the response that the speculatively executed txns have been waiting for
         // We could have turned off speculative execution mode beforehand 
-        if (d) LOG.debug(String.format("Attempting to unmark %s as the current DTXN at partition %d and setting execution mode to %s",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Attempting to unmark %s as the current DTXN at partition %d and setting execution mode to %s",
                                        this.current_dtxn, this.partitionId, ExecutionMode.COMMIT_ALL));
         exec_lock.lock();
         try {
@@ -2313,7 +2313,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // We can always commit our boys no matter what if we know that this multi-partition txn 
             // was read-only at the given partition
             if (hstore_conf.site.exec_speculative_execution) {
-                if (d) LOG.debug(String.format("Turning off speculative execution mode at partition %d because %s is finished",
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Turning off speculative execution mode at partition %d because %s is finished",
                                                this.partitionId, ts));
                 Boolean readonly = ts.isExecReadOnly(this.partitionId);
                 this.releaseQueuedResponses(readonly != null && readonly == true ? true : commit);
@@ -2326,7 +2326,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } finally {
             exec_lock.unlock();
         } // SYNCH
-//        if (d) LOG.debug(String.format("%s is releasing DTXN lock [queueSize=%d, waitingLock=%d]",
+//        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s is releasing DTXN lock [queueSize=%d, waitingLock=%d]",
 //                                       ts, this.work_queue.size(), this.dtxn_lock.getQueueLength()));
 //         this.dtxn_lock.release();
         
@@ -2336,7 +2336,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } else {
             TransactionFinishCallback finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
             if (trace.get())
-                LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
+                LOG.trace("__FILE__:__LINE__ " + String.format("Notifying %s that %s is finished at partition %d",
                                         finish_callback.getClass().getSimpleName(), ts, this.partitionId));
             finish_callback.decrementCounter(1);
         }
@@ -2349,7 +2349,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private void releaseBlockedTransactions(AbstractTransaction ts, boolean speculative) {
         if (this.current_dtxn_blocked.isEmpty() == false) {
-            if (d) LOG.debug(String.format("Attempting to release %d blocked transactions at partition %d because of %s",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Attempting to release %d blocked transactions at partition %d because of %s",
                                            this.current_dtxn_blocked.size(), this.partitionId, ts));
             int released = 0;
             for (TransactionInfoBaseMessage msg : this.current_dtxn_blocked) {
@@ -2357,7 +2357,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 released++;
             } // FOR
             this.current_dtxn_blocked.clear();
-            if (d) LOG.debug(String.format("Released %d blocked transactions at partition %d because of %s",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Released %d blocked transactions at partition %d because of %s",
                                          released, this.partitionId, ts));
         }
         assert(this.current_dtxn_blocked.isEmpty());
@@ -2371,16 +2371,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private void releaseQueuedResponses(boolean commit) {
         // First thing we need to do is get the latch that will be set by any transaction
         // that was in the middle of being executed when we were called
-        if (d) LOG.debug(String.format("Checking waiting/blocked transactions at partition %d [currentMode=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Checking waiting/blocked transactions at partition %d [currentMode=%s]",
                                        this.partitionId, this.exec_mode));
         
         if (this.queued_responses.isEmpty()) {
-            if (d) LOG.debug(String.format("No speculative transactions to commit at partition %d. Ignoring...", this.partitionId));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No speculative transactions to commit at partition %d. Ignoring...", this.partitionId));
             return;
         }
         
         // Ok now at this point we can access our queue send back all of our responses
-        if (d) LOG.debug(String.format("%s %d speculatively executed transactions on partition %d",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s %d speculatively executed transactions on partition %d",
                                        (commit ? "Commiting" : "Aborting"), this.queued_responses.size(), this.partitionId));
 
         // Loop backwards through our queued responses and find the latest txn that 
@@ -2409,22 +2409,22 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } else if (hstore_conf.site.exec_queued_response_ee_bypass) {
                 // Don't tell the EE that we committed
                 if (ee_commit == false) {
-                    if (t) LOG.trace(String.format("Bypassing EE commit for %s [undoToken=%d]", ts, ts.getLastUndoToken(this.partitionId)));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Bypassing EE commit for %s [undoToken=%d]", ts, ts.getLastUndoToken(this.partitionId)));
                     ts.unsetSubmittedEE(this.partitionId);
                     skip_commit++;
                     
                 } else if (ee_commit && cr.getStatus() == Hstore.Status.OK) {
-                    if (t) LOG.trace(String.format("Committing %s but will bypass all other successful transactions [undoToken=%d]", ts, ts.getLastUndoToken(this.partitionId)));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Committing %s but will bypass all other successful transactions [undoToken=%d]", ts, ts.getLastUndoToken(this.partitionId)));
                     ee_commit = false;
                 }
             }
             
             try {
                 if (hstore_conf.site.exec_postprocessing_thread) {
-                    if (t) LOG.trace(String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Passing queued ClientResponse for %s to post-processing thread [status=%s]", ts, cr.getStatus()));
                     hstore_site.queueClientResponse(this, ts, cr);
                 } else {
-                    if (t) LOG.trace(String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
                     this.sendClientResponse(ts, cr);
                 }
             } catch (Throwable ex) {
@@ -2432,7 +2432,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             }
         } // WHILE
         if (d && skip_commit > 0 && hstore_conf.site.exec_queued_response_ee_bypass) {
-            LOG.debug(String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
+            LOG.debug("__FILE__:__LINE__ " + String.format("Fast Commit EE Bypass Optimization [skipped=%d, aborted=%d]", skip_commit, aborted));
         }
         return;
     }
@@ -2466,12 +2466,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     public synchronized void shutdown() {
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
-            if (d) LOG.debug(String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Partition #%d told to shutdown again. Ignoring...", this.partitionId));
             return;
         }
         this.shutdown_state = ShutdownState.SHUTDOWN;
         
-        if (d) LOG.debug(String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
         
         // Clear the queue
         this.work_queue.clear();

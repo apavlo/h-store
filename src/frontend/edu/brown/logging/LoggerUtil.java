@@ -1,4 +1,4 @@
-package edu.brown.utils;
+package edu.brown.logging;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -7,6 +7,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
 import edu.mit.hstore.HStoreThreadManager;
 
 /**

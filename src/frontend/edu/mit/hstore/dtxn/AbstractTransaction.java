@@ -37,9 +37,9 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 
 import edu.brown.hstore.Hstore;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 

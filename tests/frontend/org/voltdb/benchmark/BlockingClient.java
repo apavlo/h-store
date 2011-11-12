@@ -16,7 +16,7 @@ import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.utils.ProfileMeasurement;
 
 /**

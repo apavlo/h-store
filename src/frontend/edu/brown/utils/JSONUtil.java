@@ -15,7 +15,8 @@ import org.voltdb.catalog.Database;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogKey;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo

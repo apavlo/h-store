@@ -11,9 +11,9 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Partition;
 
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class HStoreThreadManager {
     private static final Logger LOG = Logger.getLogger(HStoreThreadManager.class);
