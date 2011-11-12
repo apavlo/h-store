@@ -383,7 +383,7 @@ public abstract class MarkovGraphContainersUtil {
                 if (line_ctr == 0) {
                     // Construct our line->partition mapping
                     JSONObject json_object = new JSONObject(line);
-                    for (String key : CollectionUtil.wrapIterator(json_object.keys())) {
+                    for (String key : CollectionUtil.iterable(json_object.keys())) {
                         Integer partition = Integer.valueOf(key);
                         
                         // We want the MarkovGraphContainer pointed to by this line if

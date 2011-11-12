@@ -101,7 +101,7 @@ import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
 public class BenchmarkController {
-    private static final Logger LOG = Logger.getLogger(BenchmarkController.class);
+    public static final Logger LOG = Logger.getLogger(BenchmarkController.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -188,6 +188,8 @@ public class BenchmarkController {
 
     class ClientStatusThread extends Thread {
         
+        final List<ProcessSetManager.OutputLine> previous = new ArrayList<ProcessSetManager.OutputLine>();
+        
         public ClientStatusThread(int i) {
             super(String.format("client-status-%02d", i));
             this.setDaemon(true);
@@ -196,6 +198,7 @@ public class BenchmarkController {
         @Override
         public void run() {
             long resultsToRead = m_pollCount * m_clientThreads.size();
+            final Database catalog_db = CatalogUtil.getDatabase(catalog);
 
             while (resultsToRead > 0) {
                 ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
@@ -279,7 +282,7 @@ public class BenchmarkController {
                         JSONObject json_object;
                         try {
                             json_object = new JSONObject(json_line);
-                            tc.fromJSON(json_object, CatalogUtil.getDatabase(catalog));
+                            tc.fromJSON(json_object, catalog_db);
                         } catch (JSONException ex) {
                             LOG.error("Invalid response:\n" + json_line);
                             throw new RuntimeException(ex);
@@ -301,8 +304,10 @@ public class BenchmarkController {
                             } // SYNCH
                         } catch (Throwable ex) {
                             LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
+                            LOG.error("Previous Lines:\n" + StringUtil.join("\n", this.previous));
                             throw new RuntimeException(ex);
                         }
+                        this.previous.add(line);
                     }
                 }
             }
@@ -922,7 +927,7 @@ public class BenchmarkController {
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         long nextIntervalTime = hstore_conf.client.interval;
         
-        for (int i = 0; i < m_clients.size()+2; i++) {
+        for (int i = 0; i < m_clients.size(); i++) {
             ClientStatusThread t = new ClientStatusThread(i);
             m_statusThreads.add(t);
             t.setUncaughtExceptionHandler(eh);

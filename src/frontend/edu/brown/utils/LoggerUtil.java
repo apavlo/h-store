@@ -181,4 +181,5 @@ public abstract class LoggerUtil {
         observer.update(null, null);
         LoggerUtil.OBSERVABLE.addObserver(observer);
     }
+
 }
