@@ -97,9 +97,9 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.HStoreDtxnConf;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Compiles a project XML file and some metadata into a Jarfile

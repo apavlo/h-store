@@ -72,6 +72,8 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEdge;
 import edu.brown.markov.MarkovEstimate;
@@ -84,7 +86,6 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.*;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.Workload;
 import edu.mit.hstore.callbacks.TransactionCleanupCallback;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
@@ -352,7 +353,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.exec_postprocessing_thread) {
             assert(hstore_conf.site.exec_postprocessing_thread_count > 0);
             if (d)
-                LOG.debug(String.format("Starting %d post-processing threads", hstore_conf.site.exec_postprocessing_thread_count));
+                LOG.debug("__FILE__:__LINE__ " + String.format("Starting %d post-processing threads", hstore_conf.site.exec_postprocessing_thread_count));
             for (int i = 0; i < hstore_conf.site.exec_postprocessing_thread_count; i++) {
                 this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
             } // FOR
@@ -365,7 +366,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (catalog_proc.getSystemproc()) continue;
             this.param_manglers.put(catalog_proc, new ParameterMangler(catalog_proc));
         } // FOR
-        if (d) LOG.debug(String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Created ParameterManglers for %d procedures", this.param_manglers.size()));
         
         // HACK
         if (hstore_conf.site.exec_neworder_cheat) {
@@ -544,7 +545,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Initializes all the pieces that we need to start this HStore site up
      */
     public void init() {
-        if (d) LOG.debug("Initializing HStoreSite " + this.getSiteName());
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Initializing HStoreSite " + this.getSiteName());
 
         List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
         for (int partition : this.local_partitions) {
@@ -563,7 +564,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         handler.addObserver(observer);
         
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
-        if (d) LOG.debug("Starting HStoreMessenger for " + this.getSiteName());
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Starting HStoreMessenger for " + this.getSiteName());
         this.hstore_coordinator.start();
 
         // Start TransactionQueueManager
@@ -574,7 +575,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Start Status Monitor
         if (hstore_conf.site.status_interval > 0) {
-            if (d) LOG.debug("Starting HStoreSiteStatus monitor thread");
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Starting HStoreSiteStatus monitor thread");
             this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
             t = new Thread(this.status_monitor);
             t.setPriority(Thread.MIN_PRIORITY);
@@ -594,7 +595,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Schedule the ExecutionSiteHelper
-//        if (d) LOG.debug(String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.site.helper_interval / 1000f));
+//        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Scheduling ExecutionSiteHelper to run every %.1f seconds", hstore_conf.site.helper_interval / 1000f));
 //        this.helper = new ExecutionSiteHelper(this,
 //                                              executor_list,
 //                                              hstore_conf.site.helper_txn_per_round,
@@ -606,7 +607,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                                             TimeUnit.MILLISECONDS);
         
         // Then we need to start all of the ExecutionSites in threads
-        if (d) LOG.debug("Starting ExecutionSite threads for " + this.local_partitions.size() + " partitions on " + this.getSiteName());
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Starting ExecutionSite threads for " + this.local_partitions.size() + " partitions on " + this.getSiteName());
         for (int partition : this.local_partitions) {
             ExecutionSite executor = this.getExecutionSite(partition);
             executor.initHStoreSite(this);
@@ -619,7 +620,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             t.start();
         } // FOR
         
-        if (d) LOG.debug("Preloading cached objects");
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Preloading cached objects");
         try {
             // Load up everything the QueryPlanUtil
             PlanNodeUtil.preload(this.catalog_db);
@@ -768,7 +769,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     @Override
     public synchronized void shutdown() {
         if (this.shutdown_state == ShutdownState.SHUTDOWN) {
-            if (d) LOG.debug("Already told to shutdown... Ignoring");
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Already told to shutdown... Ignoring");
             return;
         }
         if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown();
@@ -784,22 +785,22 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             p.shutdown();
         }
         for (int p : this.local_partitions) {
-            if (t) LOG.trace("Telling the ExecutionSite for partition " + p + " to shutdown");
+            if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the ExecutionSite for partition " + p + " to shutdown");
             this.executors[p].shutdown();
         } // FOR
       
         // Tell anybody that wants to know that we're going down
-        if (t) LOG.trace("Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
+        if (t) LOG.trace("__FILE__:__LINE__ " + "Notifying " + this.shutdown_observable.countObservers() + " observers that we're shutting down");
         this.shutdown_observable.notifyObservers();
         
         // Stop the helper
 //        this.helper_pool.shutdown();
         
         // Tell all of our event loops to stop
-        if (t) LOG.trace("Telling Procedure Listener event loops to exit");
+        if (t) LOG.trace("__FILE__:__LINE__ " + "Telling Procedure Listener event loops to exit");
         this.procEventLoop.exitLoop();
         
-        // if (t) LOG.trace("Telling Dtxn.Engine event loop to exit");
+        // if (t) LOG.trace("__FILE__:__LINE__ " + "Telling Dtxn.Engine event loop to exit");
         // this.engineEventLoop.exitLoop();
         
 //        if (d) 
@@ -843,7 +844,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final boolean sysproc = request.isSysProc();
         int base_partition = request.getBasePartition();
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
-        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
 
         // Profiling Updates
         if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(request.getProcName());
@@ -871,12 +872,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         // DB2-style Transaction Redirection
         } else if (base_partition != -1 || hstore_conf.site.exec_db2_redirects) {
-            if (d) LOG.debug(String.format("Using embedded base partition from %s request", request.getProcName()));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Using embedded base partition from %s request", request.getProcName()));
             assert(base_partition == request.getBasePartition());    
             
         // Otherwise we use the PartitionEstimator to figure out where this thing needs to go
         } else if (hstore_conf.site.exec_force_localexecution == false) {
-            if (d) LOG.debug(String.format("Using PartitionEstimator for %s request", request.getProcName()));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Using PartitionEstimator for %s request", request.getProcName()));
             try {
                 Integer p = this.p_estimator.getBasePartition(catalog_proc, args, false);
                 if (p != null) base_partition = p.intValue(); 
@@ -889,12 +890,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // or if there are no input parameters <-- this should be in the paper!!!
         if (base_partition == -1) {
             if (t) 
-                LOG.trace(String.format("Selecting a random local partition to execute %s request [force_local=%s]",
+                LOG.trace("__FILE__:__LINE__ " + String.format("Selecting a random local partition to execute %s request [force_local=%s]",
                                         request.getProcName(), hstore_conf.site.exec_force_localexecution));
             base_partition = this.local_partitions.get((int)(Math.abs(request.getClientHandle()) % this.num_local_partitions));
         }
         
-        if (d) LOG.debug(String.format("Incoming %s transaction request [handle=%d, partition=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Incoming %s transaction request [handle=%d, partition=%d]",
                                        request.getProcName(), request.getClientHandle(), base_partition));
         
         // -------------------------------
@@ -903,7 +904,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         TransactionIdManager id_generator = this.txnid_manager; //  this.txnid_managers[base_partition];
         if (this.single_partition_sets[base_partition] == null) {
-            if (d) LOG.debug(String.format("Forwarding %s request to partition %d", request.getProcName(), base_partition));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Forwarding %s request to partition %d", request.getProcName(), base_partition));
             
             // Make a wrapper for the original callback so that when the result comes back frm the remote partition
             // we will just forward it back to the client. How sweet is that??
@@ -951,20 +952,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Sysprocs are always multi-partitioned
         if (sysproc) {
-            if (t) LOG.trace(String.format("New request is for a sysproc %s, so it has to be multi-partitioned [clientHandle=%d]",
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("New request is for a sysproc %s, so it has to be multi-partitioned [clientHandle=%d]",
                                            request.getProcName(), request.getClientHandle()));
             predict_touchedPartitions = this.all_partitions;
             
         // Force all transactions to be single-partitioned
         } else if (hstore_conf.site.exec_force_singlepartitioned) {
-            if (t) LOG.trace(String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
                                            request.getProcName(), base_partition, request.getClientHandle()));
             predict_touchedPartitions = this.single_partition_sets[base_partition];
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
         // out what partitions it's going to need to touch
         } else if (hstore_conf.site.exec_neworder_cheat) {
-            if (t) LOG.trace(String.format("Using fixed transaction estimator [clientHandle=%d]", request.getClientHandle()));
+            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Using fixed transaction estimator [clientHandle=%d]", request.getClientHandle()));
             if (this.fixed_estimator != null)
                 predict_touchedPartitions = this.fixed_estimator.initializeTransaction(catalog_proc, args);
             if (predict_touchedPartitions == null)
@@ -972,7 +973,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
         // Otherwise, we'll try to estimate what the transaction will do (if we can)
         } else {
-            if (d) LOG.debug(String.format("Using TransactionEstimator to check whether new %s request is single-partitioned [clientHandle=%d]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Using TransactionEstimator to check whether new %s request is single-partitioned [clientHandle=%d]",
                                            request.getProcName(), request.getClientHandle()));
             
             // Grab the TransactionEstimator for the destination partition and figure out whether
@@ -983,7 +984,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             try {
                 // HACK: Convert the array parameters to object arrays...
                 Object cast_args[] = this.param_manglers.get(catalog_proc).convert(args);
-                if (t) LOG.trace(String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Txn #%d Parameters:\n%s", txn_id, this.param_manglers.get(catalog_proc).toString(cast_args)));
                 
                 if (hstore_conf.site.txn_profiling) ts.profiler.startInitEstimation();
                 t_state = t_estimator.startTransaction(txn_id, base_partition, catalog_proc, cast_args);
@@ -991,17 +992,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug(String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
                     predict_touchedPartitions = this.all_partitions;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...
                 } else {
-                    if (t) LOG.trace("\n" + StringUtil.box(t_state.toString()));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + "\n" + StringUtil.box(t_state.toString()));
                     MarkovEstimate m_estimate = t_state.getInitialEstimate();
                     
                     // Bah! We didn't get back a MarkovEstimate for some reason...
                     if (m_estimate == null) {
-                        if (d) LOG.debug(String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No MarkovEstimate was found for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
                         predict_touchedPartitions = this.all_partitions;
                         
                     // Invalid MarkovEstimate. Stick with defaults
@@ -1015,8 +1016,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // Use MarkovEstimate to determine things
                     } else {
                         if (d) {
-                            LOG.debug(String.format("Using MarkovEstimate for %s to determine if single-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
-                            LOG.debug(String.format("%s MarkovEstimate:\n%s", AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
+                            LOG.debug("__FILE__:__LINE__ " + String.format("Using MarkovEstimate for %s to determine if single-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id)));
+                            LOG.debug("__FILE__:__LINE__ " + String.format("%s MarkovEstimate:\n%s", AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
                         }
                         predict_touchedPartitions = m_estimate.getTouchedPartitions(this.thresholds);
                         predict_readOnly = m_estimate.isReadOnlyAllPartitions(this.thresholds);
@@ -1049,7 +1050,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startTransaction(timestamp);
         if (d) {
-            LOG.debug(String.format("Initializing %s on partition %d [clientHandle=%d, partitions=%s, readOnly=%s, abortable=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Initializing %s on partition %d [clientHandle=%d, partitions=%s, readOnly=%s, abortable=%s]",
                                     ts, base_partition,
                                     request.getClientHandle(),
                                     predict_touchedPartitions, predict_readOnly, predict_abortable));
@@ -1068,7 +1069,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         this.dispatchInvocation(ts);
-        if (d) LOG.debug("Finished initial processing of " + ts + ". Returning back to listen on incoming socket");
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Finished initial processing of " + ts + ". Returning back to listen on incoming socket");
     }
 
     /**
@@ -1104,7 +1105,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
         if (hstore_conf.site.exec_avoid_coordinator && ts.isPredictSinglePartition()) {
-            if (d) LOG.debug(String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
             this.transactionStart(ts);
 
@@ -1114,7 +1115,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // DISTRIBUTED TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug(String.format("Queuing distributed %s to running at partition %d [handle=%d]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing distributed %s to running at partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
             
             // Partitions
@@ -1178,7 +1179,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
         Procedure catalog_proc = ts.getProcedure();
-        if (d) LOG.debug(String.format("Starting %s on partition %d", ts, base_partition));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting %s on partition %d", ts, base_partition));
         
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
@@ -1202,14 +1203,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
             ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
-            if (d) LOG.debug(String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
                                            ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
         }
         this.inflight_txns.put(txn_id, ts);
-        if (t) LOG.trace(String.format("Stored new transaction state for %s at partition %d", ts, ftask.getDestinationPartitionId()));
+        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Stored new transaction state for %s at partition %d", ts, ftask.getDestinationPartitionId()));
         return (ts);
     }
     
@@ -1219,7 +1220,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param done
      */
     public void transactionWork(RemoteTransaction ts, FragmentTaskMessage ftask) {
-        if (d) LOG.debug(String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
                                        ftask.getDestinationPartitionId(), ts.getTransactionId()));
         this.executors[ftask.getDestinationPartitionId()].queueWork(ts, ftask);
     }
@@ -1235,7 +1236,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param updated
      */
     public void transactionPrepare(long txn_id, Collection<Integer> partitions, Collection<Integer> updated) {
-        if (d) LOG.debug(String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
         // We could have been asked to participate in a distributed transaction but
         // they never actually sent us anything, so we should just tell the queue manager
@@ -1256,7 +1257,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts, false);
                 if (debug.get() && ret) {
                     spec_cnt++;
-                    LOG.debug(String.format("Partition %d - Speculative Execution!", p));
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Partition %d - Speculative Execution!", p));
                 }
             }
             
@@ -1265,7 +1266,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
         } // FOR
         if (debug.get() && spec_cnt > 0)
-            LOG.debug(String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
+            LOG.debug("__FILE__:__LINE__ " + String.format("Enabled speculative execution at %d partitions because of waiting for txn #%d", spec_cnt, txn_id));
     }
     
     /**
@@ -1276,7 +1277,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      */
     public void transactionFinish(long txn_id, Hstore.Status status, Collection<Integer> partitions) {
-        if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
                                        txn_id, status, partitions));
         boolean commit = (status == Hstore.Status.OK);
         
@@ -1301,7 +1302,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
             if (ts != null && ts.isPredictSinglePartition() == false && (ts.hasStarted(p) || ts.getBasePartition() == p)) {
-                if (d) LOG.debug(String.format("Calling finishTransaction for %s on partition %d", ts, p));
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Calling finishTransaction for %s on partition %d", ts, p));
                 
                 if (ftask == null) ftask = ts.getFinishTaskMessage(status);
                 try {
@@ -1338,7 +1339,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         ClientResponseImpl.setThrottleFlag(buffer, throttle);
         ClientResponseImpl.setServerTimestamp(buffer, timestamp);
         
-        if (d) LOG.debug(String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Serialized ClientResponse for %s [throttle=%s, timestamp=%d]",
                                        ts, throttle, timestamp));
         return (buffer);
     }
@@ -1360,7 +1361,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
         if (status != Hstore.Status.ABORT_MISPREDICT) {
-            if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Sending back ClientResponse for " + ts));
 
             // Send result back to client!
             ts.getClientCallback().run(this.serializeClientResponse(ts, cresponse).array());
@@ -1369,7 +1370,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // so that it can re-execute the transaction. We want to do this first so that the txn gets re-executed
         // as soon as possible...
         else {
-            if (d) LOG.debug(String.format("Restarting %s because it mispredicted", ts));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Restarting %s because it mispredicted", ts));
             this.transactionRestart(ts, status);
         }
     }
@@ -1403,7 +1404,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         int request_ctr = this.getNextRequestCounter();
         long clientHandle = ts.getClientHandle();
        
-        if (d) LOG.debug(String.format("Rejecting %s with status %s [clientHandle=%d, requestCtr=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Rejecting %s with status %s [clientHandle=%d, requestCtr=%d]",
                                        ts, status, clientHandle, request_ctr));
         
         String statusString = String.format("Transaction was rejected by %s [restarts=%d]", this.getSiteName(), ts.getRestartCounter());
@@ -1438,7 +1439,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void transactionRestart(LocalTransaction orig_ts, Hstore.Status status) {
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
-        if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
                                    orig_ts , status, orig_ts.getRestartCounter()));
         int base_partition = orig_ts.getBasePartition();
         StoredProcedureInvocation spi = orig_ts.getInvocation();
@@ -1463,7 +1464,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status != Hstore.Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Set<Integer> most_touched = touched.getMaxCountValues();
-            if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
@@ -1478,7 +1479,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
             if (this.local_partitions.contains(redirect_partition) == false && spi.hasBasePartition() == false) {
-                if (d) LOG.debug(String.format("Redirecting mispredicted %s to partition %d", orig_ts, redirect_partition));
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Redirecting mispredicted %s to partition %d", orig_ts, redirect_partition));
                 
                 spi.setBasePartition(redirect_partition.intValue());
                 
@@ -1511,7 +1512,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 base_partition = redirect_partition.intValue();
                 spi.setBasePartition(base_partition);
             } else {
-                if (d) LOG.debug(String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn", orig_ts));
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn", orig_ts));
                 touched.putAll(this.local_partitions);
             }
         }
@@ -1559,7 +1560,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 }
                 predict_touchedPartitions.addAll(partitions);
             }
-            if (d) LOG.debug(orig_ts + " Mispredicted Partitions: " + partitions);
+            if (d) LOG.debug("__FILE__:__LINE__ " + orig_ts + " Mispredicted Partitions: " + partitions);
         }
         
         if (predict_touchedPartitions.contains(base_partition) == false) {
@@ -1577,14 +1578,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
          if (d) {
-            LOG.debug(String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
                                     orig_ts,
                                     (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
                                     new_ts,
                                     base_partition,
                                     predict_touchedPartitions));
             if (t && status == Hstore.Status.ABORT_MISPREDICT)
-                LOG.trace(String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
+                LOG.trace("__FILE__:__LINE__ " + String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
         }
         
         this.dispatchInvocation(new_ts);
@@ -1603,7 +1604,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void queueClientResponse(ExecutionSite es, LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_thread);
-        if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
         this.ready_responses.add(new Object[]{es, ts, cr});
     }
@@ -1613,7 +1614,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      */
     public void completeTransaction(final long txn_id, final Hstore.Status status) {
-        if (d) LOG.debug("Cleaning up internal info for txn #" + txn_id);
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Cleaning up internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
         // It's ok for us to not have a transaction handle, because it could be
@@ -1631,7 +1632,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Nothing else to do for RemoteTransactions other than to just
         // return the object back into the pool
         if (abstract_ts instanceof RemoteTransaction) {
-            if (d) LOG.debug(String.format("Returning %s to ObjectPool [hashCode=%d]", abstract_ts, abstract_ts.hashCode()));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Returning %s to ObjectPool [hashCode=%d]", abstract_ts, abstract_ts.hashCode()));
             HStoreObjectPools.STATES_TXN_REMOTE.returnObject((RemoteTransaction)abstract_ts);
             return;
         }
@@ -1659,20 +1660,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         try {
             switch (status) {
                 case OK:
-                    if (t) LOG.trace("Telling the TransactionEstimator to COMMIT " + ts);
+                    if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the TransactionEstimator to COMMIT " + ts);
                     if (t_estimator != null) t_estimator.commit(txn_id);
                     // We always need to keep track of how many txns we process 
                     // in order to check whether we are hung or not
                     if (this.status_monitor != null) TxnCounter.COMPLETED.inc(catalog_proc);
                     break;
                 case ABORT_USER:
-                    if (t) LOG.trace("Telling the TransactionEstimator to ABORT " + ts);
+                    if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the TransactionEstimator to ABORT " + ts);
                     if (t_estimator != null) t_estimator.abort(txn_id);
                     if (hstore_conf.site.status_show_txn_info)
                         TxnCounter.ABORTED.inc(catalog_proc);
                     break;
                 case ABORT_MISPREDICT:
-                    if (t) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
+                    if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the TransactionEstimator to IGNORE " + ts);
                     if (t_estimator != null) t_estimator.mispredict(txn_id);
                     if (hstore_conf.site.status_show_txn_info) {
                         (ts.isSpeculative() ? TxnCounter.RESTARTED : TxnCounter.MISPREDICTED).inc(catalog_proc);
@@ -1709,7 +1710,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         } // FOR
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
-        if (d) LOG.debug(String.format("Returning %s to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Returning %s to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
         HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);
     }
 
@@ -1767,7 +1768,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // ----------------------------------------------------------------------------
         // (5) HStoreSite Setup Thread
         // ----------------------------------------------------------------------------
-        if (d) LOG.debug(String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting HStoreSite [site=%d]", hstore_site.getSiteId()));
         hstore_site.ready_latch = new CountDownLatch(runnables.size());
         runnables.add(new Runnable() {
             public void run() {
@@ -1783,7 +1784,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // But then wait for all of the threads to be finished with their initializations
                 // before we tell the world that we're ready!
                 if (hstore_site.ready_latch.getCount() > 0) {
-                    if (d) LOG.debug(String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Waiting for %d threads to complete initialization tasks", hstore_site.ready_latch.getCount()));
                     try {
                         hstore_site.ready_latch.await();
                     } catch (Exception ex) {
@@ -1824,7 +1825,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         HStoreConf.initArgumentsParser(args, catalog_site);
-        if (d) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
+        if (d) LOG.debug("__FILE__:__LINE__ " + "HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
         
         // For every partition in our local site, we want to setup a new ExecutionSite
         // Thankfully I had enough sense to have PartitionEstimator take in the local partition
@@ -1842,9 +1843,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 markovs = MarkovGraphContainersUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
                 MarkovGraphContainersUtil.setHasher(markovs, p_estimator.getHasher());
                 LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
-            } else {
-                if (LOG.isDebugEnabled()) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
-            }
+            } else if (d) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
         }
 
         // ----------------------------------------------------------------------------
@@ -1881,11 +1880,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // I'm not proud of this...
             // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
             // stick them into the HStoreSite
-            LOG.debug("Creating Estimator for " + HStoreSite.formatSiteName(site_id));
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Creating Estimator for " + HStoreSite.formatSiteName(site_id));
             TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, local_markovs);
 
             // setup the EE
-            LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Creating ExecutionSite for Partition #" + local_partition);
             ExecutionSite executor = new ExecutionSite(
                     local_partition,
                     args.catalog,

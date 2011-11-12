@@ -24,7 +24,7 @@ import ca.evanjones.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
 import edu.mit.hstore.VoltProcedureListener.ClientConnectionHandler;
 import edu.mit.net.MockSocketChannel;
 

@@ -34,15 +34,15 @@ import edu.brown.benchmark.airline.util.DistanceUtil;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.benchmark.airline.util.ReturnFlight;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableDataIterable;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AirlineLoader extends AirlineBaseClient {
     private static final Logger LOG = Logger.getLogger(AirlineLoader.class);

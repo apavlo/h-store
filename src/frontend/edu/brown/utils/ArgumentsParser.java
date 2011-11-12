@@ -53,6 +53,7 @@ import edu.brown.designer.mappers.*;
 import edu.brown.designer.partitioners.*;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hashing.*;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.statistics.*;

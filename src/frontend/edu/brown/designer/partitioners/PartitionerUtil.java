@@ -30,14 +30,14 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class PartitionerUtil {
     private static final Logger LOG = Logger.getLogger(PartitionerUtil.class);

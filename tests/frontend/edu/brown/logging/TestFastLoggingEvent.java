@@ -38,6 +38,7 @@ public class TestFastLoggingEvent extends TestCase {
     protected void setUp() throws Exception {
         logger.addAppender(new MockAppender());
         logger.debug("TEST LOGGING EVENT");
+        assertNotNull(this.origEvent);
         assertNotNull(this.fastEvent);
     }
     

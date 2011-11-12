@@ -18,9 +18,9 @@ import org.voltdb.catalog.Table;
 import org.voltdb.compiler.VoltCompiler;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class VerticalPartitionColumn extends MultiColumn {
     private static final Logger LOG = Logger.getLogger(VerticalPartitionColumn.class);
