@@ -186,8 +186,9 @@ PRIMARY ENTRY POINTS
     depends="compile, voltdbipc, junit_quick"
     description="Run a subset of Java testcases and test fragments."
 />
+<!-- "junit, eecheck, doc, eedoc, jars" -->
 <target name="build-all"
-    depends="protobuf.java, protorpc, compile, ee, junit, eecheck, doc, eedoc, jars"
+    depends="protobuf.java, protorpc, compile, ee"
     description="Do all tasks."
 />
 <target name="jars"
