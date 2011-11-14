@@ -65,7 +65,6 @@ import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
-import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.interfaces.Loggable;
@@ -486,10 +485,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @return
      */
     public final ClientResponse call(LocalTransaction txnState, Object... paramList) {
-        if (d) {
-            Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.partitionId));
-            if (t) LOG.trace("Setting up internal state for " + txnState);
-        }
+//        if (d) {
+//            Thread.currentThread().setName(HStoreSite.getThreadName(this.executor.getHStoreSite(), this.procedure_name, this.partitionId));
+//            if (t) LOG.trace("Setting up internal state for " + txnState);
+//        }
 
         ClientResponse response = null;
         this.m_currentTxnState = txnState;

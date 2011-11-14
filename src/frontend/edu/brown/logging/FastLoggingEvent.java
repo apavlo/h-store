@@ -2,19 +2,26 @@ package edu.brown.logging;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Category;
 import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LocationInfo;
 import org.apache.log4j.spi.LoggingEvent;
 import org.apache.log4j.spi.ThrowableInformation;
 
 public class FastLoggingEvent extends LoggingEvent {
+    private static final Logger LOG = Logger.getLogger(FastLoggingEvent.class);
     private static final long serialVersionUID = -5595734504055550617L;
+    
+    protected static final Pattern PREPROCESSOR_PATTERN = Pattern.compile("^([\\w]+\\.java):([\\d]+) "); 
     
     private final LoggingEvent event;
     private final int stackOffset;
     private FastLocationInfo locationInfo;
+    private String cleanMessage = null;
     
     public FastLoggingEvent(LoggingEvent event, int stackOffset) {
         super(event.getFQNOfLoggerClass(),
@@ -43,16 +50,31 @@ public class FastLoggingEvent extends LoggingEvent {
     @Override
     public LocationInfo getLocationInformation() {
         if (this.locationInfo == null) {
-            StackTraceElement stack[] = Thread.currentThread().getStackTrace();
-//            System.err.println(String.format("Stack=%d / Offset=%d", stack.length, this.stackOffset));
-            if (this.stackOffset < stack.length) {
-//                for (int i = 0; i < stack.length; i++) {
-//                    System.err.printf("[%02d] %s\n", i, stack[i]);
-//                }
-                this.locationInfo = new FastLocationInfo(stack[this.stackOffset].getLineNumber(),
-                                                         stack[this.stackOffset].getFileName(),
-                                                         stack[this.stackOffset].getClassName(),
-                                                         stack[this.stackOffset].getMethodName());
+            // HACK: Use preprocessor information
+            String msg = this.event.getMessage().toString();
+            Matcher m = PREPROCESSOR_PATTERN.matcher(msg);
+            if (LOG.isDebugEnabled()) LOG.debug("Checking whether we can use PREPROCESSOR info for location: " + msg);
+            
+            if (m.find()) {
+                if (LOG.isDebugEnabled()) LOG.debug("Using preprocessor information get source location [" + m + "]");
+                
+                String fileName = m.group(1);
+                int lineNumber = Integer.parseInt(m.group(2));
+                this.locationInfo = new FastLocationInfo(lineNumber, fileName, "", "");
+                this.cleanMessage = m.replaceFirst("");
+            } else {
+                if (LOG.isDebugEnabled()) LOG.debug("Using stack offset lookup to get source location");
+                StackTraceElement stack[] = Thread.currentThread().getStackTrace();
+    //            System.err.println(String.format("Stack=%d / Offset=%d", stack.length, this.stackOffset));
+                if (this.stackOffset < stack.length) {
+    //                for (int i = 0; i < stack.length; i++) {
+    //                    System.err.printf("[%02d] %s\n", i, stack[i]);
+    //                }
+                    this.locationInfo = new FastLocationInfo(stack[this.stackOffset].getLineNumber(),
+                                                             stack[this.stackOffset].getFileName(),
+                                                             stack[this.stackOffset].getClassName(),
+                                                             stack[this.stackOffset].getMethodName());
+                }
             }
         }
         return (this.locationInfo);
@@ -84,7 +106,11 @@ public class FastLoggingEvent extends LoggingEvent {
     }
     @Override
     public Object getMessage() {
-        return event.getMessage();
+        return (this.cleanMessage != null ? this.cleanMessage : this.event.getMessage());
+    }
+    @Override
+    public String getRenderedMessage() {
+        return (this.cleanMessage != null ? this.cleanMessage : this.event.getRenderedMessage());
     }
     @Override
     public String getNDC() {
@@ -99,10 +125,6 @@ public class FastLoggingEvent extends LoggingEvent {
     @Override
     public Set getPropertyKeySet() {
         return event.getPropertyKeySet();
-    }
-    @Override
-    public String getRenderedMessage() {
-        return event.getRenderedMessage();
     }
     @Override
     public String getThreadName() {

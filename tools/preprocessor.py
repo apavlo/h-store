@@ -41,7 +41,7 @@ import string
 from pprint import pprint, pformat
 
 logging.basicConfig(level = logging.INFO,
-                    format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
+                    format="PREPROCESSOR [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
                     datefmt="%m-%d-%Y %H:%M:%S",
                     stream = sys.stdout)
 
@@ -62,7 +62,7 @@ def preprocess(path, input, output):
                     contents[i] = contents[i].replace("__FILE__", basename)
                     dirty = True
                 if contents[i].find("__LINE__") != -1:
-                    contents[i] = contents[i].replace("__LINE__", str(i))
+                    contents[i] = contents[i].replace("__LINE__", str(i+1))
                     dirty = True
             ## FOR
             if dirty:
@@ -77,10 +77,10 @@ def preprocess(path, input, output):
                 logging.debug("NEW PATH: " + output_path)
                 logging.debug("NEW_DIR: " + output_dir)
                 
-                if not os.path.exists(output_path) or os.path.getmtime(output_path) < os.path.getmtime(f):
-                    logging.info("Writing modified %s to %s" % (basename, output_path))
-                    with open(output_path, "w") as fd:
-                        fd.write("".join(contents))
+                #if not os.path.exists(output_path) or os.path.getmtime(output_path) < os.path.getmtime(f):
+                logging.debug("Saving updated %s file to %s" % (basename, output_dir))
+                with open(output_path, "w") as fd:
+                    fd.write("".join(contents))
             ## IF
     ## FOR
     os.chdir("..")

@@ -285,7 +285,7 @@ public class HStoreCoordinator implements Shutdownable {
      * Internal call for testing to hide errors
      */
     @Override
-    public void prepareShutdown() {
+    public void prepareShutdown(boolean error) {
         if (this.state != ShutdownState.PREPARE_SHUTDOWN) {
             assert(this.state == ShutdownState.STARTED) : "Invalid MessengerState " + this.state;
             this.state = ShutdownState.PREPARE_SHUTDOWN;
@@ -741,7 +741,7 @@ public class HStoreCoordinator implements Shutdownable {
         final int num_sites = this.channels.size();
         if (this.shutting_down) return;
         this.shutting_down = true;
-        this.hstore_site.prepareShutdown();
+        this.hstore_site.prepareShutdown(false);
         LOG.info("Shutting down cluster" + (ex != null ? ": " + ex.getMessage() : ""));
 
         final int exit_status = (ex == null ? 0 : 1);

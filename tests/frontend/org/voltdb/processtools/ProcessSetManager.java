@@ -270,7 +270,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     @Override
-    public synchronized void prepareShutdown() {
+    public synchronized void prepareShutdown(boolean error) {
         this.shutting_down = true;
         for (String name : this.m_processes.keySet()) {
             ProcessData pd = this.m_processes.get(name);

@@ -124,8 +124,8 @@ public class BenchmarkController {
                     LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
                     BenchmarkController.this.stop = true;
                     BenchmarkController.this.failed = true;
-                    m_clientPSM.prepareShutdown();
-                    m_sitePSM.prepareShutdown();
+                    m_clientPSM.prepareShutdown(false);
+                    m_sitePSM.prepareShutdown(false);
                     
                     if (self != null) BenchmarkController.this.self.interrupt();
                 }
@@ -1041,7 +1041,7 @@ public class BenchmarkController {
         }
 
         this.stop = true;
-        m_sitePSM.prepareShutdown();
+        m_sitePSM.prepareShutdown(false);
         
         // shut down all the clients
         boolean first = true;
@@ -1053,7 +1053,7 @@ public class BenchmarkController {
                 m_clientPSM.writeToProcess(clientName, Command.STOP);
             }
         }
-        m_clientPSM.prepareShutdown();
+        m_clientPSM.prepareShutdown(false);
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
