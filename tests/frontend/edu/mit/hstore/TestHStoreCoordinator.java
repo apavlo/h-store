@@ -143,7 +143,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private void stopMessengers() throws Exception {
         // Tell everyone to prepare to stop
         for (final HStoreCoordinator m : this.messengers) {
-            if (m.isStarted()) m.prepareShutdown();
+            if (m.isStarted()) m.prepareShutdown(false);
         } // FOR
         // Now stop everyone for real!
         for (final HStoreCoordinator m : this.messengers) {

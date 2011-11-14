@@ -248,7 +248,7 @@ public class TransactionQueueManager implements Runnable {
             if (this.localPartitions.contains(partition) == false) continue;
             txn_queues[partition].remove(txn_id);
             if (txn_id == last_txns[partition]) {
-                this.ready(txn_id, status, partition);
+                this.finished(txn_id, status, partition);
             }
         }
         
@@ -333,7 +333,7 @@ public class TransactionQueueManager implements Runnable {
      * @param txn_id
      * @param partition
      */
-    public void ready(long txn_id, Hstore.Status status, int partition) {
+    public void finished(long txn_id, Hstore.Status status, int partition) {
         if (debug.get())
             LOG.debug(String.format("Marking txn #%d as finished on partition %d [status=%s, basePartition=%d]",
                                     txn_id, partition, status,

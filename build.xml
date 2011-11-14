@@ -384,8 +384,8 @@ CLEANING
     <delete includeemptydirs="true" dir="${build.protorpc.dir}" />
 </target>
 
-<target name="clean-dtxn">
-    <delete includeemptydirs="true" dir="${build.dtxn.dir}" />
+<target name="clean-preprocessor">
+    <delete includeemptydirs="true" dir="${build.preprocessor.dir}" />
 </target>
 
 <!--

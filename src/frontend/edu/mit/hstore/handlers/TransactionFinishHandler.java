@@ -18,9 +18,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.HStoreCoordinator.Dispatcher;
-import edu.mit.hstore.callbacks.TransactionCleanupCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.dtxn.RemoteTransaction;
 
 public class TransactionFinishHandler extends AbstractTransactionHandler<TransactionFinishRequest, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishHandler.class);
@@ -49,9 +47,15 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     public void remoteQueue(RpcController controller, TransactionFinishRequest request, 
             RpcCallback<TransactionFinishResponse> callback) {
         if (finishDispatcher != null && request.getStatus() == Hstore.Status.ABORT_RESTART) {
+            if (debug.get())
+                LOG.debug("__FILE__:__LINE__ " + String.format("Queuing %s for txn #%d [status=%s]",
+                                        request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             Object o[] = { controller, request, callback };
             finishDispatcher.queue(o);
         } else {
+            if (debug.get())
+                LOG.debug("__FILE__:__LINE__ " + String.format("Sending %s to remote handler for txn #%d [status=%s]",
+                                        request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
             this.remoteHandler(controller, request, callback);
         }
     }
@@ -61,7 +65,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         if (debug.get())
-            LOG.debug(String.format("Got %s for txn #%d [status=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d [status=%s]",
                                     request.getClass().getSimpleName(), txn_id, request.getStatus()));
         
         hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
@@ -74,7 +78,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
             if (local_partitions.contains(p)) builder.addPartitions(p.intValue());
         } // FOR
         if (debug.get())
-            LOG.debug(String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Sending back %s for txn #%d [status=%s, partitions=%s]",
                                     TransactionFinishResponse.class.getSimpleName(), txn_id,
                                     request.getStatus(), builder.getPartitionsList()));
         callback.run(builder.build());

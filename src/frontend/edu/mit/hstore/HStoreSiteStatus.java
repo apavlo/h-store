@@ -182,7 +182,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     }
     
     @Override
-    public void prepareShutdown() {
+    public void prepareShutdown(boolean error) {
         // TODO Auto-generated method stub
         
     }

@@ -97,7 +97,8 @@ public class RingBufferAppender extends AppenderSkeleton {
             this.currentPosition = position = ++this.currentPosition % this.eventRing.length;
             this.counter++;
         } // SYNCH
-        this.eventRing[position] = event; 
+        this.eventRing[position] = event;
+//        assert(event.getLoggerName().contains("Handler") == false) : event;
     }
 
     @Override
@@ -201,8 +202,8 @@ public class RingBufferAppender extends AppenderSkeleton {
     @SuppressWarnings("unchecked")
     public static RingBufferAppender getRingBufferAppender(Logger logger) {
         RingBufferAppender rba = null;
-        if (LOG.isDebugEnabled())
-            LOG.debug("Checking whether " + logger.getName() + " has a RingBufferAppender attached: " + CollectionUtil.list(logger.getAllAppenders()));
+        if (LOG.isTraceEnabled())
+            LOG.trace("Checking whether " + logger.getName() + " has a RingBufferAppender attached: " + CollectionUtil.list(logger.getAllAppenders()));
         for (Object o : CollectionUtil.iterable(logger.getAllAppenders())) {
             if (o instanceof RingBufferAppender) {
                 rba = (RingBufferAppender)o;
@@ -237,7 +238,7 @@ public class RingBufferAppender extends AppenderSkeleton {
             Logger logger = (Logger)o;
             RingBufferAppender rba = getRingBufferAppender(logger);
             if (rba != null) {
-                if (LOG.isDebugEnabled())
+                 if (LOG.isDebugEnabled())
                     LOG.debug(logger.getName() + " => " + rba + " / " + rba.getLayout());
                 appenders.add(rba);
             }

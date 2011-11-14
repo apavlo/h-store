@@ -96,7 +96,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
     }
     
     @Override
-    public void prepareShutdown() {
+    public void prepareShutdown(boolean error) {
         this.queue.clear();
     }
     

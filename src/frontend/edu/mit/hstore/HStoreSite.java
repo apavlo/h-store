@@ -748,18 +748,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     } // END CLASS
 
     @Override
-    public void prepareShutdown() {
+    public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
-        this.hstore_coordinator.prepareShutdown();
+        this.hstore_coordinator.prepareShutdown(false);
         for (ExecutionSitePostProcessor espp : this.processors) {
-            espp.prepareShutdown();
+            espp.prepareShutdown(false);
         } // FOR
         for (int p : this.local_partitions) {
-            this.executors[p].prepareShutdown();
+            this.executors[p].prepareShutdown(false);
         } // FOR
-        for (AbstractTransaction ts : this.inflight_txns.values()) {
-            // TODO: Reject all of these
-        }
+//        for (AbstractTransaction ts : this.inflight_txns.values()) {
+//            // TODO: Reject all of these
+//        }
     }
     
     /**
@@ -772,7 +772,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug("__FILE__:__LINE__ " + "Already told to shutdown... Ignoring");
             return;
         }
-        if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown();
+        if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown(false);
         this.shutdown_state = ShutdownState.SHUTDOWN;
 //      if (d)
         LOG.info("Shutting down everything at " + this.getSiteName());
@@ -1249,11 +1249,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (this.local_partitions.contains(p) == false) continue;
             
             // Always tell the queue stuff that the transaction is finished at this partition
-            this.txnQueueManager.ready(txn_id, Hstore.Status.OK, p.intValue());
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
+            this.txnQueueManager.finished(txn_id, Hstore.Status.OK, p.intValue());
             
             // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
             // for this partition
             if (ts != null && hstore_conf.site.exec_speculative_execution) {
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Telling partition %d to enable speculative execution because of txn #%d", p, txn_id));
                 boolean ret = this.executors[p.intValue()].enableSpeculativeExecution(ts, false);
                 if (debug.get() && ret) {
                     spec_cnt++;
@@ -1296,7 +1298,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // We only need to tell the queue stuff that the transaction is finished
             // if it's not an commit because there won't be a 2PC:PREPARE message
-            if (commit == false) this.txnQueueManager.ready(txn_id, status, p);
+            if (commit == false) this.txnQueueManager.finished(txn_id, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition

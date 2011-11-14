@@ -45,6 +45,9 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
     @Override
     public void remoteQueue(RpcController controller, TransactionPrepareRequest request, 
             RpcCallback<TransactionPrepareResponse> callback) {
+        if (debug.get())
+            LOG.debug("__FILE__:__LINE__ " + String.format("Sending %s to remote handler for txn #%d",
+                                    request.getClass().getSimpleName(), request.getTransactionId()));
         this.remoteHandler(controller, request, callback);
     }
     @Override
@@ -53,12 +56,14 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
         long txn_id = request.getTransactionId();
         if (debug.get())
-            LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
+            LOG.debug("__FILE__:__LINE__ " + String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         
         Collection<Integer> updated = new HashSet<Integer>();
         hstore_site.transactionPrepare(txn_id, request.getPartitionsList(), updated);
         assert(updated.isEmpty() == false);
         
+        if (debug.get())
+            LOG.debug("__FILE__:__LINE__ " + String.format("Finished PREPARE phase for txn #%d [updatedPartitions=%s]", txn_id, updated));
         Hstore.TransactionPrepareResponse response = Hstore.TransactionPrepareResponse.newBuilder()
                                                                .setTransactionId(txn_id)
                                                                .addAllPartitions(updated)

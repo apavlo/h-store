@@ -1,5 +1,7 @@
 package edu.brown.logging;
 
+import java.util.regex.Matcher;
+
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LocationInfo;
@@ -29,7 +31,7 @@ public class TestFastLoggingEvent extends TestCase {
         }
     }
 
-    Logger logger = Logger.getRootLogger();
+    Logger logger = Logger.getLogger(TestFastLoggingEvent.class);
     int offset;
     LoggingEvent origEvent;
     FastLoggingEvent fastEvent;
@@ -58,5 +60,37 @@ public class TestFastLoggingEvent extends TestCase {
         assertEquals(expected.getClassName(), actual.getClassName());
         assertEquals(expected.getMethodName(), actual.getMethodName());
     }
+    
+    /**
+     * testPreProcessorLocationInfoMatcher
+     */
+    public void testPreProcessorLocationInfoMatcher() {
+        String codeLine = "ExecutionSite.java:1958"; 
+        String msg = "Dispatching 1 messages and waiting for the results for InsertCallForwarding #1024611756678316032/0";
+        Matcher m = FastLoggingEvent.PREPROCESSOR_PATTERN.matcher(codeLine + " " + msg);
+        boolean find = m.find();
+        System.err.println(m.group());
+        assert(find);
+        assertEquals(codeLine, m.group(1) + ":" + m.group(2));
+        assertEquals(msg, m.replaceFirst(""));
+    }
+    
+    /**
+     * testPreProcessorLocationInfo
+     */
+    public void testPreProcessorLocationInfo() {
+        String fileName = "ExecutionSite.java";
+        String lineNum = "1958";
+        String msg = "Dispatching 1 messages and waiting for the results for InsertCallForwarding #1024611756678316032/0";
+        logger.debug(String.format("%s:%s %s", fileName, lineNum, msg));
+        assertNotNull(fastEvent);
+        
+        LocationInfo actual = this.fastEvent.getLocationInformation();
+        assertNotNull(actual);
+        assertEquals(fileName, actual.getFileName());
+        assertEquals(lineNum, actual.getLineNumber());
+        assertEquals(msg, fastEvent.getMessage());
+    }
+    
     
 }

@@ -1,16 +1,14 @@
-package edu.brown.utils;
+package edu.brown.logging;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import junit.framework.TestCase;
+
 import org.junit.Test;
 
 import edu.brown.benchmark.markov.RandomGenerator;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.oltpgenerator.AbstractBenchmark.RandomGenerator.AbstractRandomGenerator;
-
-import junit.framework.TestCase;
 
 public class TestLoggerUtil extends TestCase {
 
@@ -32,7 +30,7 @@ public class TestLoggerUtil extends TestCase {
             map.put(i, val);
         }
     }
-    
+
     @Test
     public void testLoggerBoolean() {
         LoggerUtil.LoggerBoolean logger = new LoggerUtil.LoggerBoolean(true);

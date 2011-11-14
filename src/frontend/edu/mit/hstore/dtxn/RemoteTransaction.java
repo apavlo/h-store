@@ -93,7 +93,8 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return String.format("REMOTE #%d/%d", this.txn_id, this.hashCode());
+            return "REMOTE #" + this.txn_id;
+//            return String.format("REMOTE #%d/%d", this.txn_id, this.hashCode());
         } else {
             return ("<Uninitialized>");
         }
