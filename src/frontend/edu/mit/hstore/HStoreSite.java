@@ -1116,7 +1116,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         else {
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing distributed %s to running at partition %d [handle=%d]",
-                                           ts, base_partition, ts.getClientHandle()));
+                             ts, base_partition, ts.getClientHandle()));
             
             // Partitions
             // Figure out what partitions we plan on touching for this transaction
@@ -1179,7 +1179,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
         Procedure catalog_proc = ts.getProcedure();
-        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting %s on partition %d", ts, base_partition));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting %s %s on partition %d",
+                        (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
         
         // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
         // into the ExecutionSite's execution queue
@@ -1197,7 +1198,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
-    protected RemoteTransaction createRemoteTransaction(long txn_id, FragmentTaskMessage ftask) {
+    public RemoteTransaction createRemoteTransaction(long txn_id, FragmentTaskMessage ftask) {
         RemoteTransaction ts = null;
         try {
             // Remote Transaction

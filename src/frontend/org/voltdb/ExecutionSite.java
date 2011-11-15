@@ -1039,17 +1039,17 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean success = true;
         
-        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
                                        ts, this.partitionId, this.current_dtxn, this.exec_mode, task.hashCode()));
         
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.exec_mode != ExecutionMode.DISABLED) {
-            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
             success = this.work_throttler.offer(task, false);
             
         // Otherwise figure out whether this txn needs to be blocked or not
         } else {
-            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
                                            task.getClass().getSimpleName(), ts, this.partitionId, this.currentTxnId));
             exec_lock.lock();
             try {
@@ -1065,7 +1065,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         this.work_queue.add(task);
                     }
                 } else {
-                    if (t) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
                     this.current_dtxn_blocked.add(task);
                 }
             } finally {

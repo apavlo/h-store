@@ -91,6 +91,15 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
     public abstract void sendLocal(long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
     public abstract void sendRemote(HStoreService channel, ProtoRpcController controller, T request, RpcCallback<U> callback);
     public abstract void remoteQueue(RpcController controller, T request, RpcCallback<U> callback);
+    
+    /**
+     * The remoteHandler is the code that executes on the remote node to process
+     * the request for a transaction that is executing on a different node.
+     * @param controller
+     * @param request
+     * @param callback
+     */
     public abstract void remoteHandler(RpcController controller, T request, RpcCallback<U> callback);
+    
     protected abstract ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id);
 }

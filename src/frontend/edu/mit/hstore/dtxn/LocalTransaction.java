@@ -196,9 +196,10 @@ public class LocalTransaction extends AbstractTransaction {
     public LocalTransaction init(long txnId, long clientHandle, int base_partition,
                                  boolean predict_readOnly, boolean predict_canAbort) {
         assert(this.predict_touchedPartitions != null);
-        super.init(txnId, clientHandle, base_partition, predict_readOnly, predict_canAbort, true);
+        super.init(txnId, clientHandle, base_partition,
+                (this.predict_touchedPartitions.size() == 1), predict_readOnly, predict_canAbort, true);
         
-        if (this.predict_touchedPartitions.size() > 1) {
+        if (this.predict_singlePartition == false) {
             try {
                 this.init_callback = HStoreObjectPools.CALLBACKS_TXN_INIT.borrowObject(); 
                 this.init_callback.init(this);
@@ -378,71 +379,75 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void startRound(int partition) {
-        if (this.base_partition == partition) {
-            assert(this.state.output_order.isEmpty());
-            assert(this.state.batch_size > 0);
-            if (d) LOG.debug("Starting round for local txn #" + this.txn_id + " with " + this.state.batch_size + " queued Statements");
-       
-            state.lock.lock();
-            try {
-                super.startRound(partition);
-    
-                // Create our output counters
-                for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
-                    for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
-                        if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) this.state.output_order.add(dinfo.dependency_id);
-                    } // FOR
-                } // FOR
-                assert(this.state.batch_size == this.state.output_order.size()) :
-                    "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.state.output_order.size();
-                
-                // Release any queued responses/results
-                if (this.state.queued_results.isEmpty() == false) {
-                    if (t) LOG.trace("Releasing " + this.state.queued_results.size() + " queued results");
-                    int key[] = new int[2];
-                    for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
-                        this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
-                        this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
-                    } // FOR
-                    this.state.queued_results.clear();
-                }
-                
-                // Now create the latch
-                int count = this.state.dependency_ctr - this.state.received_ctr;
-                assert(count >= 0);
-                assert(this.state.dependency_latch == null) : "This should never happen!\n" + this.toString();
-                this.state.dependency_latch = new CountDownLatch(count);
-            } finally {
-                state.lock.unlock();
-            } // SYNCH
-            
-        } else {
+        // Same site, different partition
+        if (this.base_partition != partition) {
             super.startRound(partition);
+            return;
         }
+        
+        // Same site, same partition
+        assert(this.state.output_order.isEmpty());
+        assert(this.state.batch_size > 0);
+        if (d) LOG.debug("__FILE__:__LINE__ " +"Starting round for local txn #" + this.txn_id + " with " + this.state.batch_size + " queued Statements");
+   
+        if (this.predict_singlePartition == false) state.lock.lock();
+        try {
+            super.startRound(partition);
+
+            // Create our output counters
+            for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
+                for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
+                    if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) this.state.output_order.add(dinfo.dependency_id);
+                } // FOR
+            } // FOR
+            assert(this.state.batch_size == this.state.output_order.size()) :
+                "Expected " + this.getStatementCount() + " output dependencies but we queued up " + this.state.output_order.size();
+            
+            // Release any queued responses/results
+            if (this.state.queued_results.isEmpty() == false) {
+                if (t) LOG.trace("__FILE__:__LINE__ " +"Releasing " + this.state.queued_results.size() + " queued results");
+                int key[] = new int[2];
+                for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
+                    this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
+                    this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
+                } // FOR
+                this.state.queued_results.clear();
+            }
+            
+            // Now create the latch
+            int count = this.state.dependency_ctr - this.state.received_ctr;
+            assert(count >= 0);
+            assert(this.state.dependency_latch == null) : "This should never happen!\n" + this.toString();
+            this.state.dependency_latch = new CountDownLatch(count);
+        } finally {
+            if (this.predict_singlePartition == false) state.lock.unlock();
+        } // SYNCH
     }
     
     @Override
     public void finishRound(int partition) {
-        if (this.base_partition == partition) {
-            assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for " + this + " before it was started"; 
-            assert(this.state.queued_results.isEmpty()) : "Trying to finish round for " + this + " but there are " + this.state.queued_results.size() + " queued results";
-
-            state.lock.lock();
-            try {
-                super.finishRound(partition);
-                
-                // Reset our initialization flag so that we can be ready to run more stuff the next round
-                if (this.base_partition == partition && this.state.dependency_latch != null) {
-                    assert(this.state.dependency_latch.getCount() == 0);
-                    if (t) LOG.debug("Setting CountDownLatch to null for txn #" + this.txn_id);
-                    this.state.dependency_latch = null;
-                }
-            } finally {
-                state.lock.unlock();
-            } // SYNCH
-        } else {
+        // Same site, different partition
+        if (this.base_partition != partition) {
             super.finishRound(partition);
+            return;
         }
+        
+        assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for " + this + " before it was started"; 
+        assert(this.state.queued_results.isEmpty()) : "Trying to finish round for " + this + " but there are " + this.state.queued_results.size() + " queued results";
+
+        if (this.predict_singlePartition == false) state.lock.lock();
+        try {
+            super.finishRound(partition);
+            
+            // Reset our initialization flag so that we can be ready to run more stuff the next round
+            if (this.base_partition == partition && this.state.dependency_latch != null) {
+                assert(this.state.dependency_latch.getCount() == 0);
+                if (t) LOG.debug("__FILE__:__LINE__ " +"Setting CountDownLatch to null for txn #" + this.txn_id);
+                this.state.dependency_latch = null;
+            }
+        } finally {
+            if (this.predict_singlePartition == false) state.lock.unlock();
+        } // SYNCH
     }
     
     /**
@@ -638,12 +643,6 @@ public class LocalTransaction extends AbstractTransaction {
     public Collection<Integer> getPredictTouchedPartitions() {
         return (this.predict_touchedPartitions);
     }
-    /**
-     * Returns true if this Transaction was originally predicted to be single-partitioned
-     */
-    public boolean isPredictSinglePartition() {
-        return (this.predict_touchedPartitions.size() == 1);
-    }
     
     // ----------------------------------------------------------------------------
     // ProtoRpcController CACHE
@@ -715,7 +714,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public VoltTable[] getResults() {
         final VoltTable results[] = new VoltTable[this.state.output_order.size()];
-        if (d) LOG.debug("Generating output results with " + results.length + " tables for txn #" + this.txn_id);
+        if (d) LOG.debug("__FILE__:__LINE__ " +"Generating output results with " + results.length + " tables for txn #" + this.txn_id);
         for (int stmt_index = 0; stmt_index < results.length; stmt_index++) {
             Integer dependency_id = this.state.output_order.get(stmt_index);
             assert(dependency_id != null) :
@@ -745,8 +744,8 @@ public class LocalTransaction extends AbstractTransaction {
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
-        int partition = ftask.getDestinationPartitionId();
-        int num_fragments = ftask.getFragmentCount();
+        final int partition = ftask.getDestinationPartitionId();
+        final int num_fragments = ftask.getFragmentCount();
         this.state.exec_touchedPartitions.put(partition, num_fragments);
         
         // If this task produces output dependencies, then we need to make 
@@ -755,15 +754,15 @@ public class LocalTransaction extends AbstractTransaction {
             int output_dependencies[] = ftask.getOutputDependencyIds();
             int stmt_indexes[] = ftask.getFragmentStmtIndexes();
             
-            if (d) LOG.debug(String.format("Attemping to add DependencyInfo for %d fragments in %s",
+            if (d) LOG.debug("__FILE__:__LINE__ " +String.format("Attemping to add DependencyInfo for %d fragments in %s",
                                             num_fragments, this));
-            state.lock.lock();
+            if (this.predict_singlePartition == false) state.lock.lock();
             try {
                 for (int i = 0; i < num_fragments; i++) {
                     Integer dependency_id = output_dependencies[i];
                     Integer stmt_index = stmt_indexes[i];
                     
-                    if (t) LOG.trace("Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
+                    if (t) LOG.trace("__FILE__:__LINE__ " +"Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
                     this.getOrCreateDependencyInfo(stmt_index.intValue(), dependency_id).addPartition(partition);
                     this.state.dependency_ctr++;
     
@@ -776,18 +775,18 @@ public class LocalTransaction extends AbstractTransaction {
                         this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
                     }
                     rest_stmt_ctr.add(stmt_index);
-                    if (t) LOG.trace(String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
+                    if (t) LOG.trace("__FILE__:__LINE__ " +String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
                 } // FOR
             } finally {
-                state.lock.unlock();
+                if (this.predict_singlePartition == false) state.lock.unlock();
             } // SYNCH
         }
         
         // If this task needs an input dependency, then we need to make sure it arrives at
         // the executor before it is allowed to start executing
         if (ftask.hasInputDependencies()) {
-            if (t) LOG.trace("Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
-            state.lock.lock();
+            if (t) LOG.trace("__FILE__:__LINE__ " +"Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
+            if (this.predict_singlePartition == false) state.lock.lock();
             try {
                 for (int i = 0; i < num_fragments; i++) {
                     int dependency_id = ftask.getOnlyInputDepId(i);
@@ -796,14 +795,14 @@ public class LocalTransaction extends AbstractTransaction {
                     this.state.internal_dependencies.add(dependency_id);
                 } // FOR
             } finally {
-                state.lock.unlock();
+                if (this.predict_singlePartition == false) state.lock.unlock();
             } // SYNCH
             this.state.blocked_tasks.add(ftask);
             blocked = true;
         }
         if (d) {
-            LOG.debug("Queued up FragmentTaskMessage in txn #" + this.txn_id + " for partition " + partition + " and marked as" + (blocked ? "" : " not") + " blocked");
-            if (t) LOG.trace("FragmentTaskMessage Contents for txn #" + this.txn_id + ":\n" + ftask);
+            LOG.debug("__FILE__:__LINE__ " +"Queued up FragmentTaskMessage in txn #" + this.txn_id + " for partition " + partition + " and marked as" + (blocked ? "" : " not") + " blocked");
+            if (t) LOG.trace("__FILE__:__LINE__ " +"FragmentTaskMessage Contents for txn #" + this.txn_id + ":\n" + ftask);
         }
         return (blocked);
     }
@@ -835,17 +834,17 @@ public class LocalTransaction extends AbstractTransaction {
         DependencyInfo dinfo = null;
         Map<Integer, Queue<Integer>> stmt_ctr = this.state.results_dependency_stmt_ctr;
         
-        if (debug.get()) LOG.debug(String.format("Attemping to add new result for {Partition:%d, Dependency:%d} in %s [numRows=%d]",
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Attemping to add new result for {Partition:%d, Dependency:%d} in %s [numRows=%d]",
                                                   partition, dependency_id, this, result.getRowCount()));
         
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
-        state.lock.lock();
+        if (this.predict_singlePartition == false) state.lock.lock();
         try {
             if (this.round_state[base_offset] == RoundState.INITIALIZED) {
                 assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
                 this.state.queued_results.put(key, result);
-                if (d) LOG.debug("Queued result " + key + " for txn #" + this.txn_id + " until the round is started");
+                if (d) LOG.debug("__FILE__:__LINE__ " +"Queued result " + key + " for txn #" + this.txn_id + " until the round is started");
                 return;
             }
 
@@ -853,8 +852,8 @@ public class LocalTransaction extends AbstractTransaction {
             // So as the results come back to us, we have to figure out which Statement it belongs to
             Queue<Integer> queue = stmt_ctr.get(key);
             if (t) {
-                LOG.trace("Storing new result for key " + key + " in txn #" + this.txn_id);
-                LOG.trace("Result stmt_ctr(key=" + key + "): " + queue);
+                LOG.trace("__FILE__:__LINE__ " +"Storing new result for key " + key + " in txn #" + this.txn_id);
+                LOG.trace("__FILE__:__LINE__ " +"Result stmt_ctr(key=" + key + "): " + queue);
             }
             assert(queue != null) :
                 String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
@@ -876,7 +875,7 @@ public class LocalTransaction extends AbstractTransaction {
                 // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
                 long count = this.state.dependency_latch.getCount();
                 if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
-                if (d) LOG.debug("Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
+                if (d) LOG.debug("__FILE__:__LINE__ " +"Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
             }
             
             if (d) {
@@ -884,7 +883,7 @@ public class LocalTransaction extends AbstractTransaction {
                 m.put("Blocked Tasks", this.state.blocked_tasks.size());
                 m.put("DependencyInfo", dinfo);
                 m.put("hasTasksReady", dinfo.hasTasksReady());
-                LOG.debug(this + "\n" + StringUtil.formatMaps(m));
+                LOG.debug("__FILE__:__LINE__ " +this + "\n" + StringUtil.formatMaps(m));
             }
             
             // Check whether we need to start running stuff now
@@ -892,16 +891,16 @@ public class LocalTransaction extends AbstractTransaction {
                 // Always double check whether somebody beat us to the punch
                 Collection<FragmentTaskMessage> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
                 if (to_unblock == null) {
-                    if (d) LOG.debug(String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
+                    if (d) LOG.debug("__FILE__:__LINE__ " +String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
                     return;
                 }
-                if (d) LOG.debug(String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
+                if (d) LOG.debug("__FILE__:__LINE__ " +String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
                                                to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
                 this.state.unblocked_tasks.add(to_unblock);
             }
         } finally {
-            state.lock.unlock();
+            if (this.predict_singlePartition == false) state.lock.unlock();
         } // SYNCH
     }
 
@@ -913,8 +912,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @param results
      * @return
      */
-    public synchronized Map<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final Map<Integer, List<VoltTable>> results) {
-        if (d) LOG.debug(String.format("Retrieving %d internal dependencies for txn #%d",
+    public Map<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final Map<Integer, List<VoltTable>> results) {
+        if (d) LOG.debug("__FILE__:__LINE__ " +String.format("Retrieving %d internal dependencies for txn #%d",
                                        this.state.internal_dependencies.size(), this.txn_id));
         
         Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
@@ -928,11 +927,12 @@ public class LocalTransaction extends AbstractTransaction {
             int num_tables = dinfo.results.size();
             assert(dinfo.getPartitions().size() == num_tables) :
                 String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
-                              "but we were expecting %d in %s txn #%d\n%s\n%s", 
+                              "but we were expecting %d in %s txn #%d\n%s\n%s\n%s%s", 
                               stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this.getProcedureName(), this.txn_id,
-                              this.toString(), ftask.toString()); 
+                              this.toString(), ftask.toString(),
+                              StringUtil.SINGLE_LINE, this.debug()); 
             results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
-            if (d) LOG.debug(String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables",
+            if (d) LOG.debug("__FILE__:__LINE__ " +String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables",
                                            stmt_index, input_d_id, results.get(input_d_id).size()));
         } // FOR
         return (results);
