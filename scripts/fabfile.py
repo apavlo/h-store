@@ -53,14 +53,14 @@ LOG_handler.setFormatter(LOG_formatter)
 LOG.addHandler(LOG_handler)
 LOG.setLevel(logging.INFO)
 
-## BOTO
-cwd = os.getcwd()
+## H-Store Third-Party Libraries
 realpath = os.path.realpath(__file__)
 basedir = os.path.dirname(realpath)
-basename = os.path.basename(realpath)
 if not os.path.exists(realpath):
-   if os.path.exists(os.path.join(cwd, basename)):
-      basedir = cwd
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 import boto
 
