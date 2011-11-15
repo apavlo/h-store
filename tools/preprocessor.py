@@ -36,9 +36,18 @@ import re
 import commands
 import subprocess
 import logging
-import argparse
 import string
 from pprint import pprint, pformat
+
+cwd = os.getcwd()
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+basename = os.path.basename(realpath)
+if not os.path.exists(realpath):
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+        sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+import argparse
 
 logging.basicConfig(level = logging.INFO,
                     format="PREPROCESSOR [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
