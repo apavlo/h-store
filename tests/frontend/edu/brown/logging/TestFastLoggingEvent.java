@@ -14,6 +14,8 @@ public class TestFastLoggingEvent extends TestCase {
     class MockAppender extends AppenderSkeleton {
         @Override
         protected void append(LoggingEvent event) {
+//            System.err.println("Got event: " + event);
+            
             TestFastLoggingEvent.this.offset = FastLoggingEvent.getStackOffset(event);
             TestFastLoggingEvent.this.origEvent = event;
             TestFastLoggingEvent.this.origEvent.getLocationInformation();
@@ -39,7 +41,7 @@ public class TestFastLoggingEvent extends TestCase {
     @Override
     protected void setUp() throws Exception {
         logger.addAppender(new MockAppender());
-        logger.debug("TEST LOGGING EVENT");
+        logger.info("TEST LOGGING EVENT");
         assertNotNull(this.origEvent);
         assertNotNull(this.fastEvent);
     }
@@ -82,7 +84,7 @@ public class TestFastLoggingEvent extends TestCase {
         String fileName = "ExecutionSite.java";
         String lineNum = "1958";
         String msg = "Dispatching 1 messages and waiting for the results for InsertCallForwarding #1024611756678316032/0";
-        logger.debug(String.format("%s:%s %s", fileName, lineNum, msg));
+        logger.info(String.format("%s:%s %s", fileName, lineNum, msg));
         assertNotNull(fastEvent);
         
         LocationInfo actual = this.fastEvent.getLocationInformation();
