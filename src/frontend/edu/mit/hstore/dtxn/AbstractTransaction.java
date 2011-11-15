@@ -81,6 +81,8 @@ public abstract class AbstractTransaction implements Poolable {
     // PREDICTIONS FLAGS
     // ----------------------------------------------------------------------------
     
+    protected boolean predict_singlePartition = false;
+    
     /** Whether this txn can abort */
     private boolean predict_abortable = true;
     
@@ -138,11 +140,12 @@ public abstract class AbstractTransaction implements Poolable {
      * @param dtxn_txn_id
      */
     protected final AbstractTransaction init(long txn_id, long client_handle, int base_partition,
-                                             boolean predict_readOnly, boolean predict_abortable, boolean exec_local) {
+                                             boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable, boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
         this.rejected = false;
+        this.predict_singlePartition = predict_singlePartition;
         this.predict_readOnly = predict_readOnly;
         this.predict_abortable = predict_abortable;
         
@@ -176,7 +179,7 @@ public abstract class AbstractTransaction implements Poolable {
         } // FOR
 
         if (debug.get())
-            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+            LOG.debug("__FILE__:__LINE__ " +String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                     txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = -1;
     }
@@ -218,7 +221,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.round_state[offset] = RoundState.INITIALIZED;
 //        this.pending_error = null;
         
-        if (debug.get()) LOG.debug(String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
     }
     
     /**
@@ -231,7 +234,7 @@ public abstract class AbstractTransaction implements Poolable {
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
         this.round_state[offset] = RoundState.STARTED;
-        if (debug.get()) LOG.debug(String.format("Starting batch round #%d for %s", this.round_ctr[offset], this));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Starting batch round #%d for %s", this.round_ctr[offset], this));
     }
     
     /**
@@ -243,7 +246,7 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (debug.get()) LOG.debug(String.format("Finishing batch round #%d for %s", this.round_ctr[offset], this));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Finishing batch round #%d for %s", this.round_ctr[offset], this));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }
@@ -255,20 +258,20 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Returns true if this Transaction was originally predicted as being able to abort
      */
-    public boolean isPredictAbortable() {
+    public final boolean isPredictAbortable() {
         return (this.predict_abortable);
     }
     /**
      * Returns true if this transaction was originally predicted as read only
      */
-    public boolean isPredictReadOnly() {
+    public final boolean isPredictReadOnly() {
         return (this.predict_readOnly);
     }
     /**
      * Returns true if this Transaction was originally predicted to be single-partitioned
      */
-    public boolean isPredictSinglePartition() {
-        return (false);
+    public final boolean isPredictSinglePartition() {
+        return (this.predict_singlePartition);
     }
     
     // ----------------------------------------------------------------------------
@@ -374,7 +377,7 @@ public abstract class AbstractTransaction implements Poolable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (debug.get()) LOG.debug("Got error for txn #" + this.txn_id + " - " + error.getMessage());
+            if (debug.get()) LOG.debug("__FILE__:__LINE__ " +"Got error for txn #" + this.txn_id + " - " + error.getMessage());
             this.pending_error = error;
         }
     }
@@ -393,7 +396,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
-        if (debug.get()) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Marking %s as having submitted to the EE on partition %d %s",
                                                  this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
@@ -418,7 +421,7 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public void setFinishedEE(int partition) {
         if (debug.get()) 
-            LOG.debug(String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
+            LOG.debug("__FILE__:__LINE__ " +String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
                                    this, partition, Arrays.toString(this.finished),
                                    this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;

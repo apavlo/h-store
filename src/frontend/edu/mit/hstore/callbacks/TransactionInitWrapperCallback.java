@@ -37,7 +37,11 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
-
+        assert(orig_callback != null) :
+            String.format("Tried to initialize %s with a null callback for txn #%d", this.getClass().getSimpleName(), txn_id);
+        assert(partitions != null) :
+            String.format("Tried to initialize %s with a null partitions for txn #%d", this.getClass().getSimpleName(), txn_id);
+        
         // Only include local partitions
         int counter = 0;
         Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
@@ -78,6 +82,8 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
         assert(this.getOrigCounter() == builder.getPartitionsCount()) :
             String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
                           builder.getClass().getSimpleName(), txn_id, builder.getPartitionsCount(), this.getOrigCounter());
+        assert(this.getOrigCallback() != null) :
+            String.format("The original callback for txn #%d is null!", txn_id);
         this.getOrigCallback().run(this.builder.build());
     }
     

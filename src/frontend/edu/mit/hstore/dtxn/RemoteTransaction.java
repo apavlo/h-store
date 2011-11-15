@@ -60,7 +60,7 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     @SuppressWarnings("unchecked")
     public RemoteTransaction init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(txnId, clientHandle, source_partition, predict_readOnly, predict_abortable, false));
+        return ((RemoteTransaction)super.init(txnId, clientHandle, source_partition, false, predict_readOnly, predict_abortable, false));
     }
     
     @Override
@@ -93,8 +93,8 @@ public class RemoteTransaction extends AbstractTransaction {
     @Override
     public String toString() {
         if (this.isInitialized()) {
-            return "REMOTE #" + this.txn_id;
-//            return String.format("REMOTE #%d/%d", this.txn_id, this.hashCode());
+//            return "REMOTE #" + this.txn_id;
+            return String.format("REMOTE #%d/%d", this.txn_id, this.base_partition);
         } else {
             return ("<Uninitialized>");
         }
