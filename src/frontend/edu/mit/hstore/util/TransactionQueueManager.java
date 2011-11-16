@@ -403,11 +403,14 @@ public class TransactionQueueManager implements Runnable {
         if (debug.get()) 
             LOG.debug(String.format("Blocking %s until after a txn greater than #%d is created for partition %d",
                                                  ts, txn_id, partition));
-        synchronized (this.blocked_dtxns) {
-            if (this.blocked_dtxn_release.put(ts, txn_id) == null) {
-                this.blocked_dtxns.offer(ts);
+        if (this.blocked_dtxn_release.putIfAbsent(ts, txn_id) != null) {
+            Long other_txn_id = this.blocked_dtxn_release.get(ts);
+            if (other_txn_id != null && other_txn_id.longValue() < txn_id) {
+                this.blocked_dtxn_release.put(ts, txn_id);
             }
-        } // SYNCH
+        } else {
+            this.blocked_dtxns.offer(ts);
+        }
         if (this.localPartitions.contains(partition) == false) {
             this.markAsLastTxnId(partition, txn_id);
         }
@@ -422,24 +425,22 @@ public class TransactionQueueManager implements Runnable {
             LOG.debug(String.format("Checking whether we can release %d blocked dtxns [lastTxnId=%d]", this.blocked_dtxns.size(), last_txn_id));
         
         while (this.blocked_dtxns.isEmpty() == false) {
-            synchronized (this.blocked_dtxns) {
-                LocalTransaction ts = this.blocked_dtxns.peek();
-                Long releaseTxnId = this.blocked_dtxn_release.get(ts);
-                if (releaseTxnId == null) {
-                    if (debug.get()) LOG.warn("Missing release TxnId for " + ts);
-                    this.blocked_dtxns.remove();
-                    continue;
-                }
-                if (releaseTxnId < last_txn_id) {
-                    if (debug.get())
-                        LOG.debug(String.format("Releasing blocked %s because the lastest txn was #%d [release=%d]",
-                                                ts, last_txn_id, releaseTxnId));
-                    this.blocked_dtxns.remove();
-                    this.blocked_dtxn_release.remove(ts);
-                    hstore_site.transactionRestart(ts, Hstore.Status.ABORT_RESTART);
-    //                hstore_site.transactionRequeue(p.getSecond());
-                } else break;
-            } // SYNCH
+            LocalTransaction ts = this.blocked_dtxns.peek();
+            Long releaseTxnId = this.blocked_dtxn_release.get(ts);
+            if (releaseTxnId == null) {
+                if (debug.get()) LOG.warn("Missing release TxnId for " + ts);
+                this.blocked_dtxns.remove();
+                continue;
+            }
+            if (releaseTxnId < last_txn_id) {
+                if (debug.get())
+                    LOG.debug(String.format("Releasing blocked %s because the lastest txn was #%d [release=%d]",
+                                            ts, last_txn_id, releaseTxnId));
+                this.blocked_dtxns.remove();
+                this.blocked_dtxn_release.remove(ts);
+                hstore_site.transactionRestart(ts, Hstore.Status.ABORT_RESTART);
+//                hstore_site.transactionRequeue(p.getSecond());
+            } else break;
         } // WHILE
     }
 }

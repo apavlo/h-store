@@ -183,7 +183,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     p_class = (Class<? extends VoltProcedure>)Class.forName(className);
                 } catch (final ClassNotFoundException e) {
-                    LOG.fatal("Failed to load procedure class '" + className + "'", e);
+                    LOG.fatal("__FILE__:__LINE__ " + "Failed to load procedure class '" + className + "'", e);
                     System.exit(1);
                 }
             }
@@ -205,7 +205,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                ExecutionSite.this.hsql,
                                ExecutionSite.this.p_estimator);
             } catch (Exception e) {
-                if (d) LOG.warn("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+                if (d) LOG.warn("__FILE__:__LINE__ " + "Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
                 throw e;
             }
             return (volt_proc);
@@ -439,7 +439,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     response = (FragmentResponseMessage)VoltMessage.createMessageFromBuffer(serialized.asReadOnlyByteBuffer(), false);
                 } catch (Exception ex) {
-                    LOG.fatal(String.format("Failed to deserialize embedded %s message\n%s",
+                    LOG.fatal("__FILE__:__LINE__ " + String.format("Failed to deserialize embedded %s message\n%s",
                                             msg.getClass().getSimpleName(), Arrays.toString(serialized.toByteArray())), ex);
                     System.exit(1);
                 }
@@ -612,7 +612,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         // just print error info an bail if we run into an error here
         catch (final Exception ex) {
-            LOG.fatal("Failed to initialize ExecutionSite", ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Failed to initialize ExecutionSite", ex);
             VoltDB.crashVoltDB();
         }
         this.ee = eeTemp;
@@ -641,13 +641,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     p_class = (Class<? extends VoltProcedure>)Class.forName(className);
                     volt_proc = (VoltProcedure)p_class.newInstance();
                 } catch (final InstantiationException e) {
-                    LOG.fatal("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+                    LOG.fatal("__FILE__:__LINE__ " + "Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
                     System.exit(1);
                 } catch (final IllegalAccessException e) {
-                    LOG.fatal("Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
+                    LOG.fatal("__FILE__:__LINE__ " + "Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
                     System.exit(1);
                 } catch (final ClassNotFoundException e) {
-                    LOG.fatal("Failed to load procedure class '" + className + "'", e);
+                    LOG.fatal("__FILE__:__LINE__ " + "Failed to load procedure class '" + className + "'", e);
                     System.exit(1);
                 }
                 
@@ -740,7 +740,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 current_txn = hstore_site.getTransaction(txn_id);
                 if (current_txn == null) {
                     String msg = "No transaction state for txn #" + txn_id;
-                    LOG.error(msg + "\n" + work.toString());
+                    LOG.error("__FILE__:__LINE__ " + msg + "\n" + work.toString());
                     throw new RuntimeException(msg);
                 }
                 if (hstore_conf.site.exec_profiling) {
@@ -823,16 +823,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
-                LOG.fatal(String.format("Unexpected error for ExecutionSite partition #%d%s",
+                LOG.fatal("__FILE__:__LINE__ " + String.format("Unexpected error for ExecutionSite partition #%d%s",
                                         this.partitionId, (current_txn != null ? " - " + current_txn : "")), ex);
-                if (current_txn != null) LOG.fatal("TransactionState Dump:\n" + current_txn.debug());
+                if (current_txn != null) LOG.fatal("__FILE__:__LINE__ " + "TransactionState Dump:\n" + current_txn.debug());
             }
             this.hstore_coordinator.shutdownCluster(new Exception(ex));
         } finally {
-            LOG.warn(String.format("Partition %d ExecutionSite is stopping.%s",
+            LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d ExecutionSite is stopping.%s",
                                    this.partitionId, (txn_id > 0 ? " In-Flight Txn: #" + txn_id : "")));
             if (debug.get() && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
-                LOG.warn(current_txn.debug());
+                LOG.warn("__FILE__:__LINE__ " + current_txn.debug());
             }
             
             // Release the shutdown latch in case anybody waiting for us
@@ -1237,11 +1237,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (this.isShuttingDown() == false) {
                 SQLStmt last[] = volt_proc.voltLastQueriesExecuted();
                 
-                LOG.fatal("Unexpected error while executing " + ts, ex);
+                LOG.fatal("__FILE__:__LINE__ " + "Unexpected error while executing " + ts, ex);
                 if (last.length > 0) {
-                    LOG.fatal("Last Queries Executed: " + Arrays.toString(last));
+                    LOG.fatal("__FILE__:__LINE__ " + "Last Queries Executed: " + Arrays.toString(last));
                 }
-                LOG.fatal("LocalTransactionState Dump:\n" + ts.debug());
+                LOG.fatal("__FILE__:__LINE__ " + "LocalTransactionState Dump:\n" + ts.debug());
                 this.crash(ex);
             }
         }
@@ -1389,27 +1389,27 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         try {
             result = this.executeFragmentTaskMessage(ts, ftask);
         } catch (ConstraintFailureException ex) {
-            LOG.fatal("Hit an ConstraintFailureException for " + ts, ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Hit an ConstraintFailureException for " + ts, ex);
             status = FragmentResponseMessage.UNEXPECTED_ERROR;
             error = ex;
         } catch (EEException ex) {
-            LOG.fatal("Hit an EE Error for " + ts, ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Hit an EE Error for " + ts, ex);
             this.crash(ex);
             status = FragmentResponseMessage.UNEXPECTED_ERROR;
             error = ex;
         } catch (SQLException ex) {
-            LOG.warn("Hit a SQL Error for " + ts, ex);
+            LOG.warn("__FILE__:__LINE__ " + "Hit a SQL Error for " + ts, ex);
             status = FragmentResponseMessage.UNEXPECTED_ERROR;
             error = ex;
         } catch (Throwable ex) {
-            LOG.warn("Something unexpected and bad happended for " + ts, ex);
+            LOG.warn("__FILE__:__LINE__ " + "Something unexpected and bad happended for " + ts, ex);
             status = FragmentResponseMessage.UNEXPECTED_ERROR;
             error = new SerializableException(ex);
         } finally {
             // Success, but without any results???
             if (result == null && status == FragmentResponseMessage.SUCCESS) {
                 Exception ex = new Exception("The Fragment executed successfully but result is null for " + ts);
-                if (d) LOG.warn(ex);
+                if (d) LOG.warn("__FILE__:__LINE__ " + ex);
                 status = FragmentResponseMessage.UNEXPECTED_ERROR;
                 error = new SerializableException(ex);
             }
@@ -1444,7 +1444,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     } catch (Throwable ex) {
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentIds=%s]",
                                                    dep_id, ts, i, Arrays.toString(ftask.getFragmentIds()));
-                        LOG.error(msg + "\n" + ftask.toString());
+                        LOG.error("__FILE__:__LINE__ " + msg + "\n" + ftask.toString());
                         throw new RuntimeException(msg, ex);
                     }
                 } // FOR
@@ -1490,7 +1490,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         int input_depIds[] = ftask.getAllUnorderedInputDepIds(); // Is this ok?
         
         if (fragmentIdIndex == 0) {
-            LOG.warn(String.format("Got a FragmentTask for %s that does not have any fragments?!?", ts));
+            LOG.warn("__FILE__:__LINE__ " + String.format("Got a FragmentTask for %s that does not have any fragments?!?", ts));
             return (result);
         }
         
@@ -1508,7 +1508,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     parameterSets[i] = fds.readObject(ParameterSet.class);
                 } catch (Exception ex) {
-                    LOG.fatal("Failed to deserialize ParameterSet[" + i + "] for FragmentTaskMessage " + fragmentIds[i] + " in " + ts, ex);
+                    LOG.fatal("__FILE__:__LINE__ " + "Failed to deserialize ParameterSet[" + i + "] for FragmentTaskMessage " + fragmentIds[i] + " in " + ts, ex);
                     throw ex;
                 }
                 // LOG.info("PARAMETER[" + i + "]: " + parameterSets[i]);
@@ -1708,7 +1708,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 ((LocalTransaction)ts).profiler.stopExecEE();
             }
         } catch (EEException ex) {
-            LOG.fatal("Unrecoverable error in the ExecutionEngine", ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Unrecoverable error in the ExecutionEngine", ex);
             System.exit(1);
         } catch (Throwable ex) {
             new RuntimeException(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
@@ -1765,9 +1765,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public void sendFragmentResponseMessage(RemoteTransaction ts, FragmentTaskMessage ftask, FragmentResponseMessage fresponse) {
         RpcCallback<TransactionWorkResponse.PartitionResult> callback = ts.getFragmentTaskCallback();
         if (callback == null) {
-            LOG.fatal("Unable to send FragmentResponseMessage:\n" + fresponse.toString());
-            LOG.fatal("Orignal FragmentTaskMessage:\n" + ftask);
-            LOG.fatal(ts.toString());
+            LOG.fatal("__FILE__:__LINE__ " + "Unable to send FragmentResponseMessage:\n" + fresponse.toString());
+            LOG.fatal("__FILE__:__LINE__ " + "Orignal FragmentTaskMessage:\n" + ftask);
+            LOG.fatal("__FILE__:__LINE__ " + ts.toString());
             throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
         }
 
@@ -1884,7 +1884,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Preparing to request fragments %s on partition %d to generate %d output dependencies for %s",
                                            Arrays.toString(ftask.getFragmentIds()), target_partition, dependency_ids.length, ts));
             if (ftask.getFragmentCount() == 0) {
-                LOG.warn("Trying to send a FragmentTask request with 0 fragments for " + ts);
+                LOG.warn("__FILE__:__LINE__ " + "Trying to send a FragmentTask request with 0 fragments for " + ts);
                 continue;
             }
 
@@ -1977,7 +1977,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     ftasks = queue.takeFirst(); // BLOCKING
                 } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for blocked tasks for " + ts, ex);
+                    if (this.hstore_site.isShuttingDown() == false) LOG.error("__FILE__:__LINE__ " + "We were interrupted while waiting for blocked tasks for " + ts, ex);
                     return (null);
                 }
             }
@@ -2107,14 +2107,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 try {
                     done = latch.await(1000, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) LOG.error("We were interrupted while waiting for results for " + ts, ex);
+                    if (this.hstore_site.isShuttingDown() == false) LOG.error("__FILE__:__LINE__ " + "We were interrupted while waiting for results for " + ts, ex);
                     return (null);
                 } catch (Throwable ex) {
                     new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
                 }
                 if (done) break;
                 if (this.isShuttingDown() == false) {
-                    LOG.warn("Still waiting for responses for " + ts + "\n" + ts.debug());
+                    LOG.warn("__FILE__:__LINE__ " + "Still waiting for responses for " + ts + "\n" + ts.debug());
                     throw new VoltAbortException("Responses for " + ts + "never arrived!");
                 }
             } // WHILE
@@ -2126,7 +2126,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
         // where we can generate a message to the client 
         if (ts.hasPendingError()) {
-            if (d) LOG.warn(String.format("%s was hit with a %s", ts, ts.getPendingError().getClass().getSimpleName()));
+            if (d) LOG.warn("__FILE__:__LINE__ " + String.format("%s was hit with a %s", ts, ts.getPendingError().getClass().getSimpleName()));
             throw ts.getPendingError();
         }
         
@@ -2254,7 +2254,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != null) {
             if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
-                    LOG.fatal(ts.debug());
+                    LOG.fatal("__FILE__:__LINE__ " + ts.debug());
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
                 }
             } else {
@@ -2445,7 +2445,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * This won't return!
      */
     public synchronized void crash(Throwable ex) {
-        LOG.warn(String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
+        LOG.warn("__FILE__:__LINE__ " + String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
         assert(this.hstore_coordinator != null);
         this.hstore_coordinator.shutdownCluster(ex); // This won't return
     }
@@ -2485,7 +2485,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } catch (InterruptedException ex) {
                 // Ignore
             } catch (Exception ex) {
-                LOG.fatal("Unexpected error while shutting down", ex);
+                LOG.fatal("__FILE__:__LINE__ " + "Unexpected error while shutting down", ex);
             }
         }
     }

@@ -516,7 +516,7 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request,
                 RpcCallback<ShutdownResponse> done) {
-            LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
+            LOG.info("__FILE__:__LINE__ " + String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
             
             HStoreCoordinator.this.shutting_down = true;
             
@@ -529,7 +529,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                    .build();
             // Send this now!
             done.run(response);
-            LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
+            LOG.info("__FILE__:__LINE__ " + String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
             if (debug.get())
                 LOG.debug("__FILE__:__LINE__ " + String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                                        transactionRedirect_dispatcher.idleTime.getTotalThinkTimeMS()));
@@ -698,7 +698,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (this.shutting_down) return;
         this.shutting_down = true;
         this.hstore_site.prepareShutdown(false);
-        LOG.info("Shutting down cluster" + (ex != null ? ": " + ex.getMessage() : ""));
+        LOG.info("__FILE__:__LINE__ " + "Shutting down cluster", ex);
 
         final int exit_status = (ex == null ? 0 : 1);
         final CountDownLatch latch = new CountDownLatch(num_sites);
@@ -734,14 +734,14 @@ public class HStoreCoordinator implements Shutdownable {
         
         // Block until the latch releases us
         if (num_sites > 0) {
-            LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
+            LOG.info("__FILE__:__LINE__ " + String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
             try {
                 latch.await(5, TimeUnit.SECONDS);
             } catch (Exception ex2) {
                 // IGNORE!
             }
         }
-        LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
+        LOG.info("__FILE__:__LINE__ " + String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
         LogManager.shutdown();
         System.exit(exit_status);
     }

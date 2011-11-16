@@ -221,7 +221,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.round_state[offset] = RoundState.INITIALIZED;
 //        this.pending_error = null;
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Initializing new round information for %s [undoToken=%d]", this, undoToken));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Initializing new round information for %s at partition %d [undoToken=%d]", this, partition, undoToken));
     }
     
     /**
@@ -234,7 +234,7 @@ public abstract class AbstractTransaction implements Poolable {
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
         this.round_state[offset] = RoundState.STARTED;
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Starting batch round #%d for %s", this.round_ctr[offset], this));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Starting batch round #%d for %s at partition", this.round_ctr[offset], this, partition));
     }
     
     /**
@@ -246,7 +246,7 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Finishing batch round #%d for %s", this.round_ctr[offset], this));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Finishing batch round #%d for %s at partition", this.round_ctr[offset], this, partition));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }

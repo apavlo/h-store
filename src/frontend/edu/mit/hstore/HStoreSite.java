@@ -468,7 +468,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
 //         if (d) 
-         LOG.info("Set new EstimationThresholds: " + thresholds);
+         LOG.info("__FILE__:__LINE__ " + "Set new EstimationThresholds: " + thresholds);
     }
     
     /**
@@ -556,7 +556,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
             @Override
             public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                LOG.error(String.format("Thread %s had an Exception. Halting H-Store Cluster", arg.getFirst().getName()),
+                LOG.error("__FILE__:__LINE__ " + String.format("Thread %s had an Exception. Halting H-Store Cluster", arg.getFirst().getName()),
                           arg.getSecond());
                 hstore_coordinator.shutdownCluster(arg.getSecond(), true);
             }
@@ -632,7 +632,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             CatalogUtil.preload(this.catalog_db);
             
         } catch (Exception ex) {
-            LOG.fatal("Failed to prepare HStoreSite", ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Failed to prepare HStoreSite", ex);
             System.exit(1);
         }
         
@@ -650,7 +650,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private synchronized void ready() {
         if (this.ready) {
-            LOG.warn("Already told that we were ready... Ignoring");
+            LOG.warn("__FILE__:__LINE__ " + "Already told that we were ready... Ignoring");
             return;
         }
         this.shutdown_state = ShutdownState.STARTED;
@@ -726,8 +726,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (SHUTDOWN_HANDLE != null) {
             SHUTDOWN_HANDLE.hstore_coordinator.shutdownCluster();
         } else {
-            LOG.fatal("H-Store has encountered an unrecoverable error and is exiting.");
-            LOG.fatal("The log may contain additional information.");
+            LOG.fatal("__FILE__:__LINE__ " + "H-Store has encountered an unrecoverable error and is exiting.");
+            LOG.fatal("__FILE__:__LINE__ " + "The log may contain additional information.");
             System.exit(-1);
         }
         
@@ -775,7 +775,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.shutdown_state != ShutdownState.PREPARE_SHUTDOWN) this.prepareShutdown(false);
         this.shutdown_state = ShutdownState.SHUTDOWN;
 //      if (d)
-        LOG.info("Shutting down everything at " + this.getSiteName());
+        LOG.info("__FILE__:__LINE__ " + "Shutting down everything at " + this.getSiteName());
 
         // Stop the monitor thread
         if (this.status_monitor != null) this.status_monitor.shutdown();
@@ -804,7 +804,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // this.engineEventLoop.exitLoop();
         
 //        if (d) 
-            LOG.info("Completed shutdown process at " + this.getSiteName());
+            LOG.info("__FILE__:__LINE__ " + "Completed shutdown process at " + this.getSiteName());
     }
     
     /**
@@ -933,7 +933,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
             assert(ts.isInitialized() == false);
         } catch (Throwable ex) {
-            LOG.fatal(String.format("Failed to instantiate new LocalTransactionState for %s txn #%s",
+            LOG.fatal("__FILE__:__LINE__ " + String.format("Failed to instantiate new LocalTransactionState for %s txn #%s",
                                     request.getProcName(), txn_id));
             throw new RuntimeException(ex);
         }
@@ -1007,7 +1007,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         
                     // Invalid MarkovEstimate. Stick with defaults
                     } else if (m_estimate.isValid() == false) {
-                        if (d) LOG.warn(String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
+                        if (d) LOG.warn("__FILE__:__LINE__ " + String.format("Invalid MarkovEstimate for %s. Marking as not read-only and multi-partitioned.\n%s",
                                 AbstractTransaction.formatTxnName(catalog_proc, txn_id), m_estimate));
                         predict_readOnly = catalog_proc.getReadonly();
                         predict_abortable = true;
@@ -1032,7 +1032,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
                     System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
-                LOG.error(String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
+                LOG.error("__FILE__:__LINE__ " + String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
                 predict_touchedPartitions = this.all_partitions;
                 predict_readOnly = false;
                 predict_abortable = true;
@@ -1091,11 +1091,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
             if (new_txn_id == txn_id) {
                 String msg = "Duplicate transaction id #" + txn_id;
-                LOG.fatal("ORIG TRANSACTION:\n" + dupe);
-                LOG.fatal("NEW TRANSACTION:\n" + ts);
+                LOG.fatal("__FILE__:__LINE__ " + "ORIG TRANSACTION:\n" + dupe);
+                LOG.fatal("__FILE__:__LINE__ " + "NEW TRANSACTION:\n" + ts);
                 this.hstore_coordinator.shutdownCluster(new Exception(msg), true);
             }
-            LOG.warn(String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
+            LOG.warn("__FILE__:__LINE__ " + String.format("Had to fix duplicate txn ids: %d -> %d", txn_id, new_txn_id));
             txn_id = new_txn_id;
             ts.setTransactionId(txn_id);
             this.inflight_txns.put(txn_id, ts);
@@ -1143,9 +1143,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     // If we catch it here, then we can just block ourselves until
                     // we generate a txn_id with a greater value and then re-add ourselves
                     if (debug.get()) {
-                        LOG.warn(String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
+                        LOG.warn("__FILE__:__LINE__ " + String.format("Unable to queue %s because the last txn id at partition %d is %d. Restarting...",
                                        ts, partition, last_txn_id));
-                        LOG.warn(String.format("LastTxnId:#%s / NewTxnId:#%s",
+                        LOG.warn("__FILE__:__LINE__ " + String.format("LastTxnId:#%s / NewTxnId:#%s",
                                            TransactionIdManager.toString(last_txn_id),
                                            TransactionIdManager.toString(txn_id)));
                     }
@@ -1207,7 +1207,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
                                            ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false, ts.hashCode()));
         } catch (Exception ex) {
-            LOG.fatal("Failed to construct TransactionState for txn #" + txn_id, ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
         }
         this.inflight_txns.put(txn_id, ts);
@@ -1309,10 +1309,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 
                 if (ftask == null) ftask = ts.getFinishTaskMessage(status);
                 try {
-//                     this.executors[p].finishTransaction(ts, commit);
                     this.executors[p].queueFinish(ts, ftask);
                 } catch (Throwable ex) {
-                    LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
+                    LOG.error("__FILE__:__LINE__ " + String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
                                             ts, ts.hashCode(), status, partitions));
                     throw new RuntimeException(ex);
                 }
@@ -1395,7 +1394,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
         ts.setTransactionId(new_txn_id);
         this.dispatchInvocation(ts);
-        LOG.info(String.format("Released blocked txn #%d as new %s", old_txn_id, ts));
+        LOG.info("__FILE__:__LINE__ " + String.format("Released blocked txn #%d as new %s", old_txn_id, ts));
     }
     
     /**
@@ -1493,7 +1492,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 try {
                     serializedRequest = FastSerializer.serialize(spi);
                 } catch (IOException ex) {
-                    LOG.fatal("Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts);
+                    LOG.fatal("__FILE__:__LINE__ " + "Failed to serialize StoredProcedureInvocation to redirect %s" + orig_ts);
                     this.hstore_coordinator.shutdownCluster(ex, false);
                     return;
                 }
@@ -1525,7 +1524,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         try {
             new_ts = HStoreObjectPools.STATES_TXN_LOCAL.borrowObject();
         } catch (Exception ex) {
-            LOG.fatal("Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
+            LOG.fatal("__FILE__:__LINE__ " + "Failed to instantiate new LocalTransactionState for mispredicted " + orig_ts);
             throw new RuntimeException(ex);
         }
         
@@ -1624,7 +1623,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // for a remote transaction that told us that they were going to need one
         // of our partitions but then they never actually sent work to us
         if (abstract_ts == null) {
-            if (d) LOG.warn(String.format("Ignoring clean-up request for txn #%d because we don't have a handle [status=%s]",
+            if (d) LOG.warn("__FILE__:__LINE__ " + String.format("Ignoring clean-up request for txn #%d because we don't have a handle [status=%s]",
                                           txn_id, status));
             return;
         }
@@ -1687,10 +1686,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         TxnCounter.REJECTED.inc(catalog_proc);
                     break;
                 default:
-                    LOG.warn(String.format("Unexpected status %s for %s", status, ts));
+                    LOG.warn("__FILE__:__LINE__ " + String.format("Unexpected status %s for %s", status, ts));
             } // SWITCH
         } catch (Throwable ex) {
-            LOG.error(String.format("Unexpected error when cleaning up %s transaction %s",
+            LOG.error("__FILE__:__LINE__ " + String.format("Unexpected error when cleaning up %s transaction %s",
                                     status, ts), ex);
             // Pass...
         }
@@ -1761,7 +1760,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     }
                 }
                 if (error != null && hstore_site.isShuttingDown() == false) {
-                    LOG.warn(String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
+                    LOG.warn("__FILE__:__LINE__ " + String.format("Procedure Listener is stopping! [error=%s, hstore_shutdown=%s]",
                                            (error != null ? error.getMessage() : null), hstore_site.shutdown_state), error);
                     hstore_site.hstore_coordinator.shutdownCluster(error);
                 }
@@ -1791,7 +1790,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     try {
                         hstore_site.ready_latch.await();
                     } catch (Exception ex) {
-                        LOG.error("Unexpected interuption while waiting for engines to start", ex);
+                        LOG.error("__FILE__:__LINE__ " + "Unexpected interuption while waiting for engines to start", ex);
                         hstore_site.hstore_coordinator.shutdownCluster(ex);
                     }
                 }
@@ -1845,8 +1844,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (path.exists()) {
                 markovs = MarkovGraphContainersUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
                 MarkovGraphContainersUtil.setHasher(markovs, p_estimator.getHasher());
-                LOG.info("Finished loading MarkovGraphsContainer '" + path + "'");
-            } else if (d) LOG.warn("The Markov Graphs file '" + path + "' does not exist");
+                LOG.info("__FILE__:__LINE__ " + "Finished loading MarkovGraphsContainer '" + path + "'");
+            } else if (d) LOG.warn("__FILE__:__LINE__ " + "The Markov Graphs file '" + path + "' does not exist");
         }
 
         // ----------------------------------------------------------------------------
@@ -1858,7 +1857,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + "-" + site_id;
             String traceIgnore = args.getParam(ArgumentsParser.PARAM_WORKLOAD_PROC_EXCLUDE);
             ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
-            LOG.info("Enabled workload logging '" + tracePath + "'");
+            LOG.info("__FILE__:__LINE__ " + "Enabled workload logging '" + tracePath + "'");
         }
         
         // ----------------------------------------------------------------------------
@@ -1904,7 +1903,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // ----------------------------------------------------------------------------
         // Bombs Away!
         // ----------------------------------------------------------------------------
-        LOG.info("Instantiating HStoreSite network connections...");
+        LOG.info("__FILE__:__LINE__ " + "Instantiating HStoreSite network connections...");
         HStoreSite.launch(site, args.getParam(ArgumentsParser.PARAM_DTXN_CONF));
     }
 }
