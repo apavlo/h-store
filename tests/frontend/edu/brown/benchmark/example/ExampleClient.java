@@ -68,7 +68,7 @@ public class ExampleClient extends BenchmarkComponent {
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
             // number of transactions that have been completed
-            incrementTransactionCounter(this.idx);
+            incrementTransactionCounter(clientResponse, this.idx);
         }
     } // END CLASS
  
