@@ -283,7 +283,7 @@ public class WorkloadStatistics implements JSONSerializable {
         
         // Table Statistics
         JSONObject jsonTableStats = json_object.getJSONObject(Members.TABLE_STATS.name());
-        for (String table_key : CollectionUtil.wrapIterator(jsonTableStats.keys())) {
+        for (String table_key : CollectionUtil.iterable(jsonTableStats.keys())) {
             // Ignore any missing tables
             Table catalog_tbl = null;
             try {

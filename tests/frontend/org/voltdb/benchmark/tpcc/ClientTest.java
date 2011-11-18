@@ -88,20 +88,20 @@ public class ClientTest extends TestCase {
         t.addRow(0);
         mockClient.nextResult = new VoltTable[]{ t };
         client.m_tpccSim.doStockLevel();
-        assertEquals(Constants.STOCK_LEVEL, mockClient.calledName);
+        assertEquals(TPCCConstants.STOCK_LEVEL, mockClient.calledName);
         assertEquals(3, mockClient.calledParameters.length);
         assertEquals(1L, mockClient.calledParameters[0]);  // w_id
         assertEquals(1L, mockClient.calledParameters[1]);  // d_id
         // threshold
-        assertEquals((long) Constants.MIN_STOCK_LEVEL_THRESHOLD, mockClient.calledParameters[2]);
+        assertEquals((long) TPCCConstants.MIN_STOCK_LEVEL_THRESHOLD, mockClient.calledParameters[2]);
 
         generator.minimum = false;
         client.m_tpccSim.doStockLevel();
-        assertEquals(Constants.STOCK_LEVEL, mockClient.calledName);
+        assertEquals(TPCCConstants.STOCK_LEVEL, mockClient.calledName);
         assertEquals(3, mockClient.calledParameters.length);
         //assertEquals(WAREHOUSES, mockClient.calledParameters[0]);
-        assertEquals((long) Constants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
-        assertEquals((long) Constants.MAX_STOCK_LEVEL_THRESHOLD, mockClient.calledParameters[2]);
+        assertEquals((long) TPCCConstants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
+        assertEquals((long) TPCCConstants.MAX_STOCK_LEVEL_THRESHOLD, mockClient.calledParameters[2]);
     }
 
     public void testOrderStatus() throws IOException {
@@ -117,7 +117,7 @@ public class ClientTest extends TestCase {
         assertEquals("ostatByCustomerId", mockClient.calledName);
         assertEquals(3, mockClient.calledParameters.length);
         //assertEquals(WAREHOUSES, mockClient.calledParameters[0]);  // w_id
-        assertEquals((long) Constants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
+        assertEquals((long) TPCCConstants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
         assertEquals(72L, mockClient.calledParameters[2]);  // c_id
     }
 
@@ -125,7 +125,7 @@ public class ClientTest extends TestCase {
         VoltTable orders = new VoltTable(
                 new VoltTable.ColumnInfo("", VoltType.BIGINT)
         );
-        for (int i = 0; i < Constants.DISTRICTS_PER_WAREHOUSE; ++i) {
+        for (int i = 0; i < TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++i) {
             orders.addRow((long) i);
         }
         mockClient.nextResult = new VoltTable[]{ orders };
@@ -133,7 +133,7 @@ public class ClientTest extends TestCase {
         assertEquals("delivery", mockClient.calledName);
         assertEquals(3, mockClient.calledParameters.length);
         //assertEquals(1L, mockClient.calledParameters[0]);
-        assertEquals((long) Constants.MIN_CARRIER_ID, mockClient.calledParameters[1]);
+        assertEquals((long) TPCCConstants.MIN_CARRIER_ID, mockClient.calledParameters[1]);
         assertEquals(Clock.Mock.NOW, mockClient.calledParameters[2]);
 
         generator.minimum = false;
@@ -141,7 +141,7 @@ public class ClientTest extends TestCase {
         assertEquals("delivery", mockClient.calledName);
         assertEquals(3, mockClient.calledParameters.length);
         //assertEquals(WAREHOUSES, mockClient.calledParameters[0]);
-        assertEquals((long) Constants.MAX_CARRIER_ID, mockClient.calledParameters[1]);
+        assertEquals((long) TPCCConstants.MAX_CARRIER_ID, mockClient.calledParameters[1]);
         assertEquals(Clock.Mock.NOW, mockClient.calledParameters[2]);
     }
 
@@ -153,7 +153,7 @@ public class ClientTest extends TestCase {
         assertEquals(7, mockClient.calledParameters.length);
         //assertEquals(1L, mockClient.calledParameters[0]);  // w_id
         assertEquals(1L, mockClient.calledParameters[1]);  // d_id
-        assertEquals(Constants.MIN_PAYMENT, mockClient.calledParameters[2]);  // h_amount
+        assertEquals(TPCCConstants.MIN_PAYMENT, mockClient.calledParameters[2]);  // h_amount
         //assertEquals(1L, mockClient.calledParameters[3]);  // c_w_id
         assertEquals(1L, mockClient.calledParameters[4]);  // c_d_id
         assertEquals("BARBARBAR", mockClient.calledParameters[5]);  // c_last
@@ -166,10 +166,10 @@ public class ClientTest extends TestCase {
                 || "paymentByCustomerIdW".equals(mockClient.calledName));
         assertEquals(7, mockClient.calledParameters.length);
         //assertEquals(WAREHOUSES, mockClient.calledParameters[0]);  // w_id
-        assertEquals((long) Constants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
-        assertEquals(Constants.MAX_PAYMENT, mockClient.calledParameters[2]);  // h_amount
+        assertEquals((long) TPCCConstants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
+        assertEquals(TPCCConstants.MAX_PAYMENT, mockClient.calledParameters[2]);  // h_amount
         //assertEquals(WAREHOUSES-1, mockClient.calledParameters[3]);  // c_w_id
-        assertEquals((long) Constants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[4]);
+        assertEquals((long) TPCCConstants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[4]);
         assertEquals(72L, mockClient.calledParameters[5]);  // c_id
         assertEquals(Clock.Mock.NOW, mockClient.calledParameters[6]);  // now
     }
@@ -195,7 +195,7 @@ public class ClientTest extends TestCase {
 
     public void testNewOrder() throws IOException {
         // Minimum = rollback
-        mockClient.abortMessage = Constants.INVALID_ITEM_MESSAGE;
+        mockClient.abortMessage = TPCCConstants.INVALID_ITEM_MESSAGE;
         client.m_tpccSim.doNewOrder();
         assertEquals("neworder", mockClient.calledName);
         assertEquals(7, mockClient.calledParameters.length);
@@ -205,15 +205,15 @@ public class ClientTest extends TestCase {
         assertEquals(Clock.Mock.NOW, mockClient.calledParameters[3]);  // timestamp
 
         long[] item_id = (long[]) mockClient.calledParameters[4];
-        assertEquals(Constants.MIN_OL_CNT, item_id.length);
+        assertEquals(TPCCConstants.MIN_OL_CNT, item_id.length);
         long[] supply_w_id = (long[]) mockClient.calledParameters[5];
-        assertEquals(Constants.MIN_OL_CNT, supply_w_id.length);
+        assertEquals(TPCCConstants.MIN_OL_CNT, supply_w_id.length);
         long[] quantity = (long[]) mockClient.calledParameters[6];
-        assertEquals(Constants.MIN_OL_CNT, quantity.length);
+        assertEquals(TPCCConstants.MIN_OL_CNT, quantity.length);
 
         for (int i = 0; i < item_id.length; ++i) {
             if (i +1 == item_id.length) {
-                assertEquals((long) Constants.NUM_ITEMS + 1, item_id[i]);
+                assertEquals((long) TPCCConstants.NUM_ITEMS + 1, item_id[i]);
             } else {
                 assertEquals(2L, item_id[i]);
             }
@@ -229,27 +229,27 @@ public class ClientTest extends TestCase {
         assertEquals("neworder", mockClient.calledName);
         assertEquals(7, mockClient.calledParameters.length);
         //assertEquals(WAREHOUSES, mockClient.calledParameters[0]);  // w_id
-        assertEquals((long) Constants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
+        assertEquals((long) TPCCConstants.DISTRICTS_PER_WAREHOUSE, mockClient.calledParameters[1]);
         assertEquals(72L, mockClient.calledParameters[2]);  // c_id
         assertEquals(Clock.Mock.NOW, mockClient.calledParameters[3]);  // timestamp
 
         item_id = (long[]) mockClient.calledParameters[4];
-        assertEquals(Constants.MAX_OL_CNT, item_id.length);
+        assertEquals(TPCCConstants.MAX_OL_CNT, item_id.length);
         supply_w_id = (long[]) mockClient.calledParameters[5];
-        assertEquals(Constants.MAX_OL_CNT, supply_w_id.length);
+        assertEquals(TPCCConstants.MAX_OL_CNT, supply_w_id.length);
         quantity = (long[]) mockClient.calledParameters[6];
-        assertEquals(Constants.MAX_OL_CNT, quantity.length);
+        assertEquals(TPCCConstants.MAX_OL_CNT, quantity.length);
 
         for (int i = 0; i < item_id.length; ++i) {
             assertEquals(6496L, item_id[i]);
             //assertEquals(WAREHOUSES, supply_w_id[i]);
-            assertEquals((long) Constants.MAX_OL_QUANTITY, quantity[i]);
+            assertEquals((long) TPCCConstants.MAX_OL_QUANTITY, quantity[i]);
         }
     }
 
     public void testNewOrderSmallWarehouse() throws IOException {
         // Minimum = rollback
-        mockClient.abortMessage = Constants.INVALID_ITEM_MESSAGE;
+        mockClient.abortMessage = TPCCConstants.INVALID_ITEM_MESSAGE;
         makeSmallWarehouseClient();
         client.m_tpccSim.doNewOrder();
 

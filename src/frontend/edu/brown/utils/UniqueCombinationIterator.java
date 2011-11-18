@@ -161,7 +161,7 @@ public class UniqueCombinationIterator<E> implements Iterator<Set<E>> {
      * @return
      */
     public static <E> Iterable<Set<E>> factory(Collection<E> data, int combo_size) {
-        return (CollectionUtil.wrapIterator(new UniqueCombinationIterator<E>(data, combo_size)));
+        return (CollectionUtil.iterable(new UniqueCombinationIterator<E>(data, combo_size)));
     }
     
     @Override

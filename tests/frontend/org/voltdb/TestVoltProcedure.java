@@ -148,24 +148,24 @@ public class TestVoltProcedure extends TestCase {
 //    public void testNullDate() {
 //        ClientResponse r = call(DateProcedure.class);
 //        assertEquals(null, DateProcedure.arg);
-//        assertEquals(ClientResponse.SUCCESS, r.getStatus());
+//        assertEquals(Hstore.Status.OK, r.getStatus());
 //    }
 //
 //    public void testNullLong() {
 //        ClientResponse r = call(LongProcedure.class);
-//        assertEquals(ClientResponse.GRACEFUL_FAILURE, r.getStatus());
+//        assertEquals(Hstore.Status.ABORT_GRACEFUL, r.getStatus());
 //        assertTrue(r.getExtra().contains("cannot be null"));
 //    }
 //
 //    public void testNullLongArray() {
 //        ClientResponse r = call(LongArrayProcedure.class);
 //        assertEquals(null, LongArrayProcedure.arg);
-//        assertEquals(ClientResponse.SUCCESS, r.getStatus());
+//        assertEquals(Hstore.Status.OK, r.getStatus());
 //    }
 //
 //    public void testNullPointerException() {
 //        ClientResponse r = call(NPEProcedure.class);
-//        assertEquals(ClientResponse.UNEXPECTED_FAILURE, r.getStatus());
+//        assertEquals(Hstore.Status.ABORT_UNEXPECTED, r.getStatus());
 //        assertTrue(r.getExtra().contains("NullPointerException"));
 //    }
 

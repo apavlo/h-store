@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.mit.hstore;
+package edu.mit.hstore.util;
 
 import java.util.Set;
 import java.util.TreeSet;
@@ -14,6 +14,8 @@ import edu.brown.utils.StringUtil;
 public enum TxnCounter {
     /** The number of transaction requests that have arrived at this site */
     RECEIVED,
+    /** */
+    THROTTLED,
     /** */
     REJECTED,
     /** Of the the received transactions, the number that we had to send somewhere else */
@@ -99,6 +101,7 @@ public enum TxnCounter {
             case REJECTED:
             case RECEIVED:
             case EXECUTED:
+            case THROTTLED:
                 total = RECEIVED.get();
                 break;
             case COMPLETED:

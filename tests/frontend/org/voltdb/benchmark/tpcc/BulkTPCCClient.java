@@ -33,6 +33,8 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 
 public class BulkTPCCClient extends BulkClient {
     private final ScaleParameters m_scaleParams;
@@ -102,7 +104,7 @@ public class BulkTPCCClient extends BulkClient {
     class DeliveryCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            assert clientResponse.getStatus() == 1;
+            assert clientResponse.getStatus() == Hstore.Status.OK;
 //            if (clientResponse.getResults()[0].getRowCount()
 //                    != m_scaleParams.districtsPerWarehouse) {
 //                System.err.println(
@@ -153,7 +155,7 @@ public class BulkTPCCClient extends BulkClient {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             assert clientResponse.getResults() != null : "Results were null";
-            assert clientResponse.getStatus() == 1 : " Result status code was not 1";
+            assert clientResponse.getStatus() == Status.OK : " Result status code was not " + Status.OK;
             if (m_transactionType != null) {
                 m_counts[m_transactionType.ordinal()].incrementAndGet();
             }
@@ -171,7 +173,7 @@ public class BulkTPCCClient extends BulkClient {
     class StockLevelCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            assert clientResponse.getStatus() == 1;
+            assert clientResponse.getStatus() == Status.OK;
             assert clientResponse.getResults().length == 1;
             assert clientResponse.getResults()[0].asScalarLong() >= 0;
             m_counts[TPCCSimulation.Transaction.STOCK_LEVEL.ordinal()].incrementAndGet();
@@ -204,13 +206,13 @@ public class BulkTPCCClient extends BulkClient {
         public void callDelivery(short w_id, int carrier, TimestampType date)
                 throws IOException {
             invokeProcedure( c, new DeliveryCallback(),
-                    Constants.DELIVERY, w_id, carrier, date);
+                    TPCCConstants.DELIVERY, w_id, carrier, date);
         }
 
         @Override
         public void callNewOrder(boolean rollback, boolean noop, Object... paramlist)
                 throws IOException {
-            String proc_name = (noop ? Constants.NOOP : Constants.NEWORDER);
+            String proc_name = (noop ? TPCCConstants.NOOP : TPCCConstants.NEWORDER);
              invokeProcedure( c, new NewOrderCallback(rollback),
                     proc_name, paramlist);
         }
@@ -225,15 +227,15 @@ public class BulkTPCCClient extends BulkClient {
                 short c_w_id, byte c_d_id, int c_id, TimestampType now) throws IOException {
             if (m_scaleParams.warehouses > 1) {
                 invokeProcedure( c, new VerifyBasicCallback(),
-                        Constants.PAYMENT_BY_ID_W,
+                        TPCCConstants.PAYMENT_BY_ID_W,
                         w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
                 invokeProcedure( c, new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT),
-                        Constants.PAYMENT_BY_ID_C,
+                        TPCCConstants.PAYMENT_BY_ID_C,
                         w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
             }
             else {
                 invokeProcedure( c, new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT),
-                        Constants.PAYMENT_BY_ID,
+                        TPCCConstants.PAYMENT_BY_ID,
                         w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
             }
         }
@@ -242,15 +244,15 @@ public class BulkTPCCClient extends BulkClient {
                 short c_w_id, byte c_d_id, String c_last, TimestampType now) throws IOException {
             if ((m_scaleParams.warehouses > 1) || (c_last != null)) {
                 invokeProcedure( c, new VerifyBasicCallback(),
-                        Constants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
+                        TPCCConstants.PAYMENT_BY_NAME_W, w_id, d_id, h_amount,
                         c_w_id, c_d_id, c_last, now);
                 invokeProcedure( c, new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT),
-                        Constants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
+                        TPCCConstants.PAYMENT_BY_NAME_C, w_id, d_id, h_amount,
                         c_w_id, c_d_id, c_last, now);
             }
             else {
                 invokeProcedure( c, new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT),
-                        Constants.PAYMENT_BY_ID, w_id,
+                        TPCCConstants.PAYMENT_BY_ID, w_id,
                         d_id, h_amount, c_w_id, c_d_id, c_last, now);
             }
         }
@@ -259,12 +261,12 @@ public class BulkTPCCClient extends BulkClient {
                 long customersPerDistrict, long newOrdersPerDistrict)
         throws IOException {
            invokeProcedure( c, new ResetWarehouseCallback(),
-                  Constants.RESET_WAREHOUSE, w_id, districtsPerWarehouse,
+                  TPCCConstants.RESET_WAREHOUSE, w_id, districtsPerWarehouse,
                   customersPerDistrict, newOrdersPerDistrict);
         }
         @Override
         public void callStockLevel(short w_id, byte d_id, int threshold) throws IOException {
-            invokeProcedure( c, new StockLevelCallback(), Constants.STOCK_LEVEL,
+            invokeProcedure( c, new StockLevelCallback(), TPCCConstants.STOCK_LEVEL,
                      w_id, d_id, threshold);
         }
 

@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +36,14 @@ public abstract class ClassUtil {
      */
     public static boolean isArray(final Object obj) {
         return (obj != null ? obj.getClass().isArray() : false);
+    }
+    
+    public static boolean[] isArray(final Object objs[]) {
+        boolean is_array[] = new boolean[objs.length];
+        for (int i = 0; i < objs.length; i++) {
+            is_array[i] = ClassUtil.isArray(objs[i]);
+        } // FOR
+        return (is_array);
     }
     
     /**
@@ -194,6 +203,9 @@ public abstract class ClassUtil {
             
             constructor = target_class.getConstructor(params); 
         } catch (Exception ex) {
+            System.err.println("TARGET_CLASS: " + target_class);
+            System.err.println("PARAMS: " + Arrays.toString(params));
+            System.err.println("------");
             for (Constructor<?> c : target_class.getConstructors()) {
                 System.err.println(c);
             }

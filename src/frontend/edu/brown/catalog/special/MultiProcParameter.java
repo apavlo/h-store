@@ -10,7 +10,7 @@ import org.voltdb.catalog.ProcParameter;
 /**
  * @author pavlo
  */
-public class MultiProcParameter extends ProcParameter implements MultiAttributeCatalogType<ProcParameter> {
+public class MultiProcParameter extends SpecialProcParameter implements MultiAttributeCatalogType<ProcParameter> {
     public static final String PREFIX = "*MultiProcParameter*"; 
 
     private final InnerMultiAttributeCatalogType<ProcParameter> inner;

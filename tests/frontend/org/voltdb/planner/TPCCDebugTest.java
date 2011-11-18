@@ -31,7 +31,7 @@ import org.voltdb.client.ClientFactory;
 import org.voltdb.VoltTable;
 import org.voltdb.ServerThread;
 import org.voltdb.client.ProcCallException;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.ByteBuilder;
 import org.voltdb.utils.BuildDirectoryUtils;
@@ -54,7 +54,7 @@ public class TPCCDebugTest extends TestCase {
         /*debugTPCCdelivery.class, debugTPCCslev.class*/
     };
     public static final Class<?>[] SUPPLEMENTALS = {
-            ByteBuilder.class, Constants.class };
+            ByteBuilder.class, TPCCConstants.class };
 
     static final String JAR = "tpcc.jar";
 

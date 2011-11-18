@@ -1,7 +1,7 @@
 package org.voltdb;
 
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -10,7 +10,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.utils.PartitionEstimator;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * 
@@ -29,16 +29,15 @@ public class MockExecutionSite extends ExecutionSite {
     }
 
     @Override
-    public void processClientResponse(LocalTransactionState ts, ClientResponseImpl cresponse) {
+    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // Nothing!
     }
     
     @Override
-    public VoltTable[] waitForResponses(long txnId, List<FragmentTaskMessage> tasks, int batchSize) {
+    public VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
         return (new VoltTable[]{ });
     }
     
-    @Override
     public synchronized void storeDependency(long txnId, int senderPartitionId, int dependencyId, VoltTable data) {
     	System.err.println("STORING TXN #" + txnId);
         this.dependencies.put(txnId, data);

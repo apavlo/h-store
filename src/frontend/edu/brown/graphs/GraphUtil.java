@@ -15,13 +15,13 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
 import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class GraphUtil {
     private static final Logger LOG = Logger.getLogger(GraphUtil.class);

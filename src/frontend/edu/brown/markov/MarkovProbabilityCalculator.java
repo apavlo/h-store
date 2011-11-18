@@ -9,10 +9,10 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.types.QueryType;
 
 import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovVertex.Type;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class MarkovProbabilityCalculator extends VertexTreeWalker<MarkovVertex, MarkovEdge> {
     private static final Logger LOG = Logger.getLogger(MarkovProbabilityCalculator.class);

@@ -5,7 +5,6 @@ package edu.brown.designer.partitioners;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Observable;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -30,13 +29,14 @@ import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.designer.partitioners.plan.ProcedureEntry;
 import edu.brown.designer.partitioners.plan.TableEntry;
 import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
@@ -169,11 +169,9 @@ public class MostPopularPartitioner extends AbstractPartitioner {
                 // If there were no join columns, then use the self-reference histogram
                 column_histogram = (join_column_histogram.isEmpty() ? self_column_histogram : join_column_histogram); 
                 if (column_histogram.isEmpty()) {
-                    EventObserver observer = new EventObserver() {
+                    EventObserver<DesignerVertex> observer = new EventObserver<DesignerVertex>() {
                         @Override
-                        public void update(Observable o, Object arg) {
-                            DesignerVertex v = (DesignerVertex)arg;
-                            
+                        public void update(EventObservable<DesignerVertex> o, DesignerVertex v) {
                             for (DesignerEdge e : agraph.getIncidentEdges(v)) {
                                 LOG.info(e.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET));
                             }

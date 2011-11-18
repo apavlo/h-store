@@ -16,12 +16,12 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Site;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.interfaces.ConfigProperty;
 
 public final class HStoreConf {
@@ -31,7 +31,6 @@ public final class HStoreConf {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
     
     static final Pattern REGEX_URL = Pattern.compile("(http[s]?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])");
     static final String REGEX_URL_REPLACE = "<a href=\"$1\">$1</a>";
@@ -66,6 +65,13 @@ public final class HStoreConf {
             experimental=false
         )
         public String defaulthost = "localhost";
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean ringbuffer_debug;
     }
     
     // ============================================================================
@@ -111,6 +117,13 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         // Execution Options
         // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
+            description="ExecutionEngine log level.",
+            defaultInt=500,
+            experimental=false
+        )
+        public int exec_ee_log_level;
         
         @ConfigProperty(
             description="Enable execution site profiling. This will keep track of how busy each ExecutionSite thread" +
@@ -189,23 +202,6 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean exec_force_localexecution;
-        
-        @ConfigProperty(
-            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
-                        "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
-                        "system when used with other benchmarks. See edu.mit.hstore.util.NewOrderInspector",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean exec_neworder_cheat;
-        
-        @ConfigProperty(
-            description="Used in conjunction with ${site.force_neworderinspect} to figure out when TPC-C NewOrder transactions " +
-                        "are finished with partitions. This will crash the system when used with other benchmarks.",
-            defaultBoolean=false,
-            experimental=true
-        )
-        public boolean exec_neworder_cheat_done_partitions;
     
         @ConfigProperty(
             description="Whether the VoltProcedure should crash the HStoreSite when a transaction is mispredicted. A " +
@@ -258,12 +254,37 @@ public final class HStoreConf {
         public boolean txn_profiling;
         
         @ConfigProperty(
+            description="", // TODO
+            defaultInt=10,
+            experimental=true
+        )
+        public int txn_incoming_delay;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=10,
+            experimental=false
+        )
+        public int txn_restart_limit;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=10,
+            experimental=false
+        )
+        public int txn_restart_limit_sysproc;
+        
+        // ----------------------------------------------------------------------------
+        // Distributed Transaction Queue Options
+        // ----------------------------------------------------------------------------
+        
+        @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=1000,
             experimental=false
         )
-        public int txn_incoming_queue_max_per_partition;
+        public int queue_incoming_max_per_partition;
         
         @ConfigProperty(
             description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
@@ -275,7 +296,7 @@ public final class HStoreConf {
             defaultDouble=0.25,
             experimental=false
         )
-        public double txn_incoming_queue_release_factor;
+        public double queue_incoming_release_factor;
         
         @ConfigProperty(
             description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
@@ -287,15 +308,39 @@ public final class HStoreConf {
             defaultInt=100,
             experimental=false
         )
-        public int txn_incoming_queue_increase;
+        public int queue_incoming_increase;
         
         @ConfigProperty(
-            description="Allow queued distributed transctions to be rejected. This should not be used " +
-                        "when trying to measure true throughput.",
-            defaultBoolean=false,
-            experimental=true
+            description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
+                        "from clients and will send back a ClientResponse with the throttle flag enabled.",
+            defaultInt=5000,
+            experimental=false
         )
-        public boolean txn_enable_queue_pruning;
+        public int queue_dtxn_max_per_partition;
+        
+        @ConfigProperty(
+            description="If the HStoreSite is throttling incoming client requests, then that HStoreSite " +
+                        "will not accept new requests until the number of queued transactions is less than " +
+                        "this percentage. This includes all transactions that are waiting to be executed, " +
+                        "executing, and those that have already executed and are waiting for their results " +
+                        "to be sent back to the client. The incoming queue release is calculated as " +
+                        "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
+            defaultDouble=0.50,
+            experimental=false
+        )
+        public double queue_dtxn_release_factor;
+        
+        @ConfigProperty(
+            description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
+                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
+                        "value by this amount. The release limit will also be recalculated using the new value " +
+                        "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
+                        "the first non-data loading transaction has been issued from the clients.",
+            defaultInt=100,
+            experimental=false
+        )
+        public int queue_dtxn_increase;
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
@@ -336,6 +381,15 @@ public final class HStoreConf {
             experimental=true
         )
         public int markov_batch_caching_min;
+        
+        @ConfigProperty(
+            description="Enable a hack for TPC-C where we inspect the arguments of the TPC-C neworder transaction and figure " +
+                        "out what partitions it needs without having to use the TransactionEstimator. This will crash the " +
+                        "system when used with other benchmarks. See edu.mit.hstore.util.NewOrderInspector",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_neworder_cheat;
 
         // ----------------------------------------------------------------------------
         // BatchPlanner
@@ -360,17 +414,47 @@ public final class HStoreConf {
         )
         public boolean planner_caching;
         
+        @ConfigProperty(
+            description="The maximum number of execution rounds allowed per batch.",
+            defaultInt=10,
+            experimental=false
+        )
+        public int planner_max_round_size;
+        
+        @ConfigProperty(
+            description="The maximum number of SQLStmts that can be queued per batch in a transaction.",
+            defaultInt=128,
+            experimental=false
+        )
+        public int planner_max_batch_size;
+        
         // ----------------------------------------------------------------------------
-        // HStoreMessenger
+        // HStoreCoordinator
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="If this enabled, HStoreMesseger will use a separate thread to process incoming redirect " +
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming initialization " +
+                        "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean coordinator_init_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming finish " +
+                        "requests for restarted transactions from other HStoreSites. ",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean coordinator_finish_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreCoordinator will use a separate thread to process incoming redirect " +
                         "requests from other HStoreSites. This is useful when ${client.txn_hints} is disabled.",
             defaultBoolean=false,
             experimental=false
         )
-        public boolean messenger_redirect_thread;
+        public boolean coordinator_redirect_thread;
 
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
@@ -473,7 +557,7 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="The scale factor to apply to the object pool values.",
+            description="The scale factor to apply to the object pool configuration values.",
             defaultDouble=1.0,
             experimental=false
         )
@@ -486,59 +570,30 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean pool_profiling;
-
-        @ConfigProperty(
-            description="The max number of VoltProcedure instances to keep in the pool " + 
-                        "(per ExecutionSite + per Procedure)",
-            defaultInt=10000,
-            experimental=false
-        )
-        public int pool_voltprocedure_idle;
         
         @ConfigProperty(
-            description="The max number of BatchPlans to keep in the pool (per BatchPlanner)",
-            defaultInt=2000,
-            experimental=false
-        )
-        public int pool_batchplan_idle;
-    
-        @ConfigProperty(
-            description="The number of LocalTransactionState objects to preload",
-            defaultInt=500,
-            experimental=false
-        )
-        public int pool_localtxnstate_preload;
-        
-        @ConfigProperty(
-            description="The max number of LocalTransactionStates to keep in the pool (per partition)",
+            description="The max number of LocalTransactionStates to keep in the pool",
             defaultInt=5000,
             experimental=false
         )
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
-            description="The number of RemoteTransactionState objects to preload",
-            defaultInt=500,
-            experimental=false
-        )
-        public int pool_remotetxnstate_preload;
-        
-        @ConfigProperty(
-            description="The max number of RemoteTransactionStates to keep in the pool (per ExecutionSite)",
+            description="The max number of RemoteTransactionStates to keep in the pool",
             defaultInt=500,
             experimental=false
         )
         public int pool_remotetxnstate_idle;
         
         @ConfigProperty(
-            description="The max number of MarkovPathEstimators to keep in the pool (global)",
+            description="The max number of MarkovPathEstimators to keep in the pool",
             defaultInt=1000,
             experimental=false
         )
         public int pool_pathestimators_idle;
         
         @ConfigProperty(
-            description="The max number of TransactionEstimator.States to keep in the pool (global). " + 
+            description="The max number of TransactionEstimator.States to keep in the pool. " + 
                         "Should be the same as the number of MarkovPathEstimators.",
             defaultInt=1000,
             experimental=false
@@ -546,33 +601,47 @@ public final class HStoreConf {
         public int pool_estimatorstates_idle;
         
         @ConfigProperty(
-            description="The max number of DependencyInfos to keep in the pool (global). " +
+            description="The max number of DependencyInfos to keep in the pool. " +
                         "Should be the same as the number of MarkovPathEstimators. ",
-            defaultInt=50000,
+            defaultInt=500,
             experimental=false
         )
         public int pool_dependencyinfos_idle;
         
         @ConfigProperty(
-            description="The number of DependencyInfo objects to preload in the pool.",
+            description="The max number of TransactionRedirectCallbacks to keep idle in the pool",
             defaultInt=10000,
             experimental=false
         )
-        public int pool_preload_dependency_infos;
+        public int pool_txnredirect_idle;
         
         @ConfigProperty(
-            description="The max number of ForwardTxnRequestCallbacks to keep idle in the pool",
+            description="The max number of TransactionRedirectResponseCallbacks to keep idle in the pool.",
             defaultInt=2500,
             experimental=false
         )
-        public int pool_forwardtxnrequests_idle;
+        public int pool_txnredirectresponses_idle;
         
         @ConfigProperty(
-            description="The max number of ForwardTxnResponseCallbacks to keep idle in the pool.",
+            description="The max number of TransactionInitCallbacks to keep idle in the pool.",
             defaultInt=2500,
             experimental=false
         )
-        public int pool_forwardtxnresponses_idle;
+        public int pool_txninit_idle;
+        
+        @ConfigProperty(
+            description="The max number of TransactionInitWrapperCallbacks to keep idle in the pool.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int pool_txninitwrapper_idle;
+        
+        @ConfigProperty(
+            description="The max number of TransactionPrepareCallbacks to keep idle in the pool.",
+            defaultInt=2500,
+            experimental=false
+        )
+        public int pool_txnprepare_idle;
     }
 
     // ============================================================================
@@ -706,6 +775,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int blocking_concurrent;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean blocking_loader;
 
         @ConfigProperty(
             description="The scaling factor determines how large to make the target benchmark's data set. " +
@@ -870,6 +946,27 @@ public final class HStoreConf {
             experimental=false
         )
         public String codespeed_branch;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_clients;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_basepartitions;
+        
+        @ConfigProperty(
+            description="",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean output_json;
     }
     
     /**
@@ -1096,7 +1193,7 @@ public final class HStoreConf {
         }
 
         Pattern p = this.makePattern();
-        for (Object obj_k : CollectionUtil.wrapIterator(this.config.getKeys())) {
+        for (Object obj_k : CollectionUtil.iterable(this.config.getKeys())) {
             String k = obj_k.toString();
             Matcher m = p.matcher(k);
             boolean found = m.matches();
@@ -1334,6 +1431,22 @@ public final class HStoreConf {
         return (sb.toString());
     }
     
+    public String makeBuildXML(String group) {
+        final Conf handle = this.confHandles.get(group);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!-- " + group.toUpperCase() + " -->\n");
+        for (Field f : handle.properties.keySet()) {
+            ConfigProperty cp = handle.properties.get(f);
+            if (cp.experimental()) {
+                
+            }
+            String propName = String.format("%s.%s", group, f.getName());
+            sb.append(String.format("<arg value=\"%s=${%s}\" />\n", propName, propName));
+        } // FOR
+        sb.append("\n");
+        return (sb.toString());
+    }
     
     
     /**
@@ -1417,6 +1530,10 @@ public final class HStoreConf {
     
     public synchronized static HStoreConf init(File f) {
         return HStoreConf.init(f, null);
+    }
+    
+    public static HStoreConf initArgumentsParser(ArgumentsParser args) {
+        return HStoreConf.initArgumentsParser(args, null);
     }
     
     public synchronized static HStoreConf initArgumentsParser(ArgumentsParser args, Site catalog_site) {

@@ -361,7 +361,7 @@ class NValue {
             // length 0. In practice, this code path is often a defect
             // in code not correctly handling null. May favor a more
             // defensive "return 0" in the future? (rtb)
-            throwFatalException("Must not ask  for object length on sql null object.");
+            throwFatalException("Must not ask for object length on sql null object.");
         }
         if (getValueType() != VALUE_TYPE_VARCHAR) {
             // probably want getTupleStorageSize() for non-object types.

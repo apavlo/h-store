@@ -20,11 +20,11 @@ import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.AbstractTreeWalker;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class CatalogKey {
     private static final Logger LOG = Logger.getLogger(CatalogKey.class);

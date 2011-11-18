@@ -70,7 +70,7 @@ public abstract class ThreadUtil {
      * Fork the command (in the current thread)
      * @param command
      */
-    public static void fork(String command[], EventObservable stop_observable) {
+    public static <T> void fork(String command[], EventObservable<T> stop_observable) {
         ThreadUtil.fork(command, stop_observable, null, false);
     }
     
@@ -81,7 +81,7 @@ public abstract class ThreadUtil {
      * @param stop_observable
      * @param print_output
      */
-    public static void fork(String command[], final EventObservable stop_observable, final String prefix, final boolean print_output) {
+    public static <T> void fork(String command[], final EventObservable<T> stop_observable, final String prefix, final boolean print_output) {
         final boolean debug = LOG.isDebugEnabled(); 
         
         if (debug) LOG.debug("Forking off process: " + Arrays.toString(command));
@@ -102,10 +102,10 @@ public abstract class ThreadUtil {
         // Register a observer if we have a stop observable
         if (stop_observable != null) {
             final String prog_name = FileUtil.basename(command[0]);
-            stop_observable.addObserver(new EventObserver() {
+            stop_observable.addObserver(new EventObserver<T>() {
                 boolean first = true;
                 @Override
-                public void update(Observable arg0, Object arg1) {
+                public void update(EventObservable<T> arg0, T arg1) {
                     assert(first) : "Trying to stop the process twice??";
                     if (debug) LOG.debug("Stopping Process -> " + prog_name);
                     p.destroy();
@@ -180,7 +180,7 @@ public abstract class ThreadUtil {
     }
     
     /**
-     * 
+     * Execute all the given Runnables in a new pool 
      * @param <R>
      * @param threads
      */
@@ -223,7 +223,7 @@ public abstract class ThreadUtil {
         try {
             latch.await();
         } catch (InterruptedException ex) {
-            LOG.fatal("ThreadUtil.run() was interuptted!", ex);
+            LOG.fatal("ThreadUtil.run() was interupted!", ex);
             throw new RuntimeException(ex);
         } finally {
             if (handler.hasError()) {

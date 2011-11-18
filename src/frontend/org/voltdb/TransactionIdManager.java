@@ -20,6 +20,8 @@ package org.voltdb;
 import java.util.Calendar;
 import java.util.Date;
 
+import org.apache.log4j.Logger;
+
 /**
  * <p>The TransactionIdManager creates Transaction ids that
  * get assigned to VoltDB timestamps. A transaction id contains
@@ -35,6 +37,8 @@ import java.util.Date;
  *
  */
 public class TransactionIdManager {
+    private static final Logger LOG = Logger.getLogger(TransactionIdManager.class);
+    
     // bit sizes for each of the fields in the 64-bit id
     // note, these add up to 63 bits to make dealing with
     // signed / unsigned conversions easier.
@@ -99,7 +103,7 @@ public class TransactionIdManager {
             // handle the case where we've run out of counter values
             // for this particular millisecond (feels unlikely)
             if (counterValue > COUNTER_MAX_VALUE) {
-                System.err.println("TOO MANY TXNS! SPIN LOCK!!!");
+                LOG.warn("TOO MANY TXNS! SPIN LOCK!!!");
                 // spin until the next millisecond
                 while (currentTime == lastUsedTime)
                     currentTime = System.currentTimeMillis();
@@ -111,17 +115,21 @@ public class TransactionIdManager {
         else {
             // reset the counter and lastUsedTime for the new millisecond
             if (currentTime < lastUsedTime) {
-                System.err.println("Initiator time moved backwards from: " + lastUsedTime + " to " + currentTime);
+                LOG.error("Initiator time moved backwards from: " + lastUsedTime + " to " + currentTime);
                 // if the diff is less than 5 ms, wait a bit
-                if ((lastUsedTime - currentTime) < 5) {
-                    int count = 0;
+                if ((lastUsedTime - currentTime) < 10) {
+                    int count = 1000;
                     // note, the loop should stop once lastUsedTime is PASSED, not current
-                    while ((currentTime <= lastUsedTime) && (count++ < 100000)) {
-                        Thread.yield();
+                    while ((currentTime <= lastUsedTime) && (count-- > 0)) {
+                        try {
+                            Thread.sleep(lastUsedTime - currentTime + 1);
+                        } catch (InterruptedException e) {}
                         currentTime = System.currentTimeMillis();
                     }
                     // if the loop above ended because it ran too much
-                    if (count >= 100000) {
+                    if (count < 0) {
+                        LOG.error("H-Store was unable to recover after the system time was externally negatively adusted. " +
+                                  "It is possible that there is a serious system time or NTP error. ");
                         VoltDB.crashVoltDB();
                     }
                 }
@@ -134,14 +142,12 @@ public class TransactionIdManager {
             counterValue = 0;
         }
 
-        long id = makeIdFromComponents(currentTime, counterValue, initiatorId);
-        // assert(id != lastTxnId) : String.format("Repeated Txn Id #%d [newTime=%s, time=%d, counter=%d, id=%d]", id, new_time, currentTime, counterValue, initiatorId);
-        lastTxnId = id;
+        lastTxnId = makeIdFromComponents(currentTime, counterValue, initiatorId);
 
         return lastTxnId;
     }
 
-    static long makeIdFromComponents(long ts, long seqNo, long initiatorId) {
+    public static long makeIdFromComponents(long ts, long seqNo, long initiatorId) {
         // compute the time in millis since VOLT_EPOCH
         long txnId = ts - VOLT_EPOCH;
         // verify all fields are the right size

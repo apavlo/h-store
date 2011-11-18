@@ -24,16 +24,17 @@
 package org.voltdb.benchmark.multisite;
 
 import java.io.IOException;
-import org.voltdb.client.ProcedureCallback;
-import org.voltdb.client.NoConnectionsException;
-import org.voltdb.client.ClientResponse;
+
 import org.voltdb.VoltTable;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.benchmark.multisite.procedures.ChangeSeat;
 import org.voltdb.benchmark.multisite.procedures.FindOpenSeats;
 import org.voltdb.benchmark.multisite.procedures.UpdateReservation;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.client.ProcedureCallback;
+import org.voltdb.compiler.VoltProjectBuilder;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.hstore.Hstore;
 
 public class MultisiteClient extends BenchmarkComponent {
 
@@ -138,11 +139,11 @@ public class MultisiteClient extends BenchmarkComponent {
     class RunChangeSeatCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == ClientResponse.CONNECTION_LOST){
+            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
                 return;
             }
-            incrementTransactionCounter(Transaction.kChangeSeat.ordinal());
-            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+            incrementTransactionCounter(clientResponse, Transaction.kChangeSeat.ordinal());
+            if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert(clientResponse.getResults().length == 1);
                 assert(clientResponse.getResults()[0].getRowCount() == 1);
                 assert(clientResponse.getResults()[0].asScalarLong() == 1 ||
@@ -180,10 +181,10 @@ public class MultisiteClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == ClientResponse.CONNECTION_LOST){
+            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
                 return;
             }
-            incrementTransactionCounter(Transaction.kUpdateReservation.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.kUpdateReservation.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (m_rid < (150 * .5 * m_maxfid)) {
                 assert (results.length == 1);
@@ -209,10 +210,10 @@ public class MultisiteClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == ClientResponse.CONNECTION_LOST){
+            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
                 return;
             }
-            incrementTransactionCounter(Transaction.kFindOpenSeats.ordinal());
+            incrementTransactionCounter(clientResponse, Transaction.kFindOpenSeats.ordinal());
             VoltTable[] results = clientResponse.getResults();
             assert (results.length == 1);
             assert (results[0].getRowCount() < 150);

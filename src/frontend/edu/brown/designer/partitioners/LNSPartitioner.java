@@ -46,6 +46,8 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMapping;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.rand.RandomDistribution;
@@ -54,11 +56,9 @@ import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Large-Neighborhood Search Partitioner
@@ -258,7 +258,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             if (hints.enable_array_procparameter_candidates == false) {
                 params.removeAll(CatalogUtil.getArrayProcParameters(catalog_proc));
             }
-            params.add(NullProcParameter.getNullProcParameter(catalog_proc));
+            params.add(NullProcParameter.singleton(catalog_proc));
             this.orig_proc_attributes.put(catalog_proc, params);
             
             // Add multi-column partitioning parameters for each table
@@ -423,7 +423,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             this.last_checkpoint = new TimestampType();
             if (this.checkpoint != null) {
                 this.save(this.checkpoint.getAbsolutePath());
-                LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getName() + "'");
+                LOG.info("Saved Round #" + this.restart_ctr + " checkpoint to '" + this.checkpoint.getAbsolutePath() + "'");
             }
             
             this.total_search_time.stop();
@@ -494,7 +494,9 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
             LOG.debug("Initial Solution:\n" + this.initial_solution);
         }
         if (hints.shouldLogSolutionCosts()) {
-            hints.logSolutionCost(this.initial_cost);
+            double singlep_txns = this.costmodel.getSinglePartitionProcedureHistogram().getSampleCount() /
+                                  (double)this.costmodel.getProcedureHistogram().getSampleCount();
+            hints.logSolutionCost(this.initial_cost, singlep_txns);
         }
     }
     
@@ -973,6 +975,7 @@ public class LNSPartitioner extends AbstractPartitioner implements JSONSerializa
         m[0].put("# of Transactions",   info.workload.getTransactionCount());
         m[0].put("# of Partitions",     CatalogUtil.getNumberOfPartitions(info.catalog_db));
         m[0].put("# of Intervals",      info.getArgs().num_intervals);
+        m[0].put("# of Restarts",       (this.restart_ctr != null ? this.restart_ctr : "-"));
         m[0].put("Database Total Size", StringUtil.formatSize(info.getMemoryEstimator().estimateTotalSize(info.catalog_db)));
         m[0].put("Cluster Total Size",  StringUtil.formatSize(info.getNumPartitions() * hints.max_memory_per_partition));
         

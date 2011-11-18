@@ -14,6 +14,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
+import org.apache.commons.lang.NotImplementedException;
 
 /**
  * 
@@ -56,8 +57,9 @@ public abstract class CollectionUtil {
         int ret[] = new int[items.size()];
         int idx = 0;
         for (Integer i : items) {
+            assert(i != null);
             ret[idx++] = i.intValue();
-        }
+        } // FOR
         return (ret);
     }
     
@@ -67,10 +69,19 @@ public abstract class CollectionUtil {
      * @param it
      * @return
      */
-    public static <T> List<T> toList(Iterator<T> it) {
+    public static <T> List<T> list(Iterator<T> it) {
         List<T> list = new ArrayList<T>();
         CollectionUtil.addAll(list, it);
         return (list);
+    }
+    /**
+     * Put all of the values of an Enumeration into a new List
+     * @param <T>
+     * @param e
+     * @return
+     */
+    public static <T> List<T> list(Enumeration<T> e) {
+        return (list(iterable(e)));
     }
     /**
      * Put all of the values of an Iterable into a new List
@@ -78,8 +89,8 @@ public abstract class CollectionUtil {
      * @param it
      * @return
      */
-    public static <T> List<T> toList(Iterable<T> it) {
-        return (toList(it.iterator()));
+    public static <T> List<T> list(Iterable<T> it) {
+        return (list(it.iterator()));
     }
     
     /**
@@ -88,7 +99,7 @@ public abstract class CollectionUtil {
      * @param it
      * @return
      */
-    public static <T> Set<T> toSet(Iterator<T> it) {
+    public static <T> Set<T> set(Iterator<T> it) {
         Set<T> set = new HashSet<T>();
         CollectionUtil.addAll(set, it);
         return (set);
@@ -99,8 +110,8 @@ public abstract class CollectionUtil {
      * @param it
      * @return
      */
-    public static <T> Set<T> toSet(Iterable<T> it) {
-        return (toSet(it.iterator()));
+    public static <T> Set<T> set(Iterable<T> it) {
+        return (set(it.iterator()));
     }
     
     /**
@@ -408,11 +419,39 @@ public abstract class CollectionUtil {
      * @param it
      * @return
      */
-    public static <T> Iterable<T> wrapIterator(final Iterator<T> it) {
+    public static <T> Iterable<T> iterable(final Iterator<T> it) {
         return (new Iterable<T>() {
             @Override
             public Iterator<T> iterator() {
                 return (it);
+            }
+        });
+    }
+    
+    /**
+     * Wrap an Iterable around an Enumeration
+     * @param <T>
+     * @param e
+     * @return
+     */
+    public static <T> Iterable<T> iterable(final Enumeration<T> e) {
+        return (new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return new Iterator<T>() {
+                    @Override
+                    public boolean hasNext() {
+                        return (e.hasMoreElements());
+                    }
+                    @Override
+                    public T next() {
+                        return (e.nextElement());
+                    }
+                    @Override
+                    public void remove() {
+                        throw new NotImplementedException();
+                    }
+                };
             }
         });
     }

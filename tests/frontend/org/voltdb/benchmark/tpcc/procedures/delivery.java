@@ -56,7 +56,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 import org.voltdb.VoltType;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.types.TimestampType;
 
 @ProcInfo (
@@ -96,15 +96,15 @@ public class delivery extends VoltProcedure {
         new SQLStmt("UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + ? WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?;"); //ol_total, c_id, d_id, w_id
 
     public VoltTable run(short w_id, int o_carrier_id, TimestampType timestamp) throws VoltAbortException {
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             voltQueueSQL(getNewOrder, d_id, w_id);
         }
         final VoltTable[] neworderresults = voltExecuteSQL();
-        assert neworderresults.length == Constants.DISTRICTS_PER_WAREHOUSE;
-        final Long[] no_o_ids = new Long[Constants.DISTRICTS_PER_WAREHOUSE];
+        assert neworderresults.length == TPCCConstants.DISTRICTS_PER_WAREHOUSE;
+        final Long[] no_o_ids = new Long[TPCCConstants.DISTRICTS_PER_WAREHOUSE];
         int valid_neworders = 0;
-        int[] result_offsets = new int[Constants.DISTRICTS_PER_WAREHOUSE];
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        int[] result_offsets = new int[TPCCConstants.DISTRICTS_PER_WAREHOUSE];
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             final VoltTable newOrder = neworderresults[(int) d_id - 1];
 
             if (newOrder.getRowCount() == 0) {
@@ -124,7 +124,7 @@ public class delivery extends VoltProcedure {
         final VoltTable[] otherresults = voltExecuteSQL();
         assert otherresults.length == valid_neworders * 2;
 
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             final VoltTable newOrder = neworderresults[(int) d_id - 1];
 
             if (newOrder.getRowCount() == 0) {
@@ -145,7 +145,7 @@ public class delivery extends VoltProcedure {
         // We remove the queued time, completed time, w_id, and o_carrier_id: the client can figure
         // them out
         final VoltTable result = result_template.clone(1024);
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             int resultoffset = result_offsets[(int) d_id - 1];
 
             if (resultoffset < 0) {
