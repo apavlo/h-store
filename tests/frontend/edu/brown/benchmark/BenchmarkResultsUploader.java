@@ -40,7 +40,7 @@ import java.util.Date;
 
 public class BenchmarkResultsUploader {
     
-    private static final SimpleDateFormat df = new SimpleDateFormat("yy-MM-dd HH:mm");
+    private static final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     
     private final URL  m_url;
     
