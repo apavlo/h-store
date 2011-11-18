@@ -1726,7 +1726,7 @@ public class BenchmarkController {
                                                                              codespeed_benchmark,
                                                                              hstore_conf.client.codespeed_environment,
                                                                              hstore_conf.client.codespeed_commitid);
-            if (hstore_conf.client.codespeed_branch.isEmpty() == false) {
+            if (hstore_conf.client.codespeed_branch != null && hstore_conf.client.codespeed_branch.isEmpty() == false) {
                 uploader.setBranch(hstore_conf.client.codespeed_branch);
             }
             
