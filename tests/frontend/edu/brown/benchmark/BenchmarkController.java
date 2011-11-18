@@ -1731,6 +1731,7 @@ public class BenchmarkController {
             }
             
             uploader.post(txnrate);
+            LOG.info("Uploaded benchmarks results to " + hstore_conf.client.codespeed_url);
         }
     }
 }
