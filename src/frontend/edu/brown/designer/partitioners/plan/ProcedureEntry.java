@@ -11,6 +11,9 @@ public class ProcedureEntry extends PartitionEntry<ProcParameter> {
     public ProcedureEntry() {
         // For serialziation
     }
+    public ProcedureEntry(PartitionMethodType method) {
+        this(method, null, null);
+    }
     
     public ProcedureEntry(PartitionMethodType method, ProcParameter catalog_param, Boolean single_partition) {
         super(method, catalog_param);

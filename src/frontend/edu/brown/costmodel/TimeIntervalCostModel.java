@@ -23,22 +23,24 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 import edu.brown.costmodel.SingleSitedCostModel.QueryCacheEntry;
 import edu.brown.costmodel.SingleSitedCostModel.TransactionCacheEntry;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.Consumer;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Producer;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
@@ -297,7 +299,7 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         
         // QUEUING THREAD
         tmp_consumers.clear();
-        Producer<TransactionTrace, Pair<TransactionTrace, Integer>> producer = new Producer<TransactionTrace, Pair<TransactionTrace,Integer>>(CollectionUtil.wrapIterator(workload.iterator(filter))) {
+        Producer<TransactionTrace, Pair<TransactionTrace, Integer>> producer = new Producer<TransactionTrace, Pair<TransactionTrace,Integer>>(CollectionUtil.iterable(workload.iterator(filter))) {
             @Override
             public Pair<Consumer<Pair<TransactionTrace, Integer>>, Pair<TransactionTrace, Integer>>  transform(TransactionTrace txn_trace) {
                 int i = workload.getTimeInterval(txn_trace, num_intervals);
@@ -706,6 +708,11 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
         } // FOR
     }
     
+    /**
+     * MAIN!
+     * @param vargs
+     * @throws Exception
+     */
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(
@@ -716,12 +723,27 @@ public class TimeIntervalCostModel<T extends AbstractCostModel> extends Abstract
 //                ArgumentsParser.PARAM_DESIGNER_HINTS
         );
         assert(args.workload.getTransactionCount() > 0) : "No transactions were loaded from " + args.workload;
+       
+        if (args.hasParam(ArgumentsParser.PARAM_CATALOG_HOSTS)) {
+            ClusterConfiguration cc = new ClusterConfiguration(args.getParam(ArgumentsParser.PARAM_CATALOG_HOSTS));
+            args.updateCatalog(FixCatalog.addHostInfo(args.catalog, cc), null);
+        }
         
         // If given a PartitionPlan, then update the catalog
         File pplan_path = new File(args.getParam(ArgumentsParser.PARAM_PARTITION_PLAN));
         if (pplan_path.exists()) {
             PartitionPlan pplan = new PartitionPlan();
             pplan.load(pplan_path.getAbsolutePath(), args.catalog_db);
+            if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_REMOVE_PROCS, false)) {
+                for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
+                    pplan.setNullProcParameter(catalog_proc); 
+                } // FOR
+            }
+            if (args.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_RANDOM_PROCS, false)) {
+                for (Procedure catalog_proc : pplan.proc_entries.keySet()) {
+                    pplan.setRandomProcParameter(catalog_proc); 
+                } // FOR
+            }
             pplan.apply(args.catalog_db);
             System.out.println("Applied PartitionPlan '" + pplan_path + "' to catalog\n" + pplan);
             System.out.print(StringUtil.DOUBLE_LINE);

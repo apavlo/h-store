@@ -1,7 +1,6 @@
 package edu.brown.utils;
 
 import java.io.IOException;
-import java.util.Observable;
 
 import org.apache.log4j.Logger;
 import org.json.JSONException;
@@ -9,7 +8,8 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * 
@@ -83,10 +83,10 @@ public class ProfileMeasurement implements JSONSerializable {
         this.total_time = 0;
     }
     
-    public void resetOnEvent(EventObservable e) {
-        e.addObserver(new EventObserver() {
+    public <T> void resetOnEvent(EventObservable<T> e) {
+        e.addObserver(new EventObserver<T>() {
             @Override
-            public void update(Observable o, Object arg) {
+            public void update(EventObservable<T> o, T arg) {
                 ProfileMeasurement.this.reset();
             }
         });

@@ -1,18 +1,27 @@
 package org.voltdb;
 
-import java.util.Observable;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 import org.voltdb.client.ClientResponse;
 
-import edu.brown.utils.*;
-
 import edu.brown.BaseTestCase;
-import edu.mit.hstore.dtxn.LocalTransactionState;
-import edu.mit.hstore.dtxn.TransactionState;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * @author pavlo
@@ -20,7 +29,7 @@ import edu.mit.hstore.dtxn.TransactionState;
 public class TestNewVoltProcedure extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 10;
-    private static final int PARTITION_ID = 1;
+    private static final int LOCAL_PARTITION = 1;
     private static long CLIENT_HANDLE = 1; 
     private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
 
@@ -28,6 +37,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
     private static final String TARGET_PROCEDURE = "GetAccessData";
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
     
+    private static HStoreSite hstore_site;
     private static ExecutionSite site;
     private static PartitionEstimator p_estimator;
     
@@ -44,7 +54,12 @@ public class TestNewVoltProcedure extends BaseTestCase {
             // BACKEND_TARGET = (this.hasVoltLib() ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
             p_estimator = new PartitionEstimator(catalog_db);
-            site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
+            site = new MockExecutionSite(LOCAL_PARTITION, catalog, p_estimator);
+            
+            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
+            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+            executors.put(LOCAL_PARTITION, site);
+            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
         }
         volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
@@ -56,9 +71,9 @@ public class TestNewVoltProcedure extends BaseTestCase {
     public void testCall() throws Exception {
         // Use this callback to attach to the VoltProcedure and get the ClientResponse
         final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
-        EventObserver observer = new EventObserver() {
+        EventObserver<ClientResponse> observer = new EventObserver<ClientResponse>() {
             @Override
-            public void update(Observable o, Object arg) {
+            public void update(EventObservable<ClientResponse> o, ClientResponse arg) {
                 assert(arg != null);
                 lock.offer((ClientResponse)arg);
             }
@@ -66,8 +81,9 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        TransactionState ts = new LocalTransactionState(site).init(xact_id, CLIENT_HANDLE++, PARTITION_ID, false, false, true);
-        site.txn_states.put(xact_id, ts);
+        Collection<Integer> partitions = Collections.singleton(LOCAL_PARTITION);
+        LocalTransaction ts = new LocalTransaction(hstore_site).init(xact_id, CLIENT_HANDLE++, LOCAL_PARTITION, partitions, false, true);
+        // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
         //             so there is no way for us to check whether things look legit until we get
@@ -94,11 +110,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
      */
     public void testExecuteLocalBatch() throws Exception {
         long txn_id = NEXT_TXN_ID.incrementAndGet();
-        volt_proc.setTransactionId(txn_id);
         
-        //
         // We have to slap some queries into a BatchPlan
-        //
         Procedure catalog_proc = volt_proc.getProcedure();
         assertNotNull(catalog_proc);
         SQLStmt batchStmts[] = new SQLStmt[catalog_proc.getStatements().size()];
@@ -112,7 +125,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, PARTITION_ID, args, true);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, true);
         assertNotNull(plan);
         
         // Only try to execute a BatchPlan if we have the real EE

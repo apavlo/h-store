@@ -28,10 +28,10 @@ public abstract class HStoreDtxnConf {
             if (debug) LOG.debug(String.format("%s: %s", catalog_host, host_sites.get(catalog_host)));
             for (Site catalog_site : host_sites.get(catalog_host)) {
                 if (debug) LOG.debug(String.format("  %s: %s", catalog_site, CatalogUtil.debug(catalog_site.getPartitions())));
-                for (Partition catalog_part : catalog_site.getPartitions()) {
-                    sorted_output.put(catalog_part.getId(),
-                                      String.format("%s %d", catalog_host.getIpaddr(), catalog_part.getDtxn_port()));    
-                }
+//                for (Partition catalog_part : catalog_site.getPartitions()) {
+//                    sorted_output.put(catalog_part.getId(),
+//                                      String.format("%s %d", catalog_host.getIpaddr(), catalog_part.getDtxn_port()));    
+//                }
             } // FOR
         } // FOR
         

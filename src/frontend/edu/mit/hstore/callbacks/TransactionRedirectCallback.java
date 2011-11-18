@@ -8,38 +8,25 @@ import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore.MessageAcknowledgement;
-import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.hstore.Hstore;
 import edu.brown.utils.Poolable;
+import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 
 /**
- * 
+ * This callback is used by the original HStoreSite that is sending out a transaction redirect
+ * to another HStoreSite. We must be given the original callback that points back to the client. 
  * @author pavlo
  */
-public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledgement>, Poolable {
-    private static final Logger LOG = Logger.getLogger(ForwardTxnRequestCallback.class);
-    
-    /**
-     * Object Pool Factory
-     */
-    public static class Factory extends CountingPoolableObjectFactory<ForwardTxnRequestCallback> {
-        
-        public Factory(boolean enable_tracking) {
-            super(enable_tracking);
-        }
-        @Override
-        public ForwardTxnRequestCallback makeObjectImpl() throws Exception {
-            return new ForwardTxnRequestCallback();
-        }
-    };
+public class TransactionRedirectCallback implements RpcCallback<Hstore.TransactionRedirectResponse>, Poolable {
+    private static final Logger LOG = Logger.getLogger(TransactionRedirectCallback.class);
     
     protected RpcCallback<byte[]> orig_callback;
 
     /**
      * Default Constructor
      */
-    private ForwardTxnRequestCallback() {
+    public TransactionRedirectCallback() {
         // Nothing to do...
     }
     
@@ -58,13 +45,13 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
     }
     
     @Override
-    public void run(MessageAcknowledgement parameter) {
+    public void run(Hstore.TransactionRedirectResponse parameter) {
         if (LOG.isTraceEnabled()) LOG.trace(String.format("Got back FORWARD_TXN response from %s. Sending response to client [bytes=%d]",
-                                                          HStoreSite.formatSiteName(parameter.getSenderSiteId()), parameter.getData().size()));
-        byte data[] = parameter.getData().toByteArray();
+                                                          HStoreSite.formatSiteName(parameter.getSenderId()), parameter.getOutput().size()));
+        byte data[] = parameter.getOutput().toByteArray();
         try {
             this.orig_callback.run(data);
-        } catch (AssertionError ex) {
+        } catch (Throwable ex) {
             FastDeserializer fds = new FastDeserializer(data);
             ClientResponseImpl cresponse = null;
             long txn_id = -1;
@@ -79,7 +66,7 @@ public class ForwardTxnRequestCallback implements RpcCallback<MessageAcknowledge
         } finally {
             try {
                 this.finish();
-                HStoreSite.POOL_FORWARDTXN_REQUEST.returnObject(this);
+                HStoreObjectPools.CALLBACKS_TXN_REDIRECT_REQUEST.returnObject(this);
             } catch (Exception ex) {
                 throw new RuntimeException("Funky failure", ex);
             }

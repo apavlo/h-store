@@ -33,10 +33,10 @@ import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerHints;
 import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class ConstraintPropagator {
     private static final Logger LOG = Logger.getLogger(ConstraintPropagator.class);
@@ -208,13 +208,12 @@ public class ConstraintPropagator {
                         if (vp_candidates == null) {
                             try {
                                 vp_candidates = VerticalPartitionerUtil.generateCandidates(catalog_col, info.stats);
-                            } catch (Exception ex) {
-                                throw new RuntimeException("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
+                                col_vps.put(catalog_col, vp_candidates);
+                            } catch (Throwable ex) {
+                                LOG.warn("Failed to generate vertical partition candidates for " + catalog_col.fullName(), ex);
                             }
-                            col_vps.put(catalog_col, vp_candidates);
                         }
-                        assert(vp_candidates != null);
-                        candidates.addAll(vp_candidates);
+                        if (vp_candidates != null) candidates.addAll(vp_candidates);
                     }
                     // Add in the MultiColumns
                     if (hints.enable_multi_partitioning && this.multicolumns.containsKey(catalog_col)) {

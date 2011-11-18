@@ -50,8 +50,8 @@ import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Compiles individual SQL statements and updates the given catalog.

@@ -25,12 +25,12 @@ import org.voltdb.types.QueryType;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class VerticalPartitionPlanner {
     private static final Logger LOG = Logger.getLogger(VerticalPartitionPlanner.class);

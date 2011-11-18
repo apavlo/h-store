@@ -1,32 +1,24 @@
 package edu.brown.gui.catalog;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Font;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.geom.Point2D;
-import java.util.Observable;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 
 import org.voltdb.catalog.Statement;
 import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.gui.AbstractViewer;
-import edu.brown.gui.CatalogViewer;
 import edu.brown.gui.common.GraphVisualizationPanel;
 import edu.brown.plannodes.PlanNodeGraph;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.uci.ics.jung.algorithms.layout.Layout;
-import edu.uci.ics.jung.visualization.Layer;
 import edu.uci.ics.jung.visualization.RenderContext;
 import edu.uci.ics.jung.visualization.decorators.EdgeShape;
 
@@ -43,12 +35,10 @@ public class PlanTreeCatalogNode {
     
     private boolean zoomed = false;
     
-    private EventObserver vertex_observer = new EventObserver() {
+    private EventObserver<AbstractPlanNode> vertex_observer = new EventObserver<AbstractPlanNode>() {
         @Override
-        public void update(Observable o, Object arg) {
-            if (arg instanceof AbstractPlanNode) {
-                PlanTreeCatalogNode.this.selectNode((AbstractPlanNode)arg);
-            }
+        public void update(EventObservable<AbstractPlanNode> o, AbstractPlanNode arg) {
+            PlanTreeCatalogNode.this.selectNode((AbstractPlanNode)arg);
         }
     };
     

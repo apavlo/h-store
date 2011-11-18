@@ -25,8 +25,8 @@ import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.utils.Encoder;
 
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo

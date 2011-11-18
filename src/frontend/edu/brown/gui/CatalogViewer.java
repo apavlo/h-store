@@ -37,22 +37,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map.Entry;
 
-import javax.swing.BoxLayout;
-import javax.swing.JLabel;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JPanel;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.JTree;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -62,22 +48,7 @@ import javax.swing.tree.TreeSelectionModel;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Constraint;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.Host;
-import org.voltdb.catalog.Index;
-import org.voltdb.catalog.MaterializedViewInfo;
-import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.PlanFragment;
-import org.voltdb.catalog.ProcParameter;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
-import org.voltdb.catalog.StmtParameter;
-import org.voltdb.catalog.Table;
+import org.voltdb.catalog.*;
 import org.voltdb.catalog.CatalogType.UnresolvedInfo;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.types.ConstraintType;
@@ -93,7 +64,6 @@ import edu.brown.gui.catalog.WrapperNode;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -463,8 +433,9 @@ public class CatalogViewer extends AbstractViewer {
 	 * Return text to be used on the summary page
 	 * @return
 	 */
-	protected String getSummaryText() {
-	    Map<String, Integer> m[] = new Map[3];
+	@SuppressWarnings("unchecked")
+    protected String getSummaryText() {
+	    Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[3];
 	    int idx = -1;
 	    
 	    // ----------------------

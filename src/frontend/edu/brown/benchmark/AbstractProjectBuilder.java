@@ -18,11 +18,11 @@ import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.CatalogUtil;
 import org.voltdb.utils.JarReader;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo

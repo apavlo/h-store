@@ -24,10 +24,14 @@
 package edu.brown.benchmark;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 import edu.brown.benchmark.BenchmarkResults.EntityResult;
 import edu.brown.benchmark.BenchmarkResults.FinalResult;
 import edu.brown.benchmark.BenchmarkResults.Result;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 
 public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
@@ -40,18 +44,27 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         "%10.2f txn/m",
     };
     
+    protected final boolean output_clients;
+    protected final boolean output_basepartitions;
+    
+    public ResultsPrinter(boolean output_clients, boolean output_basepartitions) {
+        this.output_clients = output_clients;
+        this.output_basepartitions = output_basepartitions;
+    }
+    
     protected String formatFinalResults(BenchmarkResults results) {
         StringBuilder sb = new StringBuilder();
         FinalResult fr = new FinalResult(results);
         
-        sb.append("\n================================== BENCHMARK RESULTS ==================================\n");
+        final int width = 100; 
+        sb.append(String.format("\n%s\n", StringUtil.header("BENCHMARK RESULTS", "=", width)));
         sb.append(String.format("Time: %d ms\n", fr.getDuration()));
         sb.append(String.format("Total transactions: %d\n", fr.getTotalTxnCount()));
         sb.append(String.format("Transactions per second: %.2f\n", fr.getTxnPerSecond()));
         
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();
-        int num_rows = txnNames.size() + clientNames.size() + 1;
+        int num_rows = txnNames.size() + (this.output_clients ? clientNames.size() + 1 : 0);
         Object rows[][] = new String[num_rows][COL_FORMATS.length];
         int row_idx = 0;
         
@@ -66,26 +79,40 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
             rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
             row_idx++;
         } // FOR
-        
-        rows[row_idx][0] = "\nBreakdown by client:";
-        for (int i = 1; i < COL_FORMATS.length; i++) {
-            rows[row_idx][i] = "";
-        } // FOR
-        row_idx++;
-        
-        for (String clientName : clientNames) {
-            EntityResult er = fr.getClientResult(clientName);
-            assert(er != null);
-            int col_idx = 0;
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], clientName);
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
-            rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
+
+        if (output_clients) {
+            rows[row_idx][0] = "\nBreakdown by client:";
+            for (int i = 1; i < COL_FORMATS.length; i++) {
+                rows[row_idx][i] = "";
+            } // FOR
             row_idx++;
-        } // FOR
+            
+            for (String clientName : clientNames) {
+                EntityResult er = fr.getClientResult(clientName);
+                assert(er != null);
+                int col_idx = 0;
+                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], clientName);
+                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnCount());
+                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPercentage());
+                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerMilli());
+                rows[row_idx][col_idx++] = String.format(COL_FORMATS[col_idx-1], er.getTxnPerSecond());
+                row_idx++;
+            } // FOR
+        }
         sb.append(TableUtil.table(rows));
-        sb.append("\n=======================================================================================\n");
+        sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
+        
+        if (output_basepartitions) {
+            sb.append("Transaction Base Partitions:\n");
+            Histogram<Integer> h = results.getBasePartitions();
+            Map<Integer, String> labels = new HashMap<Integer, String>();
+            for (Integer p : h.values()) {
+                labels.put(p, String.format("Partition %02d", p));
+            } // FOR
+            h.setDebugLabels(labels);
+            sb.append(h.toString((int)(width * 0.75)));
+            sb.append(String.format("\n%s\n", StringUtil.repeat("=", width)));
+        }
         
         return (sb.toString());
     }

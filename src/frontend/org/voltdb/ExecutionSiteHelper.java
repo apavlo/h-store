@@ -26,18 +26,17 @@
 package org.voltdb;
 
 import java.util.Collection;
-import java.util.Observable;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.TransactionState;
 
 /**
  * 
@@ -83,9 +82,9 @@ public class ExecutionSiteHelper implements Runnable {
      * Shutdown Observer
      * This gets invoked when the HStoreSite is shutting down
      */
-    private final EventObserver shutdown_observer = new EventObserver() {
+    private final EventObserver<Object> shutdown_observer = new EventObserver<Object>() {
         @Override
-        public void update(Observable o, Object arg) {
+        public void update(EventObservable<Object> o, Object t) {
             ExecutionSiteHelper.this.shutdown();
             LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
         }
@@ -111,7 +110,7 @@ public class ExecutionSiteHelper implements Runnable {
         assert(this.executors.size() > 0) : "No ExecutionSites for helper";
         ExecutionSite executor = CollectionUtil.first(this.executors);
         assert(executor != null);
-        this.hstore_site.addShutdownObservable(this.shutdown_observer);
+        this.hstore_site.getShutdownObservable().addObserver(this.shutdown_observer);
 
         if (debug.get()) LOG.debug(String.format("Instantiated new ExecutionSiteHelper [txn_expire=%d, per_round=%d]",
                                                  this.txn_expire, this.txn_per_round));
@@ -141,25 +140,25 @@ public class ExecutionSiteHelper implements Runnable {
 
         this.hstore_site.updateLogging();
         for (ExecutionSite es : this.executors) {
-            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
+//            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
             long to_remove = System.currentTimeMillis() - this.txn_expire;
             
             int cleaned = 0;
-            while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
-                TransactionState ts = es.finished_txn_states.peek();
-                if (ts.getEE_FinishedTimestamp() < to_remove) {
-//                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
-                    if (ts.isHStoreSite_Finished() == false) break;
-                    
-                    if (t) LOG.trace("Cleaning txn #" + ts.getTransactionId());
-                    
-
-                    es.cleanupTransaction(ts);
-                    es.finished_txn_states.remove();
-                    cleaned++;
-                    this.total_cleaned++;
-                } else break;
-            } // WHILE
+//            while (es.finished_txn_states.isEmpty() == false && (this.txn_per_round < 0 || cleaned < this.txn_per_round)) {
+//                AbstractTransaction ts = es.finished_txn_states.peek();
+//                if (ts.getEE_FinishedTimestamp() < to_remove) {
+////                    if (traceLOG.info(String.format("Want to clean txn #%d [done=%s, type=%s]", ts.getTransactionId(), ts.getHStoreSiteDone(), ts.getClass().getSimpleName()));
+//                    if (ts.isHStoreSite_Finished() == false) break;
+//                    
+//                    if (t) LOG.trace("Cleaning txn #" + ts.getTransactionId());
+//                    
+//
+//                    es.cleanupTransaction(ts);
+//                    es.finished_txn_states.remove();
+//                    cleaned++;
+//                    this.total_cleaned++;
+//                } else break;
+//            } // WHILE
             if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.partitionId, this.total_cleaned));
             // Only call tick here!
             es.tick();
@@ -173,7 +172,7 @@ public class ExecutionSiteHelper implements Runnable {
             m.calculateProbabilities();
             if (d && m.isValid() == false) {
                 LOG.error("Invalid MarkovGraph after recomputing! Crashing...");
-                this.hstore_site.getMessenger().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
+                this.hstore_site.getCoordinator().shutdownCluster(new Exception("Invalid Markovgraph after recomputing"), false);
             }
         } // WHILE
     }
@@ -185,12 +184,12 @@ public class ExecutionSiteHelper implements Runnable {
     private synchronized void shutdown() {
         LOG.info("Shutdown event received. Cleaning all transactions");
         
-        for (ExecutionSite es : this.executors) {
-            int cleaned = es.finished_txn_states.size();
-            es.finished_txn_states.clear();
-            assert(es.finished_txn_states.isEmpty());
-            if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
-        } // FOR
+//        for (ExecutionSite es : this.executors) {
+//            int cleaned = es.finished_txn_states.size();
+//            es.finished_txn_states.clear();
+//            assert(es.finished_txn_states.isEmpty());
+//            if (debug.get()) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d", cleaned, es.partitionId));
+//        } // FOR
     }
 
 }

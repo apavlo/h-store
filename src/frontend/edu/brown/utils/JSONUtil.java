@@ -15,7 +15,8 @@ import org.voltdb.catalog.Database;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.catalog.CatalogKey;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
@@ -298,7 +299,7 @@ public abstract class JSONUtil {
         Collection<Class<?>> val_interfaces = ClassUtil.getInterfaces(val_class);
         
         assert(json_object != null);
-        for (String json_key : CollectionUtil.wrapIterator(json_object.keys())) {
+        for (String json_key : CollectionUtil.iterable(json_object.keys())) {
             final Stack<Class> next_inner_classes = new Stack<Class>();
             next_inner_classes.addAll(inner_classes);
             assert(next_inner_classes.equals(inner_classes));
@@ -492,7 +493,7 @@ public abstract class JSONUtil {
             if (debug.get()) LOG.debug("Retreiving value for field '" + json_key + "'");
             
             if (!json_object.has(json_key)) {
-                String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "': " + CollectionUtil.toList(json_object.keys()); 
+                String msg = "JSONObject for " + base_class.getSimpleName() + " does not have key '" + json_key + "': " + CollectionUtil.list(json_object.keys()); 
                 if (ignore_missing) {
                     if (debug.get()) LOG.warn(msg);
                     continue;

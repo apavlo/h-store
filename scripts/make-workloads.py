@@ -36,9 +36,19 @@ import re
 import commands
 import subprocess
 import logging
-import argparse
 import string
 from pprint import pprint, pformat
+
+## H-Store Third-Party Libraries
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+if not os.path.exists(realpath):
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+import argparse
 
 logging.basicConfig(level = logging.INFO,
                     format="%(asctime)s [%(funcName)s:%(lineno)03d] %(levelname)-5s: %(message)s",
@@ -49,10 +59,10 @@ HSTORE_OPTS = {
     "client.duration":              180000,
     "client.warmup":                0,
     "client.count":                 1,
-    "client.processesperclient":    1,
+    "client.processesperclient":    200,
     "client.txnrate":               1000,
-    "client.blocking":              False,
-    "client.blocking_concurrent":   1000,
+    "client.blocking":              True,
+    "client.blocking_concurrent":   1,
     "client.scalefactor":           20,
 }
 
