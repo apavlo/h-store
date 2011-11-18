@@ -33,6 +33,8 @@ public class GetTableCounts extends VoltProcedure {
     private final VoltTable.ColumnInfo columns[] = {
         new VoltTable.ColumnInfo("name", VoltType.STRING),
         new VoltTable.ColumnInfo("size", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("min", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("max", VoltType.BIGINT),
     };
     
     public VoltTable[] run() {
@@ -46,9 +48,7 @@ public class GetTableCounts extends VoltProcedure {
             assert(results[0].getRowCount() > 0);
             boolean adv = results[0].advanceRow(); 
             assert(adv) : "Unable to advance results row for table " + e.getKey();
-            ret.addRow(e.getKey(), results[0].getLong(0));
-            ret.addRow("Min", results[0].getLong(0));
-            ret.addRow("Max", results[0].getLong(0));
+            ret.addRow(e.getKey(), results[0].getLong(0), results[0].getLong(0), results[0].getLong(0));
         } // FOR
         return (new VoltTable[]{ ret });
     }
