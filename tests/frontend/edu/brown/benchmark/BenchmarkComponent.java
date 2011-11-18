@@ -118,8 +118,12 @@ public abstract class BenchmarkComponent {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public static String CONTROL_PREFIX = "{HSTORE}";
+    public static String CONTROL_MESSAGE_PREFIX = "{HSTORE}";
     
+    /**
+     * These are the commands that the BenchmarkController will send to each
+     * BenchmarkComponent in order to coordinate the benchmark's execution
+     */
     public enum Command {
         START,
         POLL,
@@ -133,28 +137,38 @@ public abstract class BenchmarkComponent {
         static {
             for (Command vt : EnumSet.allOf(Command.class)) {
                 Command.idx_lookup.put(vt.ordinal(), vt);
-                Command.name_lookup.put(vt.name().toUpperCase().intern(), vt);
+                Command.name_lookup.put(vt.name().toUpperCase(), vt);
             } // FOR
         }
         
         public static Command get(String name) {
-            return (Command.name_lookup.get(name.trim().toUpperCase().intern()));
+            return (Command.name_lookup.get(name.trim().toUpperCase()));
         }
     }
     
-    /** The states important to the remote controller */
+    /**
+     * These represent the different states that the BenchmarkComponent's ControlPipe
+     * could be in. 
+     */
     public static enum ControlState {
-        PREPARING("PREPARING"),
-        READY("READY"),
-        RUNNING("RUNNING"),
-        PAUSED("PAUSED"),
-        ERROR("ERROR");
+        PREPARING,
+        READY,
+        RUNNING,
+        PAUSED,
+        ERROR;
 
-        ControlState(final String displayname) {
-            display = displayname;
+        protected static final Map<Integer, ControlState> idx_lookup = new HashMap<Integer, ControlState>();
+        protected static final Map<String, ControlState> name_lookup = new HashMap<String, ControlState>();
+        static {
+            for (ControlState vt : EnumSet.allOf(ControlState.class)) {
+                ControlState.idx_lookup.put(vt.ordinal(), vt);
+                ControlState.name_lookup.put(vt.name().toUpperCase(), vt);
+            } // FOR
         }
-
-        public final String display;
+        
+        public static ControlState get(String name) {
+            return (ControlState.name_lookup.get(name.trim().toUpperCase()));
+        }
     };
 
     private static Client globalClient;
@@ -338,10 +352,10 @@ public abstract class BenchmarkComponent {
     
     public void printControlMessage(ControlState state, String message) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%s %d,%d,%s", CONTROL_PREFIX,
+        sb.append(String.format("%s %d,%d,%s", CONTROL_MESSAGE_PREFIX,
                                                this.getClientId(),
                                                System.currentTimeMillis(),
-                                               state.display));
+                                               state));
         if (message != null && message.isEmpty() == false) {
             sb.append(",").append(message);
         }
@@ -418,7 +432,7 @@ public abstract class BenchmarkComponent {
                 m_controlState = ControlState.READY;
             } else {
                 LOG.error("Not starting prepared!");
-                LOG.error(m_controlState.display + " " + m_reason);
+                LOG.error(m_controlState + " " + m_reason);
             }
 
             final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));

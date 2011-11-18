@@ -189,7 +189,14 @@ public class BenchmarkController {
 
     class ClientStatusThread extends Thread {
         
-        final List<ProcessSetManager.OutputLine> previous = new ArrayList<ProcessSetManager.OutputLine>();
+        /** ClientName -> List of all the Previous Messages */
+        final Map<String, List<ProcessSetManager.OutputLine>> previous = new HashMap<String, List<ProcessSetManager.OutputLine>>();
+        
+        /** ClientName -> Timestamp of Previous Message */ 
+        final Map<String, Long> lastTimestamps = new HashMap<String, Long>();
+        
+        /** TransactionName -> # of Executed **/
+        final Map<String, Long> results = new HashMap<String, Long>();
         
         public ClientStatusThread(int i) {
             super(String.format("client-status-%02d", i));
@@ -207,70 +214,84 @@ public class BenchmarkController {
                     System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
                     continue;
                 }
-
-                // assume stdout at this point
-
                 // General Debug Output
-                if (line.value.startsWith(BenchmarkComponent.CONTROL_PREFIX) == false) {
+                else if (line.value.startsWith(BenchmarkComponent.CONTROL_MESSAGE_PREFIX) == false) {
                     System.out.println(line.value);
-                    
+                    continue;
+                }
+                
                 // BenchmarkController Coordination Message
-                } else {
-                    // split the string on commas and strip whitespace
-                    String control_line = line.value.substring(BenchmarkComponent.CONTROL_PREFIX.length());
-                    String[] parts = control_line.split(",");
-                    for (int i = 0; i < parts.length; i++)
-                        parts[i] = parts[i].trim();
-    
-                    // expect at least time and status
-                    if (parts.length < 2) {
-                        if (line.value.startsWith("Listening for transport dt_socket at address:") ||
-                                line.value.contains("Attempting to load") ||
-                                line.value.contains("Successfully loaded native VoltDB library")) {
-                            LOG.info(line.processName + ": " + control_line + "\n");
-                            continue;
-                        }
-    //                    m_clientPSM.killProcess(line.processName);
-    //                    LogKeys logkey =
-    //                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-    //                    LOG.l7dlog( Level.ERROR, logkey.name(),
-    //                            new Object[] { line.processName, line.value }, null);
+                // split the string on commas and strip whitespace
+                String control_line = line.value.substring(BenchmarkComponent.CONTROL_MESSAGE_PREFIX.length());
+                String[] parts = control_line.split(",");
+                for (int i = 0; i < parts.length; i++)
+                    parts[i] = parts[i].trim();
+
+                // expect at least time and status
+                if (parts.length < 2) {
+                    if (line.value.startsWith("Listening for transport dt_socket at address:") ||
+                            line.value.contains("Attempting to load") ||
+                            line.value.contains("Successfully loaded native VoltDB library")) {
+                        LOG.info(line.processName + ": " + control_line + "\n");
                         continue;
                     }
-    
-                    int clientId = -1;
-                    long time = -1;
-                    try {
-                        clientId = Integer.parseInt(parts[0]);
-                        time = Long.parseLong(parts[1]);
-                    } catch (NumberFormatException ex) {
-                        LOG.warn("Failed to parse line '" + control_line + "'", ex);
-                        continue; // IGNORE
-                    }
-                    String status = parts[2];
-                    
-                    if (trace.get()) LOG.trace(String.format("Client %s/%d Status: %s", line.processName, clientId, status));
-    
-                    if (status.equals("READY")) {
+//                    m_clientPSM.killProcess(line.processName);
+//                    LogKeys logkey =
+//                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
+//                    LOG.l7dlog( Level.ERROR, logkey.name(),
+//                            new Object[] { line.processName, line.value }, null);
+                    continue;
+                }
+
+                int clientId = -1;
+                long time = -1;
+                try {
+                    clientId = Integer.parseInt(parts[0]);
+                    time = Long.parseLong(parts[1]);
+                } catch (NumberFormatException ex) {
+                    LOG.warn("Failed to parse line '" + control_line + "'", ex);
+                    continue; // IGNORE
+                }
+                final String clientName = getClientName(line.processName, clientId);
+                final BenchmarkComponent.ControlState status = BenchmarkComponent.ControlState.get(parts[2]);
+                assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
+                
+                if (trace.get()) 
+                    LOG.trace(String.format("Client %s -> %s", clientName, status));
+                
+                // Make sure that we never go back in time!
+                Long lastTimestamp = this.lastTimestamps.get(clientName);
+                if (lastTimestamp != null) assert(time >= lastTimestamp) :
+                    String.format("New message from %s is in the past [newTime=%d, lastTime=%d]", clientName, time, lastTimestamp);
+
+                switch (status) {
+                    // ----------------------------------------------------------------------------
+                    // READY
+                    // ----------------------------------------------------------------------------
+                    case READY: {
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
 //                        LOG.l7dlog( Level.INFO, logkey.name(),
 //                                new Object[] { line.processName }, null);
                         if (debug.get()) LOG.debug(String.format("Got ready message for '%s'.", line.processName));
                         m_clientsNotReady.decrementAndGet();
+                        break;
                     }
-                    else if (status.equals("ERROR")) {
+                    // ----------------------------------------------------------------------------
+                    // ERROR
+                    // ----------------------------------------------------------------------------
+                    case ERROR: {
                         m_clientPSM.killProcess(line.processName);
 //                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
 //                        LOG.l7dlog( Level.ERROR, logkey.name(),
 //                                new Object[] { line.processName, parts[2] }, null);
-                        LOG.error(
-                                "(" + line.processName + ") Returned error message:\n"
-                                + " \"" + parts[2] + "\"\n");
-                        continue;
+                        LOG.error(String.format("(%s) Returned error message:\n\"%s\"", line.processName, parts[2]));
+                        break;
                     }
-                    else if (status.equals("RUNNING")) {
+                    // ----------------------------------------------------------------------------
+                    // RUNNING
+                    // ----------------------------------------------------------------------------
+                    case RUNNING: {
                         // System.out.println("Got running message: " + Arrays.toString(parts));
-                        HashMap<String, Long> results = new HashMap<String, Long>();
                         if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
                         
                         // HACK
@@ -291,29 +312,39 @@ public class BenchmarkController {
                         assert(json_object != null);
                         if (trace.get()) LOG.trace("Base Partitions:\n " + tc.basePartitions); 
                         
+                        this.results.clear();
                         for (String txnName : tc.transactions.values()) {
-                            results.put(txnName, tc.transactions.get(txnName));
+                            this.results.put(txnName, tc.transactions.get(txnName));
                         } // FOR
                         
                         resultsToRead--;
-                        String clientName = getClientName(line.processName, clientId);
                         try {
                             if (debug.get()) LOG.debug("UPDATE: " + line);
-                            setPollResponseInfo(clientName, time, results, null);
+                            setPollResponseInfo(clientName, time, this.results, null);
                             synchronized (m_currentResults) {
                                 m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
                             } // SYNCH
                         } catch (Throwable ex) {
                             LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
-                            LOG.error("Previous Lines:\n" + StringUtil.join("\n", this.previous));
+                            LOG.error(String.format("Previous Lines for %s:\n%s", clientName, StringUtil.join("\n", this.previous.get(clientName))));
                             throw new RuntimeException(ex);
                         }
-                        this.previous.add(line);
+                        List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
+                        if (p == null) {
+                            p = new ArrayList<ProcessSetManager.OutputLine>();
+                            this.previous.put(clientName, p);
+                        }
+                        p.add(line);
+                        break;
                     }
-                }
-            }
+                    default:
+                        assert(false) : "Unexpected ControlStatus " + status;
+                } // SWITCH
+                
+                this.lastTimestamps.put(clientName, time);
+            } // WHILE
         }
-    }
+    } // CLASS
 
     @SuppressWarnings("unchecked")
     public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
@@ -921,7 +952,10 @@ public class BenchmarkController {
             }
             @Override
             public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                inner.notifyObservers(arg.getFirst().getName());
+                Thread thread = arg.getFirst();
+                Throwable throwable = arg.getSecond();
+                LOG.error(String.format("Unexpected error from %s %s", ClientStatusThread.class.getSimpleName(), thread.getName()), throwable);  
+                inner.notifyObservers(thread.getName());
             }
         });
         
@@ -1041,12 +1075,12 @@ public class BenchmarkController {
         }
 
         this.stop = true;
-        m_sitePSM.prepareShutdown(false);
+        if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
         
         // shut down all the clients
         boolean first = true;
         for (String clientName : m_clients) {
-            if (first && m_config.noShutdown == false) {
+            if (first) {
                 m_clientPSM.writeToProcess(clientName, Command.SHUTDOWN);
                 first = false;
             } else {
@@ -1128,9 +1162,11 @@ public class BenchmarkController {
         
         if (debug.get()) LOG.debug("Killing clients");
         m_clientPSM.shutdown();
-
-        if (debug.get()) LOG.debug("Killing nodes");
-        m_sitePSM.shutdown();
+        
+        if (m_config.noShutdown == false && this.failed == false) {
+            if (debug.get()) LOG.debug("Killing HStoreSites");
+            m_sitePSM.shutdown();
+        }
         
         this.cleaned = true;
     }
@@ -1509,7 +1545,6 @@ public class BenchmarkController {
             // Disable sending the shutdown command at the end of the benchmark run
             } else if (parts[0].equalsIgnoreCase("NOSHUTDOWN")) {
                 noShutdown = Boolean.parseBoolean(parts[1]);
-                LOG.info("NOSHUTDOWN = " + noShutdown);
                 
             /* Workload Trace Output */
             } else if (parts[0].equalsIgnoreCase("TRACE")) {
@@ -1733,5 +1768,14 @@ public class BenchmarkController {
             uploader.post(txnrate);
             LOG.info("Uploaded benchmarks results to " + hstore_conf.client.codespeed_url);
         }
+        
+        if (config.noShutdown) {
+            // Wait indefinitely
+            LOG.info("H-Store cluster remaining online until killed");
+            while (true) {
+                Thread.sleep(1000);
+            } // WHILE
+        }
+
     }
 }
