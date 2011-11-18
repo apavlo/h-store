@@ -22,6 +22,7 @@ public class TestHStoreConf extends BaseTestCase {
     }
     
     private HStoreConf hstore_conf;
+    private final String groups[] = { "global", "client", "site" };
     
     @Override
     protected void setUp() throws Exception {
@@ -33,7 +34,7 @@ public class TestHStoreConf extends BaseTestCase {
      * testMakeHTML
      */
     public void testMakeIndexHTML() throws Exception {
-        for (String prefix : new String[]{ "global", "client", "coordinator", "site", }) {
+        for (String prefix : groups) {
             String contents = hstore_conf.makeIndexHTML(prefix);
             assertNotNull(contents);
             System.err.println(contents);
@@ -45,8 +46,20 @@ public class TestHStoreConf extends BaseTestCase {
      * testMakeHTML
      */
     public void testMakeHTML() throws Exception {
-        for (String prefix : new String[]{ "global", "client", "coordinator", "site", }) {
+        for (String prefix : groups) {
             String contents = hstore_conf.makeHTML(prefix);
+            assertNotNull(contents);
+            System.err.println(contents);
+            System.err.println(StringUtil.DOUBLE_LINE);
+        }
+    }
+    
+    /**
+     * testBuildXML
+     */
+    public void testBuildXML() throws Exception {
+        for (String prefix : groups) {
+            String contents = hstore_conf.makeBuildXML(prefix);
             assertNotNull(contents);
             System.err.println(contents);
             System.err.println(StringUtil.DOUBLE_LINE);
