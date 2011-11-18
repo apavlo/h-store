@@ -274,8 +274,6 @@ public final class HStoreConf {
         )
         public int txn_restart_limit_sysproc;
         
-        
-
         // ----------------------------------------------------------------------------
         // Distributed Transaction Queue Options
         // ----------------------------------------------------------------------------
@@ -1433,6 +1431,22 @@ public final class HStoreConf {
         return (sb.toString());
     }
     
+    public String makeBuildXML(String group) {
+        final Conf handle = this.confHandles.get(group);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!-- " + group.toUpperCase() + " -->\n");
+        for (Field f : handle.properties.keySet()) {
+            ConfigProperty cp = handle.properties.get(f);
+            if (cp.experimental()) {
+                
+            }
+            String propName = String.format("%s.%s", group, f.getName());
+            sb.append(String.format("<arg value=\"%s=${%s}\" />\n", propName, propName));
+        } // FOR
+        sb.append("\n");
+        return (sb.toString());
+    }
     
     
     /**
