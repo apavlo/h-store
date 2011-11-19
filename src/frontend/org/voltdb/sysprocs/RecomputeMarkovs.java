@@ -33,8 +33,9 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
 
     @Override
     public void globalInit(ExecutionSite site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
+            Integer local_partition) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
         site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsDistribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsAggregate, this);
     }
@@ -67,10 +68,10 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
 
                 // We will only write out our file if we are the first partition in the list at this site
                 if (is_global == false ||
-                    (is_global == true && Collections.min(hstore_site.getLocalPartitionIds()).equals(this.partitionId))) {
+                    (is_global == true && Collections.min(hstore_site.getLocalPartitionIds()).equals(this.base_partition))) {
                     
                     if (debug) LOG.debug(String.format("Recalculating MarkovGraph probabilities at partition %d [save=%s, global=%s]",
-                                                       this.partitionId, save_to_file, is_global));
+                                                       this.base_partition, save_to_file, is_global));
                     
                     for (MarkovGraph m : markovs.getAll()) {
                         try {
@@ -85,14 +86,14 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
                     } // FOR
                     
                     if (save_to_file) {
-                        File f = FileUtil.getTempFile("markovs-" + this.partitionId, true);
+                        File f = FileUtil.getTempFile("markovs-" + this.base_partition, true);
                         LOG.info(String.format("Saving updated MarkovGraphs to '" + f + "'"));
                         try {
                             markovs.save(f.getAbsolutePath());
                         } catch (Throwable ex) {
                             throw new RuntimeException("Failed to save MarkovGraphContainer for site " + HStoreSite.formatSiteName(this.executor.getSiteId()), ex);
                         }
-                        result[0].addRow(this.executor.getSiteId(), this.partitionId, f.getAbsolutePath(), is_global ? 1 : 0);
+                        result[0].addRow(this.executor.getSiteId(), this.base_partition, f.getAbsolutePath(), is_global ? 1 : 0);
                     }
                 }
             }
@@ -142,7 +143,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
 
         // a final plan fragment to aggregate the results
         pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = partitionId;
+        pfs[0].destPartitionId = base_partition;
         pfs[0].fragmentId = SysProcFragmentId.PF_recomputeMarkovsAggregate;
         pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsDistribute };
         pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_recomputeMarkovsAggregate };

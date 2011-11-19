@@ -30,8 +30,9 @@ public class DatabaseDump extends VoltSystemProcedure {
 
     @Override
     public void globalInit(ExecutionSite site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
+            Integer local_partition) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
         site.registerPlanFragment(SysProcFragmentId.PF_dumpDistribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_dumpAggregate, this);
     }
@@ -146,7 +147,7 @@ public class DatabaseDump extends VoltSystemProcedure {
 
         // a final plan fragment to aggregate the results
         pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = partitionId;
+        pfs[0].destPartitionId = base_partition;
         pfs[0].fragmentId = SysProcFragmentId.PF_dumpAggregate;
         pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
         pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpAggregate };

@@ -21,8 +21,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 
-import edu.mit.hstore.HStoreConf;
-
 /**
  * This class just lets you get a PrintStream backed by a file
  * in a standard-ish place. It will create the directory structure
@@ -31,26 +29,14 @@ import edu.mit.hstore.HStoreConf;
  */
 public abstract class BuildDirectoryUtils {
 
-    private static String rootPath;
+    static final String rootPath = "/tmp/hstore/debugoutput/";
 
     public static PrintStream getDebugOutputPrintStream(final String dir, final String filename) {
         String path;
         if (System.getenv("TEST_DIR") != null) {
             path = System.getenv("TEST_DIR") + File.separator + rootPath + dir;
         } else {
-            String temp_rootPath = "/tmp/";
-            if (rootPath == null && HStoreConf.isInitialized()) {
-                synchronized (BuildDirectoryUtils.class) {
-                    if (rootPath == null) {
-                        rootPath = HStoreConf.singleton().global.temp_dir +
-                                   File.separator +
-                                   "debugoutput/";
-                    }
-                } // SYNCH
-            }
-            if (rootPath != null) temp_rootPath = rootPath;
-            assert(temp_rootPath != null);
-            path = temp_rootPath + dir;
+            path = rootPath + dir;
         }
         File d = new File(path);
         d.mkdirs();

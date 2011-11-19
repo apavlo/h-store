@@ -209,7 +209,7 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
     public boolean add(T x, boolean initialize) {
         String name = x.getName();
         if (m_items.containsKey(name))
-            throw new CatalogException("Catalog item '" + name + "' already exists for " + m_parent);
+            throw new CatalogException("Catalog item " + x + " already exists for " + m_parent);
         
         String childPath = m_path + "[" + name + "]";
         if (initialize) x.setBaseValues(m_catalog, m_parent, childPath, name);

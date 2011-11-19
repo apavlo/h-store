@@ -120,11 +120,8 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
     public VoltTable getTableAtIndex(int index) {
         return m_dependencies[index];
     }
-    public boolean hasTableAtIndex(int index) {
-        return (m_dependencies[index] != null);
-    }
 
-    public SerializableException getException() {
+    public RuntimeException getException() {
         return m_exception;
     }
 

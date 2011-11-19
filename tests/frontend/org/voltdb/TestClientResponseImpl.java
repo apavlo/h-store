@@ -2,13 +2,12 @@ package org.voltdb;
 
 import java.nio.ByteBuffer;
 
-import junit.framework.TestCase;
-
+import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool;
 
-import edu.brown.hstore.Hstore;
+import junit.framework.TestCase;
 
 public class TestClientResponseImpl extends TestCase {
 
@@ -16,14 +15,13 @@ public class TestClientResponseImpl extends TestCase {
     
     ClientResponseImpl cr = null;
     long txn_id = 10001;
-    long client_handle = Integer.MAX_VALUE;
-    Hstore.Status status = Hstore.Status.OK;
+    byte status = ClientResponse.SUCCESS;
     VoltTable results[] = new VoltTable[0];
     String statusString = "Squirrels!";
     
     @Override
     protected void setUp() throws Exception {
-        cr = new ClientResponseImpl(txn_id, client_handle, 1, status, results, statusString);
+        cr = new ClientResponseImpl(txn_id, status, results, statusString);
         assertNotNull(cr);
     }
     

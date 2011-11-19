@@ -24,15 +24,16 @@
 package org.voltdb.benchmark.blobtorture;
 
 import java.io.IOException;
-import java.util.logging.Logger;
 
-import org.voltdb.VoltTable;
+import org.voltdb.benchmark.*;
+
+import java.util.logging.Logger;
+import org.voltdb.client.*;
+import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.client.ProcCallException;
-import org.voltdb.client.ProcedureCallback;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.hstore.Hstore;
 
 /** TPC-C client load generator. */
 public class BlobTortureClient extends BenchmarkComponent {
@@ -121,12 +122,12 @@ public class BlobTortureClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() != Hstore.Status.OK){
+            if (clientResponse.getStatus() != ClientResponse.SUCCESS){
                 System.out.println(clientResponse.getStatusString());
                 System.out.println(clientResponse.getException());
                 System.exit(-1);
             }
-            incrementTransactionCounter(clientResponse, 0);
+            incrementTransactionCounter(0);
             final VoltTable vt = clientResponse.getResults()[0];
             if (!vt.advanceRow()) {
                 System.err.println("No rows returned by SelectBlob");

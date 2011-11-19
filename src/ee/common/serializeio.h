@@ -54,7 +54,6 @@
 #include "bytearray.h"
 #include "debuglog.h"
 #include "common/SQLException.h"
-#include "common/FatalException.hpp"
 
 namespace voltdb {
 
@@ -154,10 +153,7 @@ public:
         const void* result = current_;
         current_ += length;
         // TODO: Make this a non-optional check?
-        // assert(current_ <= end_);
-        if (current_ > end_) {
-            throwFatalException("Busted pointer?");
-        }
+        assert(current_ <= end_);
         return result;
     }
 

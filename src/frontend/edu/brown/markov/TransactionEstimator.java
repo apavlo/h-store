@@ -15,6 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
@@ -23,20 +25,19 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.TypedPoolableObjectFactory;
+import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.TypedStackObjectPool;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.dtxn.AbstractTransaction;
+import edu.mit.hstore.dtxn.TransactionState;
 import edu.mit.hstore.interfaces.Loggable;
 
 /**
@@ -63,10 +64,17 @@ public class TransactionEstimator implements Loggable {
      */
     private static final double RECOMPUTE_TOLERANCE = (double) 0.5;
 
-    public static TypedStackObjectPool<MarkovPathEstimator> POOL_ESTIMATORS;
+    private static ObjectPool ESTIMATOR_POOL;
     
-    public static TypedStackObjectPool<TransactionEstimator.State> POOL_STATES;
+    private static ObjectPool STATE_POOL;
     
+    public static ObjectPool getStatePool() {
+        return (STATE_POOL);
+    }
+    
+    public static ObjectPool getEstimatorPool() {
+        return (ESTIMATOR_POOL);
+    }
     
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
@@ -118,7 +126,7 @@ public class TransactionEstimator implements Loggable {
         /**
          * State Factory
          */
-        public static class Factory extends TypedPoolableObjectFactory<State> {
+        public static class Factory extends CountingPoolableObjectFactory<State> {
             private int num_partitions;
             
             public Factory(int num_partitions) {
@@ -163,7 +171,7 @@ public class TransactionEstimator implements Loggable {
                 if (d) LOG.debug(String.format("Initial MarkovPathEstimator is not marked as cached for txn #%d. Returning to pool... [hashCode=%d]",
                                                this.txn_id, this.initial_estimator.hashCode()));
                 try {
-                    TransactionEstimator.POOL_ESTIMATORS.returnObject(this.initial_estimator);
+                    TransactionEstimator.ESTIMATOR_POOL.returnObject(this.initial_estimator);
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to return MarkovPathEstimator for txn" + this.txn_id, ex);
                 }
@@ -225,7 +233,7 @@ public class TransactionEstimator implements Loggable {
             return (this.markov.getProcedure());
         }
         public String getFormattedName() {
-            return (AbstractTransaction.formatTxnName(this.markov.getProcedure(), this.txn_id));
+            return (TransactionState.formatTxnName(this.markov.getProcedure(), this.txn_id));
         }
         
         /**
@@ -340,16 +348,12 @@ public class TransactionEstimator implements Loggable {
         
         // HACK: Initialize the STATE_POOL
         synchronized (LOG) {
-            if (POOL_STATES == null) {
+            if (STATE_POOL == null) {
                 if (d) LOG.debug("Creating TransactionEstimator.State Object Pool");
-                TypedPoolableObjectFactory<TransactionEstimator.State> s_factory = new State.Factory(this.num_partitions); 
-                POOL_STATES = new TypedStackObjectPool<TransactionEstimator.State>(s_factory,
-                        HStoreConf.singleton().site.pool_estimatorstates_idle);
+                STATE_POOL = new StackObjectPool(new State.Factory(this.num_partitions), HStoreConf.singleton().site.pool_estimatorstates_idle);
                 
                 if (d) LOG.debug("Creating MarkovPathEstimator Object Pool");
-                TypedPoolableObjectFactory<MarkovPathEstimator> m_factory = new MarkovPathEstimator.Factory(this.num_partitions);
-                POOL_ESTIMATORS = new TypedStackObjectPool<MarkovPathEstimator>(m_factory,
-                        HStoreConf.singleton().site.pool_pathestimators_idle);
+                ESTIMATOR_POOL = new StackObjectPool(new MarkovPathEstimator.Factory(this.num_partitions), HStoreConf.singleton().site.pool_pathestimators_idle);
             }
         } // SYNC
     }
@@ -464,14 +468,14 @@ public class TransactionEstimator implements Loggable {
         assert (catalog_proc != null);
         long start_time = System.currentTimeMillis();
         if (d) LOG.debug(String.format("Starting estimation for new %s [partition=%d]",
-                                       AbstractTransaction.formatTxnName(catalog_proc, txn_id), base_partition));
+                                       TransactionState.formatTxnName(catalog_proc, txn_id), base_partition));
 
         // If we don't have a graph for this procedure, we should probably just return null
         // This will be the case for all sysprocs
         if (this.markovs == null) return (null);
         MarkovGraph markov = this.markovs.getFromParams(txn_id, base_partition, args, catalog_proc);
         if (markov == null) {
-            if (d) LOG.debug("No MarkovGraph is available for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id));
+            if (d) LOG.debug("No MarkovGraph is available for " + TransactionState.formatTxnName(catalog_proc, txn_id));
             return (null);
         }
         
@@ -488,18 +492,18 @@ public class TransactionEstimator implements Loggable {
             
         // Otherwise we have to recalculate everything from scatch again
         if (estimator == null) {
-            if (d) LOG.debug("Recalculating initial path estimate for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id)); 
+            if (d) LOG.debug("Recalculating initial path estimate for " + TransactionState.formatTxnName(catalog_proc, txn_id)); 
             try {
-                estimator = (MarkovPathEstimator)POOL_ESTIMATORS.borrowObject();
+                estimator = (MarkovPathEstimator)ESTIMATOR_POOL.borrowObject();
                 estimator.init(markov, this, base_partition, args);
                 estimator.enableForceTraversal(true);
             } catch (Exception ex) {
-                LOG.error("Failed to intiialize new MarkovPathEstimator for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id));
+                LOG.error("Failed to intiialize new MarkovPathEstimator for " + TransactionState.formatTxnName(catalog_proc, txn_id));
                 throw new RuntimeException(ex);
             }
             
             // Calculate initial path estimate
-            if (t) LOG.trace("Estimating initial execution path for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id));
+            if (t) LOG.trace("Estimating initial execution path for " + TransactionState.formatTxnName(catalog_proc, txn_id));
             start.addInstanceTime(txn_id, start_time);
             synchronized (markov) {
                 try {
@@ -512,40 +516,40 @@ public class TransactionEstimator implements Loggable {
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
-                    throw new RuntimeException("Failed to estimate path for " + AbstractTransaction.formatTxnName(catalog_proc, txn_id), e);
+                    throw new RuntimeException("Failed to estimate path for " + TransactionState.formatTxnName(catalog_proc, txn_id), e);
                 }
             } // SYNCH
         } else {
             if (d) LOG.info(String.format("Using cached MarkovPathEstimator for %s [hashCode=%d, ratio=%.02f]",
-                                          AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
+                                          TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode(), markov.getAccuracyRatio()));
             assert(estimator.isCached()) :
                 String.format("The cached MarkovPathEstimator used by %s does not have its cached flag set [hashCode=%d]",
-                              AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.hashCode());
+                              TransactionState.formatTxnName(catalog_proc, txn_id), estimator.hashCode());
             assert(estimator.getEstimate().isValid()) :
                 String.format("Invalid MarkovEstimate for cache Estimator used by %s [hashCode=%d]",
-                              AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode());
+                              TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate().hashCode());
             estimator.getEstimate().incrementReusedCounter();
         }
         assert(estimator != null);
         if (t) {
             List<MarkovVertex> path = estimator.getVisitPath();
             LOG.trace(String.format("Estimated Path for %s [length=%d]\n%s",
-                                    AbstractTransaction.formatTxnName(catalog_proc, txn_id), path.size(),
+                                    TransactionState.formatTxnName(catalog_proc, txn_id), path.size(),
                                     StringUtil.join("\n----------------------\n", path, "debug")));
-            LOG.trace(String.format("MarkovEstimate for %s\n%s", AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.getEstimate()));
+            LOG.trace(String.format("MarkovEstimate for %s\n%s", TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getEstimate()));
         }
         
-        if (d) LOG.debug(String.format("Creating new State %s [touchedPartitions=%s]", AbstractTransaction.formatTxnName(catalog_proc, txn_id), estimator.getTouchedPartitions()));
+        if (d) LOG.debug(String.format("Creating new State %s [touchedPartitions=%s]", TransactionState.formatTxnName(catalog_proc, txn_id), estimator.getTouchedPartitions()));
         State state = null;
         try {
-            state = (State)POOL_STATES.borrowObject();
+            state = (State)STATE_POOL.borrowObject();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
         // Calling init() will set the initial MarkovEstimate for the State
         state.init(txn_id, base_partition, markov, estimator, start_time);
         State old = this.txn_states.put(txn_id, state);
-        assert(old == null) : "Duplicate transaction id " + AbstractTransaction.formatTxnName(catalog_proc, txn_id);
+        assert(old == null) : "Duplicate transaction id " + TransactionState.formatTxnName(catalog_proc, txn_id);
 
         this.txn_count.incrementAndGet();
         return (state);

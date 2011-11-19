@@ -2,22 +2,23 @@ package edu.mit.hstore.dtxn;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.Poolable;
-import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -33,11 +34,39 @@ public class DependencyInfo implements Poolable {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
     
+    /**
+     * Object Pool Factory
+     */
+    private static class Factory extends CountingPoolableObjectFactory<DependencyInfo> {
+        public Factory(boolean enable_tracking) {
+            super(enable_tracking);
+        }
+        @Override
+        public DependencyInfo makeObjectImpl() throws Exception {
+            return (new DependencyInfo());
+        }   
+    }
+    
+    /**
+     * DependencyInfo Object Pool
+     */
+    public static ObjectPool INFO_POOL;
+    
+    /**
+     * Initialize the global object pool
+     * @param hstore_conf
+     */
+    public synchronized static void initializePool(HStoreConf hstore_conf) {
+        if (INFO_POOL == null) {
+            INFO_POOL = new StackObjectPool(new Factory(hstore_conf.site.pool_profiling), hstore_conf.site.pool_dependencyinfos_idle);
+        }
+    }
+    
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected LocalTransaction ts;
+    protected LocalTransactionState ts;
     protected int stmt_index = -1;
     protected int dependency_id = -1;
     
@@ -58,6 +87,11 @@ public class DependencyInfo implements Poolable {
     protected final List<VoltTable> results_list = new ArrayList<VoltTable>();
     
     /**
+     * List of PartitionIds that have sent responses
+     */
+    protected final List<Integer> responses = new ArrayList<Integer>();
+    
+    /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
     protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
@@ -66,12 +100,14 @@ public class DependencyInfo implements Poolable {
     
     /**
      * Constructor
+     * @param stmt_index
+     * @param dependency_id
      */
-    public DependencyInfo() {
+    private DependencyInfo() {
         // Nothing...
     }
     
-    public void init(LocalTransaction ts, int stmt_index, int dependency_id) {
+    public void init(LocalTransactionState ts, int stmt_index, int dependency_id) {
         this.ts = ts;
         this.stmt_index = stmt_index;
         this.dependency_id = dependency_id;
@@ -90,6 +126,7 @@ public class DependencyInfo implements Poolable {
         this.partitions.clear();
         this.results.clear();
         this.results_list.clear();
+        this.responses.clear();
         this.blocked_tasks.clear();
         this.blocked_tasks_released.set(false);
 //        this.blocked_all_local = true;
@@ -131,7 +168,7 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public Collection<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
+    public Set<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
         if (this.blocked_tasks_released.compareAndSet(false, true)) {
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
             return (this.blocked_tasks);
@@ -149,6 +186,19 @@ public class DependencyInfo implements Poolable {
     }
     
     /**
+     * Add a response for a PartitionId
+     * Returns true if we have also stored the result for this PartitionId
+     * @param partition
+     * @return
+     */
+    public synchronized boolean addResponse(int partition) {
+        if (t) LOG.trace("Storing RESPONSE for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id);
+        assert(this.responses.contains(partition) == false);
+        this.responses.add(partition);
+        return (this.results.contains(partition));
+    }
+    
+    /**
      * Add a result for a PartitionId
      * Returns true if we have also stored the response for this PartitionId
      * @param partition
@@ -160,39 +210,32 @@ public class DependencyInfo implements Poolable {
         assert(this.results.contains(partition) == false);
         this.results.add(partition);
         this.results_list.add(result);
-        return (true); // this.responses.contains(partition)); 
+        return (this.responses.contains(partition)); 
     }
     
     protected List<VoltTable> getResults() {
         return (this.results_list);
     }
     
-    /**
-     * This is a very important method but it actually sucks
-     * In order to use a VoltTable that was produce by another partition on the same HStoreSite,
-     * we have to make a copy of this data into a new ByteBuffer.
-     * This is a horrible hack and will need to be revisited once we start figuring things out
-     * @param local_partition
-     * @param flip_local_partition
-     * @return
-     */
-    protected List<VoltTable> getResults(Collection<Integer> local_partitions, boolean flip_local_partition) {
+    protected List<VoltTable> getResults(int local_partition, boolean flip_local_partition) {
         if (flip_local_partition) {
-            for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
-                Integer partition = this.results.get(i);
-                if (local_partitions.contains(partition)) {
-                    if (d) LOG.debug(String.format("Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
-                                                    this.dependency_id, partition));
-                    VoltTable vt = this.results_list.get(i);
-                    assert(vt != null);
-                    ByteBuffer buffer = vt.getTableDataReference();
-                    byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
-                    buffer.get(arr, 0, arr.length);
-                    this.results_list.set(i, new VoltTable(ByteBuffer.wrap(arr), true));
-                }
-            } // FOR
+            int idx = this.results.indexOf(local_partition);
+            if (idx != -1) {
+                if (d) LOG.debug(String.format("Copying BytBuffer for DependencyId %d from Partition %d", this.dependency_id, local_partition));
+                VoltTable vt = this.results_list.get(idx);
+                assert(vt != null);
+                ByteBuffer buffer = vt.getTableDataReference();
+                byte arr[] = new byte[vt.getUnderlyingBufferSize()];
+                buffer.get(arr, 0, arr.length);
+                // LOG.info("FLIP: " + Arrays.toString(newBuffer.array()));
+                this.results_list.set(idx, new VoltTable(ByteBuffer.wrap(arr), true));
+            }
         }
         return (this.results_list);
+    }
+    
+    protected List<Integer> getResponses() {
+        return (this.responses);
     }
     
     /**
@@ -211,13 +254,17 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public boolean hasTasksReady() {
+        int num_partitions = this.partitions.size();
         if (t) {
             LOG.trace("Block Tasks Not Empty? " + !this.blocked_tasks.isEmpty());
-            LOG.trace(String.format("# of Results:   %d / %d", this.results.size(), this.partitions.size()));
+            LOG.trace("# of Results:   " + this.results.size());
+            LOG.trace("# of Responses: " + this.responses.size());
+            LOG.trace("# of <Responses/Results> Needed = " + num_partitions);
         }
         boolean ready = (this.blocked_tasks.isEmpty() == false) &&
                         (this.blocked_tasks_released.get() == false) &&
-                        (this.results.size() == this.partitions.size());
+                        (this.results.size() == num_partitions) &&
+                        (this.responses.size() == num_partitions);
         return (ready);
     }
     
@@ -235,8 +282,10 @@ public class DependencyInfo implements Poolable {
             return ("<UNINITIALIZED>");
         }
         
+        StringBuilder b = new StringBuilder();
         String status = null;
-        if (this.results.size() == this.partitions.size()) {
+        int num_partitions = this.partitions.size();
+        if (this.results.size() == num_partitions && this.responses.size() == num_partitions) {
             if (this.blocked_tasks_released.get() == false) {
                 status = "READY";
             } else {
@@ -248,20 +297,13 @@ public class DependencyInfo implements Poolable {
             status = "BLOCKED";
         }
         
-        Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("  Partitions", this.partitions);
-        
-        Map<String, Object> inner = new ListOrderedMap<String, Object>();
-        for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
-            int partition = this.results.get(i);
-            VoltTable vt = this.results_list.get(i);
-            inner.put(String.format("Partition %02d",partition), String.format("{%d tuples}", vt.getRowCount()));  
-        }
-        m.put("  Results", inner);
-        m.put("  Blocked", this.blocked_tasks);
-        m.put("  Status", status);
-
-        return String.format("DependencyInfo[#%d]\n%s", this.dependency_id, StringUtil.formatMaps(m));
+        b.append("DependencyInfo[#").append(this.dependency_id).append("]\n")
+         .append("  Partitions: ").append(this.partitions).append("\n")
+         .append("  Responses:  ").append(this.responses.size()).append("\n")
+         .append("  Results:    ").append(this.results.size()).append("\n")
+         .append("  Blocked:    ").append(this.blocked_tasks).append("\n")
+         .append("  Status:     ").append(status).append("\n");
+        return b.toString();
     }
 
 }

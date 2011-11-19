@@ -35,8 +35,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 
-import edu.brown.hstore.Hstore;
-
 public class ClientInsert {
     public static long min_execution_milliseconds = 999999999l;
     public static long max_execution_milliseconds = -1l;
@@ -50,9 +48,9 @@ public class ClientInsert {
     static class AsyncCallback implements ProcedureCallback {
         @Override
         public synchronized void clientCallback(ClientResponse clientResponse) {
-            final Hstore.Status status = clientResponse.getStatus();
+            final byte status = clientResponse.getStatus();
 
-            if (status != Hstore.Status.OK) {
+            if (status != ClientResponse.SUCCESS) {
                 System.err.println("Failed to execute!!!");
                 System.err.println(clientResponse.getStatusString());
                 System.err.println(clientResponse.getException());

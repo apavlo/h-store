@@ -24,8 +24,6 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.debugstate.MailboxHistory.MessageState;
 import org.voltdb.utils.DBBPool;
 
-import edu.brown.hstore.Hstore;
-
 /**
  * Message from an initiator to an execution site, informing the
  * site that it may be requested to do work for a multi-partition
@@ -97,7 +95,7 @@ public class InitiateResponseMessage extends VoltMessage {
     }
 
     public void setResults(ClientResponseImpl r, InitiateTaskMessage task) {
-        m_commit = (r.getStatus() == Hstore.Status.OK);
+        m_commit = (r.getStatus() == ClientResponseImpl.SUCCESS);
         m_response = r;
     }
 
@@ -148,7 +146,7 @@ public class InitiateResponseMessage extends VoltMessage {
         FastDeserializer fds = new FastDeserializer(m_buffer);
         try {
             m_response = fds.readObject(ClientResponseImpl.class);
-            m_commit = (m_response.getStatus() == Hstore.Status.OK);
+            m_commit = (m_response.getStatus() == ClientResponseImpl.SUCCESS);
         } catch (IOException e) {
             e.printStackTrace();
             assert(false);
