@@ -19,7 +19,6 @@ import weka.core.Attribute;
 import weka.core.FastVector;
 import weka.core.Instance;
 import weka.core.Instances;
-import edu.brown.logging.LoggerUtil;
 import edu.brown.markov.features.AbstractFeature;
 import edu.brown.markov.features.BasePartitionFeature;
 import edu.brown.markov.features.FeatureUtil;
@@ -29,6 +28,7 @@ import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.workload.TransactionTrace;
 
 public class FeatureSet implements JSONSerializable {

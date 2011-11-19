@@ -1,67 +1,48 @@
 package edu.brown.utils;
 
 import java.util.Observable;
+import java.util.Observer;
 
 /**
- * EventObservable
- * 
+ *  EventObservable
+ *
  */
-public class EventObservable<T> {
+public class EventObservable extends Observable {
 
-    protected class InnerObservable extends Observable {
-        @Override
-        public synchronized void setChanged() {
-            super.setChanged();
-        }
-        public EventObservable<T> getEventObservable() {
-            return (EventObservable.this);
-        }
-    };
-    
-    private final InnerObservable observable;
     private int observer_ctr = 0;
     
-    public EventObservable() {
-        this.observable = new InnerObservable();
-    }
-
-    public synchronized void addObserver(EventObserver<T> o) {
+    @Override
+    public synchronized void addObserver(Observer o) {
         if (o != null) {
-            this.observable.addObserver(o.getObserver());
+            super.addObserver(o);
             this.observer_ctr++;
         }
     }
-
-    public synchronized void deleteObserver(EventObserver<T> o) {
-        this.observable.deleteObserver(o.getObserver());
+    
+    @Override
+    public synchronized void deleteObserver(Observer o) {
+        super.deleteObserver(o);
         this.observer_ctr--;
     }
     
-    public synchronized void deleteObservers() {
-        this.observable.deleteObservers();
-        this.observer_ctr = 0;
-    }
-    
-    public int countObservers() {
-        return (this.observer_ctr);
-    }
-
-    /**
-     * Notifies the Observers that a changed occurred
+    /********************************************************
+     * notifyObservers()
+     * Notifies the Observers that a changed occured
+     *
      * @param arg - the state that changed
-     */
-    public void notifyObservers(T arg) {
-        this.observable.setChanged();
-        if (this.observer_ctr > 0)
-            this.observable.notifyObservers(arg);
+     ********************************************************/
+    public void notifyObservers(Object arg) {
+        this.setChanged();
+        if (this.observer_ctr > 0) super.notifyObservers(arg);
     }
-
-    /**
-     * Notifies the Observers that a changed occurred
-     */
+   
+    /********************************************************
+     * notifyObservers()
+     * Notifies the Observers that a changed occured
+     *
+     ********************************************************/
     public void notifyObservers() {
-        this.observable.setChanged();
-        if (this.observer_ctr > 0)
-            this.observable.notifyObservers();
+        this.setChanged();
+        if (this.observer_ctr > 0) super.notifyObservers();
     }
 } // END CLASS

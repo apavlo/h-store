@@ -53,10 +53,10 @@ package org.voltdb.benchmark.tpcc;
 import org.voltdb.benchmark.tpcc.procedures.*;
 
 /** Holds TPC-C constants.  */
-public final class TPCCConstants {
+public final class Constants {
     static int STARTING_WAREHOUSE = 1;
 
-    private TPCCConstants() { assert false; }
+    private Constants() { assert false; }
 
     public static final int FREQUENCY_STOCK_LEVEL = 4;
     public static final int FREQUENCY_DELIVERY = 4;

@@ -63,9 +63,6 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
     public long getTxnId() {
         return m_txnId;
     }
-    public void setTxnId(long txnId) {
-        m_txnId = txnId;
-    }
     
     public long getClientHandle() {
         return m_clientHandle;

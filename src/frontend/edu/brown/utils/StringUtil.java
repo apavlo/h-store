@@ -77,8 +77,7 @@ public abstract class StringUtil {
         length = Math.max(msg_length, length);
         int border_len = (length - msg_length - 2) / 2;
         String border = StringUtil.repeat(marker, border_len);
-        boolean add_extra = (border_len + msg_length + 2 + 1 == length);  
-        return String.format("%s %s %s%s", border, msg, border, (add_extra ? marker : ""));
+        return String.format("%s %s %s", border, msg, border);
     }
     
     
@@ -478,7 +477,7 @@ public abstract class StringUtil {
     }
     
     public static <T> String join(String delimiter, final Iterator<T> items) {
-        return (join("", delimiter, CollectionUtil.iterable(items)));
+        return (join("", delimiter, CollectionUtil.wrapIterator(items)));
     }
     
     /**

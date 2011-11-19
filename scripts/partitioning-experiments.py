@@ -62,35 +62,27 @@ LOG.setLevel(logging.INFO)
 OPT_EXP_TYPE = "motivation"
 OPT_EXP_TRIALS = 3
 OPT_EXP_SETTINGS = 0
-OPT_EXP_FACTOR_START = "0"
-OPT_EXP_FACTOR_STOP = "100"
+OPT_EXP_FACTOR_START = 0
+OPT_EXP_FACTOR_STOP = 25
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
 OPT_TRACE = False
-OPT_FAST = False
 OPT_NO_EXECUTE = False
 OPT_NO_COMPILE = False
-OPT_NO_JAR = False
-OPT_NO_JSON = False
-OPT_NO_CONF = False
-OPT_NO_UPDATE = False
-OPT_NO_SYNC = True
 OPT_STOP_ON_ERROR = False
 OPT_FORCE_REBOOT = False
 
-OPT_BASE_BLOCKING = True
-OPT_BASE_BLOCKING_CONCURRENT = 1
-OPT_BASE_TXNRATE_PER_PARTITION = 100000
+OPT_BASE_BLOCKING = False
+OPT_BASE_BLOCKING_CONCURRENT = 1000
+OPT_BASE_TXNRATE_PER_PARTITION = 4400  # 2600 # # 3500
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 400
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 10
 OPT_BASE_SCALE_FACTOR = 50
-OPT_BASE_PARTITIONS_PER_SITE = 6
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
-    "ec2.site_type":                  "c1.xlarge",
-    #"ec2.site_type":                    "m2.4xlarge",
+    "ec2.site_type":                    "m2.4xlarge",
     #"ec2.client_type":                  "m1.large",
     #"ec2.site_type":                    "m1.xlarge",
     
@@ -103,12 +95,11 @@ BASE_SETTINGS = {
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
     "client.duration":                  60000,
-    "client.warmup":                    00000,
+    "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
-    "client.memory":                    6000,
-    "client.blocking_loader":           True,
+    "client.memory":                    512,
     
     "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
@@ -116,19 +107,14 @@ BASE_SETTINGS = {
     "site.planner_profiling":                           False,
     "site.planner_caching":                             True,
     "site.status_show_txn_info":                        True,
-    "site.status_kill_if_hung":                         True,
+    "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             20000,
-    "site.txn_incoming_delay":                          1,
-    "site.coordinator_init_thread":                     False,
-    "site.coordinator_finish_thread":                   False,
-    "site.txn_restart_limit":                           5,
-    "site.txn_restart_limit_sysproc":                   100,
     
     "site.sites_per_host":                              1,
-    "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
-    "site.memory":                                      6002,
+    "site.partitions_per_site":                         6,
+    "site.memory":                                      60020,
     "site.txn_incoming_queue_max_per_partition":        10000,
     "site.txn_incoming_queue_release_factor":           0.90,
     "site.txn_incoming_queue_increase":                 10,
@@ -148,6 +134,7 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
             "site.exec_neworder_cheat":          True,
+            "site.exec_neworder_cheat_done_partitions": True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
         {
@@ -161,25 +148,18 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_multip":         False,
             "benchmark.temporal_skew":           True,
             "benchmark.temporal_skew_mix":       0,
-            "benchmark.temporal_skew_rotate":    False,
             
             "benchmark.neworder_only":          True,
             "benchmark.neworder_abort":         False,
+            "benchmark.neworder_all_multip":    False,
             "benchmark.neworder_multip":        False,
         },
     ],
     "throughput": [
         {
-            "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_only":          False,
             "benchmark.neworder_abort":         True,
-            "site.exec_neworder_cheat":         True
-        }
-        
-    ],
-    "breakdown": [
-        {
-            "site.exec_speculative_execution": False
+            "benchmark.neworder_all_multip":    False,
         }
         
     ],
@@ -187,26 +167,28 @@ EXPERIMENT_SETTINGS = {
 
 # Thoughput Experiments
 OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
-OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'airline', 'auctionmark' ]
+OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'airline', 'auctionmark' ]
 OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 
 ## ==============================================
 ## updateEnv
 ## ==============================================
 def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
-    global OPT_BASE_TXNRATE_PER_PARTITION
-  
-    ## ==============================================
-    ## ----------------------------------------------
-  
     ## MOTIVATION
     if exp_type == "motivation":
         env["benchmark.neworder_only"] = True
         env["benchmark.neworder_abort"] = False
+        env["benchmark.neworder_all_multip"] = False
 
         if exp_setting == 0:
             env["benchmark.neworder_multip_mix"] = exp_factor
             env["benchmark.neworder_multip"] = (exp_factor > 0)
+            if exp_factor == 0:
+                OPT_BASE_TXNRATE_PER_PARTITION = 4400 
+                env["site.txn_enable_queue_pruning"] = False
+            else:
+                OPT_BASE_TXNRATE_PER_PARTITION = 2600
+                env["site.txn_enable_queue_pruning"] = True
             
         elif exp_setting == 1:
             if exp_factor == 0:
@@ -226,68 +208,33 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
         env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
-        env["benchmark.neworder_multip_mix"] = -1
-        env["benchmark.neworder_multip"] = True
         
-        #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
-        #env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
+        base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
+        env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
         
         ## Everything but LNS has to use the DB2 redirects
         if exp_factor != "lns":
-            env["site.exec_neworder_cheat"] = False
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
-            env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
-        else:
-            env["site.exec_neworder_cheat"] = True
         ## IF
-        
-    ## BREAKDOWN
-    elif exp_type == "breakdown":
-        ## FULL DESIGN
-        if exp_factor == "full":
-            pplan = "%s.%s.pplan" % (benchmark, "lns")
-            
-        ## WITH SECONDARY INDEX, NO ROUTING
-        elif exp_factor == "norouting":
-            pplan = "%s.%s.pplan" % (benchmark, "lns")
-            env["client.txn_hints"] = False
-            env["site.exec_db2_redirects"] = True
-            
-        ## WITH ROUTING, NO SECONDARY INDEX
-        elif exp_factor == "noindexes":
-            pplan = "%s.%s.pplan" % (benchmark, "lns")
-            env["client.txn_hints"] = True
-            env["site.exec_db2_redirects"] = False
-            env["hstore.exec_prefix"] += " -Dpartitionplan.nosecondary=true"
-        else:
-            raise Exception("Unexpected factor '%s'" % exp_factor)
-        ## IF
-        env["hstore.exec_prefix"] += " -Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
     ## IF
 
-    ## CUSTOM BENCHMARK TYPE
-    if benchmark.startswith("tpcc"):
+    ## BENCHMARK TYPE
+    if benchmark == "tpcc":
         env["benchmark.warehouses"] = env["site.partitions"]
         env["benchmark.loadthreads"] = env["site.partitions"]
-        if benchmark.endswith("-skewed"):
-            env["benchmark.temporal_skew"] = True
-            env["benchmark.temporal_skew_rotate"] = False
-            env["benchmark.temporal_skew_mix"] = 100
-        #else:
-            #env["benchmark.temporal_skew"] = False
-            #env["benchmark.temporal_skew_rotate"] = False
-            #env["benchmark.temporal_skew_mix"] = -1
     elif benchmark == "airline":
         env["client.scalefactor"] = 100
         env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
 
-        ## MOTIVATION
-        
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
     env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
 
+    if env["site.partitions"] > 16:
+        env["coordinator.delay"] = 10000
+    else:
+        env["coordinator.delay"] = 0
 ## DEF
 
 ## ==============================================
@@ -326,16 +273,9 @@ if __name__ == '__main__':
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
-        "fast",
         "no-execute",
         "no-compile",
-        "no-update",
-        "no-jar",
-        "no-conf",
-        "no-sync",
-        "no-json",
         "force-reboot",
-        "stop-on-error",
         "trace",
         
         # Enable debug logging
@@ -359,7 +299,7 @@ if __name__ == '__main__':
     ## Global Options
     for key in options:
         varname = "OPT_" + key.replace("-", "_").upper()
-        if varname in globals():
+        if varname in globals() and len(options[key]) == 1:
             orig_type = type(globals()[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
@@ -367,19 +307,12 @@ if __name__ == '__main__':
                 if not varname+"_changed" in globals(): ## HACK
                     globals()[varname] = [ ]
                     globals()[varname+"_changed"] = True
-                val = globals()[varname] + options[key] # HACK    
+                val = globals()[varname] + [ options[key][0] ] # HACK    
             else: 
                 val = orig_type(options[key][0])
             globals()[varname] = val
             LOG.debug("%s = %s" % (varname, str(globals()[varname])))
     ## FOR
-    if OPT_FAST:
-        OPT_NO_COMPILE = True
-        OPT_NO_UPDATE = True
-        OPT_NO_CONF = True
-        OPT_NO_JAR = True
-        OPT_NO_SYNC = True
-    
     if not "partitions" in options:
         raise Exception("Missing 'partitions' parameter")
     if OPT_EXP_TYPE == "motivation":
@@ -412,61 +345,35 @@ if __name__ == '__main__':
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
 
-    needUpdate = (OPT_NO_UPDATE == False)
-    needSync = (OPT_NO_SYNC == False)
+    updateSVN = True
     needCompile = (OPT_NO_COMPILE == False)
-    forceStop = False
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
         stop = False
-        benchmarkType = benchmark.replace("-skewed", "")
         
         for partitions in map(int, options["partitions"]):
             LOG.info("%s - %s - %d Partitions - Experiment #%d" % (OPT_EXP_TYPE.upper(), benchmark.upper(), partitions, OPT_EXP_SETTINGS))
-            #env["site.partitions_per_site"] = partitions / OPT_BASE_PARTITIONS_PER_SITE
             env["site.partitions"] = partitions
             all_results = [ ]
                 
             if OPT_EXP_TYPE == "motivation":
-                # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
-                # range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 18)
-                exp_factors = [ ]
-                if OPT_EXP_SETTINGS == 0:
-                    values = [ 0, 3, 10, 80, 100 ]
-                else:
-                    values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 2)
-                for f in values:
-                    if f > OPT_EXP_FACTOR_STOP: break
-                    if f >= OPT_EXP_FACTOR_START:
-                        exp_factors.append(f)
-                ## FOR
-                    
+                exp_factors = range(OPT_EXP_FACTOR_START, OPT_EXP_FACTOR_STOP, 5)
             elif OPT_EXP_TYPE == "throughput":
                 exp_factors = OPT_PARTITION_PLANS
-            elif OPT_EXP_TYPE == "breakdown":
-                if OPT_EXP_FACTOR_START:
-                    exp_factors = [ OPT_EXP_FACTOR_START ]
-                else:
-                    exp_factors = [ "full", "noindexes", "norouting" ]
-                
             else:
-                raise Exception("Unexpected experiment type '%s'" % OPT_EXP_TYPE)
+                assert False
                 
             if OPT_START_CLUSTER:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
                 fabfile.start_cluster()
                 if OPT_NO_EXECUTE: sys.exit(0)
             ## IF
-            
-            ## Synchronize Instance Times
-            if needSync: fabfile.sync_time()
-            needSync = False
                 
             client_inst = fabfile.__getRunningClientInstances__()[0]
             LOG.debug("Client Instance: " + client_inst.public_dns_name)
                 
-            updateJar = (OPT_NO_JAR == False)
+            updateJar = True
             for exp_factor in exp_factors:
                 updateEnv(env, benchmark, OPT_EXP_TYPE, OPT_EXP_SETTINGS, exp_factor)
                 LOG.debug("Parameters:\n%s" % pformat(env))
@@ -474,7 +381,7 @@ if __name__ == '__main__':
                 
                 results = [ ]
                 attempts = 0
-                updateConf = (OPT_NO_CONF == False)
+                updateConf = True
                 while len(results) < OPT_EXP_TRIALS and attempts < totalAttempts and stop == False:
                     ## Only compile for the very first invocation
                     if needCompile:
@@ -495,35 +402,31 @@ if __name__ == '__main__':
                     ))
                     try:
                         with settings(host_string=client_inst.public_dns_name):
-                            output, workloads = fabfile.exec_benchmark(project=benchmarkType, \
+                            output, workloads = fabfile.exec_benchmark(project=benchmark, \
                                                                     removals=conf_remove, \
-                                                                    json=(OPT_NO_JSON == False), \
+                                                                    json=True, \
                                                                     trace=OPT_TRACE, \
                                                                     updateJar=updateJar,
                                                                     updateConf=updateConf,
-                                                                    updateSVN=needUpdate)
-                            if OPT_NO_JSON == False:
-                                data = parseResultsOutput(output)
-                                txnrate = float(data["TXNPERSECOND"])
-                                if int(txnrate) == 0: pass
-                                results.append(txnrate)
-                                if OPT_TRACE and workloads != None:
-                                    for f in workloads:
-                                        LOG.info("Workload File: %s" % f)
-                                    ## FOR
-                                ## IF
-                                LOG.info("Throughput: %.2f" % txnrate)
+                                                                    updateSVN=updateSVN)
+                            data = parseResultsOutput(output)
+                            txnrate = float(data["TXNPERSECOND"])
+                            if int(txnrate) == 0: pass
+                            results.append(txnrate)
+                            if OPT_TRACE and workloads != None:
+                                for f in workloads:
+                                    LOG.info("Workload File: %s" % f)
+                                ## FOR
                             ## IF
+                            LOG.info("Throughput: %.2f" % txnrate)
                         ## WITH
                     except KeyboardInterrupt:
                         stop = True
-                        forceStop = True
                         break
                     except SystemExit:
                         LOG.warn("Failed to complete trial succesfully")
                         if OPT_STOP_ON_ERROR:
                             stop = True
-                            forceStop = True
                             break
                         pass
                     except:
@@ -532,22 +435,19 @@ if __name__ == '__main__':
                         raise
                         break
                     finally:
-                        needUpdate = False
+                        updateSVN = False
                         updateJar = False
                         updateConf = False
                     ## TRY
                     
                 ## FOR (TRIALS)
-                if results: all_results.append((benchmark, exp_factor, results, attempts))
+                if results: all_results.append((exp_factor, results, attempts))
                 stop = stop or (attempts == totalAttempts)
-                if stop or forceStop: break
+                if stop: break
             ## FOR (EXP_FACTOR)
             if len(all_results) > 0: final_results[partitions] = all_results
-            if forceStop: break
-            stop = False
+            if stop: break
         ## FOR (PARTITIONS)
-        if forceStop: break
-        stop = False
     ## FOR (BENCHMARKS)
     
     LOG.info("Disconnecting and dumping results")
@@ -557,8 +457,8 @@ if __name__ == '__main__':
         for partitions in sorted(final_results.keys()):
             all_results = final_results[partitions]
             print "%s - Partitions %d" % (OPT_EXP_TYPE.upper(), partitions)
-            for benchmark, exp_factor, results, attempts in all_results:
-                print "   %s EXP FACTOR %s [Attempts:%d/%d]" % (benchmark.upper(), exp_factor, attempts, totalAttempts)
+            for exp_factor, results, attempts in all_results:
+                print "   EXP FACTOR %s [Attempts:%d/%d]" % (exp_factor, attempts, totalAttempts)
                 for trial in range(len(results)):
                     print "      TRIAL #%d: %.4f" % (trial, results[trial])
                 ## FOR

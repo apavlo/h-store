@@ -9,8 +9,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
 
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * 

@@ -47,12 +47,11 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.airline.procedures.*;
 import edu.brown.benchmark.airline.util.CustomerId;
 import edu.brown.benchmark.airline.util.FlightId;
-import edu.brown.hstore.Hstore;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AirlineClient extends AirlineBaseClient {
     private static final Logger LOG = Logger.getLogger(AirlineClient.class);
@@ -191,7 +190,7 @@ public class AirlineClient extends AirlineBaseClient {
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
         
         // Load Histograms
-        if (debug.get()) LOG.debug("Loading data files for histograms");
+        LOG.info("Loading data files for histograms");
         this.loadHistograms();
     }
 
@@ -281,11 +280,11 @@ public class AirlineClient extends AirlineBaseClient {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.DELETE_RESERVATION.ordinal());
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            incrementTransactionCounter(Transaction.DELETE_RESERVATION.ordinal());
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 // TODO
             } else if (debug.get()) {
-                LOG.info("DeleteReservation " + clientResponse.getStatus() + ": " + clientResponse.getStatusString(), clientResponse.getException());
+                LOG.info("DeleteReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
                 LOG.info("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
             }
         }
@@ -330,7 +329,7 @@ public class AirlineClient extends AirlineBaseClient {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.FIND_FLIGHTS.ordinal());
+            incrementTransactionCounter(Transaction.FIND_FLIGHTS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (results.length > 1) {
                 // Convert the data into a FlightIds that other transactions can use
@@ -405,10 +404,10 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.FIND_OPEN_SEATS.ordinal());
+            incrementTransactionCounter(Transaction.FIND_OPEN_SEATS.ordinal());
             VoltTable[] results = clientResponse.getResults();
             if (results.length != 1) {
-                if (debug.get()) LOG.warn("Results is " + results.length);
+                LOG.warn("Results is " + results.length);
                 return;
             }
             assert (results[0].getRowCount() < 150);
@@ -472,9 +471,9 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.NEW_RESERVATION.ordinal());
+            incrementTransactionCounter(Transaction.NEW_RESERVATION.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 assert(results.length > 1);
                 assert(results[0].getRowCount() == 1);
                 assert(results[0].asScalarLong() == 1);
@@ -490,7 +489,7 @@ public class AirlineClient extends AirlineBaseClient {
                     pending_updates.add(this.reservation);
                 }
             } else if (debug.get()) {
-                LOG.debug("NewReservation " + clientResponse.getStatus() + ": " + clientResponse.getStatusString(), clientResponse.getException());
+                LOG.debug("NewReservation " + clientResponse.getStatusName() + ": " + clientResponse.getStatusString(), clientResponse.getException());
                 LOG.debug("BUSTED ID: " + reservation.flight_id + " / " + reservation.flight_id.encode());
             }
         }
@@ -520,9 +519,9 @@ public class AirlineClient extends AirlineBaseClient {
     class UpdateCustomerCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.UPDATE_CUSTOMER.ordinal());
+            incrementTransactionCounter(Transaction.UPDATE_CUSTOMER.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 assert (results.length >= 1);
                 assert (results[0].getRowCount() == 1);
 //                assert (results[0].asScalarLong() == 1);
@@ -568,8 +567,8 @@ public class AirlineClient extends AirlineBaseClient {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.UPDATE_RESERVATION.ordinal());
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            incrementTransactionCounter(Transaction.UPDATE_RESERVATION.ordinal());
+            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
                 assert (clientResponse.getResults().length == 1);
                 assert (clientResponse.getResults()[0].getRowCount() == 1);
                 assert (clientResponse.getResults()[0].asScalarLong() == 1 ||

@@ -9,7 +9,7 @@ public interface Shutdownable {
         SHUTDOWN,
     };
     
-    public void prepareShutdown(boolean error);
+    public void prepareShutdown();
     public void shutdown();
     public boolean isShuttingDown();
     

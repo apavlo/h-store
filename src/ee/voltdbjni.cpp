@@ -1241,7 +1241,7 @@ SHAREDLIB_JNIEXPORT void JNICALL Java_org_voltdb_utils_ThreadUtils_setThreadAffi
     }
 
     if ( sched_setaffinity( 0, sizeof(mask), &mask) == -1) {
-        VOLT_ERROR("Couldn't set CPU affinity");
+        std::cout << "Couldn't set CPU affinity" << std::endl;
         assert(false);
     }
 }

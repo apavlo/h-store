@@ -5,23 +5,22 @@ package org.voltdb;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Observable;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Site;
+import org.voltdb.catalog.*;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.messaging.InitiateTaskMessage;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.EventObservable;
-import edu.brown.utils.EventObserver;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.ProjectType;
+import edu.brown.utils.*;
+
+import edu.brown.BaseTestCase;
 import edu.mit.dtxn.Dtxn;
 import edu.mit.dtxn.Dtxn.FragmentResponse;
 import edu.mit.hstore.HStoreSite;
@@ -68,12 +67,13 @@ public class TestExecutionSite extends BaseTestCase {
         }
     }
     
-    protected class BlockingObserver extends EventObserver<ClientResponse> {
+    protected class BlockingObserver extends EventObserver {
         public final LinkedBlockingDeque<ClientResponse> lock = new LinkedBlockingDeque<ClientResponse>(1);
         
         @Override
-        public void update(EventObservable<ClientResponse> o, ClientResponse response) {
-            assert(response != null);
+        public void update(Observable o, Object arg) {
+            assert(arg != null);
+            ClientResponse response = (ClientResponse)arg;
             Logger.getRootLogger().info("BlockingObserver got update for txn #" + response.getTransactionId());
             lock.offer(response);
         }

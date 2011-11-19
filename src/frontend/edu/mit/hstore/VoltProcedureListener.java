@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
@@ -23,7 +24,6 @@ import ca.evanjones.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
 import edu.mit.net.MessageConnection;
 import edu.mit.net.NIOMessageConnection;
 
@@ -205,9 +205,9 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     public static byte[] serializeResponse(VoltTable[] results, long clientHandle) {
         // Serialize the results
-        Hstore.Status status = Hstore.Status.OK;
+        byte status = ClientResponse.SUCCESS;
         String extra = null;
-        ClientResponseImpl response = new ClientResponseImpl(-1, clientHandle, -1, status, results, extra);
+        ClientResponseImpl response = new ClientResponseImpl(-1, status, results, extra);
         response.setClientHandle(clientHandle);
         FastSerializer out = new FastSerializer();
         try {

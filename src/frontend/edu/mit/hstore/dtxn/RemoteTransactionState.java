@@ -26,75 +26,103 @@
 package edu.mit.hstore.dtxn;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ExecutionSite;
+import org.voltdb.VoltTable;
+import org.voltdb.BatchPlanner.BatchPlan;
 
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.CountingPoolableObjectFactory;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.callbacks.TransactionCleanupCallback;
-import edu.mit.hstore.callbacks.TransactionWorkCallback;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
- * A RemoteTransaction is one whose Java control code is executing at a 
- * different partition then where we are using this handle.
+ * 
  * @author pavlo
  */
-public class RemoteTransaction extends AbstractTransaction {
-    protected static final Logger LOG = Logger.getLogger(RemoteTransaction.class);
+public class RemoteTransactionState extends TransactionState {
+    protected static final Logger LOG = Logger.getLogger(RemoteTransactionState.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final TransactionWorkCallback fragment_callback;
-    private final TransactionCleanupCallback cleanup_callback;
+    /**
+     * RemoteTransactionState Factory
+     */
+    public static class Factory extends CountingPoolableObjectFactory<RemoteTransactionState> {
+        private final ExecutionSite executor;
+        
+        public Factory(ExecutionSite executor, boolean enable_tracking) {
+            super(enable_tracking);
+            this.executor = executor;
+        }
+        @Override
+        public RemoteTransactionState makeObjectImpl() throws Exception {
+            return new RemoteTransactionState(this.executor);
+        }
+    };
     
-    
-    public RemoteTransaction(HStoreSite hstore_site) {
-        super(hstore_site);
-        this.fragment_callback = new TransactionWorkCallback(hstore_site);
-        this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
+    public RemoteTransactionState(ExecutionSite executor) {
+        super(executor);
     }
     
     @Override
     @SuppressWarnings("unchecked")
-    public RemoteTransaction init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(txnId, clientHandle, source_partition, false, predict_readOnly, predict_abortable, false));
+    public RemoteTransactionState init(long txnId, long clientHandle, int source_partition, boolean predict_singlePartitioned, boolean predict_readOnly, boolean predict_abortable) {
+        return ((RemoteTransactionState)super.init(txnId, clientHandle, source_partition, predict_singlePartitioned, predict_readOnly, predict_abortable, false));
     }
     
     @Override
-    public void finish() {
-        super.finish();
-        this.cleanup_callback.finish();
+    public void initRound(long undoToken) {
+        super.initRound(undoToken);
     }
     
     @Override
-    public void startRound(int partition) {
+    public void startRound() {
         // If the stored procedure is not executing locally then we need at least
         // one FragmentTaskMessage callback
-        assert(this.fragment_callback != null) :
+        assert(this.fragment_callbacks.isEmpty() == false) :
             "No FragmentTaskMessage callbacks available for txn #" + this.txn_id;
-        super.startRound(partition);
+        super.startRound();
     }
     
-    /**
-     * Return the previously stored callback for a FragmentTaskMessage
-     * @return
-     */
-    public TransactionWorkCallback getFragmentTaskCallback() {
-        return (this.fragment_callback);
+    @Override
+    public void finishRound() {
+        super.finishRound();
     }
     
-    public TransactionCleanupCallback getCleanupCallback() {
-        return (this.cleanup_callback);
+    @Override
+    public boolean isHStoreSite_Finished() {
+        return (true);
+    }
+    
+    
+    @Override
+    public VoltTable[] getResults() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    
+    @Override
+    public void addResponse(int partition, int dependencyId) {
+        throw new RuntimeException("Trying to store a response for a transaction not executing locally [txn=" + this.txn_id + "]");
+    }
+    
+    @Override
+    public void addResult(int partition, int dependencyId, VoltTable result) {
+        throw new RuntimeException("Trying to store a result for a transaction not executing locally [txn=" + this.txn_id + "]");
+    }
+
+    @Override
+    public void addFinishedBatchPlan(BatchPlan plan) {
+        // Nothing
     }
     
     @Override
     public String toString() {
         if (this.isInitialized()) {
-//            return "REMOTE #" + this.txn_id;
-            return String.format("REMOTE #%d/%d", this.txn_id, this.base_partition);
+            return "REMOTE #" + this.txn_id;
         } else {
             return ("<Uninitialized>");
         }

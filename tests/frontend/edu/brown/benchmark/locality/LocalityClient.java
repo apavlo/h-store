@@ -361,7 +361,7 @@ public class LocalityClient extends BenchmarkComponent {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, this.txn.ordinal());
+            incrementTransactionCounter(this.txn.ordinal());
         }
     } // END CLASS
 }

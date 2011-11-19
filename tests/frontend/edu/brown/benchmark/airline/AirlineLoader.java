@@ -34,15 +34,15 @@ import edu.brown.benchmark.airline.util.DistanceUtil;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.benchmark.airline.util.ReturnFlight;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
+import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableDataIterable;
+import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AirlineLoader extends AirlineBaseClient {
     private static final Logger LOG = Logger.getLogger(AirlineLoader.class);
@@ -250,7 +250,7 @@ public class AirlineLoader extends AirlineBaseClient {
         // to all of the clients
         this.saveProfile();
 
-        LOG.debug("Airline loader done.");
+        LOG.info("Airline loader done.");
     }
     
     /**
@@ -440,7 +440,9 @@ public class AirlineLoader extends AirlineBaseClient {
             throw new RuntimeException("Failed to save benchmark profile", ex);
         }
         try {
-            this.sendFileToAllClients("BENCHMARK.PROFILE", f);
+            for (int i = 0; i < this.getNumClients(); i++) {
+                this.sendFileToClient(i, "BENCHMARK.PROFILE", f);
+            } // FOR
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
