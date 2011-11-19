@@ -60,6 +60,8 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.VoltTable;
 
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 import edu.brown.utils.ProfileMeasurement;
 
 /** Hack subclass of VoltClient that fakes callProcedure. */
@@ -102,12 +104,6 @@ public class MockVoltClient implements Client {
             }
 
             @Override
-            public String getStatusName() {
-                // TODO Auto-generated method stub
-                return null;
-            }
-            
-            @Override
             public String getStatusString() {
                 return null;
             }
@@ -124,8 +120,8 @@ public class MockVoltClient implements Client {
             }
 
             @Override
-            public byte getStatus() {
-                return 0;
+            public Hstore.Status getStatus() {
+                return Status.OK;
             }
 
             @Override
@@ -185,6 +181,18 @@ public class MockVoltClient implements Client {
             @Override
             public void setServerTimestamp(int val) {
                 // TODO Auto-generated method stub
+            }
+
+            @Override
+            public int getBasePartition() {
+                // TODO Auto-generated method stub
+                return 0;
+            }
+
+            @Override
+            public void setBasePartition(int val) {
+                // TODO Auto-generated method stub
+                
             }
         };
     }

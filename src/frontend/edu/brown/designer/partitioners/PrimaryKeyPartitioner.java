@@ -20,10 +20,10 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.designer.partitioners.plan.ProcedureEntry;
 import edu.brown.designer.partitioners.plan.TableEntry;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class PrimaryKeyPartitioner extends AbstractPartitioner {
     private static final Logger LOG = Logger.getLogger(PrimaryKeyPartitioner.class);

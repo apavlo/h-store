@@ -13,6 +13,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.designer.*;
 import edu.brown.graphs.IGraph;
 import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProjectType;
 import edu.brown.workload.*;
@@ -69,11 +70,10 @@ public class TestHeuristicPartitioner extends BaseTestCase {
     }
     
     private void display(final IGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
-        final EventObserver observer = new EventObserver() {
+        final EventObserver<DesignerVertex> observer = new EventObserver<DesignerVertex>() {
             @Override
-            public void update(Observable o, Object arg) {
-                if (arg == null) return;
-                DesignerVertex v = (DesignerVertex)arg;
+            public void update(EventObservable<DesignerVertex> o, DesignerVertex v) {
+                if (v == null) return;
                 System.err.println(v);
                 for (DesignerEdge e : graph.getIncidentEdges(v)) {
                     System.err.println("  " + e + ": " + e.getTotalWeight());

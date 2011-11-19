@@ -54,9 +54,8 @@ public class Shutdown extends VoltSystemProcedure {
 
     @Override
     public void globalInit(ExecutionSite site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
-            Integer local_partition) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
         site.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
         site.registerPlanFragment(SysProcFragmentId.PF_procedureDone, this);
     }
@@ -96,7 +95,7 @@ public class Shutdown extends VoltSystemProcedure {
 
     public VoltTable[] run() {
         LOG.info("Got shutdown request. Notifying HStoreSite and returning to client");
-        executor.getHStoreSite().getMessenger().shutdownCluster(null, false);
+        executor.getHStoreSite().getCoordinator().shutdownCluster(null, false);
         
 //        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[this.all_partitions.size() + 1];
 //        for (int i = 1; i < pfs.length; i++) {

@@ -18,11 +18,11 @@ import org.json.JSONObject;
 import org.voltdb.catalog.Database;
 import org.voltdb.utils.Pair;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.filters.Filter;
 import edu.brown.workload.filters.Filter.FilterResult;
 

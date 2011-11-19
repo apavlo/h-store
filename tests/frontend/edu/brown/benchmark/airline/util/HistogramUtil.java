@@ -2,6 +2,7 @@ package edu.brown.benchmark.airline.util;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
@@ -9,9 +10,9 @@ import java.util.regex.Pattern;
 import org.apache.log4j.Logger;
 
 import edu.brown.benchmark.airline.AirlineConstants;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class HistogramUtil {
     private static final Logger LOG = Logger.getLogger(HistogramUtil.class);
@@ -22,6 +23,10 @@ public abstract class HistogramUtil {
     }
 
 //    private static final Pattern p = Pattern.compile("\\|");
+    
+    private static final Map<File, Histogram<String>> cached_Histograms = new HashMap<File, Histogram<String>>();
+    
+    private static Map<String, Histogram<String>> cached_AirportFlights; 
 
     private static File getHistogramFile(File data_dir, String name) {
         File file = new File(data_dir.getAbsolutePath() + File.separator + "histogram." + name.toLowerCase());
@@ -47,7 +52,9 @@ public abstract class HistogramUtil {
      * @return
      * @throws Exception
      */
-    public static Map<String, Histogram<String>> loadAirportFlights(File data_path) throws Exception {
+    public static synchronized Map<String, Histogram<String>> loadAirportFlights(File data_path) throws Exception {
+        if (cached_AirportFlights != null) return (cached_AirportFlights);
+        
         File file = getHistogramFile(data_path, AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);
         Histogram<String> h = new Histogram<String>();
         h.load(file.getAbsolutePath(), null);
@@ -65,6 +72,7 @@ public abstract class HistogramUtil {
             src_h.put(split[1], h.get(value));
         } // FOR
         
+        cached_AirportFlights = m;
         return (m);
     }
     
@@ -76,10 +84,14 @@ public abstract class HistogramUtil {
      * @return
      * @throws Exception
      */
-    public static Histogram<String> loadHistogram(String name, File data_path, boolean has_header) throws Exception {
+    public static synchronized Histogram<String> loadHistogram(String name, File data_path, boolean has_header) throws Exception {
         File file = getHistogramFile(data_path, name);
-        Histogram<String> histogram = new Histogram<String>();
-        histogram.load(file.getAbsolutePath(), null);
+        Histogram<String> histogram = cached_Histograms.get(file);
+        if (histogram == null) {
+            histogram = new Histogram<String>();
+            histogram.load(file.getAbsolutePath(), null);
+            cached_Histograms.put(file, histogram);
+        }
         
 //        BufferedReader reader = FileUtil.getReader(file);
 //        boolean first = true;

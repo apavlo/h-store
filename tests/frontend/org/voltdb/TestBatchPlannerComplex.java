@@ -3,16 +3,21 @@ package org.voltdb;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.HashSet;
 
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -37,6 +42,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
 
     private static Procedure catalog_proc;
     private static Workload workload;
+    private static Collection<Integer> all_partitions;
 
     private static SQLStmt batch[][];
     private static ParameterSet args[][];
@@ -53,6 +59,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+            all_partitions = CatalogUtil.getAllPartitionIds(catalog_proc);
             
             File file = this.getWorkloadFile(ProjectType.TPCC);
             workload = new Workload(catalog);
@@ -94,7 +101,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
         this.executor = new MockExecutionSite(BASE_PARTITION, catalog, p_estimator);
-        volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator, BASE_PARTITION);
+        volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
     }
     
     /**
@@ -108,6 +115,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         int num_stmts = statements.size();
         assert(num_stmts > 0);
         
+        Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
         SQLStmt batches[][] = new SQLStmt[10][];
         int hashes[] = new int[batches.length];
         Random rand = new Random();
@@ -119,7 +127,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 batches[i][ii] = statements.get(ii);
             } // FOR
             hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            ExecutionSite.POOL_BATCH_PLANNERS.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
+            batchPlanners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
         } // FOR
         
         for (int i = 0; i < batches.length; i++) {
@@ -137,7 +145,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
             assert(hashes[i] != hash);
-            assertNull(ExecutionSite.POOL_BATCH_PLANNERS.get(hash));
+            assertNull(batchPlanners.get(hash));
         } // FOR
     }
     
@@ -146,8 +154,9 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      */
     public void testPlanMultiPartition() throws Exception {
         BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, args[TARGET_BATCH], false);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, args[TARGET_BATCH], false);
         assertNotNull(plan);
+        assertFalse(plan.hasMisprediction());
     }
     
     /**
@@ -158,7 +167,28 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         
         // Ask the planner to plan a multi-partition transaction where we have predicted it
         // as single-partitioned. It should throw a nice MispredictionException
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, args[TARGET_BATCH], true);
+        Set<Integer> partitions = new HashSet<Integer>();
+        partitions.add(BASE_PARTITION);
+        partitions.add(BASE_PARTITION+1);
+        
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, args[TARGET_BATCH], true);
+        assert(plan.hasMisprediction());
+        if (plan != null) System.err.println(plan.toString());
+    }
+    
+    /**
+     * testMispredict
+     */
+    public void testMispredictPartitions() throws Exception {
+        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
+        
+        // Ask the planner to plan a multi-partition transaction where we have predicted it
+        // as single-partitioned. It should throw a nice MispredictionException
+        Set<Integer> partitions = new HashSet<Integer>();
+        partitions.add(BASE_PARTITION);
+//        partitions.add(BASE_PARTITION+1);
+        
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, args[TARGET_BATCH], false);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -169,8 +199,9 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     public void testGetStatementPartitions() throws Exception {
         for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
             BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator);
-            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, args[batch_idx], false);
+            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, args[batch_idx], false);
             assertNotNull(plan);
+            assertFalse(plan.hasMisprediction());
             
             Statement catalog_stmts[] = batchPlan.getStatements();
             assertNotNull(catalog_stmts);

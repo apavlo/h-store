@@ -16,11 +16,11 @@ public abstract class TM1Util {
 
     public static Long getSubscriberId(long subscriberSize) {
         // We have to initalize the zipfian random distribution the first time we are called
-        if (zipf == null) {
-            zipf = new Zipf(rand, 1, subscriberSize, zipf_sigma);
-        }
-        return (zipf.nextLong());
-        //return (TM1Util.number(1, subscriberSize));
+//        if (zipf == null) {
+//            zipf = new Zipf(rand, 1, subscriberSize, zipf_sigma);
+//        }
+//        return (zipf.nextLong());
+        return (TM1Util.number(1, subscriberSize));
     }
     
     // modified from tpcc.RandomGenerator

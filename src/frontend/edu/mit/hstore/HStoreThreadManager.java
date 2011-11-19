@@ -11,9 +11,9 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Partition;
 
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class HStoreThreadManager {
     private static final Logger LOG = Logger.getLogger(HStoreThreadManager.class);
@@ -24,6 +24,7 @@ public class HStoreThreadManager {
     }
 
     private final HStoreSite hstore_site;
+    private final boolean disable;
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean processing_affinity[];
@@ -38,8 +39,9 @@ public class HStoreThreadManager {
             this.processing_affinity[i] = true;
         } // FOR
         
-        if (this.num_cores < this.num_partitions) {
-            LOG.warn(String.format("Unable to optimize CPU affinity - There are %d partitions but only %d available cores",
+        this.disable = (this.num_cores <= this.num_partitions);
+        if (this.disable) {
+            LOG.warn(String.format("Unable to set CPU affinity - There are %d partitions but only %d available cores",
                                    this.num_partitions, this.num_cores));
         } else {
             for (int i = 0; i < this.num_partitions; i++) {
@@ -53,6 +55,7 @@ public class HStoreThreadManager {
      * @param partition
      */
     public void registerEEThread(Partition partition) {
+        if (this.disable) return;
         final boolean affinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
         for (int ii = 0; ii < affinity.length; ii++) {
             affinity[ii] = false;
@@ -71,7 +74,7 @@ public class HStoreThreadManager {
         if (debug.get())
             LOG.debug("Registering EE Thread for " + partition + " to execute on CPUs " + getCPUIds(affinity));
         org.voltdb.utils.ThreadUtils.setThreadAffinity(affinity);
-        if (hstore_site.getHStoreConf().site.status_show_thread_info) this.registerThread(affinity);
+        this.registerThread(affinity);
         
         final boolean endingAffinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
         for (int ii = 0; ii < endingAffinity.length; ii++) {
@@ -84,11 +87,12 @@ public class HStoreThreadManager {
      * Set the CPU affinity for a non-EE thread
      */
     public void registerProcessingThread() {
+        if (this.disable) return;
         if (debug.get())
             LOG.debug("Registering Processing Thread to execute on CPUs " + getCPUIds(this.processing_affinity));
         // This thread cannot run on the EE's cores
         org.voltdb.utils.ThreadUtils.setThreadAffinity(this.processing_affinity);
-        if (hstore_site.getHStoreConf().site.status_show_thread_info) this.registerThread(this.processing_affinity);
+        this.registerThread(this.processing_affinity);
     }
     
     private synchronized void registerThread(boolean affinity[]) {

@@ -10,23 +10,24 @@ import edu.brown.utils.StringUtil;
 
 public final class TPCCConfig {
 
-    public int firstWarehouse = Constants.STARTING_WAREHOUSE;
+    public int firstWarehouse = TPCCConstants.STARTING_WAREHOUSE;
     
+    public int loadthreads = 1;
     public boolean warehouse_affinity = false;
     public boolean noop = false;
     public boolean neworder_only = false;
     public boolean neworder_abort = false;
     public boolean neworder_multip = false;
-    public boolean neworder_all_multip = false;
     public boolean neworder_skew_warehouse = false;
 
+    /** Percentage of neworder txns that are forced to be multi-partitioned */
+    public int neworder_multip_mix = 0;
+    
     /** If set to true, then we will use temporal skew for generating warehouse ids */
     public boolean temporal_skew = false;
     /** Percentage of warehouse ids that will be temporally skewed during the benchmark run */
     public int temporal_skew_mix = 0;
-    
-    /** Percentage of neworder txns that are forced to be multi-partitioned */
-    public int neworder_multip_mix = 0;
+    public boolean temporal_skew_rotate = false;
     
     private TPCCConfig() {
         // Nothing
@@ -40,13 +41,16 @@ public final class TPCCConfig {
             if (key.equalsIgnoreCase("first_warehouse") && !val.isEmpty()) {
                 firstWarehouse = Integer.parseInt(val);
             }
-            
+            // LOAD THREADS
+            else if (key.equalsIgnoreCase("loadthreads") && !val.isEmpty()) {
+                loadthreads = Integer.parseInt(val);
+            }
             // WAREHOUSE AFFINITY
             else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
                 warehouse_affinity = Boolean.parseBoolean(val);
             }
             // NOOPs
-            if (key.equalsIgnoreCase("noop") && !val.isEmpty()) {
+            else if (key.equalsIgnoreCase("noop") && !val.isEmpty()) {
                 noop = Boolean.parseBoolean(val);
             }
             // ONLY NEW ORDER
@@ -61,17 +65,13 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("neworder_multip") && !val.isEmpty()) {
                 neworder_multip = Boolean.parseBoolean(val);
             }
-            // ALL NEWORDERS ARE DTXNS
-            else if (key.equalsIgnoreCase("neworder_all_multip") && !val.isEmpty()) {
-                neworder_all_multip = Boolean.parseBoolean(val);
+            // % OF MULTI-PARTITION NEWORDERS
+            else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
+                neworder_multip_mix = Integer.parseInt(val);
             }
             // SKEW NEWORDERS W_IDS
             else if (key.equalsIgnoreCase("neworder_skew_warehouse") && !val.isEmpty()) {
                 neworder_skew_warehouse = Boolean.parseBoolean(val);
-            }
-            // % OF MULTI-PARTITION NEWORDERS
-            else if (key.equalsIgnoreCase("neworder_multip_mix") && !val.isEmpty()) {
-                neworder_multip_mix = Integer.parseInt(val);
             }
             // TEMPORAL SKEW
             else if (key.equalsIgnoreCase("temporal_skew") && !val.isEmpty()) {
@@ -80,6 +80,10 @@ public final class TPCCConfig {
             // TEMPORAL SKEW MIX
             else if (key.equalsIgnoreCase("temporal_skew_mix") && !val.isEmpty()) {
                 temporal_skew_mix = Integer.parseInt(val);
+            }
+            // TEMPORAL SKEW ROTATE
+            else if (key.equalsIgnoreCase("temporal_skew_rotate") && !val.isEmpty()) {
+                temporal_skew_rotate = Boolean.parseBoolean(val);
             }
         } // FOR
     }

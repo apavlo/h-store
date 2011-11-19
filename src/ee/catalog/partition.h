@@ -39,9 +39,6 @@ protected:
     Partition(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
     int32_t m_id;
-    int32_t m_dtxn_port;
-    int32_t m_engine_port;
-    int32_t m_proc_port;
 
     virtual void update();
 
@@ -52,12 +49,6 @@ protected:
 public:
     /** GETTER: Partition id */
     int32_t id() const;
-    /** GETTER: Port used for DTXN.Coordinator to communicate to the ProtoEngine */
-    int32_t dtxn_port() const;
-    /** GETTER: Port used for HStoreSite to communicate to the ProtoEngine */
-    int32_t engine_port() const;
-    /** GETTER: Port used by VoltProcedureListener */
-    int32_t proc_port() const;
 };
 
 } // namespace catalog

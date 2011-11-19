@@ -29,6 +29,7 @@
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
 <property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
+<property name='build.preprocessor.dir'      location='${build.dir}/preprocessor' />
 <property name='dist.dir'                    location='${build.dir}/dist' />
 <property name='dist.examples.dir'           location='${dist.dir}/examples' />
 <property name='dist.examples.auction.dir'   location='${dist.examples.dir}/auction' />
@@ -175,7 +176,7 @@ PRIMARY ENTRY POINTS
     description="Compile Java classes and C++ JNI library."
 />
 <target name="default"
-    depends="protobuf, protorpc, dtxn, compile, ee"
+    depends="protorpc, compile, ee"
     description="Compile Java classes and C++ JNI library."
 />
 <target name="check"
@@ -186,8 +187,9 @@ PRIMARY ENTRY POINTS
     depends="compile, voltdbipc, junit_quick"
     description="Run a subset of Java testcases and test fragments."
 />
-<target name="all"
-    depends="compile, ee, junit, eecheck, doc, eedoc, jars"
+<!-- "junit, eecheck, doc, eedoc, jars" -->
+<target name="build-all"
+    depends="protobuf.java, protorpc, compile, ee"
     description="Do all tasks."
 />
 <target name="jars"
@@ -382,8 +384,8 @@ CLEANING
     <delete includeemptydirs="true" dir="${build.protorpc.dir}" />
 </target>
 
-<target name="clean-dtxn">
-    <delete includeemptydirs="true" dir="${build.dtxn.dir}" />
+<target name="clean-preprocessor">
+    <delete includeemptydirs="true" dir="${build.preprocessor.dir}" />
 </target>
 
 <!--
@@ -452,6 +454,13 @@ JAVA COMPILATION
         dir='${src.frontend.dir}/org/voltdb/utils'
         executable='${src.frontend.dir}/org/voltdb/utils/generate_logkeys.py'
         failonerror='true' />
+        
+    <exec dir='.'
+          executable='${tools.dir}/preprocessor.py'
+          failonerror='true' >
+        <arg line='${src.frontend.dir} ${build.preprocessor.dir}' />
+    </exec>
+        
     <depend
         srcdir="${src.hsqldb.dir}:${src.hsqldb.test.dir}:${src.frontend.dir}:${src.test.dir}:${vendor.src.dir}"
         destdir="${build.prod.dir}:${build.test.dir}"
@@ -498,9 +507,17 @@ JAVA COMPILATION
         todir='${build.test.dir}/org/voltdb/catalog'/>
 
     <!-- compile the individual source directories -->
+        <javac includeantruntime="false" 
+        target="${javac.version}"
+        srcdir="${src.protorpc.dir}"
+        destdir='${build.prod.dir}'
+        debug='true'>
+        <classpath refid="project.classpath" />
+    </javac>
+    
     <javac includeantruntime="false" 
         target="${javac.version}"
-        srcdir="${build.protorpc.dir}"
+        srcdir="${src.protorpc.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
         <classpath refid="project.classpath" />
@@ -544,6 +561,14 @@ JAVA COMPILATION
         srcdir="${src.test.dir}"
         destdir='${build.test.dir}'
         excludes="org/voltdb/benchmark/tpcc/JDBCClient.java,edu/mit/elt/ELTTester**"
+        debug='true'>
+        <classpath refid="project.classpath" />
+    </javac>
+    
+    <javac includeantruntime="false"
+        target="${javac.version}"
+        srcdir="${build.preprocessor.dir}"
+        destdir='${build.prod.dir}'
         debug='true'>
         <classpath refid="project.classpath" />
     </javac>
@@ -683,7 +708,7 @@ NATIVE EE STUFF
 <target name='ee' depends="buildinfo, jnicompile"
     description="Build C++ JNI library and copy it to production folder.">
     <exec dir='.' executable='python' failonerror='true'>
-        <arg line="build.py LOG_LEVEL=${site.ee_log_level} ${build}" />
+        <arg line="build.py LOG_LEVEL=${site.exec_ee_log_level} ${build}" />
     </exec>
 <!--     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -f ${build.dir}/nativelibs/libvoltdb.so'"/>
@@ -1349,7 +1374,7 @@ PROTOCOL BUFFERS
 
 <target name="protobuf.java.check">
     <uptodate property="protobuf.java.built"
-              targetfile="${build.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
+              targetfile="${src.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
         <srcfiles dir="${src.protobuf.dir}/java/src/main/java" includes="**/*.proto" />
     </uptodate>
 </target>
@@ -1358,16 +1383,9 @@ PROTOCOL BUFFERS
                              depends="protobuf.compile, protobuf.java.check" 
                              unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
-    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${build.protorpc.dir}">
+    <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${src.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
     </ProtobufGenerateJava>
-</target>
-
-<target name="protobuf" description="" depends="protobuf.java,protobuf.compile">
-    <mkdir dir='${build.prod.dir}' />
-    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${build.protorpc.dir}" destdir="${build.prod.dir}">
-        <classpath refid="project.classpath"/>
-    </ProtobufCompile>
 </target>
 
 <!--
@@ -1376,21 +1394,28 @@ PROTORPC
 ***************************************
 -->
 
-<target name="protorpc.check">
+<target name="protorpc.java.check">
     <uptodate property="protorpc.built"
-              targetfile="${build.protorpc.dir}/edu/brown/hstore/Hstore.java">
+              targetfile="${src.protorpc.dir}/edu/brown/hstore/Hstore.java">
         <srcfiles dir="${src.protorpc.dir}" includes="**/*.proto" />
     </uptodate>
 </target>
 
-<target name="protorpc" description="Generates ProtoRPC files"
-                        depends="protobuf, protorpc.check"
+<target name="protorpc.java" description="Generates ProtoRPC files"
+                        depends="protobuf.java, protorpc.java.check"
                         unless="protorpc.built">
-    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${build.protorpc.dir}">
+    <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${src.protorpc.dir}">
         <fileset dir="${src.protorpc.dir}">
             <patternset><include name="**/*.proto" /></patternset>
         </fileset>
     </ProtobufGenerateJava>
+</target>
+
+<target name="protorpc" description=""> <!-- depends="protobuf.java,protobuf.compile">-->
+    <mkdir dir='${build.prod.dir}' />
+    <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${src.protorpc.dir}" destdir="${build.prod.dir}">
+        <classpath refid="project.classpath"/>
+    </ProtobufCompile>
 </target>
 
 <!--
@@ -1458,7 +1483,8 @@ BENCHMARKS
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
         <arg value="COORDINATORHOST=${coordinator.host}" />
-        <arg value="PARTITIONPLAN=${partitionplan}" />
+        <arg value="partitionplan=${partitionplan}" />
+        <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -1474,40 +1500,117 @@ BENCHMARKS
 
         <arg value="DUMPDATABASE=${client.dump_database}" />
         <arg value="DUMPDATABASEDIR=${client.dump_database_dir}" />
-
-        <!-- New Style -->
+        
+        <!-- GLOBAL -->
+        <arg value="global.temp_dir=${global.temp_dir}" />
+        <arg value="global.sshoptions=${global.sshoptions}" />
+        <arg value="global.defaulthost=${global.defaulthost}" />
+        <arg value="global.ringbuffer_debug=${global.ringbuffer_debug}" />
+        
+        <!-- CLIENT -->
+        <arg value="client.log_dir=${client.log_dir}" />
+        <arg value="client.memory=${client.memory}" />
+        <arg value="client.host=${client.host}" />
         <arg value="client.txnrate=${client.txnrate}" />
         <arg value="client.processesperclient=${client.processesperclient}" />
+        <arg value="client.count=${client.count}" />
+        <arg value="client.duration=${client.duration}" />
         <arg value="client.warmup=${client.warmup}" />
+        <arg value="client.interval=${client.interval}" />
         <arg value="client.blocking=${client.blocking}" />
         <arg value="client.blocking_concurrent=${client.blocking_concurrent}" />
-        <arg value="client.interval=${client.interval}" />
-        <arg value="client.duration=${client.duration}" />
+        <arg value="client.blocking_loader=${client.blocking_loader}" />
         <arg value="client.scalefactor=${client.scalefactor}" />
         <arg value="client.skewfactor=${client.skewfactor}" />
         <arg value="client.temporalwindow=${client.temporalwindow}" />
         <arg value="client.temporaltotal=${client.temporaltotal}" />
-        <arg value="client.tickinterval=${client.tickinterval}" />
+        <arg value="client.tick_interval=${client.tick_interval}" />
+        <arg value="client.throttle_backoff=${client.throttle_backoff}" />
+        <arg value="client.dump_database=${client.dump_database}" />
+        <arg value="client.dump_database_dir=${client.dump_database_dir}" />
         <arg value="client.tablestats=${client.tablestats}" />
         <arg value="client.tablestats_dir=${client.tablestats_dir}" />
-        
+        <arg value="client.txn_hints=${client.txn_hints}" />
+        <arg value="client.delay_threshold=${client.delay_threshold}" />
         <arg value="client.codespeed_url=${client.codespeed_url}" />
         <arg value="client.codespeed_project=${client.codespeed_project}" />
         <arg value="client.codespeed_environment=${client.codespeed_environment}" />
         <arg value="client.codespeed_executable=${client.codespeed_executable}" />
         <arg value="client.codespeed_commitid=${client.codespeed_commitid}" />
         <arg value="client.codespeed_branch=${client.codespeed_branch}" />
+        <arg value="client.output_clients=${client.output_clients}" />
+        <arg value="client.output_basepartitions=${client.output_basepartitions}" />
+        <arg value="client.output_json=${client.output_json}" />
+            
+        <!-- SITE -->
+        <arg value="site.log_dir=${site.log_dir}" />
+        <arg value="site.memory=${site.memory}" />
+        <arg value="site.cpu_affinity=${site.cpu_affinity}" />
+        <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
+        <arg value="site.exec_ee_log_level=${site.exec_ee_log_level}" />
+        <arg value="site.exec_profiling=${site.exec_profiling}" />
+        <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
+        <arg value="site.exec_no_undo_logging=${site.exec_no_undo_logging}" />
+        <arg value="site.exec_no_undo_logging_all=${site.exec_no_undo_logging_all}" />
+        <arg value="site.exec_avoid_coordinator=${site.exec_avoid_coordinator}" />
+        <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
+        <arg value="site.exec_force_singlepartitioned=${site.exec_force_singlepartitioned}" />
+        <arg value="site.exec_force_localexecution=${site.exec_force_localexecution}" />
+        <arg value="site.exec_mispredict_crash=${site.exec_mispredict_crash}" />
+        <arg value="site.exec_postprocessing_thread=${site.exec_postprocessing_thread}" />
+        <arg value="site.exec_postprocessing_thread_count=${site.exec_postprocessing_thread_count}" />
+        <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
+        <arg value="site.txn_profiling=${site.txn_profiling}" />
+        <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
+        <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />
+        <arg value="site.txn_restart_limit_sysproc=${site.txn_restart_limit_sysproc}" />
+        <arg value="site.queue_incoming_max_per_partition=${site.queue_incoming_max_per_partition}" />
+        <arg value="site.queue_incoming_release_factor=${site.queue_incoming_release_factor}" />
+        <arg value="site.queue_incoming_increase=${site.queue_incoming_increase}" />
+        <arg value="site.queue_dtxn_max_per_partition=${site.queue_dtxn_max_per_partition}" />
+        <arg value="site.queue_dtxn_release_factor=${site.queue_dtxn_release_factor}" />
+        <arg value="site.queue_dtxn_increase=${site.queue_dtxn_increase}" />
+        <arg value="site.markov_mispredict_recompute=${site.markov_mispredict_recompute}" />
+        <arg value="site.markov_path_caching=${site.markov_path_caching}" />
+        <arg value="site.markov_path_caching_threshold=${site.markov_path_caching_threshold}" />
+        <arg value="site.markov_batch_caching_min=${site.markov_batch_caching_min}" />
+        <arg value="site.exec_neworder_cheat=${site.exec_neworder_cheat}" />
+        <arg value="site.planner_profiling=${site.planner_profiling}" />
+        <arg value="site.planner_caching=${site.planner_caching}" />
+        <arg value="site.planner_max_round_size=${site.planner_max_round_size}" />
+        <arg value="site.planner_max_batch_size=${site.planner_max_batch_size}" />
+        <arg value="site.coordinator_init_thread=${site.coordinator_init_thread}" />
+        <arg value="site.coordinator_finish_thread=${site.coordinator_finish_thread}" />
+        <arg value="site.coordinator_redirect_thread=${site.coordinator_redirect_thread}" />
+        <arg value="site.helper_initial_delay=${site.helper_initial_delay}" />
+        <arg value="site.helper_interval=${site.helper_interval}" />
+        <arg value="site.helper_txn_per_round=${site.helper_txn_per_round}" />
+        <arg value="site.helper_txn_expire=${site.helper_txn_expire}" />
+        <arg value="site.trace_txn_output=${site.trace_txn_output}" />
+        <arg value="site.trace_query_output=${site.trace_query_output}" />
+        <arg value="site.status_interval=${site.status_interval}" />
+        <arg value="site.status_kill_if_hung=${site.status_kill_if_hung}" />
+        <arg value="site.status_show_txn_info=${site.status_show_txn_info}" />
+        <arg value="site.status_show_executor_info=${site.status_show_executor_info}" />
+        <arg value="site.status_show_thread_info=${site.status_show_thread_info}" />
+        <arg value="site.pool_scale_factor=${site.pool_scale_factor}" />
+        <arg value="site.pool_profiling=${site.pool_profiling}" />
+        <arg value="site.pool_localtxnstate_idle=${site.pool_localtxnstate_idle}" />
+        <arg value="site.pool_remotetxnstate_idle=${site.pool_remotetxnstate_idle}" />
+        <arg value="site.pool_pathestimators_idle=${site.pool_pathestimators_idle}" />
+        <arg value="site.pool_estimatorstates_idle=${site.pool_estimatorstates_idle}" />
+        <arg value="site.pool_dependencyinfos_idle=${site.pool_dependencyinfos_idle}" />
+        <arg value="site.pool_txnredirect_idle=${site.pool_txnredirect_idle}" />
+        <arg value="site.pool_txnredirectresponses_idle=${site.pool_txnredirectresponses_idle}" />
+        <arg value="site.pool_txninit_idle=${site.pool_txninit_idle}" />
+        <arg value="site.pool_txninitwrapper_idle=${site.pool_txninitwrapper_idle}" />
+        <arg value="site.pool_txnprepare_idle=${site.pool_txnprepare_idle}" />
 
         <!-- Benchmark Parameters -->
         <arg value="benchmark.conf=${benchmark.conf}" />
         <arg value="benchmark.builder=${benchmark.builder}" />
         <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
-        
-        <!-- Log Directories -->
-        <arg value="site.log_dir=${site.log_dir}" />
-        <arg value="coordinator.log_dir=${coordinator.log_dir}" />
-        <arg value="client.log_dir=${client.log_dir}" />
 
         <!-- These are currently ignored (I think...) -->
         <arg value="HOST=${manualhost1}" />
@@ -1715,7 +1818,7 @@ DESIGNER
 <target name='catalog-fix'
         description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
     <basename property="jar.filename" file="${jar}"/>
-    <property name="jar.backup" location="${global.temp_dir}/${jar.filename}-BACKUP" />
+    <property name="jar.backup" location="${global.temp_dir}/backup/${jar.filename}" />
     <copy file="${jar}" tofile="${jar.backup}" />
     <echo message="Copied back-up to ${jar.backup}" />
     <unjar src="${jar}" dest="${global.temp_dir}/fixcatalog/"/>
@@ -1752,6 +1855,14 @@ DESIGNER
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.removedupes=true" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.sampling=${sampling}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -1777,6 +1888,8 @@ DESIGNER
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog=${catalog}" />
+        <arg value="partitionplan=${partitionplan}" />
+        <arg value="partitionplan.apply=true" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
@@ -2051,6 +2164,7 @@ DESIGNER
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
+        <arg value="conf=${conf}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${type}" />
         <arg value="catalog.hosts=${hosts}" />
@@ -2080,14 +2194,20 @@ DESIGNER
 
 <target name='designer-estimate'
         description="Estimate the cost of executing the workload for a given PartitionPlan">
-<!--     <java fork="yes" failonerror="true" classname="edu.brown.costmodel.SingleSitedCostModel"> -->
-    <java fork="yes" failonerror="true" classname="edu.brown.costmodel.TimeIntervalCostModel">
+    <condition property="costmodel" value="edu.brown.costmodel.SingleSitedCostModel">
+        <not>
+            <isset property="costmodel"/>
+        </not>
+    </condition>
+    <java fork="yes" failonerror="true" classname="${costmodel}">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${volt.client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="conf=${conf}" />
         <arg value="catalog.jar=${jar}" />
         <arg value="catalog.type=${project}" />
+        <arg value="catalog.hosts=${hosts}" />
         <arg value="workload=${workload}" />
         <arg value="workload.removedupes=true" />
         <arg value="workload.xactlimit=${limit}" />
@@ -2099,6 +2219,8 @@ DESIGNER
         <arg value="designer.intervals=${intervals}" />
         <arg value="designer.hints=${hints}" />
         <arg value="partitionplan=${partitionplan}" />
+        <arg value="partitionplan.removeprocs=${partitionplan.removeprocs}" />
+        <arg value="partitionplan.randomprocs=${partitionplan.randomprocs}" />
         <arg line="${extraparams}" />
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
@@ -2249,12 +2371,6 @@ H-STORE REMIX
 </target>
 
 <target name="hstore-site" description="H-Store Execution Node/Coordinator">
-    <unzip src="${benchmark.jar}" dest="${global.temp_dir}">
-        <patternset>
-            <include name="dtxn.conf"/>
-        </patternset>
-    </unzip>
-
     <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
@@ -2270,8 +2386,12 @@ H-STORE REMIX
         <jvmarg value="-server" />
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Xcheck:jni" />
-<!--        <jvmarg value="-XX:+UseParNewGC" /> -->
-<!--         <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
+        <!--<jvmarg value="-XX:+UseParNewGC" />
+        <jvmarg value="-XX:+UseConcMarkSweepGC" />-->
+<!--        <jvmarg value="-verbose:gc" />
+        <jvmarg value="-XX:+PrintGCDetails" />
+        <jvmarg value="-XX:+PrintGCTimeStamps" />
+        <jvmarg value="-XX:-TraceClassUnloading" />-->
 
         <jvmarg value="-Dhstore.preload=${site.preload}" />
         <arg value="catalog.jar=${benchmark.jar}" />
@@ -2284,10 +2404,6 @@ H-STORE REMIX
         <arg value="site.exec_speculative_execution=${site.exec_speculative_execution}" />
         <arg value="site.exec_db2_redirects=${site.exec_db2_redirects}" />
         <arg value="site.enable_profiling=${site.enable_profiling}" />
-        <arg value="coordinator.host=${coordinator.host}" />
-        <arg value="coordinator.port=${coordinator.port}" />
-        <arg value="dtxn.conf=${global.temp_dir}/dtxn.conf" />
-        <arg value="dtxn.engine=${build.dtxn.dir}/protodtxn/protodtxnengine" />
         <arg value="hasher.class=${hasher}" />
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -2295,6 +2411,7 @@ H-STORE REMIX
         <arg value="mappings=${mappings}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
+        <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         <classpath refid='project.classpath' />

@@ -42,13 +42,13 @@ import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.MemoryEstimator;
 import edu.brown.designer.generators.AccessGraphGenerator;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.filters.Filter;
 
 /**
@@ -99,6 +99,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
         private final String catalog_key;
         private final String partition_key;
         private final Double cost;
+        private final Double singlep_txns;
         private final Long memory;
         
         private String debug;
@@ -111,18 +112,19 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @param cost
          * @param memory
          */
-        private StateVertex(StateVertex parent, int depth, String catalog_key, String partition_key, boolean is_table, Double cost, Long memory) {
+        private StateVertex(StateVertex parent, int depth, String catalog_key, String partition_key, boolean is_table, Double cost, Double singlep_txns, Long memory) {
             this.parent = parent;
             this.depth = depth;
             this.catalog_key = catalog_key;
             this.partition_key = partition_key;
             this.is_table = is_table;
-            this.cost = new Double(cost);
+            this.cost = cost;
+            this.singlep_txns = singlep_txns;
             this.memory = memory;
         }
         
-        public StateVertex(StateVertex parent, String catalog_key, String partition_key, boolean is_table, Double cost, Long memory) {
-            this(parent, parent.depth + 1, catalog_key, partition_key, is_table, cost, memory);
+        public StateVertex(StateVertex parent, String catalog_key, String partition_key, boolean is_table, Double cost, Double singlep_txns, Long memory) {
+            this(parent, parent.depth + 1, catalog_key, partition_key, is_table, cost, singlep_txns, memory);
         }
 
         /**
@@ -130,7 +132,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public static StateVertex getStartVertex(Double cost, Long memory) {
-            return (new StateVertex(null, 0, START_VERTEX_NAME, null, false, cost, memory));
+            return (new StateVertex(null, 0, START_VERTEX_NAME, null, false, cost, null, memory));
         }
         
         /**
@@ -140,7 +142,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
          * @return
          */
         public static StateVertex getUpperBoundVertex(Double cost, Long memory) {
-            return (new StateVertex(null, 0, UPPERBOUND_NAME, null, false, cost, memory));
+            return (new StateVertex(null, 0, UPPERBOUND_NAME, null, false, cost, null, memory));
         }
         
         public int getDepth() {
@@ -942,14 +944,17 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                 // COST ESTIMATION
                 // ----------------------------------------------
                 Double cost = null;
+                Double singlep_txns = null;
                 // Don't estimate the cost if it doesn't fit
                 if (!memory_exceeded) {
                     cost = this.cost_model.estimateWorkloadCost(info.catalog_db, info.workload, filter, best_vertex.cost);
+                    singlep_txns = this.cost_model.getSinglePartitionProcedureHistogram().getSampleCount() /
+                                   (double)this.cost_model.getProcedureHistogram().getSampleCount();
                 } else {
                     cost = Double.MAX_VALUE;
                 }
 
-                StateVertex state = new StateVertex(parent, current_key, attribute_key, is_table, cost, memory);
+                StateVertex state = new StateVertex(parent, current_key, attribute_key, is_table, cost, singlep_txns, memory);
                 if (debug.get()) 
                     state.debug = cost_model.debugHistograms(info.catalog_db);
 //                if (!this.graph.containsVertex(parent)) this.graph.addVertex(parent);
@@ -1030,7 +1035,7 @@ public class BranchAndBoundPartitioner extends AbstractPartitioner {
                     }
                     
                     // Log new solution cost
-                    if (hints.shouldLogSolutionCosts()) hints.logSolutionCost(state.cost);
+                    if (hints.shouldLogSolutionCosts()) hints.logSolutionCost(state.cost, state.singlep_txns);
                     
                     // Check whether we found our target solution and need to stop
                     // Note that we only need to compare Tables, because the Procedure's could have

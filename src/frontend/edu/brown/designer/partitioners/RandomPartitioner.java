@@ -131,7 +131,7 @@ public class RandomPartitioner extends AbstractPartitioner {
             if (catalog_proc.getSystemproc()) continue;
             int size = catalog_proc.getParameters().size();
             
-            ProcParameter catalog_param = NullProcParameter.getNullProcParameter(catalog_proc);
+            ProcParameter catalog_param = NullProcParameter.singleton(catalog_proc);
             if (size > 0) {
                 int idx = this.rand.nextInt(size);
                 catalog_param = catalog_proc.getParameters().get(idx);

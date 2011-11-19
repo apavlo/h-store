@@ -21,16 +21,19 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.utils.*;
+import edu.mit.hstore.HStoreConstants;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.DependencyInfo;
-import edu.mit.hstore.dtxn.LocalTransactionState;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * @author pavlo
  */
 public class TestTransactionStateComplex extends BaseTestCase {
-    private static final Long TXN_ID = 1000l;
+    private static final long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
     private static final boolean SINGLE_PARTITIONED = false;
     private static final long UNDO_TOKEN = 10l;
@@ -48,11 +51,13 @@ public class TestTransactionStateComplex extends BaseTestCase {
     };
     private static final VoltTable FAKE_RESULT = new VoltTable(FAKE_RESULTS_COLUMNS);
     
+    private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
     
-    private LocalTransactionState ts;
+    private LocalTransaction ts;
+    private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
@@ -85,14 +90,22 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 args[i] = VoltProcedure.getCleanParams(batch[i], raw_args); 
             } // FOR
             
+            Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
+            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+            executors.put(LOCAL_PARTITION, executor);
+            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
+            
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, args, SINGLE_PARTITIONED);
+            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, SINGLE_PARTITIONED);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages(args);
             assertFalse(ftasks.isEmpty());
         }
-        this.ts = new LocalTransactionState(executor).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, true);
-        assertNotNull(this.ts);
+        assertNotNull(executor);
+        
+        this.execState = new ExecutionState(executor);
+        this.ts = new LocalTransaction(hstore_site).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), false, true);
+        this.ts.setExecutionState(this.execState);
     }
 
     /**
@@ -119,7 +132,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     this.first_tasks.add(ftask);
                 } else {
                     for (Integer input_dep_id : ftask.getInputDepIds(i)) {
-                        if (input_dep_id != ExecutionSite.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
+                        if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                     } // FOR
                 }
             } // FOR
@@ -135,9 +148,9 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testTwoRoundQueryPlan
      */
     public void testTwoRoundQueryPlan() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
         
         // We want to add results for just one of the duplicated statements and make sure that
         // we only unblock one of them. First we need to find an internal dependency that has blocked tasks 
@@ -160,7 +173,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(first_dinfo);
         assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedFragmentTaskMessages().size());
         this.ts.addResult(partition, first_output_dependency_id, FAKE_RESULT);
-        this.ts.addResponse(partition, first_output_dependency_id);
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
@@ -170,7 +182,6 @@ public class TestTransactionStateComplex extends BaseTestCase {
             partition = ftask.getDestinationPartitionId();   
             int output_dependency_id = ftask.getOutputDepId(0);
             this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
-            this.ts.addResponse(partition, output_dependency_id);
         } // FOR
         assert(second_dinfo.hasTasksReleased());
     }
@@ -180,7 +191,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testAddResultsBeforeStart
      */
     public void testAddResultsBeforeStart() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
         
         // We need to test to make sure that we don't get a CountDownLatch with the wrong count
@@ -198,17 +209,17 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     if (partition != LOCAL_PARTITION) continue;
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
-                    this.ts.addResultWithResponse(partition, dependency_id, copy);
+                    this.ts.addResult(partition, dependency_id, copy);
                     markers.add(marker++);
                 // Otherwise just stuff in our fake result (if they actually need it)
                 } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
-                    this.ts.addResultWithResponse(partition, dependency_id, FAKE_RESULT);
+                    this.ts.addResult(partition, dependency_id, FAKE_RESULT);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
 
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
         CountDownLatch latch = this.ts.getDependencyLatch(); 
         assertNotNull(latch);
         assertEquals(0, latch.getCount());
@@ -218,9 +229,9 @@ public class TestTransactionStateComplex extends BaseTestCase {
      * testGetResults
      */
     public void testGetResults() throws Exception {
-        this.ts.initRound(UNDO_TOKEN);
+        this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
-        this.ts.startRound();
+        this.ts.startRound(LOCAL_PARTITION);
 //        System.err.println(this.ts);
 //        System.err.println(this.internal_dependency_ids);
 
@@ -242,18 +253,16 @@ public class TestTransactionStateComplex extends BaseTestCase {
                     VoltTable copy = new VoltTable(FAKE_RESULTS_COLUMNS);
                     copy.addRow(marker, "XXXX");
                     this.ts.addResult(partition, dependency_id, copy);
-                    this.ts.addResponse(partition, dependency_id);
                     markers.add(marker++);
                     
                 // Otherwise just stuff in our fake result (if they actually need it)
                 } else if (this.dependency_partitions.get(dependency_id).contains(partition)) {
                     this.ts.addResult(partition, dependency_id, FAKE_RESULT);
-                    this.ts.addResponse(partition, dependency_id);
                 }
             } // FOR (partition)
         } // FOR (dependency ids)
         assertEquals(NUM_DUPLICATE_STATEMENTS, markers.size());
-        assert(this.ts instanceof LocalTransactionState);
+        assert(this.ts instanceof LocalTransaction);
         System.err.println(this.ts.toString());
 
         VoltTable results[] = this.ts.getResults();

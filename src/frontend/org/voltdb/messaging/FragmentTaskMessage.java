@@ -23,12 +23,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.Pair;
+
+import edu.mit.hstore.HStoreConstants;
 
 /**
  * Message from a stored procedure coordinator to an execution site
@@ -53,7 +56,6 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     boolean m_shouldUndo = false;
     boolean m_usingDtxn = false;
     int m_inputDepCount = 0;
-    
 
     /** PAVLO **/
     // Whether we have real input dependencies
@@ -178,7 +180,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         ArrayList<Integer> l = (ArrayList<Integer>) m_inputDepIds[index];
         l.add(depId);
         m_inputDepCount++;
-        if (depId != ExecutionSite.NULL_DEPENDENCY_ID) m_realInputDepCount++;
+        if (depId != HStoreConstants.NULL_DEPENDENCY_ID) m_realInputDepCount++;
     }
 
     @SuppressWarnings("unchecked")
@@ -225,10 +227,6 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
 
     public void setUsingDtxnCoordinator(boolean value) {
         m_usingDtxn = value;
-    }
-    
-    public boolean isUsingDtxnCoordinator() {
-        return (m_usingDtxn);
     }
     
     public boolean isFinalTask() {
@@ -565,6 +563,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
 
             }
         }
+        sb.append("\n  HASHCODE: " + this.hashCode());
 
         return sb.toString() + "\n";
     }

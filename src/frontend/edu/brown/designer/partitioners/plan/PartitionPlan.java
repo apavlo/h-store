@@ -13,6 +13,7 @@ import org.voltdb.types.*;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.*;
@@ -103,6 +104,14 @@ public class PartitionPlan implements JSONSerializable {
         assert(catalog_proc != null);
         return (this.proc_entries.get(catalog_proc));
     }
+    public void setNullProcParameter(Procedure catalog_proc) {
+        ProcedureEntry entry = new ProcedureEntry(PartitionMethodType.NONE);
+        this.proc_entries.put(catalog_proc, entry);
+    }
+    public void setRandomProcParameter(Procedure catalog_proc) {
+        ProcedureEntry entry = new ProcedureEntry(PartitionMethodType.RANDOM);
+        this.proc_entries.put(catalog_proc, entry);
+    }
     
     public int getTableCount() {
         return (this.table_entries.size());
@@ -178,6 +187,10 @@ public class PartitionPlan implements JSONSerializable {
      * @param catalog_db
      */
     public void apply(Database catalog_db) {
+        this.apply(catalog_db, true);
+    }
+        
+    public void apply(Database catalog_db, boolean enableVerticalPartitions) {
         final boolean debug = LOG.isDebugEnabled();
         if (debug) LOG.debug("Applying PartitionPlan to catalog");
         
@@ -193,11 +206,16 @@ public class PartitionPlan implements JSONSerializable {
                     catalog_tbl.setIsreplicated(true);
                     catalog_tbl.setPartitioncolumn(ReplicatedColumn.get(catalog_tbl));
                 } else {
+                    Column catalog_col = (Column)pentry.getAttribute();
+                    assert(catalog_col != null);
+                    if (catalog_col instanceof VerticalPartitionColumn && enableVerticalPartitions == false) {
+                        catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
+                    }
+                    catalog_tbl.setPartitioncolumn(catalog_col);
                     catalog_tbl.setIsreplicated(false);
-                    catalog_tbl.setPartitioncolumn((Column)pentry.getAttribute());
-                    assert(catalog_tbl.getPartitioncolumn() != null);
                 }
                 if (catalog_tbl.getPartitioncolumn() instanceof VerticalPartitionColumn) {
+                    assert(enableVerticalPartitions) : "Unexpected " + catalog_tbl.getPartitioncolumn().fullName();
                     VerticalPartitionColumn vp_col = (VerticalPartitionColumn)catalog_tbl.getPartitioncolumn();
                     vp_cols.add(vp_col);
                 }
@@ -241,7 +259,10 @@ public class PartitionPlan implements JSONSerializable {
             ProcParameter catalog_proc_param = null;
             switch (pentry.getMethod()) {
                 case NONE:
-                    catalog_proc_param = NullProcParameter.getNullProcParameter(catalog_proc);
+                    catalog_proc_param = NullProcParameter.singleton(catalog_proc);
+                    break;
+                case RANDOM:
+                    catalog_proc_param = RandomProcParameter.singleton(catalog_proc);
                     break;
                 case HASH:
                     catalog_proc_param = pentry.getAttribute();
@@ -375,7 +396,7 @@ public class PartitionPlan implements JSONSerializable {
         for (Entry<Procedure, ProcedureEntry> e : this.proc_entries.entrySet()) {
             switch (e.getValue().getMethod()) {
                 case NONE:
-                    map.put(e.getKey(), NullProcParameter.getNullProcParameter(e.getKey()));
+                    map.put(e.getKey(), NullProcParameter.singleton(e.getKey()));
                     break;
                 case HASH:
                     map.put(e.getKey(), e.getValue().getAttribute());
@@ -572,7 +593,7 @@ public class PartitionPlan implements JSONSerializable {
             if (PartitionerUtil.shouldIgnoreProcedure(hints, catalog_proc)) {
                 continue;
             } else if (catalog_proc.getPartitionparameter() == NullProcParameter.PARAM_IDX) {
-                pplan_map.put(catalog_proc, NullProcParameter.getNullProcParameter(catalog_proc));
+                pplan_map.put(catalog_proc, NullProcParameter.singleton(catalog_proc));
             } else {
                 int param_idx = catalog_proc.getPartitionparameter();
                 assert(param_idx >= 0);

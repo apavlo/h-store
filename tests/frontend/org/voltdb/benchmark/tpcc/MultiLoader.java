@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Observable;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
@@ -54,6 +53,7 @@ import org.voltdb.VoltType;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcCallException;
 import org.voltdb.types.TimestampType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
@@ -77,7 +77,7 @@ public class MultiLoader extends BenchmarkComponent {
      */
     private final LoadThread m_loadThreads[];
     private final int m_warehouses;
-    private final int m_firstWarehouse;
+    final TPCCConfig m_tpccConfig;
 
     private int MAX_BATCH_SIZE = 10000;
     
@@ -94,32 +94,27 @@ public class MultiLoader extends BenchmarkComponent {
 
         initTableNames();
         int warehouses = 4;
-        int firstWarehouse = 1;
-        int loadThreads = 8;
 
         for (Entry<String, String> e : m_extraParams.entrySet()) {
             // WAREHOUSES
             if (e.getKey().equalsIgnoreCase("warehouses")) {
                 warehouses = Integer.parseInt(e.getValue());
-            // FIRST WAREHOUSE ID
-            } else if (e.getKey().equalsIgnoreCase("first_warehouse")) {
-                firstWarehouse = Integer.parseInt(e.getValue());
-            // LOAD THREADS
-            } else if (e.getValue().equalsIgnoreCase("loadthreads")) {
-                loadThreads = Integer.parseInt(e.getValue());
             }
         } // FOR
+        m_tpccConfig = TPCCConfig.createConfig(m_extraParams);
 
         m_warehouses = warehouses;
-        m_firstWarehouse = firstWarehouse;
-        loadThreads = Math.min(warehouses, loadThreads);
-        m_loadThreads = new LoadThread[loadThreads];
+        m_tpccConfig.loadthreads = Math.min(warehouses, m_tpccConfig.loadthreads);
+        m_loadThreads = new LoadThread[m_tpccConfig.loadthreads];
+        
+        if (LOG.isDebugEnabled())
+            LOG.debug("Loader Configuration:\n" + m_tpccConfig);
         
         // HACK
         MAX_BATCH_SIZE *= Math.max(100, (10 / m_warehouses));
 
         HStoreConf hstore_conf = this.getHStoreConf();
-        for (int ii = 0; ii < loadThreads; ii++) {
+        for (int ii = 0; ii < m_tpccConfig.loadthreads; ii++) {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, hstore_conf.client.scalefactor);
             assert parameters != null;
 
@@ -259,12 +254,12 @@ public class MultiLoader extends BenchmarkComponent {
         }
 
         private double makeTax() {
-            return m_generator.fixedPoint(Constants.TAX_DECIMALS, Constants.MIN_TAX, Constants.MAX_TAX);
+            return m_generator.fixedPoint(TPCCConstants.TAX_DECIMALS, TPCCConstants.MIN_TAX, TPCCConstants.MAX_TAX);
         }
 
         private String makeZip() {
-            int length = Constants.ZIP_LENGTH - Constants.ZIP_SUFFIX.length();
-            return m_generator.nstring(length, length) + Constants.ZIP_SUFFIX;
+            int length = TPCCConstants.ZIP_LENGTH - TPCCConstants.ZIP_SUFFIX.length();
+            return m_generator.nstring(length, length) + TPCCConstants.ZIP_SUFFIX;
         }
 
         private HashSet<Integer> selectUniqueIds(int numUnique, int minimum, int maximum) {
@@ -283,9 +278,9 @@ public class MultiLoader extends BenchmarkComponent {
 
         /** @returns a string with ORIGINAL_STRING at a random position. */
         private String fillOriginal(String data) {
-            int originalLength = Constants.ORIGINAL_STRING.length();
+            int originalLength = TPCCConstants.ORIGINAL_STRING.length();
             int position = m_generator.number(0, data.length() - originalLength);
-            String out = data.substring(0, position) + Constants.ORIGINAL_STRING
+            String out = data.substring(0, position) + TPCCConstants.ORIGINAL_STRING
                     + data.substring(position + originalLength);
             assert out.length() == data.length();
             return out;
@@ -301,10 +296,10 @@ public class MultiLoader extends BenchmarkComponent {
          */
         public void generateItem(VoltTable items, long id, boolean original) {
             long i_id = id;
-            long i_im_id = m_generator.number(Constants.MIN_IM, Constants.MAX_IM);
-            String i_name = m_generator.astring(Constants.MIN_I_NAME, Constants.MAX_I_NAME);
-            double i_price = m_generator.fixedPoint(Constants.MONEY_DECIMALS, Constants.MIN_PRICE, Constants.MAX_PRICE);
-            String i_data = m_generator.astring(Constants.MIN_I_DATA, Constants.MAX_I_DATA);
+            long i_im_id = m_generator.number(TPCCConstants.MIN_IM, TPCCConstants.MAX_IM);
+            String i_name = m_generator.astring(TPCCConstants.MIN_I_NAME, TPCCConstants.MAX_I_NAME);
+            double i_price = m_generator.fixedPoint(TPCCConstants.MONEY_DECIMALS, TPCCConstants.MIN_PRICE, TPCCConstants.MAX_PRICE);
+            String i_data = m_generator.astring(TPCCConstants.MIN_I_DATA, TPCCConstants.MAX_I_DATA);
 
             if (original) {
                 i_data = fillOriginal(i_data);
@@ -315,7 +310,7 @@ public class MultiLoader extends BenchmarkComponent {
 
         public void generateWarehouse(long w_id) {
             double w_tax = makeTax();
-            double w_ytd = Constants.INITIAL_W_YTD;
+            double w_ytd = TPCCConstants.INITIAL_W_YTD;
 
             ArrayList<Object> insertParameters = new ArrayList<Object>();
             insertParameters.add(w_id);
@@ -327,7 +322,7 @@ public class MultiLoader extends BenchmarkComponent {
 
         public void generateDistrict(long d_w_id, long d_id) {
             double d_tax = makeTax();
-            double d_ytd = Constants.INITIAL_D_YTD;
+            double d_ytd = TPCCConstants.INITIAL_D_YTD;
             long d_next_o_id = m_parameters.customersPerDistrict + 1;
 
             ArrayList<Object> insertParameters = new ArrayList<Object>(Arrays.asList(d_id, d_w_id));
@@ -340,10 +335,10 @@ public class MultiLoader extends BenchmarkComponent {
         private final Object[] container_customer = new Object[6 + 5 + 10];
 
         public void generateCustomer(long c_w_id, long c_d_id, long c_id, boolean badCredit, boolean doesReplicateName) {
-            String c_first = m_generator.astring(Constants.MIN_FIRST, Constants.MAX_FIRST);
-            String c_middle = Constants.MIDDLE;
+            String c_first = m_generator.astring(TPCCConstants.MIN_FIRST, TPCCConstants.MAX_FIRST);
+            String c_middle = TPCCConstants.MIDDLE;
 
-            assert 1 <= c_id && c_id <= Constants.CUSTOMERS_PER_DISTRICT;
+            assert 1 <= c_id && c_id <= TPCCConstants.CUSTOMERS_PER_DISTRICT;
             String c_last;
             if (c_id <= 1000) {
                 c_last = m_generator.makeLastName((int) c_id - 1);
@@ -351,17 +346,17 @@ public class MultiLoader extends BenchmarkComponent {
                 c_last = m_generator.makeRandomLastName(m_parameters.customersPerDistrict);
             }
 
-            String c_phone = m_generator.nstring(Constants.PHONE, Constants.PHONE);
+            String c_phone = m_generator.nstring(TPCCConstants.PHONE, TPCCConstants.PHONE);
             TimestampType c_since = m_generationDateTime;
-            String c_credit = badCredit ? Constants.BAD_CREDIT : Constants.GOOD_CREDIT;
-            double c_credit_lim = Constants.INITIAL_CREDIT_LIM;
-            double c_discount = m_generator.fixedPoint(Constants.DISCOUNT_DECIMALS, Constants.MIN_DISCOUNT,
-                    Constants.MAX_DISCOUNT);
-            double c_balance = Constants.INITIAL_BALANCE;
-            double c_ytd_payment = Constants.INITIAL_YTD_PAYMENT;
-            long c_payment_cnt = Constants.INITIAL_PAYMENT_CNT;
-            long c_delivery_cnt = Constants.INITIAL_DELIVERY_CNT;
-            String c_data = m_generator.astring(Constants.MIN_C_DATA, Constants.MAX_C_DATA);
+            String c_credit = badCredit ? TPCCConstants.BAD_CREDIT : TPCCConstants.GOOD_CREDIT;
+            double c_credit_lim = TPCCConstants.INITIAL_CREDIT_LIM;
+            double c_discount = m_generator.fixedPoint(TPCCConstants.DISCOUNT_DECIMALS, TPCCConstants.MIN_DISCOUNT,
+                    TPCCConstants.MAX_DISCOUNT);
+            double c_balance = TPCCConstants.INITIAL_BALANCE;
+            double c_ytd_payment = TPCCConstants.INITIAL_YTD_PAYMENT;
+            long c_payment_cnt = TPCCConstants.INITIAL_PAYMENT_CNT;
+            long c_delivery_cnt = TPCCConstants.INITIAL_DELIVERY_CNT;
+            String c_data = m_generator.astring(TPCCConstants.MIN_C_DATA, TPCCConstants.MAX_C_DATA);
 
             int ind = 0;
             container_customer[ind++] = c_id;
@@ -371,10 +366,10 @@ public class MultiLoader extends BenchmarkComponent {
             container_customer[ind++] = c_middle;
             container_customer[ind++] = c_last;
 
-            String street1 = m_generator.astring(Constants.MIN_STREET, Constants.MAX_STREET);
-            String street2 = m_generator.astring(Constants.MIN_STREET, Constants.MAX_STREET);
-            String city = m_generator.astring(Constants.MIN_CITY, Constants.MAX_CITY);
-            String state = m_generator.astring(Constants.STATE, Constants.STATE);
+            String street1 = m_generator.astring(TPCCConstants.MIN_STREET, TPCCConstants.MAX_STREET);
+            String street2 = m_generator.astring(TPCCConstants.MIN_STREET, TPCCConstants.MAX_STREET);
+            String city = m_generator.astring(TPCCConstants.MIN_CITY, TPCCConstants.MAX_CITY);
+            String state = m_generator.astring(TPCCConstants.STATE, TPCCConstants.STATE);
             String zip = makeZip();
             container_customer[ind++] = street1;
             container_customer[ind++] = street2;
@@ -411,7 +406,7 @@ public class MultiLoader extends BenchmarkComponent {
          * generateWarehouse and generateDistrict.
          */
         private void addAddress(ArrayList<Object> insertParameters) {
-            String name = m_generator.astring(Constants.MIN_NAME, Constants.MAX_NAME);
+            String name = m_generator.astring(TPCCConstants.MIN_NAME, TPCCConstants.MAX_NAME);
             insertParameters.add(name);
             addStreetAddress(insertParameters);
         }
@@ -421,24 +416,24 @@ public class MultiLoader extends BenchmarkComponent {
          * warehouses, districts and customers.
          */
         private void addStreetAddress(ArrayList<Object> insertParameters) {
-            String street1 = m_generator.astring(Constants.MIN_STREET, Constants.MAX_STREET);
-            String street2 = m_generator.astring(Constants.MIN_STREET, Constants.MAX_STREET);
-            String city = m_generator.astring(Constants.MIN_CITY, Constants.MAX_CITY);
-            String state = m_generator.astring(Constants.STATE, Constants.STATE);
+            String street1 = m_generator.astring(TPCCConstants.MIN_STREET, TPCCConstants.MAX_STREET);
+            String street2 = m_generator.astring(TPCCConstants.MIN_STREET, TPCCConstants.MAX_STREET);
+            String city = m_generator.astring(TPCCConstants.MIN_CITY, TPCCConstants.MAX_CITY);
+            String state = m_generator.astring(TPCCConstants.STATE, TPCCConstants.STATE);
             String zip = makeZip();
 
             insertParameters.addAll(Arrays.asList(street1, street2, city, state, zip));
         }
 
-        private final Object[] container_stock = new Object[3 + Constants.DISTRICTS_PER_WAREHOUSE + 4];
+        private final Object[] container_stock = new Object[3 + TPCCConstants.DISTRICTS_PER_WAREHOUSE + 4];
 
         public void generateStock(long s_w_id, long s_i_id, boolean original) {
-            long s_quantity = m_generator.number(Constants.MIN_QUANTITY, Constants.MAX_QUANTITY);
+            long s_quantity = m_generator.number(TPCCConstants.MIN_QUANTITY, TPCCConstants.MAX_QUANTITY);
             long s_ytd = 0;
             long s_order_cnt = 0;
             long s_remote_cnt = 0;
 
-            String s_data = m_generator.astring(Constants.MIN_I_DATA, Constants.MAX_I_DATA);
+            String s_data = m_generator.astring(TPCCConstants.MIN_I_DATA, TPCCConstants.MAX_I_DATA);
             if (original) {
                 s_data = fillOriginal(s_data);
             }
@@ -446,8 +441,8 @@ public class MultiLoader extends BenchmarkComponent {
             container_stock[ind++] = s_i_id;
             container_stock[ind++] = s_w_id;
             container_stock[ind++] = s_quantity;
-            for (int i = 0; i < Constants.DISTRICTS_PER_WAREHOUSE; ++i) {
-                String s_dist_x = m_generator.astring(Constants.DIST, Constants.DIST);
+            for (int i = 0; i < TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++i) {
+                String s_dist_x = m_generator.astring(TPCCConstants.DIST, TPCCConstants.DIST);
                 container_stock[ind++] = s_dist_x;
             }
             container_stock[ind++] = s_ytd;
@@ -463,12 +458,12 @@ public class MultiLoader extends BenchmarkComponent {
             TimestampType o_entry_d = m_generationDateTime;
             long o_carrier_id;
             if (!newOrder) {
-                o_carrier_id = m_generator.number(Constants.MIN_CARRIER_ID, Constants.MAX_CARRIER_ID);
+                o_carrier_id = m_generator.number(TPCCConstants.MIN_CARRIER_ID, TPCCConstants.MAX_CARRIER_ID);
             } else {
-                o_carrier_id = Constants.NULL_CARRIER_ID;
+                o_carrier_id = TPCCConstants.NULL_CARRIER_ID;
             }
-            long o_ol_cnt = m_generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
-            long o_all_local = Constants.INITIAL_ALL_LOCAL;
+            long o_ol_cnt = m_generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
+            long o_all_local = TPCCConstants.INITIAL_ALL_LOCAL;
 
             data_tables[IDX_ORDERS]
                     .addRow(o_id, o_d_id, o_w_id, o_c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local);
@@ -479,17 +474,17 @@ public class MultiLoader extends BenchmarkComponent {
             long ol_i_id = m_generator.number(1, m_parameters.items);
             long ol_supply_w_id = ol_w_id;
             TimestampType ol_delivery_d = m_generationDateTime;
-            long ol_quantity = Constants.INITIAL_QUANTITY;
+            long ol_quantity = TPCCConstants.INITIAL_QUANTITY;
 
             double ol_amount;
             if (!newOrder) {
                 ol_amount = 0.00;
             } else {
-                ol_amount = m_generator.fixedPoint(Constants.MONEY_DECIMALS, Constants.MIN_AMOUNT, Constants.MAX_PRICE
-                        * Constants.MAX_OL_QUANTITY);
+                ol_amount = m_generator.fixedPoint(TPCCConstants.MONEY_DECIMALS, TPCCConstants.MIN_AMOUNT, TPCCConstants.MAX_PRICE
+                        * TPCCConstants.MAX_OL_QUANTITY);
                 ol_delivery_d = null;
             }
-            String ol_dist_info = m_generator.astring(Constants.DIST, Constants.DIST);
+            String ol_dist_info = m_generator.astring(TPCCConstants.DIST, TPCCConstants.DIST);
 
             data_tables[IDX_ORDERLINES].addRow(ol_o_id, ol_d_id, ol_w_id, ol_number, ol_i_id, ol_supply_w_id,
                     ol_delivery_d, ol_quantity, ol_amount, ol_dist_info);
@@ -500,8 +495,8 @@ public class MultiLoader extends BenchmarkComponent {
             long h_w_id = h_c_w_id;
             long h_d_id = h_c_d_id;
             TimestampType h_date = m_generationDateTime;
-            double h_amount = Constants.INITIAL_AMOUNT;
-            String h_data = m_generator.astring(Constants.MIN_DATA, Constants.MAX_DATA);
+            double h_amount = TPCCConstants.INITIAL_AMOUNT;
+            String h_data = m_generator.astring(TPCCConstants.MIN_DATA, TPCCConstants.MAX_DATA);
 
             data_tables[IDX_HISTORIES].addRow(h_c_id, h_c_d_id, h_c_w_id, h_d_id, h_w_id, h_date, h_amount, h_data);
         }
@@ -652,7 +647,7 @@ public class MultiLoader extends BenchmarkComponent {
 //
 //                    @Override
 //                    public synchronized void clientCallback(ClientResponse clientResponse) {
-//                        if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
+//                        if (clientResponse.getStatus() != Hstore.Status.OK) {
 //                            System.err.println(clientResponse.getStatusString());
 //                            System.exit(-1);
 //                        }
@@ -866,18 +861,16 @@ public class MultiLoader extends BenchmarkComponent {
     @Override
     public void runLoop() throws NoConnectionsException {
         final EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
-        handler.addObserver(new EventObserver() {
-            @Override
-            public void update(Observable o, Object obj) {
-                Throwable e = (Throwable)obj;
-                e.printStackTrace();
-                System.exit(-1);
-            }
+        handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
+            public void update(edu.brown.utils.EventObservable<Pair<Thread,Throwable>> o, Pair<Thread,Throwable> t) {
+                t.getSecond().printStackTrace();
+                System.exit(-1);                
+            };
         });
         
         ArrayList<Integer> warehouseIds = new ArrayList<Integer>();
-        int count = (m_warehouses + m_firstWarehouse - 1);
-        for (int ii = m_firstWarehouse; ii <= count; ii++) {
+        int count = (m_warehouses + m_tpccConfig.firstWarehouse - 1);
+        for (int ii = m_tpccConfig.firstWarehouse; ii <= count; ii++) {
             warehouseIds.add(ii);
         }
         // Shuffling spreads the loading out across physical hosts better

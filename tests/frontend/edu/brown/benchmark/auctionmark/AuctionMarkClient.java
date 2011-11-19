@@ -55,10 +55,11 @@ import edu.brown.benchmark.auctionmark.util.CompositeId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
+import edu.brown.hstore.Hstore;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public class AuctionMarkClient extends AuctionMarkBaseClient {
     private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
@@ -697,9 +698,9 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (trace.get()) LOG.trace("clientCallback(cid = " + getClientId() + "):: txn = " + txn.getDisplayName());
-            incrementTransactionCounter(this.txn.ordinal());
+            incrementTransactionCounter(clientResponse, this.txn.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == ClientResponse.SUCCESS) {
+            if (clientResponse.getStatus() == Hstore.Status.OK) {
                 try {
                     this.process(results);
                 } catch (Throwable ex) {

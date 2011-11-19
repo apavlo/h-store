@@ -81,6 +81,7 @@ import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
 import org.voltdb.sysprocs.DatabaseDump;
 import org.voltdb.sysprocs.LoadMultipartitionTable;
+import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.RecomputeMarkovs;
 import org.voltdb.sysprocs.Shutdown;
 import org.voltdb.types.IndexType;
@@ -96,9 +97,9 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.HStoreDtxnConf;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * Compiles a project XML file and some metadata into a Jarfile
@@ -371,16 +372,16 @@ public class VoltCompiler {
         }
 
         // Create Dtxn.Coordinator configuration for cluster
-        byte[] dtxnConfBytes = null;
-        try {
-            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
-        } catch (final Exception e1) {
-            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
-            return false;
-        }
+//        byte[] dtxnConfBytes = null;
+//        try {
+//            dtxnConfBytes = HStoreDtxnConf.toHStoreDtxnConf(catalog).getBytes("UTF-8");
+//        } catch (final Exception e1) {
+//            addErr("Can't encode the Dtxn.Coordinator configuration file correctly");
+//            return false;
+//        }
         
         try {
-            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
+//            m_jarBuilder.addEntry("dtxn.conf", dtxnConfBytes);
             m_jarBuilder.addEntry("catalog.txt", catalogBytes);
             m_jarBuilder.addEntry("project.xml", new File(projectFileURL));
             for (final Entry<String, String> e : m_ddlFilePaths.entrySet())
@@ -1181,6 +1182,8 @@ public class VoltCompiler {
         {DatabaseDump.class.getCanonicalName(),                 "true",    "false"},
         {RecomputeMarkovs.class.getCanonicalName(),             "true",    "true"},
         {Shutdown.class.getCanonicalName(),                     "false",   "false"},
+        {NoOp.class.getCanonicalName(),                         "true",    "false"},
+        
 //         {"org.voltdb.sysprocs.AdHoc",                        "false",    "false"},
 //         {"org.voltdb.sysprocs.Quiesce",                      "false",    "false"},
 //         {"org.voltdb.sysprocs.SnapshotSave",                 "false",    "false"},

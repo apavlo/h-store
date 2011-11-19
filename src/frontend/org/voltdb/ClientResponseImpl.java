@@ -18,11 +18,16 @@
 package org.voltdb;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Map;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.messaging.*;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ClientResponse;
+
+import edu.brown.hstore.Hstore;
+import edu.brown.utils.StringUtil;
 
 /**
  * Packages up the data to be sent back to the client as a stored
@@ -31,7 +36,7 @@ import org.voltdb.client.ClientResponse;
  */
 public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean setProperly = false;
-    private byte status = 0;
+    private Hstore.Status status;
     private String statusString = null;
     private byte appStatus = Byte.MIN_VALUE;
     private String appStatusString = null;
@@ -46,42 +51,33 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private int timestamp = -1;
     private boolean throttle = false;
     private boolean singlepartition = false;
-
+    private int basePartition = -1;
 
     /** opaque data optionally provided by and returned to the client */
     private long clientHandle = -1;
-
+    
     public ClientResponseImpl() {}
 
     /**
      * Used in the successful procedure invocation case.
+     * @param client_handle TODO
      * @param status
      * @param results
      * @param extra
      */
-    public ClientResponseImpl(long txn_id, byte status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
-        this(txn_id, status, appStatus, appStatusString, results, statusString, -1, null);
-    }
-
-    /**
-     * Constructor used for tests and error responses.
-     * @param status
-     * @param results
-     * @param extra
-     */
-    public ClientResponseImpl(long txn_id, byte status, VoltTable[] results, String statusString) {
-        this(txn_id, status, Byte.MIN_VALUE, null, results, statusString, -1, null);
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
+        this(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, null);
     }
 
     /**
      * Another constructor for test and error responses
+     * @param client_handle
      * @param status
      * @param results
      * @param extra
-     * @param handle
      */
-    public ClientResponseImpl(long txn_id, byte status, VoltTable[] results, String statusString, long handle) {
-        this(txn_id, status, Byte.MIN_VALUE, null, results, statusString, handle, null);
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, VoltTable[] results, String statusString) {
+        this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, null);
     }
 
     /**
@@ -91,8 +87,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param extra
      * @param e
      */
-    public ClientResponseImpl(long txn_id, byte status, VoltTable[] results, String statusString, SerializableException e) {
-        this(txn_id, status, Byte.MIN_VALUE, null, results, statusString, -1, e);
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, VoltTable[] results, String statusString, SerializableException e) {
+        this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
     }
 
     /**
@@ -102,16 +98,17 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param extra
      * @param e
      */
-    public ClientResponseImpl(long txn_id, byte status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
-        this(txn_id, status, appStatus, appStatusString, results, extra, -1, e);
+    public ClientResponseImpl(long txn_id, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
+        this(txn_id, -1, basePartition, status, appStatus, appStatusString, results, extra, e);
     }
 
-    public ClientResponseImpl(long txn_id, byte status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, long handle, SerializableException e) {
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
+        this.txn_id = txn_id;
+        this.clientHandle = client_handle;
+        this.basePartition = basePartition;
         this.appStatus = appStatus;
         this.appStatusString = appStatusString;
         setResults(status, results, statusString, e);
-        clientHandle = handle;
-        this.txn_id = txn_id;
     }
     
     // ----------------------------------------------------------------------------
@@ -145,7 +142,27 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         b.put(22, (byte)(flag ? 1 : 0)); // 1 + 4 + 8 + 8 + 1 = 22 
     }
     
-    private void setResults(byte status, VoltTable[] results, String statusString) {
+    /**
+     * Set the base partition for the client response without deserializing it
+     * @param arr
+     * @param flag
+     */
+    public static void setBasePartition(ByteBuffer b, int basePartition) {
+        b.putInt(22, basePartition); // 1 + 4 + 8 + 8 + 1 + 1 = 23 
+    }
+    
+    /**
+     * Set the status without deserializing it first
+     * @param arr
+     * @param flag
+     */
+    public static void setStatus(ByteBuffer b, Hstore.Status status) {
+        b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 1 + 4 = 27 
+    }
+    
+    // ----------------------------------------------------------------------------
+    
+    private void setResults(Hstore.Status status, VoltTable[] results, String statusString) {
         assert results != null;
         for (VoltTable result : results) {
             // null values are not permitted in results. If there is one, it will cause an
@@ -159,12 +176,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.setProperly = true;
     }
 
-    private void setResults(byte status, VoltTable[] results, String extra, SerializableException e) {
+    private void setResults(Hstore.Status status, VoltTable[] results, String extra, SerializableException e) {
         m_exception = e;
         setResults(status, results, extra);
     }
     
-    public void setStatus(byte status) {
+    public void setStatus(Hstore.Status status) {
         this.status = status;
     }
     
@@ -194,7 +211,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.singlepartition = val;
     }
     
-    public byte getStatus() {
+    public Hstore.Status getStatus() {
         return status;
     }
 
@@ -240,9 +257,10 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         clientHandle = in.readLong();
         singlepartition = in.readBoolean();
         throttle = in.readBoolean();
+        basePartition = in.readInt();
         
         byte presentFields = in.readByte();
-        status = in.readByte();
+        status = Hstore.Status.valueOf(in.readByte());
         if ((presentFields & (1 << 5)) != 0) {
             statusString = in.readString();
         } else {
@@ -273,6 +291,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         out.writeLong(clientHandle);
         out.writeBoolean(singlepartition);
         out.writeBoolean(throttle);
+        out.writeInt(basePartition);
+        
         byte presentFields = 0;
         if (appStatusString != null) {
             presentFields |= 1 << 7;
@@ -284,7 +304,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
             presentFields |= 1 << 5;
         }
         out.writeByte(presentFields);
-        out.write(status);
+        out.write((byte)status.ordinal());
         if (statusString != null) {
             out.writeString(statusString);
         }
@@ -329,39 +349,34 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         return appStatusString;
     }
     
-    /** PAVLO **/
-    public String getStatusName() {
-        return (ClientResponseImpl.getStatusName(this.status));
+
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Status", this.status + " / " + this.statusString);
+        m.put("Handle", this.clientHandle);
+        m.put("Timestamp", this.timestamp);
+        m.put("Throttle", this.throttle);
+        m.put("SinglePartition", this.singlepartition);
+        m.put("BasePartition", this.basePartition);
+        m.put("Exception", m_exception);
+        
+        Map<String, Object> inner = new ListOrderedMap<String, Object>();
+        for (int i = 0; i < results.length; i++) {
+            inner.put(String.format("[%d]", i), results[i].toString());
+        }
+        m.put("Results", inner);
+        
+        return String.format("ClientResponse[#%d]\n%s", this.txn_id, StringUtil.formatMaps(m));
     }
-    
-    public static String getStatusName(byte status) {
-        String ret = null;
-        switch (status) {
-            case ClientResponseImpl.SUCCESS:
-                ret = "SUCCESS";
-                break;
-            case ClientResponseImpl.USER_ABORT:
-                ret = "USER_ABORT";
-                break;
-            case ClientResponseImpl.CONNECTION_LOST:
-                ret = "CONNECTION_LOST";
-                break;
-            case ClientResponseImpl.GRACEFUL_FAILURE:
-                ret = "GRACEFUL_FAILURE";
-                break;
-            case ClientResponseImpl.UNEXPECTED_FAILURE:
-                ret = "UNEXPECTED_FAILURE";
-                break;
-            case ClientResponseImpl.MISPREDICTION:
-                ret = "MISPREDICTION";
-                break;
-            case ClientResponseImpl.REJECTED:
-                ret = "REJECTED";
-                break;
-            default:
-                assert(false) : "Unknown ClientResponse status '" + status + "'";
-        } // SWITCH
-        return (ret);
+
+    @Override
+    public int getBasePartition() {
+        return (this.basePartition);
     }
-    /** PAVLO **/
+
+    @Override
+    public void setBasePartition(int val) {
+        this.basePartition = val;
+    }
 }

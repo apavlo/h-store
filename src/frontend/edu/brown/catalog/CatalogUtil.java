@@ -20,18 +20,21 @@ import org.voltdb.utils.*;
 import org.voltdb.catalog.*;
 import org.voltdb.expressions.*;
 
+import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
+import edu.brown.catalog.special.SpecialProcParameter;
 import edu.brown.designer.ColumnSet;
 import edu.brown.expressions.ExpressionTreeWalker;
 import edu.brown.expressions.ExpressionUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * @author pavlo
@@ -427,7 +430,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (catalog_proc.getParameters().size() > 0 && !catalog_proc.getSystemproc()) {
             int idx = catalog_proc.getPartitionparameter();
             if (idx == NullProcParameter.PARAM_IDX) {
-                catalog_param = NullProcParameter.getNullProcParameter(catalog_proc);
+                catalog_param = NullProcParameter.singleton(catalog_proc);
             } else {
                 catalog_param = catalog_proc.getParameters().get(idx);
                 assert (catalog_param != null) : "Unexpected Null ProcParameter for "
@@ -460,6 +463,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         List<ProcParameter> params = new ArrayList<ProcParameter>();
         for (ProcParameter catalog_param : catalog_proc.getParameters()) {
             if (catalog_param.getIsarray()) params.add(catalog_param);
+        } // FOR
+        return (params);
+    }
+    
+    /**
+     * Return the list of every ProcParameter except for SpecialProcParameters
+     */
+    public static List<ProcParameter> getRegularProcParameters(final Procedure catalog_proc) {
+        List<ProcParameter> params = new ArrayList<ProcParameter>();
+        for (ProcParameter catalog_param : catalog_proc.getParameters()) {
+            if (catalog_param instanceof SpecialProcParameter) continue;
+            params.add(catalog_param);
         } // FOR
         return (params);
     }
@@ -618,21 +633,21 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param engine - Whether to use the direct engine port number 
      * @return
      */
-    public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
-        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
-        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
-        Partition catalog_part = cache.PARTITION_XREF.get(id);
-        if (catalog_part == null) {
-            LOG.warn(String.format("Invalid partition id '%d'", id));
-            return (null);
-        }
-        Site catalog_site = catalog_part.getParent();
-        assert(catalog_site != null) : "No site for " + catalog_part; 
-        Host catalog_host = catalog_site.getHost();
-        assert(catalog_host != null) : "No host for " + catalog_site;
-        int port = (engine ? catalog_part.getEngine_port() : catalog_part.getDtxn_port());
-        return (new InetSocketAddress(catalog_host.getIpaddr(), port));
-    }
+//    public static InetSocketAddress getPartitionAddressById(CatalogType catalog_item, Integer id, boolean engine) {
+//        final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
+//        if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
+//        Partition catalog_part = cache.PARTITION_XREF.get(id);
+//        if (catalog_part == null) {
+//            LOG.warn(String.format("Invalid partition id '%d'", id));
+//            return (null);
+//        }
+//        Site catalog_site = catalog_part.getParent();
+//        assert(catalog_site != null) : "No site for " + catalog_part; 
+//        Host catalog_host = catalog_site.getHost();
+//        assert(catalog_host != null) : "No host for " + catalog_site;
+//        int port = (engine ? catalog_part.getEngine_port() : catalog_part.getDtxn_port());
+//        return (new InetSocketAddress(catalog_host.getIpaddr(), port));
+//    }
     
     /**
      * Return a Collection of all the Partition catalog objects
@@ -652,7 +667,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static Collection<Integer> getAllPartitionIds(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
-        return (Collections.synchronizedCollection(cache.PARTITION_XREF.asList()));
+        return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
     }
 
     /**
@@ -743,11 +758,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
     public static Collection<Integer> getExecutionSitePorts(Site catalog_site) {
-        Set<Integer> ports = new TreeSet<Integer>();
-        for (Partition catalog_part : catalog_site.getPartitions()) {
-            ports.add(catalog_part.getProc_port());
-        }
-        return (ports);
+        return Collections.singleton(catalog_site.getProc_port());
     }
     
     /**

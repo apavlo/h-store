@@ -11,6 +11,8 @@ import junit.framework.TestCase;
 
 import org.junit.Test;
 
+import edu.brown.logging.LoggerUtil;
+
 /**
  * 
  * @author pavlo
