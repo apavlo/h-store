@@ -59,15 +59,16 @@ import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 /**
  * 
@@ -276,11 +277,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             generator.init();
         }
         assert(threads.size() > 0);
-        handler.addObserver(new EventObserver() {
+        handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
             @Override
-            public void update(Observable o, Object obj) {
-                for (Thread t : threads)
-                    t.interrupt();
+            public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> t) {
+                for (Thread thread : threads)
+                    thread.interrupt();
             }
         });
         

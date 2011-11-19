@@ -24,12 +24,12 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.MemoryEstimator;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 public abstract class VerticalPartitionerUtil {
     private static final Logger LOG = Logger.getLogger(VerticalPartitionerUtil.class);

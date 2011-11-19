@@ -39,8 +39,8 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FastSerializer.BufferGrowCallback;
 import org.voltdb.utils.DBBPool.BBContainer;
 
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * Wrapper for native Execution Engine library.

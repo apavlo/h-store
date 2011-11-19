@@ -37,7 +37,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.BuildDirectoryUtils;
 
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then

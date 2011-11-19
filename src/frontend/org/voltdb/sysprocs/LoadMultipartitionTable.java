@@ -33,16 +33,15 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
 import org.voltdb.catalog.Column;
-import org.voltdb.catalog.ColumnRef;
 import org.voltdb.catalog.MaterializedViewInfo;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.DtxnConstants;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 
 @ProcInfo(singlePartition = false)
 /*
@@ -65,9 +64,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
     @Override
     public void globalInit(ExecutionSite site, Procedure catalog_proc,
-            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator,
-            Integer local_partition) {
-        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator, local_partition);
+            BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+        super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
         
         site.registerPlanFragment(SysProcFragmentId.PF_loadDistribute, this);
         site.registerPlanFragment(SysProcFragmentId.PF_loadAggregate, this);
@@ -98,7 +96,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             assert(this.isInitialized()) : " The sysproc " + this.getClass().getSimpleName() + " was not initialized properly";
             try {
                 // voltLoadTable is void. Assume success or exception.
-                super.voltLoadTable(txn_id, context.getCluster().getName(), context.getDatabase().getName(),
+                super.voltLoadTable(context.getCluster().getName(), context.getDatabase().getName(),
                                     table_name, (VoltTable)(params.toArray()[1]), 0);
             } catch (VoltAbortException e) {
                 // must continue and reply with dependency.
@@ -145,7 +143,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         pfs[0].multipartition = false;
         pfs[0].nonExecSites = false;
         pfs[0].parameters = new ParameterSet();
-        pfs[0].destPartitionId = base_partition;
+        pfs[0].destPartitionId = partitionId;
 
         return (pfs);
     }
@@ -213,7 +211,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
 
         // a final plan fragment to aggregate the results
         pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = base_partition;
+        pfs[0].destPartitionId = partitionId;
         pfs[0].fragmentId = SysProcFragmentId.PF_loadAggregate;
         pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
         pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };

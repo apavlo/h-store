@@ -1,13 +1,15 @@
 package edu.brown.utils;
 
-public class EventObservableExceptionHandler extends EventObservable implements Thread.UncaughtExceptionHandler {
+import org.voltdb.utils.Pair;
+
+public class EventObservableExceptionHandler extends EventObservable<Pair<Thread, Throwable>> implements Thread.UncaughtExceptionHandler {
 
     private Throwable error;
     
     @Override
     public void uncaughtException(Thread t, Throwable e) {
         if (this.error == null) this.error = e;
-        this.notifyObservers(e);
+        this.notifyObservers(Pair.of(t, e));
     }
     
     public boolean hasError() {

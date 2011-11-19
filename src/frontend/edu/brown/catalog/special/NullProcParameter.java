@@ -5,14 +5,13 @@ import java.util.Map;
 
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 
 /**
  * Placeholder used to indicate that no partitioning parameter for the stored procedure has been selected
  * @author pavlo
  */
-public class NullProcParameter extends ProcParameter {
+public class NullProcParameter extends SpecialProcParameter {
     public static final int PARAM_IDX = -1;
     public static final String PARAM_NAME = "*NULL*";
     private static final Map<Procedure, NullProcParameter> SINGLETONS = new HashMap<Procedure, NullProcParameter>();
@@ -51,7 +50,7 @@ public class NullProcParameter extends ProcParameter {
         return (this.parent.equals(other.parent));
     }
     
-    public static synchronized NullProcParameter getNullProcParameter(Procedure catalog_proc) {
+    public static synchronized NullProcParameter singleton(Procedure catalog_proc) {
         assert(catalog_proc != null);
         NullProcParameter obj = SINGLETONS.get(catalog_proc);
         if (obj == null) {

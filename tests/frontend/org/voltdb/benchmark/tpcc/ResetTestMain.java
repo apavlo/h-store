@@ -92,7 +92,7 @@ public class ResetTestMain {
         for (int d_id = 1; d_id <= parameters.districtsPerWarehouse; ++d_id) {
             for (int o_id = 1; o_id <= customersPerDistrictAfterInsertion; ++o_id) { //10% more
                 // Generate each OrderLine for the order
-                long o_ol_cnt = generator.number(Constants.MIN_OL_CNT, Constants.MAX_OL_CNT);
+                long o_ol_cnt = generator.number(TPCCConstants.MIN_OL_CNT, TPCCConstants.MAX_OL_CNT);
                 boolean newOrder =
                     parameters.customersPerDistrict - parameters.newOrdersPerDistrict < o_id;
                 for (int ol_number = 1; ol_number <= o_ol_cnt; ++ol_number) {
@@ -104,20 +104,20 @@ public class ResetTestMain {
                     b_ol_i_id[batch_cnt] = generator.number(1, parameters.items);
                     b_ol_supply_w_id[batch_cnt] = w_id;
                     b_ol_delivery_d[batch_cnt] = generationDateTime;
-                    b_ol_quantity[batch_cnt] = Constants.INITIAL_QUANTITY;
+                    b_ol_quantity[batch_cnt] = TPCCConstants.INITIAL_QUANTITY;
 
                     if (!newOrder) {
                         b_ol_amount[batch_cnt] = 0.00;
                     } else {
-                        b_ol_amount[batch_cnt] = generator.fixedPoint(Constants.MONEY_DECIMALS, Constants.MIN_AMOUNT,
-                                Constants.MAX_PRICE * Constants.MAX_OL_QUANTITY);
+                        b_ol_amount[batch_cnt] = generator.fixedPoint(TPCCConstants.MONEY_DECIMALS, TPCCConstants.MIN_AMOUNT,
+                                TPCCConstants.MAX_PRICE * TPCCConstants.MAX_OL_QUANTITY);
                         b_ol_delivery_d[batch_cnt] = null;
                     }
-                    b_ol_dist_info[batch_cnt] = generator.astring(Constants.DIST, Constants.DIST);
+                    b_ol_dist_info[batch_cnt] = generator.astring(TPCCConstants.DIST, TPCCConstants.DIST);
                     ++batch_cnt;
                     if (batch_cnt == BATCH_SIZE) {
                         total += BATCH_SIZE;
-                        System.out.println ("loading: " + total + "/" + (parameters.districtsPerWarehouse * customersPerDistrictAfterInsertion * (Constants.MAX_OL_CNT - Constants.MIN_OL_CNT)));
+                        System.out.println ("loading: " + total + "/" + (parameters.districtsPerWarehouse * customersPerDistrictAfterInsertion * (TPCCConstants.MAX_OL_CNT - TPCCConstants.MIN_OL_CNT)));
                         client.callProcedure(InsertOrderLineBatched.class.getSimpleName(),
                             b_ol_o_id, b_ol_d_id, w_id, b_ol_number, b_ol_i_id,
                             b_ol_supply_w_id, b_ol_delivery_d, b_ol_quantity, b_ol_amount, b_ol_dist_info);

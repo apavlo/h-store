@@ -24,6 +24,8 @@ import org.voltdb.types.QueryType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
 import edu.brown.markov.MarkovEstimate;
 import edu.brown.markov.MarkovGraph;
@@ -37,12 +39,10 @@ import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
@@ -312,7 +312,7 @@ public class MarkovCostModel extends AbstractCostModel {
         }
 
         
-        TransactionEstimator.getStatePool().returnObject(s);
+        TransactionEstimator.POOL_STATES.returnObject(s);
         
         return (cost);
     }

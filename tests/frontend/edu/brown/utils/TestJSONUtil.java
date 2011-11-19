@@ -200,7 +200,7 @@ public class TestJSONUtil extends BaseTestCase {
         this.obj.data_boolean_obj = new Boolean(rand.nextBoolean());
         this.obj.data_enum = TestEnum.values()[rand.nextInt(TestEnum.values().length)];
         
-        List<Table> tables = CollectionUtil.toList(catalog_db.getTables());
+        List<Table> tables = CollectionUtil.list(catalog_db.getTables());
         for (int i = 0, cnt = rand.nextInt(20) + 1; i < cnt; i++) {
             this.obj.list_int.add(rand.nextInt());
             this.obj.list_long.add(rand.nextLong());

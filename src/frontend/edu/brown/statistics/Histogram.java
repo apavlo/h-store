@@ -35,6 +35,7 @@ public class Histogram<X> implements JSONSerializable {
         VALUE_TYPE,
         HISTOGRAM,
         NUM_SAMPLES,
+        KEEP_ZERO_ENTRIES,
         MIN_VALUE,
 //        MIN_COUNT,
 //        MIN_COUNT_VALUE,
@@ -71,7 +72,7 @@ public class Histogram<X> implements JSONSerializable {
     /**
      * A switchable flag that determines whether non-zero entries are kept or removed
      */
-    private transient boolean keep_zero_entries = false;
+    protected boolean keep_zero_entries = false;
     
     /**
      * Constructor
@@ -102,7 +103,7 @@ public class Histogram<X> implements JSONSerializable {
      * Helper method used for replacing the object's toString() output with labels
      * @param names_map
      */
-    public Histogram<X> setDebugLabels(Map<Object, String> names_map) {
+    public Histogram<X> setDebugLabels(Map<?, String> names_map) {
         this.debug_names.putAll(names_map);
         return (this);
     }
@@ -717,6 +718,8 @@ public class Histogram<X> implements JSONSerializable {
                         stringer.key(value.toString()).value(this.histogram.get(value));
                     } // FOR
                     stringer.endObject();
+                } else if (element == Members.KEEP_ZERO_ENTRIES) {
+                    if (this.keep_zero_entries) stringer.key(element.name()).value(this.keep_zero_entries);
 //                } else if (element == Members.MAX_COUNT_VALUE || element == Members.MIN_COUNT_VALUE) {
 //                    stringer.key(element.name()).array();
 //                    for (Object o : (Set<Object>)field.get(this)) {
@@ -738,10 +741,14 @@ public class Histogram<X> implements JSONSerializable {
     public void fromJSON(JSONObject object, Database catalog_db) throws JSONException {
         this.value_type = VoltType.typeFromString(object.get(Members.VALUE_TYPE.name()).toString());
         assert(this.value_type != null);
+        
+        if (object.has(Members.KEEP_ZERO_ENTRIES.name())) {
+            this.setKeepZeroEntries(object.getBoolean(Members.KEEP_ZERO_ENTRIES.name()));
+        }
 
         // This code sucks ass...
         for (Members element : Histogram.Members.values()) {
-            if (element == Members.VALUE_TYPE) continue;
+            if (element == Members.VALUE_TYPE || element == Members.KEEP_ZERO_ENTRIES) continue;
             try {
                 String field_name = element.toString().toLowerCase();
                 Field field = Histogram.class.getDeclaredField(field_name);

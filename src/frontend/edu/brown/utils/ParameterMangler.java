@@ -1,10 +1,13 @@
 package edu.brown.utils;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.voltdb.VoltType;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
+
+import edu.brown.catalog.CatalogUtil;
 
 /**
  * Hackishly convert primitive arrays into object arrays
@@ -21,28 +24,27 @@ public class ParameterMangler {
     public ParameterMangler(Procedure catalog_proc) {
         this.catalog_proc = catalog_proc;
 
-        this.params = catalog_proc.getParameters().toArray(new ProcParameter[0]);
-        this.param_isarray = new boolean[this.params.length];
-        this.param_types = new VoltType[this.params.length];
+        List<ProcParameter> catalog_params = CatalogUtil.getRegularProcParameters(catalog_proc);
+        int num_params = catalog_params.size();
+        this.params = new ProcParameter[num_params];
+        this.param_isarray = new boolean[num_params];
+        this.param_types = new VoltType[num_params];
         boolean found_array = false;
-        for (ProcParameter catalog_param : this.catalog_proc.getParameters()) {
-            int i = catalog_param.getIndex();
-            boolean is_array = catalog_param.getIsarray();
-            found_array = found_array || is_array;
-            
-            this.param_isarray[i] = is_array;
+        for (int i = 0, cnt = catalog_params.size(); i < cnt; i++) {
+            ProcParameter catalog_param = catalog_params.get(i);
+            this.params[i] = catalog_param;
+            this.param_isarray[i] = catalog_param.getIsarray();
             this.param_types[i] = VoltType.get(catalog_param.getType());
+            found_array = found_array || this.param_isarray[i];
         } // FOR
         this.has_arrays = found_array;
     }
     
-    public String toString(Object mangled[]) {
-//        Object mangled[] = this.convert(args);
-        
+    public static String toString(Object mangled[], boolean is_array[]) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < mangled.length; i++) {
             sb.append(String.format("  [%02d] ", i));
-            if (this.param_isarray[i]) {
+            if (is_array[i]) {
                 sb.append(Arrays.toString((Object[])mangled[i]));
             } else {
                 sb.append(mangled[i]);
@@ -50,6 +52,10 @@ public class ParameterMangler {
             sb.append("\n");
         } // FOR
         return (sb.toString());
+    }
+    
+    public String toString(Object mangled[]) {
+        return ParameterMangler.toString(mangled, this.param_isarray);
     }
     
     public Object[] convert(Object orig[]) {
@@ -112,6 +118,10 @@ public class ParameterMangler {
                 }
                 cast_args[i] = inner;
             } else {
+                assert(cast_args.length == orig.length) :
+                    String.format("%s #%d :: cast[%d] != orig[%d]\nCAST:%s\nORIG:%s\nPARAMS:%s",
+                                  catalog_proc, i, cast_args.length, orig.length,
+                                  Arrays.toString(cast_args), Arrays.toString(orig), Arrays.toString(this.params));
                 cast_args[i] = orig[i];
             }
         } // FOR

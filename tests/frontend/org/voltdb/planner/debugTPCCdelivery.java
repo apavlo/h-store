@@ -27,7 +27,7 @@ import java.util.Date;
 
 import org.voltdb.*;
 import org.voltdb.VoltTableRow;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 
 @ProcInfo (
     partitionInfo = "WAREHOUSE.W_ID: 0",
@@ -113,15 +113,15 @@ public class debugTPCCdelivery extends VoltProcedure {
         results = voltExecuteSQL()[0].asScalarLong();
         assert(results == 1);
 
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             voltQueueSQL(getNewOrder, d_id, W_ID);
         }
         final VoltTable[] neworderresults = voltExecuteSQL();
-        assert neworderresults.length == Constants.DISTRICTS_PER_WAREHOUSE;
-        final Long[] no_o_ids = new Long[Constants.DISTRICTS_PER_WAREHOUSE];
+        assert neworderresults.length == TPCCConstants.DISTRICTS_PER_WAREHOUSE;
+        final Long[] no_o_ids = new Long[TPCCConstants.DISTRICTS_PER_WAREHOUSE];
         int valid_neworders = 0;
-        int[] result_offsets = new int[Constants.DISTRICTS_PER_WAREHOUSE];
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        int[] result_offsets = new int[TPCCConstants.DISTRICTS_PER_WAREHOUSE];
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             final VoltTable newOrder = neworderresults[(int) d_id - 1];
 
             if (newOrder.getRowCount() == 0) {
@@ -158,7 +158,7 @@ public class debugTPCCdelivery extends VoltProcedure {
         final VoltTable[] otherresults = voltExecuteSQL();
         assert otherresults.length == valid_neworders * 2;
 
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             final VoltTable newOrder = neworderresults[(int) d_id - 1];
 
             if (newOrder.getRowCount() == 0) {
@@ -179,7 +179,7 @@ public class debugTPCCdelivery extends VoltProcedure {
         // We remove the queued time, completed time, w_id, and o_carrier_id: the client can figure
         // them out
         final VoltTable result = result_template.clone(8192);
-        for (long d_id  = 1; d_id <= Constants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
+        for (long d_id  = 1; d_id <= TPCCConstants.DISTRICTS_PER_WAREHOUSE; ++d_id) {
             int resultoffset = result_offsets[(int) d_id - 1];
 
             if (resultoffset < 0) {

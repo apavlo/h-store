@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -39,13 +40,15 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.designer.ColumnSet;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
@@ -70,7 +73,7 @@ public class PartitionEstimator {
     private final Set<Integer> all_partitions = new HashSet<Integer>();
     private int num_partitions;
     
-    private final Map<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
+    private final HashMap<Procedure, ProcParameter> cache_procPartitionParameters = new HashMap<Procedure, ProcParameter>();
     private final Map<Table, Column> cache_tablePartitionColumns = new HashMap<Table, Column>();
     private final Map<Statement, Collection<Integer>> cache_stmtPartitionParameters = new HashMap<Statement, Collection<Integer>>();
     
@@ -320,9 +323,17 @@ public class PartitionEstimator {
     private synchronized void buildCatalogCache() {
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
             if (catalog_proc.getSystemproc() == false && catalog_proc.getParameters().size() > 0) {
-                int param_idx = catalog_proc.getPartitionparameter();
                 ProcParameter catalog_param = null;
-                if (param_idx != NullProcParameter.PARAM_IDX) catalog_param = catalog_proc.getParameters().get(param_idx);
+                int param_idx = catalog_proc.getPartitionparameter();
+                if (param_idx == NullProcParameter.PARAM_IDX || catalog_proc.getParameters().isEmpty()) {
+                    catalog_param = NullProcParameter.singleton(catalog_proc);
+                }
+                else if (param_idx == RandomProcParameter.PARAM_IDX) {
+                    catalog_param = RandomProcParameter.singleton(catalog_proc);
+                }
+                else {
+                    catalog_param = catalog_proc.getParameters().get(param_idx);
+                }
                 this.cache_procPartitionParameters.put(catalog_proc, catalog_param);
                 if (debug.get()) LOG.debug(catalog_proc + " ProcParameter Cache: " + (catalog_param != null ? catalog_param.fullName() : catalog_param));
             }
@@ -743,13 +754,17 @@ public class PartitionEstimator {
         assert(params != null);
         ProcParameter catalog_param = this.cache_procPartitionParameters.get(catalog_proc);
         
-        if (catalog_param == null) { 
-            if (force && catalog_proc.getParameters().size() > 0) {
+        if (catalog_param == null && force) { 
+            if (force) {
                 int idx = catalog_proc.getPartitionparameter();
-                catalog_param = catalog_proc.getParameters().get(idx != NullProcParameter.PARAM_IDX ? idx : 0);
-                synchronized (this.cache_procPartitionParameters) {
-                    this.cache_procPartitionParameters.put(catalog_proc, catalog_param);
-                } // SYNCH
+                if (idx == NullProcParameter.PARAM_IDX || catalog_proc.getParameters().isEmpty()) {
+                    catalog_param = NullProcParameter.singleton(catalog_proc);
+                } else if (idx == RandomProcParameter.PARAM_IDX) {
+                    catalog_param = RandomProcParameter.singleton(catalog_proc);
+                } else {
+                    catalog_param = catalog_proc.getParameters().get(idx);
+                }
+                this.cache_procPartitionParameters.put(catalog_proc, catalog_param);
                 if (debug.get()) LOG.debug("Added cached " + catalog_param + " for " + catalog_proc);
             } else {
                 if (debug.get()) LOG.debug(catalog_proc + " has no parameters. No base partition for you!");
@@ -767,8 +782,12 @@ public class PartitionEstimator {
         Integer partition = null;
         boolean is_array = catalog_param.getIsarray();
         
+        // Special Case: RandomProcParameter
+        if (catalog_param instanceof RandomProcParameter) {
+            partition = RandomProcParameter.rand.nextInt(this.num_partitions);
+        }
         // Special Case: MultiProcParameter
-        if (catalog_param instanceof MultiProcParameter) {
+        else if (catalog_param instanceof MultiProcParameter) {
             MultiProcParameter mpp = (MultiProcParameter)catalog_param;
             if (debug.get()) LOG.debug(catalog_proc.getName() + " MultiProcParameter: " + mpp);
             int hashes[] = new int[mpp.size()];

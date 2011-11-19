@@ -48,7 +48,7 @@ public class TestUserIdGenerator extends TestCase {
 	    UserIdGenerator generator = new UserIdGenerator(users_per_item_count, NUM_CLIENTS);
 	    Set<UserId> seen = new HashSet<UserId>();
 	    assert(generator.hasNext());
-	    for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+	    for (UserId u_id : CollectionUtil.iterable(generator)) {
 	        assertNotNull(u_id);
 	        assert(seen.contains(u_id) == false) : "Duplicate " + u_id;
 	        seen.add(u_id);
@@ -67,7 +67,7 @@ public class TestUserIdGenerator extends TestCase {
     	    UserIdGenerator generator = new UserIdGenerator(users_per_item_count, NUM_CLIENTS, client);
             Set<UserId> seen = new HashSet<UserId>();
             assert(generator.hasNext());
-            for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+            for (UserId u_id : CollectionUtil.iterable(generator)) {
                 assertNotNull(u_id);
                 assert(seen.contains(u_id) == false) : "Duplicate " + u_id;
                 assert(all_seen.contains(u_id) == false) : "Duplicate " + u_id;
@@ -99,7 +99,7 @@ public class TestUserIdGenerator extends TestCase {
         // the set of all the UserIds that we expect
         UserIdGenerator generator = new UserIdGenerator(users_per_item_count, 1);
         Set<UserId> expected = new HashSet<UserId>();
-        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+        for (UserId u_id : CollectionUtil.iterable(generator)) {
             assertNotNull(u_id);
             assert(expected.contains(u_id) == false) : "Duplicate " + u_id;
             expected.add(u_id);
@@ -109,7 +109,7 @@ public class TestUserIdGenerator extends TestCase {
         // get back all the same UserIds
         Set<UserId> actual = new HashSet<UserId>();
         generator = new UserIdGenerator(users_per_item_count, 1, 0);
-        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+        for (UserId u_id : CollectionUtil.iterable(generator)) {
             assertNotNull(u_id);
             assert(actual.contains(u_id) == false) : "Duplicate " + u_id;
             assert(expected.contains(u_id)) : "Unexpected " + u_id;
@@ -128,7 +128,7 @@ public class TestUserIdGenerator extends TestCase {
 	    int client = rand.nextInt(NUM_CLIENTS);
 	    UserIdGenerator generator = new UserIdGenerator(users_per_item_count, NUM_CLIENTS, client);
 	    Set<UserId> seen = new HashSet<UserId>();
-	    for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+	    for (UserId u_id : CollectionUtil.iterable(generator)) {
             assertNotNull(u_id);
             assert(seen.contains(u_id) == false) : "Duplicate " + u_id;
             seen.add(u_id);
@@ -139,7 +139,7 @@ public class TestUserIdGenerator extends TestCase {
 	    for (int i = 0; i < 10; i++) {
 	        int size = rand.nextInt((int)(users_per_item_count.getMaxValue()+1));
 	        generator.setCurrentItemCount(size);
-	        for (UserId u_id : CollectionUtil.wrapIterator(generator)) {
+	        for (UserId u_id : CollectionUtil.iterable(generator)) {
 	            assertNotNull(u_id);
 	            assert(seen.contains(u_id)) : "Unexpected " + u_id;
 	        } // FOR

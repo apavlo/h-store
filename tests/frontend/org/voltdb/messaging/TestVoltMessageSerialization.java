@@ -34,6 +34,8 @@ import org.voltdb.VoltType;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.utils.DBBPool;
 
+import edu.brown.hstore.Hstore;
+
 public class TestVoltMessageSerialization extends TestCase {
 
     VoltMessage checkVoltMessage(VoltMessage msg, final DBBPool pool) {
@@ -90,7 +92,7 @@ public class TestVoltMessageSerialization extends TestCase {
         table.addRow("howmanylicksdoesittaketogettothecenterofatootsiepop");
 
         InitiateResponseMessage iresponse = new InitiateResponseMessage(itask);
-        iresponse.setResults( new ClientResponseImpl(-1, ClientResponseImpl.GRACEFUL_FAILURE,
+        iresponse.setResults( new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_GRACEFUL,
                 new VoltTable[] { table }, "knockknockbananna", new EEException(1)));
         iresponse.setClientHandle(99);
 

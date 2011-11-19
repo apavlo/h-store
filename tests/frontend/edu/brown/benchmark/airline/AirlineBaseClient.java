@@ -26,14 +26,14 @@ import edu.brown.benchmark.airline.util.CustomerId;
 import edu.brown.benchmark.airline.util.FlightId;
 import edu.brown.benchmark.airline.util.HistogramUtil;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -343,8 +343,8 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * Load all the histograms used in the benchmark
      */
     protected void loadHistograms() {
-        LOG.info(String.format("Loading in %d histograms from files stored in '%s'",
-                               AirlineConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
+        if (debug.get()) LOG.debug(String.format("Loading in %d histograms from files stored in '%s'",
+                                                 AirlineConstants.HISTOGRAM_DATA_FILES.length, this.airline_data_dir));
         
         // Now load in the histograms that we will need for generating the flight data
         for (String histogramName : AirlineConstants.HISTOGRAM_DATA_FILES) {

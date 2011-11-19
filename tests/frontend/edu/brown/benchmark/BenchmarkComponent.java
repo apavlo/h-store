@@ -51,6 +51,7 @@ package edu.brown.benchmark;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.UnknownHostException;
@@ -63,11 +64,14 @@ import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
@@ -86,14 +90,19 @@ import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
+import edu.brown.hstore.Hstore;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
 import edu.brown.statistics.TableStatistics;
 import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -109,8 +118,12 @@ public abstract class BenchmarkComponent {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public static String CONTROL_PREFIX = "{HSTORE} ";
+    public static String CONTROL_MESSAGE_PREFIX = "{HSTORE}";
     
+    /**
+     * These are the commands that the BenchmarkController will send to each
+     * BenchmarkComponent in order to coordinate the benchmark's execution
+     */
     public enum Command {
         START,
         POLL,
@@ -124,30 +137,79 @@ public abstract class BenchmarkComponent {
         static {
             for (Command vt : EnumSet.allOf(Command.class)) {
                 Command.idx_lookup.put(vt.ordinal(), vt);
-                Command.name_lookup.put(vt.name().toUpperCase().intern(), vt);
+                Command.name_lookup.put(vt.name().toUpperCase(), vt);
             } // FOR
         }
         
         public static Command get(String name) {
-            return (Command.name_lookup.get(name.trim().toUpperCase().intern()));
+            return (Command.name_lookup.get(name.trim().toUpperCase()));
         }
     }
     
-    /** The states important to the remote controller */
+    /**
+     * These represent the different states that the BenchmarkComponent's ControlPipe
+     * could be in. 
+     */
     public static enum ControlState {
-        PREPARING("PREPARING"),
-        READY("READY"),
-        RUNNING("RUNNING"),
-        PAUSED("PAUSED"),
-        ERROR("ERROR");
+        PREPARING,
+        READY,
+        RUNNING,
+        PAUSED,
+        ERROR;
 
-        ControlState(final String displayname) {
-            display = displayname;
+        protected static final Map<Integer, ControlState> idx_lookup = new HashMap<Integer, ControlState>();
+        protected static final Map<String, ControlState> name_lookup = new HashMap<String, ControlState>();
+        static {
+            for (ControlState vt : EnumSet.allOf(ControlState.class)) {
+                ControlState.idx_lookup.put(vt.ordinal(), vt);
+                ControlState.name_lookup.put(vt.name().toUpperCase(), vt);
+            } // FOR
         }
-
-        public final String display;
+        
+        public static ControlState get(String name) {
+            return (ControlState.name_lookup.get(name.trim().toUpperCase()));
+        }
     };
 
+    private static Client globalClient;
+    private static Catalog globalCatalog;
+    private static PartitionPlan globalPartitionPlan;
+    
+    public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
+        if (globalClient == null) {
+            globalClient = ClientFactory.createClient(
+                    messageSize,
+                    null,
+                    heavyWeight,
+                    statsSettings,
+                    catalog
+            );
+        }
+        return (globalClient);
+    }
+    
+    public static synchronized Catalog getCatalog(File catalogPath) {
+        // Read back the catalog and populate catalog object
+        if (globalCatalog == null) {
+            globalCatalog =  CatalogUtil.loadCatalogFromJar(catalogPath.getAbsolutePath());
+        }
+        return (globalCatalog);
+    }
+    
+    public static synchronized void applyPartitionPlan(Database catalog_db, String partitionPlanPath) {
+        if (globalPartitionPlan == null) {
+            if (debug.get()) LOG.debug("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
+            globalPartitionPlan = new PartitionPlan();
+            try {
+                globalPartitionPlan.load(partitionPlanPath, catalog_db);
+                globalPartitionPlan.apply(catalog_db);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
+            }
+        }
+        return;
+    }
+    
     /**
      * Client initialized here and made available for use in derived classes
      */
@@ -156,7 +218,7 @@ public abstract class BenchmarkComponent {
     /**
      * Manage input and output to the framework
      */
-    private final ControlPipe m_controlPipe = new ControlPipe();
+    private ControlPipe m_controlPipe;
 
     /**
      * State of this client
@@ -204,12 +266,6 @@ public abstract class BenchmarkComponent {
      * Storage for error descriptions
      */
     private String m_reason = "";
-
-    /**
-     * Count of transactions invoked by this client. This is updated by derived
-     * classes directly
-     */
-    private final AtomicLong m_counts[];
 
     /**
      * Display names for each transaction.
@@ -266,7 +322,8 @@ public abstract class BenchmarkComponent {
     private int m_tickCounter = 0;
     
     private final boolean m_noUploading;
-    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, ClientResponse.SUCCESS, new VoltTable[0], "");
+    private final ReentrantLock m_loaderBlock = new ReentrantLock();
+    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, -1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
     
     /**
      * Keep track of the number of tuples loaded so that we can generate table statistics
@@ -276,6 +333,7 @@ public abstract class BenchmarkComponent {
     private final Histogram<String> m_tableTuples = new Histogram<String>();
     private final Histogram<String> m_tableBytes = new Histogram<String>();
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
+    private final TransactionCounter m_txnStats = new TransactionCounter();
 
     /**
      * 
@@ -288,32 +346,83 @@ public abstract class BenchmarkComponent {
     private final HStoreConf m_hstoreConf;
     
 
-    public static void printControlMessage(ControlState state) {
+    public void printControlMessage(ControlState state) {
         printControlMessage(state, null);
     }
     
-    public static void printControlMessage(ControlState state, String message) {
+    public void printControlMessage(ControlState state, String message) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%s%d,%s", CONTROL_PREFIX, System.currentTimeMillis(), state.display)); // PREFIX TIMESTAMP, STATE
+        sb.append(String.format("%s %d,%d,%s", CONTROL_MESSAGE_PREFIX,
+                                               this.getClientId(),
+                                               System.currentTimeMillis(),
+                                               state));
         if (message != null && message.isEmpty() == false) {
             sb.append(",").append(message);
         }
         System.out.println(sb);
     }
     
+    public static class TransactionCounter implements JSONSerializable {
+        
+        public Histogram<Integer> basePartitions = new Histogram<Integer>();
+        public Histogram<String> transactions = new Histogram<String>();
+        {
+            this.basePartitions.setKeepZeroEntries(true);
+            this.transactions.setKeepZeroEntries(true);
+        }
+
+        public TransactionCounter copy() {
+            TransactionCounter copy = new TransactionCounter();
+            copy.basePartitions.putHistogram(this.basePartitions);
+            copy.transactions.putHistogram(this.transactions);
+            return (copy);
+        }
+        
+        public void clear() {
+            this.basePartitions.clear();
+            this.transactions.clear();
+        }
+        
+        // ----------------------------------------------------------------------------
+        // SERIALIZATION METHODS
+        // ----------------------------------------------------------------------------
+        @Override
+        public void load(String input_path, Database catalog_db) throws IOException {
+            JSONUtil.load(this, catalog_db, input_path);
+        }
+        @Override
+        public void save(String output_path) throws IOException {
+            JSONUtil.save(this, output_path);
+        }
+        @Override
+        public String toJSONString() {
+            return (JSONUtil.toJSONString(this));
+        }
+        @Override
+        public void toJSON(JSONStringer stringer) throws JSONException {
+            JSONUtil.fieldsToJSON(stringer, this, TransactionCounter.class, JSONUtil.getSerializableFields(this.getClass()));
+        }
+        @Override
+        public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+            JSONUtil.fieldsFromJSON(json_object, catalog_db, this, TransactionCounter.class, true, JSONUtil.getSerializableFields(this.getClass()));
+        }
+    } // END CLASS
+    
     /**
      * Implements the simple state machine for the remote controller protocol.
      * Hypothetically, you can extend this and override the answerPoll() and
      * answerStart() methods for other clients.
      */
-    class ControlPipe implements Runnable {
+    protected class ControlPipe implements Runnable {
+        final InputStream in;
+        
+        public ControlPipe(InputStream in) {
+            this.in = in;
+        }
 
         public void run() {
             final Thread self = Thread.currentThread();
             self.setName(String.format("client-%02d", m_id));
-            
-            final InputStreamReader reader = new InputStreamReader(System.in);
-            final BufferedReader in = new BufferedReader(reader);
 
             Command command = null;
             
@@ -323,13 +432,15 @@ public abstract class BenchmarkComponent {
                 m_controlState = ControlState.READY;
             } else {
                 LOG.error("Not starting prepared!");
-                LOG.error(m_controlState.display + " " + m_reason);
+                LOG.error(m_controlState + " " + m_reason);
             }
 
+            final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
             while (true) {
                 try {
                     command = Command.get(in.readLine());
-                    if (debug.get()) LOG.debug(String.format("Recieved Message: '%s'", command));
+                    if (debug.get()) 
+                        LOG.debug(String.format("Recieved Message: '%s'", command));
                 } catch (final IOException e) {
                     // Hm. quit?
                     LOG.fatal("Error on standard input", e);
@@ -375,9 +486,7 @@ public abstract class BenchmarkComponent {
                         break;
                     }
                     case CLEAR: {
-                        for (AtomicLong cnt : m_counts) {
-                            cnt.set(0);
-                        } // FOR
+                        m_txnStats.clear();
                         answerOk();
                         break;
                     }
@@ -445,16 +554,17 @@ public abstract class BenchmarkComponent {
         }
 
         public void answerPoll() {
-            final StringBuilder txncounts = new StringBuilder();
-            synchronized (m_counts) {
-                for (int i = 0; i < m_counts.length; ++i) {
-                    if (i > 0) txncounts.append(",");
-                    txncounts.append(m_countDisplayNames[i]);
-                    txncounts.append(",");
-                    txncounts.append(m_counts[i].get());
-                }
+            JSONStringer stringer = new JSONStringer();
+            TransactionCounter copy = m_txnStats; // .copy();
+            try {
+                stringer.object();
+                copy.toJSON(stringer);
+                stringer.endObject();
+                printControlMessage(m_controlState, stringer.toString());
+            } catch (JSONException ex) {
+                throw new RuntimeException(ex);
             }
-            printControlMessage(m_controlState, txncounts.toString()); 
+            m_txnStats.basePartitions.clear();
         }
 
         public void answerOk() {
@@ -561,6 +671,21 @@ public abstract class BenchmarkComponent {
             }
         }
     }
+
+    /**
+     * Implemented by derived classes. Loops indefinitely invoking stored
+     * procedures. Method never returns and never receives any updates.
+     */
+    abstract protected void runLoop() throws IOException;
+    
+    /**
+     * Get the display names of the transactions that will be invoked by the
+     * dervied class. As a side effect this also retrieves the number of
+     * transactions that can be invoked.
+     *
+     * @return
+     */
+    abstract protected String[] getTransactionDisplayNames();
     
     /**
      * Increment the internal transaction counter. This should be invoked
@@ -569,8 +694,9 @@ public abstract class BenchmarkComponent {
      * is the same order as the array returned by getTransactionDisplayNames
      * @param txn_idx
      */
-    protected final void incrementTransactionCounter(int txn_idx) {
-        this.m_counts[txn_idx].incrementAndGet();
+    protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
+        m_txnStats.basePartitions.put(cresponse.getBasePartition());
+        m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
     }
 
     public BenchmarkComponent(final Client client) {
@@ -588,7 +714,6 @@ public abstract class BenchmarkComponent {
         m_numClients = 1;
         m_noConnections = false;
         m_numPartitions = 0;
-        m_counts = null;
         m_countDisplayNames = null;
         m_checkTransaction = 0;
         m_checkTables = false;
@@ -632,7 +757,7 @@ public abstract class BenchmarkComponent {
             HStoreConf.singleton().loadFromArgs(args);
         }
         m_hstoreConf = HStoreConf.singleton();
-        if (debug.get()) LOG.debug("HStore Conf\n" + m_hstoreConf.toString(true));
+        if (trace.get()) LOG.trace("HStore Conf\n" + m_hstoreConf.toString(true));
         
         int transactionRate = m_hstoreConf.client.txnrate;
         boolean blocking = m_hstoreConf.client.blocking;
@@ -724,7 +849,7 @@ public abstract class BenchmarkComponent {
             else if (parts[0].equalsIgnoreCase("WAIT")) {
                 startupWait = Long.parseLong(parts[1]);
             }
-            else if (parts[0].equalsIgnoreCase("PARTITIONPLAN")) {
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
                 assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
             }
@@ -735,7 +860,7 @@ public abstract class BenchmarkComponent {
                 m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
         }
-        if (debug.get()) {
+        if (trace.get()) {
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("BenchmarkComponent", componentParams);
             m.put("Extra Client", m_extraParams);
@@ -789,34 +914,20 @@ public abstract class BenchmarkComponent {
             }
         }
         
+        // HACK: This will instantiate m_catalog for us...
         if (m_catalogPath != null) {
-            try {
-                // HACK: This will instantiate m_catalog for us...
-                this.getCatalog();
-            } catch (Exception ex) {
-                LOG.fatal("Failed to load catalog", ex);
-                System.exit(1);
-            }
+            this.getCatalog();
         }
         
         if (partitionPlanPath != null) {
-            LOG.info("Loading PartitionPlan '" + partitionPlanPath + "' and applying it to the catalog");
-            Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
-            PartitionPlan pplan = new PartitionPlan();
-            try {
-                pplan.load(partitionPlanPath, catalog_db);
-                pplan.apply(catalog_db);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to load PartitionPlan '" + partitionPlanPath + "' and apply it to the catalog", ex);
-            }
+            this.applyPartitionPlan(partitionPlanPath);
         }
 
-        Client new_client = ClientFactory.createClient(
+        Client new_client = BenchmarkComponent.getClient(
+                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null),
                 getExpectedOutgoingMessageSize(),
-                null,
                 useHeavyweightClient(),
-                statsSettings,
-                (m_hstoreConf.client.txn_hints ? this.getCatalog() : null)
+                statsSettings
         );
         if (m_blocking) {
             if (debug.get()) 
@@ -869,10 +980,10 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
 
         m_countDisplayNames = getTransactionDisplayNames();
-        m_counts = new AtomicLong[m_countDisplayNames.length];
-        for (int ii = 0; ii < m_counts.length; ii++) {
-            m_counts[ii] = new AtomicLong(0);
-        }
+        m_txnStats.transactions.setKeepZeroEntries(true);
+        for (String txnName : m_countDisplayNames) {
+            m_txnStats.transactions.put(txnName, 0);
+        } // FOR
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread
@@ -930,8 +1041,8 @@ public abstract class BenchmarkComponent {
                 clientMain.invokeCallbackStop();
             }
             else {
-                if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
-                clientMain.start();
+                // if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
+                // clientMain.start();
             }
         }
         catch (final Throwable e) {
@@ -965,19 +1076,30 @@ public abstract class BenchmarkComponent {
         // Load up this dirty mess...
         ClientResponse cr = null;
         if (m_noUploading == false) {
+            boolean locked = m_hstoreConf.client.blocking_loader;
+            if (locked) m_loaderBlock.lock();
             try {
                 cr = m_voltClient.callProcedure("@LoadMultipartitionTable", tableName, vt);
             } catch (Exception e) {
                 throw new RuntimeException("Error when trying load data for '" + tableName + "'", e);
-            }
+            } finally {
+                if (locked) m_loaderBlock.unlock();
+            } // SYNCH
+            if (debug.get()) LOG.debug(String.format("Load %s: txn #%d / %s / %d",
+                                                     tableName, cr.getTransactionId(), cr.getStatus(), cr.getClientHandle()));
         } else {
             cr = m_dummyResponse;
         }
+        if (cr.getStatus() != Hstore.Status.OK) {
+            LOG.warn(String.format("Failed to load %d rows for '%s': %s", rowCount, tableName, cr.getStatusString()), cr.getException()); 
+            return (cr);
+        }
+        
         m_tableTuples.put(tableName, rowCount);
         m_tableBytes.put(tableName, byteCount);
         
         // Keep track of table stats
-        if (m_tableStats && cr.getStatus() == ClientResponse.SUCCESS) {
+        if (m_tableStats && cr.getStatus() == Hstore.Status.OK) {
             final Catalog catalog = this.getCatalog();
             assert(catalog != null);
             final Database catalog_db = CatalogUtil.getDatabase(catalog);
@@ -1084,7 +1206,8 @@ public abstract class BenchmarkComponent {
      */
     public void sendFileToAllClients(String parameter, File local_file) throws IOException {
         for (int i = 0, cnt = this.getNumClients(); i < cnt; i++) {
-            this.sendFileToClient(i, parameter, local_file);
+            sendFileToClient(i, parameter, local_file, local_file);
+//            this.sendFileToClient(i, parameter, local_file);
         } // FOR
     }
     
@@ -1092,21 +1215,6 @@ public abstract class BenchmarkComponent {
         assert(this.uploader == null);
         this.uploader = uploader;
     }
-    
-    /**
-     * Implemented by derived classes. Loops indefinitely invoking stored
-     * procedures. Method never returns and never receives any updates.
-     */
-    abstract protected void runLoop() throws IOException;
-    
-    /**
-     * Get the display names of the transactions that will be invoked by the
-     * dervied class. As a side effect this also retrieves the number of
-     * transactions that can be invoked.
-     *
-     * @return
-     */
-    abstract protected String[] getTransactionDisplayNames();
     
     private final void invokeCallbackStop() {
         // If we were generating stats, then get the final WorkloadStatistics object
@@ -1178,8 +1286,14 @@ public abstract class BenchmarkComponent {
     }
 
     // update the client state and start waiting for a message.
-    private void start() {
+    public void start(InputStream in) {
+        m_controlPipe = new ControlPipe(in);
         m_controlPipe.run(); // blocking
+    }
+    
+    public ControlPipe createControlPipe(InputStream in) {
+        m_controlPipe = new ControlPipe(in);
+        return (m_controlPipe);
     }
 
     /**
@@ -1238,12 +1352,16 @@ public abstract class BenchmarkComponent {
     public Catalog getCatalog() {
         // Read back the catalog and populate catalog object
         if (m_catalog == null) {
-            m_catalog =  CatalogUtil.loadCatalogFromJar(m_catalogPath.getAbsolutePath());
+            m_catalog = getCatalog(m_catalogPath);
         }
         return (m_catalog);
     }
     public void setCatalog(Catalog catalog) {
         m_catalog = catalog;
+    }
+    public void applyPartitionPlan(String partitionPlanPath) {
+        Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
+        BenchmarkComponent.applyPartitionPlan(catalog_db, partitionPlanPath);
     }
 
     /**
@@ -1321,15 +1439,15 @@ public abstract class BenchmarkComponent {
                                        ClientResponse clientResponse,
                                        boolean abortExpected,
                                        boolean errorExpected) {
-        final byte status = clientResponse.getStatus();
-        if (status != ClientResponse.SUCCESS) {
+        final Hstore.Status status = clientResponse.getStatus();
+        if (status != Hstore.Status.OK) {
             if (errorExpected)
                 return true;
 
-            if (abortExpected && status == ClientResponse.USER_ABORT)
+            if (abortExpected && status == Hstore.Status.ABORT_USER)
                 return true;
 
-            if (status == ClientResponse.CONNECTION_LOST) {
+            if (status == Hstore.Status.ABORT_CONNECTION_LOST) {
                 return false;
             }
 

@@ -32,6 +32,7 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.PartitionEstimator;
+import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * System procedures extend VoltSystemProcedure and use its utility methods to
@@ -65,8 +66,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     
     @Override
-    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator, Integer localPartition) {
-        super.globalInit(site, catalog_proc, eeType, hsql, pEstimator, localPartition);
+    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
+        super.globalInit(site, catalog_proc, eeType, hsql, pEstimator);
         this.database = CatalogUtil.getDatabase(catalog_proc);
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
     }
@@ -140,7 +141,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      * @param aggregatorOutputDependencyId dependency id produced by the aggregation pf
      *        The id of the table returned as the result of this procedure.
      */
-    protected VoltTable[] executeSysProcPlanFragmentsAsync(SynthesizedPlanFragment pfs[]) {
+    protected final VoltTable[] executeSysProcPlanFragmentsAsync(SynthesizedPlanFragment pfs[]) {
         LOG.debug("Preparing to execute " + pfs.length + " sysproc fragments");
         List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
         
@@ -180,6 +181,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             ftasks.add(task);
         } // FOR
         
-        return (this.executor.waitForResponses(this.getTransactionId(), ftasks, 1));
+        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, 1));
     }
 }

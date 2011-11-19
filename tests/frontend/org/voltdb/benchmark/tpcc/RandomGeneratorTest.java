@@ -51,7 +51,7 @@
 package org.voltdb.benchmark.tpcc;
 
 import org.voltdb.benchmark.tpcc.MockRandomGenerator;
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 import junit.framework.TestCase;
 
 public class RandomGeneratorTest extends TestCase {
@@ -92,9 +92,9 @@ public class RandomGeneratorTest extends TestCase {
     }
 
     public void testMakeRandomLastName() {
-        assertEquals("BARBARBAR", generator.makeRandomLastName(Constants.CUSTOMERS_PER_DISTRICT));
+        assertEquals("BARBARBAR", generator.makeRandomLastName(TPCCConstants.CUSTOMERS_PER_DISTRICT));
         generator.minimum = false;
-        assertEquals("BARABLEPRI", generator.makeRandomLastName(Constants.CUSTOMERS_PER_DISTRICT));
+        assertEquals("BARABLEPRI", generator.makeRandomLastName(TPCCConstants.CUSTOMERS_PER_DISTRICT));
     }
 
     public void testMakeRandomLastNameLimited() {

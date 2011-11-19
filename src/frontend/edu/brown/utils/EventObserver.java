@@ -3,12 +3,31 @@ package edu.brown.utils;
 import java.util.*;
 
 /**
- *  EventObservable
+ * EventObservable
  */
-public abstract class EventObserver implements Observer {
+public abstract class EventObserver<T> {
 
-   public EventObserver() {
-      // Do nothing!
-   }
+    protected class InnerObserver implements Observer {
+        @SuppressWarnings("unchecked")
+        @Override
+        public void update(Observable o, Object arg) {
+            assert(o instanceof EventObservable<?>.InnerObservable);
+            EventObserver.this.update(((EventObservable.InnerObservable)o).getEventObservable(), (T)arg);
+        }
+        public EventObserver<T> getEventObserver() {
+            return (EventObserver.this);
+        }
+    }
+    
+    private final InnerObserver observer;
+    
+    public EventObserver() {
+        this.observer = new InnerObserver();
+    }
+    
+    protected Observer getObserver() {
+        return (this.observer);
+    }
 
-} // END CLASS
+    public abstract void update(EventObservable<T> o, T arg);
+}

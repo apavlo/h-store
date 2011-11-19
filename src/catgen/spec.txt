@@ -41,9 +41,6 @@ end
 
 begin Partition       "A logical, replicate-able partition"
    int id             "Partition id"
-   int dtxn_port      "Port used for DTXN.Coordinator to communicate to the ProtoEngine"
-   int engine_port    "Port used for HStoreSite to communicate to the ProtoEngine"
-   int proc_port      "Port used by VoltProcedureListener"
 end
 
 begin Site             "A physical execution context for the system"
@@ -51,8 +48,8 @@ begin Site             "A physical execution context for the system"
    Host? host           "Which host does the site belong to?"
    Partition* partitions "Which logical data partition does this host process?"
    bool isUp            "Is the site up?"
-   int dtxn_port        "Port used by DTXN ProtoServer"
-   int messenger_port   "Port used by HStoreMessenger"
+   int messenger_port   "Port used by HStoreCoordinator"
+   int proc_port        "Port used by VoltProcedureListener"
 end
 
 begin Database          "A set of schema, procedures and other metadata that together comprise an application"

@@ -39,12 +39,12 @@ import org.voltdb.catalog.*;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.FileUtil;
-import edu.brown.utils.LoggerUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreConf;
 
 /**

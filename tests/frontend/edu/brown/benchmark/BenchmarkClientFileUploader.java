@@ -50,6 +50,13 @@ public class BenchmarkClientFileUploader {
         return (this.filesToSend.keySet());
     }
     
+    public boolean hasFilesToSend() {
+        for (Integer id : this.filesToSend.keySet()) {
+            if (this.filesToSend.get(id).isEmpty() == false) return (true);
+        } // FOR
+        return (false);
+    }
+    
     public boolean hasFilesToSend(int client_id) {
         return (this.filesToSend.containsKey(client_id) && this.filesToSend.get(client_id).isEmpty() == false); 
     }

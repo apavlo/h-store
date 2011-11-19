@@ -33,16 +33,28 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
+import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.StringUtil;
 
 public class BenchmarkResults {
-
+    private static final Logger LOG = Logger.getLogger(BenchmarkResults.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
     public static class Error {
         public Error(String clientName, String message, int pollIndex) {
             this.clientName = clientName;
@@ -61,6 +73,11 @@ public class BenchmarkResults {
         }
         public final long benchmarkTimeDelta;
         public final long transactionCount;
+        
+        @Override
+        public String toString() {
+            return String.format("<TxnCount:%d, Delta:%d>", this.transactionCount, this.benchmarkTimeDelta);
+        }
     }
 
     public static class FinalResult implements JSONSerializable {
@@ -219,6 +236,7 @@ public class BenchmarkResults {
     private final long m_durationInMillis;
     private final long m_pollIntervalInMillis;
     private final int m_clientCount;
+    private final Histogram<Integer> m_basePartitions = new Histogram<Integer>();
 
     // cached data for performance and consistency
     private final Set<String> m_transactionNames = new HashSet<String>();
@@ -248,15 +266,18 @@ public class BenchmarkResults {
         // make sure all
         if (m_data.size() < m_clientCount)
             return 0;
-        assert(m_data.size() == m_clientCount);
+        assert(m_data.size() == m_clientCount) : 
+            String.format("%d != %d", m_data.size(), m_clientCount);
 
         int min = Integer.MAX_VALUE;
         String txnName = m_transactionNames.iterator().next();
         for (HashMap<String, ArrayList<Result>> txnResults : m_data.values()) {
             ArrayList<Result> results = txnResults.get(txnName);
-            if (results.size() < min)
-                min = results.size();
-        }
+            if (results != null) {
+                if (results.size() < min)
+                    min = results.size();
+            }
+        } // FOR
 
         return min;
     }
@@ -281,19 +302,27 @@ public class BenchmarkResults {
         retval.addAll(m_data.keySet());
         return retval;
     }
+    
+    public Histogram<Integer> getBasePartitions() {
+        return (m_basePartitions);
+    }
 
     public Result[] getResultsForClientAndTransaction(String clientName, String transactionName) {
-        HashMap<String, ArrayList<Result>> txnResults = m_data.get(clientName);
-        ArrayList<Result> results = txnResults.get(transactionName);
         int intervals = getCompletedIntervalCount();
         Result[] retval = new Result[intervals];
-
+        
+        HashMap<String, ArrayList<Result>> txnResults = m_data.get(clientName);
+        ArrayList<Result> results = txnResults.get(transactionName);
+        assert(results != null) :
+            String.format("Null results for txn '%s' from client '%s'\n%s",
+                          transactionName, clientName, StringUtil.formatMaps(txnResults));
         long txnsTillNow = 0;
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
             retval[i] = new Result(r.benchmarkTimeDelta, r.transactionCount - txnsTillNow);
             txnsTillNow = r.transactionCount;
         }
+        assert(intervals == results.size());
         return retval;
     }
 
@@ -301,6 +330,10 @@ public class BenchmarkResults {
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;
         long offsetTime = time - benchmarkTime;
 
+        if (debug.get())
+            LOG.debug(String.format("Setting Poll Response Info for '%s' [%d]:\n%s",
+                                    clientName, pollIndex, StringUtil.formatMaps(transactionCounts)));
+        
         if (errMsg != null) {
             Error err = new Error(clientName, errMsg, pollIndex);
             m_errors.add(err);
@@ -323,7 +356,8 @@ public class BenchmarkResults {
                 Result r = new Result(offsetTime, entry.getValue());
                 ArrayList<Result> results = m_data.get(clientName).get(entry.getKey());
                 assert(results != null);
-                assert(results.size() == pollIndex) : String.format("[%d] %s => %s", pollIndex, entry, results);
+                assert(results.size() == pollIndex) :
+                    String.format("%s != %d\n%s => %s", results.size(), pollIndex, entry, results);
                 results.add(r);
             }
         }
@@ -332,6 +366,7 @@ public class BenchmarkResults {
     BenchmarkResults copy() {
         BenchmarkResults retval = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
 
+        retval.m_basePartitions.putHistogram(m_basePartitions);
         retval.m_errors.addAll(m_errors);
         retval.m_transactionNames.addAll(m_transactionNames);
 
@@ -353,7 +388,11 @@ public class BenchmarkResults {
     }
 
     public String toString() {
-        // TODO Auto-generated method stub
-        return super.toString();
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Transaction Names", m_transactionNames);
+        m.put("Transaction Data", m_data);
+        m.put("Base Partitions", m_basePartitions);
+        
+        return "BenchmarkResults\n" + StringUtil.formatMaps(m);
     }
 }

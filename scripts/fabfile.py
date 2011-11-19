@@ -53,14 +53,14 @@ LOG_handler.setFormatter(LOG_formatter)
 LOG.addHandler(LOG_handler)
 LOG.setLevel(logging.INFO)
 
-## BOTO
-cwd = os.getcwd()
+## H-Store Third-Party Libraries
 realpath = os.path.realpath(__file__)
 basedir = os.path.dirname(realpath)
-basename = os.path.basename(realpath)
 if not os.path.exists(realpath):
-   if os.path.exists(os.path.join(cwd, basename)):
-      basedir = cwd
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
 sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
 import boto
 
@@ -124,7 +124,7 @@ ENV_DEFAULT = {
     "client.blocking":             False,
     
     ## H-Store Options
-    "hstore.svn":                   "https://database.cs.brown.edu/svn/hstore/branches/partitioning-branch",
+    "hstore.svn":                   "https://database.cs.brown.edu/svn/hstore/branches/newdtxn-branch",
     "hstore.svn_options":           "--trust-server-cert --non-interactive --ignore-externals",
     "hstore.clean":                 False,
     "hstore.exec_prefix":           "compile",
@@ -359,6 +359,7 @@ def start_cluster():
             first = False
         ## WITH
     ## FOR
+    sync_time()
 ## DEF
 
 ## ----------------------------------------------
@@ -392,6 +393,7 @@ def setup_env():
     ## WITH
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
+    sudo("ntpdate-debian")
     
     first_setup = False
     with settings(warn_only=True):
@@ -406,7 +408,7 @@ def setup_env():
     ## WITH
     
     ## We may be running a large cluster, in which case we will have a lot of connections
-    handlesAllowed = 2048
+    handlesAllowed = 4096
     for key in [ "soft", "hard" ]:
         update_line = "* %s nofile %d" % (key, handlesAllowed)
         if not contains("/etc/security/limits.conf", update_line):
@@ -578,7 +580,6 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
-        "coordinator.host":             env["ec2.running_instances"][0].private_dns_name,
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
         "client.processesperclient":    env["client.processesperclient"],
@@ -631,7 +632,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 @task
 def write_conf(project, removals=[ ]):
     assert project
-    prefix_include = [ 'site', 'coordinator', 'client', 'global', 'benchmark' ]
+    prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
     hstoreConf_updates = { }
@@ -736,6 +737,19 @@ def stop_cluster(terminate=False):
     else:
         LOG.info("No running H-Store instances were found")
 ## DEF
+
+## ----------------------------------------------
+## sync_time
+## ----------------------------------------------
+@task
+def sync_time():
+    __getInstances__()
+    for inst in env["ec2.running_instances"]:
+        with settings(host_string=inst.public_dns_name):
+            sudo("ntpdate-debian -b")
+    ## FOR
+## DEF
+    
 
 ## ----------------------------------------------
 ## __startInstances__

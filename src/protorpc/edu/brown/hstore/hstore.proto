@@ -2,61 +2,171 @@ import "ca/evanjones/protorpc/Protocol.proto";
 
 package edu.brown.hstore;
 
-// -----------------------------------
-// MESSAGES
-// -----------------------------------
-
-enum MessageType {
-    STATUS = 0;
-    SHUTDOWN = 1;
-    FORWARD_TXN = 2;
-    DONE_PARTITIONS = 3;
+enum Status {
+    // Everything is ok with the transaction and it is allowed
+    // to proceed to the next processing stage
+    OK = 0;
+    // Status code indicating the stored procedure executed successfully and was
+    // voluntarily aborted and rolled back by the stored procedure code
+    ABORT_USER = 1;
+    // Status code indicating the stored procedure failed and was rolled back. There are no negative server side
+    // side effects.
+    ABORT_GRACEFUL = 2;
+    // Status code indicating the stored procedure failed (or may never have been successfully invoked)
+    // and that there may have been negative side effects on the server
+    ABORT_UNEXPECTED = 3;
+    // Status code indicating the connection to the database that the invocation was queued at
+    // was lost before a response was received. It is possible that the invocation was sent,
+    // executed, and successfully committed before a response could be returned or the 
+    // invocation may never have been sent.
+    ABORT_CONNECTION_LOST = 4;
+    // The transaction aborted because of a misprediction (and will be restarted)
+    ABORT_MISPREDICT = 5;
+    // The transaction could not be initialized because on partition rejected it.
+    // The transaction will be retried at the initiaizing HStoreSite
+    ABORT_RESTART = 6;
+    // The transaction could not be initialized because on partition rejected it.
+    // The transaction will be retried at the initiaizing HStoreSite
+    ABORT_REJECT = 7;
+    // The transaction was rejected because the client is being throttled
+    ABORT_THROTTLED = 8;
 }
 
-message MessageRequest {
-    required int32 sender_site_id = 1;
-    required int32 dest_site_id = 2;
-    required MessageType type = 3;
-    optional bytes data = 4;
-    optional int64 txn_id = 5;
-    repeated int32 partitions = 6 [packed=true];
+// -----------------------------------
+// INITIALIZE TRANSACTION
+// -----------------------------------
+
+// Initialization request for a new transaction
+message TransactionInitRequest {
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+
+    // List of partitions at this site that are will be involved
+    // with this transaction.
+    repeated int32 partitions = 2 [packed=true];
+
+    // MapReduce Job
+    optional bool mapreduce = 3 [default=false];
+
+    // TODO: Embed the first queries that need to execute at the remote partitions
+    // if they are known ahead of time.
 }
 
-message MessageAcknowledgement {
-    required int32 sender_site_id = 1;
-    required int32 dest_site_id = 2;
-    optional bytes data = 3;
-    optional int64 txn_id = 4;
+message TransactionInitResponse {
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+    required Status status = 3;
+    optional int32 reject_partition = 4;
+    optional int64 reject_transaction_id = 5;
 }
 
 // -----------------------------------
-// FRAGMENT TRANSFERS
+// TRANSACTION WORK
 // -----------------------------------
 
-message Fragment {
-    required int32 transaction_id = 1;
+message TransactionWorkRequest {
+    // Specifies the work to be performed at a single partition.
+    message PartitionFragment {
+        required int32 partition_id = 1;
+        // Serialized FragmentTaskMessages
+        required bytes work = 2;
+        // If true, this is the final fragment for this transaction at this partition.
+        optional bool last_fragment = 3 [default = false];
+    }
+
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+
+    // Set of partitions to send work to. A partition can appear only once in this list.
+    repeated PartitionFragment fragments = 2;
+    
+    // List of partitions that this transaction is done with
+    // This allows us to piggyback on this message additional information
+    repeated int32 done_partition = 3 [packed=true];
+}
+
+message TransactionWorkResponse {
+    // The output results of PartitionFragments
+    message PartitionResult {
+        required int32 partition_id = 1;
+        // Serialized FragmentTaskResponse
+        required bytes output = 2;
+        // If this partition hit an error, this field will contain the error message.
+        optional bool error = 3 [default = false];
+    }
+
+    required int64 transaction_id = 1;
+    repeated PartitionResult results = 2;
+    required Status status = 3;
+}
+
+// -----------------------------------
+// 2PC:PREPARE TRANSACTION
+// -----------------------------------
+
+// Two-Phase Commit Prepare
+// The initiating HStoreSite is telling the remote sites to prepare to commit
+// a distributed transaction for a select number of partitions.
+message TransactionPrepareRequest {
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+}
+
+message TransactionPrepareResponse {
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+    required Status status = 3;
+}
+
+// -----------------------------------
+// 2PC:FINISH TRANSACTION
+// -----------------------------------
+
+// Two-Phase Commit Final Step
+// The initiating HStoreSite is telling the remote sites that they
+// they need to commit/abort their transaction. The PREPARE request
+// must be sent before this one only if the status is COMMIT
+message TransactionFinishRequest {
+    // Globally unique transaction id
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+    required Status status = 3;
+}
+
+message TransactionFinishResponse {
+    required int64 transaction_id = 1;
+    repeated int32 partitions = 2 [packed=true];
+}
+
+// -----------------------------------
+// TRANSACTION REDIRECT MESSAGE
+// -----------------------------------
+
+message TransactionRedirectRequest {
+    required int32 sender_id = 1;
     required bytes work = 2;
-
-    // If true then the fragment must be undoable using a call to Finish.
-    required bool undoable = 3;
+    optional int64 orig_txn_id = 3;
 }
 
-message FragmentDependency {
-	required int32 dependency_id = 1;
-    required bytes data = 2;
+message TransactionRedirectResponse {
+    // The id of the HStoreSite is responding to this shutdown request
+    required int32 sender_id = 1;
+    required bytes output = 2;
 }
 
-message FragmentTransfer {
-    required int32 sender_partition_id = 1;
-    required int32 dest_partition_id = 2;
-    required int64 txn_id = 3;
-    repeated FragmentDependency dependencies = 4;
+// -----------------------------------
+// SHUTDOWN MESSAGE
+// -----------------------------------
+
+message ShutdownRequest {
+    // The id of the HStoreSite that is wants us to shutdown
+    required int32 sender_id = 1;
+    required int32 exit_status = 2;
 }
 
-message FragmentAcknowledgement {
-    required int32 sender_partition_id = 1;
-    required int32 dest_partition_id = 2;
-    required int64 txn_id = 3;
+message ShutdownResponse {
+    // The id of the HStoreSite is responding to this shutdown request
+    required int32 sender_id = 1;
 }
 
 // -----------------------------------
@@ -64,6 +174,10 @@ message FragmentAcknowledgement {
 // -----------------------------------
 
 service HStoreService {
-    rpc SendMessage(MessageRequest) returns (MessageAcknowledgement);
-    rpc SendFragment (FragmentTransfer) returns (FragmentAcknowledgement);
+    rpc TransactionInit(TransactionInitRequest) returns (TransactionInitResponse);
+    rpc TransactionWork(TransactionWorkRequest) returns (TransactionWorkResponse);
+    rpc TransactionPrepare(TransactionPrepareRequest) returns (TransactionPrepareResponse);
+    rpc TransactionFinish(TransactionFinishRequest) returns (TransactionFinishResponse);
+    rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }

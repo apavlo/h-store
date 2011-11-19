@@ -281,8 +281,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         // WAREHOUSE table
         Expression w_id = Verification.inRange("W_ID", (short) m_scaleParams.starting_warehouse,
                                                (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
-        Expression w_tax = Verification.inRange("W_TAX", Constants.MIN_TAX,
-                                                Constants.MAX_TAX);
+        Expression w_tax = Verification.inRange("W_TAX", TPCCConstants.MIN_TAX,
+                                                TPCCConstants.MAX_TAX);
         Expression w_fk = new ForeignKeyConstraints("WAREHOUSE");
         Expression warehouse = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                         w_id, w_tax, w_fk);
@@ -293,8 +293,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         Expression d_w_id = Verification.inRange("D_W_ID", (short) m_scaleParams.starting_warehouse,
                                                  (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
         Expression d_next_o_id = Verification.inRange("D_NEXT_O_ID", 1, 10000000);
-        Expression d_tax = Verification.inRange("D_TAX", Constants.MIN_TAX,
-                                                Constants.MAX_TAX);
+        Expression d_tax = Verification.inRange("D_TAX", TPCCConstants.MIN_TAX,
+                                                TPCCConstants.MAX_TAX);
         Expression d_fk = new ForeignKeyConstraints("DISTRICT");
         Expression district = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                        d_id, d_w_id, d_next_o_id, d_tax,
@@ -307,16 +307,16 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                                  (byte) m_scaleParams.districtsPerWarehouse);
         Expression c_w_id = Verification.inRange("C_W_ID", (short) m_scaleParams.starting_warehouse,
                                                  (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
-        Expression c_discount = Verification.inRange("C_DISCOUNT", Constants.MIN_DISCOUNT,
-                                                     Constants.MAX_DISCOUNT);
+        Expression c_discount = Verification.inRange("C_DISCOUNT", TPCCConstants.MIN_DISCOUNT,
+                                                     TPCCConstants.MAX_DISCOUNT);
         Expression c_credit =
             Verification.conjunction(ExpressionType.CONJUNCTION_OR,
                                      Verification.compareWithConstant(ExpressionType.COMPARE_EQUAL,
                                                                       "C_CREDIT",
-                                                                      Constants.GOOD_CREDIT),
+                                                                      TPCCConstants.GOOD_CREDIT),
                                      Verification.compareWithConstant(ExpressionType.COMPARE_EQUAL,
                                                                       "C_CREDIT",
-                                                                      Constants.BAD_CREDIT));
+                                                                      TPCCConstants.BAD_CREDIT));
         Expression c_fk = new ForeignKeyConstraints("CUSTOMER");
         Expression customer = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                        c_id, c_d_id, c_w_id, c_discount, c_credit,
@@ -364,10 +364,10 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             Verification.conjunction(ExpressionType.CONJUNCTION_OR,
                                      Verification.compareWithConstant(ExpressionType.COMPARE_EQUAL,
                                                                       "O_CARRIER_ID",
-                                                                      (int) Constants.NULL_CARRIER_ID),
+                                                                      (int) TPCCConstants.NULL_CARRIER_ID),
                                      Verification.inRange("O_CARRIER_ID",
-                                                          Constants.MIN_CARRIER_ID,
-                                                          Constants.MAX_CARRIER_ID));
+                                                          TPCCConstants.MIN_CARRIER_ID,
+                                                          TPCCConstants.MAX_CARRIER_ID));
         Expression o_fk = new ForeignKeyConstraints("ORDERS");
         Expression orders = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                      o_id, o_c_id, o_d_id, o_w_id, o_carrier_id,
@@ -380,15 +380,15 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         Expression ol_w_id = Verification.inRange("OL_W_ID", (short) m_scaleParams.starting_warehouse,
                                                   (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
         Expression ol_number = Verification.inRange("OL_NUMBER", 1,
-                                                    Constants.MAX_OL_CNT);
+                                                    TPCCConstants.MAX_OL_CNT);
         Expression ol_i_id = Verification.inRange("OL_I_ID", 1, m_scaleParams.items);
         Expression ol_supply_w_id = Verification.inRange("OL_SUPPLY_W_ID", (short) m_scaleParams.starting_warehouse,
                                                          (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
         Expression ol_quantity = Verification.inRange("OL_QUANTITY", 0,
-                                                      Constants.MAX_OL_QUANTITY);
+                                                      TPCCConstants.MAX_OL_QUANTITY);
         Expression ol_amount = Verification.inRange("OL_AMOUNT",
                                                     0.0,
-                                                    Constants.MAX_PRICE * Constants.MAX_OL_QUANTITY);
+                                                    TPCCConstants.MAX_PRICE * TPCCConstants.MAX_OL_QUANTITY);
         Expression ol_fk = new ForeignKeyConstraints("ORDER_LINE");
         Expression order_line = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                          ol_o_id, ol_d_id, ol_w_id, ol_number,
@@ -397,10 +397,10 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 
         // ITEM table
         Expression i_id = Verification.inRange("I_ID", 1, m_scaleParams.items);
-        Expression i_im_id = Verification.inRange("I_IM_ID", Constants.MIN_IM,
-                                                  Constants.MAX_IM);
-        Expression i_price = Verification.inRange("I_PRICE", Constants.MIN_PRICE,
-                                                  Constants.MAX_PRICE);
+        Expression i_im_id = Verification.inRange("I_IM_ID", TPCCConstants.MIN_IM,
+                                                  TPCCConstants.MAX_IM);
+        Expression i_price = Verification.inRange("I_PRICE", TPCCConstants.MIN_PRICE,
+                                                  TPCCConstants.MAX_PRICE);
         Expression i_fk = new ForeignKeyConstraints("ITEM");
         Expression item = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                    i_id, i_im_id, i_price, i_fk);
@@ -409,8 +409,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         Expression s_i_id = Verification.inRange("S_I_ID", 1, m_scaleParams.items);
         Expression s_w_id = Verification.inRange("S_W_ID", (short) m_scaleParams.starting_warehouse,
                                                  (short) (m_scaleParams.warehouses * 2) + m_scaleParams.starting_warehouse);
-        Expression s_quantity = Verification.inRange("S_QUANTITY", Constants.MIN_QUANTITY,
-                                                     Constants.MAX_QUANTITY);
+        Expression s_quantity = Verification.inRange("S_QUANTITY", TPCCConstants.MIN_QUANTITY,
+                                                     TPCCConstants.MAX_QUANTITY);
         Expression s_fk = new ForeignKeyConstraints("STOCK");
         Expression stock = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                                     s_i_id, s_w_id, s_quantity, s_fk);
@@ -418,12 +418,12 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         // Delivery (no need to check 'd_id', it's systematically generated)
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               d_id, o_id);
-        addConstraint(Constants.DELIVERY, 0, constraint);
+        addConstraint(TPCCConstants.DELIVERY, 0, constraint);
 
         // New Order table 0
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               c_discount, c_credit);
-        addConstraint(Constants.NEWORDER, 0, constraint);
+        addConstraint(TPCCConstants.NEWORDER, 0, constraint);
         // New Order table 1
         constraint =
             Verification.conjunction(ExpressionType.CONJUNCTION_AND,
@@ -431,42 +431,42 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                                      w_tax, d_tax,
                                      Verification.compareWithConstant(ExpressionType.COMPARE_GREATERTHAN,
                                                                       "total", 0.0));
-        addConstraint(Constants.NEWORDER, 1, constraint);
+        addConstraint(TPCCConstants.NEWORDER, 1, constraint);
         // New Order table 2
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               s_quantity,
                                               i_price,
                                               ol_amount);
-        addConstraint(Constants.NEWORDER, 2, constraint);
+        addConstraint(TPCCConstants.NEWORDER, 2, constraint);
 
         // Order Status table 0
-        addConstraint(Constants.ORDER_STATUS_BY_ID, 0, c_id);
-        addConstraint(Constants.ORDER_STATUS_BY_NAME, 0, c_id);
+        addConstraint(TPCCConstants.ORDER_STATUS_BY_ID, 0, c_id);
+        addConstraint(TPCCConstants.ORDER_STATUS_BY_NAME, 0, c_id);
         // Order Status table 1
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               o_id, o_carrier_id);
-        addConstraint(Constants.ORDER_STATUS_BY_ID, 1, constraint);
-        addConstraint(Constants.ORDER_STATUS_BY_NAME, 1, constraint);
+        addConstraint(TPCCConstants.ORDER_STATUS_BY_ID, 1, constraint);
+        addConstraint(TPCCConstants.ORDER_STATUS_BY_NAME, 1, constraint);
         // Order Status table 2
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               ol_supply_w_id, ol_i_id,
                                               ol_quantity, ol_amount);
-        addConstraint(Constants.ORDER_STATUS_BY_ID, 2, constraint);
-        addConstraint(Constants.ORDER_STATUS_BY_NAME, 2, constraint);
+        addConstraint(TPCCConstants.ORDER_STATUS_BY_ID, 2, constraint);
+        addConstraint(TPCCConstants.ORDER_STATUS_BY_NAME, 2, constraint);
 
         // Payment
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               c_id, c_discount);
-        addConstraint(Constants.PAYMENT_BY_ID, 2, constraint);
-        addConstraint(Constants.PAYMENT_BY_ID_C, 0, constraint);
-        addConstraint(Constants.PAYMENT_BY_NAME, 2, constraint);
-        addConstraint(Constants.PAYMENT_BY_NAME_C, 0, constraint);
+        addConstraint(TPCCConstants.PAYMENT_BY_ID, 2, constraint);
+        addConstraint(TPCCConstants.PAYMENT_BY_ID_C, 0, constraint);
+        addConstraint(TPCCConstants.PAYMENT_BY_NAME, 2, constraint);
+        addConstraint(TPCCConstants.PAYMENT_BY_NAME_C, 0, constraint);
 
         // slev
         constraint = Verification.compareWithConstant(ExpressionType.COMPARE_GREATERTHANOREQUALTO,
                                                       "C1",
                                                       0L);
-        addConstraint(Constants.STOCK_LEVEL, 0, constraint);
+        addConstraint(TPCCConstants.STOCK_LEVEL, 0, constraint);
 
         // Full table checks (The order of adding them MATTERS!)
         addTableConstraint("WAREHOUSE", warehouse);
@@ -552,7 +552,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (crash_on_error) {
-                boolean status = checkTransaction(Constants.DELIVERY, clientResponse, false, false);
+                boolean status = checkTransaction(TPCCConstants.DELIVERY, clientResponse, false, false);
                 assert status;
                 if (status && clientResponse.getResults()[0].getRowCount()
                         != m_scaleParams.districtsPerWarehouse) {
@@ -564,7 +564,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                         */
                 }
             }
-            incrementTransactionCounter(TPCCSimulation.Transaction.DELIVERY.ordinal());
+            incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.DELIVERY.ordinal());
         }
     }
 
@@ -573,7 +573,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         if (m_blockOnBackpressure) {
             final DeliveryCallback cb = new DeliveryCallback();
             while (!this.getClientHandle().callProcedure(cb,
-                Constants.DELIVERY, w_id, carrier, date)) {
+                TPCCConstants.DELIVERY, w_id, carrier, date)) {
                 try {
                     this.getClientHandle().backpressureBarrier();
                 } catch (InterruptedException e) {
@@ -582,7 +582,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             }
         } else {
             m_queuedMessage = this.getClientHandle().callProcedure(new DeliveryCallback(),
-                    Constants.DELIVERY, w_id, carrier, date);
+                    TPCCConstants.DELIVERY, w_id, carrier, date);
         }
     }
 
@@ -598,13 +598,13 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (LOG.isDebugEnabled()) LOG.debug("NewOrder clientResponse.getStatus() = " + clientResponse.getStatusName());
+            if (LOG.isDebugEnabled()) LOG.debug("NewOrder clientResponse.getStatus() = " + clientResponse.getStatus());
             
             if (crash_on_error) {
-                boolean status = checkTransaction(Constants.NEWORDER, clientResponse, cbRollback, false);
-                assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatusName();
+                boolean status = checkTransaction(TPCCConstants.NEWORDER, clientResponse, cbRollback, false);
+                assert (this.cbRollback || status) : "Rollback=" + this.cbRollback + ", Status=" + clientResponse.getStatus();
             }
-            incrementTransactionCounter(TPCCSimulation.Transaction.NEW_ORDER.ordinal());
+            incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.NEW_ORDER.ordinal());
         }
 
         private boolean cbRollback;
@@ -613,7 +613,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     int randomIndex = 0;
     @Override
     public void callNewOrder(boolean rollback, boolean noop, Object... paramlist) throws IOException {
-        final String proc_name = (noop ? Constants.NOOP : Constants.NEWORDER);
+        final String proc_name = (noop ? TPCCConstants.NOOP : TPCCConstants.NEWORDER);
         final NewOrderCallback cb = new NewOrderCallback(rollback);
         
         if (m_blockOnBackpressure) {
@@ -653,8 +653,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             boolean abortExpected = false;
-            if (m_procedureName != null && (m_procedureName.equals(Constants.ORDER_STATUS_BY_NAME)
-                || m_procedureName.equals(Constants.ORDER_STATUS_BY_ID)))
+            if (m_procedureName != null && (m_procedureName.equals(TPCCConstants.ORDER_STATUS_BY_NAME)
+                || m_procedureName.equals(TPCCConstants.ORDER_STATUS_BY_ID)))
                 abortExpected = true;
             if (crash_on_error) {
                 boolean status = checkTransaction(m_procedureName,
@@ -664,7 +664,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
                 assert status;
             }
             if (m_transactionType != null) {
-                incrementTransactionCounter(m_transactionType.ordinal());
+                incrementTransactionCounter(clientResponse, m_transactionType.ordinal());
             }
         }
     }
@@ -697,8 +697,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callPaymentById(short w_id, byte d_id, double h_amount,
                                 short c_w_id, byte c_d_id, int c_id, TimestampType now) throws IOException {
         
-        m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_ID),
-                                                     Constants.PAYMENT_BY_ID,
+        m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, TPCCConstants.PAYMENT_BY_ID),
+                                                     TPCCConstants.PAYMENT_BY_ID,
                                                      w_id, d_id, h_amount, c_w_id, c_d_id, c_id, now);
 //        
 //        if (m_blockOnBackpressure) {
@@ -748,8 +748,8 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callPaymentByName(short w_id, byte d_id, double h_amount,
             short c_w_id, byte c_d_id, String c_last, TimestampType now) throws IOException {
         
-        m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, Constants.PAYMENT_BY_NAME),
-                                                     Constants.PAYMENT_BY_NAME,
+        m_queuedMessage = this.getClientHandle().callProcedure(new VerifyBasicCallback(TPCCSimulation.Transaction.PAYMENT, TPCCConstants.PAYMENT_BY_NAME),
+                                                     TPCCConstants.PAYMENT_BY_NAME,
                                                      w_id, d_id, h_amount, c_w_id, c_d_id, c_last, now);
 
         
@@ -815,20 +815,20 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (crash_on_error) {
-                boolean status = checkTransaction(Constants.STOCK_LEVEL,
+                boolean status = checkTransaction(TPCCConstants.STOCK_LEVEL,
                                                   clientResponse,
                                                   false,
                                                   false);
                 assert status;
             }
-            incrementTransactionCounter(TPCCSimulation.Transaction.STOCK_LEVEL.ordinal());
+            incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.STOCK_LEVEL.ordinal());
         }
       }
 
     @Override
     public void callStockLevel(short w_id, byte d_id, int threshold) throws IOException {
         final StockLevelCallback cb = new StockLevelCallback();
-        while (!this.getClientHandle().callProcedure( cb, Constants.STOCK_LEVEL,
+        while (!this.getClientHandle().callProcedure( cb, TPCCConstants.STOCK_LEVEL,
                 w_id, d_id, threshold)) {
             try {
                 this.getClientHandle().backpressureBarrier();
@@ -856,7 +856,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             if (checkTransaction(null, clientResponse, false, false))
-                incrementTransactionCounter(TPCCSimulation.Transaction.RESET_WAREHOUSE.ordinal());
+                incrementTransactionCounter(clientResponse, TPCCSimulation.Transaction.RESET_WAREHOUSE.ordinal());
         }
     }
 
@@ -865,7 +865,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
             long customersPerDistrict, long newOrdersPerDistrict)
     throws IOException {
         m_queuedMessage = this.getClientHandle().callProcedure(new ResetWarehouseCallback(),
-              Constants.RESET_WAREHOUSE, w_id, districtsPerWarehouse,
+              TPCCConstants.RESET_WAREHOUSE, w_id, districtsPerWarehouse,
               customersPerDistrict, newOrdersPerDistrict);
     }
 

@@ -6,9 +6,9 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
 
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.LoggerUtil;
-import edu.brown.utils.LoggerUtil.LoggerBoolean;
 import edu.brown.workload.AbstractTraceElement;
 
 /**

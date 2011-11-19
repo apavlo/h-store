@@ -88,8 +88,8 @@ public class SchemaVisualization extends AbstractViewer {
             System.exit(1);
         }
         
-        this.graph_panel.EVENT_SELECT_VERTEX.addObserver(new EventObserver() {
-            public void update(Observable o, Object arg) {
+        this.graph_panel.EVENT_SELECT_VERTEX.addObserver(new EventObserver<DesignerVertex>() {
+            public void update(EventObservable<DesignerVertex> o, DesignerVertex arg) {
                 System.out.println("Vertex Selected: " + arg);
             }
         });

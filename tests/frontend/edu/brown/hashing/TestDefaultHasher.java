@@ -3,7 +3,7 @@ package edu.brown.hashing;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.voltdb.benchmark.tpcc.Constants;
+import org.voltdb.benchmark.tpcc.TPCCConstants;
 
 import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
@@ -40,7 +40,7 @@ public class TestDefaultHasher extends BaseTestCase {
      */
     public void testMultiValueHash() throws Exception {
         int num_values0 = 50; // # of Warehouses
-        int num_values1 = Constants.DISTRICTS_PER_WAREHOUSE;
+        int num_values1 = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
         int num_partitions = 100;
         Histogram h = new Histogram();
         
