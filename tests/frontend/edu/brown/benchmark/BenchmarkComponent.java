@@ -379,8 +379,8 @@ public abstract class BenchmarkComponent {
         }
         
         public void clear() {
-            this.basePartitions.clear();
-            this.transactions.clear();
+            this.basePartitions.clearValues();
+            this.transactions.clearValues();
         }
         
         // ----------------------------------------------------------------------------
@@ -980,7 +980,6 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
 
         m_countDisplayNames = getTransactionDisplayNames();
-        m_txnStats.transactions.setKeepZeroEntries(true);
         for (String txnName : m_countDisplayNames) {
             m_txnStats.transactions.put(txnName, 0);
         } // FOR

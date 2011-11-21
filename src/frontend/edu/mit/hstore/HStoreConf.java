@@ -38,6 +38,7 @@ public final class HStoreConf {
     static final Pattern REGEX_CONFIG = Pattern.compile("\\$\\{([\\w]+)\\.([\\w\\_]+)\\}");
     static final String REGEX_CONFIG_REPLACE = "<a href=\"/documentation/configuration/properties-file/$1#$2\" class=\"property\">\\${$1.$2}</a>";
     
+    static final Pattern REGEX_PARSE = Pattern.compile("(site|client|global)\\.([\\w\\_]+)");
     
     // ============================================================================
     // GLOBAL
@@ -1002,6 +1003,19 @@ public final class HStoreConf {
 //                System.err.println(String.format("%-20s = %s", f.getName(), value));
             } // FOR   
         }
+        
+        /**
+         * Returns true if this configuration handle as a parameter for the given name
+         * @param name
+         * @return
+         */
+        public boolean hasParameter(String name) {
+            try {
+                return (this.confClass.getField(name) != null);
+            } catch (NoSuchFieldException ex) {
+                return (false);
+            }
+        }
 
         @SuppressWarnings("unchecked")
         public <T> T getValue(String name) {
@@ -1083,72 +1097,12 @@ public final class HStoreConf {
                 this.loadFromFile(args.getFileParam(ArgumentsParser.PARAM_CONF));
             }
             
-            // Ignore the Dtxn.Coordinator
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_IGNORE_DTXN)) {
-                site.exec_avoid_coordinator = args.getBooleanParam(ArgumentsParser.PARAM_SITE_IGNORE_DTXN);
-                if (site.exec_avoid_coordinator) LOG.info("Ignoring the Dtxn.Coordinator for all single-partition transactions");
-            }
-//            // Enable speculative execution
-//            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION)) {
-//                site.exec_speculative_execution = args.getBooleanParam(ArgumentsParser.PARAM_NODE_ENABLE_SPECULATIVE_EXECUTION);
-//                if (site.exec_speculative_execution) LOG.info("Enabling speculative execution");
-//            }
-            // Enable DB2-style txn redirecting
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_DB2_REDIRECTS)) {
-                site.exec_db2_redirects = args.getBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_DB2_REDIRECTS);
-                if (site.exec_db2_redirects) LOG.info("Enabling DB2-style transaction redirects");
-            }
-            // Force all transactions to be single-partitioned
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_SINGLEPARTITION)) {
-                site.exec_force_singlepartitioned = args.getBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_SINGLEPARTITION);
-                if (site.exec_force_singlepartitioned) LOG.info("Forcing all transactions to execute as single-partitioned");
-            }
-            // Force all transactions to be executed at the first partition that the request arrives on
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_LOCALEXECUTION)) {
-                site.exec_force_localexecution = args.getBooleanParam(ArgumentsParser.PARAM_SITE_FORCE_LOCALEXECUTION);
-                if (site.exec_force_localexecution) LOG.info("Forcing all transactions to execute at the partition they arrive on");
-            }
-            // Enable the "neworder" parameter hashing hack for the VLDB paper
-//            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT)) {
-//                site.exec_neworder_cheat = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT);
-//                if (site.exec_neworder_cheat) LOG.info("Enabling the inspection of incoming neworder parameters");
-//            }
-//            // Enable setting the done partitions for the "neworder" parameter hashing hack for the VLDB paper
-//            if (args.hasBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE)) {
-//                site.exec_neworder_cheat_done_partitions = args.getBooleanParam(ArgumentsParser.PARAM_NODE_FORCE_NEWORDERINSPECT_DONE);
-//                if (site.exec_neworder_cheat_done_partitions) LOG.info("Enabling the setting of done partitions for neworder inspection");
-//            }
-            // Clean-up Interval
-            if (args.hasIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_INTERVAL)) {
-                site.helper_interval = args.getIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_INTERVAL);
-                LOG.debug("Setting Cleanup Interval = " + site.helper_interval + "ms");
-            }
-            // Txn Expiration Time
-            if (args.hasIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_TXN_EXPIRE)) {
-                site.helper_txn_expire = args.getIntParam(ArgumentsParser.PARAM_SITE_CLEANUP_TXN_EXPIRE);
-                LOG.debug("Setting Cleanup Txn Expiration = " + site.helper_txn_expire + "ms");
-            }
-            // Profiling
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_PROFILING)) {
-                site.txn_profiling = args.getBooleanParam(ArgumentsParser.PARAM_SITE_ENABLE_PROFILING);
-                if (site.txn_profiling) LOG.info("Enabling procedure profiling");
-            }
-            // Mispredict Crash
-            if (args.hasBooleanParam(ArgumentsParser.PARAM_SITE_MISPREDICT_CRASH)) {
-                site.exec_mispredict_crash = args.getBooleanParam(ArgumentsParser.PARAM_SITE_MISPREDICT_CRASH);
-                if (site.exec_mispredict_crash) LOG.info("Enabling crashing HStoreSite on mispredict");
+            Map<String, String> confParams = args.getHStoreConfParameters();
+            if (confParams != null && confParams.isEmpty() == false) {
+                this.loadFromArgs(confParams);
             }
         }
-        
-        this.computeDerivedValues(catalog_site);
-    }
-    
-    /**
-     * 
-     * @param catalog_site
-     */
-    protected void computeDerivedValues(Site catalog_site) {
-        // Negate Parameters
+        // TODO: Remove
         if (site.exec_neworder_cheat) {
             site.exec_force_singlepartitioned = false;
             site.exec_force_localexecution = false;
@@ -1178,7 +1132,8 @@ public final class HStoreConf {
     }
     
     private Pattern makePattern() {
-        return Pattern.compile(String.format("(%s)\\.(.*)", StringUtil.join("|", this.confHandles.keySet())));
+        // return Pattern.compile(String.format("(%s)\\.(.*)", StringUtil.join("|", this.confHandles.keySet())));
+        return REGEX_PARSE;
     }
     
     /**
@@ -1554,6 +1509,25 @@ public final class HStoreConf {
     
     public synchronized static boolean isInitialized() {
         return (conf != null);
+    }
+    
+    private static HStoreConf confHelper;
+    public static boolean isConfParameter(String name) {
+        Matcher m = REGEX_PARSE.matcher(name);
+        if (m.find()) {
+            if (confHelper == null) {
+                synchronized (HStoreConf.class) {
+                    if (confHelper == null) {
+                        confHelper = new HStoreConf();
+                    }
+                } // SYNCH
+            }
+
+            Conf c = confHelper.confHandles.get(m.group(1));
+            assert(c != null) : "Unexpected null Conf for '" + m.group(1) + "'";
+            return (c.hasParameter(m.group(2)));
+        }
+        return (false);
     }
 
 }

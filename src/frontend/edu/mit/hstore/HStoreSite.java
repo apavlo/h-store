@@ -556,9 +556,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
             @Override
             public void update(EventObservable<Pair<Thread, Throwable>> o, Pair<Thread, Throwable> arg) {
-                LOG.error("__FILE__:__LINE__ " + String.format("Thread %s had an Exception. Halting H-Store Cluster", arg.getFirst().getName()),
-                          arg.getSecond());
-                hstore_coordinator.shutdownCluster(arg.getSecond(), true);
+                Thread thread = arg.getFirst();
+                Throwable error = arg.getSecond();
+                LOG.error("__FILE__:__LINE__ " + String.format("Thread %s had an Exception. Halting H-Store Cluster", thread.getName()),
+                          error);
+                if (debug.get()) error.printStackTrace();
+                hstore_coordinator.shutdownCluster(error, true);
             }
         };
         handler.addObserver(observer);
@@ -1104,7 +1107,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // -------------------------------
         // SINGLE-PARTITION TRANSACTION
         // -------------------------------
-        if (hstore_conf.site.exec_avoid_coordinator && ts.isPredictSinglePartition()) {
+        if (ts.isPredictSinglePartition()) {
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Fast path single-partition execution for %s on partition %d [handle=%d]",
                                            ts, base_partition, ts.getClientHandle()));
             this.transactionStart(ts);

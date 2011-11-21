@@ -823,17 +823,20 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } // WHILE
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
-                LOG.fatal("__FILE__:__LINE__ " + String.format("Unexpected error for ExecutionSite partition #%d%s",
-                                        this.partitionId, (current_txn != null ? " - " + current_txn : "")), ex);
+                ex.printStackTrace();
+                LOG.fatal("__FILE__:__LINE__ " + String.format("Unexpected error for ExecutionSite partition #%d [%s]%s",
+                                        this.partitionId, (current_txn != null ? " - " + current_txn : ""), ex), ex);
                 if (current_txn != null) LOG.fatal("__FILE__:__LINE__ " + "TransactionState Dump:\n" + current_txn.debug());
+                
             }
             this.hstore_coordinator.shutdownCluster(new Exception(ex));
         } finally {
-            LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d ExecutionSite is stopping.%s",
-                                   this.partitionId, (txn_id > 0 ? " In-Flight Txn: #" + txn_id : "")));
+            String txnDebug = "";
             if (debug.get() && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
-                LOG.warn("__FILE__:__LINE__ " + current_txn.debug());
+                txnDebug = "\n" + current_txn.debug();
             }
+            LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d ExecutionSite is stopping.%s%s",
+                                   this.partitionId, (txn_id > 0 ? " In-Flight Txn: #" + txn_id : ""), txnDebug));
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.release();
@@ -1200,7 +1203,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // HACK: If we are currently under DISABLED mode when we get this, then we just need to block the transaction
                     // and return back to the queue. This is easier than having to set all sorts of crazy locks
                     if (this.exec_mode == ExecutionMode.DISABLED) {
-                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking single-partition %s until dtxn #%d finishes [mode=%s]", ts, this.current_dtxn, this.exec_mode));
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking single-partition %s until dtxn %s finishes [mode=%s]", ts, this.current_dtxn, this.exec_mode));
                         this.current_dtxn_blocked.add(itask);
                         return;
                     }
