@@ -319,14 +319,18 @@ public class BenchmarkController {
                         
                         resultsToRead--;
                         try {
-                            if (debug.get()) LOG.debug("UPDATE: " + line);
+                            if (trace.get()) LOG.trace("UPDATE: " + line);
                             setPollResponseInfo(clientName, time, this.results, null);
                             synchronized (m_currentResults) {
                                 m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
                             } // SYNCH
                         } catch (Throwable ex) {
+                            List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
                             LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
-                            LOG.error(String.format("Previous Lines for %s:\n%s", clientName, StringUtil.join("\n", this.previous.get(clientName))));
+                            LOG.error(String.format("Previous Lines for %s [%s]:\n%s",
+                                                    clientName,
+                                                    (p != null ? p.size() : p),
+                                                    StringUtil.join("\n", p)));
                             throw new RuntimeException(ex);
                         }
                         List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
@@ -850,7 +854,7 @@ public class BenchmarkController {
     }
     
     private String getClientName(String host, int id) {
-        return String.format("%s-%02d", host, id);
+        return String.format("%s-%03d", host, id);
     }
     
     private List<String> processClientFileUploads(String clientHost, int clientId, Map<String, Map<File, File>> sent_files) {
@@ -968,9 +972,8 @@ public class BenchmarkController {
             t.setUncaughtExceptionHandler(eh);
             t.start();
         } // FOR
+        LOG.info(String.format("Started %d %s", m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
         
-        Client local_client = null;
-
         // spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
             if (debug.get()) LOG.debug(String.format("Waiting for %d clients to come online", m_clientsNotReady.get()));
@@ -983,6 +986,7 @@ public class BenchmarkController {
             m_clientPSM.writeToProcess(clientName, Command.START);
 
         // Warm-up
+        Client local_client = null;
         if (hstore_conf.client.warmup > 0) {
             LOG.info(String.format("Letting system warm-up for %.01f seconds", hstore_conf.client.warmup / 1000.0));
             
@@ -1202,31 +1206,35 @@ public class BenchmarkController {
                     transactionCounts,
                     errMsg);
             completedCount = m_currentResults.getCompletedIntervalCount();
-            resultCopy = m_currentResults.copy();
-        }
+            if (completedCount > m_maxCompletedPoll) {
+                resultCopy = m_currentResults.copy();
+            }
+        } // SYNCH
 
-        if (completedCount > m_maxCompletedPoll) {
-            try {
-                synchronized(m_interested) {
-                    // notify interested parties
-                    for (BenchmarkInterest interest : m_interested)
-                        interest.benchmarkHasUpdated(resultCopy);
-                } // SYNCH
-                m_maxCompletedPoll = completedCount;
-    
-                // get total transactions run for this segment
-                long txnDelta = 0;
-                for (String client : resultCopy.getClientNames()) {
+        if (resultCopy != null) {
+            synchronized(m_interested) {
+                // notify interested parties
+                for (BenchmarkInterest interest : m_interested)
+                    interest.benchmarkHasUpdated(resultCopy);
+            } // SYNCH
+            m_maxCompletedPoll = completedCount;
+
+            // get total transactions run for this segment
+            long txnDelta = 0;
+            for (String client : resultCopy.getClientNames()) {
+                try {
                     for (String txn : resultCopy.getTransactionNames()) {
                         Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
                         Result r = rs[rs.length - 1];
                         txnDelta += r.transactionCount;
                     } // FOR
-                } // FOR
-            } catch (Throwable ex) {
-                // LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
-                throw new RuntimeException(ex);
-            }
+                } catch (Throwable ex) {
+                    LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
+                    LOG.error(client + " PREVIOUS:\n" + CollectionUtil.first(m_statusThreads).previous.get(client));
+                    throw new RuntimeException(ex);
+                }
+
+            } // FOR
 
             // if nothing done this segment, dump everything
 //            if (txnDelta == 0) {

@@ -82,8 +82,8 @@ OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 400
+OPT_BASE_CLIENT_COUNT = 1
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 6
 
@@ -102,20 +102,20 @@ BASE_SETTINGS = {
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
-    "client.duration":                  60000,
-    "client.warmup":                    00000,
+    "client.duration":                  120000,
+    "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
-    "client.blocking_loader":           True,
+    "client.blocking_loader":           False,
     
-    "site.exec_profiling":                              True,
+    "site.exec_profiling":                              False,
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              False,
     "site.planner_profiling":                           False,
     "site.planner_caching":                             True,
-    "site.status_show_txn_info":                        True,
+    "site.status_show_txn_info":                        False,
     "site.status_kill_if_hung":                         True,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,

@@ -108,4 +108,32 @@ public class TestHStoreConf extends BaseTestCase {
         } // FOR
     }
     
+    /**
+     * testIsConfParameterValid
+     */
+    public void testIsConfParameterValid() {
+        String valid[] = {
+            "site.planner_caching",
+            "client.txnrate",
+            "global.temp_dir"
+        };
+        for (String name : valid) {
+            assertTrue("Unexpected '" + name + "'", HStoreConf.isConfParameter(name));
+        } // FOR
+    }
+    
+    /**
+     * testIsConfParameterInvalid
+     */
+    public void testIsConfParameterInvalid() {
+        String invalid[] = {
+            "evanjones.canadian",
+            "site.squirrels",
+            "siteplanner_caching"
+        };
+        for (String name : invalid) {
+            assertFalse("Unexpected '" + name + "'", HStoreConf.isConfParameter(name));
+        } // FOR
+    }
+    
 }
