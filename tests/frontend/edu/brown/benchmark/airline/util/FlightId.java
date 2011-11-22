@@ -1,10 +1,45 @@
+/***************************************************************************
+ *  Copyright (C) 2011 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.airline.util;
 
+import java.io.IOException;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.airline.AirlineConstants;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
-public class FlightId {
+public class FlightId implements JSONSerializable {
     
     private static final int MAX_VALUE = 65535; // 2^14 - 1
     private static final int VALUE_OFFSET = 16;
@@ -12,22 +47,26 @@ public class FlightId {
     /** 
      * The airline for this flight
      */
-    private final long airline_id;
+    private long airline_id;
     /**
      * The id of the departure airport
      */
-    private final long depart_airport_id;
+    private long depart_airport_id;
     /**
      * The id of the arrival airport
      */
-    private final long arrive_airport_id;
+    private long arrive_airport_id;
     /**
      * This is the departure time of the flight in minutes since the benchmark start date
      * @see AirlineBaseClient.getFlightTimeInMinutes()
      */
-    private final long depart_date;
+    private long depart_date;
 
     private transient int hashCode = -1;
+    
+    public FlightId() {
+        // Nothing...
+    }
     
     /**
      * Constructor
@@ -134,6 +173,14 @@ public class FlightId {
         return (values);
     }
     
+    private void internalDecode(long composite_id) {
+        long vals[] = decode(composite_id);
+        this.airline_id = vals[0];
+        this.depart_airport_id = vals[1];
+        this.arrive_airport_id = vals[2];
+        this.depart_date = vals[3];
+    }
+    
     @Override
     public String toString() {
         return String.format("FlightId{airline=%d,depart=%d,arrive=%d,date=%s}",
@@ -160,4 +207,28 @@ public class FlightId {
         return (this.hashCode);
     }
     
+    // -----------------------------------------------------------------
+    // SERIALIZATION
+    // -----------------------------------------------------------------
+    
+    @Override
+    public void load(String input_path, Database catalog_db) throws IOException {
+        JSONUtil.load(this, catalog_db, input_path);
+    }
+    @Override
+    public void save(String output_path) throws IOException {
+        JSONUtil.save(this, output_path);
+    }
+    @Override
+    public String toJSONString() {
+        return (JSONUtil.toJSONString(this));
+    }
+    @Override
+    public void toJSON(JSONStringer stringer) throws JSONException {
+        stringer.key("ID").value(this.encode());
+    }
+    @Override
+    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+        this.internalDecode(json_object.getLong("ID"));
+    }
 }

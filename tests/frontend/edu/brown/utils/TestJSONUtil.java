@@ -335,9 +335,53 @@ public class TestJSONUtil extends BaseTestCase {
     }
     
     /**
+     * testMapsToJSON
+     */
+    public void testMapsToJSON() throws Exception {
+//        JSONObject json_object = this.toJSONObject(obj, TestObject.MAPS);
+        for (TestObject.Members e : TestObject.MAPS) {
+            String json_key = e.name();
+//            assert(json_object.has(json_key));
+            Field field = TestObject.class.getField(json_key.toLowerCase());
+            assertNotNull(field);
+            Map<?,?> map = (Map<?,?>)field.get(obj);
+            
+            String json_string = JSONUtil.toJSONString(map);
+            JSONObject json_object = new JSONObject(json_string);
+            assertNotNull(json_object);
+//            System.err.println(field.getName() + " -> " + json_string);
+            
+            List<String> key_strings = new ArrayList<String>();
+            List<String> val_strings = new ArrayList<String>();
+            for (Object key : map.keySet()) {
+                Object val = map.get(key);
+                if (key instanceof CatalogType) {
+                    key_strings.add(CatalogKey.createKey((CatalogType)key));
+                } else {
+                    key_strings.add(key != null ? key.toString() : "null");    
+                }
+                val_strings.add(val != null ? val.toString() : "null");
+            } // FOR
+            assertEquals(map.size(), key_strings.size());
+            assertEquals(map.size(), val_strings.size());
+            
+//            JSONObject json_inner_obj = json_object.getJSONObject(json_key);
+            Iterator<String> json_keys_it = json_object.keys();
+            while (json_keys_it.hasNext()) {
+                String json_inner_key = json_keys_it.next();
+                assert(!json_inner_key.isEmpty());
+                String json_inner_val = json_object.getString(json_inner_key);
+                
+                assert(key_strings.contains(json_inner_key));
+                int idx = key_strings.indexOf(json_inner_key);
+                assertEquals(val_strings.get(idx), json_inner_val);
+            } // WHILE
+        } // FOR
+    }
+    
+    /**
      * testMapFieldsToJSON
      */
-    @SuppressWarnings("unchecked")
     public void testMapFieldsToJSON() throws Exception {
         JSONObject json_object = this.toJSONObject(obj, TestObject.MAPS);
         for (TestObject.Members e : TestObject.MAPS) {
@@ -346,7 +390,7 @@ public class TestJSONUtil extends BaseTestCase {
             Field field = TestObject.class.getField(json_key.toLowerCase());
             assertNotNull(field);
             
-            Map map = (Map)field.get(obj);
+            Map<?,?> map = (Map<?,?>)field.get(obj);
             List<String> key_strings = new ArrayList<String>();
             List<String> val_strings = new ArrayList<String>();
             for (Object key : map.keySet()) {

@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2011 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 /* This file is part of VoltDB. 
  * Copyright (C) 2009 Vertica Systems Inc.
  *
@@ -172,6 +199,8 @@ public class AirlineClient extends AirlineBaseClient {
             }
         } // FOR
         
+        this.profile.loadProfile(this);
+        
         // Make sure we have the information we need in the BenchmarkProfile
         String error_msg = null;
         if (this.getFlightIdCount() == 0) {
@@ -181,9 +210,7 @@ public class AirlineClient extends AirlineBaseClient {
         } else if (this.getFlightStartDate() == null) {
             error_msg = "The benchmark profile does not have a valid flight start date.";
         }
-        if (error_msg != null) {
-            throw new RuntimeException(String.format("The benchmark profile '%s' is invalid - %s", this.profile_file, error_msg));
-        }
+        if (error_msg != null) throw new RuntimeException(error_msg);
         
         // Create xact lookup array
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);

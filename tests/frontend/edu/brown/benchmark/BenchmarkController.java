@@ -182,6 +182,7 @@ public class BenchmarkController {
      * Keeps track of any files to send to clients
      */
     private final BenchmarkClientFileUploader m_clientFileUploader = new BenchmarkClientFileUploader();
+    private final AtomicInteger m_clientFilesUploaded = new AtomicInteger(0);
 
     public static interface BenchmarkInterest {
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
@@ -856,6 +857,24 @@ public class BenchmarkController {
     private String getClientName(String host, int id) {
         return String.format("%s-%03d", host, id);
     }
+
+    private Client getClientConnection() {
+        // Connect to random host and using a random port that it's listening on
+        Integer site_id = CollectionUtil.random(m_launchHosts.keySet());
+        assert(site_id != null);
+        Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
+        assert(p != null);
+        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreSite.formatSiteName(site_id)));
+        
+        Client new_client = ClientFactory.createClient(128, null, false, null);
+        try {
+            new_client.createConnection(null, p.getFirst(), p.getSecond(), "user", "password");
+        } catch (Exception ex) {
+            throw new RuntimeException(String.format("Failed to connect to HStoreSite %s at %s:%d",
+                                                     HStoreSite.formatSiteName(site_id), p.getFirst(), p.getSecond()));
+        }
+        return (new_client);
+    }
     
     private List<String> processClientFileUploads(String clientHost, int clientId, Map<String, Map<File, File>> sent_files) {
         List<String> newArgs = new ArrayList<String>();
@@ -896,6 +915,7 @@ public class BenchmarkController {
                                                      param, local_file, remote_file, clientHost, clientId)); 
                 SSHTools.copyToRemote(local_file.getPath(), m_config.remoteUser, clientHost, remote_file.getPath(), m_config.sshOptions);
                 files.put(remote_file, local_file);
+                m_clientFilesUploaded.incrementAndGet();
             }
             if (debug.get()) LOG.debug(String.format("Uploaded File Parameter '%s': %s", param, remote_file));
             newArgs.add(param + "=" + remote_file.getPath());
@@ -903,23 +923,6 @@ public class BenchmarkController {
         return (newArgs);
     }
 
-    protected Client getClientConnection() {
-        // Connect to random host and using a random port that it's listening on
-        Integer site_id = CollectionUtil.random(m_launchHosts.keySet());
-        assert(site_id != null);
-        Pair<String, Integer> p = CollectionUtil.random(m_launchHosts.get(site_id));
-        assert(p != null);
-        if (debug.get()) LOG.debug(String.format("Creating new client connection to HStoreSite %s", HStoreSite.formatSiteName(site_id)));
-        
-        Client new_client = ClientFactory.createClient(128, null, false, null);
-        try {
-            new_client.createConnection(null, p.getFirst(), p.getSecond(), "user", "password");
-        } catch (Exception ex) {
-            throw new RuntimeException(String.format("Failed to connect to HStoreSite %s at %s:%d",
-                                                     HStoreSite.formatSiteName(site_id), p.getFirst(), p.getSecond()));
-        }
-        return (new_client);
-    }
     
     /**
      * RUN BENCHMARK
@@ -982,6 +985,7 @@ public class BenchmarkController {
             Thread.sleep(500);
         } // WHILE
         if (this.stop) return;
+        if (m_clientFilesUploaded.get() > 0) LOG.info(String.format("Uploaded %d files to clients", m_clientFilesUploaded.get()));
 
         // start up all the clients
         for (String clientName : m_clients)
@@ -1544,6 +1548,7 @@ public class BenchmarkController {
             /* Disable executing the data loader */
             } else if (parts[0].equalsIgnoreCase("NOLOADER")) {
                 noLoader = Boolean.parseBoolean(parts[1]);
+//                LOG.info("NOLOADER = " + noLoader);
             /* Run the loader but disable uploading tuples */
             } else if (parts[0].equalsIgnoreCase("NOUPLOADING")) {
                 noUploading = Boolean.parseBoolean(parts[1]);
