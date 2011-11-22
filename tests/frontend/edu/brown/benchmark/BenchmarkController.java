@@ -972,7 +972,9 @@ public class BenchmarkController {
             t.setUncaughtExceptionHandler(eh);
             t.start();
         } // FOR
-        LOG.info(String.format("Started %d %s", m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
+        if (debug.get())
+            LOG.debug(String.format("Started %d %s",
+                                    m_statusThreads.size(), ClientStatusThread.class.getSimpleName()));
         
         // spin on whether all clients are ready
         while (m_clientsNotReady.get() > 0 && this.stop == false) {
