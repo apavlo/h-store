@@ -143,10 +143,38 @@ public class AirlineProfile {
         return;
     }
     
+    private AirlineProfile copy(AirlineProfile other) {
+        this.scale_factor = other.scale_factor;
+        this.airport_max_customer_id.putHistogram(other.airport_max_customer_id);
+        this.flight_start_date = other.flight_start_date;
+        this.flight_upcoming_date = other.flight_upcoming_date;
+        this.flight_past_days = other.flight_past_days;
+        this.flight_future_days = other.flight_future_days;
+        this.flight_upcoming_offset = other.flight_upcoming_offset;
+        this.reservation_upcoming_offset = other.reservation_upcoming_offset;
+        this.num_records.putHistogram(other.num_records);
+        this.code_id_xref.putAll(other.code_id_xref);
+        this.cached_flight_ids.addAll(other.cached_flight_ids);
+        this.airport_histograms.putAll(other.airport_histograms);
+        this.histograms.putAll(other.histograms);
+        return (this);
+    }
+    
     /**
      * Load the profile information stored in the database
      */
-    protected final void loadProfile(AirlineBaseClient baseClient) {
+    private static AirlineProfile cachedProfile;
+    protected synchronized final void loadProfile(AirlineBaseClient baseClient) {
+        // Check whether we have a cached Profile we can copy from
+        if (cachedProfile != null) {
+            LOG.info("Using cached AirlineProfile");
+            this.copy(cachedProfile);
+            return;
+        }
+        
+        LOG.info("Loading AirlineProfile for the first time");
+        
+        // Otherwise we have to go fetch everything again
         Client client = baseClient.getClientHandle();
         
         // CONFIG_PROFILE
@@ -224,6 +252,8 @@ public class AirlineProfile {
                 this.histograms.put(name, h);
             }
         } // WHILE
+
+        cachedProfile = new AirlineProfile().copy(this);
     }
     
 }
