@@ -1,4 +1,4 @@
-package edu.brown.benchmark.auctionmark.util;
+package edu.brown.utils;
 
 import java.io.IOException;
 
@@ -7,8 +7,6 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
-import edu.brown.utils.JSONSerializable;
-import edu.brown.utils.JSONUtil;
 
 public abstract class CompositeId implements Comparable<CompositeId>, JSONSerializable {
     

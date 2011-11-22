@@ -85,7 +85,7 @@ OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
 OPT_BASE_SCALE_FACTOR = 50
-OPT_BASE_PARTITIONS_PER_SITE = 6
+OPT_BASE_PARTITIONS_PER_SITE = 7
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
@@ -110,13 +110,13 @@ BASE_SETTINGS = {
     "client.memory":                    6000,
     "client.blocking_loader":           False,
     
-    "site.exec_profiling":                              False,
+    "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              False,
     "site.planner_profiling":                           False,
     "site.planner_caching":                             True,
-    "site.status_show_txn_info":                        False,
-    "site.status_kill_if_hung":                         True,
+    "site.status_show_txn_info":                        True,
+    "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             20000,

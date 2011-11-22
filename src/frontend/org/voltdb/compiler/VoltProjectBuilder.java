@@ -18,14 +18,19 @@
 package org.voltdb.compiler;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -51,6 +56,7 @@ import org.w3c.dom.Text;
 
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
+import edu.brown.utils.FileUtil;
 
 /**
  * Alternate (programmatic) interface to VoltCompiler. Give the class all of
@@ -780,21 +786,6 @@ public class VoltProjectBuilder {
      * @return A reference to the file created or null on failure.
      */
     public static File writeStringToTempFile(final String content) {
-        File tempFile;
-        try {
-            tempFile = File.createTempFile("myApp", ".tmp");
-            tempFile.deleteOnExit();
-
-            final FileWriter writer = new FileWriter(tempFile);
-            writer.write(content);
-            writer.flush();
-            writer.close();
-
-            return tempFile;
-
-        } catch (final IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+        return FileUtil.writeStringToTempFile(content, "project", true);
     }
 }
