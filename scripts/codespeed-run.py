@@ -128,6 +128,7 @@ def executeBenchmark(svnWorkDir, revision, benchmark, args):
 
         LOG.info("Executing benchmark '%s' using SVN revision r%d" % (benchmark, revision))
         cmd = "ant hstore-benchmark -Dproject=%s %s" % (benchmark, cmdArgs)
+        LOG.info("COMMAND:\n" + cmd)
         p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
         output = p.stdout.read()
 
@@ -314,6 +315,7 @@ if __name__ == '__main__':
                     "client.txnrate":               1000,
                     "client.blocking":              True,
                     "client.blocking_concurrent":   1,
+                    "global.temp_dir":              "/tmp/hstore-%s" % os.environ['USER'],
                 }
                 
                 os.chdir(workDir)
