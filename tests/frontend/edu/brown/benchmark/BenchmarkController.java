@@ -1099,12 +1099,14 @@ public class BenchmarkController {
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
-        LOG.info("Waiting for status threads to finish");
-        try {
-            for (Thread t : m_statusThreads)
-                t.join();
-        } catch (InterruptedException e) {
-            LOG.warn(e);
+        if (this.failed == false) {
+            LOG.info("Waiting for status threads to finish");
+            try {
+                for (Thread t : m_statusThreads)
+                    t.join();
+            } catch (InterruptedException e) {
+                LOG.warn(e);
+            }
         }
     }
     

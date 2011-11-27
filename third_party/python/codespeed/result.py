@@ -56,7 +56,7 @@ class Result(object):
                  result_date=None    # Optional
     ):
         self.commitid = commitid
-        self.branch = branch
+        self.branch = branch.replace("-branch", "")
         self.project = project
         self.executable = "%02d-partitions" % num_partitions
         self.benchmark = benchmark
