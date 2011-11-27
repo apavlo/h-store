@@ -47,9 +47,9 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 class Result(object):
     
-    OPTIONAL_KEYS = [ 'min_result', 'max_result', 'revision_date', 'result_date' ]
+    OPTIONAL_KEYS = [ 'min', 'max', 'revision_date', 'result_date' ]
     
-    def __init__(self, commitid, branch, project, executable, benchmark, environment, result_value, 
+    def __init__(self, commitid, branch, project, num_partitions, benchmark, environment, result_value, 
                  min_result=None,    # Optional
                  max_result=None,    # Optional
                  revision_date=None, # Optional 
@@ -58,12 +58,12 @@ class Result(object):
         self.commitid = commitid
         self.branch = branch
         self.project = project
-        self.executable = executable
+        self.executable = "%02d-partitions" % num_partitions
         self.benchmark = benchmark
         self.environment = environment
         self.result_value = result_value
-        self.min_result = min_result
-        self.max_result = max_result
+        self.min = min_result
+        self.max = max_result
         self.revision_date = revision_date
         self.result_date = result_date
     ## DEF
