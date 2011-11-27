@@ -27,8 +27,12 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 # -----------------------------------------------------------------------
-import urllib, urllib2, json
+import os
+import urllib
+import urllib2
+import json
 import logging
+from pprint import pprint
 
 LOG = logging.getLogger(__name__)
 LOG_handler = logging.StreamHandler()
@@ -43,11 +47,13 @@ LOG.setLevel(logging.INFO)
 ## ==============================================
 class Result(object):
     
-    OPTIONAL_KEYS = [ 'revision_date', 'result_date' ]
+    OPTIONAL_KEYS = [ 'min_result', 'max_result', 'revision_date', 'result_date' ]
     
     def __init__(self, commitid, branch, project, executable, benchmark, environment, result_value, 
-                 revision_date=None, # Optional. Default is taken either from VCS integration or from current date
-                 result_date=None # Optional, default is current date
+                 min_result=None,    # Optional
+                 max_result=None,    # Optional
+                 revision_date=None, # Optional 
+                 result_date=None    # Optional
     ):
         self.commitid = commitid
         self.branch = branch
@@ -56,20 +62,33 @@ class Result(object):
         self.benchmark = benchmark
         self.environment = environment
         self.result_value = result_value
+        self.min_result = min_result
+        self.max_result = max_result
+        self.revision_date = revision_date
+        self.result_date = result_date
     ## DEF
 
     def upload(self, url):
+        assert url
+        url = os.path.join(url, 'result/add/')
+        
+        data = { }
         for key in self.__dict__.keys():
             val = self.__dict__[key]
-            if val == None and not key in OPTIONAL_KEYS:
-                raise Exception("The field '%s' is None" % key)
+            if val == None:
+                if not key in Result.OPTIONAL_KEYS:
+                    raise Exception("The field '%s' is None" % key)
+            else:
+                data[key] = val
         ## FOR
+        pprint(data)
         
-        params = urllib.urlencode(self.__dict__)
+        params = urllib.urlencode(data)
         LOG.info("Saving result for executable %s, revision %s, benchmark %s" % (
-                self.executable, self.commitid, self.benchmark))
+                 self.executable, self.commitid, self.benchmark))
                 
-        f = urllib2.urlopen(url + 'result/add/', params)
+        LOG.info("Uploading results to %s" % url)
+        f = urllib2.urlopen(url, params)
         response = f.read()
         f.close()
         LOG.info("Server (%s) response: %s\n" % (url, response))

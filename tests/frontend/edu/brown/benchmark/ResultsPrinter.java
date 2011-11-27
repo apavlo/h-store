@@ -60,7 +60,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         sb.append(String.format("\n%s\n", StringUtil.header("BENCHMARK RESULTS", "=", width)));
         sb.append(String.format("Time: %d ms\n", fr.getDuration()));
         sb.append(String.format("Total transactions: %d\n", fr.getTotalTxnCount()));
-        sb.append(String.format("Transactions per second: %.2f\n", fr.getTxnPerSecond()));
+        sb.append(String.format("Transactions per second: %.2f  [min:%.2f / max:%.2f]\n\n",
+                                fr.getTotalTxnPerSecond(), fr.getMinTxnPerSecond(), fr.getMaxTxnPerSecond()));
         
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();

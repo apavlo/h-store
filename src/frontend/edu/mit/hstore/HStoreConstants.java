@@ -41,4 +41,10 @@ public abstract class HStoreConstants {
      */
     public static final long DISABLE_UNDO_LOGGING_TOKEN = Long.MAX_VALUE;
 
+    /**
+     * H-Store's ant build.xml will add this prefix in front of all the configuration
+     * parameters listed in the benchmark-specific properties files
+     */
+    public static final String BENCHMARK_PARAM_PREFIX = "benchmark.";
+
 }

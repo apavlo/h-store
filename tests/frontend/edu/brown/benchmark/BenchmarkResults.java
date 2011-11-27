@@ -87,22 +87,50 @@ public class BenchmarkResults {
     public static class FinalResult implements JSONSerializable {
         public long duration;
         public long totalTxnCount;
-        public double txnPerSecond;
+        public double totalTxnPerSecond;
+        public long minTxnCount;
+        public double minTxnPerSecond;
+        public long maxTxnCount;
+        public double maxTxnPerSecond;
         public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
         public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
         
         public FinalResult(BenchmarkResults results) {
             
+            // Final Transactions Per Second
             this.duration = results.getTotalDuration();
             this.totalTxnCount = 0;
+            int num_polls = 0;
             for (String client : results.getClientNames()) {
                 for (String txn : results.getTransactionNames()) {
                     Result[] rs = results.getResultsForClientAndTransaction(client, txn);
                     for (Result r : rs)
                         this.totalTxnCount += r.transactionCount;
+                    num_polls = Math.max(num_polls, rs.length);
                 } // FOR
             } // FOR
-            this.txnPerSecond = totalTxnCount / (double)duration * 1000.0;
+            this.totalTxnPerSecond = totalTxnCount / (double)duration * 1000.0;
+            
+            // Min/Max Transactions Per Second
+            if (debug.get()) LOG.debug("Num Polls: " + num_polls);
+            this.minTxnCount = Long.MAX_VALUE;
+            this.maxTxnCount = 0;
+            for (int i = 0; i < num_polls; i++) {
+                long txnCount = 0;
+                for (String client : results.getClientNames()) {
+                    for (String txn : results.getTransactionNames()) {
+                        Result[] rs = results.getResultsForClientAndTransaction(client, txn);
+                        if (i < rs.length) txnCount += rs[i].transactionCount;
+                    } // FOR (txn)
+                } // FOR (client)
+                if (debug.get())
+                    LOG.debug(String.format("[%02d] minTxnCount = %d <-> %d", i, minTxnCount, txnCount));
+                this.minTxnCount = Math.min(this.minTxnCount, txnCount);
+                this.maxTxnCount = Math.max(this.maxTxnCount, txnCount);
+            } // FOR
+            double interval = results.getIntervalDuration() / 1000.0d;
+            this.minTxnPerSecond = this.minTxnCount / interval;
+            this.maxTxnPerSecond = this.maxTxnCount / interval;
             
             // TRANSACTIONS
             for (String transactionName : results.getTransactionNames()) {
@@ -136,8 +164,20 @@ public class BenchmarkResults {
         public long getTotalTxnCount() {
             return this.totalTxnCount;
         }
-        public double getTxnPerSecond() {
-            return this.txnPerSecond;
+        public double getTotalTxnPerSecond() {
+            return this.totalTxnPerSecond;
+        }
+        public long getMinTxnCount() {
+            return this.minTxnCount;
+        }
+        public double getMinTxnPerSecond() {
+            return this.minTxnPerSecond;
+        }
+        public long getMaxTxnCount() {
+            return this.maxTxnCount;
+        }
+        public double getMaxTxnPerSecond() {
+            return this.maxTxnPerSecond;
         }
         public Collection<String> getTransactionNames() {
             return this.txnResults.keySet();
@@ -243,7 +283,7 @@ public class BenchmarkResults {
     private final long m_pollIntervalInMillis;
     private final int m_clientCount;
     private final Histogram<Integer> m_basePartitions = new Histogram<Integer>();
-
+    
     // cached data for performance and consistency
     private final SortedSet<String> m_transactionNames = new TreeSet<String>();
 

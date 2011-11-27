@@ -110,8 +110,6 @@ public class BenchmarkController {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    public static final String BENCHMARK_PARAM_PREFIX = "benchmark.";
-
     // ProcessSetManager Failure Callback
     final EventObserver<String> failure_observer = new EventObserver<String>() {
         final ReentrantLock lock = new ReentrantLock();
@@ -145,7 +143,7 @@ public class BenchmarkController {
     final Set<String> m_clients = new HashSet<String>();
     final Set<String> m_clientThreads = new HashSet<String>();
     final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
-    Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
+    final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     long m_maxCompletedPoll = 0;
     long m_pollCount = 0;
     Thread self = null;
@@ -1413,7 +1411,7 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("CONF")) {
                 hstore_conf_path = parts[1];
             /* Benchmark Configuration File Path */
-            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX + "CONF")) {
+            } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX + "CONF")) {
                 benchmark_conf_path = parts[1];
 
             /* Whether to enable JSON output formatting of the final result */
@@ -1467,7 +1465,7 @@ public class BenchmarkController {
                  * The number of client processes per client host
                  */
                 serverHeapSize = Integer.parseInt(parts[1]);
-            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "BUILDER")) {
+            } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX +  "BUILDER")) {
                 /*
                  * Name of the ProjectBuilder class for this benchmark.
                  */
@@ -1594,7 +1592,7 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("DUMPDATABASEDIR")) {
                 dumpDatabaseDir = parts[1];
                 
-            } else if (parts[0].equalsIgnoreCase(BENCHMARK_PARAM_PREFIX +  "INITIAL_POLLING_DELAY")) {
+            } else if (parts[0].equalsIgnoreCase(HStoreConstants.BENCHMARK_PARAM_PREFIX +  "INITIAL_POLLING_DELAY")) {
                 clientInitialPollingDelay = Integer.parseInt(parts[1]);
             } else {
                 clientParams.put(parts[0].toLowerCase(), parts[1]);
@@ -1768,7 +1766,7 @@ public class BenchmarkController {
         // Upload Results to CodeSpeed
         if (hstore_conf.client.codespeed_url != null) {
             String codespeed_benchmark = controller.m_projectBuilder.getProjectName();
-            double txnrate = controller.getResults().getFinalResult().getTxnPerSecond();
+            double txnrate = controller.getResults().getFinalResult().getTotalTxnPerSecond();
             
             BenchmarkResultsUploader uploader = new BenchmarkResultsUploader(new URL(hstore_conf.client.codespeed_url),
                                                                              hstore_conf.client.codespeed_project,
