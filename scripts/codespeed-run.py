@@ -307,7 +307,6 @@ if __name__ == '__main__':
             checkoutHStore(svnRepo, svnWorkDir, revision)
             
             for num_partitions in args['partitions']:
-                codespeedExec = "%02d-partitions" % num_partitions
                 cluster = makeClusterConfiguration(args['hosts'], num_partitions, SITES_PER_HOST, PARTITIONS_PER_SITE)
                 cmdArgs = {
                     "hosts":                        '"' + (";".join(cluster)) + '"',
@@ -343,7 +342,7 @@ if __name__ == '__main__':
                             branch=svnBranch,
                             benchmark=benchmark,
                             project=codespeedProject,
-                            executable=codespeedExec,
+                            num_partitions=num_partitions,
                             environment=codespeedEnv,
                             result_value=result,
                             revision_date=revisionDate,

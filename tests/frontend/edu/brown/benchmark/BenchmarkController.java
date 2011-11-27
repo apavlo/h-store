@@ -201,7 +201,7 @@ public class BenchmarkController {
             super(String.format("client-status-%02d", i));
             this.setDaemon(true);
         }
-
+        
         @Override
         public void run() {
             long resultsToRead = m_pollCount * m_clientThreads.size();
@@ -1102,7 +1102,7 @@ public class BenchmarkController {
         LOG.info("Waiting for status threads to finish");
         try {
             for (Thread t : m_statusThreads)
-                t.join(500);
+                t.join();
         } catch (InterruptedException e) {
             LOG.warn(e);
         }

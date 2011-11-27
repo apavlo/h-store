@@ -39,6 +39,7 @@ import getopt
 import string
 import math
 import types
+from datetime import datetime
 from pprint import pprint, pformat
 from fabric.api import *
 from fabric.network import *
@@ -46,6 +47,18 @@ from fabric.contrib.files import *
 
 ## This has all the functions we can use to invoke experiments on EC2
 import fabfile
+
+## H-Store Third-Party Libraries
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+if not os.path.exists(realpath):
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+import codespeed
+import argparse
 
 LOG = logging.getLogger(__name__)
 LOG_handler = logging.StreamHandler()
@@ -309,6 +322,20 @@ def parseResultsOutput(output):
 ## DEF
 
 ## ==============================================
+## svnInfo
+## ==============================================
+def svnInfo(svnRepo):
+    import pysvn
+    client = pysvn.Client()
+    info = client.info2(svnRepo, recurse=False)[-1][-1]
+    last_changed_rev = info['last_changed_rev'].number
+    last_changed_date = datetime.fromtimestamp(info['last_changed_date'])
+    
+    return last_changed_rev, last_changed_date
+## DEF
+
+
+## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
@@ -337,6 +364,8 @@ if __name__ == '__main__':
         "force-reboot",
         "stop-on-error",
         "trace",
+        
+        "codespeed-url=",
         
         # Enable debug logging
         "debug",
@@ -504,7 +533,14 @@ if __name__ == '__main__':
                                                                     updateSVN=needUpdate)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
-                                txnrate = float(data["TXNPERSECOND"])
+                                for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
+                                    if key in data:
+                                        txnrate = float(data[key])
+                                        break
+                                ## FOR
+                                minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
+                                maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
+                                
                                 if int(txnrate) == 0: pass
                                 results.append(txnrate)
                                 if OPT_TRACE and workloads != None:
@@ -513,6 +549,29 @@ if __name__ == '__main__':
                                     ## FOR
                                 ## IF
                                 LOG.info("Throughput: %.2f" % txnrate)
+                                
+                                if "codespeed-url" in options:
+                                    upload_url = options["codespeed-url"][0]
+                                    last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+                                    print "last_changed_rev:", last_changed_rev
+                                    print "last_changed_date:", last_changed_date
+                                    
+                                    LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
+                                    result = codespeed.Result(
+                                                commitid=last_changed_rev,
+                                                branch=os.path.basename(env["hstore.svn"]),
+                                                benchmark=benchmark,
+                                                project="H-Store",
+                                                num_partitions=partitions,
+                                                environment="ec2",
+                                                result_value=txnrate,
+                                                revision_date=last_changed_date,
+                                                result_date=datetime.now(),
+                                                min_result=minTxnRate,
+                                                max_result=maxTxnRate
+                                    )
+                                    result.upload(upload_url)
+                                ## IF
                             ## IF
                         ## WITH
                     except KeyboardInterrupt:
