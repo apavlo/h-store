@@ -67,6 +67,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
@@ -145,7 +146,7 @@ public class BenchmarkController {
     final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
     final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
     long m_maxCompletedPoll = 0;
-    long m_pollCount = 0;
+    final long m_pollCount;
     Thread self = null;
     boolean stop = false;
     boolean failed = false;
@@ -160,6 +161,7 @@ public class BenchmarkController {
     // benchmark parameters
     final BenchmarkConfig m_config;
     ResultsUploader resultsUploader = null;
+    final AtomicLong resultsToRead;
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
     Class<? extends AbstractProjectBuilder> m_builderClass = null;
@@ -183,10 +185,13 @@ public class BenchmarkController {
     private final AtomicInteger m_clientFilesUploaded = new AtomicInteger(0);
 
     public static interface BenchmarkInterest {
+        public String formatFinalResults(BenchmarkResults results);
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
     }
 
     class ClientStatusThread extends Thread {
+        
+        final int thread_id;
         
         /** ClientName -> List of all the Previous Messages */
         final Map<String, List<ProcessSetManager.OutputLine>> previous = new HashMap<String, List<ProcessSetManager.OutputLine>>();
@@ -197,27 +202,25 @@ public class BenchmarkController {
         /** TransactionName -> # of Executed **/
         final Map<String, Long> results = new HashMap<String, Long>();
         
-        boolean stop_requested = false;
-        long resultsToRead = -1;
+        boolean finished = false;
         
         public ClientStatusThread(int i) {
             super(String.format("client-status-%02d", i));
+            this.thread_id = i;
             this.setDaemon(true);
-        }
-        
-        public void done() {
-            this.stop_requested = true;
-            LOG.info("ClientStatusThread asked to finish up [remaining=" + resultsToRead + "]");
         }
         
         @Override
         public void run() {
-            resultsToRead = m_pollCount * m_clientThreads.size();
+            this.finished = false;
             final Database catalog_db = CatalogUtil.getDatabase(catalog);
 
-            while (resultsToRead > 0) {
+            while (resultsToRead.get() > 0) {
                 ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
-                if (line.stream == ProcessSetManager.Stream.STDERR) {
+                if (line == null) {
+                    continue;
+                }
+                else if (line.stream == ProcessSetManager.Stream.STDERR) {
                     System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
                     continue;
                 }
@@ -324,7 +327,6 @@ public class BenchmarkController {
                             this.results.put(txnName, tc.transactions.get(txnName));
                         } // FOR
                         
-                        resultsToRead--;
                         try {
                             if (trace.get()) LOG.trace("UPDATE: " + line);
                             setPollResponseInfo(clientName, time, this.results, null);
@@ -346,6 +348,7 @@ public class BenchmarkController {
                             this.previous.put(clientName, p);
                         }
                         p.add(line);
+                        resultsToRead.decrementAndGet();
                         break;
                     }
                     default:
@@ -354,7 +357,61 @@ public class BenchmarkController {
                 
                 this.lastTimestamps.put(clientName, time);
             } // WHILE
-            LOG.info("Status thread is finished");
+            if (debug.get()) LOG.debug("Status thread is finished");
+            this.finished = true;
+        }
+        
+        void setPollResponseInfo(String clientName, long time, Map<String, Long> transactionCounts, String errMsg) {
+            assert(m_currentResults != null);
+            BenchmarkResults resultCopy = null;
+            int completedCount = 0;
+
+            synchronized(m_currentResults) {
+                m_currentResults.setPollResponseInfo(
+                        clientName,
+                        m_pollIndex.get() - 1,
+                        time,
+                        transactionCounts,
+                        errMsg);
+                completedCount = m_currentResults.getCompletedIntervalCount();
+                if (completedCount > m_maxCompletedPoll) {
+                    resultCopy = m_currentResults.copy();
+                }
+            } // SYNCH
+
+            if (resultCopy != null) {
+                synchronized(m_interested) {
+                    // notify interested parties
+                    for (BenchmarkInterest interest : m_interested)
+                        interest.benchmarkHasUpdated(resultCopy);
+                } // SYNCH
+                m_maxCompletedPoll = completedCount;
+
+                // get total transactions run for this segment
+//                long txnDelta = 0;
+//                for (String client : resultCopy.getClientNames()) {
+//                    try {
+//                        for (String txn : resultCopy.getTransactionNames()) {
+//                            Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
+//                            Result r = rs[rs.length - 1];
+//                            txnDelta += r.transactionCount;
+//                        } // FOR
+//                    } catch (Throwable ex) {
+//                        LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
+//                        LOG.error(client + " PREVIOUS:\n" + CollectionUtil.first(m_statusThreads).previous.get(client));
+//                        throw new RuntimeException(ex);
+//                    }
+//
+//                } // FOR
+
+                // if nothing done this segment, dump everything
+//                if (txnDelta == 0) {
+//                    tryDumpAll();
+//                    System.out.println("\nDUMPING!\n");
+//                }
+            }
+
+
         }
     } // CLASS
 
@@ -406,7 +463,9 @@ public class BenchmarkController {
             System.exit(-1);
         }
 
+        m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         resultsUploader = new ResultsUploader(m_config.projectBuilderClass, config);
+        resultsToRead = new AtomicLong(m_pollCount * hstore_conf.client.processesperclient * hstore_conf.client.count);
 
         AbstractProjectBuilder tempBuilder = null;
         try {
@@ -973,7 +1032,7 @@ public class BenchmarkController {
             }
         });
         
-        m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
+        
         long nextIntervalTime = hstore_conf.client.interval;
         
         for (int i = 0; i < m_clients.size(); i++) {
@@ -1109,15 +1168,27 @@ public class BenchmarkController {
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            LOG.info(String.format("Waiting for status %d threads to finish", m_statusThreads.size()));
+            LOG.info(String.format("Waiting for %d status threads to finish", m_statusThreads.size()));
             try {
                 for (ClientStatusThread t : m_statusThreads) {
-                    t.done();
-                    t.join(10000);
-                }
+                    if (t.finished == false) {
+                        if (debug.get()) LOG.debug(String.format("ClientStatusThread '%s' asked to finish up [remaining=%d]", t.getName(), resultsToRead.get()));
+                        t.interrupt();
+                        t.join();
+                    }
+                } // FOR
             } catch (InterruptedException e) {
                 LOG.warn(e);
             }
+            
+            // Print out the final results
+            if (debug.get()) LOG.debug("Dumping out final benchmark results");
+            for (BenchmarkInterest interest : m_interested) {
+                String finalResults = interest.formatFinalResults(m_currentResults);
+                if (finalResults != null) System.out.println(finalResults);
+            } // FOR
+        } else if (debug.get()) {
+            LOG.debug("Benchmark failed. Not displaying final results");
         }
     }
     
@@ -1204,64 +1275,6 @@ public class BenchmarkController {
         }
     }
 
-
-    void setPollResponseInfo(
-            String clientName,
-            long time,
-            Map<String, Long> transactionCounts,
-            String errMsg)
-    {
-        assert(m_currentResults != null);
-        BenchmarkResults resultCopy = null;
-        int completedCount = 0;
-
-        synchronized(m_currentResults) {
-            m_currentResults.setPollResponseInfo(
-                    clientName,
-                    m_pollIndex.get() - 1,
-                    time,
-                    transactionCounts,
-                    errMsg);
-            completedCount = m_currentResults.getCompletedIntervalCount();
-            if (completedCount > m_maxCompletedPoll) {
-                resultCopy = m_currentResults.copy();
-            }
-        } // SYNCH
-
-        if (resultCopy != null) {
-            synchronized(m_interested) {
-                // notify interested parties
-                for (BenchmarkInterest interest : m_interested)
-                    interest.benchmarkHasUpdated(resultCopy);
-            } // SYNCH
-            m_maxCompletedPoll = completedCount;
-
-            // get total transactions run for this segment
-            long txnDelta = 0;
-            for (String client : resultCopy.getClientNames()) {
-                try {
-                    for (String txn : resultCopy.getTransactionNames()) {
-                        Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
-                        Result r = rs[rs.length - 1];
-                        txnDelta += r.transactionCount;
-                    } // FOR
-                } catch (Throwable ex) {
-                    LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
-                    LOG.error(client + " PREVIOUS:\n" + CollectionUtil.first(m_statusThreads).previous.get(client));
-                    throw new RuntimeException(ex);
-                }
-
-            } // FOR
-
-            // if nothing done this segment, dump everything
-//            if (txnDelta == 0) {
-//                tryDumpAll();
-//                System.out.println("\nDUMPING!\n");
-//            }
-        }
-
-
-    }
 
     /** Call dump on each of the servers */
     public void tryDumpAll() {

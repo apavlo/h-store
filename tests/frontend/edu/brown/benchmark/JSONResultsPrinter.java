@@ -15,7 +15,7 @@ public class JSONResultsPrinter extends ResultsPrinter {
     }
     
     @Override
-    protected String formatFinalResults(BenchmarkResults results) {
+    public String formatFinalResults(BenchmarkResults results) {
         if (output_basepartitions) {
             System.out.print(StringUtil.SINGLE_LINE);
             System.out.println("Base Partition Distribution:\n" + results.getBasePartitions());
