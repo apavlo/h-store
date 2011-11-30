@@ -136,4 +136,27 @@ public abstract class MathUtil {
         return ret;
     }
     private static final Map<Integer, BigInteger> CACHE_FACTORIAL = new LRUMap<Integer, BigInteger>();
+    
+
+
+    /**
+     * Compute standard deviation
+     * Derived from http://nscraps.com/Java/720-java-calculate-standard-deviation.htm
+     * @param data
+     * @return
+     */
+    public static double stdev(double...data) {
+        final int n = data.length;
+        if (n < 2) {
+            return Double.NaN;
+        }
+        double avg = data[0];
+        double sum = 0;
+        for (int i = 1; i < data.length; i++) {
+            double newavg = avg + (data[i] - avg) / (i + 1);
+            sum += (data[i] - avg) * (data[i] - newavg);
+            avg = newavg;
+        }
+        return Math.sqrt(sum / n);
+    }
 }

@@ -566,7 +566,7 @@ if __name__ == '__main__':
                                 ## IF
                                 LOG.info("Throughput: %.2f" % txnrate)
                                 
-                                if "codespeed-url" in options:
+                                if "codespeed-url" in options and txnrate > 0:
                                     upload_url = options["codespeed-url"][0]
                                     last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
                                     print "last_changed_rev:", last_changed_rev

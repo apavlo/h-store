@@ -88,6 +88,12 @@ public class ResultsUploader implements BenchmarkController.BenchmarkInterest {
     }
 
     @Override
+    public String formatFinalResults(BenchmarkResults results) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    
+    @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
         int pollIndex = results.getCompletedIntervalCount();
         long duration = results.getTotalDuration();

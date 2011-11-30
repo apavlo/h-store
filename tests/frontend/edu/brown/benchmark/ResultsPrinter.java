@@ -52,7 +52,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         this.output_basepartitions = output_basepartitions;
     }
     
-    protected String formatFinalResults(BenchmarkResults results) {
+    @Override
+    public String formatFinalResults(BenchmarkResults results) {
         StringBuilder sb = new StringBuilder();
         FinalResult fr = new FinalResult(results);
         
@@ -155,10 +156,10 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
                 totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
 
 
-        if ((pollIndex * results.getIntervalDuration()) >= duration) {
-            // print the final results
-            System.out.println(this.formatFinalResults(results));
-        }
+//        if ((pollIndex * results.getIntervalDuration()) >= duration) {
+//            // print the final results
+//            System.out.println(this.formatFinalResults(results));
+//        }
 
         System.out.flush();
     }

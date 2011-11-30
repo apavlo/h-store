@@ -92,6 +92,7 @@ public class BenchmarkResults {
         public double minTxnPerSecond;
         public long maxTxnCount;
         public double maxTxnPerSecond;
+        public double stddevTxnPerSecond;
         public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
         public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
         
@@ -111,7 +112,7 @@ public class BenchmarkResults {
             } // FOR
             this.totalTxnPerSecond = totalTxnCount / (double)duration * 1000.0;
             
-            // Min/Max Transactions Per Second
+            // Min/Max/StdDev Transactions Per Second
             if (debug.get()) LOG.debug("Num Polls: " + num_polls);
             this.minTxnCount = Long.MAX_VALUE;
             this.maxTxnCount = 0;
@@ -373,7 +374,7 @@ public class BenchmarkResults {
             retval[i] = new Result(r.benchmarkTimeDelta, r.transactionCount - txnsTillNow);
             txnsTillNow = r.transactionCount;
         }
-        assert(intervals == results.size());
+//        assert(intervals == results.size());
         return retval;
     }
 
