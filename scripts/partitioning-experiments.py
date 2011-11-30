@@ -572,7 +572,7 @@ if __name__ == '__main__':
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     
-                                    codespeedBenchmark = options["codespeed-benchmark"] if "codespeed-benchmark" in options else benchmark
+                                    codespeedBenchmark = options["codespeed-benchmark"][0] if "codespeed-benchmark" in options else benchmark
                                     
                                     LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
                                     result = codespeed.Result(
