@@ -712,7 +712,8 @@ public class AirlineLoader extends AirlineBaseClient {
                         airport_id = AirlineLoader.this.getAirportId(this.airport_code);
                     } // WHILE
                     long next_customer_id = AirlineLoader.this.incrementAirportCustomerCount(airport_id);
-                    this.last_id = new CustomerId(next_customer_id, airport_id); 
+                    this.last_id = new CustomerId(next_customer_id, airport_id);
+                    if (trace.get()) LOG.trace("NEW CUSTOMER: " + this.last_id.encode() + " / " + this.last_id);
                     value = this.last_id.encode();
                     if (trace.get()) LOG.trace(value + " => " + this.airport_code + " [" + getCustomerIdCount(airport_id) + "]");
                     break;

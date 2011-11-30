@@ -197,14 +197,22 @@ public class BenchmarkController {
         /** TransactionName -> # of Executed **/
         final Map<String, Long> results = new HashMap<String, Long>();
         
+        boolean stop_requested = false;
+        long resultsToRead = -1;
+        
         public ClientStatusThread(int i) {
             super(String.format("client-status-%02d", i));
             this.setDaemon(true);
         }
         
+        public void done() {
+            this.stop_requested = true;
+            LOG.info("ClientStatusThread asked to finish up [remaining=" + resultsToRead + "]");
+        }
+        
         @Override
         public void run() {
-            long resultsToRead = m_pollCount * m_clientThreads.size();
+            resultsToRead = m_pollCount * m_clientThreads.size();
             final Database catalog_db = CatalogUtil.getDatabase(catalog);
 
             while (resultsToRead > 0) {
@@ -346,6 +354,7 @@ public class BenchmarkController {
                 
                 this.lastTimestamps.put(clientName, time);
             } // WHILE
+            LOG.info("Status thread is finished");
         }
     } // CLASS
 
@@ -1100,10 +1109,12 @@ public class BenchmarkController {
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            LOG.info("Waiting for status threads to finish");
+            LOG.info(String.format("Waiting for status %d threads to finish", m_statusThreads.size()));
             try {
-                for (Thread t : m_statusThreads)
-                    t.join();
+                for (ClientStatusThread t : m_statusThreads) {
+                    t.done();
+                    t.join(10000);
+                }
             } catch (InterruptedException e) {
                 LOG.warn(e);
             }
