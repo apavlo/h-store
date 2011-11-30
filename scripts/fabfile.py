@@ -593,7 +593,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
         "client.processesperclient":    env["client.processesperclient"],
-        "benchmark.warehouses":         partition_id,
+        #"benchmark.warehouses":         partition_id,
         "project":                      project,
         "hosts":                        '"%s"' % ";".join(hosts),
     }
@@ -798,7 +798,7 @@ def __startInstances__(instances_count, ec2_type, instance_tags):
 ## __waitUntilStatus__
 ## ----------------------------------------------        
 def __waitUntilStatus__(inst, status):
-    tries = 6
+    tries = 10
     while tries > 0 and not inst.update() == status:
         time.sleep(5)
         tries -= 1

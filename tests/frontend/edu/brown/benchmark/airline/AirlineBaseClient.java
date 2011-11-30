@@ -621,8 +621,9 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     }
     
     public synchronized long incrementAirportCustomerCount(long airport_id) {
+        long next_id = this.profile.airport_max_customer_id.get(airport_id, 0); 
         this.profile.airport_max_customer_id.put(airport_id);
-        return (this.profile.airport_max_customer_id.get(airport_id));
+        return (next_id);
     }
     public Long getCustomerIdCount(long airport_id) {
         return (this.profile.airport_max_customer_id.get(airport_id));

@@ -339,7 +339,7 @@ def svnInfo(svnRepo):
 ## main
 ## ==============================================
 if __name__ == '__main__':
-    _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+    BASE_OPTIONS = [
         # Experiment Parameters
         "exp-type=",
         "exp-settings=",
@@ -366,10 +366,16 @@ if __name__ == '__main__':
         "trace",
         
         "codespeed-url=",
+        "codespeed-benchmark=",
         
         # Enable debug logging
         "debug",
-    ])
+    ]
+    for key in BASE_SETTINGS.keys():
+        BASE_OPTIONS.append("%s=" % key)
+    ## FOR
+    
+    _options, args = getopt.gnu_getopt(sys.argv[1:], '', BASE_OPTIONS)
     
     ## ----------------------------------------------
     ## COMMAND OPTIONS
@@ -387,20 +393,29 @@ if __name__ == '__main__':
         fabfile.LOG.setLevel(logging.DEBUG)
     ## Global Options
     for key in options:
-        varname = "OPT_" + key.replace("-", "_").upper()
-        if varname in globals():
-            orig_type = type(globals()[varname])
+        varname = None
+        paramDict = None
+        if key in BASE_SETTINGS:
+            varname = key
+            paramDict = BASE_SETTINGS
+        else:
+            varname = "OPT_" + key.replace("-", "_").upper()
+            if varname in globals():
+                paramDict= globals()
+        ## IF
+        if paramDict is not None:
+            orig_type = type(paramDict[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
             elif orig_type == list:
                 if not varname+"_changed" in globals(): ## HACK
-                    globals()[varname] = [ ]
-                    globals()[varname+"_changed"] = True
-                val = globals()[varname] + options[key] # HACK    
+                    paramDict[varname] = [ ]
+                    paramDict[varname+"_changed"] = True
+                val = paramDict[varname] + options[key] # HACK    
             else: 
                 val = orig_type(options[key][0])
-            globals()[varname] = val
-            LOG.debug("%s = %s" % (varname, str(globals()[varname])))
+            paramDict[varname] = val
+            LOG.debug("%s = %s" % (varname, str(paramDict[varname])))
     ## FOR
     if OPT_FAST:
         OPT_NO_COMPILE = True
@@ -465,9 +480,10 @@ if __name__ == '__main__':
                     values = [ 0, 3, 10, 80, 100 ]
                 else:
                     values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 2)
+                LOG.debug("%s Exp Factor Values: %s" % (OPT_EXP_TYPE.upper(), values))
                 for f in values:
-                    if f > OPT_EXP_FACTOR_STOP: break
-                    if f >= OPT_EXP_FACTOR_START:
+                    if f > int(OPT_EXP_FACTOR_STOP): break
+                    if f >= int(OPT_EXP_FACTOR_START):
                         exp_factors.append(f)
                 ## FOR
                     
@@ -478,9 +494,9 @@ if __name__ == '__main__':
                     exp_factors = [ OPT_EXP_FACTOR_START ]
                 else:
                     exp_factors = [ "full", "noindexes", "norouting" ]
-                
             else:
                 raise Exception("Unexpected experiment type '%s'" % OPT_EXP_TYPE)
+            LOG.debug("Experimental Factors: %s" % exp_factors)
                 
             if OPT_START_CLUSTER:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
@@ -556,11 +572,13 @@ if __name__ == '__main__':
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     
+                                    codespeedBenchmark = options["codespeed-benchmark"] if "codespeed-benchmark" in options else benchmark
+                                    
                                     LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
                                     result = codespeed.Result(
                                                 commitid=last_changed_rev,
                                                 branch=os.path.basename(env["hstore.svn"]),
-                                                benchmark=benchmark,
+                                                benchmark=codespeedBenchmark,
                                                 project="H-Store",
                                                 num_partitions=partitions,
                                                 environment="ec2",

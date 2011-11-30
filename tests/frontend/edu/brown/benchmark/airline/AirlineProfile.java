@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2011 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.airline;
 
 import java.util.HashMap;
@@ -167,12 +194,12 @@ public class AirlineProfile {
     protected synchronized final void loadProfile(AirlineBaseClient baseClient) {
         // Check whether we have a cached Profile we can copy from
         if (cachedProfile != null) {
-            LOG.info("Using cached AirlineProfile");
+            if (debug.get()) LOG.debug("Using cached AirlineProfile");
             this.copy(cachedProfile);
             return;
         }
         
-        LOG.info("Loading AirlineProfile for the first time");
+        if (debug.get()) LOG.debug("Loading AirlineProfile for the first time");
         
         // Otherwise we have to go fetch everything again
         Client client = baseClient.getClientHandle();
@@ -253,6 +280,7 @@ public class AirlineProfile {
             }
         } // WHILE
 
+        if (debug.get()) LOG.debug("Airport Max Customer Id:\n" + this.airport_max_customer_id);
         cachedProfile = new AirlineProfile().copy(this);
     }
     
