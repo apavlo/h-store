@@ -66,13 +66,6 @@ public final class HStoreConf {
             experimental=false
         )
         public String defaulthost = "localhost";
-        
-        @ConfigProperty(
-            description="", // TODO
-            defaultBoolean=true,
-            experimental=true
-        )
-        public boolean ringbuffer_debug;
     }
     
     // ============================================================================
@@ -644,44 +637,6 @@ public final class HStoreConf {
         )
         public int pool_txnprepare_idle;
     }
-
-    // ============================================================================
-    // COORDINATOR
-    // ============================================================================
-    public final class CoordinatorConf extends Conf {
-        
-        @ConfigProperty(
-            description="Dtxn.Coordinator log directory  on the host that the BenchmarkController " +
-                        "is invoked from.",
-            defaultString="${global.temp_dir}/logs/coordinator",
-            experimental=false
-        )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/coordinator";
-        
-        @ConfigProperty(
-            description="The hostname to deploy the Dtxn.Coordinator on in the cluster.",
-            defaultString="${global.defaulthost}",
-            experimental=false
-        )
-        public String host = HStoreConf.this.global.defaulthost;
-        
-        @ConfigProperty(
-            description="The port number that the Dtxn.Coordinator will listen on.",
-            defaultInt=12348,
-            experimental=false
-        )
-        public int port;
-
-        @ConfigProperty(
-            description="How long should we wait before starting the Dtxn.Coordinator (in milliseconds). " +
-                        "You may need to increase this parameter for larger cluster sizes or if the " +
-                        "HStoreSites have to load a lot of supplemental files (e.g., Markov models) before " +
-                        "they attempt to connect to other sites.",
-            defaultInt=0,
-            experimental=false
-        )
-        public int delay;
-    }
     
     // ============================================================================
     // CLIENT
@@ -843,7 +798,7 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
-        public boolean dump_database = false;
+        public boolean dump_database;
         
         @ConfigProperty(
             description="If ${client.dump_database} is enabled, then each DBMS will dump their entire " +
@@ -860,7 +815,7 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
-        public boolean tablestats = false;
+        public boolean tablestats;
         
         @ConfigProperty(
             description="If ${client.tablestats} is enabled, then the loader will write out a database statistics " +
@@ -880,7 +835,7 @@ public final class HStoreConf {
             defaultBoolean=true,
             experimental=false
         )
-        public boolean txn_hints = true;
+        public boolean txn_hints;
         
         @ConfigProperty(
             description="If a node is executing multiple client processes, then the node may become overloaded if " +
@@ -891,7 +846,7 @@ public final class HStoreConf {
             defaultInt=8,
             experimental=false
         )
-        public int delay_threshold = 8;
+        public int delay_threshold;
         
         @ConfigProperty(
             description="The URL of the CodeSpeed site that the H-Store BenchmarkController will post the transaction " +
@@ -1068,7 +1023,6 @@ public final class HStoreConf {
      */
     public final GlobalConf global = new GlobalConf();
     public final SiteConf site = new SiteConf();
-    public final CoordinatorConf coordinator = new CoordinatorConf();
     public final ClientConf client = new ClientConf();
     
     /**

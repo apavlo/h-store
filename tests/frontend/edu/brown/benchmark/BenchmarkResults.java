@@ -41,6 +41,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 
 public class BenchmarkResults {
@@ -99,8 +100,13 @@ public class BenchmarkResults {
             Histogram<String> clientCounts = new Histogram<String>(true);
             Histogram<String> txnCounts = new Histogram<String>(true);
             
-//            double intervalResults[] = new double[results.completedIntervals];
-//            Arrays.fill(intervalResults, 0d);
+            double intervalTotals[] = results.computeIntervalTotals();
+            if (debug.get()) LOG.debug("INTERVAL TOTALS: " + Arrays.toString(intervalTotals));
+            for (int i = 0; i < intervalTotals.length; i++) {
+                intervalTotals[i] /= (results.m_pollIntervalInMillis / 1000.0);
+            } // FOR
+            if (debug.get()) LOG.debug("INTERVAL TPS: " + Arrays.toString(intervalTotals));
+            this.stddevTxnPerSecond = MathUtil.stdev(intervalTotals);
             
             for (String client : results.getClientNames()) {
                 clientCounts.set(client, 0);
@@ -112,12 +118,11 @@ public class BenchmarkResults {
                         clientCounts.put(client, r.transactionCount);
                         txnCounts.put(txn, r.transactionCount);
                     } // FOR
-//                    num_polls = Math.max(num_polls, rs.length);
                 } // FOR
             } // FOR
             this.totalTxnPerSecond = totalTxnCount / (double)duration * 1000.0;
             
-            // Min/Max/StdDev Transactions Per Second
+            // Min/Max Transactions Per Second
             for (int i = 0; i < results.completedIntervals; i++) {
                 long txnCount = 0;
                 for (String client : results.getClientNames()) {
@@ -167,6 +172,9 @@ public class BenchmarkResults {
         }
         public double getMaxTxnPerSecond() {
             return this.maxTxnPerSecond;
+        }
+        public double getStandardDeviationTxnPerSecond() {
+            return this.stddevTxnPerSecond;
         }
         public Collection<String> getTransactionNames() {
             return this.txnResults.keySet();
@@ -364,12 +372,14 @@ public class BenchmarkResults {
             for (List<Result> txnResults : clientResults.values()) {
                 Result last = null;
                 for (int i = 0; i < results.length; i++) {
-                    long delta = last.transactionCount;
-                    
+                    Result r = txnResults.get(i); 
+                    long total = r.transactionCount;
+                    if (last != null) total -= last.transactionCount;
+                    results[i] += total;
+                    last = r;
                 } // FOR
             } // FOR
         } // FOR
-        
         return (results);
     }
     
