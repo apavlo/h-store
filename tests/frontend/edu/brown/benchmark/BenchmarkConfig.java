@@ -38,6 +38,7 @@ import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
+import edu.mit.hstore.HStoreConstants;
 
 public class BenchmarkConfig {
     private static final Logger LOG = Logger.getLogger(BenchmarkConfig.class);
@@ -126,7 +127,7 @@ public class BenchmarkConfig {
             String f_value = this.config.getString(f_name); 
             
             // Always store whatever the property as a client parameter
-            String paramName = (BenchmarkController.BENCHMARK_PARAM_PREFIX + f_name).toUpperCase();
+            String paramName = (HStoreConstants.BENCHMARK_PARAM_PREFIX + f_name).toUpperCase();
             LOG.debug(String.format("Passing benchmark parameter to clients: %s = %s", paramName, f_value));
             clientParameters.put(paramName, f_value);
             

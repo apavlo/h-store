@@ -28,8 +28,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 
@@ -83,22 +87,51 @@ public class BenchmarkResults {
     public static class FinalResult implements JSONSerializable {
         public long duration;
         public long totalTxnCount;
-        public double txnPerSecond;
+        public double totalTxnPerSecond;
+        public long minTxnCount;
+        public double minTxnPerSecond;
+        public long maxTxnCount;
+        public double maxTxnPerSecond;
+        public double stddevTxnPerSecond;
         public final Map<String, EntityResult> txnResults = new HashMap<String, EntityResult>();
         public final Map<String, EntityResult> clientResults = new HashMap<String, EntityResult>();
         
         public FinalResult(BenchmarkResults results) {
             
+            // Final Transactions Per Second
             this.duration = results.getTotalDuration();
             this.totalTxnCount = 0;
+            int num_polls = 0;
             for (String client : results.getClientNames()) {
                 for (String txn : results.getTransactionNames()) {
                     Result[] rs = results.getResultsForClientAndTransaction(client, txn);
                     for (Result r : rs)
                         this.totalTxnCount += r.transactionCount;
+                    num_polls = Math.max(num_polls, rs.length);
                 } // FOR
             } // FOR
-            this.txnPerSecond = totalTxnCount / (double)duration * 1000.0;
+            this.totalTxnPerSecond = totalTxnCount / (double)duration * 1000.0;
+            
+            // Min/Max/StdDev Transactions Per Second
+            if (debug.get()) LOG.debug("Num Polls: " + num_polls);
+            this.minTxnCount = Long.MAX_VALUE;
+            this.maxTxnCount = 0;
+            for (int i = 0; i < num_polls; i++) {
+                long txnCount = 0;
+                for (String client : results.getClientNames()) {
+                    for (String txn : results.getTransactionNames()) {
+                        Result[] rs = results.getResultsForClientAndTransaction(client, txn);
+                        if (i < rs.length) txnCount += rs[i].transactionCount;
+                    } // FOR (txn)
+                } // FOR (client)
+                if (debug.get())
+                    LOG.debug(String.format("[%02d] minTxnCount = %d <-> %d", i, minTxnCount, txnCount));
+                this.minTxnCount = Math.min(this.minTxnCount, txnCount);
+                this.maxTxnCount = Math.max(this.maxTxnCount, txnCount);
+            } // FOR
+            double interval = results.getIntervalDuration() / 1000.0d;
+            this.minTxnPerSecond = this.minTxnCount / interval;
+            this.maxTxnPerSecond = this.maxTxnCount / interval;
             
             // TRANSACTIONS
             for (String transactionName : results.getTransactionNames()) {
@@ -132,8 +165,20 @@ public class BenchmarkResults {
         public long getTotalTxnCount() {
             return this.totalTxnCount;
         }
-        public double getTxnPerSecond() {
-            return this.txnPerSecond;
+        public double getTotalTxnPerSecond() {
+            return this.totalTxnPerSecond;
+        }
+        public long getMinTxnCount() {
+            return this.minTxnCount;
+        }
+        public double getMinTxnPerSecond() {
+            return this.minTxnPerSecond;
+        }
+        public long getMaxTxnCount() {
+            return this.maxTxnCount;
+        }
+        public double getMaxTxnPerSecond() {
+            return this.maxTxnPerSecond;
         }
         public Collection<String> getTransactionNames() {
             return this.txnResults.keySet();
@@ -229,17 +274,19 @@ public class BenchmarkResults {
         }
     }
     
-    private final HashMap<String, HashMap<String, ArrayList<Result>>> m_data =
-        new HashMap<String, HashMap<String, ArrayList<Result>>>();
+    /**
+     * ClientName -> TxnName -> List<Result>
+     */
+    private final SortedMap<String, SortedMap<String, List<Result>>> m_data = new TreeMap<String, SortedMap<String, List<Result>>>();
     private final Set<Error> m_errors = new HashSet<Error>();
 
     private final long m_durationInMillis;
     private final long m_pollIntervalInMillis;
     private final int m_clientCount;
     private final Histogram<Integer> m_basePartitions = new Histogram<Integer>();
-
+    
     // cached data for performance and consistency
-    private final Set<String> m_transactionNames = new HashSet<String>();
+    private final SortedSet<String> m_transactionNames = new TreeSet<String>();
 
     BenchmarkResults(long pollIntervalInMillis, long durationInMillis, int clientCount) {
         assert((durationInMillis % pollIntervalInMillis) == 0) : "duration does not comprise an integral number of polling intervals.";
@@ -262,6 +309,11 @@ public class BenchmarkResults {
         return new FinalResult(this);
     }
 
+    /**
+     * Returns the number of interval polls that have complete information
+     * from all of the clients.
+     * @return
+     */
     public int getCompletedIntervalCount() {
         // make sure all
         if (m_data.size() < m_clientCount)
@@ -270,13 +322,12 @@ public class BenchmarkResults {
             String.format("%d != %d", m_data.size(), m_clientCount);
 
         int min = Integer.MAX_VALUE;
-        String txnName = m_transactionNames.iterator().next();
-        for (HashMap<String, ArrayList<Result>> txnResults : m_data.values()) {
-            ArrayList<Result> results = txnResults.get(txnName);
-            if (results != null) {
-                if (results.size() < min)
-                    min = results.size();
-            }
+        // String txnName = m_transactionNames.iterator().next();
+        for (Map<String, List<Result>> txnResults : m_data.values()) {
+            for (String txnName : txnResults.keySet()) {
+                List<Result> results = txnResults.get(txnName);
+                if (results != null) min = Math.min(results.size(), min);
+            } // FOR
         } // FOR
 
         return min;
@@ -309,20 +360,21 @@ public class BenchmarkResults {
 
     public Result[] getResultsForClientAndTransaction(String clientName, String transactionName) {
         int intervals = getCompletedIntervalCount();
-        Result[] retval = new Result[intervals];
         
-        HashMap<String, ArrayList<Result>> txnResults = m_data.get(clientName);
-        ArrayList<Result> results = txnResults.get(transactionName);
+        Map<String, List<Result>> txnResults = m_data.get(clientName);
+        List<Result> results = txnResults.get(transactionName);
         assert(results != null) :
             String.format("Null results for txn '%s' from client '%s'\n%s",
                           transactionName, clientName, StringUtil.formatMaps(txnResults));
+        
         long txnsTillNow = 0;
+        Result[] retval = new Result[intervals];
         for (int i = 0; i < intervals; i++) {
             Result r = results.get(i);
             retval[i] = new Result(r.benchmarkTimeDelta, r.transactionCount - txnsTillNow);
             txnsTillNow = r.transactionCount;
         }
-        assert(intervals == results.size());
+//        assert(intervals == results.size());
         return retval;
     }
 
@@ -344,9 +396,9 @@ public class BenchmarkResults {
                 m_transactionNames.add(txnName);
 
             // ensure there is an entry for the client
-            HashMap<String, ArrayList<Result>> txnResults = m_data.get(clientName);
+            SortedMap<String, List<Result>> txnResults = m_data.get(clientName);
             if (txnResults == null) {
-                txnResults = new HashMap<String, ArrayList<Result>>();
+                txnResults = new TreeMap<String, List<Result>>();
                 for (String txnName : transactionCounts.keySet())
                     txnResults.put(txnName, new ArrayList<Result>());
                 m_data.put(clientName, txnResults);
@@ -354,7 +406,7 @@ public class BenchmarkResults {
 
             for (Entry<String, Long> entry : transactionCounts.entrySet()) {
                 Result r = new Result(offsetTime, entry.getValue());
-                ArrayList<Result> results = m_data.get(clientName).get(entry.getKey());
+                List<Result> results = m_data.get(clientName).get(entry.getKey());
                 assert(results != null);
                 assert(results.size() == pollIndex) :
                     String.format("%s != %d\n%s => %s", results.size(), pollIndex, entry, results);
@@ -370,11 +422,10 @@ public class BenchmarkResults {
         retval.m_errors.addAll(m_errors);
         retval.m_transactionNames.addAll(m_transactionNames);
 
-        for (Entry<String, HashMap<String, ArrayList<Result>>> entry : m_data.entrySet()) {
-            HashMap<String, ArrayList<Result>> txnsForClient =
-                new HashMap<String, ArrayList<Result>>();
+        for (Entry<String, SortedMap<String, List<Result>>> entry : m_data.entrySet()) {
+            SortedMap<String, List<Result>> txnsForClient = new TreeMap<String, List<Result>>();
 
-            for (Entry <String, ArrayList<Result>> entry2 : entry.getValue().entrySet()) {
+            for (Entry<String, List<Result>> entry2 : entry.getValue().entrySet()) {
                 ArrayList<Result> newResults = new ArrayList<Result>();
                 for (Result r : entry2.getValue())
                     newResults.add(r);
@@ -389,7 +440,7 @@ public class BenchmarkResults {
 
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("Transaction Names", m_transactionNames);
+        m.put("Transaction Names", StringUtil.join("\n", m_transactionNames));
         m.put("Transaction Data", m_data);
         m.put("Base Partitions", m_basePartitions);
         

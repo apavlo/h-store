@@ -1,7 +1,33 @@
+/***************************************************************************
+ *  Copyright (C) 2011 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.airline;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -39,7 +65,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.FileUtil;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableDataIterable;
@@ -111,15 +136,15 @@ public class AirlineLoader extends AirlineBaseClient {
     @Override
     public boolean addFlightId(FlightId flight_id) {
         assert(flight_id != null);
-        assert(this.flight_start_date != null);
-        assert(this.flight_upcoming_date != null);
+        assert(this.profile.flight_start_date != null);
+        assert(this.profile.flight_upcoming_date != null);
         super.addFlightId(flight_id);
         this.seats_remaining.put(flight_id, (short)AirlineConstants.NUM_SEATS_PER_FLIGHT);
         
         // XXX
-        if (this.flight_upcoming_offset == null &&
-            this.flight_upcoming_date.compareTo(flight_id.getDepartDate(this.flight_start_date)) < 0) {
-            this.flight_upcoming_offset = (long)(this.seats_remaining.size() - 1);
+        if (this.profile.flight_upcoming_offset == null &&
+            this.profile.flight_upcoming_date.compareTo(flight_id.getDepartDate(this.profile.flight_start_date)) < 0) {
+            this.profile.flight_upcoming_offset = (long)(this.seats_remaining.size() - 1);
         }
         return (true);
     }
@@ -137,7 +162,7 @@ public class AirlineLoader extends AirlineBaseClient {
      * @return
      */
     public long getFlightIdStartingOffset() {
-        return (this.flight_upcoming_offset);
+        return (this.profile.flight_upcoming_offset);
     }
     
     /**
@@ -248,7 +273,7 @@ public class AirlineLoader extends AirlineBaseClient {
         
         // Save the benchmark profile out to disk so that we can send it
         // to all of the clients
-        this.saveProfile();
+        this.profile.saveProfile(this);
 
         LOG.debug("Airline loader done.");
     }
@@ -345,7 +370,7 @@ public class AirlineLoader extends AirlineBaseClient {
             // column value from a code to the id stored in our lookup table
             if (this.fkey_value_xref.containsKey(col_name)) {
                 String col_fkey_name = this.fkey_value_xref.get(col_name);
-                mapping_columns.put(col_code_idx, this.code_id_xref.get(col_fkey_name));
+                mapping_columns.put(col_code_idx, this.profile.code_id_xref.get(col_fkey_name));
             }
         } // FOR
         
@@ -383,7 +408,7 @@ public class AirlineLoader extends AirlineBaseClient {
                         assert(to_column != null) : String.format("Invalid column %s.%s", catalog_tbl.getName(), code_2_id.get(col_code_idx));  
                         long id = (Long)tuple[code_2_id.get(col_code_idx)];
                         if (trace.get()) LOG.trace(String.format("Mapping %s '%s' -> %s '%d'", from_column.fullName(), code, to_column.fullName(), id));
-                        this.code_id_xref.get(to_column.getName()).put(code, id);
+                        this.profile.code_id_xref.get(to_column.getName()).put(code, id);
                     }
                 } // FOR
                 
@@ -425,26 +450,6 @@ public class AirlineLoader extends AirlineBaseClient {
                                 row_idx, catalog_tbl.getName(),
                                 this.finished.incrementAndGet(), catalog_db.getTables().size()));
         return;
-    }
-    
-    /**
-     * Save the information stored in the BenchmarkProfile out to a file 
-     * @throws IOException
-     */
-    public File saveProfile() {
-        File f = FileUtil.getTempFile("profile", false);
-        if (debug.get()) LOG.debug("Saving benchmark profile to '" + f + "'");
-        try {
-            this.save(f.getAbsolutePath());
-        } catch (IOException ex) {
-            throw new RuntimeException("Failed to save benchmark profile", ex);
-        }
-        try {
-            this.sendFileToAllClients("BENCHMARK.PROFILE", f);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-        return (f);
     }
     
     // ----------------------------------------------------------------
@@ -707,7 +712,8 @@ public class AirlineLoader extends AirlineBaseClient {
                         airport_id = AirlineLoader.this.getAirportId(this.airport_code);
                     } // WHILE
                     long next_customer_id = AirlineLoader.this.incrementAirportCustomerCount(airport_id);
-                    this.last_id = new CustomerId(next_customer_id, airport_id); 
+                    this.last_id = new CustomerId(next_customer_id, airport_id);
+                    if (trace.get()) LOG.trace("NEW CUSTOMER: " + this.last_id.encode() + " / " + this.last_id);
                     value = this.last_id.encode();
                     if (trace.get()) LOG.trace(value + " => " + this.airport_code + " [" + getCustomerIdCount(airport_id) + "]");
                     break;
@@ -759,10 +765,10 @@ public class AirlineLoader extends AirlineBaseClient {
         private Collection<String> customer_airlines = new HashSet<String>();
         private final Collection<String> all_airlines;
         
-        public FrequentFlyerIterable(Table catalog_tbl, long total, int max_per_customer) {
-            super(catalog_tbl, total, new int[]{ 0, 1 });
+        public FrequentFlyerIterable(Table catalog_tbl, long num_customers, int max_per_customer) {
+            super(catalog_tbl, num_customers, new int[]{ 0, 1 });
             
-            this.customer_id_iterator = new CustomerIdIterable(airport_max_customer_id).iterator();
+            this.customer_id_iterator = new CustomerIdIterable(profile.airport_max_customer_id).iterator();
             this.last_customer_id = this.customer_id_iterator.next();
 
             // Flights per Airline
@@ -776,10 +782,11 @@ public class AirlineLoader extends AirlineBaseClient {
             
             // Loop through for the total customers and figure out how many entries we 
             // should have for each one. This will be our new total;
-            this.ff_per_customer = new short[(int)total];
             RandomDistribution.Zipf ff_zipf = new RandomDistribution.Zipf(rng, 0, this.all_airlines.size(), 1.1);
             long new_total = 0; 
-            total = AirlineLoader.this.getCustomerIdCount();
+            long total = AirlineLoader.this.getCustomerIdCount();
+            if (debug.get()) LOG.debug("Num of Customers: " + total);
+            this.ff_per_customer = new short[(int)total];
             for (int i = 0; i < total; i++) {
                 this.ff_per_customer[i] = (short)ff_zipf.nextInt();
                 if (this.ff_per_customer[i] > max_per_customer) this.ff_per_customer[i] = (short)max_per_customer;
@@ -798,6 +805,7 @@ public class AirlineLoader extends AirlineBaseClient {
                     while (this.customer_idx < this.ff_per_customer.length && this.ff_per_customer[this.customer_idx] <= 0) {
                         this.customer_idx++;
                         this.customer_airlines.clear();
+                        if (trace.get()) LOG.trace("CUSTOMER IDX: " + this.customer_idx);
                         assert(this.customer_id_iterator.hasNext());
                         this.last_customer_id = this.customer_id_iterator.next();
                     } // WHILE

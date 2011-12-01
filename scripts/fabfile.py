@@ -550,7 +550,11 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     partition_id = 0
     
     ## HStore Sites
+    LOG.debug("Partitions Needed: %d" % env["site.partitions"])
+    LOG.debug("Partitions Per Site: %d" % env["site.partitions_per_site"])
+    site_hosts = set()
     for inst in __getRunningSiteInstances__():
+        site_hosts.add(inst.private_dns_name)
         for i in range(env["site.sites_per_host"]):
             firstPartition = partition_id
             lastPartition = min(env["site.partitions"], firstPartition + env["site.partitions_per_site"])-1
@@ -560,14 +564,20 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
             partition_id += env["site.partitions_per_site"]
             site_id += 1
             hosts.append(host)
+            if lastPartition+1 == env["site.partitions"]: break
         ## FOR (SITES)
-    ## FOR
-        
-    ## HStore Clients
-    for inst in __getRunningClientInstances__():
-        clients.append(inst.private_dns_name)
+        if lastPartition+1 == env["site.partitions"]: break
     ## FOR
     assert len(hosts) > 0
+    LOG.debug("Site Hosts: %s" % hosts)
+    
+    ## HStore Clients
+    for inst in __getRunningClientInstances__():
+        if inst.private_dns_name in site_hosts: continue
+        clients.append(inst.private_dns_name)
+    ## FOR
+    assert len(clients) > 0
+    LOG.debug("Client Hosts: %s" % clients)
 
     ## Make sure the the checkout is up to date
     if updateSVN: 
@@ -583,7 +593,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
         "client.processesperclient":    env["client.processesperclient"],
-        "benchmark.warehouses":         partition_id,
+        #"benchmark.warehouses":         partition_id,
         "project":                      project,
         "hosts":                        '"%s"' % ";".join(hosts),
     }
@@ -676,7 +686,7 @@ def update_conf(conf_file, updates={ }, removals=[ ], noSpaces=False):
     if get(conf_file, local_path=sio).failed:
         raise Exception("Failed to retrieve conf file '%s'" % conf_file)
     contents = sio.getvalue()
-    assert len(contents) > 0
+    assert len(contents) > 0, "Configuration file '%s' is empty" % conf_file
     
     first = True
     space = "" if noSpaces else " "
@@ -788,7 +798,7 @@ def __startInstances__(instances_count, ec2_type, instance_tags):
 ## __waitUntilStatus__
 ## ----------------------------------------------        
 def __waitUntilStatus__(inst, status):
-    tries = 6
+    tries = 10
     while tries > 0 and not inst.update() == status:
         time.sleep(5)
         tries -= 1

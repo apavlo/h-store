@@ -52,7 +52,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         this.output_basepartitions = output_basepartitions;
     }
     
-    protected String formatFinalResults(BenchmarkResults results) {
+    @Override
+    public String formatFinalResults(BenchmarkResults results) {
         StringBuilder sb = new StringBuilder();
         FinalResult fr = new FinalResult(results);
         
@@ -60,7 +61,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         sb.append(String.format("\n%s\n", StringUtil.header("BENCHMARK RESULTS", "=", width)));
         sb.append(String.format("Time: %d ms\n", fr.getDuration()));
         sb.append(String.format("Total transactions: %d\n", fr.getTotalTxnCount()));
-        sb.append(String.format("Transactions per second: %.2f\n", fr.getTxnPerSecond()));
+        sb.append(String.format("Transactions per second: %.2f  [min:%.2f / max:%.2f]\n\n",
+                                fr.getTotalTxnPerSecond(), fr.getMinTxnPerSecond(), fr.getMaxTxnPerSecond()));
         
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();
@@ -154,10 +156,10 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
                 totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
 
 
-        if ((pollIndex * results.getIntervalDuration()) >= duration) {
-            // print the final results
-            System.out.println(this.formatFinalResults(results));
-        }
+//        if ((pollIndex * results.getIntervalDuration()) >= duration) {
+//            // print the final results
+//            System.out.println(this.formatFinalResults(results));
+//        }
 
         System.out.flush();
     }

@@ -115,7 +115,8 @@ public class TransactionIdManager {
         else {
             // reset the counter and lastUsedTime for the new millisecond
             if (currentTime < lastUsedTime) {
-                LOG.error("Initiator time moved backwards from: " + lastUsedTime + " to " + currentTime);
+                LOG.error(String.format("Initiator time moved backwards from %d to %d [diff=%d]",
+                                        lastUsedTime, currentTime, (lastUsedTime - currentTime)));
                 // if the diff is less than 5 ms, wait a bit
                 if ((lastUsedTime - currentTime) < 10) {
                     int count = 1000;

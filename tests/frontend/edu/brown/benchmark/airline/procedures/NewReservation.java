@@ -1,10 +1,40 @@
+/***************************************************************************
+ *  Copyright (C) 2011 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.airline.procedures;
 
 import org.apache.log4j.Logger;
-import org.voltdb.*;
-import org.voltdb.VoltProcedure.VoltAbortException;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.airline.AirlineConstants;
+import edu.brown.benchmark.airline.util.CustomerId;
 
 @ProcInfo(
     singlePartition = false
@@ -108,22 +138,22 @@ public class NewReservation extends VoltProcedure {
         }
         initialResults[0].advanceRow();
         if (initialResults[0].getLong(1) <= 0) {
-            throw new VoltAbortException("No more seats available for flight id: " + f_id);
+            throw new VoltAbortException("No more seats available for flight #" + f_id);
         }
         long airline_id = initialResults[0].getLong(0);
         long seats_left = initialResults[0].getLong(1);
         
         // Check for existing reservation
         if (initialResults[1].getRowCount() > 0) {
-            throw new VoltAbortException("Seat reservation conflict");
+            throw new VoltAbortException(String.format("Seat %d is already reserved on flight #%d", seatnum, f_id));
         }
         // Or the customer trying to book themselves twice
         else if (initialResults[2].getRowCount() > 1) {
-            throw new VoltAbortException("Customer owns multiple reservations");
+            throw new VoltAbortException(String.format("Customer %d already owns on a reservations on flight #%d", c_id, f_id));
         }
         // Customer Information
         else if (initialResults[3].getRowCount() != 1) {
-            throw new VoltAbortException("Invalid customer id: " + c_id);
+            throw new VoltAbortException(String.format("Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
         }
         
         voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
