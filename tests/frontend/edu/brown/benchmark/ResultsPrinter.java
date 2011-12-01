@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkResults.EntityResult;
@@ -45,6 +46,8 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         "%10.2f txn/m",
     };
     
+    private static final String RESULT_FORMAT = "%.2f";
+    
     protected final boolean output_clients;
     protected final boolean output_basepartitions;
     
@@ -60,10 +63,23 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
         
         final int width = 100; 
         sb.append(String.format("\n%s\n", StringUtil.header("BENCHMARK RESULTS", "=", width)));
-        sb.append(String.format("Time: %d ms\n", fr.getDuration()));
-        sb.append(String.format("Total transactions: %d\n", fr.getTotalTxnCount()));
-        sb.append(String.format("Transactions per second: %.2f  [min:%.2f / max:%.2f]\n\n",
-                                fr.getTotalTxnPerSecond(), fr.getMinTxnPerSecond(), fr.getMaxTxnPerSecond()));
+        
+        StringBuilder inner = new StringBuilder();
+        inner.append(String.format(RESULT_FORMAT + " txn/s", fr.getTotalTxnPerSecond()))
+             .append(" [")
+             .append(String.format("min:" + RESULT_FORMAT, fr.getMinTxnPerSecond()))
+             .append(" / ")
+             .append(String.format("max:" + RESULT_FORMAT, fr.getMaxTxnPerSecond()))
+             .append(" / ")
+             .append(String.format("stddev:" + RESULT_FORMAT, fr.getStandardDeviationTxnPerSecond()))
+             .append("]\n\n");
+        
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("Execution Time", String.format("%d ms", fr.getDuration()));
+        m.put("Total Transactions", fr.getTotalTxnCount());
+        m.put("Throughput", inner.toString()); 
+        
+        sb.append(StringUtil.formatMaps(m));
         
         Collection<String> txnNames = fr.getTransactionNames();
         Collection<String> clientNames = fr.getClientNames();
@@ -134,11 +150,11 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
 
         System.out.printf("\nAt time %d out of %d (%d%%):\n", currentTime, duration, currentTime * 100 / duration);
         System.out.printf("  In the past %d ms:\n", duration / pollCount);
-        System.out.printf("    Completed %d txns at a rate of %.2f txns/s\n",
+        System.out.printf("    Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s\n",
                 txnDelta,
                 txnDelta / (double)(results.getIntervalDuration()) * 1000.0);
         System.out.printf("  Since the benchmark began:\n");
-        System.out.printf("    Completed %d txns at a rate of %.2f txns/s\n",
+        System.out.printf("    Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s\n",
                 totalTxnCount,
                 totalTxnCount / (double)(pollIndex * results.getIntervalDuration()) * 1000.0);
 
