@@ -124,8 +124,8 @@ public class TPCCSimulation {
     
     private int tick_counter = 0;
     private int temporal_counter = 0;
-    private final Histogram<Short> lastWarehouseHistory = new Histogram<Short>();
-    private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>();
+    private final Histogram<Short> lastWarehouseHistory = new Histogram<Short>(true);
+    private final Histogram<Short> totalWarehouseHistory = new Histogram<Short>(true);
 
     public TPCCSimulation(TPCCSimulation.ProcCaller client, RandomGenerator generator,
                           Clock clock, ScaleParameters parameters, TPCCConfig config, double skewFactor) {
@@ -152,9 +152,6 @@ public class TPCCSimulation {
         if (debug.get()) {
             LOG.debug(this.toString());
         }
-        
-        this.lastWarehouseHistory.setKeepZeroEntries(true);
-        this.totalWarehouseHistory.setKeepZeroEntries(true);
     }
     
     /**

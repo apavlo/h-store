@@ -364,12 +364,8 @@ public abstract class BenchmarkComponent {
     
     public static class TransactionCounter implements JSONSerializable {
         
-        public Histogram<Integer> basePartitions = new Histogram<Integer>();
-        public Histogram<String> transactions = new Histogram<String>();
-        {
-            this.basePartitions.setKeepZeroEntries(true);
-            this.transactions.setKeepZeroEntries(true);
-        }
+        public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
+        public Histogram<String> transactions = new Histogram<String>(true);
 
         public TransactionCounter copy() {
             TransactionCounter copy = new TransactionCounter();
@@ -434,7 +430,7 @@ public abstract class BenchmarkComponent {
                 LOG.error("Not starting prepared!");
                 LOG.error(m_controlState + " " + m_reason);
             }
-
+            
             final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
             while (true) {
                 try {
@@ -452,6 +448,11 @@ public abstract class BenchmarkComponent {
                 final ControlWorker worker = new ControlWorker();
                 final Thread t = new Thread(worker);
                 t.setDaemon(true);
+                
+                // HACK: Convert a SHUTDOWN to a STOP if we're not the first client
+                if (command == Command.SHUTDOWN && getClientId() != 0) {
+                    command = Command.STOP;
+                }
                 
                 switch (command) {
                     case START: {

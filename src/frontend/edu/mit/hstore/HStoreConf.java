@@ -877,10 +877,10 @@ public final class HStoreConf {
                         "that has that partition. Note that the HStoreSite will not use the PartitionEstimator to " +
                         "determine whether the client is correct, but the transaction can be restarted and re-executed " +
                         "if ${site.exec_db2_redirects} is enabled.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
-        public boolean txn_hints = false;
+        public boolean txn_hints = true;
         
         @ConfigProperty(
             description="If a node is executing multiple client processes, then the node may become overloaded if " +

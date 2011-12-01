@@ -24,17 +24,7 @@
 package edu.brown.benchmark;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -43,10 +33,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
+import org.voltdb.utils.Pair;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
@@ -101,22 +93,32 @@ public class BenchmarkResults {
             // Final Transactions Per Second
             this.duration = results.getTotalDuration();
             this.totalTxnCount = 0;
-            int num_polls = 0;
+            this.minTxnCount = Long.MAX_VALUE;
+            this.maxTxnCount = 0;
+            
+            Histogram<String> clientCounts = new Histogram<String>(true);
+            Histogram<String> txnCounts = new Histogram<String>(true);
+            
+//            double intervalResults[] = new double[results.completedIntervals];
+//            Arrays.fill(intervalResults, 0d);
+            
             for (String client : results.getClientNames()) {
+                clientCounts.set(client, 0);
                 for (String txn : results.getTransactionNames()) {
+                    if (txnCounts.contains(txn) == false) txnCounts.set(txn, 0);
                     Result[] rs = results.getResultsForClientAndTransaction(client, txn);
-                    for (Result r : rs)
+                    for (Result r : rs) {
                         this.totalTxnCount += r.transactionCount;
-                    num_polls = Math.max(num_polls, rs.length);
+                        clientCounts.put(client, r.transactionCount);
+                        txnCounts.put(txn, r.transactionCount);
+                    } // FOR
+//                    num_polls = Math.max(num_polls, rs.length);
                 } // FOR
             } // FOR
             this.totalTxnPerSecond = totalTxnCount / (double)duration * 1000.0;
             
             // Min/Max/StdDev Transactions Per Second
-            if (debug.get()) LOG.debug("Num Polls: " + num_polls);
-            this.minTxnCount = Long.MAX_VALUE;
-            this.maxTxnCount = 0;
-            for (int i = 0; i < num_polls; i++) {
+            for (int i = 0; i < results.completedIntervals; i++) {
                 long txnCount = 0;
                 for (String client : results.getClientNames()) {
                     for (String txn : results.getTransactionNames()) {
@@ -134,28 +136,14 @@ public class BenchmarkResults {
             this.maxTxnPerSecond = this.maxTxnCount / interval;
             
             // TRANSACTIONS
-            for (String transactionName : results.getTransactionNames()) {
-                long txnCount = 0;
-                for (String clientName : results.getClientNames()) {
-                    Result[] rs = results.getResultsForClientAndTransaction(clientName, transactionName);
-                    for (Result r : rs)
-                        txnCount += r.transactionCount;
-                }
-                EntityResult er = new EntityResult(this.totalTxnCount, this.duration, txnCount);
+            for (String transactionName : txnCounts.values()) {
+                EntityResult er = new EntityResult(this.totalTxnCount, this.duration, txnCounts.get(transactionName));
                 this.txnResults.put(transactionName, er);
             }
-            
             // CLIENTS
             for (String clientName : results.getClientNames()) {
-                long txnCount = 0;
-                for (String txnName : results.getTransactionNames()) {
-                    Result[] rs = results.getResultsForClientAndTransaction(clientName, txnName);
-                    for (Result r : rs)
-                        txnCount += r.transactionCount;
-                }
-                clientName = clientName.replace("client-", "");
-                EntityResult er = new EntityResult(this.totalTxnCount, this.duration, txnCount);
-                this.clientResults.put(clientName, er);
+                EntityResult er = new EntityResult(this.totalTxnCount, this.duration, clientCounts.get(clientName));
+                this.clientResults.put(clientName.replace("client-", ""), er);
             } // FOR
         }
         
@@ -285,6 +273,9 @@ public class BenchmarkResults {
     private final int m_clientCount;
     private final Histogram<Integer> m_basePartitions = new Histogram<Integer>();
     
+    private int completedIntervals = 0;
+    private final Histogram<String> clientResultCount = new Histogram<String>();
+    
     // cached data for performance and consistency
     private final SortedSet<String> m_transactionNames = new TreeSet<String>();
 
@@ -315,22 +306,10 @@ public class BenchmarkResults {
      * @return
      */
     public int getCompletedIntervalCount() {
-        // make sure all
-        if (m_data.size() < m_clientCount)
-            return 0;
+        // make sure we have reports from all the clients
         assert(m_data.size() == m_clientCount) : 
             String.format("%d != %d", m_data.size(), m_clientCount);
-
-        int min = Integer.MAX_VALUE;
-        // String txnName = m_transactionNames.iterator().next();
-        for (Map<String, List<Result>> txnResults : m_data.values()) {
-            for (String txnName : txnResults.keySet()) {
-                List<Result> results = txnResults.get(txnName);
-                if (results != null) min = Math.min(results.size(), min);
-            } // FOR
-        } // FOR
-
-        return min;
+        return (this.completedIntervals);
     }
 
     public long getIntervalDuration() {
@@ -353,7 +332,6 @@ public class BenchmarkResults {
         retval.addAll(m_data.keySet());
         return retval;
     }
-    
     public Histogram<Integer> getBasePartitions() {
         return (m_basePartitions);
     }
@@ -377,50 +355,109 @@ public class BenchmarkResults {
 //        assert(intervals == results.size());
         return retval;
     }
+    
+    public double[] computeIntervalTotals() {
+        double results[] = new double[this.completedIntervals];
+        Arrays.fill(results, 0d);
+        
+        for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
+            for (List<Result> txnResults : clientResults.values()) {
+                Result last = null;
+                for (int i = 0; i < results.length; i++) {
+                    long delta = last.transactionCount;
+                    
+                } // FOR
+            } // FOR
+        } // FOR
+        
+        return (results);
+    }
+    
+    /**
+     * Compute the total number of transactions executed for the entire benchmark
+     * and the delta from that last time we were polled
+     * @return
+     */
+    public Pair<Long, Long> computeTotalAndDelta() {
+        long totalTxnCount = 0;
+        long txnDelta = 0;
+        
+        for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
+            for (List<Result> txnResults : clientResults.values()) {
+                Result last = CollectionUtil.last(txnResults);
+                int num_results = txnResults.size();
+                long delta = last.transactionCount - (num_results > 1 ? txnResults.get(num_results-2).transactionCount : 0);
+                totalTxnCount += last.transactionCount;
+                txnDelta += delta;
+            } // FOR
+        } // FOR
+        return (Pair.of(totalTxnCount, txnDelta));
+    }
 
-    void setPollResponseInfo(String clientName, int pollIndex, long time, Map<String, Long> transactionCounts, String errMsg) {
+    public BenchmarkResults addPollResponseInfo(String clientName, int pollIndex, long time, BenchmarkComponent.TransactionCounter tc, String errMsg) {
         long benchmarkTime = pollIndex * m_pollIntervalInMillis;
         long offsetTime = time - benchmarkTime;
 
-        if (debug.get())
-            LOG.debug(String.format("Setting Poll Response Info for '%s' [%d]:\n%s",
-                                    clientName, pollIndex, StringUtil.formatMaps(transactionCounts)));
-        
         if (errMsg != null) {
             Error err = new Error(clientName, errMsg, pollIndex);
             m_errors.add(err);
+            return (null);
         }
-        else {
+        
+        if (debug.get())
+            LOG.debug(String.format("Setting Poll Response Info for '%s' [%d]:\n%s",
+                                    clientName, pollIndex, tc.transactions));
+        
+        // Update Touched Histograms
+        // This doesn't need to be synchronized
+        this.m_basePartitions.putHistogram(tc.basePartitions);
+        
+        BenchmarkResults finishedIntervalClone = null;
+        synchronized (this) {
             // put the transactions names:
-            for (String txnName : transactionCounts.keySet())
-                m_transactionNames.add(txnName);
-
+            if (m_transactionNames.isEmpty()) {
+                for (String txnName : tc.transactions.values())
+                    m_transactionNames.add(txnName);
+            }
+            
             // ensure there is an entry for the client
             SortedMap<String, List<Result>> txnResults = m_data.get(clientName);
             if (txnResults == null) {
                 txnResults = new TreeMap<String, List<Result>>();
-                for (String txnName : transactionCounts.keySet())
-                    txnResults.put(txnName, new ArrayList<Result>());
                 m_data.put(clientName, txnResults);
             }
-
-            for (Entry<String, Long> entry : transactionCounts.entrySet()) {
-                Result r = new Result(offsetTime, entry.getValue());
-                List<Result> results = m_data.get(clientName).get(entry.getKey());
+    
+            for (String txnName : m_transactionNames) {
+                List<Result> results = txnResults.get(txnName);
+                if (results == null) {
+                    results = new ArrayList<Result>();
+                    txnResults.put(txnName, results);
+                }
                 assert(results != null);
-//                assert(results.size() == pollIndex) :
-//                    String.format("%s != %d\n%s => %s", results.size(), pollIndex, entry, results);
+                Result r = new Result(offsetTime, tc.transactions.get(txnName));
                 results.add(r);
+            } // FOR
+            this.clientResultCount.put(clientName);
+            if (debug.get())
+                LOG.debug(String.format("New Result for '%s' => %d [minCount=%d]",
+                                       clientName, this.clientResultCount.get(clientName), this.clientResultCount.getMinCount()));
+            if (this.clientResultCount.getMinCount() > this.completedIntervals && m_data.size() == m_clientCount) {
+                this.completedIntervals = (int)this.clientResultCount.getMinCount();
+                finishedIntervalClone = this.copy();
             }
-        }
+        } // SYNCH
+        
+        return (finishedIntervalClone);
     }
 
     BenchmarkResults copy() {
-        BenchmarkResults retval = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
+        BenchmarkResults clone = new BenchmarkResults(m_pollIntervalInMillis, m_durationInMillis, m_clientCount);
 
-        retval.m_basePartitions.putHistogram(m_basePartitions);
-        retval.m_errors.addAll(m_errors);
-        retval.m_transactionNames.addAll(m_transactionNames);
+        clone.m_basePartitions.putHistogram(m_basePartitions);
+        clone.m_errors.addAll(m_errors);
+        clone.m_transactionNames.addAll(m_transactionNames);
+        clone.completedIntervals = this.completedIntervals;
+        clone.clientResultCount.putHistogram(this.clientResultCount);
 
         for (Entry<String, SortedMap<String, List<Result>>> entry : m_data.entrySet()) {
             SortedMap<String, List<Result>> txnsForClient = new TreeMap<String, List<Result>>();
@@ -432,10 +469,10 @@ public class BenchmarkResults {
                 txnsForClient.put(entry2.getKey(), newResults);
             }
 
-            retval.m_data.put(entry.getKey(), txnsForClient);
+            clone.m_data.put(entry.getKey(), txnsForClient);
         }
 
-        return retval;
+        return clone;
     }
 
     public String toString() {

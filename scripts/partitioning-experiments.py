@@ -96,7 +96,7 @@ OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1000
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
@@ -281,8 +281,8 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
 
     ## CUSTOM BENCHMARK TYPE
     if benchmark.startswith("tpcc"):
-        env["benchmark.warehouses"] = env["site.partitions"]
-        env["benchmark.loadthreads"] = env["site.partitions"]
+        env["benchmark.one_warehouse_per_partition"] = True
+        env["benchmark.one_loadthread_per_warehouse"] = True
         if benchmark.endswith("-skewed"):
             env["benchmark.temporal_skew"] = True
             env["benchmark.temporal_skew_rotate"] = False
@@ -324,10 +324,16 @@ def parseResultsOutput(output):
 ## ==============================================
 ## svnInfo
 ## ==============================================
-def svnInfo(svnRepo):
+def svnInfo(svnRepo, revision = None):
     import pysvn
+    
+    if revision:
+        svnRevision = pysvn.Revision(pysvn.opt_revision_kind.number, revision)
+    else:
+        svnRevision = pysvn.Revision(pysvn.opt_revision_kind.head)
+    
     client = pysvn.Client()
-    info = client.info2(svnRepo, recurse=False)[-1][-1]
+    info = client.info2(svnRepo, revision=svnRevision, recurse=False)[-1][-1]
     last_changed_rev = info['last_changed_rev'].number
     last_changed_date = datetime.fromtimestamp(info['last_changed_date'])
     
@@ -367,6 +373,7 @@ if __name__ == '__main__':
         
         "codespeed-url=",
         "codespeed-benchmark=",
+        "codespeed-revision=",
         
         # Enable debug logging
         "debug",
@@ -568,7 +575,12 @@ if __name__ == '__main__':
                                 
                                 if "codespeed-url" in options and txnrate > 0:
                                     upload_url = options["codespeed-url"][0]
-                                    last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+                                    
+                                    if "codespeed-revision" in options:
+                                        last_changed_rev = int(options["codespeed-revision"][0])
+                                        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
+                                    else:
+                                        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     

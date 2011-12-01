@@ -27,9 +27,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.voltdb.utils.Pair;
+
 import edu.brown.benchmark.BenchmarkResults.EntityResult;
 import edu.brown.benchmark.BenchmarkResults.FinalResult;
-import edu.brown.benchmark.BenchmarkResults.Result;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
@@ -121,24 +122,10 @@ public class ResultsPrinter implements BenchmarkController.BenchmarkInterest {
     
     @Override
     public void benchmarkHasUpdated(BenchmarkResults results) {
-
-        long totalTxnCount = 0;
-        for (String client : results.getClientNames()) {
-            for (String txn : results.getTransactionNames()) {
-                Result[] rs = results.getResultsForClientAndTransaction(client, txn);
-                for (Result r : rs)
-                    totalTxnCount += r.transactionCount;
-            }
-        }
-
-        long txnDelta = 0;
-        for (String client : results.getClientNames()) {
-            for (String txn : results.getTransactionNames()) {
-                Result[] rs = results.getResultsForClientAndTransaction(client, txn);
-                Result r = rs[rs.length - 1];
-                txnDelta += r.transactionCount;
-            }
-        }
+        Pair<Long, Long> p = results.computeTotalAndDelta();
+        assert(p != null);
+        long totalTxnCount = p.getFirst();
+        long txnDelta = p.getSecond();
 
         int pollIndex = results.getCompletedIntervalCount();
         long duration = results.getTotalDuration();

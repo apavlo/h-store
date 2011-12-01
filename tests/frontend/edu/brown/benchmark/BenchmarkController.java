@@ -147,8 +147,7 @@ public class BenchmarkController {
     final Set<String> m_clientThreads = new HashSet<String>();
     final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
     final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
-    long m_maxCompletedPoll = 0;
-    final long m_pollCount;
+    
     Thread self = null;
     boolean stop = false;
     boolean failed = false;
@@ -156,15 +155,20 @@ public class BenchmarkController {
     HStoreConf hstore_conf;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
-    AtomicInteger m_pollIndex = new AtomicInteger(0);
 
     final static String m_tpccClientClassName = "org.voltdb.benchmark.tpcc.TPCCClient"; // DEFAULT
 
     // benchmark parameters
     final BenchmarkConfig m_config;
+    
+    /**
+     * BenchmarkResults Processing
+     */
+    protected int m_pollIndex = 0;
+    protected long m_maxCompletedPoll = 0;
+    protected final long m_pollCount;
+    protected final CountDownLatch resultsToRead;
     ResultsUploader resultsUploader = null;
-    final CountDownLatch resultsToRead;
-    final Histogram<String> processedHistogram = new Histogram<String>(); 
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
     Class<? extends AbstractProjectBuilder> m_builderClass = null;
@@ -191,226 +195,6 @@ public class BenchmarkController {
         public String formatFinalResults(BenchmarkResults results);
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
     }
-
-    class ClientStatusThread extends Thread {
-        
-        final int thread_id;
-        
-        /** ClientName -> List of all the Previous Messages */
-        final Map<String, List<ProcessSetManager.OutputLine>> previous = new HashMap<String, List<ProcessSetManager.OutputLine>>();
-        
-        /** ClientName -> Timestamp of Previous Message */ 
-        final Map<String, Long> lastTimestamps = new HashMap<String, Long>();
-        
-        /** TransactionName -> # of Executed **/
-        final Map<String, Long> results = new HashMap<String, Long>();
-        
-        boolean finished = false;
-        
-        public ClientStatusThread(int i) {
-            super(String.format("client-status-%02d", i));
-            this.thread_id = i;
-            this.setDaemon(true);
-        }
-        
-        @Override
-        public void run() {
-            this.finished = false;
-            final Database catalog_db = CatalogUtil.getDatabase(catalog);
-
-            while (resultsToRead.getCount() > 0) {
-                ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
-                if (line == null) {
-                    continue;
-                }
-                else if (line.stream == ProcessSetManager.Stream.STDERR) {
-                    System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
-                    continue;
-                }
-                // General Debug Output
-                else if (line.value.startsWith(BenchmarkComponent.CONTROL_MESSAGE_PREFIX) == false) {
-                    System.out.println(line.value);
-                    continue;
-                }
-                
-                // BenchmarkController Coordination Message
-                // split the string on commas and strip whitespace
-                String control_line = line.value.substring(BenchmarkComponent.CONTROL_MESSAGE_PREFIX.length());
-                String[] parts = control_line.split(",");
-                for (int i = 0; i < parts.length; i++)
-                    parts[i] = parts[i].trim();
-
-                // expect at least time and status
-                if (parts.length < 2) {
-                    if (line.value.startsWith("Listening for transport dt_socket at address:") ||
-                            line.value.contains("Attempting to load") ||
-                            line.value.contains("Successfully loaded native VoltDB library")) {
-                        LOG.info(line.processName + ": " + control_line + "\n");
-                        continue;
-                    }
-//                    m_clientPSM.killProcess(line.processName);
-//                    LogKeys logkey =
-//                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-//                    LOG.l7dlog( Level.ERROR, logkey.name(),
-//                            new Object[] { line.processName, line.value }, null);
-                    continue;
-                }
-
-                int clientId = -1;
-                long time = -1;
-                try {
-                    clientId = Integer.parseInt(parts[0]);
-                    time = Long.parseLong(parts[1]);
-                } catch (NumberFormatException ex) {
-                    LOG.warn("Failed to parse line '" + control_line + "'", ex);
-                    continue; // IGNORE
-                }
-                final String clientName = getClientName(line.processName, clientId);
-                final BenchmarkComponent.ControlState status = BenchmarkComponent.ControlState.get(parts[2]);
-                assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
-                
-                if (trace.get()) 
-                    LOG.trace(String.format("Client %s -> %s", clientName, status));
-                
-                // Make sure that we never go back in time!
-                Long lastTimestamp = this.lastTimestamps.get(clientName);
-                if (lastTimestamp != null) assert(time >= lastTimestamp) :
-                    String.format("New message from %s is in the past [newTime=%d, lastTime=%d]", clientName, time, lastTimestamp);
-
-                switch (status) {
-                    // ----------------------------------------------------------------------------
-                    // READY
-                    // ----------------------------------------------------------------------------
-                    case READY: {
-//                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
-//                        LOG.l7dlog( Level.INFO, logkey.name(),
-//                                new Object[] { line.processName }, null);
-                        if (debug.get()) LOG.debug(String.format("Got ready message for '%s'.", line.processName));
-                        m_clientsNotReady.decrementAndGet();
-                        break;
-                    }
-                    // ----------------------------------------------------------------------------
-                    // ERROR
-                    // ----------------------------------------------------------------------------
-                    case ERROR: {
-                        m_clientPSM.killProcess(line.processName);
-//                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
-//                        LOG.l7dlog( Level.ERROR, logkey.name(),
-//                                new Object[] { line.processName, parts[2] }, null);
-                        LOG.error(String.format("(%s) Returned error message:\n\"%s\"", line.processName, parts[2]));
-                        break;
-                    }
-                    // ----------------------------------------------------------------------------
-                    // RUNNING
-                    // ----------------------------------------------------------------------------
-                    case RUNNING: {
-                        // System.out.println("Got running message: " + Arrays.toString(parts));
-                        if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
-                        
-                        // HACK
-                        BenchmarkComponent.TransactionCounter tc = new BenchmarkComponent.TransactionCounter();
-                        int offset = 1;
-                        for (int i = 0; i < 3; i++) {
-                            offset += parts[i].length() + 1;
-                        } // FOR
-                        String json_line = control_line.substring(offset);
-                        JSONObject json_object;
-                        try {
-                            json_object = new JSONObject(json_line);
-                            tc.fromJSON(json_object, catalog_db);
-                        } catch (JSONException ex) {
-                            LOG.error("Invalid response:\n" + json_line);
-                            throw new RuntimeException(ex);
-                        }
-                        assert(json_object != null);
-                        if (trace.get()) LOG.trace("Base Partitions:\n " + tc.basePartitions); 
-                        
-                        this.results.clear();
-                        for (String txnName : tc.transactions.values()) {
-                            this.results.put(txnName, tc.transactions.get(txnName));
-                        } // FOR
-                        
-                        try {
-                            if (trace.get()) LOG.trace("UPDATE: " + line);
-                            synchronized (m_currentResults) {
-                                setPollResponseInfo(clientName, time, this.results, null);
-                                m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
-                            } // SYNCH
-                        } catch (Throwable ex) {
-                            List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
-                            LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
-                            LOG.error(String.format("Previous Lines for %s [%s]:\n%s",
-                                                    clientName,
-                                                    (p != null ? p.size() : p),
-                                                    StringUtil.join("\n", p)));
-                            throw new RuntimeException(ex);
-                        }
-                        List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
-                        if (p == null) {
-                            p = new ArrayList<ProcessSetManager.OutputLine>();
-                            this.previous.put(clientName, p);
-                        }
-                        p.add(line);
-                        resultsToRead.countDown();
-                        processedHistogram.put(this.getName());
-                        break;
-                    }
-                    default:
-                        assert(false) : "Unexpected ControlStatus " + status;
-                } // SWITCH
-                
-                this.lastTimestamps.put(clientName, time);
-            } // WHILE
-//            if (debug.get())
-                LOG.info(String.format("Status thread is finished [processed=%d]", processedHistogram.get(this.getName())));
-            this.finished = true;
-        }
-        
-        void setPollResponseInfo(String clientName, long time, Map<String, Long> transactionCounts, String errMsg) {
-            assert(m_currentResults != null);
-
-            m_currentResults.setPollResponseInfo(
-                    clientName,
-                    m_pollIndex.get() - 1,
-                    time,
-                    transactionCounts,
-                    errMsg);
-//            BenchmarkResults resultCopy = null;
-            int completedCount = m_currentResults.getCompletedIntervalCount(); 
-            if (completedCount > m_maxCompletedPoll) {
-                // notify interested parties
-                for (BenchmarkInterest interest : m_interested)
-                    interest.benchmarkHasUpdated(m_currentResults);
-                m_maxCompletedPoll = completedCount;
-            }
-
-                // get total transactions run for this segment
-//                long txnDelta = 0;
-//                for (String client : resultCopy.getClientNames()) {
-//                    try {
-//                        for (String txn : resultCopy.getTransactionNames()) {
-//                            Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
-//                            Result r = rs[rs.length - 1];
-//                            txnDelta += r.transactionCount;
-//                        } // FOR
-//                    } catch (Throwable ex) {
-//                        LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
-//                        LOG.error(client + " PREVIOUS:\n" + CollectionUtil.first(m_statusThreads).previous.get(client));
-//                        throw new RuntimeException(ex);
-//                    }
-//
-//                } // FOR
-
-                // if nothing done this segment, dump everything
-//                if (txnDelta == 0) {
-//                    tryDumpAll();
-//                    System.out.println("\nDUMPING!\n");
-//                }
-//            }
-
-
-        }
-    } // CLASS
 
     @SuppressWarnings("unchecked")
     public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
@@ -494,6 +278,29 @@ public class BenchmarkController {
     
     public String getProjectName() {
         return (m_projectBuilder.getProjectName().toUpperCase());
+    }
+    
+    public Catalog getCatalog() {
+        return (this.catalog);
+    }
+    
+    protected BenchmarkResults getBenchmarkResults() {
+        return (this.m_currentResults);
+    }
+    protected CountDownLatch getResultsToReadLatch() {
+        return (this.resultsToRead);
+    }
+    protected ProcessSetManager getClientProcessSetManager() {
+        return (this.m_clientPSM);
+    }
+    protected ProcessSetManager getSiteProcessSetManager() {
+        return (this.m_sitePSM);
+    }
+    protected void clientIsReady(String clientName) {
+        m_clientsNotReady.decrementAndGet();
+    }
+    protected Collection<BenchmarkInterest> getBenchmarkInterests() {
+        return (this.m_interested);
     }
 
     public void registerInterest(BenchmarkInterest interest) {
@@ -856,13 +663,16 @@ public class BenchmarkController {
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Client local_client = (m_clientFileUploader.hasFilesToSend() ? getClientConnection(): null);
-        for (final String clientHost : m_config.clients) {
+        for (int host_idx = 0; host_idx < m_config.clients.length; host_idx++) {
+            final String clientHost = m_config.clients[host_idx];
             m_clients.add(clientHost);
+            final String host_id = clientHost;
+            
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
             final List<Integer> clientIds = new ArrayList<Integer>();
             for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
                 int clientId = clientIndex.getAndIncrement();
-                m_clientThreads.add(getClientName(clientHost, clientId));   
+                m_clientThreads.add(BenchmarkUtil.getClientName(clientHost, clientId));   
                 clientIds.add(clientId);
             } // FOR
             
@@ -897,7 +707,6 @@ public class BenchmarkController {
                     String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
                     String fullCommand = StringUtil.join(" ", args);
     
-                    String host_id = clientHost;
                     resultsUploader.setCommandLineForClient(host_id, fullCommand);
                     if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
                     m_clientPSM.startProcess(host_id, args);
@@ -915,10 +724,6 @@ public class BenchmarkController {
         ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter(output_clients, output_basepartitions) :
                                                    new ResultsPrinter(output_clients, output_basepartitions));
         registerInterest(rp);
-    }
-    
-    private String getClientName(String host, int id) {
-        return String.format("%s-%03d", host, id);
     }
 
     private Client getClientConnection() {
@@ -1032,8 +837,8 @@ public class BenchmarkController {
         
         long nextIntervalTime = hstore_conf.client.interval;
         
-        for (int i = 0; i < m_clients.size()*2; i++) {
-            ClientStatusThread t = new ClientStatusThread(i);
+        for (int i = 0; i < m_clients.size(); i++) {
+            ClientStatusThread t = new ClientStatusThread(this, i);
             m_statusThreads.add(t);
             t.setUncaughtExceptionHandler(eh);
             t.start();
@@ -1095,11 +900,11 @@ public class BenchmarkController {
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
-        while (m_pollIndex.get() < m_pollCount && this.stop == false) {
+        while (m_pollIndex < m_pollCount && this.stop == false) {
 
             // check if the next interval time has arrived
             if (nowTime >= nextIntervalTime) {
-                m_pollIndex.incrementAndGet();
+                m_pollIndex++;
 
                 // make all the clients poll
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
@@ -1107,7 +912,7 @@ public class BenchmarkController {
                     m_clientPSM.writeToProcess(clientName, Command.POLL);
 
                 // get ready for the next interval
-                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex.get() + 1) + startTime;
+                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
             }
 
             // wait some time
@@ -1151,6 +956,7 @@ public class BenchmarkController {
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
         
         // shut down all the clients
+        m_clientPSM.prepareShutdown(false);
         boolean first = true;
         for (String clientName : m_clients) {
             if (first) {
@@ -1160,31 +966,32 @@ public class BenchmarkController {
                 m_clientPSM.writeToProcess(clientName, Command.STOP);
             }
         }
-        m_clientPSM.prepareShutdown(false);
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            LOG.info(String.format("Waiting for %d status threads to finish [remaining=%d]",
-                     m_statusThreads.size(), resultsToRead.getCount()));
-            LOG.info("Processed Histogram:\n" + processedHistogram);
-            try {
-                resultsToRead.await();
-                for (ClientStatusThread t : m_statusThreads) {
-                    if (t.finished == false) {
-//                        if (debug.get()) 
-                            LOG.info(String.format("ClientStatusThread '%s' asked to finish up", t.getName()));
-//                        System.err.println(StringUtil.join("\n", t.getStackTrace()));
-                        t.interrupt();
-                        t.join();
-                    }
-                } // FOR
-            } catch (InterruptedException e) {
-                LOG.warn(e);
+            if (resultsToRead.getCount() > 0) {
+                LOG.info(String.format("Waiting for %d status threads to finish [remaining=%d]",
+                         m_statusThreads.size(), resultsToRead.getCount()));
+                try {
+                    resultsToRead.await();
+                    for (ClientStatusThread t : m_statusThreads) {
+                        if (t.isFinished() == false) {
+    //                        if (debug.get()) 
+                                LOG.info(String.format("ClientStatusThread '%s' asked to finish up", t.getName()));
+    //                        System.err.println(StringUtil.join("\n", t.getStackTrace()));
+                            t.interrupt();
+                            t.join();
+                        }
+                    } // FOR
+                } catch (InterruptedException e) {
+                    LOG.warn(e);
+                }
             }
             
             // Print out the final results
-            if (debug.get()) LOG.debug("Dumping out final benchmark results");
+//            if (debug.get())
+                LOG.info("Computing final benchmark results");
             for (BenchmarkInterest interest : m_interested) {
                 String finalResults = interest.formatFinalResults(m_currentResults);
                 if (finalResults != null) System.out.println(finalResults);

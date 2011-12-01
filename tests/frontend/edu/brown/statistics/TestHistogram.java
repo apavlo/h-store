@@ -35,6 +35,31 @@ public class TestHistogram extends BaseTestCase {
     }
     
     /**
+     * testMinMaxCount
+     */
+    public void testMinMaxCount() throws Exception {
+        Histogram<Integer> h = new Histogram<Integer>();
+        int expected = 10;
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < expected; j++) h.put(i);
+        } // FOR
+        long min_count = h.getMinCount();
+        assertEquals(expected, min_count);
+        long max_count = h.getMaxCount();
+        assertEquals(expected, max_count);
+        
+        for (int i = 9; i >= 0; i--) {
+            if (i == 5) continue;
+            for (int j = 0; j < expected; j++) h.put(i);
+        } // FOR
+//        System.err.println(h);
+        min_count = h.getMinCount();
+        assertEquals(expected, min_count);
+        max_count = h.getMaxCount();
+        assertEquals(expected*2, max_count);
+    }
+    
+    /**
      * testMinCountValues
      */
     public void testMinCountValues() throws Exception {

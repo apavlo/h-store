@@ -5,15 +5,22 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
+import org.voltdb.catalog.Catalog;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.StringUtil;
 
 public final class TPCCConfig {
 
     public int firstWarehouse = TPCCConstants.STARTING_WAREHOUSE;
     
-    public int loadthreads = 1;
+    public int num_warehouses = 1;
+    public boolean one_warehouse_per_partition = false;
     public boolean warehouse_affinity = false;
+    
+    public int loadthreads = 1;
+    public boolean one_loadthread_per_warehouse = false;
+    
     public boolean noop = false;
     public boolean neworder_only = false;
     public boolean neworder_abort = false;
@@ -32,7 +39,7 @@ public final class TPCCConfig {
     private TPCCConfig() {
         // Nothing
     }
-    private TPCCConfig(Map<String, String> params) {
+    private TPCCConfig(Catalog catalog, Map<String, String> params) {
         for (Entry<String, String> e : params.entrySet()) {
             String key = e.getKey();
             String val = e.getValue();
@@ -41,14 +48,28 @@ public final class TPCCConfig {
             if (key.equalsIgnoreCase("first_warehouse") && !val.isEmpty()) {
                 firstWarehouse = Integer.parseInt(val);
             }
-            // LOAD THREADS
-            else if (key.equalsIgnoreCase("loadthreads") && !val.isEmpty()) {
-                loadthreads = Integer.parseInt(val);
+            // NUMBER OF WAREHOUSES
+            else if (key.equalsIgnoreCase("warehouses") && !val.isEmpty()) {
+                num_warehouses = Integer.parseInt(val);
+            }
+            // ONE WAREHOUSE PER PARTITION
+            else if (key.equalsIgnoreCase("one_warehouse_per_partition") && !val.isEmpty()) {
+                one_warehouse_per_partition = Boolean.parseBoolean(val);
             }
             // WAREHOUSE AFFINITY
             else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
                 warehouse_affinity = Boolean.parseBoolean(val);
             }
+
+            // LOAD THREADS
+            else if (key.equalsIgnoreCase("loadthreads") && !val.isEmpty()) {
+                loadthreads = Integer.parseInt(val);
+            }
+            // ONE LOADTHREAD PER WAREHOUSE
+            else if (key.equalsIgnoreCase("one_loadthread_per_warehouse") && !val.isEmpty()) {
+                one_loadthread_per_warehouse = Boolean.parseBoolean(val);
+            }
+            
             // NOOPs
             else if (key.equalsIgnoreCase("noop") && !val.isEmpty()) {
                 noop = Boolean.parseBoolean(val);
@@ -86,14 +107,21 @@ public final class TPCCConfig {
                 temporal_skew_rotate = Boolean.parseBoolean(val);
             }
         } // FOR
+        
+        if (one_warehouse_per_partition) num_warehouses = CatalogUtil.getNumberOfPartitions(catalog);
+        if (one_loadthread_per_warehouse) {
+            loadthreads = num_warehouses;
+        } else {
+            loadthreads = Math.min(num_warehouses, loadthreads);
+        }
     }
     
     public static TPCCConfig defaultConfig() {
         return new TPCCConfig();
     }
     
-    public static TPCCConfig createConfig(Map<String, String> params) {
-        return new TPCCConfig(params);
+    public static TPCCConfig createConfig(Catalog catalog, Map<String, String> params) {
+        return new TPCCConfig(catalog, params);
     }
     
     @Override

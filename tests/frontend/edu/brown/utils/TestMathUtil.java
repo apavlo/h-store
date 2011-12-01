@@ -24,6 +24,7 @@ public class TestMathUtil extends TestCase {
         0.011432267059707457
     };
     private static final double TEST_VALUES_GEOMETRIC_MEAN = 0.015d;
+    private static final double TEST_VALUES_STDDEV = 0.29686d;
 
     /**
      * testFudgeyEquals
@@ -72,5 +73,14 @@ public class TestMathUtil extends TestCase {
         } // FOR
         double mean = MathUtil.geometricMean(values, MathUtil.GEOMETRIC_MEAN_ZERO);
         assertEquals(0.0, MathUtil.roundToDecimals(mean, 2));
+    }
+    
+    /**
+     * testStandardDeviation
+     */
+    @Test
+    public void testStandardDeviation() {
+        double stddev = MathUtil.stdev(TEST_VALUES);
+        assertEquals(TEST_VALUES_STDDEV, stddev, 0.001);
     }
 }
