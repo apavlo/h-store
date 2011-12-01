@@ -53,7 +53,6 @@ import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.auctionmark.util.AuctionMarkCategoryParser;
 import edu.brown.benchmark.auctionmark.util.Category;
-import edu.brown.benchmark.auctionmark.util.CompositeId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -65,6 +64,7 @@ import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.CompositeId;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;

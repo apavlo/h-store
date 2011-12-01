@@ -59,6 +59,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.statistics.*;
 import edu.brown.workload.*;
 import edu.brown.workload.filters.*;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * 
@@ -173,12 +174,12 @@ public class ArgumentsParser {
     public static final String PARAM_SITE_PARTITION         = PARAM_SITE + ".partition";
     public static final String PARAM_SITE_ID              = PARAM_SITE + ".id";
     public static final String PARAM_SITE_IGNORE_DTXN       = PARAM_SITE + ".ignore_dtxn";
-    public static final String PARAM_SITE_ENABLE_SPECULATIVE_EXECUTION = PARAM_SITE + ".exec_speculative_execution";
-    public static final String PARAM_SITE_ENABLE_DB2_REDIRECTS = PARAM_SITE + ".exec_db2_redirects";
-    public static final String PARAM_SITE_FORCE_SINGLEPARTITION = PARAM_SITE + ".exec_force_singlepartitioned";
-    public static final String PARAM_SITE_FORCE_LOCALEXECUTION = PARAM_SITE + ".exec_force_localexecution";
-    public static final String PARAM_SITE_FORCE_NEWORDERINSPECT = PARAM_SITE + ".exec_neworder_cheat";
-    public static final String PARAM_SITE_FORCE_NEWORDERINSPECT_DONE = PARAM_SITE + ".exec_neworder_cheat_done_partitions";
+//    public static final String PARAM_SITE_ENABLE_SPECULATIVE_EXECUTION = PARAM_SITE + ".exec_speculative_execution";
+//    public static final String PARAM_SITE_ENABLE_DB2_REDIRECTS = PARAM_SITE + ".exec_db2_redirects";
+//    public static final String PARAM_SITE_FORCE_SINGLEPARTITION = PARAM_SITE + ".exec_force_singlepartitioned";
+//    public static final String PARAM_SITE_FORCE_LOCALEXECUTION = PARAM_SITE + ".exec_force_localexecution";
+//    public static final String PARAM_SITE_FORCE_NEWORDERINSPECT = PARAM_SITE + ".exec_neworder_cheat";
+//    public static final String PARAM_SITE_FORCE_NEWORDERINSPECT_DONE = PARAM_SITE + ".exec_neworder_cheat_done_partitions";
     public static final String PARAM_SITE_STATUS_INTERVAL   = PARAM_SITE + ".statusinterval";
     public static final String PARAM_SITE_STATUS_INTERVAL_KILL   = PARAM_SITE + ".statusinterval_kill";
     public static final String PARAM_SITE_CLEANUP_INTERVAL = PARAM_SITE + ".cleanup_interval";
@@ -210,6 +211,8 @@ public class ArgumentsParser {
      * Parameter Key -> Value
      */
     private final Map<String, String> params = new LinkedHashMap<String, String>();
+    
+    private final Map<String, String> conf_params = new LinkedHashMap<String, String>();
     
     /**
      * "Leftover" Parameters (getopt style)
@@ -436,6 +439,10 @@ public class ArgumentsParser {
             }
         } // FOR
         return;
+    }
+    
+    public Map<String, String> getHStoreConfParameters() {
+        return (this.conf_params);
     }
     
     /**
@@ -684,6 +691,7 @@ public class ArgumentsParser {
             }
             if (debug) LOG.debug(String.format("%-35s = %s", parts[0], parts[1]));
             
+            // DesignerHints Override
             if (parts[0].startsWith(PARAM_DESIGNER_HINTS_PREFIX)) {
                 String param = parts[0].replace(PARAM_DESIGNER_HINTS_PREFIX, "").toLowerCase();
                 try {
@@ -694,9 +702,17 @@ public class ArgumentsParser {
                     throw new Exception("Unknown DesignerHints parameter: " + param, ex);
                 }
                 
-            } else if (PARAMS.contains(parts[0].toLowerCase())) {
+            }
+            // HStoreConf Parameter
+            else if (HStoreConf.isConfParameter(parts[0])) {
+                this.conf_params.put(parts[0].toLowerCase(), parts[1]);
+            }
+            // ArgumentsParser Parameter
+            else if (PARAMS.contains(parts[0].toLowerCase())) {
                 this.params.put(parts[0].toLowerCase(), parts[1]);
-            } else {
+            }
+            // Invalid!
+            else {
                 String suggestions = "";
                 i = 0;
                 String end = CollectionUtil.last(parts[0].split("\\."));

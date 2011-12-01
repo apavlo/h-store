@@ -113,6 +113,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
     // private members reserved exclusively to VoltProcedure
     private Method procMethod;
+    private boolean procMethodNoJava = false;
     private Class<?>[] paramTypes;
     private boolean paramTypeIsPrimitive[];
     private boolean paramTypeIsArray[];
@@ -298,23 +299,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                              * a regular basis.
                              */
                             SQLStmt stmt = (SQLStmt) f.get(this);
-
                             stmt.catStmt = s;
-
-                            stmt.numFragGUIDs = s.getFragments().size();
-                            PlanFragment fragments[] = s.getFragments().values();
-                            stmt.fragGUIDs = new long[stmt.numFragGUIDs];
-                            for (int ii = 0; ii < stmt.numFragGUIDs; ii++) {
-                                stmt.fragGUIDs[ii] = Long.parseLong(fragments[ii].getName());
-                            }
-    
-                            stmt.numStatementParamJavaTypes = s.getParameters().size();
-                            stmt.statementParamJavaTypes = new byte[stmt.numStatementParamJavaTypes];
-                            StmtParameter parameters[] = s.getParameters().values();
-                            for (int ii = 0; ii < stmt.numStatementParamJavaTypes; ii++) {
-                                stmt.statementParamJavaTypes[ii] = (byte)parameters[ii].getJavatype();
-                            }
-                            stmt.computeHashCode();
+                            initSQLStmt(stmt);
+                            
                         //stmts.put((Object) (f.get(null)), s);
                         } catch (IllegalArgumentException e) {
                             e.printStackTrace();
@@ -333,8 +320,19 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             stmt.catStmt = catStmt;
             initSQLStmt(stmt);
             m_cachedSingleStmt[0] = stmt;
+            procMethodNoJava = true;
 
-            procMethod = null;
+            String executeNoJavaProcedure = "executeNoJavaProcedure";
+            for (Method m : VoltProcedure.class.getDeclaredMethods()) {
+                if (m.getName().equals(executeNoJavaProcedure)) {
+                    procMethod = m;
+                    break;
+                }
+            } // FOR
+            if (procMethod == null) {
+                throw new RuntimeException(String.format("The method %s.%s does not exist",
+                                           VoltProcedure.class.getSimpleName(), executeNoJavaProcedure));
+            }
 
             paramTypesLength = catalog_proc.getParameters().size();
 
@@ -356,6 +354,24 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
     }
     
+    
+    final void initSQLStmt(SQLStmt stmt) {
+        stmt.numFragGUIDs = stmt.catStmt.getFragments().size();
+        PlanFragment fragments[] = stmt.catStmt.getFragments().values();
+        stmt.fragGUIDs = new long[stmt.numFragGUIDs];
+        for (int ii = 0; ii < stmt.numFragGUIDs; ii++) {
+            stmt.fragGUIDs[ii] = Long.parseLong(fragments[ii].getName());
+        } // FOR
+    
+        stmt.numStatementParamJavaTypes = stmt.catStmt.getParameters().size();
+        stmt.statementParamJavaTypes = new byte[stmt.numStatementParamJavaTypes];
+        StmtParameter parameters[] = stmt.catStmt.getParameters().values();
+        for (int ii = 0; ii < stmt.numStatementParamJavaTypes; ii++) {
+            stmt.statementParamJavaTypes[ii] = (byte)parameters[ii].getJavatype();
+        } // FOR
+        stmt.computeHashCode();
+    }
+    
     public boolean isInitialized() {
         return (this.m_initialized);
     }
@@ -371,27 +387,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     public void updateLogging() {
         t = trace.get();
         d = debug.get();
-    }
-        
-    final void initSQLStmt(SQLStmt stmt) {
-        stmt.numFragGUIDs = stmt.catStmt.getFragments().size();
-        PlanFragment fragments[] = new PlanFragment[stmt.numFragGUIDs];
-        stmt.fragGUIDs = new long[stmt.numFragGUIDs];
-        int i = 0;
-        for (PlanFragment frag : stmt.catStmt.getFragments()) {
-            fragments[i] = frag;
-            stmt.fragGUIDs[i] = CatalogUtil.getUniqueIdForFragment(frag);
-            i++;
-        }
-    
-        stmt.numStatementParamJavaTypes = stmt.catStmt.getParameters().size();
-        //StmtParameter parameters[] = new StmtParameter[stmt.numStatementParamJavaTypes];
-        stmt.statementParamJavaTypes = new byte[stmt.numStatementParamJavaTypes];
-        for (StmtParameter param : stmt.catStmt.getParameters()) {
-            //parameters[i] = param;
-            stmt.statementParamJavaTypes[param.getIndex()] = (byte)param.getJavatype();
-            i++;
-        }
     }
     
     /**
@@ -541,10 +536,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             this.m_workloadXactHandle = ProcedureProfiler.workloadTrace.startTransaction(this.m_currentTxnState.getTransactionId(), catalog_proc, this.procParams);
         }
 
+        // Fix to make no-Java procedures work
+        if (procMethodNoJava) this.procParams = new Object[] { this.procParams } ;
+        
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         try {
-            if (t) LOG.trace(String.format("Invoking %s [class=%s, partition=%d]",
-                                           this.m_currentTxnState, getClass().getSimpleName(), this.partitionId));
+            if (t) 
+                LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
+                                        this.procMethod, this.procParams + Arrays.toString(this.procParams), this.partitionId));
             try {
                 Object rawResult = procMethod.invoke(this, this.procParams);
                 this.results = getResultsFromRawResults(rawResult);
@@ -670,6 +669,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
     protected Procedure getProcedure() {
         return (this.catalog_proc);
+    }
+    
+    protected final VoltTable executeNoJavaProcedure(Object...params) {
+        voltQueueSQL(this.m_cachedSingleStmt[0], params);
+        VoltTable result[] = voltExecuteSQL(true);
+        assert(result.length == 1);
+        return (result[0]);
     }
     
     /**

@@ -42,7 +42,7 @@ die("ERROR: Invalid target directory $TARGET_DIR\n") unless (-d $TARGET_DIR);
 
 foreach my $file (`find $TARGET_DIR -name "*.java" -type f`) {
    chomp($file);
-   my $line = `head -n 1 $file`;
+   my $line = `head -n 20 $file`;
    unless ($line =~ m/Copyright \(C\) [\d]{4,4} .*?/) {
       my $contents = $COPYRIGHT.`cat $file`;
       open(FILE, ">$file") or die;
@@ -51,5 +51,5 @@ foreach my $file (`find $TARGET_DIR -name "*.java" -type f`) {
       print "Updated $file\n";
    } ## UNLESS
 } # FOREACH
-print `svn status $TARGET_DIR`;
+# print `svn status $TARGET_DIR`;
 exit;

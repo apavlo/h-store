@@ -379,8 +379,8 @@ public abstract class BenchmarkComponent {
         }
         
         public void clear() {
-            this.basePartitions.clear();
-            this.transactions.clear();
+            this.basePartitions.clearValues();
+            this.transactions.clearValues();
         }
         
         // ----------------------------------------------------------------------------
@@ -854,9 +854,9 @@ public abstract class BenchmarkComponent {
                 assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
             }
             // If it starts with "benchmark.", then it always goes to the implementing class
-            else if (parts[0].toLowerCase().startsWith(BenchmarkController.BENCHMARK_PARAM_PREFIX)) {
+            else if (parts[0].toLowerCase().startsWith(HStoreConstants.BENCHMARK_PARAM_PREFIX)) {
                 if (debug.get()) componentParams.remove(parts[0]);
-                parts[0] = parts[0].substring(BenchmarkController.BENCHMARK_PARAM_PREFIX.length());
+                parts[0] = parts[0].substring(HStoreConstants.BENCHMARK_PARAM_PREFIX.length());
                 m_extraParams.put(parts[0].toUpperCase(), parts[1]);
             }
         }
@@ -980,7 +980,6 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
 
         m_countDisplayNames = getTransactionDisplayNames();
-        m_txnStats.transactions.setKeepZeroEntries(true);
         for (String txnName : m_countDisplayNames) {
             m_txnStats.transactions.put(txnName, 0);
         } // FOR

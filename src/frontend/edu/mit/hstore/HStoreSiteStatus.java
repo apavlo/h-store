@@ -195,7 +195,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             System.out.print(msg);
         } // FOR
         
-        hstore_conf.site.status_show_thread_info = true;
+//        hstore_conf.site.status_show_thread_info = true;
         this.printSnapshot();
         
         // Quick Sanity Check!

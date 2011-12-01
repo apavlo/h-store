@@ -51,7 +51,6 @@ import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile.QueueType;
-import edu.brown.benchmark.auctionmark.util.CompositeId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -59,6 +58,7 @@ import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CompositeId;
 import edu.brown.utils.StringUtil;
 
 public class AuctionMarkClient extends AuctionMarkBaseClient {

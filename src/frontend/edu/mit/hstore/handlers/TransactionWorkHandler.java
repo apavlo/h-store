@@ -1,5 +1,6 @@
 package edu.mit.hstore.handlers;
 
+import java.util.Arrays;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
@@ -85,6 +86,8 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
             // If this is the first time we've been here, then we need to create a RemoteTransaction handle
             if (ts == null) {
                 ts = hstore_site.createRemoteTransaction(txn_id, ftask);
+                if (debug.get())
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Created new transaction handke %s", ts));
             }
             
             // Always initialize the TransactionWorkCallback for the first callback 
@@ -92,8 +95,14 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
                 TransactionWorkCallback work_callback = ts.getFragmentTaskCallback();
                 if (work_callback.isInitialized()) work_callback.finish();
                 work_callback.init(txn_id, request.getFragmentsCount(), callback);
+                if (debug.get())
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Initializing %s for %s",
+                              work_callback.getClass().getSimpleName(), ts));
             }
             
+            if (debug.get())
+                LOG.debug("__FILE__:__LINE__ " + String.format("Invoking transactionWork(%s) for %s [first=%s]",
+                          Arrays.toString(ftask.getFragmentIds()), ts, first));
             hstore_site.transactionWork(ts, ftask);
             first = false;
         } // FOR

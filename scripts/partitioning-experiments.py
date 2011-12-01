@@ -39,6 +39,7 @@ import getopt
 import string
 import math
 import types
+from datetime import datetime
 from pprint import pprint, pformat
 from fabric.api import *
 from fabric.network import *
@@ -46,6 +47,18 @@ from fabric.contrib.files import *
 
 ## This has all the functions we can use to invoke experiments on EC2
 import fabfile
+
+## H-Store Third-Party Libraries
+realpath = os.path.realpath(__file__)
+basedir = os.path.dirname(realpath)
+if not os.path.exists(realpath):
+    cwd = os.getcwd()
+    basename = os.path.basename(realpath)
+    if os.path.exists(os.path.join(cwd, basename)):
+        basedir = cwd
+sys.path.append(os.path.realpath(os.path.join(basedir, "../third_party/python")))
+import codespeed
+import argparse
 
 LOG = logging.getLogger(__name__)
 LOG_handler = logging.StreamHandler()
@@ -82,10 +95,10 @@ OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 12500
-OPT_BASE_CLIENT_COUNT = 4
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 400
+OPT_BASE_CLIENT_COUNT = 1
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
 OPT_BASE_SCALE_FACTOR = 50
-OPT_BASE_PARTITIONS_PER_SITE = 6
+OPT_BASE_PARTITIONS_PER_SITE = 7
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
@@ -102,13 +115,13 @@ BASE_SETTINGS = {
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
     "client.skewfactor":                -1,
-    "client.duration":                  60000,
-    "client.warmup":                    00000,
+    "client.duration":                  120000,
+    "client.warmup":                    60000,
     "client.scalefactor":               OPT_BASE_SCALE_FACTOR,
     "client.txn_hints":                 True,
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
-    "client.blocking_loader":           True,
+    "client.blocking_loader":           False,
     
     "site.exec_profiling":                              True,
     "site.txn_profiling":                               False,
@@ -116,7 +129,7 @@ BASE_SETTINGS = {
     "site.planner_profiling":                           False,
     "site.planner_caching":                             True,
     "site.status_show_txn_info":                        True,
-    "site.status_kill_if_hung":                         True,
+    "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
     "site.status_interval":                             20000,
@@ -309,10 +322,24 @@ def parseResultsOutput(output):
 ## DEF
 
 ## ==============================================
+## svnInfo
+## ==============================================
+def svnInfo(svnRepo):
+    import pysvn
+    client = pysvn.Client()
+    info = client.info2(svnRepo, recurse=False)[-1][-1]
+    last_changed_rev = info['last_changed_rev'].number
+    last_changed_date = datetime.fromtimestamp(info['last_changed_date'])
+    
+    return last_changed_rev, last_changed_date
+## DEF
+
+
+## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
-    _options, args = getopt.gnu_getopt(sys.argv[1:], '', [
+    BASE_OPTIONS = [
         # Experiment Parameters
         "exp-type=",
         "exp-settings=",
@@ -338,9 +365,17 @@ if __name__ == '__main__':
         "stop-on-error",
         "trace",
         
+        "codespeed-url=",
+        "codespeed-benchmark=",
+        
         # Enable debug logging
         "debug",
-    ])
+    ]
+    for key in BASE_SETTINGS.keys():
+        BASE_OPTIONS.append("%s=" % key)
+    ## FOR
+    
+    _options, args = getopt.gnu_getopt(sys.argv[1:], '', BASE_OPTIONS)
     
     ## ----------------------------------------------
     ## COMMAND OPTIONS
@@ -358,20 +393,29 @@ if __name__ == '__main__':
         fabfile.LOG.setLevel(logging.DEBUG)
     ## Global Options
     for key in options:
-        varname = "OPT_" + key.replace("-", "_").upper()
-        if varname in globals():
-            orig_type = type(globals()[varname])
+        varname = None
+        paramDict = None
+        if key in BASE_SETTINGS:
+            varname = key
+            paramDict = BASE_SETTINGS
+        else:
+            varname = "OPT_" + key.replace("-", "_").upper()
+            if varname in globals():
+                paramDict= globals()
+        ## IF
+        if paramDict is not None:
+            orig_type = type(paramDict[varname])
             if orig_type == bool:
                 val = (len(options[key][0]) == 0 or options[key][0].lower() == "true")
             elif orig_type == list:
                 if not varname+"_changed" in globals(): ## HACK
-                    globals()[varname] = [ ]
-                    globals()[varname+"_changed"] = True
-                val = globals()[varname] + options[key] # HACK    
+                    paramDict[varname] = [ ]
+                    paramDict[varname+"_changed"] = True
+                val = paramDict[varname] + options[key] # HACK    
             else: 
                 val = orig_type(options[key][0])
-            globals()[varname] = val
-            LOG.debug("%s = %s" % (varname, str(globals()[varname])))
+            paramDict[varname] = val
+            LOG.debug("%s = %s" % (varname, str(paramDict[varname])))
     ## FOR
     if OPT_FAST:
         OPT_NO_COMPILE = True
@@ -436,9 +480,10 @@ if __name__ == '__main__':
                     values = [ 0, 3, 10, 80, 100 ]
                 else:
                     values = range(int(OPT_EXP_FACTOR_START), int(OPT_EXP_FACTOR_STOP), 2)
+                LOG.debug("%s Exp Factor Values: %s" % (OPT_EXP_TYPE.upper(), values))
                 for f in values:
-                    if f > OPT_EXP_FACTOR_STOP: break
-                    if f >= OPT_EXP_FACTOR_START:
+                    if f > int(OPT_EXP_FACTOR_STOP): break
+                    if f >= int(OPT_EXP_FACTOR_START):
                         exp_factors.append(f)
                 ## FOR
                     
@@ -449,9 +494,9 @@ if __name__ == '__main__':
                     exp_factors = [ OPT_EXP_FACTOR_START ]
                 else:
                     exp_factors = [ "full", "noindexes", "norouting" ]
-                
             else:
                 raise Exception("Unexpected experiment type '%s'" % OPT_EXP_TYPE)
+            LOG.debug("Experimental Factors: %s" % exp_factors)
                 
             if OPT_START_CLUSTER:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
@@ -504,7 +549,14 @@ if __name__ == '__main__':
                                                                     updateSVN=needUpdate)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
-                                txnrate = float(data["TXNPERSECOND"])
+                                for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
+                                    if key in data:
+                                        txnrate = float(data[key])
+                                        break
+                                ## FOR
+                                minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
+                                maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
+                                
                                 if int(txnrate) == 0: pass
                                 results.append(txnrate)
                                 if OPT_TRACE and workloads != None:
@@ -513,6 +565,31 @@ if __name__ == '__main__':
                                     ## FOR
                                 ## IF
                                 LOG.info("Throughput: %.2f" % txnrate)
+                                
+                                if "codespeed-url" in options and txnrate > 0:
+                                    upload_url = options["codespeed-url"][0]
+                                    last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+                                    print "last_changed_rev:", last_changed_rev
+                                    print "last_changed_date:", last_changed_date
+                                    
+                                    codespeedBenchmark = options["codespeed-benchmark"][0] if "codespeed-benchmark" in options else benchmark
+                                    
+                                    LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
+                                    result = codespeed.Result(
+                                                commitid=last_changed_rev,
+                                                branch=os.path.basename(env["hstore.svn"]),
+                                                benchmark=codespeedBenchmark,
+                                                project="H-Store",
+                                                num_partitions=partitions,
+                                                environment="ec2",
+                                                result_value=txnrate,
+                                                revision_date=last_changed_date,
+                                                result_date=datetime.now(),
+                                                min_result=minTxnRate,
+                                                max_result=maxTxnRate
+                                    )
+                                    result.upload(upload_url)
+                                ## IF
                             ## IF
                         ## WITH
                     except KeyboardInterrupt:

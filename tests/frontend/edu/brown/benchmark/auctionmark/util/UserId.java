@@ -1,5 +1,7 @@
 package edu.brown.benchmark.auctionmark.util;
 
+import edu.brown.utils.CompositeId;
+
 public class UserId extends CompositeId {
     
     private static final long BASE_VALUE_MASK = 16777215l; // (2^24)-1

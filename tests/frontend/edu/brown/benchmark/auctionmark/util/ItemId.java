@@ -1,5 +1,7 @@
 package edu.brown.benchmark.auctionmark.util;
 
+import edu.brown.utils.CompositeId;
+
 /**
  * Composite Item Id
  * First 48-bits are the seller's USER.U_ID

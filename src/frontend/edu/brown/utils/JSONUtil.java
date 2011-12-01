@@ -111,16 +111,36 @@ public abstract class JSONUtil {
      * @param object
      * @return
      */
-    public static <T extends JSONSerializable> String toJSONString(T object) {
+    public static String toJSONString(Object object) {
         JSONStringer stringer = new JSONStringer();
         try {
-            stringer.object();
-            object.toJSON(stringer);
-            stringer.endObject();
+            if (object instanceof JSONSerializable) {
+                stringer.object();
+                ((JSONSerializable)object).toJSON(stringer);
+                stringer.endObject();
+            } else if (object != null) {
+                Class<?> clazz = object.getClass();
+//                stringer.key(clazz.getSimpleName());
+                JSONUtil.writeFieldValue(stringer, clazz, object);
+            }
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
         return (stringer.toString());
+    }
+    
+    public static <T extends JSONSerializable> T fromJSONString(T t, String json) {
+        return (fromJSONString(t, null, json));
+    }
+    
+    public static <T extends JSONSerializable> T fromJSONString(T t, Database catalog_db, String json) {
+        try {
+            JSONObject json_object = new JSONObject(json);
+            t.fromJSON(json_object, catalog_db);
+        } catch (JSONException ex) {
+            throw new RuntimeException("Failed to deserialize object " + t, ex);
+        }
+        return (t);
     }
     
     /**
