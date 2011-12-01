@@ -408,8 +408,8 @@ public class BenchmarkResults {
                 Result r = new Result(offsetTime, entry.getValue());
                 List<Result> results = m_data.get(clientName).get(entry.getKey());
                 assert(results != null);
-                assert(results.size() == pollIndex) :
-                    String.format("%s != %d\n%s => %s", results.size(), pollIndex, entry, results);
+//                assert(results.size() == pollIndex) :
+//                    String.format("%s != %d\n%s => %s", results.size(), pollIndex, entry, results);
                 results.add(r);
             }
         }

@@ -65,6 +65,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -97,6 +98,7 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.*;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
@@ -161,7 +163,8 @@ public class BenchmarkController {
     // benchmark parameters
     final BenchmarkConfig m_config;
     ResultsUploader resultsUploader = null;
-    final AtomicLong resultsToRead;
+    final CountDownLatch resultsToRead;
+    final Histogram<String> processedHistogram = new Histogram<String>(); 
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
     Class<? extends AbstractProjectBuilder> m_builderClass = null;
@@ -215,7 +218,7 @@ public class BenchmarkController {
             this.finished = false;
             final Database catalog_db = CatalogUtil.getDatabase(catalog);
 
-            while (resultsToRead.get() > 0) {
+            while (resultsToRead.getCount() > 0) {
                 ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
                 if (line == null) {
                     continue;
@@ -329,8 +332,8 @@ public class BenchmarkController {
                         
                         try {
                             if (trace.get()) LOG.trace("UPDATE: " + line);
-                            setPollResponseInfo(clientName, time, this.results, null);
                             synchronized (m_currentResults) {
+                                setPollResponseInfo(clientName, time, this.results, null);
                                 m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
                             } // SYNCH
                         } catch (Throwable ex) {
@@ -348,7 +351,8 @@ public class BenchmarkController {
                             this.previous.put(clientName, p);
                         }
                         p.add(line);
-                        resultsToRead.decrementAndGet();
+                        resultsToRead.countDown();
+                        processedHistogram.put(this.getName());
                         break;
                     }
                     default:
@@ -357,35 +361,28 @@ public class BenchmarkController {
                 
                 this.lastTimestamps.put(clientName, time);
             } // WHILE
-            if (debug.get()) LOG.debug("Status thread is finished");
+//            if (debug.get())
+                LOG.info(String.format("Status thread is finished [processed=%d]", processedHistogram.get(this.getName())));
             this.finished = true;
         }
         
         void setPollResponseInfo(String clientName, long time, Map<String, Long> transactionCounts, String errMsg) {
             assert(m_currentResults != null);
-            BenchmarkResults resultCopy = null;
-            int completedCount = 0;
 
-            synchronized(m_currentResults) {
-                m_currentResults.setPollResponseInfo(
-                        clientName,
-                        m_pollIndex.get() - 1,
-                        time,
-                        transactionCounts,
-                        errMsg);
-                completedCount = m_currentResults.getCompletedIntervalCount();
-                if (completedCount > m_maxCompletedPoll) {
-                    resultCopy = m_currentResults.copy();
-                }
-            } // SYNCH
-
-            if (resultCopy != null) {
-                synchronized(m_interested) {
-                    // notify interested parties
-                    for (BenchmarkInterest interest : m_interested)
-                        interest.benchmarkHasUpdated(resultCopy);
-                } // SYNCH
+            m_currentResults.setPollResponseInfo(
+                    clientName,
+                    m_pollIndex.get() - 1,
+                    time,
+                    transactionCounts,
+                    errMsg);
+//            BenchmarkResults resultCopy = null;
+            int completedCount = m_currentResults.getCompletedIntervalCount(); 
+            if (completedCount > m_maxCompletedPoll) {
+                // notify interested parties
+                for (BenchmarkInterest interest : m_interested)
+                    interest.benchmarkHasUpdated(m_currentResults);
                 m_maxCompletedPoll = completedCount;
+            }
 
                 // get total transactions run for this segment
 //                long txnDelta = 0;
@@ -409,7 +406,7 @@ public class BenchmarkController {
 //                    tryDumpAll();
 //                    System.out.println("\nDUMPING!\n");
 //                }
-            }
+//            }
 
 
         }
@@ -465,7 +462,7 @@ public class BenchmarkController {
 
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         resultsUploader = new ResultsUploader(m_config.projectBuilderClass, config);
-        resultsToRead = new AtomicLong(m_pollCount * hstore_conf.client.processesperclient * hstore_conf.client.count);
+        resultsToRead = new CountDownLatch((int)(m_pollCount * hstore_conf.client.processesperclient * hstore_conf.client.count));
 
         AbstractProjectBuilder tempBuilder = null;
         try {
@@ -1035,7 +1032,7 @@ public class BenchmarkController {
         
         long nextIntervalTime = hstore_conf.client.interval;
         
-        for (int i = 0; i < m_clients.size(); i++) {
+        for (int i = 0; i < m_clients.size()*2; i++) {
             ClientStatusThread t = new ClientStatusThread(i);
             m_statusThreads.add(t);
             t.setUncaughtExceptionHandler(eh);
@@ -1168,11 +1165,16 @@ public class BenchmarkController {
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            LOG.info(String.format("Waiting for %d status threads to finish", m_statusThreads.size()));
+            LOG.info(String.format("Waiting for %d status threads to finish [remaining=%d]",
+                     m_statusThreads.size(), resultsToRead.getCount()));
+            LOG.info("Processed Histogram:\n" + processedHistogram);
             try {
+                resultsToRead.await();
                 for (ClientStatusThread t : m_statusThreads) {
                     if (t.finished == false) {
-                        if (debug.get()) LOG.debug(String.format("ClientStatusThread '%s' asked to finish up [remaining=%d]", t.getName(), resultsToRead.get()));
+//                        if (debug.get()) 
+                            LOG.info(String.format("ClientStatusThread '%s' asked to finish up", t.getName()));
+//                        System.err.println(StringUtil.join("\n", t.getStackTrace()));
                         t.interrupt();
                         t.join();
                     }
