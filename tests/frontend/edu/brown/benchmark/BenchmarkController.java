@@ -385,14 +385,6 @@ public class BenchmarkController {
             
             Set<Thread> threads = new HashSet<Thread>();
             
-            // Dtxn.Coordinator
-            if (m_config.noCoordinator == false) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, m_config.sshOptions)
-                                            .enableKillClient()
-                                            .enableKillCoordinator();
-                threads.add(new Thread(ks));
-                Runtime.getRuntime().addShutdownHook(new Thread(ks));
-            }
             // HStoreSite
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
             if (m_config.profileSiteIds.isEmpty()) {
@@ -457,7 +449,6 @@ public class BenchmarkController {
         List<String> siteBaseCommand = new ArrayList<String>();
         siteBaseCommand.add("ant hstore-site");
         siteBaseCommand.add("-Dproperties=" + m_config.hstore_conf_path);
-        siteBaseCommand.add("-Dcoordinator.host=" + m_config.coordinatorHost);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
         for (Entry<String, String> e : m_config.siteParameters.entrySet()) {
             String opt = String.format("-D%s=%s", e.getKey(), e.getValue());
@@ -1184,13 +1175,11 @@ public class BenchmarkController {
         int snapshotRetain = -1;
         float checkTransaction = 0;
         boolean checkTables = false;
-        String coordinatorHost = null;
         
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
         
-        boolean noCoordinator = false;
         boolean noLoader = false;
         boolean noUploading = false;
         boolean noExecute = false;
@@ -1341,10 +1330,6 @@ public class BenchmarkController {
                 databaseURL[0] = parts[1];
             } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
                 statsTag = parts[1];
-            } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
-                coordinatorHost = parts[1];
-            } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {
-                noCoordinator = Boolean.valueOf(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
@@ -1517,8 +1502,6 @@ public class BenchmarkController {
                 benchmark_conf_path,
                 projectBuilderClassname,
                 backend, 
-                coordinatorHost,
-                noCoordinator,
                 hostNames,
                 sitesPerHost, 
                 k_factor, 
