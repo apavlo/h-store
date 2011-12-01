@@ -93,7 +93,6 @@
     <not><isset property="conf"/></not>
 </condition>
 <property file="${conf}"/>
-<fail message="Missing properties file" unless="coordinator.host" />
 
 <!--
 ***************************************
