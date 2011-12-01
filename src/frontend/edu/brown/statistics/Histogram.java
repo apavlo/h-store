@@ -82,6 +82,14 @@ public class Histogram<X> implements JSONSerializable {
     }
     
     /**
+     * Constructor
+     * @param keepZeroEntries
+     */
+    public Histogram(boolean keepZeroEntries) {
+        this.keep_zero_entries = keepZeroEntries;
+    }
+    
+    /**
      * Copy Constructor
      * @param other
      */
@@ -256,6 +264,7 @@ public class Histogram<X> implements JSONSerializable {
      * @return
      */
     public long getMinCount() {
+        this.calculateInternalValues();
         return (this.min_count);
     }
     /**

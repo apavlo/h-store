@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
@@ -229,19 +228,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public TPCCClient(String args[]) {
         super(args);
 
-        // default values
-        int warehouses = 1;
-
-        for (Entry<String, String> e : m_extraParams.entrySet()) {
-            String key = e.getKey();
-            String val = e.getValue();
-            
-            // WAREHOUSES
-            if (key.equalsIgnoreCase("warehouses")) {
-                warehouses = Integer.parseInt(val);
-            }
-        }
-        m_tpccConfig = TPCCConfig.createConfig(m_extraParams);
+        m_tpccConfig = TPCCConfig.createConfig(this.getCatalog(), m_extraParams);
         if (LOG.isDebugEnabled()) LOG.debug("TPC-C Client Configuration:\n" + m_tpccConfig);
 
         // makeForRun requires the value cLast from the load generator in
@@ -260,7 +247,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         rng.setC(base_runC2);
 
         HStoreConf hstore_conf = this.getHStoreConf();
-        m_scaleParams = ScaleParameters.makeWithScaleFactor(warehouses, m_tpccConfig.firstWarehouse, hstore_conf.client.scalefactor);
+        m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, m_tpccConfig.firstWarehouse, hstore_conf.client.scalefactor);
         m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 //        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 

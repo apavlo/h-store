@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
@@ -76,7 +75,6 @@ public class MultiLoader extends BenchmarkComponent {
      * Number of threads to create to do the loading.
      */
     private final LoadThread m_loadThreads[];
-    private final int m_warehouses;
     final TPCCConfig m_tpccConfig;
 
     private int MAX_BATCH_SIZE = 10000;
@@ -93,29 +91,18 @@ public class MultiLoader extends BenchmarkComponent {
         super(args);
 
         initTableNames();
-        int warehouses = 4;
-
-        for (Entry<String, String> e : m_extraParams.entrySet()) {
-            // WAREHOUSES
-            if (e.getKey().equalsIgnoreCase("warehouses")) {
-                warehouses = Integer.parseInt(e.getValue());
-            }
-        } // FOR
-        m_tpccConfig = TPCCConfig.createConfig(m_extraParams);
-
-        m_warehouses = warehouses;
-        m_tpccConfig.loadthreads = Math.min(warehouses, m_tpccConfig.loadthreads);
+        m_tpccConfig = TPCCConfig.createConfig(this.getCatalog(), m_extraParams);
         m_loadThreads = new LoadThread[m_tpccConfig.loadthreads];
         
         if (LOG.isDebugEnabled())
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);
         
         // HACK
-        MAX_BATCH_SIZE *= Math.max(100, (10 / m_warehouses));
+        MAX_BATCH_SIZE *= Math.max(100, (10 / m_tpccConfig.num_warehouses));
 
         HStoreConf hstore_conf = this.getHStoreConf();
         for (int ii = 0; ii < m_tpccConfig.loadthreads; ii++) {
-            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(warehouses, hstore_conf.client.scalefactor);
+            ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, hstore_conf.client.scalefactor);
             assert parameters != null;
 
             RandomGenerator generator = new RandomGenerator.Implementation();
@@ -210,7 +197,7 @@ public class MultiLoader extends BenchmarkComponent {
             Integer warehouseId = null;
             LOG.debug("Total # of Remaining Warehouses: " + availableWarehouseIds.size());
             while ((warehouseId = availableWarehouseIds.poll()) != null) {
-                LOG.debug(String.format("Loading warehouse %d / %d", (m_warehouses - availableWarehouseIds.size()), m_warehouses));
+                LOG.debug(String.format("Loading warehouse %d / %d", (m_tpccConfig.num_warehouses - availableWarehouseIds.size()), m_tpccConfig.num_warehouses));
                 makeStock(warehouseId); // STOCK is made separately to reduce
                                         // memory consumption
                 createDataTables();
@@ -869,7 +856,7 @@ public class MultiLoader extends BenchmarkComponent {
         });
         
         ArrayList<Integer> warehouseIds = new ArrayList<Integer>();
-        int count = (m_warehouses + m_tpccConfig.firstWarehouse - 1);
+        int count = (m_tpccConfig.num_warehouses + m_tpccConfig.firstWarehouse - 1);
         for (int ii = m_tpccConfig.firstWarehouse; ii <= count; ii++) {
             warehouseIds.add(ii);
         }
