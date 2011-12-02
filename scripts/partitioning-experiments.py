@@ -96,7 +96,7 @@ OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 12500
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 1000
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
@@ -563,6 +563,7 @@ if __name__ == '__main__':
                                 ## FOR
                                 minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
                                 maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
+                                stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
                                 
                                 if int(txnrate) == 0: pass
                                 results.append(txnrate)
@@ -598,7 +599,8 @@ if __name__ == '__main__':
                                                 revision_date=last_changed_date,
                                                 result_date=datetime.now(),
                                                 min_result=minTxnRate,
-                                                max_result=maxTxnRate
+                                                max_result=maxTxnRate,
+                                                std_dev=stddevTxnRate
                                     )
                                     result.upload(upload_url)
                                 ## IF
