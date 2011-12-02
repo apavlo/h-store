@@ -52,6 +52,7 @@ class Result(object):
     def __init__(self, commitid, branch, project, num_partitions, benchmark, environment, result_value, 
                  min_result=None,    # Optional
                  max_result=None,    # Optional
+                 std_dev=None,       # Optional
                  revision_date=None, # Optional 
                  result_date=None    # Optional
     ):
@@ -64,6 +65,7 @@ class Result(object):
         self.result_value = result_value
         self.min = min_result
         self.max = max_result
+        self.std_dev = std_dev
         self.revision_date = revision_date
         self.result_date = result_date
     ## DEF
