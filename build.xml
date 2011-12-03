@@ -1872,9 +1872,14 @@ DESIGNER
     <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
+        <arg line="${ignore}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
+    
+<!--    <exec dir="${basedir}" executable="dot">
+        <arg line="-Tpng ${project}.dot > ${project}.png"/>
+    </exec>-->
 </target>
 
 <target name='weka' description="Launch Weka GUI">
@@ -2354,6 +2359,18 @@ H-STORE REMIX
 <!--    <antcall target="hstore-conf">
         <param name="jar" value="${benchmark.jar}" />
     </antcall>-->
+</target>
+
+<target name='mock-coordinator' description="EC2 Coordinator Tests">
+    <java fork="yes" failonerror="true" classname="edu.mit.hstore.MockCoordinator">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="${site}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
 </target>
 
 

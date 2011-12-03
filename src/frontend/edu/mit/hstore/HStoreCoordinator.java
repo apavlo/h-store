@@ -5,9 +5,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -17,8 +18,6 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Site;
-import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.messaging.VoltMessage;
 import org.voltdb.utils.Pair;
 
 import ca.evanjones.protorpc.NIOEventLoop;
@@ -33,18 +32,15 @@ import com.google.protobuf.RpcController;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.*;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.EventObservable;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.callbacks.TransactionFinishCallback;
-import edu.mit.hstore.callbacks.TransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
-import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.handlers.TransactionFinishHandler;
 import edu.mit.hstore.handlers.TransactionInitHandler;
 import edu.mit.hstore.handlers.TransactionPrepareHandler;
@@ -78,7 +74,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final Thread listener_thread;
     private final ProtoServer listener;
-    private final RemoteServiceHandler remoteService = new RemoteServiceHandler();
+    private final HStoreService remoteService;
     
     private final TransactionInitHandler transactionInit_handler;
     private final TransactionWorkHandler transactionWork_handler;
@@ -89,9 +85,9 @@ public class HStoreCoordinator implements Shutdownable {
     private final FinishDispatcher transactionFinish_dispatcher;
     private final TransactionRedirectDispatcher transactionRedirect_dispatcher;    
     
-    private boolean shutting_down = false;
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
     
+    private final EventObservable<HStoreCoordinator> ready_observable = new EventObservable<HStoreCoordinator>();
 
     /**
      * 
@@ -148,7 +144,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (hstore_conf.site.cpu_affinity)
                 hstore_site.getThreadManager().registerProcessingThread();
             E e = null;
-            while (HStoreCoordinator.this.shutting_down == false) {
+            while (HStoreCoordinator.this.isShuttingDown() == false) {
                 try {
                     idleTime.start();
                     e = this.queue.take();
@@ -221,6 +217,9 @@ public class HStoreCoordinator implements Shutdownable {
         this.local_partitions = hstore_site.getLocalPartitionIds();
         if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Local Partitions for Site #" + hstore_site.getSiteId() + ": " + this.local_partitions);
 
+        // Incoming RPC Handler
+        this.remoteService = this.initHStoreService();
+        
         // This listener thread will process incoming messages
         this.listener = new ProtoServer(this.eventLoop);
         
@@ -238,6 +237,10 @@ public class HStoreCoordinator implements Shutdownable {
         this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
         this.listener_thread.setDaemon(true);
         this.eventLoop.setExitOnSigInt(true);
+    }
+    
+    protected HStoreService initHStoreService() {
+        return (new RemoteServiceHandler());
     }
     
     /**
@@ -273,6 +276,8 @@ public class HStoreCoordinator implements Shutdownable {
         
         if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Starting listener thread");
         this.listener_thread.start();
+        
+        this.ready_observable.notifyObservers(this);
     }
 
     /**
@@ -330,7 +335,14 @@ public class HStoreCoordinator implements Shutdownable {
      */
     @Override
     public boolean isShuttingDown() {
-        return (this.state == ShutdownState.SHUTDOWN);
+        return (this.state == ShutdownState.PREPARE_SHUTDOWN || this.state == ShutdownState.SHUTDOWN);
+    }
+    
+    protected HStoreSite getHStoreSite() {
+        return (this.hstore_site);
+    }
+    protected HStoreConf getHStoreConf() {
+        return (this.hstore_conf);
     }
     
     protected int getLocalSiteId() {
@@ -348,6 +360,9 @@ public class HStoreCoordinator implements Shutdownable {
     }
     public HStoreService getHandler() {
         return (this.remoteService);
+    }
+    public EventObservable<HStoreCoordinator> getReadyObservable() {
+        return (this.ready_observable);
     }
     
 //    private int getNumLocalPartitions(Collection<Integer> partitions) {
@@ -375,61 +390,52 @@ public class HStoreCoordinator implements Shutdownable {
 //    }
     
     /**
-     * Initialize all the network connections to remote 
+     * Initialize all the network connections to remote
+     *  
      */
     private void initConnections() {
-        Database catalog_db = CatalogUtil.getDatabase(this.catalog_site);
-        
-        // Find all the destinations we need to connect to
         if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Configuring outbound network connections for Site #" + this.catalog_site.getId());
-        Map<Host, Set<Site>> host_partitions = CatalogUtil.getSitesPerHost(catalog_db);
-        Integer local_port = this.catalog_site.getMessenger_port();
-        
-        ArrayList<Integer> site_ids = new ArrayList<Integer>();
-        ArrayList<InetSocketAddress> destinations = new ArrayList<InetSocketAddress>();
-        for (Entry<Host, Set<Site>> e : host_partitions.entrySet()) {
-            String host = e.getKey().getIpaddr();
-            for (Site catalog_site : e.getValue()) {
-                int site_id = catalog_site.getId();
-                int port = catalog_site.getMessenger_port();
-                if (site_id != this.catalog_site.getId()) {
-                    if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Creating RpcChannel to " + host + ":" + port + " for site #" + site_id);
-                    destinations.add(new InetSocketAddress(host, port));
-                    site_ids.add(site_id);
-                } // FOR
-            } // FOR 
-        } // FOR
         
         // Initialize inbound channel
+        Integer local_port = this.catalog_site.getMessenger_port();
         assert(local_port != null);
         if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
         this.listener.register(this.remoteService);
         this.listener.bind(local_port);
 
+        // Find all the destinations we need to connect to
         // Make the outbound connections
+        List<Pair<Integer, InetSocketAddress>> destinations = HStoreCoordinator.getRemoteCoordinators(this.catalog_site);
+        
         if (destinations.isEmpty()) {
             if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "There are no remote sites so we are skipping creating connections");
-        } else {
+        }
+        else {
             if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Connecting to " + destinations.size() + " remote site messengers");
             ProtoRpcChannel[] channels = null;
+            InetSocketAddress arr[] = new InetSocketAddress[destinations.size()];
+            for (int i = 0; i < arr.length; i++) {
+                arr[i] = destinations.get(i).getSecond();
+            } // FOR
+                    
             try {
-                channels = ProtoRpcChannel.connectParallel(this.eventLoop, destinations.toArray(new InetSocketAddress[]{}), 15000);
+                channels = ProtoRpcChannel.connectParallel(this.eventLoop, arr, 15000);
             } catch (RuntimeException ex) {
                 LOG.warn("Failed to connect to remote sites. Going to try again...");
                 // Try again???
                 try {
-                    channels = ProtoRpcChannel.connectParallel(this.eventLoop, destinations.toArray(new InetSocketAddress[]{}));
+                    channels = ProtoRpcChannel.connectParallel(this.eventLoop, arr);
                 } catch (Exception ex2) {
                     LOG.fatal("Site #" + this.getLocalSiteId() + " failed to connect to remote sites");
                     this.listener.close();
                     throw ex;    
                 }
             }
-            assert channels.length == site_ids.size();
+            assert channels.length == destinations.size();
             for (int i = 0; i < channels.length; i++) {
-                this.channels.put(site_ids.get(i), HStoreService.newStub(channels[i]));
+                Pair<Integer, InetSocketAddress> p = destinations.get(i);
+                this.channels.put(p.getFirst(), HStoreService.newStub(channels[i]));
             } // FOR
-
             
             if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Site #" + this.getLocalSiteId() + " is fully connected to all sites");
         }
@@ -518,7 +524,7 @@ public class HStoreCoordinator implements Shutdownable {
                 RpcCallback<ShutdownResponse> done) {
             LOG.info("__FILE__:__LINE__ " + String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
             
-            HStoreCoordinator.this.shutting_down = true;
+            HStoreCoordinator.this.prepareShutdown(false);
             
             // Tell the HStoreSite to shutdown
             hstore_site.shutdown();
@@ -550,7 +556,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      * @param callback
      */
-    public void transactionInit(LocalTransaction ts, TransactionInitCallback callback) {
+    public void transactionInit(LocalTransaction ts, RpcCallback<Hstore.TransactionInitResponse> callback) {
         Hstore.TransactionInitRequest request = Hstore.TransactionInitRequest.newBuilder()
                                                          .setTransactionId(ts.getTransactionId())
                                                          .addAllPartitions(ts.getPredictTouchedPartitions())
@@ -695,9 +701,8 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public synchronized void shutdownCluster(Throwable ex) {
         final int num_sites = this.channels.size();
-        if (this.shutting_down) return;
-        this.shutting_down = true;
-        this.hstore_site.prepareShutdown(false);
+        if (this.isShuttingDown()) return;
+        this.hstore_site.prepareShutdown(ex != null);
         LOG.info("__FILE__:__LINE__ " + "Shutting down cluster", ex);
 
         final int exit_status = (ex == null ? 0 : 1);
@@ -751,6 +756,25 @@ public class HStoreCoordinator implements Shutdownable {
     // UTILITY METHODS
     // ----------------------------------------------------------------------------
     
+    public static List<Pair<Integer, InetSocketAddress>> getRemoteCoordinators(Site catalog_site) {
+        List<Pair<Integer, InetSocketAddress>> m = new ArrayList<Pair<Integer,InetSocketAddress>>();
+        
+        Database catalog_db = CatalogUtil.getDatabase(catalog_site);
+        Map<Host, Set<Site>> host_partitions = CatalogUtil.getSitesPerHost(catalog_db);
+        for (Entry<Host, Set<Site>> e : host_partitions.entrySet()) {
+            String host = e.getKey().getIpaddr();
+            for (Site remote_site : e.getValue()) {
+                if (remote_site.getId() != catalog_site.getId()) {
+                    InetSocketAddress address = new InetSocketAddress(host, remote_site.getMessenger_port()); 
+                    m.add(Pair.of(remote_site.getId(), address));
+                    if (debug.get()) LOG.debug(String.format("Creating RpcChannel to %s for site %s",
+                                               address, HStoreSite.formatSiteName(remote_site.getId())));
+                } // FOR
+            } // FOR 
+        } // FOR
+        return (m);
+    }
+
     /**
      * Returns an HStoreService handle that is connected to the given site
      * @param catalog_site

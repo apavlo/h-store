@@ -1,28 +1,79 @@
 package edu.brown.catalog;
 
-import java.io.*;
-import java.net.InetSocketAddress;
-import java.util.*;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-
-import org.json.*;
-
-import org.voltdb.*;
+import org.json.JSONObject;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConstantValue;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.ConstraintRef;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.AbstractValueExpression;
+import org.voltdb.expressions.ComparisonExpression;
+import org.voltdb.expressions.ConjunctionExpression;
+import org.voltdb.expressions.ConstantValueExpression;
+import org.voltdb.expressions.InComparisonExpression;
+import org.voltdb.expressions.ParameterValueExpression;
+import org.voltdb.expressions.TupleAddressExpression;
+import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.plannodes.*;
-import org.voltdb.types.*;
-import org.voltdb.utils.*;
-import org.voltdb.catalog.*;
-import org.voltdb.expressions.*;
+import org.voltdb.plannodes.AbstractJoinPlanNode;
+import org.voltdb.plannodes.AbstractOperationPlanNode;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.plannodes.MaterializePlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
+import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.plannodes.SeqScanPlanNode;
+import org.voltdb.plannodes.UpdatePlanNode;
+import org.voltdb.types.ConstraintType;
+import org.voltdb.types.ExpressionType;
+import org.voltdb.types.PlanNodeType;
+import org.voltdb.types.QueryType;
+import org.voltdb.utils.Encoder;
+import org.voltdb.utils.JarReader;
+import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
-import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.SpecialProcParameter;
 import edu.brown.designer.ColumnSet;
@@ -817,6 +868,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (partitions);
     }
+    
 
     // ------------------------------------------------------------
     // TABLES + COLUMNS
@@ -2107,6 +2159,26 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         tuple_exp.setColumnName(catalog_col.getName());
         
         return (new ComparisonExpression(ExpressionType.COMPARE_EQUAL, tuple_exp, exp));
+    }
+    
+    /**
+     * Return a PlanFragment for a given id.
+     * This is slow and should only be used for debugging purposes
+     * @param catalog_obj
+     * @param id
+     * @return
+     */
+    public PlanFragment getPlanFragment(CatalogType catalog_obj, int id) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                for (PlanFragment catalog_frag : catalog_stmt.getFragments())
+                    if (catalog_frag.getId() == id) return (catalog_frag);
+                for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments())
+                    if (catalog_frag.getId() == id) return (catalog_frag);
+            } // FOR (stmt)
+        } // FOR (proc)
+        return (null);
     }
     
     // ------------------------------------------------------------
