@@ -183,7 +183,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private final TransactionIdManager txnid_manager;
     
-    private final HStoreCoordinator hstore_coordinator;
+    /**
+     * We will bind this variable after construction so that we can inject some
+     * testing code as needed.
+     */
+    private HStoreCoordinator hstore_coordinator;
 
     /**
      * Local ExecutionSite Stuff
@@ -358,8 +362,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
             } // FOR
         }
-        this.hstore_coordinator = new HStoreCoordinator(this);
-//        this.helper_pool = Executors.newScheduledThreadPool(1);
         
         // Create all of our parameter manglers
         for (Procedure catalog_proc : this.catalog_db.getProcedures()) {
@@ -441,6 +443,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //    }
     public Collection<ExecutionSitePostProcessor> getExecutionSitePostProcessors() {
         return (this.processors);
+    }
+    
+    protected HStoreCoordinator initHStoreCoordinator() {
+        return new HStoreCoordinator(this);
     }
     public HStoreCoordinator getCoordinator() {
         return (this.hstore_coordinator);
@@ -549,13 +555,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Initializes all the pieces that we need to start this HStore site up
      */
-    public void init() {
+    public HStoreSite init() {
         if (d) LOG.debug("__FILE__:__LINE__ " + "Initializing HStoreSite " + this.getSiteName());
 
         List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
         for (int partition : this.local_partitions) {
             executor_list.add(this.getExecutionSite(partition));
         } // FOR
+        
+        this.hstore_coordinator = this.initHStoreCoordinator();
         
         EventObservableExceptionHandler handler = new EventObservableExceptionHandler();
         EventObserver<Pair<Thread, Throwable>> observer = new EventObserver<Pair<Thread, Throwable>>() {
@@ -651,15 +659,17 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         synchronized (HStoreSite.class) {
             if (SHUTDOWN_HANDLE == null) SHUTDOWN_HANDLE = this;
         } // SYNCH
+        
+        return (this);
     }
     
     /**
      * Mark this HStoreSite as ready for action!
      */
-    private synchronized void ready() {
+    public synchronized HStoreSite start() {
         if (this.ready) {
             LOG.warn("__FILE__:__LINE__ " + "Already told that we were ready... Ignoring");
-            return;
+            return (this);
         }
         this.shutdown_state = ShutdownState.STARTED;
         
@@ -672,6 +682,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                this.local_partitions.size()));
         this.ready = true;
         this.ready_observable.notifyObservers();
+        
+        return (this);
     }
     
     /**
@@ -1802,7 +1814,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         hstore_site.hstore_coordinator.shutdownCluster(ex);
                     }
                 }
-                hstore_site.ready();
+                hstore_site.start();
             }
         });
         
