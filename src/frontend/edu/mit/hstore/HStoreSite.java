@@ -295,7 +295,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param p_estimator
      */
     @SuppressWarnings("unchecked")
-    public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) throws Exception {
+    public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
         assert(catalog_site != null);
         assert(p_estimator != null);
         
@@ -445,6 +445,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public HStoreCoordinator getCoordinator() {
         return (this.hstore_coordinator);
     }
+
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
@@ -469,6 +470,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
          this.thresholds = thresholds;
 //         if (d) 
          LOG.info("__FILE__:__LINE__ " + "Set new EstimationThresholds: " + thresholds);
+    }
+    
+    public Database getDatabase() {
+        return (this.catalog_db);
     }
     
     /**
