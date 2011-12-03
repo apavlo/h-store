@@ -40,10 +40,14 @@ public class HStoreThreadManager {
         } // FOR
         
         this.disable = (this.num_cores <= this.num_partitions);
-        if (this.disable) {
+        if (hstore_site.getHStoreConf().site.cpu_affinity == false) {
+            // Ignore
+        }
+        else if (this.disable) {
             LOG.warn(String.format("Unable to set CPU affinity - There are %d partitions but only %d available cores",
                                    this.num_partitions, this.num_cores));
-        } else {
+        }
+        else {
             for (int i = 0; i < this.num_partitions; i++) {
                 this.processing_affinity[i] = false;
             } // FOR

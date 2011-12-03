@@ -135,6 +135,7 @@ public class TransactionQueueManager implements Runnable {
                     // Nothing...
                 }
             } // SYNCH
+            if (trace.get()) LOG.trace("Checking partition queues for dtxns to release!");
             while (checkQueues()) {
                 // Keep checking the queue as long as they have more stuff in there
                 // for us to process

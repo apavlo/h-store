@@ -2361,13 +2361,14 @@ H-STORE REMIX
     </antcall>-->
 </target>
 
-<target name='mock-coordinator' description="EC2 Coordinator Tests">
-    <java fork="yes" failonerror="true" classname="edu.mit.hstore.MockCoordinator">
+<target name='mock-site' description="EC2 Coordinator Tests">
+    <java fork="yes" failonerror="true" classname="edu.mit.hstore.MockHStoreSite">
         <jvmarg value="-client" />
         <jvmarg value="-Xmx${client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="${site}" />
+        &common;
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
     </java>

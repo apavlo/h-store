@@ -295,7 +295,7 @@ public class HStoreCoordinator implements Shutdownable {
     @Override
     public void prepareShutdown(boolean error) {
         if (this.state != ShutdownState.PREPARE_SHUTDOWN) {
-            assert(this.state == ShutdownState.STARTED) : "Invalid MessengerState " + this.state;
+            assert(this.state == ShutdownState.STARTED) : "Invalid HStoreCoordinator State " + this.state;
             this.state = ShutdownState.PREPARE_SHUTDOWN;
         }
     }
@@ -335,7 +335,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     @Override
     public boolean isShuttingDown() {
-        return (this.state == ShutdownState.PREPARE_SHUTDOWN || this.state == ShutdownState.SHUTDOWN);
+        return (this.state == ShutdownState.PREPARE_SHUTDOWN); //  || this.state == ShutdownState.SHUTDOWN);
     }
     
     protected HStoreSite getHStoreSite() {
