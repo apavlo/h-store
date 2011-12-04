@@ -47,13 +47,10 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
         NewReservation.class,
         UpdateCustomer.class,
         UpdateReservation.class,
+        
+        // Non-Workload Procedure
+        LoadConfig.class,
     };
-    
-    // Config Management
-    {
-        this.addStmtProcedure("LoadConfigProfile",    "SELECT * FROM " + AirlineConstants.TABLENAME_CONFIG_PROFILE);
-        this.addStmtProcedure("LoadConfigHistograms", "SELECT * FROM " + AirlineConstants.TABLENAME_CONFIG_HISTOGRAMS);
-    }
     
     // Transaction Frequencies
     {

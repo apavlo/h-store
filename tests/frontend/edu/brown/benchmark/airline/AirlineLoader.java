@@ -538,7 +538,7 @@ public class AirlineLoader extends AirlineBaseClient {
         if (name.equals(AirlineConstants.TABLENAME_CUSTOMER)) {
             long total = Math.round(AirlineConstants.NUM_CUSTOMERS / scaleFactor);
             it = new CustomerIterable(catalog_tbl, total);
-        // FrequentFlier
+        // FrequentFlyer
         } else if (name.equals(AirlineConstants.TABLENAME_FREQUENT_FLYER)) {
             long total = Math.round(AirlineConstants.NUM_CUSTOMERS / scaleFactor);
             int per_customer = (int)Math.ceil(AirlineConstants.MAX_FREQUENTFLYER_PER_CUSTOMER / scaleFactor);

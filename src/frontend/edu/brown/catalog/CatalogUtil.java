@@ -726,7 +726,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * objects in order to get the Partition handle that we want
      * @return
      */
-    public static Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
+    public static synchronized Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         final Map<Host, Set<Site>> sites = cache.HOST_SITES;
         
@@ -869,7 +869,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (partitions);
     }
     
-
     // ------------------------------------------------------------
     // TABLES + COLUMNS
     // ------------------------------------------------------------
@@ -2168,7 +2167,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param id
      * @return
      */
-    public PlanFragment getPlanFragment(CatalogType catalog_obj, int id) {
+    public static PlanFragment getPlanFragment(CatalogType catalog_obj, int id) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
             for (Statement catalog_stmt : catalog_proc.getStatements()) {

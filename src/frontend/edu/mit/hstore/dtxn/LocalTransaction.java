@@ -25,6 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -45,6 +46,8 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FragmentTaskMessage;
@@ -801,8 +804,20 @@ public class LocalTransaction extends AbstractTransaction {
             blocked = true;
         }
         if (d) {
-            LOG.debug("__FILE__:__LINE__ " +"Queued up FragmentTaskMessage in txn #" + this.txn_id + " for partition " + partition + " and marked as" + (blocked ? "" : " not") + " blocked");
-            if (t) LOG.trace("__FILE__:__LINE__ " +"FragmentTaskMessage Contents for txn #" + this.txn_id + ":\n" + ftask);
+            CatalogType catalog_stmt = null;
+            if (catalog_proc.getSystemproc()) {
+                catalog_stmt = catalog_proc;
+            } else {
+                for (int i = 0; i < ftask.getFragmentCount(); i++) {
+                    int frag_id = ftask.getFragmentId(i);
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
+                    catalog_stmt = catalog_frag.getParent();
+                    if (catalog_stmt != null) break;
+                } // FOR
+            }
+            LOG.debug("__FILE__:__LINE__ " + String.format("Queued up FragmentTaskMessage %s for %s on partition %d and marked as %s",
+                                             catalog_stmt.fullName(), this, partition, (blocked ? "blocked" : "not blocked")));
+            if (t) LOG.trace("__FILE__:__LINE__ " + "FragmentTaskMessage Contents for txn #" + this.txn_id + ":\n" + ftask);
         }
         return (blocked);
     }

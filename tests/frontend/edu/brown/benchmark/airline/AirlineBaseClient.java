@@ -74,20 +74,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    /**
-     * Tuple Code to Tuple Id Mapping
-     * For some tables, we want to store a unique code that can be used to map
-     * to the id of a tuple. Any table that has a foreign key reference to this table
-     * will use the unique code in the input data tables instead of the id. Thus, we need
-     * to keep a table of how to map these codes to the ids when loading.
-     */
-    private static final String CODE_TO_ID_COLUMNS[][] = {
-        {"CO_CODE_3",       "CO_ID"}, // COUNTRY
-        {"AP_CODE",         "AP_ID"}, // AIRPORT
-        {"AL_IATA_CODE",    "AL_ID"}, // AIRLINE
-    };
-    
-
     protected final AirlineProfile profile = new AirlineProfile();
     
    
@@ -174,12 +160,16 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         this.rng = rng;
 
         // Tuple Code to Tuple Id Mapping
-        for (String xref[] : CODE_TO_ID_COLUMNS) {
-            assert(xref.length == 2);
-            if (this.code_columns.containsKey(xref[0]) == false) {
-                this.code_columns.put(xref[0], xref[1]);
-                this.profile.code_id_xref.put(xref[1], new HashMap<String, Long>());
-                if (debug.get()) LOG.debug(String.format("Added mapping from Code Column '%s' to Id Column '%s'", xref[0], xref[1]));
+        for (String xref[] : AirlineConstants.CODE_TO_ID_COLUMNS) {
+            assert(xref.length == 3);
+            String tableName = xref[0];
+            String codeCol = xref[1];
+            String idCol = xref[2];
+            
+            if (this.code_columns.containsKey(codeCol) == false) {
+                this.code_columns.put(codeCol, idCol);
+                this.profile.code_id_xref.put(idCol, new HashMap<String, Long>());
+                if (debug.get()) LOG.debug(String.format("Added %s mapping from Code Column '%s' to Id Column '%s'", tableName, codeCol, idCol));
             }
         } // FOR
         

@@ -152,4 +152,17 @@ public abstract class AirlineConstants {
         AirlineConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT,
         AirlineConstants.HISTOGRAM_FLIGHTS_PER_DEPART_TIMES,
     };
+
+    /**
+     * Tuple Code to Tuple Id Mapping
+     * For some tables, we want to store a unique code that can be used to map
+     * to the id of a tuple. Any table that has a foreign key reference to this table
+     * will use the unique code in the input data tables instead of the id. Thus, we need
+     * to keep a table of how to map these codes to the ids when loading.
+     */
+    public static final String CODE_TO_ID_COLUMNS[][] = {
+        {TABLENAME_COUNTRY, "CO_CODE_3",    "CO_ID"},
+        {TABLENAME_AIRPORT, "AP_CODE",      "AP_ID"},
+        {TABLENAME_AIRLINE, "AL_IATA_CODE", "AL_ID"},
+    };
 }

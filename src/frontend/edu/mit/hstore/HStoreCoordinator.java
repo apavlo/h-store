@@ -144,7 +144,7 @@ public class HStoreCoordinator implements Shutdownable {
             if (hstore_conf.site.cpu_affinity)
                 hstore_site.getThreadManager().registerProcessingThread();
             E e = null;
-            while (HStoreCoordinator.this.isShuttingDown() == false) {
+            while (HStoreCoordinator.this.isShutdownOrPrepareShutDown() == false) {
                 try {
                     idleTime.start();
                     e = this.queue.take();
@@ -285,8 +285,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @return
      */
     public boolean isStarted() {
-        return (this.state == ShutdownState.STARTED ||
-                this.state == ShutdownState.PREPARE_SHUTDOWN);
+        return (this.state == ShutdownState.STARTED);
     }
     
     /**
@@ -326,7 +325,6 @@ public class HStoreCoordinator implements Shutdownable {
             if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Closing listener socket for Site #" + this.getLocalSiteId());
             this.listener.close();
         }
-        assert(this.isShuttingDown());
     }
     
     /**
@@ -335,7 +333,11 @@ public class HStoreCoordinator implements Shutdownable {
      */
     @Override
     public boolean isShuttingDown() {
-        return (this.state == ShutdownState.PREPARE_SHUTDOWN); //  || this.state == ShutdownState.SHUTDOWN);
+        return (this.state == ShutdownState.PREPARE_SHUTDOWN);
+    }
+    
+    public boolean isShutdownOrPrepareShutDown() {
+        return (this.state == ShutdownState.PREPARE_SHUTDOWN || this.state == ShutdownState.SHUTDOWN);
     }
     
     protected HStoreSite getHStoreSite() {
@@ -701,7 +703,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public synchronized void shutdownCluster(Throwable ex) {
         final int num_sites = this.channels.size();
-        if (this.isShuttingDown()) return;
+        if (this.state == ShutdownState.SHUTDOWN) return;
         this.hstore_site.prepareShutdown(ex != null);
         LOG.info("__FILE__:__LINE__ " + "Shutting down cluster", ex);
 
