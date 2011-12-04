@@ -70,7 +70,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
             } // FOR
             
             this.sites[i] = new HStoreSite(catalog_site, executors, p_estimator);
-            this.messengers[i] = this.sites[i].getCoordinator();
+            this.messengers[i] = this.sites[i].initHStoreCoordinator();
         } // FOR
 
         this.startMessengers();
@@ -143,11 +143,14 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private void stopMessengers() throws Exception {
         // Tell everyone to prepare to stop
         for (final HStoreCoordinator m : this.messengers) {
-            if (m.isStarted()) m.prepareShutdown(false);
+            if (m.isStarted()) {
+                System.err.println("PREPARE: " + m);
+                m.prepareShutdown(false);
+            }
         } // FOR
         // Now stop everyone for real!
         for (final HStoreCoordinator m : this.messengers) {
-            if (m.isStarted() && m.isShuttingDown() == false) {
+            if (m.isShuttingDown()) {
                 System.err.println("STOP: " + m);
                 m.shutdown();
             }

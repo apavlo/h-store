@@ -23,13 +23,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
-import org.voltdb.utils.Pair;
 
 import edu.mit.hstore.HStoreConstants;
 
@@ -250,8 +248,8 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
             m_fragmentIds.length : 0;
     }
 
-    public long getFragmentId(int index) {
-        return m_fragmentIds[index];
+    public int getFragmentId(int index) {
+        return (int)m_fragmentIds[index];
     }
     
     public int getOutputDepId(int index) {

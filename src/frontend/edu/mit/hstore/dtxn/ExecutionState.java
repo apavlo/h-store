@@ -176,6 +176,7 @@ public class ExecutionState {
     public void clear() {
         this.exec_touchedPartitions.clear();
         this.dependency_latch = null;
+        this.clearRound();
     }
     
     // ----------------------------------------------------------------------------
