@@ -100,6 +100,16 @@ OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
+DEBUG_OPTIONS = [
+    "site.exec_profiling",
+    "site.txn_profiling",
+    "site.pool_profiling",
+    "site.planner_profiling",
+    "site.status_show_txn_info",
+    "site.status_show_exec_info",
+    "client.output_basepartitions",
+]
+
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
     "ec2.site_type":                  "c1.xlarge",
@@ -114,6 +124,7 @@ BASE_SETTINGS = {
     "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
+    "client.interval":                  10000,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
@@ -122,13 +133,13 @@ BASE_SETTINGS = {
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
     "client.blocking_loader":           False,
+    "client.output_basepartitions":     False,
     
-    "site.exec_profiling":                              True,
+    "site.exec_profiling":                              False,
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              False,
     "site.planner_profiling":                           False,
-    "site.planner_caching":                             True,
-    "site.status_show_txn_info":                        True,
+    "site.status_show_txn_info":                        False,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
@@ -142,16 +153,22 @@ BASE_SETTINGS = {
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
     "site.memory":                                      6002,
-    "site.txn_incoming_queue_max_per_partition":        10000,
-    "site.txn_incoming_queue_release_factor":           0.90,
-    "site.txn_incoming_queue_increase":                 10,
+    "site.queue_incoming_max_per_partition":            500,
+    "site.queue_incoming_release_factor":               0.90,
+    "site.queue_incoming_increase":                     0,
+    "site.queue_incoming_throttle":                     False,
+    "site.queue_dtxn_max_per_partition":                10000,
+    "site.queue_dtxn_release_factor":                   0.90,
+    "site.queue_dtxn_increase":                         10,
+    "site.queue_dtxn_throttle":                         False,
+    
     "site.txn_enable_queue_pruning":                    False,
     "site.exec_postprocessing_thread":                  False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
     "site.cpu_affinity":                                True,
-    "site.cpu_affinity_one_partition_per_core":         False,
+    "site.cpu_affinity_one_partition_per_core":         True,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -160,6 +177,7 @@ EXPERIMENT_SETTINGS = {
         {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
+            "benchmark.warehouse_debug":         False,
             "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
@@ -184,9 +202,10 @@ EXPERIMENT_SETTINGS = {
     "throughput": [
         {
             "benchmark.neworder_skew_warehouse": False,
-            "benchmark.neworder_only":          False,
-            "benchmark.neworder_abort":         True,
-            "site.exec_neworder_cheat":         True
+            "benchmark.neworder_only":           False,
+            "benchmark.neworder_abort":          True,
+            "benchmark.warehouse_debug":         False,
+            "site.exec_neworder_cheat":          True
         }
         
     ],

@@ -121,6 +121,21 @@ public class HStoreThreadManager {
         }
         return (cpus);
     }
+    
+    /**
+     * Returns all the CPU ids that the given Thread is allowed to execute on  
+     * @param t
+     * @return
+     */
+    public Collection<Integer> getCPUIds(Thread t) {
+        Collection<Integer> cpus = new HashSet<Integer>();
+        for (Integer cpu : this.cpu_threads.keySet()) {
+            if (this.cpu_threads.get(cpu).contains(t)) {
+                cpus.add(cpu);
+            }
+        } // FOR
+        return (cpus);
+    }
 
     public boolean isRegistered(Thread t) {
         return (this.all_threads.contains(t));

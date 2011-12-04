@@ -144,6 +144,9 @@ public class TPCCSimulation {
             if (debug.get()) LOG.debug("Enabling W_ID Zipfian Skew: " + skewFactor);
             this.zipf = new RandomDistribution.Zipf(new Random(), parameters.starting_warehouse, this.max_w_id+1, this.skewFactor);
         }
+        if (config.warehouse_debug) {
+            LOG.info("Enabling WAREHOUSE debug mode");
+        }
 
         lastAssignedWarehouseId += 1;
         if (lastAssignedWarehouseId > max_w_id)
@@ -198,7 +201,7 @@ public class TPCCSimulation {
     }
     public synchronized void tick(int counter) {
         this.tick_counter = counter;
-        if (debug.get() && config.temporal_skew) {
+        if (config.warehouse_debug) {
             Map<String, Histogram<Short>> m = new ListOrderedMap<String, Histogram<Short>>();
             m.put(String.format("LAST ROUND\n - SampleCount=%d", this.lastWarehouseHistory.getSampleCount()),
                   this.lastWarehouseHistory);
@@ -206,10 +209,10 @@ public class TPCCSimulation {
                   this.totalWarehouseHistory);
             
             long total = this.totalWarehouseHistory.getSampleCount();
-            LOG.debug(String.format("ROUND #%02d - Warehouse Temporal Skew - %d / %d [%.2f]\n%s",
+            LOG.info(String.format("ROUND #%02d - Warehouse Temporal Skew - %d / %d [%.2f]\n%s",
                     this.tick_counter, this.temporal_counter, total, (this.temporal_counter / (double)total), 
                     StringUtil.formatMaps(m)));
-            LOG.debug(StringUtil.SINGLE_LINE);
+            LOG.info(StringUtil.SINGLE_LINE);
             this.lastWarehouseHistory.clearValues();
         }
     }

@@ -305,6 +305,13 @@ public final class HStoreConf {
         public int queue_incoming_increase;
         
         @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean queue_incoming_throttle;
+        
+        @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=5000,
@@ -335,6 +342,13 @@ public final class HStoreConf {
             experimental=false
         )
         public int queue_dtxn_increase;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean queue_dtxn_throttle;
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
