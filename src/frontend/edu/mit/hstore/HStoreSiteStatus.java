@@ -31,6 +31,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
 import edu.brown.markov.TransactionEstimator;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -275,6 +276,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
      */
     protected Map<String, Object> executorInfo() {
         TransactionQueueManager manager = hstore_site.getTransactionQueueManager();
+        HStoreThreadManager thread_manager = hstore_site.getThreadManager();
         int inflight_cur = hstore_site.getInflightTxnCount();
         int inflight_local = hstore_site.getDTXNQueueSize();
         if (inflight_min == null || inflight_cur < inflight_min) inflight_min = inflight_cur;
@@ -318,8 +320,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         m_exec.put(" ", null);
 
         // EXECUTION ENGINES
+        Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
+        Histogram<Integer> invokedTxns = new Histogram<Integer>();
         for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
             int partition = e.getKey().intValue();
+            String partitionLabel = String.format("%02d", partition);
+            partitionLabels.put(partition, partitionLabel);
+            
             ExecutionSite es = e.getValue();
             ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
             ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
@@ -379,6 +386,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getInvocations(),
                                                 pm.getTotalThinkTimeMS(),
                                                 pm.getAverageThinkTimeMS()));
+                invokedTxns.put(partition, es.getTransactionCounter());
                 
                 pm = es.getWorkIdleTime();
                 m.put("Idle Time", String.format("%.2fms total / %.2fms avg",
@@ -386,12 +394,29 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                 pm.getAverageThinkTimeMS()));
             }
             
-            m_exec.put(String.format("    Partition[%02d]", partition), StringUtil.formatMaps(m) + "\n");
+            
+            String label = "    Partition[" + partitionLabel + "]";
+            
+            // Get additional partition info
+            Thread t = es.getExecutionThread();
+            if (t != null && thread_manager.isRegistered(t)) {
+                for (Integer cpu : thread_manager.getCPUIds(t)) {
+                    label += "\n       \u2192 CPU *" + cpu + "*";
+                } // FOR
+            }
+            
+            m_exec.put(label, StringUtil.formatMaps(m) + "\n");
         } // FOR
         
         // Incoming Partition Distribution
         if (hstore_site.getIncomingPartitionHistogram().isEmpty() == false) {
-            m_exec.put("Incoming Txns\nBase Partitions", hstore_site.getIncomingPartitionHistogram().toString(50, 10) + "\n");
+            Histogram<Integer> incoming = hstore_site.getIncomingPartitionHistogram();
+            incoming.setDebugLabels(partitionLabels);
+            m_exec.put("Incoming Txns\nBase Partitions", incoming.toString(50, 10) + "\n");
+        }
+        if (invokedTxns.isEmpty() == false) {
+            invokedTxns.setDebugLabels(partitionLabels);
+            m_exec.put("Invoked Txns", invokedTxns.toString(50, 10) + "\n");
         }
         
         return (m_exec);
@@ -584,14 +609,14 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
 //                trace = Arrays.toString(stack);
             } else {
                 // Find the first line that is interesting to us
-                trace = StringUtil.join("\n", stack);
-//                for (int i = 0; i < stack.length; i++) {
-//                    // if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
-//                        trace += stack[i].toString();
-////                        break;
-////                    }
-//                } // FOR
-//                if (trace == null) stack[0].toString();
+//                trace = StringUtil.join("\n", stack);
+                for (int i = 0; i < stack.length; i++) {
+                    // if (THREAD_REGEX.matcher(stack[i].getClassName()).matches()) {
+                        trace += stack[i].toString();
+//                        break;
+//                    }
+                } // FOR
+                if (trace == null) stack[0].toString();
             }
             m_thread.put(name, trace);
         } // FOR
@@ -814,13 +839,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         if (show_threads) {
             threadInfo = this.threadInfo();
             
-//            cpuThreads = new ListOrderedMap<String, Object>();
-//            for (Entry<Integer, Set<Thread>> e : hstore_site.getThreadManager().getCPUThreads().entrySet()) {
-//                TreeSet<String> names = new TreeSet<String>();
-//                for (Thread t : e.getValue())
-//                    names.add(t.getName());
-//                cpuThreads.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])));
-//            } // FOR
+            cpuThreads = new ListOrderedMap<String, Object>();
+            for (Entry<Integer, Set<Thread>> e : hstore_site.getThreadManager().getCPUThreads().entrySet()) {
+                TreeSet<String> names = new TreeSet<String>();
+                for (Thread t : e.getValue())
+                    names.add(t.getName());
+                cpuThreads.put("CPU #" + e.getKey(), StringUtil.columns(names.toArray(new String[0])));
+            } // FOR
         }
 
         // ----------------------------------------------------------------------------

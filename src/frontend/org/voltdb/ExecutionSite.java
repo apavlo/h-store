@@ -872,6 +872,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public ExecutionEngine getExecutionEngine() {
         return (this.ee);
     }
+    public Thread getExecutionThread() {
+        return (this.self);
+    }
     public PartitionEstimator getPartitionEstimator() {
         return (this.p_estimator);
     }
@@ -968,6 +971,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public ProfileMeasurement getWorkExecTime() {
         return (this.work_exec_time);
     }
+    /**
+     * Returns the number of txns that have been invoked on this partition
+     * @return
+     */
     public long getTransactionCounter() {
         return (this.work_exec_time.getInvocations());
     }
@@ -1077,13 +1084,23 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         
         if (success == false) {
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s got throttled by partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
-                                           ts, this.partitionId, this.currentTxnId, this.work_throttler.isThrottled(), this.work_throttler.size()));
+            // Depending on what we need to do for this type txn, we will send
+            // either an ABORT_THROTTLED or an ABORT_REJECT in our response
+            // An ABORT_THROTTLED means that the client will back-off of a bit
+            // before sending another txn request, where as an ABORT_REJECT means
+            // that it will just try immediately
+            Hstore.Status status = ((singlePartitioned ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ? 
+                                        Hstore.Status.ABORT_THROTTLED :
+                                        Hstore.Status.ABORT_REJECT);
+            
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s got a %s response from partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
+                                           ts, status, this.partitionId, this.currentTxnId,
+                                           this.work_throttler.isThrottled(), this.work_throttler.size()));
             if (singlePartitioned == false) {
                 TransactionFinishCallback finish_callback = ts.getTransactionFinishCallback(Hstore.Status.ABORT_THROTTLED);
-                hstore_coordinator.transactionFinish(ts, Hstore.Status.ABORT_THROTTLED, finish_callback);
+                hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
-            hstore_site.transactionReject(ts, Hstore.Status.ABORT_THROTTLED);
+            hstore_site.transactionReject(ts, status);
         }
         return (success);
     }

@@ -17,6 +17,7 @@ public final class TPCCConfig {
     public int num_warehouses = 1;
     public boolean one_warehouse_per_partition = false;
     public boolean warehouse_affinity = false;
+    public boolean warehouse_debug = false;
     
     public int loadthreads = 1;
     public boolean one_loadthread_per_warehouse = false;
@@ -59,6 +60,10 @@ public final class TPCCConfig {
             // WAREHOUSE AFFINITY
             else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
                 warehouse_affinity = Boolean.parseBoolean(val);
+            }
+            // ENABLE WAREHOUSE DEBUGGING
+            else if (key.equalsIgnoreCase("warehouse_debug") && !val.isEmpty()) {
+                warehouse_debug = Boolean.parseBoolean(val);
             }
 
             // LOAD THREADS
