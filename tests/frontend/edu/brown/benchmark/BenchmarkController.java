@@ -167,7 +167,8 @@ public class BenchmarkController {
     protected int m_pollIndex = 0;
     protected long m_maxCompletedPoll = 0;
     protected final long m_pollCount;
-    protected final CountDownLatch resultsToRead;
+    private int totalNumClients;
+    protected CountDownLatch resultsToRead;
     ResultsUploader resultsUploader = null;
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
@@ -201,7 +202,7 @@ public class BenchmarkController {
         m_config = config;
         self = Thread.currentThread();
         hstore_conf = HStoreConf.singleton();
-        this.catalog = catalog;
+        if (catalog != null) this.initializeCatalog(catalog);
         
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
@@ -246,7 +247,6 @@ public class BenchmarkController {
 
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         resultsUploader = new ResultsUploader(m_config.projectBuilderClass, config);
-        resultsToRead = new CountDownLatch((int)(m_pollCount * hstore_conf.client.processesperclient * hstore_conf.client.count));
 
         AbstractProjectBuilder tempBuilder = null;
         try {
@@ -308,6 +308,17 @@ public class BenchmarkController {
             m_interested.add(interest);
         }
     }
+    
+    private void initializeCatalog(Catalog catalog) {
+        assert(catalog != null);
+        this.catalog = catalog;
+        int total_num_clients = m_config.clients.length * hstore_conf.client.processesperclient;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            total_num_clients *= CatalogUtil.getNumberOfPartitions(catalog);
+        }
+        this.totalNumClients = total_num_clients;
+        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
+    }
 
     /**
      * SETUP BENCHMARK 
@@ -339,8 +350,7 @@ public class BenchmarkController {
         
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        assert(catalog != null);
+        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName));
         
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
@@ -425,9 +435,8 @@ public class BenchmarkController {
         }
 
         final ProfileMeasurement load_time = new ProfileMeasurement("load").start();
-        final int numClients = (m_config.clients.length * hstore_conf.client.processesperclient);
         if (m_loaderClass != null && m_config.noLoader == false) {
-            this.startLoader(catalog, numClients);
+            this.startLoader();
         } else if (m_config.noLoader) {
             LOG.info("Skipping data loading phase");
         }
@@ -437,7 +446,7 @@ public class BenchmarkController {
                                load_time.getTotalThinkTimeSeconds()));
 
         // Start the clients
-        if (m_config.noExecute == false) this.startClients(numClients);
+        if (m_config.noExecute == false) this.startClients();
         
         // registerInterest(uploader);
     }
@@ -511,7 +520,7 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("All remote HStoreSites are initialized");
     }
     
-    public void startLoader(final Catalog catalog, final int numClients) {
+    public void startLoader() {
         LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
         LOG.info(String.format("Starting %s Benchmark Loader - %s [blocking=%s]",
                                m_projectBuilder.getProjectName().toUpperCase(),
@@ -554,7 +563,7 @@ public class BenchmarkController {
         allLoaderArgs.add("CONF=" + m_config.hstore_conf_path);
         allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
-        allLoaderArgs.add("NUMCLIENTS=" + numClients);
+        allLoaderArgs.add("NUMCLIENTS=" + totalNumClients);
         allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allLoaderArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allLoaderArgs.add("LOADER=true");
@@ -603,7 +612,7 @@ public class BenchmarkController {
     /**
      * 
      */
-    public void startClients(final int numClients) {
+    public void startClients() {
         
         // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
         final ArrayList<String> allClientArgs = new ArrayList<String>();
@@ -649,6 +658,11 @@ public class BenchmarkController {
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allClientArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allClientArgs.add("LOADER=false");
+        
+        int threads_per_client = hstore_conf.client.processesperclient;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            threads_per_client *= CatalogUtil.getNumberOfPartitions(catalog);
+        }
 
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
         final AtomicInteger clientIndex = new AtomicInteger(0);
@@ -661,7 +675,7 @@ public class BenchmarkController {
             
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
             final List<Integer> clientIds = new ArrayList<Integer>();
-            for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
+            for (int j = 0; j < threads_per_client; j++) {
                 int clientId = clientIndex.getAndIncrement();
                 m_clientThreads.add(BenchmarkUtil.getClientName(clientHost, clientId));   
                 clientIds.add(clientId);
@@ -706,9 +720,8 @@ public class BenchmarkController {
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
         m_clientsNotReady.set(m_clientThreads.size());
-        assert(m_clientThreads.size() == (m_config.clients.length * hstore_conf.client.processesperclient)) :
-            String.format("%d != %d", m_clientThreads.size(),
-                                      (m_config.clients.length * hstore_conf.client.processesperclient));
+        assert(m_clientThreads.size() == totalNumClients) :
+            String.format("%d != %d", m_clientThreads.size(), totalNumClients);
 
         boolean output_clients = hstore_conf.client.output_clients;
         boolean output_basepartitions = hstore_conf.client.output_basepartitions;
@@ -793,7 +806,7 @@ public class BenchmarkController {
                                 m_projectBuilder.getProjectName().toUpperCase(),
                                 m_clientThreads.size(),
                                 m_config.clients.length,
-                                hstore_conf.client.processesperclient,
+                                hstore_conf.client.processesperclient * (hstore_conf.client.processesperclient_per_partition ? CatalogUtil.getNumberOfPartitions(catalog) : 1),
                                 hstore_conf.client.txnrate,
                                 hstore_conf.client.blocking,
                                 (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
@@ -1550,7 +1563,11 @@ public class BenchmarkController {
             clientParams.put("CATALOG", catalogPath.getAbsolutePath());
             clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
         }
-        clientParams.put("NUMCLIENTS", Integer.toString(clientCount * hstore_conf.client.processesperclient));
+        int total_num_clients = clientCount * hstore_conf.client.processesperclient;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            total_num_clients *= num_partitions;
+        }
+        clientParams.put("NUMCLIENTS", Integer.toString(total_num_clients));
         clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         
         config.clientParameters.putAll(clientParams);

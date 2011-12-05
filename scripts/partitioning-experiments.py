@@ -94,20 +94,20 @@ OPT_FORCE_REBOOT = False
 OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
-OPT_BASE_TXNRATE = 12500
+OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
     "site.exec_profiling",
     "site.txn_profiling",
-    "site.pool_profiling",
-    "site.planner_profiling",
+    #"site.pool_profiling",
+    #"site.planner_profiling",
     "site.status_show_txn_info",
     "site.status_show_exec_info",
-    "client.output_basepartitions",
+    #"client.output_basepartitions",
 ]
 
 BASE_SETTINGS = {
@@ -124,6 +124,7 @@ BASE_SETTINGS = {
     "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
+    "client.processesperclient_per_partition": True,
     "client.interval":                  10000,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
@@ -269,7 +270,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["site.exec_neworder_cheat"] = False
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
-            env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
+            #env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         else:
             env["site.exec_neworder_cheat"] = True
         ## IF
@@ -318,7 +319,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
     env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
-    env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
+    # env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
 
 ## DEF
 
@@ -396,6 +397,7 @@ if __name__ == '__main__':
         
         # Enable debug logging
         "debug",
+        "debug-hstore",
     ]
     for key in BASE_SETTINGS.keys():
         BASE_OPTIONS.append("%s=" % key)
@@ -417,6 +419,10 @@ if __name__ == '__main__':
     if "debug" in options:
         LOG.setLevel(logging.DEBUG)
         fabfile.LOG.setLevel(logging.DEBUG)
+    if "debug-hstore" in options:
+        for param in DEBUG_OPTIONS:
+            BASE_SETTINGS[param] = True
+        
     ## Global Options
     for key in options:
         varname = None

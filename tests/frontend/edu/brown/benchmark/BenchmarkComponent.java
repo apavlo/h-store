@@ -184,6 +184,7 @@ public abstract class BenchmarkComponent {
                     statsSettings,
                     catalog
             );
+            if (debug.get()) LOG.debug("Created global Client handle");
         }
         return (globalClient);
     }
