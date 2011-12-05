@@ -575,7 +575,7 @@ public class BenchmarkController {
 
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
-            allLoaderArgs.add("EXITONCOMPLETION=false");
+        allLoaderArgs.add("EXITONCOMPLETION=false");
         try {
             BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allLoaderArgs.toArray(new String[0]), true);
         } catch (Throwable ex) {

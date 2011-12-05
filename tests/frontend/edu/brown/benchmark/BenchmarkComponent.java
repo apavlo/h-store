@@ -982,9 +982,11 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
 
         m_countDisplayNames = getTransactionDisplayNames();
-        for (String txnName : m_countDisplayNames) {
-            m_txnStats.transactions.put(txnName, 0);
-        } // FOR
+        if (m_countDisplayNames != null) {
+            for (String txnName : m_countDisplayNames) {
+                m_txnStats.transactions.put(txnName, 0);
+            } // FOR
+        }
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread

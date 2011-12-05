@@ -11,7 +11,7 @@ public enum ProjectType {
     SIMPLE      ("Simple",      null),
     AIRLINE     ("Airline",     "edu.brown.benchmark.airline"),
     MARKOV      ("Markov",      "edu.brown.benchmark.markov"),
-    BINGO       ("Bingo",       null),
+    BINGO       ("Bingo",       "org.voltdb.benchmark.bingo"),
     AUCTIONMARK ("AuctionMark", "edu.brown.benchmark.auctionmark"),
     LOCALITY    ("Locality",    "edu.brown.benchmark.locality"),
     EXAMPLE     ("Example",     "edu.brown.benchmark.example"),

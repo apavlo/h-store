@@ -32,7 +32,6 @@ import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.benchmark.BenchmarkComponent;
@@ -50,19 +49,6 @@ public class BingoClient extends BenchmarkComponent {
         private Transaction(String displayName) { this.displayName = displayName; }
         public final String displayName;
     }
-
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = BingoProjectBuilder.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final String m_jarFileName = "bingo.jar";
 
     private static int maxTournaments = 10000;
     private static int maxRounds = 100;
