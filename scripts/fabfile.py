@@ -161,7 +161,7 @@ def benchmark():
 ## start_cluster
 ## ----------------------------------------------
 @task
-def start_cluster():
+def start_cluster(updateSync=True):
     """Deploy a new H-Store cluster on EC2 using the given configuration"""
     
     ## First make sure that our security group is setup
@@ -207,7 +207,7 @@ def start_cluster():
         ## If it's already running, check its type to see whether we want to make it a client or a site
         if is_running:
             instType = __getInstanceType__(inst)
-            if instType == env["ec2.site_type"]:
+            if instType == env["ec2.site_type"] and len(siteInstances) < siteCount:
                 siteInstances.append(inst)
             elif instType == env["ec2.client_type"]:
                 clientInstances.append(inst)
@@ -359,7 +359,7 @@ def start_cluster():
             first = False
         ## WITH
     ## FOR
-    sync_time()
+    if updateSync: sync_time()
 ## DEF
 
 ## ----------------------------------------------

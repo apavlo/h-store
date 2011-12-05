@@ -36,7 +36,7 @@ import org.voltdb.VoltType;
 import edu.brown.benchmark.airline.AirlineConstants;
 
 @ProcInfo(
-    singlePartition = false
+    partitionInfo = "CUSTOMER.C_ID: 0"
 )
 public class UpdateCustomer extends VoltProcedure {
     

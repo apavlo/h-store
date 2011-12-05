@@ -79,6 +79,7 @@ OPT_EXP_FACTOR_START = "0"
 OPT_EXP_FACTOR_STOP = "100"
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
+OPT_MULTIPLY_SCALEFACTOR = False
 OPT_TRACE = False
 OPT_FAST = False
 OPT_NO_EXECUTE = False
@@ -258,7 +259,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## THROUGHPUT
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
-        env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["hstore.exec_prefix"] = "-Dpartitionplan=%s -Dpartitionplan.ignore_missing=True" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         env["benchmark.neworder_multip_mix"] = -1
         env["benchmark.neworder_multip"] = True
         
@@ -376,6 +377,7 @@ if __name__ == '__main__':
         
         "benchmarks=",
         "partition-plans=",
+        "multiply-scalefactor",
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
@@ -491,6 +493,7 @@ if __name__ == '__main__':
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
     forceStop = False
+    origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
@@ -502,6 +505,10 @@ if __name__ == '__main__':
             #env["site.partitions_per_site"] = partitions / OPT_BASE_PARTITIONS_PER_SITE
             env["site.partitions"] = partitions
             all_results = [ ]
+                
+            # Increase the client.scalefactor based on the number of partitions
+            if OPT_MULTIPLY_SCALEFACTOR:
+                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor / partitions)
                 
             if OPT_EXP_TYPE == "motivation":
                 # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
@@ -531,7 +538,7 @@ if __name__ == '__main__':
                 
             if OPT_START_CLUSTER:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
-                fabfile.start_cluster()
+                fabfile.start_cluster(updateSync=needSync)
                 if OPT_NO_EXECUTE: sys.exit(0)
             ## IF
             

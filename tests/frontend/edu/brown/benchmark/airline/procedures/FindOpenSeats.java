@@ -56,8 +56,7 @@ import org.voltdb.*;
 import edu.brown.benchmark.airline.AirlineConstants;
 
 @ProcInfo(
-    partitionInfo = "RESERVATION.R_F_ID: 0",
-    singlePartition = true
+    partitionInfo = "RESERVATION.R_F_ID: 0"
 )
 public class FindOpenSeats extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(FindOpenSeats.class);

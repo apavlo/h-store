@@ -69,9 +69,10 @@ public class AirlineProjectBuilder extends AbstractProjectBuilder {
     
     public static final String PARTITIONING[][] = 
         new String[][] {
-            {AirlineConstants.TABLENAME_CUSTOMER,      "C_ID"},
-            {AirlineConstants.TABLENAME_FLIGHT,        "F_ID"},
-            {AirlineConstants.TABLENAME_RESERVATION,   "R_F_ID"},
+            {AirlineConstants.TABLENAME_CUSTOMER,       "C_ID"},
+            {AirlineConstants.TABLENAME_FLIGHT,         "F_ID"},
+            {AirlineConstants.TABLENAME_FREQUENT_FLYER, "FF_C_ID"},
+            {AirlineConstants.TABLENAME_RESERVATION,    "R_F_ID"},
             
             // Config Tables
             {AirlineConstants.TABLENAME_CONFIG_PROFILE ,    "CFP_SCALE_FACTOR"},

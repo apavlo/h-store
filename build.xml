@@ -1490,6 +1490,7 @@ BENCHMARKS
         <arg value="COORDINATORHOST=${coordinator.host}" />
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
+        <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
         
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -2312,6 +2313,7 @@ H-STORE REMIX
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
+        <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
         <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         
