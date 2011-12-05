@@ -24,30 +24,40 @@ package org.voltdb.benchmark.bingo;
 
 import org.voltdb.benchmark.bingo.procedures.CreateTournament;
 import org.voltdb.benchmark.bingo.procedures.DeleteTournament;
-import org.voltdb.benchmark.bingo.procedures.PlayRound;
 import org.voltdb.benchmark.bingo.procedures.GetAvgPot;
-import org.voltdb.compiler.VoltProjectBuilder;
+import org.voltdb.benchmark.bingo.procedures.PlayRound;
 
-import java.net.URL;
+import edu.brown.benchmark.AbstractProjectBuilder;
+import edu.brown.benchmark.BenchmarkComponent;
 
-public class BingoProjectBuilder extends VoltProjectBuilder {
-    private static final URL ddlURL =
-        BingoClient.class.getResource("bingo-ddl.sql");
-
-    public BingoProjectBuilder() {
-        super("bingo");
-    }
+public class BingoProjectBuilder extends AbstractProjectBuilder {
     
-    @Override
-    public void addAllDefaults() {
-        addProcedures(
-                CreateTournament.class,
-                PlayRound.class,
-                DeleteTournament.class,
-                GetAvgPot.class);
-        addSchema(ddlURL);
-        addPartitionInfo("T", "T_ID");
-        addPartitionInfo("B", "T_ID");
-        addPartitionInfo("R", "T_ID");
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_clientClass = BingoClient.class;
+    /**
+     * Retrieved via reflection by BenchmarkController
+     */
+    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
+    
+    
+    public static final Class<?> PROCEDURES[] = new Class<?>[] {
+        CreateTournament.class,
+        PlayRound.class,
+        DeleteTournament.class,
+        GetAvgPot.class
+    };
+    
+    public static final String PARTITIONING[][] = 
+        new String[][] {
+            {"T", "T_ID"},
+            {"B", "T_ID"},
+            {"R", "T_ID"},
+        };
+    
+    
+    public BingoProjectBuilder() {
+        super("bingo", BingoProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
 }
