@@ -305,7 +305,12 @@ public final class HStoreConf {
         public int queue_incoming_increase;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If a transaction is rejected by an ExecutionSite because its queue is full, then " +
+                        "this parameter determines what kind of response will be sent back to the client. " +
+                        "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
+                        "status response, which means it will wait for ${client.throttle_backoff} ms before " +
+                        "sending another transaction request. Otherwise, the client will recieve an " +
+                        "ABORT_REJECT status response and will be allowed to queue another transaction immediately.",
             defaultBoolean=false,
             experimental=false
         )
@@ -344,7 +349,12 @@ public final class HStoreConf {
         public int queue_dtxn_increase;
         
         @ConfigProperty(
-            description="", // TODO
+            description="If a transaction is rejected by the HStoreSite's distributed txn queue manager, then " +
+                        "this parameter determines what kind of response will be sent back to the client. " +
+                        "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
+                        "status response, which means it will wait for ${client.throttle_backoff} ms before " +
+                        "sending another transaction request. Otherwise, the client will recieve an " +
+                        "ABORT_REJECT status response and will be allowed to queue another transaction immediately.",
             defaultBoolean=false,
             experimental=false
         )
@@ -692,10 +702,18 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="Number of processes to use per client host.",
-            defaultInt=1,
+            defaultInt=10,
             experimental=false
         )
         public int processesperclient;
+        
+        @ConfigProperty(
+            description="Multiply the ${client.processesperclient} parameter by " +
+                        "the number of partitions in the target cluster.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean processesperclient_per_partition;
 
         @ConfigProperty(
             description="Number of clients hosts to use in the benchmark run.",
@@ -747,9 +765,11 @@ public final class HStoreConf {
         public int blocking_concurrent;
         
         @ConfigProperty(
-            description="", // TODO
+            description="When this parameter is enabled, the benchmark's loaders will only be " +
+                        "allowed to load tables into the database cluster one at a time. This is " +
+                        "only useful for debugging.",
             defaultBoolean=false,
-            experimental=false
+            experimental=true
         )
         public boolean blocking_loader;
 
