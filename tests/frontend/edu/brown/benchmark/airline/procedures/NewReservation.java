@@ -37,7 +37,7 @@ import edu.brown.benchmark.airline.AirlineConstants;
 import edu.brown.benchmark.airline.util.CustomerId;
 
 @ProcInfo(
-    singlePartition = false
+    partitionInfo = "RESERVATION.R_F_ID: 2"
 )
 public class NewReservation extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(NewReservation.class);

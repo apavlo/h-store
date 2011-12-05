@@ -41,10 +41,10 @@ public abstract class AirlineConstants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_DELETE_RESERVATION        = 10;
+    public static final int FREQUENCY_DELETE_RESERVATION        = 5;
     public static final int FREQUENCY_FIND_FLIGHTS              = 5;
     public static final int FREQUENCY_FIND_OPEN_SEATS           = 35;
-    public static final int FREQUENCY_NEW_RESERVATION           = 25;
+    public static final int FREQUENCY_NEW_RESERVATION           = 30;
     public static final int FREQUENCY_UPDATE_CUSTOMER           = 10;
     public static final int FREQUENCY_UPDATE_RESERVATION        = 15;
 
@@ -94,7 +94,7 @@ public abstract class AirlineConstants {
     public static final int PROB_FIND_AIRPORT_NEARBY = 30;
     
     /** Probability that UpdateCustomer should update FrequentFlyer records */
-    public static final int PROB_UPDATE_FREQUENT_FLYER = 30;
+    public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
 
     // ----------------------------------------------------------------
     // DATE CONSTANTS

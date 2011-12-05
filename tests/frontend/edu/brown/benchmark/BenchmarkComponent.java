@@ -786,6 +786,7 @@ public abstract class BenchmarkComponent {
         File catalogPath = null;
         String projectName = null;
         String partitionPlanPath = null;
+        boolean partitionPlanIgnoreMissing = false;
         long startupWait = -1;
         
         // scan the inputs once to read everything but host names
@@ -853,7 +854,9 @@ public abstract class BenchmarkComponent {
             }
             else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
-                assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
+                partitionPlanIgnoreMissing = Boolean.parseBoolean(parts[1]);
             }
             // If it starts with "benchmark.", then it always goes to the implementing class
             else if (parts[0].toLowerCase().startsWith(HStoreConstants.BENCHMARK_PARAM_PREFIX)) {
@@ -922,7 +925,10 @@ public abstract class BenchmarkComponent {
         }
         
         if (partitionPlanPath != null) {
-            this.applyPartitionPlan(partitionPlanPath);
+            boolean exists = FileUtil.exists(partitionPlanPath); 
+            if (partitionPlanIgnoreMissing == false)
+                assert(exists) : "Invalid partition plan path '" + partitionPlanPath + "'";
+            if (exists) this.applyPartitionPlan(partitionPlanPath);
         }
 
         Client new_client = BenchmarkComponent.getClient(

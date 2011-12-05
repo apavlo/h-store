@@ -58,7 +58,7 @@ import org.voltdb.VoltTable;
 import edu.brown.benchmark.airline.AirlineConstants;
 
 @ProcInfo(
-    partitionInfo = "RESERVATION.R_F_ID: 0"
+    partitionInfo = "RESERVATION.R_F_ID: 2"
 )    
 public class UpdateReservation extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(UpdateReservation.class);
@@ -100,6 +100,9 @@ public class UpdateReservation extends VoltProcedure {
         voltQueueSQL(CheckSeat, f_id, seatnum);
         voltQueueSQL(CheckCustomer, f_id, c_id);
         final VoltTable[] checkResults = voltExecuteSQL();
+        if (debug) {
+            LOG.debug(this.getTransactionState().debug());
+        }
         
         assert(checkResults.length == 2);
         if (checkResults[0].getRowCount() > 0) {
@@ -126,6 +129,10 @@ public class UpdateReservation extends VoltProcedure {
                 throw new VoltAbortException(msg);
             }
         } // FOR
+        
+        if (debug) {
+            LOG.debug(this.getTransactionState().debug());
+        }
         
         if (debug) LOG.debug(String.format("Updated reservation on flight %d for customer %d", f_id, c_id));
         return results;

@@ -28,6 +28,7 @@
 package edu.brown.benchmark.airline.procedures;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -35,6 +36,9 @@ import org.voltdb.VoltType;
 
 import edu.brown.benchmark.airline.AirlineConstants;
 
+@ProcInfo(
+    partitionInfo = "RESERVATION.R_F_ID: 0"
+)
 public class DeleteReservation extends VoltProcedure {
     private static final Logger LOG = Logger.getLogger(DeleteReservation.class);
     

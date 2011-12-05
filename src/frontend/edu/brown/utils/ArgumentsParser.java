@@ -151,6 +151,7 @@ public class ArgumentsParser {
     public static final String PARAM_PARTITION_PLAN_REMOVE_PROCS = PARAM_PARTITION_PLAN + ".removeprocs";
     public static final String PARAM_PARTITION_PLAN_RANDOM_PROCS = PARAM_PARTITION_PLAN + ".randomprocs";
     public static final String PARAM_PARTITION_PLAN_NO_SECONDARY = PARAM_PARTITION_PLAN + ".nosecondary";
+    public static final String PARAM_PARTITION_PLAN_IGNORE_MISSING = PARAM_PARTITION_PLAN + ".ignore_missing";
     
     public static final String PARAM_PARTITION_MAP          = "partitionmap";
     public static final String PARAM_PARTITION_MAP_OUTPUT   = PARAM_PARTITION_MAP + ".output";
@@ -798,15 +799,18 @@ public class ArgumentsParser {
         if (this.params.containsKey(PARAM_PARTITION_PLAN)) {
             assert(this.catalog_db != null);
             File path = new File(this.params.get(PARAM_PARTITION_PLAN));
-            if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
-            this.pplan = new PartitionPlan();
-            this.pplan.load(path.getAbsolutePath(), this.catalog_db);
-            
-            // Apply!
-            if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
-                boolean secondaryIndexes = this.getBooleanParam(PARAM_PARTITION_PLAN_NO_SECONDARY, false) == false;
-                LOG.info(String.format("Applying PartitionPlan '%s' to catalog [enableSecondary=%s]", path.getName(), secondaryIndexes));
-                this.pplan.apply(this.catalog_db, secondaryIndexes);
+            boolean ignoreMissing = this.getBooleanParam(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, false);
+            if (path.exists() || (path.exists() == false && ignoreMissing == false)) {
+                if (debug) LOG.debug("Loading in partition plan from '" + path + "'");
+                this.pplan = new PartitionPlan();
+                this.pplan.load(path.getAbsolutePath(), this.catalog_db);
+                
+                // Apply!
+                if (this.params.containsKey(PARAM_PARTITION_PLAN_APPLY) && this.getBooleanParam(PARAM_PARTITION_PLAN_APPLY)) {
+                    boolean secondaryIndexes = this.getBooleanParam(PARAM_PARTITION_PLAN_NO_SECONDARY, false) == false;
+                    LOG.info(String.format("Applying PartitionPlan '%s' to catalog [enableSecondary=%s]", path.getName(), secondaryIndexes));
+                    this.pplan.apply(this.catalog_db, secondaryIndexes);
+                }
             }
         }
         
