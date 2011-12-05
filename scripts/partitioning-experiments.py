@@ -102,7 +102,7 @@ OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
     "site.exec_profiling",
-    "site.txn_profiling",
+    #"site.txn_profiling",
     #"site.pool_profiling",
     #"site.planner_profiling",
     "site.status_show_txn_info",
@@ -158,9 +158,9 @@ BASE_SETTINGS = {
     "site.queue_incoming_release_factor":               0.90,
     "site.queue_incoming_increase":                     0,
     "site.queue_incoming_throttle":                     False,
-    "site.queue_dtxn_max_per_partition":                10000,
+    "site.queue_dtxn_max_per_partition":                1000,
     "site.queue_dtxn_release_factor":                   0.90,
-    "site.queue_dtxn_increase":                         10,
+    "site.queue_dtxn_increase":                         0,
     "site.queue_dtxn_throttle":                         False,
     
     "site.txn_enable_queue_pruning":                    False,
@@ -419,9 +419,8 @@ if __name__ == '__main__':
     if "debug" in options:
         LOG.setLevel(logging.DEBUG)
         fabfile.LOG.setLevel(logging.DEBUG)
-    if "debug-hstore" in options:
-        for param in DEBUG_OPTIONS:
-            BASE_SETTINGS[param] = True
+    for param in DEBUG_OPTIONS:
+        BASE_SETTINGS[param] = ("debug-hstore" in options)
         
     ## Global Options
     for key in options:
