@@ -78,7 +78,7 @@ public class AirlineTableStatisticsGenerator extends AbstractTableStatisticsGene
         this.addTableProfile(p);
 
         // FLIGHT
-        long num_flights = (int)Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY * 1.25);
+        long num_flights = (int)Math.round(AirlineConstants.MAX_FLIGHTS_PER_DAY);
         num_flights *= AirlineConstants.DAYS_FUTURE + AirlineConstants.DAYS_PAST + 1; 
         p = new TableProfile(this.catalog_db, AirlineConstants.TABLENAME_FLIGHT, false, num_flights);
         this.addTableProfile(p);
