@@ -86,6 +86,8 @@ public class BenchmarkConfig {
     public boolean noExecute;
     public boolean noShutdown;
     
+    public boolean killOnZeroResults;
+    
     public String markovPath;
     public String markov_thresholdsPath;
     public Double markov_thresholdsValue;
@@ -199,6 +201,7 @@ public class BenchmarkConfig {
             boolean noUploading,
             boolean noExecute,
             boolean noShutdown,
+            boolean killOnZeroResults,
             String workloadTrace,
             Set<Integer> profileSiteIds,
             String partitionPlanPath,
@@ -248,6 +251,9 @@ public class BenchmarkConfig {
         this.noUploading = noUploading;
         this.noExecute = noExecute;
         this.noShutdown = noShutdown;
+        
+        this.killOnZeroResults = killOnZeroResults;
+        
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
         

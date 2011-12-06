@@ -508,7 +508,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         synchronized (this.profile.cached_flight_ids) {
             // If we have room, shove it right in
             // We'll throw it in the back because we know it hasn't been used yet
-            if (this.profile.cached_flight_ids.size() < AirlineConstants.CACHED_FLIGHT_ID_SIZE) {
+            if (this.profile.cached_flight_ids.size() < AirlineConstants.CACHE_LIMIT_FLIGHT_IDS) {
                 this.profile.cached_flight_ids.addLast(flight_id);
                 added = true;
             

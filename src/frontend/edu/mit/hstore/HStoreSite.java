@@ -922,7 +922,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // REDIRECT TXN TO PROPER PARTITION
         // If the dest_partition isn't local, then we need to ship it off to the right location
         // -------------------------------
-        TransactionIdManager id_generator = this.txnid_manager; //  this.txnid_managers[base_partition];
+        TransactionIdManager id_generator = this.txnid_manager;
         if (this.single_partition_sets[base_partition] == null) {
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Forwarding %s request to partition %d", request.getProcName(), base_partition));
             
@@ -1012,7 +1012,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 // If there is no TransactinEstimator.State, then there is nothing we can do
                 // It has to be executed as multi-partitioned
                 if (t_state == null) {
-                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned", AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No TransactionEstimator.State was returned for %s. Executing as multi-partitioned",
+                                                            AbstractTransaction.formatTxnName(catalog_proc, txn_id))); 
                     predict_touchedPartitions = this.all_partitions;
                     
                 // We have a TransactionEstimator.State, so let's see what it says...

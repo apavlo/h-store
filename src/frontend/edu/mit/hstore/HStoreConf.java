@@ -235,6 +235,13 @@ public final class HStoreConf {
         )
         public boolean exec_queued_response_ee_bypass;
         
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=10000,
+            experimental=true
+        )
+        public int exec_response_timeout;
+        
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------

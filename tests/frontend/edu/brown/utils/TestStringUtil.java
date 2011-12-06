@@ -54,9 +54,9 @@ public class TestStringUtil extends TestCase {
             String strs[] = new String[num_cols];
             for (int i = 0; i < strs.length; i++) {
                 lists[i] = new ArrayList<Integer>();
-                int size = rand.nextInt(30);
+                int size = rand.nextInt(30) + 1;
                 for (int j = 0; j < size; j++) {
-                    int value = rand.nextInt();
+                    int value = rand.nextInt() + 1;
                     lists[i].add(value);
                 }
                 strs[i] = StringUtil.join("\n", lists[i]);
