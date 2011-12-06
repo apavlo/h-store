@@ -174,7 +174,9 @@ public class ProcessSetManager implements Shutdownable {
                     if (isAlive == false && reported_error == false && isShuttingDown() == false) {
                         String msg = String.format("Failed to poll '%s'", e.getKey());
                         LOG.error(msg);
-                        failure_observable.notifyObservers(e.getKey());
+                        
+                        msg = String.format("Process '%s' failed. Halting benchmark!", e.getKey());
+                        failure_observable.notifyObservers(msg);
                         reported_error = true;
                     }
                 } // FOR

@@ -286,6 +286,8 @@ public class BenchmarkResults {
     
     // cached data for performance and consistency
     private final SortedSet<String> m_transactionNames = new TreeSet<String>();
+    
+    private Pair<Long, Long> CACHE_computeTotalAndDelta = null;
 
     BenchmarkResults(long pollIntervalInMillis, long durationInMillis, int clientCount) {
         assert((durationInMillis % pollIntervalInMillis) == 0) : "duration does not comprise an integral number of polling intervals.";
@@ -389,19 +391,24 @@ public class BenchmarkResults {
      * @return
      */
     public Pair<Long, Long> computeTotalAndDelta() {
-        long totalTxnCount = 0;
-        long txnDelta = 0;
-        
-        for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
-            for (List<Result> txnResults : clientResults.values()) {
-                Result last = CollectionUtil.last(txnResults);
-                int num_results = txnResults.size();
-                long delta = last.transactionCount - (num_results > 1 ? txnResults.get(num_results-2).transactionCount : 0);
-                totalTxnCount += last.transactionCount;
-                txnDelta += delta;
-            } // FOR
-        } // FOR
-        return (Pair.of(totalTxnCount, txnDelta));
+        if (CACHE_computeTotalAndDelta == null) {
+            synchronized (this) {
+                long totalTxnCount = 0;
+                long txnDelta = 0;
+                
+                for (SortedMap<String, List<Result>> clientResults : m_data.values()) {
+                    for (List<Result> txnResults : clientResults.values()) {
+                        Result last = CollectionUtil.last(txnResults);
+                        int num_results = txnResults.size();
+                        long delta = last.transactionCount - (num_results > 1 ? txnResults.get(num_results-2).transactionCount : 0);
+                        totalTxnCount += last.transactionCount;
+                        txnDelta += delta;
+                    } // FOR
+                } // FOR
+                CACHE_computeTotalAndDelta = Pair.of(totalTxnCount, txnDelta);
+            } // SYNCH
+        }
+        return (CACHE_computeTotalAndDelta); 
     }
 
     public BenchmarkResults addPollResponseInfo(String clientName, int pollIndex, long time, BenchmarkComponent.TransactionCounter tc, String errMsg) {

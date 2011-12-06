@@ -34,6 +34,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.airline.AirlineConstants;
+import edu.brown.benchmark.airline.AirlineConstants.ErrorType;
 import edu.brown.benchmark.airline.util.CustomerId;
 
 @ProcInfo(
@@ -134,26 +135,31 @@ public class NewReservation extends VoltProcedure {
 
         // Flight Information
         if (initialResults[0].getRowCount() != 1) {
-            throw new VoltAbortException("Invalid flight id: " + f_id);
+            throw new VoltAbortException(ErrorType.INVALID_FLIGHT_ID +
+                                         String.format(" Invalid flight #%d", f_id));
         }
         initialResults[0].advanceRow();
         if (initialResults[0].getLong(1) <= 0) {
-            throw new VoltAbortException("No more seats available for flight #" + f_id);
+            throw new VoltAbortException(ErrorType.NO_MORE_SEATS +
+                                         String.format(" No more seats available for flight #%d", f_id));
         }
         long airline_id = initialResults[0].getLong(0);
         long seats_left = initialResults[0].getLong(1);
         
         // Check for existing reservation
         if (initialResults[1].getRowCount() > 0) {
-            throw new VoltAbortException(String.format("Seat %d is already reserved on flight #%d", seatnum, f_id));
+            throw new VoltAbortException(ErrorType.SEAT_ALREADY_RESERVED +
+                                         String.format(" Seat %d is already reserved on flight #%d", seatnum, f_id));
         }
         // Or the customer trying to book themselves twice
         else if (initialResults[2].getRowCount() > 1) {
-            throw new VoltAbortException(String.format("Customer %d already owns on a reservations on flight #%d", c_id, f_id));
+            throw new VoltAbortException(ErrorType.CUSTOMER_ALREADY_HAS_SEAT +
+                                         String.format(" Customer %d already owns on a reservations on flight #%d", c_id, f_id));
         }
         // Customer Information
         else if (initialResults[3].getRowCount() != 1) {
-            throw new VoltAbortException(String.format("Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
+            throw new VoltAbortException(ErrorType.INVALID_CUSTOMER_ID + 
+                                         String.format(" Invalid customer id: %d / %s", c_id, new CustomerId(c_id)));
         }
         
         voltQueueSQL(InsertReservation, r_id, c_id, f_id, seatnum, price,
@@ -168,13 +174,13 @@ public class NewReservation extends VoltProcedure {
         final VoltTable[] results = voltExecuteSQL();
         for (int i = 0; i < results.length - 1; i++) {
             if (results[i].getRowCount() != 1) {
-                String msg = String.format("Failed to add reservation for flight %d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
+                String msg = String.format("Failed to add reservation for flight #%d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
                 throw new VoltAbortException(msg);
             }
             long updated = results[i].asScalarLong();
             if (updated != 1) {
-                String msg = String.format("Failed to add reservation for flight %d - Updated %d records for %s", f_id, updated, voltLastQueriesExecuted()[i]);
+                String msg = String.format("Failed to add reservation for flight #%d - Updated %d records for %s", f_id, updated, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
                 throw new VoltAbortException(msg);
             }

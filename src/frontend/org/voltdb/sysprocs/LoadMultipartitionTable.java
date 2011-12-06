@@ -279,8 +279,8 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         MaterializedViewInfo catalog_view = CatalogUtil.getVerticalPartition(catalog_tbl);
         if (debug.get()) LOG.debug(String.format("%s Vertical Partition: %s", catalog_tbl.getName(), catalog_view));
         if (catalog_view != null) {
-//            if (debug.get()) 
-                LOG.info(String.format("Updating %s's vertical partition %s", catalog_tbl.getName(), catalog_view.getDest().getName()));
+            if (debug.get()) 
+                LOG.debug(String.format("Updating %s's vertical partition %s", catalog_tbl.getName(), catalog_view.getDest().getName()));
             executeSysProcPlanFragments(createVerticalPartitionPlan(catalog_view, table), (int)DEP_aggregate);
         }
         

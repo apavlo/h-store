@@ -118,11 +118,11 @@ public class BenchmarkController {
         final ReentrantLock lock = new ReentrantLock();
         
         @Override
-        public void update(EventObservable<String> o, String processName) {
+        public void update(EventObservable<String> o, String msg) {
             lock.lock();
             try {
                 if (BenchmarkController.this.stop == false) {
-                    LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
+                    LOG.fatal(msg);
                     BenchmarkController.this.stop = true;
                     BenchmarkController.this.failed = true;
                     m_clientPSM.prepareShutdown(false);
@@ -727,7 +727,13 @@ public class BenchmarkController {
         boolean output_basepartitions = hstore_conf.client.output_basepartitions;
         ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter(output_clients, output_basepartitions) :
                                                    new ResultsPrinter(output_clients, output_basepartitions));
-        registerInterest(rp);
+        this.registerInterest(rp);
+        
+        if (m_config.killOnZeroResults) {
+            if (debug.get()) LOG.debug("Will kill benchmark if results are zero for two poll intervals");
+            ResultsChecker checker = new ResultsChecker(this.failure_observer);
+            this.registerInterest(checker);
+        }
     }
 
     private Client getClientConnection() {
@@ -1198,6 +1204,8 @@ public class BenchmarkController {
         boolean noExecute = false;
         boolean noShutdown = false;
         
+        boolean killOnZeroResults = false; 
+        
         Catalog catalog = null;
         
         // HStoreConf Path
@@ -1254,6 +1262,9 @@ public class BenchmarkController {
             /* Whether to enable JSON output formatting of the final result */
             } else if (parts[0].equalsIgnoreCase("JSONOUTPUT")) {
                 jsonOutput = Boolean.parseBoolean(parts[1]);
+            /* Whether to kill the benchmark if we get consecutive intervals with zero results */
+            } else if (parts[0].equalsIgnoreCase("KILLONZERO")) {
+                killOnZeroResults = Boolean.parseBoolean(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 /*
@@ -1548,6 +1559,7 @@ public class BenchmarkController {
                 noUploading,
                 noExecute,
                 noShutdown,
+                killOnZeroResults,
                 workloadTrace,
                 profileSiteIds,
                 partitionPlanPath,

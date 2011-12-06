@@ -27,30 +27,82 @@
  ***************************************************************************/
 package edu.brown.benchmark.airline;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public abstract class AirlineConstants {
     
-    public static final int DISTANCES[] = { 5 }; // , 10, 25, 50, 100 };
-    
-    public static final int DAYS_PAST = 7;
-
-    public static final int DAYS_FUTURE = 14;
-    
-    /** The number of FlightIds we want to keep cached */
-    public static final int CACHED_FLIGHT_ID_SIZE = 1000;
-    
     // ----------------------------------------------------------------
-    // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
+    // STORED PROCEDURE EXECUTION FREQUENCIES (0% - 100%)
     // ----------------------------------------------------------------
+    
     public static final int FREQUENCY_DELETE_RESERVATION        = 5;
     public static final int FREQUENCY_FIND_FLIGHTS              = 5;
     public static final int FREQUENCY_FIND_OPEN_SEATS           = 35;
     public static final int FREQUENCY_NEW_RESERVATION           = 30;
     public static final int FREQUENCY_UPDATE_CUSTOMER           = 10;
     public static final int FREQUENCY_UPDATE_RESERVATION        = 15;
-
-    /** Initial Data Sizes */
-    public static final int NUM_CUSTOMERS = 1000000;
     
+//    public static final int FREQUENCY_DELETE_RESERVATION        = 0;
+//    public static final int FREQUENCY_FIND_FLIGHTS              = 100;
+//    public static final int FREQUENCY_FIND_OPEN_SEATS           = 0;
+//    public static final int FREQUENCY_NEW_RESERVATION           = 0;
+//    public static final int FREQUENCY_UPDATE_CUSTOMER           = 0;
+//    public static final int FREQUENCY_UPDATE_RESERVATION        = 0;
+
+    // ----------------------------------------------------------------
+    // ERRORS
+    // ----------------------------------------------------------------
+    
+    public enum ErrorType {
+        INVALID_FLIGHT_ID,
+        INVALID_CUSTOMER_ID,
+        NO_MORE_SEATS,
+        SEAT_ALREADY_RESERVED,
+        CUSTOMER_ALREADY_HAS_SEAT,
+        UNKNOWN;
+        
+        private final String errorCode;
+        private final static Pattern p = Pattern.compile("^E([\\d]{4})");
+        
+        private ErrorType() {
+            this.errorCode = String.format("E%04d", this.ordinal());
+        }
+        
+        public static ErrorType getErrorType(String msg) {
+            Matcher m = p.matcher(msg);
+            if (m.find()) {
+                int idx = Integer.parseInt(m.group(1));
+                return ErrorType.values()[idx];
+            }
+            return (ErrorType.UNKNOWN);
+        }
+        @Override
+        public String toString() {
+            return this.errorCode;
+        }
+    }
+    
+    
+    // ----------------------------------------------------------------
+    // CONSTANTS
+    // ----------------------------------------------------------------
+    
+    /** 
+     * The different distances that we can look-up for nearby airports
+     * This is similar to the customer selecting a dropdown when looking for flights 
+     */
+    public static final int DISTANCES[] = { 5 }; // , 10, 25, 50, 100 };
+    
+    /** The number of days in the past that we will generate flight information for */
+    public static final int DAYS_PAST = 7;
+
+    /** The number of days in the future that we will generate flight information for */
+    public static final int DAYS_FUTURE = 14;
+    
+    /** Default number of customers in the database */
+    public static final int NUM_CUSTOMERS = 1000000;
+
     /**
      * Average # of flights per day
      * Source: http://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236&DB_Short_Name=On-Time
@@ -71,9 +123,7 @@ public abstract class AirlineConstants {
      */
     public static final int MAX_RETURN_FLIGHT_DAYS = 14;   
     
-    /** 
-     * The rate in which a flight can travel between two airports (miles per hour)
-     * */
+    /** The rate in which a flight can travel between two airports (miles per hour) */
     public static final double FLIGHT_TRAVEL_RATE = 570.0; // Boeing 747
     
     // ----------------------------------------------------------------
@@ -83,19 +133,40 @@ public abstract class AirlineConstants {
     /** Probability that a customer books a non-roundtrip flight (0% - 100%) */
     public static final int PROB_SINGLE_FLIGHT_RESERVATION = 10;
     
+    /**
+     * Probability that a customer will invoke DeleteReservation using the string
+     * version of their Customer Id (0% - 100%)
+     */
     public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 20;
+    
+    /**
+     * Probability that a customer will invoke UpdateCustomer using the string
+     * version of their Customer Id (0% - 100%)
+     */
+    public static final int PROB_UPDATE_WITH_CUSTOMER_ID_STR = 20;
+    
+    /**
+     * Probability that a customer will invoke DeleteReservation using the string
+     * version of their FrequentFlyer Id (0% - 100%)
+     */
     public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
     
     /** Probability that is a seat is initially occupied (0% - 100%) */
     public static final int PROB_SEAT_OCCUPIED_MIN = 70;
     public static final int PROB_SEAT_OCCUPIED_MAX = 90;
     
-    /** Probability that FindFlightByAirport will use the distance search */
-    public static final int PROB_FIND_AIRPORT_NEARBY = 30;
-    
     /** Probability that UpdateCustomer should update FrequentFlyer records */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
+    
+    public static final int PROB_DELETE_NEW_RESERVATION = 50;
+    
+    public static final int PROB_UPDATE_NEW_RESERVATION = 50;
 
+    /** Probability that FindFlights will use the distance search */
+    public static final int PROB_FIND_FLIGHTS_NEARBY_AIRPORT = 25;
+    
+    public static final int PROB_FIND_FLIGHTS_RANDOM_AIRPORTS = 10;
+    
     // ----------------------------------------------------------------
     // DATE CONSTANTS
     // ----------------------------------------------------------------
@@ -105,6 +176,18 @@ public abstract class AirlineConstants {
     
     /** Number of microseconds in a day */
     public static final long MICROSECONDS_PER_DAY = 86400000000l; // 60sec * 60min * 24hr * 1,000,000 
+    
+    // ----------------------------------------------------------------
+    // CACHE SIZES
+    // ----------------------------------------------------------------
+    
+    /** The number of FlightIds we want to keep cached */
+    public static final int CACHE_LIMIT_FLIGHT_IDS = 1000;
+    
+    public static final int CACHE_LIMIT_PENDING_INSERTS = 2000;
+    public static final int CACHE_LIMIT_PENDING_UPDATES = 2000;
+    public static final int CACHE_LIMIT_PENDING_DELETES = 2000;
+    
     
     // ----------------------------------------------------------------
     // DATA SET INFORMATION

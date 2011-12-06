@@ -2125,7 +2125,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             while (true) {
                 boolean done = false;
                 try {
-                    done = latch.await(1000, TimeUnit.MILLISECONDS);
+                    done = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     if (this.hstore_site.isShuttingDown() == false) LOG.error("__FILE__:__LINE__ " + "We were interrupted while waiting for results for " + ts, ex);
                     return (null);
@@ -2134,7 +2134,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
                 if (done) break;
                 if (this.isShuttingDown() == false) {
-                    LOG.warn("__FILE__:__LINE__ " + "Still waiting for responses for " + ts + "\n" + ts.debug());
+                    LOG.warn("__FILE__:__LINE__ " + String.format("Still waiting for responses for %s after %d ms\n%s",
+                                                    ts, hstore_conf.site.exec_response_timeout, ts.debug()));
                     throw new VoltAbortException("Responses for " + ts + "never arrived!");
                 }
             } // WHILE

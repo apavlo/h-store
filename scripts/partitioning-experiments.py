@@ -90,6 +90,7 @@ OPT_NO_CONF = False
 OPT_NO_UPDATE = False
 OPT_NO_SYNC = True
 OPT_STOP_ON_ERROR = False
+OPT_RETRY_ON_ZERO = False
 OPT_FORCE_REBOOT = False
 
 OPT_BASE_BLOCKING = True
@@ -152,6 +153,9 @@ BASE_SETTINGS = {
     "site.txn_restart_limit":                           5,
     "site.txn_restart_limit_sysproc":                   100,
     
+    "site.exec_force_singlepartitioned":                True,
+    "site.exec_mispredict_crash":                       False,
+    
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
     "site.memory":                                      6002,
@@ -207,7 +211,6 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_only":           False,
             "benchmark.neworder_abort":          True,
             "benchmark.warehouse_debug":         False,
-            "site.exec_neworder_cheat":          True
         }
         
     ],
@@ -259,7 +262,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## THROUGHPUT
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
-        env["hstore.exec_prefix"] = "-Dpartitionplan=%s -Dpartitionplan.ignore_missing=True" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["hstore.exec_prefix"] += " -Dpartitionplan=%s -Dpartitionplan.ignore_missing=True" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         env["benchmark.neworder_multip_mix"] = -1
         env["benchmark.neworder_multip"] = True
         
@@ -273,7 +276,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["site.exec_db2_redirects"] = True
             #env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         else:
-            env["site.exec_neworder_cheat"] = True
+            env["site.exec_neworder_cheat"] = (benchmark == "tpcc")
         ## IF
         
     ## BREAKDOWN
@@ -391,6 +394,7 @@ if __name__ == '__main__':
         "no-json",
         "force-reboot",
         "stop-on-error",
+        "retry-on-zero",
         "trace",
         
         "codespeed-url=",
@@ -489,6 +493,10 @@ if __name__ == '__main__':
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
 
+    # If we get two consecutive intervals with zero results, then stop the benchmark
+    if OPT_RETRY_ON_ZERO:
+        env["hstore.exec_prefix"] += " -Dkillonzero=true"
+    
     needUpdate = (OPT_NO_UPDATE == False)
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
@@ -565,8 +573,10 @@ if __name__ == '__main__':
                             env["hstore.exec_prefix"] += " compile"
                     else:
                         env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
-                    needCompile = False
+                        
+
                     
+                    needCompile = False
                     attempts += 1
                     LOG.info("Executing %s Trial #%d/%d for Factor %s [attempt=%d/%d]" % (\
                                 benchmark.upper(),
@@ -605,7 +615,7 @@ if __name__ == '__main__':
                                 ## IF
                                 LOG.info("Throughput: %.2f" % txnrate)
                                 
-                                if "codespeed-url" in options and txnrate > 0:
+                                if "codespeed-url" in options and options["codespeed-url"][0] and txnrate > 0:
                                     upload_url = options["codespeed-url"][0]
                                     
                                     if "codespeed-revision" in options:

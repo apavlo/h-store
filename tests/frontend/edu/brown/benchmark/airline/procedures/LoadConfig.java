@@ -32,7 +32,7 @@ public class LoadConfig extends VoltProcedure {
     public final SQLStmt getFlights = new SQLStmt(
         "SELECT f_id FROM " + AirlineConstants.TABLENAME_FLIGHT +
         " ORDER BY F_DEPART_TIME DESC " + 
-        " LIMIT " + AirlineConstants.CACHED_FLIGHT_ID_SIZE
+        " LIMIT " + AirlineConstants.CACHE_LIMIT_FLIGHT_IDS
     );
     
     public VoltTable[] run() {
