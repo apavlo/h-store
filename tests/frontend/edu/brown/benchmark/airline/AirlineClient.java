@@ -523,6 +523,7 @@ public class AirlineClient extends AirlineBaseClient {
             int insert = (rowCount == 1 ? 1 : rng.nextInt(rowCount-1) + 1);
             Set<Integer> s = rng.getRandomIntSet(insert, rowCount);
             List<Reservation> reservations = new ArrayList<Reservation>();
+            Set<Integer> emptySeats = new HashSet<Integer>();
             for (int i = 0; i < rowCount; i++) {
                 // Store pending reservations in our queue for a later transaction
                 boolean adv = results[0].advanceRow();
@@ -530,7 +531,7 @@ public class AirlineClient extends AirlineBaseClient {
                 if (s.contains(i) == false) continue;
                 
                 FlightId flight_id = new FlightId(results[0].getLong(0));
-                long seatnum = results[0].getLong(1);
+                int seatnum = (int)results[0].getLong(1);
                 long airport_depart_id = flight_id.getDepartAirportId();
                 CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
                 if (customer_id == null) {
@@ -543,12 +544,19 @@ public class AirlineClient extends AirlineBaseClient {
                 
                 reservations.add(new Reservation(getNextReservationId(), flight_id, customer_id, (int)seatnum));
                 if (debug.get()) LOG.debug("QUEUED INSERT: " + flight_id + " / " + flight_id.encode());
+                
+                emptySeats.add(seatnum);
             } // FOR
             if (reservations.isEmpty() == false) {
                 Collections.shuffle(reservations, rng);
                 AirlineClient.CACHE_PENDING_INSERTS.addAll(reservations);
-                
             }
+            BitSet seats = getSeatsBitSet(element);
+            for (int i = 0; i < AirlineConstants.NUM_SEATS_PER_FLIGHT; i++) {
+                if (emptySeats.contains(i) == false) {
+                    seats.set(i);
+                }
+            } // FOR
         }
     }
 

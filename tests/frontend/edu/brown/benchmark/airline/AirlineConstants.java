@@ -98,21 +98,26 @@ public abstract class AirlineConstants {
     public static final int DAYS_PAST = 7;
 
     /** The number of days in the future that we will generate flight information for */
-    public static final int DAYS_FUTURE = 14;
+    public static final int DAYS_FUTURE = 30;
     
     /** Default number of customers in the database */
     public static final int NUM_CUSTOMERS = 1000000;
 
     /**
      * Average # of flights per day
+     * NUM_FLIGHTS_PER_DAY = 15000
      * Source: http://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236&DB_Short_Name=On-Time
      */
-    public static final int NUM_FLIGHTS_PER_DAY = 15000;
+    public static final int MIN_FLIGHTS_PER_DAY = 11250;
+    public static final int MAX_FLIGHTS_PER_DAY = 18750;
     
     /** Max Number of FREQUENT_FLYER records per CUSTOMER */ 
     public static final int MAX_FREQUENTFLYER_PER_CUSTOMER = 5;
     
-    /** Number of seats available per flight */
+    /**
+     * Number of seats available per flight
+     * If you change this then you must also change FindOpenSeats
+     */
     public static final int NUM_SEATS_PER_FLIGHT = 150;
     
     public static final int FIRST_CLASS_SEATS_OFFSET = 10;
@@ -125,6 +130,9 @@ public abstract class AirlineConstants {
     
     /** The rate in which a flight can travel between two airports (miles per hour) */
     public static final double FLIGHT_TRAVEL_RATE = 570.0; // Boeing 747
+    
+    public static final int MIN_RESERVATION_PRICE = 100;
+    public static final int MAX_RESERVATION_PRICE = 1000;
     
     // ----------------------------------------------------------------
     // PROBABILITIES
@@ -152,8 +160,8 @@ public abstract class AirlineConstants {
     public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
     
     /** Probability that is a seat is initially occupied (0% - 100%) */
-    public static final int PROB_SEAT_OCCUPIED_MIN = 70;
-    public static final int PROB_SEAT_OCCUPIED_MAX = 90;
+    public static final int PROB_SEAT_OCCUPIED_MIN = 50;
+    public static final int PROB_SEAT_OCCUPIED_MAX = 70;
     
     /** Probability that UpdateCustomer should update FrequentFlyer records */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;

@@ -552,7 +552,7 @@ public class AirlineLoader extends AirlineBaseClient {
             it = new FlightIterable(catalog_tbl, AirlineConstants.DAYS_PAST, AirlineConstants.DAYS_FUTURE);
         // Reservations
         } else if (name.equals(AirlineConstants.TABLENAME_RESERVATION)) {
-            long total = Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY / scaleFactor);
+            long total = Math.round((AirlineConstants.MIN_FLIGHTS_PER_DAY + AirlineConstants.MAX_FLIGHTS_PER_DAY) / 2d / scaleFactor);
             it = new ReservationIterable(catalog_tbl, total);
         } else {
             assert(false) : "Unexpected table '" + name + "' in getScalingIterable()";
@@ -939,7 +939,7 @@ public class AirlineLoader extends AirlineBaseClient {
         private final RandomDistribution.FlatHistogram<String> airports;
         private final Map<String, RandomDistribution.FlatHistogram<String>> flights_per_airport = new HashMap<String, RandomDistribution.FlatHistogram<String>>();
         private final RandomDistribution.FlatHistogram<String> flight_times;
-        private final RandomDistribution.Flat prices = new RandomDistribution.Flat(rng, 100, 1000);
+        private final RandomDistribution.Flat prices = new RandomDistribution.Flat(rng, AirlineConstants.MIN_RESERVATION_PRICE, AirlineConstants.MAX_RESERVATION_PRICE);
         
         private final Pattern time_pattern = Pattern.compile("([\\d]{2,2}):([\\d]{2,2})");
         private final ListOrderedMap<TimestampType, Integer> flights_per_day = new ListOrderedMap<TimestampType, Integer>();
@@ -988,8 +988,8 @@ public class AirlineLoader extends AirlineBaseClient {
             this.today = new TimestampType();
             
             this.total = 0;
-            int num_flights_low = (int)Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY * 0.75);
-            int num_flights_high = (int)Math.round(AirlineConstants.NUM_FLIGHTS_PER_DAY * 1.25);
+            int num_flights_low = (int)Math.round(AirlineConstants.MIN_FLIGHTS_PER_DAY);
+            int num_flights_high = (int)Math.round(AirlineConstants.MAX_FLIGHTS_PER_DAY);
             
             RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(rng, num_flights_low, num_flights_high);
             boolean first = true;
@@ -1062,10 +1062,11 @@ public class AirlineLoader extends AirlineBaseClient {
         }
         
         /** 
-         * Give each seat a 70%-90% probability of being occupied
+         * Returns true if this seat is occupied (which means we must generate a reservation)
          */
         boolean seatIsOccupied() {
-            return (rng.number(1,100) < rng.number(AirlineConstants.PROB_SEAT_OCCUPIED_MIN, AirlineConstants.PROB_SEAT_OCCUPIED_MAX));
+            return (rng.number(1,100) < rng.number(AirlineConstants.PROB_SEAT_OCCUPIED_MIN,
+                                                   AirlineConstants.PROB_SEAT_OCCUPIED_MAX));
         }
         
         @Override
@@ -1155,7 +1156,7 @@ public class AirlineLoader extends AirlineBaseClient {
     // RESERVATIONS
     // ----------------------------------------------------------------
     protected class ReservationIterable extends ScalingDataIterable {
-        private final RandomDistribution.Flat prices = new RandomDistribution.Flat(rng, 100, 1000);
+        private final RandomDistribution.Flat prices = new RandomDistribution.Flat(rng, AirlineConstants.MIN_RESERVATION_PRICE, AirlineConstants.MAX_RESERVATION_PRICE);
         
         /**
          * For each airport id, store a list of ReturnFlight objects that represent customers
@@ -1169,8 +1170,6 @@ public class AirlineLoader extends AirlineBaseClient {
          */
         private boolean done = false;
         
-        private Throwable error = null;
-        
         /**
          * We use a Gaussian distribution for determining how long a customer will stay at their
          * destination before needing to return to their original airport
@@ -1179,6 +1178,7 @@ public class AirlineLoader extends AirlineBaseClient {
         
         private final LinkedBlockingDeque<Object[]> queue = new LinkedBlockingDeque<Object[]>(100);
         private Object current[] = null;
+        private Throwable error = null;
         
         /**
          * Constructor
@@ -1278,8 +1278,7 @@ public class AirlineLoader extends AirlineBaseClient {
                     
                     // If it's a new outbound flight, then we will randomly decide when this customer will return (if at all)
                     } else {
-                        int rand = rng.nextInt(100);
-                        if (rand <= AirlineConstants.PROB_SINGLE_FLIGHT_RESERVATION) {
+                        if (rng.nextInt(100) < AirlineConstants.PROB_SINGLE_FLIGHT_RESERVATION) {
                             // Do nothing for now...
                             
                         // Create a ReturnFlight object to record that this customer needs a flight
