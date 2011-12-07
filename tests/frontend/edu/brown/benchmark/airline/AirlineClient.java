@@ -191,7 +191,7 @@ public class AirlineClient extends AirlineBaseClient {
      * a new reservation. Some of them will want to change their seats. This data structure
      * represents a customer that is queued to change their seat. 
      */
-    private class Reservation {
+    protected static class Reservation {
         public final long id;
         public final FlightId flight_id;
         public final CustomerId customer_id;

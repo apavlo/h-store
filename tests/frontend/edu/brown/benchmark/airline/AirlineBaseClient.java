@@ -133,6 +133,7 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
             } else if (key.equalsIgnoreCase("datadir")) {
                 data_dir = value;
             }
+            System.err.println(key + " => " + value);
         } // FOR
         if (data_dir == null) {
             throw new RuntimeException("Unable to start benchmark. Missing 'datadir' parameter\n" + StringUtil.formatMaps(m_extraParams)); 
