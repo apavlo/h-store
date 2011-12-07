@@ -1065,8 +1065,7 @@ public class AirlineLoader extends AirlineBaseClient {
          * Returns true if this seat is occupied (which means we must generate a reservation)
          */
         boolean seatIsOccupied() {
-            return (rng.number(1,100) < rng.number(AirlineConstants.PROB_SEAT_OCCUPIED_MIN,
-                                                   AirlineConstants.PROB_SEAT_OCCUPIED_MAX));
+            return (rng.nextInt(100) < AirlineConstants.PROB_SEAT_OCCUPIED_MIN);
         }
         
         @Override

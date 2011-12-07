@@ -276,7 +276,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["site.exec_db2_redirects"] = True
             #env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         else:
-            env["site.exec_neworder_cheat"] = (benchmark == "tpcc")
+            env["site.exec_neworder_cheat"] = (benchmark in ["tpcc", "airline"])
         ## IF
         
     ## BREAKDOWN

@@ -241,8 +241,10 @@ public class ProcessSetManager implements Shutdownable {
                         // final long now = (System.currentTimeMillis() / 1000) - 1256158053;
                         // m_writer.write(String.format("(%d) %s: %s\n", now, m_processName, line));
                         if (m_writer != null) {
-                            m_writer.write(line + "\n");
-                            m_writer.flush();
+                            synchronized (m_writer) {
+                                m_writer.write(line + "\n");
+                                m_writer.flush();
+                            } // SYNCH
                         }
                         m_output.add(ol);
                     }

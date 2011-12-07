@@ -74,6 +74,7 @@ public class ClientStatusThread extends Thread {
             }
             else if (line.stream == ProcessSetManager.Stream.STDERR) {
                 System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
+//                System.err.printf("%s\n", line.value);
                 continue;
             }
             // General Debug Output

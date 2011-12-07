@@ -39,6 +39,8 @@ public abstract class AbstractEstimator {
         for (Integer p : this.hstore_site.getLocalPartitionIds()) {
             this.singlePartitionSets.put(p, Collections.singleton(p));
         } // FOR
+        
+        LOG.info("Initialized fixed transaction estimator -> " + this.getClass().getSimpleName());
     }
     
     public final Collection<Integer> initializeTransaction(Procedure catalog_proc, Object args[]) {

@@ -586,7 +586,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     ## Update H-Store Conf file
     if updateConf:
         LOG.info("Updating H-Store configuration files")
-        write_conf(project, removals)
+        write_conf(project, removals, revertFirst=True)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
@@ -640,7 +640,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 ## write_conf
 ## ----------------------------------------------
 @task
-def write_conf(project, removals=[ ]):
+def write_conf(project, removals=[ ], revertFirst=False):
     assert project
     prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
@@ -670,9 +670,17 @@ def write_conf(project, removals=[ ]):
             hstoreConf_removals.add(key)
     ## FOR
 
+    toUpdate = [
+        ("properties/default.properties", hstoreConf_updates, hstoreConf_removals),
+        ("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals),
+    ]
+    
     with cd(code_dir):
-        update_conf("properties/default.properties", hstoreConf_updates, hstoreConf_removals)
-        update_conf("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals)
+        for _file, _updates, _removals in toUpdate:
+            if revertFirst:
+                run("svn revert %s %s" % (env["hstore.svn_options"].replace("--ignore-externals", ""), _file))
+            update_conf(_file, _updates, _removals)
+        ## FOR
     ## WITH
 ## DEF
 
