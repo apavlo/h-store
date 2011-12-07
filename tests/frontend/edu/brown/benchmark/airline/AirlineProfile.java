@@ -135,7 +135,7 @@ public class AirlineProfile {
             // JSONUtil.toJSONString(this.cached_flight_ids), // CFP_FLIGHT_IDS
             JSONUtil.toJSONString(this.code_id_xref) // CFP_CODE_ID_XREF
         );
-        LOG.info("Saving profile information into " + catalog_tbl);
+        if (debug.get()) LOG.debug("Saving profile information into " + catalog_tbl);
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
         
         // CONFIG_HISTOGRAMS
@@ -150,7 +150,7 @@ public class AirlineProfile {
                 1                               // CFH_IS_AIRPORT
             );
         } // FOR
-        LOG.info("Saving airport histogram information into " + catalog_tbl);
+        if (debug.get()) LOG.debug("Saving airport histogram information into " + catalog_tbl);
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
         
         for (Entry<String, Histogram<String>> e : this.histograms.entrySet()) {
@@ -160,7 +160,7 @@ public class AirlineProfile {
                 0                               // CFH_IS_AIRPORT
             );
         } // FOR
-        LOG.info("Saving benchmark histogram information into " + catalog_tbl);
+        if (debug.get()) LOG.debug("Saving benchmark histogram information into " + catalog_tbl);
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
 
         return;
@@ -285,6 +285,7 @@ public class AirlineProfile {
             FlightId flight_id = new FlightId(f_id);
             this.cached_flight_ids.add(flight_id);
         } // WHILE
-        if (debug.get()) LOG.debug(String.format("Loaded %d cached FlightIds", this.cached_flight_ids.size()));
+//        if (debug.get())
+            LOG.info(String.format("Loaded %d cached FlightIds", this.cached_flight_ids.size()));
     }
 }

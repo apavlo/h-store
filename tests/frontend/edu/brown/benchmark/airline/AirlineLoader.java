@@ -1065,7 +1065,7 @@ public class AirlineLoader extends AirlineBaseClient {
          * Returns true if this seat is occupied (which means we must generate a reservation)
          */
         boolean seatIsOccupied() {
-            return (rng.nextInt(100) < AirlineConstants.PROB_SEAT_OCCUPIED_MIN);
+            return (rng.nextInt(100) < AirlineConstants.PROB_SEAT_OCCUPIED);
         }
         
         @Override
@@ -1296,7 +1296,7 @@ public class AirlineLoader extends AirlineBaseClient {
                     this.queue.put(new Object[]{ customer_id, flight_id, seatnum });
                 } // FOR (seats)
             } // FOR (flights)
-            LOG.info("Reservation data generation thread is finished");
+            if (debug.get()) LOG.debug("Reservation data generation thread is finished");
         }
         
         /**

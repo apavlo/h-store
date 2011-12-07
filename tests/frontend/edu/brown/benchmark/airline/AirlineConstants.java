@@ -160,16 +160,20 @@ public abstract class AirlineConstants {
     public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
     
     /** Probability that is a seat is initially occupied (0% - 100%) */
-    public static final int PROB_SEAT_OCCUPIED_MIN = 0; // 25;
-    public static final int PROB_SEAT_OCCUPIED_MAX = 0; // 50;
+    public static final int PROB_SEAT_OCCUPIED = 0; // 25;
     
     /** Probability that UpdateCustomer should update FrequentFlyer records */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
-    public static final int PROB_DELETE_NEW_RESERVATION = 25;
+    /** Probability that a new Reservation will be added to the DeleteReservation queue */
+    public static final int PROB_DELETE_NEW_RESERVATION = 10;
     
+    /** Probability that a new Reservation will be added to the UpdateReservation queue */
     public static final int PROB_UPDATE_NEW_RESERVATION = 25;
 
+    /** Probability that a deleted Reservation will be requeued for another NewReservation call */
+    public static final int PROB_REQUEUE_DELETED_RESERVATION = 90;
+    
     /** Probability that FindFlights will use the distance search */
     public static final int PROB_FIND_FLIGHTS_NEARBY_AIRPORT = 25;
     

@@ -51,20 +51,12 @@
 package edu.brown.benchmark.airline;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -90,6 +82,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 public class AirlineClient extends AirlineBaseClient {
@@ -138,11 +131,9 @@ public class AirlineClient extends AirlineBaseClient {
         public static Transaction get(String name) {
             return (Transaction.name_lookup.get(name.toLowerCase().intern()));
         }
-        
         public int getDefaultWeight() {
             return (this.default_weight);
         }
-        
         public String getDisplayName() {
             return (this.displayName);
         }
@@ -151,6 +142,24 @@ public class AirlineClient extends AirlineBaseClient {
     // -----------------------------------------------------------------
     // RESERVED SEAT BITMAPS
     // -----------------------------------------------------------------
+    
+    protected final LinkedList<Reservation> CACHE_PENDING_INSERTS = new LinkedList<Reservation>();
+    protected final LinkedList<Reservation> CACHE_PENDING_UPDATES = new LinkedList<Reservation>();
+    protected final LinkedList<Reservation> CACHE_PENDING_DELETES = new LinkedList<Reservation>();
+    
+    protected final Map<List<Reservation>, Pair<Integer, ReentrantLock>> CACHE_LOCKS = new HashMap<List<Reservation>, Pair<Integer, ReentrantLock>>();
+    {
+        CACHE_LOCKS.put(CACHE_PENDING_INSERTS,
+                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_INSERTS, new ReentrantLock()));
+        CACHE_LOCKS.put(CACHE_PENDING_UPDATES,
+                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_UPDATES, new ReentrantLock()));
+        CACHE_LOCKS.put(CACHE_PENDING_DELETES,
+                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_DELETES, new ReentrantLock()));
+    } // STATIC
+    
+    protected static final ConcurrentHashMap<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<CustomerId, Set<FlightId>>();
+    protected static final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new HashMap<FlightId, BitSet>();
+
     
     private static final BitSet FULL_FLIGHT_BITSET = new BitSet(AirlineConstants.NUM_SEATS_PER_FLIGHT);
     static {
@@ -171,13 +180,72 @@ public class AirlineClient extends AirlineBaseClient {
         }
         return (seats);
     }
+    
+    /**
+     * Returns true if the given BitSet for a Flight has all of its seats reserved 
+     * @param seats
+     * @return
+     */
     protected static boolean isFlightFull(BitSet seats) {
-        return (FULL_FLIGHT_BITSET.intersects(seats));
+        assert(FULL_FLIGHT_BITSET.size() == seats.size());
+        return FULL_FLIGHT_BITSET.equals(seats);
     }
     
-    protected static boolean isCustomerBookedOnFlight(CustomerId customer_id, FlightId flight_id) {
+    /**
+     * Returns true if the given Customer already has a reservation booked on the target Flight
+     * @param customer_id
+     * @param flight_id
+     * @return
+     */
+    protected boolean isCustomerBookedOnFlight(CustomerId customer_id, FlightId flight_id) {
         Set<FlightId> flights = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
         return (flights != null && flights.contains(flight_id));
+    }
+
+    /**
+     * Returns the set of Customers that are waiting to be added the given Flight
+     * @param flight_id
+     * @return
+     */
+    protected Set<CustomerId> getPendingCustomers(FlightId flight_id) {
+        Set<CustomerId> customers = new HashSet<CustomerId>();
+        synchronized (CACHE_PENDING_INSERTS) {
+            for (Reservation r : CACHE_PENDING_INSERTS) {
+                if (r.flight_id.equals(flight_id)) customers.add(r.customer_id);
+            } // FOR
+        } // SYNCH
+        return (customers);
+    }
+    
+    /**
+     * Returns true if the given Customer is pending to be booked on the given Flight
+     * @param customer_id
+     * @param flight_id
+     * @return
+     */
+    protected boolean isCustomerPendingOnFlight(CustomerId customer_id, FlightId flight_id) {
+        synchronized (CACHE_PENDING_INSERTS) {
+            for (Reservation r : CACHE_PENDING_INSERTS) {
+                if (r.flight_id.equals(flight_id) && r.customer_id.equals(customer_id)) {
+                    return (true);
+                }
+            } // FOR
+        } // SYNCH
+        return (false);
+    }
+    
+    protected Set<FlightId> getCustomerBookedFlights(CustomerId customer_id) {
+        Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+        if (f_ids == null) {
+            synchronized (CACHE_CUSTOMER_BOOKED_FLIGHTS) {
+                f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(customer_id);
+                if (f_ids == null) {
+                    f_ids = new HashSet<FlightId>();
+                    CACHE_CUSTOMER_BOOKED_FLIGHTS.put(customer_id, f_ids);
+                }
+            } // SYNCH
+        }
+        return (f_ids);
     }
     
     // -----------------------------------------------------------------
@@ -218,24 +286,6 @@ public class AirlineClient extends AirlineBaseClient {
         }
     } // END CLASS
 
-    // Shared Cache
-    private static final LinkedBlockingDeque<Reservation> CACHE_PENDING_INSERTS = new LinkedBlockingDeque<Reservation>();
-    private static final LinkedBlockingDeque<Reservation> CACHE_PENDING_UPDATES = new LinkedBlockingDeque<Reservation>();
-    private static final LinkedBlockingDeque<Reservation> CACHE_PENDING_DELETES = new LinkedBlockingDeque<Reservation>();
-    
-    private static final Map<LinkedBlockingDeque<Reservation>, Pair<Integer, ReentrantLock>> CACHE_LOCKS = new HashMap<LinkedBlockingDeque<Reservation>, Pair<Integer, ReentrantLock>>();
-    static {
-        CACHE_LOCKS.put(CACHE_PENDING_INSERTS,
-                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_INSERTS, new ReentrantLock()));
-        CACHE_LOCKS.put(CACHE_PENDING_UPDATES,
-                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_UPDATES, new ReentrantLock()));
-        CACHE_LOCKS.put(CACHE_PENDING_DELETES,
-                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_DELETES, new ReentrantLock()));
-    } // STATIC
-    
-    private static final ConcurrentHashMap<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<CustomerId, Set<FlightId>>();
-    private static final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new HashMap<FlightId, BitSet>();
-    
     // -----------------------------------------------------------------
     // REQUIRED METHODS
     // -----------------------------------------------------------------
@@ -269,19 +319,21 @@ public class AirlineClient extends AirlineBaseClient {
             }
         } // FOR
         
-        this.profile.loadProfile(this);
-        if (debug.get()) LOG.debug("Airport Max Customer Id:\n" + this.profile.airport_max_customer_id);
-        
-        // Make sure we have the information we need in the BenchmarkProfile
-        String error_msg = null;
-        if (this.getFlightIdCount() == 0) {
-            error_msg = "The benchmark profile does not have any flight ids.";
-        } else if (this.getCustomerIdCount() == 0) {
-            error_msg = "The benchmark profile does not have any customer ids.";
-        } else if (this.getFlightStartDate() == null) {
-            error_msg = "The benchmark profile does not have a valid flight start date.";
+        if (this.noClientConnections() == false) {
+            this.profile.loadProfile(this);
+            if (trace.get()) LOG.trace("Airport Max Customer Id:\n" + this.profile.airport_max_customer_id);
+            
+            // Make sure we have the information we need in the BenchmarkProfile
+            String error_msg = null;
+            if (this.getFlightIdCount() == 0) {
+                error_msg = "The benchmark profile does not have any flight ids.";
+            } else if (this.getCustomerIdCount() == 0) {
+                error_msg = "The benchmark profile does not have any customer ids.";
+            } else if (this.getFlightStartDate() == null) {
+                error_msg = "The benchmark profile does not have a valid flight start date.";
+            }
+            if (error_msg != null) throw new RuntimeException(error_msg);
         }
-        if (error_msg != null) throw new RuntimeException(error_msg);
         
         // Create xact lookup array
         this.xacts = new RandomDistribution.FlatHistogram<Transaction>(rng, weights);
@@ -289,8 +341,8 @@ public class AirlineClient extends AirlineBaseClient {
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
         
         // Load Histograms
-        if (debug.get()) LOG.debug("Loading data files for histograms");
-        this.loadHistograms();
+//        if (debug.get()) LOG.debug("Loading data files for histograms");
+//        this.loadHistograms();
     }
 
     @Override
@@ -306,6 +358,14 @@ public class AirlineClient extends AirlineBaseClient {
     @Override
     public void runLoop() {
         final Client client = this.getClientHandle();
+
+        // Fire off a FindOpenSeats so that we can prime ourselves
+        try {
+            boolean ret = this.executeFindOpenSeats(Transaction.FIND_OPEN_SEATS);
+            assert(ret);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
         
         // Execute Transactions
         try {
@@ -336,6 +396,7 @@ public class AirlineClient extends AirlineBaseClient {
         boolean ret = false;
         while (tries-- > 0 && ret == false) {
             Transaction txn = this.xacts.nextValue();
+            if (debug.get()) LOG.debug("Attempting to execute " + txn);
             switch (txn) {
                 case DELETE_RESERVATION: {
                     ret = this.executeDeleteReservation(txn);
@@ -364,7 +425,7 @@ public class AirlineClient extends AirlineBaseClient {
                 default:
                     assert(false) : "Unexpected transaction: " + txn; 
             } // SWITCH
-            if (ret && debug.get()) LOG.debug("Executed a new invocation of transaction " + txn);
+            if (ret && debug.get()) LOG.debug("Executed a new invocation of " + txn);
         }
         if (tries == 0) LOG.warn("I have nothing to do!");
         return (tries > 0);
@@ -374,25 +435,53 @@ public class AirlineClient extends AirlineBaseClient {
     public void tick(int counter) {
         super.tick(counter);
         
-        for (LinkedBlockingDeque<Reservation> cache : CACHE_LOCKS.keySet()) {
+//        for (FlightId flight_id : CACHE_BOOKED_SEATS.keySet()) {
+//            BitSet seats = CACHE_BOOKED_SEATS.get(flight_id);
+//            if (isFlightFull(seats)) {
+//                for ()
+//            }
+//        } // FOR
+        
+        
+        for (List<Reservation> cache : CACHE_LOCKS.keySet()) {
             int limit = CACHE_LOCKS.get(cache).getFirst();
-            ReentrantLock lock = CACHE_LOCKS.get(cache).getSecond();
+            // ReentrantLock lock = CACHE_LOCKS.get(cache).getSecond();
             int before = cache.size();
-            if (before > limit && lock.tryLock()) {
-                try {
-                    while (cache.size() > limit) {
-                        cache.remove();
-                    } // WHILE
-                    LOG.info(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
-                                           cache.size(), before)); 
-                } finally {
-                    lock.unlock();
-                }
+            if (before > limit) { //  && lock.tryLock()) {
+                synchronized (cache) {
+                    try {
+                        while (cache.size() > limit) {
+                            cache.remove(0);
+                        } // WHILE
+                        if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
+                                                  cache.size(), before)); 
+                    } finally {
+//                        lock.unlock();
+                    }
+                } // SYNCH
             } // SYNCH
         }
     }
     
-    abstract class AbstractCallback<T> implements ProcedureCallback {
+    /**
+     * Take an existing Reservation that we know is legit and randomly decide to 
+     * either queue it for a later update or delete transaction 
+     * @param r
+     */
+    protected void requeueReservation(Reservation r) {
+        int val = rng.nextInt(100);
+        
+        // Queue this motha trucka up for a deletin'
+        if (val < AirlineConstants.PROB_DELETE_NEW_RESERVATION) {
+            CACHE_PENDING_DELETES.add(r);
+        }
+        // Or queue it for an update
+        else if (val < AirlineConstants.PROB_UPDATE_NEW_RESERVATION + AirlineConstants.PROB_DELETE_NEW_RESERVATION) {
+            CACHE_PENDING_UPDATES.add(r);
+        }
+    }
+    
+    protected abstract class AbstractCallback<T> implements ProcedureCallback {
         final T element;
         public AbstractCallback(T t) {
             this.element = t;
@@ -416,7 +505,11 @@ public class AirlineClient extends AirlineBaseClient {
                 seats.set(element.seatnum, false);
                 
                 // And then put it up for a pending insert
-                if (rng.nextBoolean()) CACHE_PENDING_INSERTS.offer(element);
+                if (rng.nextInt(100) < AirlineConstants.PROB_REQUEUE_DELETED_RESERVATION) {
+                    synchronized (CACHE_PENDING_INSERTS) {
+                        CACHE_PENDING_INSERTS.offer(element);
+                    } // SYNCH
+                }
                 
             } else if (debug.get()) {
                 LOG.info("DeleteReservation " + clientResponse.getStatus() + ": " + clientResponse.getStatusString(), clientResponse.getException());
@@ -453,7 +546,10 @@ public class AirlineClient extends AirlineBaseClient {
             params[1] = r.customer_id.encode();
         }
         
-        this.getClientHandle().callProcedure(new DeleteReservationCallback(r), txn.proc_class.getSimpleName(), params);
+        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        this.getClientHandle().callProcedure(new DeleteReservationCallback(r),
+                                             txn.proc_class.getSimpleName(),
+                                             params);
         return (true);
     }
     
@@ -468,11 +564,15 @@ public class AirlineClient extends AirlineBaseClient {
             VoltTable[] results = clientResponse.getResults();
             if (results.length > 1) {
                 // Convert the data into a FlightIds that other transactions can use
+                int ctr = 0;
                 while (results[0].advanceRow()) {
                     FlightId flight_id = new FlightId(results[0].getLong(0));
                     assert(flight_id != null);
-                    AirlineClient.this.addFlightId(flight_id);
+                    boolean added = AirlineClient.this.addFlightId(flight_id);
+                    if (added) ctr++;
                 } // WHILE
+                if (debug.get()) LOG.debug(String.format("Added %d out of %d FlightIds to local cache",
+                                           ctr, results[0].getRowCount()));
             }
         }
     }
@@ -501,17 +601,18 @@ public class AirlineClient extends AirlineBaseClient {
         
         // Use an existing flight so that we guaranteed to get back results
         else {
-            FlightId f_id = this.getRandomFlightId();
-            depart_airport_id = f_id.getDepartAirportId();
-            arrive_airport_id = f_id.getArriveAirportId();
+            FlightId flight_id = this.getRandomFlightId();
+            depart_airport_id = flight_id.getDepartAirportId();
+            arrive_airport_id = flight_id.getArriveAirportId();
             
-            TimestampType flightDate = f_id.getDepartDate(this.getFlightStartDate());
+            TimestampType flightDate = flight_id.getDepartDate(this.getFlightStartDate());
             long range = Math.round(AirlineConstants.MICROSECONDS_PER_DAY * 0.5);
             start_date = new TimestampType(flightDate.getTime() - range);
             stop_date = new TimestampType(flightDate.getTime() + range);
             
             if (debug.get())
-                LOG.debug("Using FlightId " + f_id.encode() + " as look up: " + f_id + " / " + flightDate);
+                LOG.debug(String.format("Using %s as look up in %s: %d / %s",
+                                        flight_id, txn, flight_id.encode(), flightDate));
         }
         
         // If distance is greater than zero, then we will also get flights from nearby airports
@@ -527,7 +628,10 @@ public class AirlineClient extends AirlineBaseClient {
             stop_date,
             distance
         };
-        this.getClientHandle().callProcedure(new FindFlightsCallback(), txn.proc_class.getSimpleName(), params);
+        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        this.getClientHandle().callProcedure(new FindFlightsCallback(),
+                                             txn.proc_class.getSimpleName(),
+                                             params);
         return (true);
     }
 
@@ -555,44 +659,51 @@ public class AirlineClient extends AirlineBaseClient {
             // if you hit this assert (with valid code), play the lottery!
             if (rowCount == 0) return;
             
-//            int insert = rowCount; // (rowCount == 1 ? 1 : rng.nextInt(rowCount-1) + 1);
-//            Set<Integer> s = rng.getRandomIntSet(insert, rowCount);
+            // Store pending reservations in our queue for a later transaction            
             List<Reservation> reservations = new ArrayList<Reservation>();
             Set<Integer> emptySeats = new HashSet<Integer>();
-            for (int i = 0; i < rowCount; i++) {
-                // Store pending reservations in our queue for a later transaction
-                boolean adv = results[0].advanceRow();
-                assert(adv);
-//                if (s.contains(i) == false) continue;
-                
+            Set<CustomerId> pendingCustomers = getPendingCustomers(element);
+            while (results[0].advanceRow()) {
                 FlightId flight_id = new FlightId(results[0].getLong(0));
+                assert(flight_id.equals(element));
                 int seatnum = (int)results[0].getLong(1);
                 long airport_depart_id = flight_id.getDepartAirportId();
+                
+                // We first try to get a CustomerId based at this departure airport
                 CustomerId customer_id = AirlineClient.this.getRandomCustomerId(airport_depart_id);
-                if (customer_id == null) {
+                
+                // We will go for a random one if:
+                //  (1) The Customer is already booked on this Flight
+                //  (2) We already made a new Reservation just now for this Customer
+                int tries = AirlineConstants.NUM_SEATS_PER_FLIGHT;
+                while (tries-- > 0 && (customer_id == null || pendingCustomers.contains(customer_id) || isCustomerBookedOnFlight(customer_id, flight_id))) {
                     customer_id = AirlineClient.this.getRandomCustomerId();
-                    if (debug.get()) LOG.debug("RANDOM CUSTOMER: " + customer_id);
-                } else if (debug.get()) {
-                    LOG.debug("RANDOM CUSTOMER FOR Airport #" + airport_depart_id + ": " + customer_id);
-                }
-                assert(customer_id != null);
-                
-                reservations.add(new Reservation(getNextReservationId(), flight_id, customer_id, (int)seatnum));
-                if (debug.get()) LOG.debug("QUEUED INSERT: " + flight_id + " / " + flight_id.encode());
-                
+                    if (trace.get()) LOG.trace("RANDOM CUSTOMER: " + customer_id);
+                } // WHILE
+                assert(customer_id != null) :
+                    String.format("Failed to find a unique Customer to reserve for seat #%d on %s", seatnum, flight_id);
+
+                pendingCustomers.add(customer_id);
                 emptySeats.add(seatnum);
-            } // FOR
+                reservations.add(new Reservation(getNextReservationId(), flight_id, customer_id, (int)seatnum));
+                if (trace.get()) LOG.trace("QUEUED INSERT: " + flight_id + " / " + flight_id.encode() + " -> " + customer_id);
+            } // WHILE
+            
             if (reservations.isEmpty() == false) {
-                Collections.shuffle(reservations, rng);
                 int ctr = 0;
-                for (Reservation r : reservations) {
-                    if (CACHE_PENDING_INSERTS.contains(r) == false) {
-                        CACHE_PENDING_INSERTS.offer(r);
-                        ctr++;
-                    }
-                } // FOR
-                if (trace.get())
-                    LOG.trace(String.format("Stored %d pending inserts! [total=%d]", ctr, CACHE_PENDING_INSERTS.size()));
+                synchronized (CACHE_PENDING_INSERTS) {
+                    for (Reservation r : reservations) {
+                        if (CACHE_PENDING_INSERTS.contains(r) == false) {
+                            CACHE_PENDING_INSERTS.offer(r);
+                            ctr++;
+                        }
+                    } // FOR
+                    Collections.shuffle(CACHE_PENDING_INSERTS, rng);
+                } // SYNCH
+
+                if (debug.get())
+                    LOG.debug(String.format("Stored %d pending inserts for %s [totalPendingInserts=%d]",
+                              ctr, element, CACHE_PENDING_INSERTS.size()));
             }
             BitSet seats = getSeatsBitSet(element);
             for (int i = 0; i < AirlineConstants.NUM_SEATS_PER_FLIGHT; i++) {
@@ -610,7 +721,10 @@ public class AirlineClient extends AirlineBaseClient {
     private boolean executeFindOpenSeats(Transaction txn) throws IOException {
         FlightId flight_id = this.getRandomFlightId();
         assert(flight_id != null);
-        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(flight_id), txn.proc_class.getSimpleName(), flight_id.encode());
+        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        this.getClientHandle().callProcedure(new FindOpenSeatsCallback(flight_id),
+                                             txn.proc_class.getSimpleName(),
+                                             flight_id.encode());
         return (true);
     }
     
@@ -627,20 +741,19 @@ public class AirlineClient extends AirlineBaseClient {
             incrementTransactionCounter(clientResponse, Transaction.NEW_RESERVATION.ordinal());
             VoltTable[] results = clientResponse.getResults();
             
+            BitSet seats = getSeatsBitSet(element.flight_id);
+            
             // Valid NewReservation
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert(results.length > 1);
                 assert(results[0].getRowCount() == 1);
                 assert(results[0].asScalarLong() == 1);
 
-                // Queue this motha trucka up for a deletin'
-                if (rng.nextInt(100) < AirlineConstants.PROB_DELETE_NEW_RESERVATION) {
-                    CACHE_PENDING_DELETES.add(element);
-                }
-                // Or queue it for an update
-                else if (rng.nextInt(100) < AirlineConstants.PROB_UPDATE_NEW_RESERVATION) {
-                    CACHE_PENDING_UPDATES.add(element);
-                }
+                // Mark this seat as successfully reserved
+                seats.set(element.seatnum);
+
+                // Set it up so we can play with it later
+                AirlineClient.this.requeueReservation(element);
             }
             // Aborted - Figure out why!
             else if (clientResponse.getStatus() == Hstore.Status.ABORT_USER) {
@@ -655,30 +768,19 @@ public class AirlineClient extends AirlineBaseClient {
                 
                 switch (errorType) {
                     case NO_MORE_SEATS: {
-                        BitSet seats = getSeatsBitSet(element.flight_id);
                         seats.set(0, AirlineConstants.NUM_SEATS_PER_FLIGHT);
                         if (debug.get())
                             LOG.debug(String.format("FULL FLIGHT: %s", element.flight_id));                        
                         break;
                     }
                     case CUSTOMER_ALREADY_HAS_SEAT: {
-                        Set<FlightId> f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(element.customer_id);
-                        if (f_ids == null) {
-                            synchronized (CACHE_CUSTOMER_BOOKED_FLIGHTS) {
-                                f_ids = CACHE_CUSTOMER_BOOKED_FLIGHTS.get(element.customer_id);
-                                if (f_ids == null) {
-                                    f_ids = new HashSet<FlightId>();
-                                    CACHE_CUSTOMER_BOOKED_FLIGHTS.put(element.customer_id, f_ids);
-                                }
-                            } // SYNCH
-                        }
+                        Set<FlightId> f_ids = getCustomerBookedFlights(element.customer_id);
                         f_ids.add(element.flight_id);
                         if (debug.get())
                             LOG.debug(String.format("ALREADY BOOKED: %s -> %s", element.customer_id, f_ids));
                         break;
                     }
                     case SEAT_ALREADY_RESERVED: {
-                        BitSet seats = AirlineClient.getSeatsBitSet(element.flight_id);
                         seats.set(element.seatnum);
                         if (debug.get())
                             LOG.debug(String.format("ALREADY BOOKED SEAT: %s/%d -> %s",
@@ -704,28 +806,36 @@ public class AirlineClient extends AirlineBaseClient {
     private boolean executeNewReservation(Transaction txn) throws IOException {
         Reservation reservation = null;
         BitSet seats = null;
-        int tries = 100;
-        while (tries-- > 0 && reservation == null) {
-            Reservation r = CACHE_PENDING_INSERTS.poll();
-            if (r == null) return (false);
+        
+        if (debug.get()) LOG.debug(String.format("Attempting to get a new pending insert Reservation [totalPendingInserts=%d]",
+                                                 CACHE_PENDING_INSERTS.size()));
+        while (reservation == null) {
+            Reservation r = null;
+            synchronized (CACHE_PENDING_INSERTS) {
+                r = CACHE_PENDING_INSERTS.poll();
+            } // SYNCH
+            if (r == null) break;
             
             seats = AirlineClient.getSeatsBitSet(r.flight_id);
             
             if (isFlightFull(seats)) {
-                if (trace.get()) LOG.trace(String.format("%s is full", r.flight_id));
-                continue;
-            }
-            else if (isCustomerBookedOnFlight(r.customer_id, r.flight_id)) {
-                if (trace.get()) LOG.trace(String.format("%s is already booked on %s", r.customer_id, r.flight_id));
+                if (debug.get()) LOG.debug(String.format("%s is full", r.flight_id));
                 continue;
             }
             else if (seats.get(r.seatnum)) {
-                if (trace.get()) LOG.trace(String.format("Seat #%d on %s is already booked", r.seatnum, r.flight_id));
+                if (debug.get()) LOG.debug(String.format("Seat #%d on %s is already booked", r.seatnum, r.flight_id));
+                continue;
+            }
+            else if (isCustomerBookedOnFlight(r.customer_id, r.flight_id)) {
+                if (debug.get()) LOG.debug(String.format("%s is already booked on %s", r.customer_id, r.flight_id));
                 continue;
             }
             reservation = r; 
         } // WHILE
-        if (reservation == null) return (false);
+        if (reservation == null) {
+            if (debug.get()) LOG.debug("Failed to find a valid pending insert Reservation");
+            return (false);
+        }
         
         // Generate a random price for now
         double price = 2.0 * rng.number(AirlineConstants.MIN_RESERVATION_PRICE,
@@ -736,10 +846,19 @@ public class AirlineClient extends AirlineBaseClient {
         for (int i = 0; i < attributes.length; i++) {
             attributes[i] = rng.nextLong();
         } // FOR
-
+        
+        Object params[] = new Object[] {
+                reservation.id,
+                reservation.customer_id.encode(),
+                reservation.flight_id.encode(),
+                reservation.seatnum,
+                price,
+                attributes
+        };
+        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
         this.getClientHandle().callProcedure(new NewReservationCallback(reservation),
                                              txn.proc_class.getSimpleName(),
-                                             reservation.id, reservation.customer_id.encode(), reservation.flight_id.encode(), reservation.seatnum, price, attributes);
+                                             params);
         return (true);
     }
 
@@ -781,8 +900,7 @@ public class AirlineClient extends AirlineBaseClient {
         };
         
         // Update with the Customer's id as a string 
-        int rand = rng.number(1, 100);
-        if (rand <= AirlineConstants.PROB_UPDATE_WITH_CUSTOMER_ID_STR) {
+        if (rng.nextInt(100) < AirlineConstants.PROB_UPDATE_WITH_CUSTOMER_ID_STR) {
             params[1] = Long.toString(customer_id.encode());
         }
         // Update using their Customer id
@@ -790,7 +908,10 @@ public class AirlineClient extends AirlineBaseClient {
             params[0] = customer_id.encode();
         }
 
-        this.getClientHandle().callProcedure(new UpdateCustomerCallback(customer_id), txn.proc_class.getSimpleName(), params);
+        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        this.getClientHandle().callProcedure(new UpdateCustomerCallback(customer_id),
+                                             txn.proc_class.getSimpleName(),
+                                             params);
         return (true);
     }
 
@@ -810,6 +931,8 @@ public class AirlineClient extends AirlineBaseClient {
                 assert (clientResponse.getResults()[0].getRowCount() == 1);
                 assert (clientResponse.getResults()[0].asScalarLong() == 1 ||
                         clientResponse.getResults()[0].asScalarLong() == 0);
+                
+                AirlineClient.this.requeueReservation(element);
             }
         }
     }
@@ -823,9 +946,18 @@ public class AirlineClient extends AirlineBaseClient {
         long value = rng.number(1, 1 << 20);
         long attribute_idx = rng.nextInt(UpdateReservation.NUM_UPDATES);
 
+        Object params[] = new Object[] {
+                r.id,
+                r.flight_id.encode(),
+                r.customer_id.encode(),
+                r.seatnum,
+                attribute_idx,
+                value
+        };
+        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
         this.getClientHandle().callProcedure(new UpdateReservationCallback(r),
                                              txn.proc_class.getSimpleName(), 
-                                             r.id, r.flight_id.encode(), r.customer_id.encode(), r.seatnum, attribute_idx, value);
+                                             params);
         return (true);
     }
 }

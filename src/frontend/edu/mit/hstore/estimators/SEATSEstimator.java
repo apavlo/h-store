@@ -34,11 +34,14 @@ public class SEATSEstimator extends AbstractEstimator {
         long c_id = VoltType.NULL_BIGINT;
         Collection<Integer> ret = null;
         
-        if (procName.equalsIgnoreCase("DeleteReservation") ||
-            procName.equalsIgnoreCase("NewReservation") ||
+        if (procName.equalsIgnoreCase("NewReservation") ||
             procName.equalsIgnoreCase("UpdateReservation")) {
-            f_id = (Long)mangled[0];
             c_id = (Long)mangled[1];
+            f_id = (Long)mangled[2];
+        }
+        else if (procName.equalsIgnoreCase("DeleteReservation")) {
+            c_id = (Long)mangled[1];
+            f_id = (Long)mangled[0];
         }
         else if (procName.equalsIgnoreCase("FindOpenSeats")) {
             f_id = (Long)mangled[0];
