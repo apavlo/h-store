@@ -94,6 +94,7 @@ import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
 import edu.mit.hstore.estimators.AbstractEstimator;
+import edu.mit.hstore.estimators.SEATSEstimator;
 import edu.mit.hstore.estimators.TM1Estimator;
 import edu.mit.hstore.estimators.TPCCEstimator;
 import edu.mit.hstore.interfaces.Loggable;
@@ -376,6 +377,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 this.fixed_estimator = new TPCCEstimator(this);
             } else if (catalog_db.getProcedures().containsKey("UpdateLocation")) {
                 this.fixed_estimator = new TM1Estimator(this);
+            } else if (catalog_db.getProcedures().containsKey("FindOpenSeats")) {
+                this.fixed_estimator = new SEATSEstimator(this);
             } else {
                 this.fixed_estimator = null;
             }

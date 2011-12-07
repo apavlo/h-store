@@ -36,10 +36,10 @@ public abstract class AirlineConstants {
     // STORED PROCEDURE EXECUTION FREQUENCIES (0% - 100%)
     // ----------------------------------------------------------------
     
-    public static final int FREQUENCY_DELETE_RESERVATION        = 5;
-    public static final int FREQUENCY_FIND_FLIGHTS              = 5;
+    public static final int FREQUENCY_DELETE_RESERVATION        = 10;
+    public static final int FREQUENCY_FIND_FLIGHTS              = 10;
     public static final int FREQUENCY_FIND_OPEN_SEATS           = 35;
-    public static final int FREQUENCY_NEW_RESERVATION           = 30;
+    public static final int FREQUENCY_NEW_RESERVATION           = 20;
     public static final int FREQUENCY_UPDATE_CUSTOMER           = 10;
     public static final int FREQUENCY_UPDATE_RESERVATION        = 15;
     
@@ -95,10 +95,10 @@ public abstract class AirlineConstants {
     public static final int DISTANCES[] = { 5 }; // , 10, 25, 50, 100 };
     
     /** The number of days in the past that we will generate flight information for */
-    public static final int DAYS_PAST = 7;
+    public static final int DAYS_PAST = 1;
 
     /** The number of days in the future that we will generate flight information for */
-    public static final int DAYS_FUTURE = 30;
+    public static final int DAYS_FUTURE = 365;
     
     /** Default number of customers in the database */
     public static final int NUM_CUSTOMERS = 1000000;
@@ -160,15 +160,15 @@ public abstract class AirlineConstants {
     public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
     
     /** Probability that is a seat is initially occupied (0% - 100%) */
-    public static final int PROB_SEAT_OCCUPIED_MIN = 50;
-    public static final int PROB_SEAT_OCCUPIED_MAX = 70;
+    public static final int PROB_SEAT_OCCUPIED_MIN = 0; // 25;
+    public static final int PROB_SEAT_OCCUPIED_MAX = 0; // 50;
     
     /** Probability that UpdateCustomer should update FrequentFlyer records */
     public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
-    public static final int PROB_DELETE_NEW_RESERVATION = 50;
+    public static final int PROB_DELETE_NEW_RESERVATION = 25;
     
-    public static final int PROB_UPDATE_NEW_RESERVATION = 50;
+    public static final int PROB_UPDATE_NEW_RESERVATION = 25;
 
     /** Probability that FindFlights will use the distance search */
     public static final int PROB_FIND_FLIGHTS_NEARBY_AIRPORT = 25;
@@ -190,11 +190,11 @@ public abstract class AirlineConstants {
     // ----------------------------------------------------------------
     
     /** The number of FlightIds we want to keep cached */
-    public static final int CACHE_LIMIT_FLIGHT_IDS = 1000;
+    public static final int CACHE_LIMIT_FLIGHT_IDS = 100000;
     
-    public static final int CACHE_LIMIT_PENDING_INSERTS = 2000;
-    public static final int CACHE_LIMIT_PENDING_UPDATES = 2000;
-    public static final int CACHE_LIMIT_PENDING_DELETES = 2000;
+    public static final int CACHE_LIMIT_PENDING_INSERTS = 10000;
+    public static final int CACHE_LIMIT_PENDING_UPDATES = 5000;
+    public static final int CACHE_LIMIT_PENDING_DELETES = 5000;
     
     
     // ----------------------------------------------------------------
