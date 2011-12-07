@@ -1335,6 +1335,13 @@ public abstract class BenchmarkComponent {
         return (m_numClients);
     }
     /**
+     * Returns true if this BenchmarkComponent is not going to make any
+     * client connections to an H-Store cluster. This is used for testing
+     */
+    protected final boolean noClientConnections() {
+       return (m_noConnections); 
+    }
+    /**
      * Return the file path to the catalog that was loaded for this benchmark invocation
      * @return
      */

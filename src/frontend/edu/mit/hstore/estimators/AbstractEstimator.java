@@ -40,7 +40,8 @@ public abstract class AbstractEstimator {
             this.singlePartitionSets.put(p, Collections.singleton(p));
         } // FOR
         
-        LOG.info("Initialized fixed transaction estimator -> " + this.getClass().getSimpleName());
+        if (debug.get())
+            LOG.debug("Initialized fixed transaction estimator -> " + this.getClass().getSimpleName());
     }
     
     public final Collection<Integer> initializeTransaction(Procedure catalog_proc, Object args[]) {

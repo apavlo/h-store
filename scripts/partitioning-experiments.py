@@ -315,9 +315,9 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             #env["benchmark.temporal_skew"] = False
             #env["benchmark.temporal_skew_rotate"] = False
             #env["benchmark.temporal_skew_mix"] = -1
-    elif benchmark == "airline":
-        env["client.scalefactor"] = 100
-        env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
+    #elif benchmark == "airline":
+        # env["client.scalefactor"] = 100
+        # env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
 
         ## MOTIVATION
         

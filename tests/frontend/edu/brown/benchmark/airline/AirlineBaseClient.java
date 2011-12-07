@@ -133,7 +133,6 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
             } else if (key.equalsIgnoreCase("datadir")) {
                 data_dir = value;
             }
-            System.err.println(key + " => " + value);
         } // FOR
         if (data_dir == null) {
             throw new RuntimeException("Unable to start benchmark. Missing 'datadir' parameter\n" + StringUtil.formatMaps(m_extraParams)); 
@@ -426,11 +425,13 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
         
         // Grab a random FlightId from our cache and push it back to the end
         // of the list. That way the order of the cache goes from MRU -> LRU
+        if (trace.get()) LOG.trace("Attempting to get a random FlightId");
         synchronized (this.profile.cached_flight_ids) {
             int idx = rng.nextInt(this.profile.cached_flight_ids.size());
             ret = this.profile.cached_flight_ids.remove(idx);
             this.profile.cached_flight_ids.addFirst(ret);
         } // SYNCH
+        if (trace.get()) LOG.trace("Got random " + ret);
         return (ret);
     }
     

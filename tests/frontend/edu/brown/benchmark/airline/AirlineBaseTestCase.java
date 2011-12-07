@@ -28,6 +28,7 @@
 package edu.brown.benchmark.airline;
 
 import java.io.File;
+import java.util.Random;
 
 import org.voltdb.catalog.Catalog;
 
@@ -40,6 +41,8 @@ public abstract class AirlineBaseTestCase extends BaseTestCase {
     // HACK
     protected static File AIRLINE_DATA_DIR; //  = System.getenv(AirlineConstants.AIRLINE_DATA_PARAM.toUpperCase());
 //    protected static AirlineLoader loader;
+    
+    protected Random rand = new Random();
     
     @Override
     protected void setUp() throws Exception {
