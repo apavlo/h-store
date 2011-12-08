@@ -17,6 +17,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement;
 
 /**
@@ -25,6 +26,11 @@ import edu.brown.utils.ProfileMeasurement;
  */
 public class BlockingClient extends Semaphore implements Client {
     static final Logger LOG = Logger.getLogger(BlockingClient.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     private static final long serialVersionUID = 1L;
     private final Client inner;
@@ -39,21 +45,20 @@ public class BlockingClient extends Semaphore implements Client {
         private final String proc_name;
         
         public BlockingCallback(String proc_name, ProcedureCallback inner_callback) {
-            final boolean debug = LOG.isDebugEnabled(); 
             assert(inner_callback != null);
             this.inner_callback = inner_callback;
             this.proc_name = proc_name;
             
-            if (debug) LOG.debug("Created a new BlockingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
+            if (debug.get()) LOG.debug("Created a new BlockingCallback around " + inner_callback.getClass().getSimpleName() + " for '" + proc_name + "'");
             try {
-                if (debug) 
+                if (debug.get()) 
                     LOG.debug("Trying to acquire procedure invocation lock: " + BlockingClient.this.availablePermits());
                 
                 idle.start();
                 BlockingClient.this.acquire();
                 idle.stop();
                 
-                if (debug) LOG.debug("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
+                if (debug.get()) LOG.debug("We got it! Let's get it on! [proc_name=" + this.proc_name + "]");
             } catch (InterruptedException ex) {
                 LOG.fatal("Got interrupted while waiting for lock", ex);
                 System.exit(1);
@@ -63,12 +68,11 @@ public class BlockingClient extends Semaphore implements Client {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            final boolean debug = LOG.isDebugEnabled();
-            if (debug) LOG.debug("BlockingCallback is forwarding the client callback for to inner callback [" +
+            if (debug.get()) LOG.debug("BlockingCallback is forwarding the client callback for to inner callback [" +
                                "txn=" + clientResponse.getTransactionId() + ", " +
                                "proc=" + this.proc_name + "]");
-            this.inner_callback.clientCallback(clientResponse);
             BlockingClient.this.release();
+            this.inner_callback.clientCallback(clientResponse);
         }
     }
     
@@ -146,7 +150,7 @@ public class BlockingClient extends Semaphore implements Client {
     @Override
     public void close() throws InterruptedException {
         this.inner.close();
-        if (LOG.isDebugEnabled()) LOG.debug("Client Idle Time: " + this.idle.toString(true));
+        if (LOG.isDebugEnabled()) LOG.debug("Client Idle Time: " + this.idle.debug(true));
     }
 
     /* (non-Javadoc)

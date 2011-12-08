@@ -59,6 +59,7 @@ import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
 
@@ -99,6 +100,12 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      * Specialized random number generator
      */
     protected transient final AbstractRandomGenerator rng;
+    
+    /**
+     * Depart Airport Code -> Arrive Airport Code
+     * Random number generators based on the flight distributions 
+     */
+    private final Map<String, FlatHistogram<String>> airport_distributions = new HashMap<String, FlatHistogram<String>>();
     
     // ----------------------------------------------------------------
     // CONSTRUCTOR
@@ -355,9 +362,19 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
     
     public long getRandomOtherAirport(long airport_id) {
         String code = this.getAirportCode(airport_id);
-        Histogram<String> h = this.profile.airport_histograms.get(code);
-        assert(h != null);
-        FlatHistogram<String> f = new FlatHistogram<String>(rng, h);
+        FlatHistogram<String> f = this.airport_distributions.get(code);
+        if (f == null) {
+            synchronized (this.airport_distributions) {
+                f = this.airport_distributions.get(code);
+                if (f == null) {
+                    Histogram<String> h = this.profile.airport_histograms.get(code);
+                    assert(h != null);
+                    f = new FlatHistogram<String>(rng, h);
+                    this.airport_distributions.put(code, f);
+                }
+            } // SYCH
+        }
+        assert(f != null);
         String other = f.nextValue();
         return this.getAirportId(other);
     }
@@ -421,19 +438,13 @@ public abstract class AirlineBaseClient extends BenchmarkComponent implements JS
      */
     public FlightId getRandomFlightId() {
         assert(this.profile.cached_flight_ids.isEmpty() == false);
-        FlightId ret = null;
-        
-        // Grab a random FlightId from our cache and push it back to the end
-        // of the list. That way the order of the cache goes from MRU -> LRU
         if (trace.get()) LOG.trace("Attempting to get a random FlightId");
-        synchronized (this.profile.cached_flight_ids) {
-            int idx = rng.nextInt(this.profile.cached_flight_ids.size());
-            ret = this.profile.cached_flight_ids.remove(idx);
-            this.profile.cached_flight_ids.addFirst(ret);
-        } // SYNCH
-        if (trace.get()) LOG.trace("Got random " + ret);
-        return (ret);
+        int idx = rng.nextInt(this.profile.cached_flight_ids.size());
+        FlightId flight_id = this.profile.cached_flight_ids.get(idx);
+        if (trace.get()) LOG.trace("Got random " + flight_id);
+        return (flight_id);
     }
+    
     
     // ----------------------------------------------------------------
     // AIRPORT METHODS

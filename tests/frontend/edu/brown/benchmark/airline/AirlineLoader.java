@@ -256,26 +256,26 @@ public class AirlineLoader extends AirlineBaseClient {
 
     @Override
     public void runLoop() {
-        LOG.info("Begin to load tables...");
+        if (debug.get()) LOG.debug("Begin to load tables...");
         final Database catalog_db = CatalogUtil.getDatabase(this.getCatalog());
         
         // Load Histograms
-        LOG.info("Loading data files for histograms");
+        if (debug.get()) LOG.debug("Loading data files for histograms");
         this.loadHistograms();
         
         // Load the first tables from data files
-        LOG.info("Loading data files for fixed-sized tables");
+        if (debug.get()) LOG.debug("Loading data files for fixed-sized tables");
         this.loadFixedTables(catalog_db);
         
         // Once we have those mofos, let's go get make our flight data tables
-        LOG.info("Loading data files for scaling tables");
+        if (debug.get()) LOG.debug("Loading data files for scaling tables");
         this.loadScalingTables(catalog_db);
         
         // Save the benchmark profile out to disk so that we can send it
         // to all of the clients
         this.profile.saveProfile(this);
 
-        LOG.debug("Airline loader done.");
+        if (debug.get()) LOG.debug("Airline loader done.");
     }
     
     /**
@@ -793,7 +793,7 @@ public class AirlineLoader extends AirlineBaseClient {
                 new_total += this.ff_per_customer[i]; 
             } // FOR
             this.total = new_total;
-            LOG.info("Constructing " + this.total + " FrequentFlyer tuples...");
+            if (debug.get()) LOG.debug("Constructing " + this.total + " FrequentFlyer tuples...");
         }
         
         @Override

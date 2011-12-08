@@ -285,7 +285,7 @@ public class AirlineProfile {
             FlightId flight_id = new FlightId(f_id);
             this.cached_flight_ids.add(flight_id);
         } // WHILE
-//        if (debug.get())
-            LOG.info(String.format("Loaded %d cached FlightIds", this.cached_flight_ids.size()));
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d cached FlightIds", this.cached_flight_ids.size()));
     }
 }

@@ -100,6 +100,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
@@ -176,6 +177,7 @@ public abstract class BenchmarkComponent {
     private static PartitionPlan globalPartitionPlan;
     
     public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
+//        Client newClient = null;
         if (globalClient == null) {
             globalClient = ClientFactory.createClient(
                     messageSize,
@@ -336,6 +338,8 @@ public abstract class BenchmarkComponent {
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
     private final TransactionCounter m_txnStats = new TransactionCounter();
 
+    private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
+    
     /**
      * 
      */
@@ -479,7 +483,7 @@ public abstract class BenchmarkComponent {
                         // Call tick on the client if we're not polling ourselves
                         if (BenchmarkComponent.this.m_tickInterval < 0) {
                             if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
-                            BenchmarkComponent.this.tick(m_tickCounter++);
+                            BenchmarkComponent.this.invokeTick(m_tickCounter++);
                         }
                         if (debug.get())
                             LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
@@ -1258,7 +1262,43 @@ public abstract class BenchmarkComponent {
     private final void invokeTick(int counter) {
         if (debug.get()) LOG.debug("New Tick Update: " + counter);
         this.tick(counter);
+        
+        //if (debug.get()) {
+        if (this.getClientId() == 0) {
+            if (this.computeTime.isEmpty() == false) {
+                for (String txnName : this.computeTime.keySet()) {
+                    ProfileMeasurement pm = this.computeTime.get(txnName);
+                    if (pm.getInvocations() != 0) {
+                        LOG.info(String.format("[%02d] - %s COMPUTE TIME: %s", counter, txnName, pm.debug()));
+                        pm.reset();
+                    }
+                } // FOR
+            }
+            LOG.info("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
+            this.m_voltClient.getQueueTime().reset();
+        }
+//        }
     }
+    
+    protected synchronized void startComputeTime(String txnName) {
+        ProfileMeasurement pm = this.computeTime.get(txnName);
+        if (pm == null) {
+            pm = new ProfileMeasurement(txnName);
+            this.computeTime.put(txnName, pm);
+        }
+        pm.start();
+    }
+    
+    protected synchronized void stopComputeTime(String txnName) {
+        ProfileMeasurement pm = this.computeTime.get(txnName);
+        assert(pm != null) : "Unexpected " + txnName;
+        pm.stop();
+    }
+    
+    protected ProfileMeasurement getComputeTime(String txnName) {
+        return (this.computeTime.get(txnName));
+    }
+    
     
     /**
      * Is called every time the interval time is reached

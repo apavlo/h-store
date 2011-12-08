@@ -52,9 +52,12 @@ package edu.brown.benchmark.airline;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
@@ -83,6 +86,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
 public class AirlineClient extends AirlineBaseClient {
@@ -106,6 +110,7 @@ public class AirlineClient extends AirlineBaseClient {
         
         private Transaction(Class<? extends VoltProcedure> proc_class, int weight) {
             this.proc_class = proc_class;
+            this.execName = proc_class.getSimpleName();
             this.default_weight = weight;
             this.displayName = StringUtil.title(this.name().replace("_", " "));
         }
@@ -113,6 +118,7 @@ public class AirlineClient extends AirlineBaseClient {
         public final Class<? extends VoltProcedure> proc_class;
         public final int default_weight;
         public final String displayName;
+        public final String execName;
         
         protected static final Map<Integer, Transaction> idx_lookup = new HashMap<Integer, Transaction>();
         protected static final Map<String, Transaction> name_lookup = new HashMap<String, Transaction>();
@@ -137,6 +143,9 @@ public class AirlineClient extends AirlineBaseClient {
         public String getDisplayName() {
             return (this.displayName);
         }
+        public String getExecName() {
+            return (this.execName);
+        }
     }
     
     // -----------------------------------------------------------------
@@ -146,15 +155,12 @@ public class AirlineClient extends AirlineBaseClient {
     protected final LinkedList<Reservation> CACHE_PENDING_INSERTS = new LinkedList<Reservation>();
     protected final LinkedList<Reservation> CACHE_PENDING_UPDATES = new LinkedList<Reservation>();
     protected final LinkedList<Reservation> CACHE_PENDING_DELETES = new LinkedList<Reservation>();
-    
-    protected final Map<List<Reservation>, Pair<Integer, ReentrantLock>> CACHE_LOCKS = new HashMap<List<Reservation>, Pair<Integer, ReentrantLock>>();
+
+    protected final Map<List<Reservation>, Integer> CACHE_LOCKS = new HashMap<List<Reservation>, Integer>();
     {
-        CACHE_LOCKS.put(CACHE_PENDING_INSERTS,
-                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_INSERTS, new ReentrantLock()));
-        CACHE_LOCKS.put(CACHE_PENDING_UPDATES,
-                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_UPDATES, new ReentrantLock()));
-        CACHE_LOCKS.put(CACHE_PENDING_DELETES,
-                        Pair.of(AirlineConstants.CACHE_LIMIT_PENDING_DELETES, new ReentrantLock()));
+        CACHE_LOCKS.put(CACHE_PENDING_INSERTS, AirlineConstants.CACHE_LIMIT_PENDING_INSERTS);
+        CACHE_LOCKS.put(CACHE_PENDING_UPDATES, AirlineConstants.CACHE_LIMIT_PENDING_UPDATES);
+        CACHE_LOCKS.put(CACHE_PENDING_DELETES, AirlineConstants.CACHE_LIMIT_PENDING_DELETES);
     } // STATIC
     
     protected static final ConcurrentHashMap<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<CustomerId, Set<FlightId>>();
@@ -340,6 +346,10 @@ public class AirlineClient extends AirlineBaseClient {
         assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
         
+        Thread t = new Thread(new CallbackProcessor());
+        t.setDaemon(true);
+        t.start();
+        
         // Load Histograms
 //        if (debug.get()) LOG.debug("Loading data files for histograms");
 //        this.loadHistograms();
@@ -403,7 +413,7 @@ public class AirlineClient extends AirlineBaseClient {
                     break;
                 }
                 case FIND_FLIGHTS: {
-                    ret = this.executeFindFlight(txn);
+                    ret = this.executeFindFlights(txn);
                     break;
                 }
                 case FIND_OPEN_SEATS: {
@@ -434,30 +444,18 @@ public class AirlineClient extends AirlineBaseClient {
     @Override
     public void tick(int counter) {
         super.tick(counter);
-        
-//        for (FlightId flight_id : CACHE_BOOKED_SEATS.keySet()) {
-//            BitSet seats = CACHE_BOOKED_SEATS.get(flight_id);
-//            if (isFlightFull(seats)) {
-//                for ()
-//            }
-//        } // FOR
-        
-        
-        for (List<Reservation> cache : CACHE_LOCKS.keySet()) {
-            int limit = CACHE_LOCKS.get(cache).getFirst();
-            // ReentrantLock lock = CACHE_LOCKS.get(cache).getSecond();
+        for (Entry<List<Reservation>, Integer> e : CACHE_LOCKS.entrySet()) {
+            List<Reservation> cache = e.getKey();
+            int limit = e.getValue();
             int before = cache.size();
-            if (before > limit) { //  && lock.tryLock()) {
+            if (before > limit) {
                 synchronized (cache) {
-                    try {
-                        while (cache.size() > limit) {
-                            cache.remove(0);
-                        } // WHILE
-                        if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
+                    Collections.shuffle(cache, rng);
+                    while (cache.size() > limit) {
+                        cache.remove(0);
+                    } // WHILE
+                    if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
                                                   cache.size(), before)); 
-                    } finally {
-//                        lock.unlock();
-                    }
                 } // SYNCH
             } // SYNCH
         }
@@ -482,11 +480,38 @@ public class AirlineClient extends AirlineBaseClient {
     }
     
     protected abstract class AbstractCallback<T> implements ProcedureCallback {
+        final Transaction txn;
         final T element;
-        public AbstractCallback(T t) {
+        public AbstractCallback(Transaction txn, T t) {
+            this.txn = txn;
             this.element = t;
         }
+        public final void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(clientResponse, txn.ordinal());
+            callbackQueue.offer(new Pair<AbstractCallback<?>, ClientResponse>(this, clientResponse));
+        }
+        public abstract void clientCallbackImpl(ClientResponse clientResponse);
     }
+    
+    final LinkedBlockingQueue<Pair<AbstractCallback<?>, ClientResponse>> callbackQueue = new LinkedBlockingQueue<Pair<AbstractCallback<?>,ClientResponse>>();
+    
+    protected class CallbackProcessor implements Runnable {
+        
+        @Override
+        public void run() {
+            Pair<AbstractCallback<?>, ClientResponse> p = null;
+            while (true) {
+                try {
+                    p = callbackQueue.take();
+                } catch (InterruptedException ex) {
+                    break;
+                }
+                p.getFirst().clientCallbackImpl(p.getSecond());
+            } // WHILE
+            
+        }
+    }
+    
     
     // -----------------------------------------------------------------
     // DeleteReservation
@@ -494,11 +519,10 @@ public class AirlineClient extends AirlineBaseClient {
     
     class DeleteReservationCallback extends AbstractCallback<Reservation> {
         public DeleteReservationCallback(Reservation r) {
-            super(r);
+            super(Transaction.DELETE_RESERVATION, r);
         }
         @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.DELETE_RESERVATION.ordinal());
+        public void clientCallbackImpl(ClientResponse clientResponse) {
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 // We can remove this from our set of full flights because know that there is now a free seat
                 BitSet seats = AirlineClient.getSeatsBitSet(element.flight_id);
@@ -519,9 +543,14 @@ public class AirlineClient extends AirlineBaseClient {
     }
 
     private boolean executeDeleteReservation(Transaction txn) throws IOException {
+        this.startComputeTime(txn.displayName);
+        
         // Pull off the first cached reservation and drop it on the cluster...
         Reservation r = CACHE_PENDING_DELETES.poll();
-        if (r == null) return (false);
+        if (r == null) {
+            this.stopComputeTime(txn.displayName);
+            return (false);
+        }
         int rand = rng.number(1, 100);
         
         Object params[] = new Object[]{
@@ -546,9 +575,10 @@ public class AirlineClient extends AirlineBaseClient {
             params[1] = r.customer_id.encode();
         }
         
-        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        this.stopComputeTime(txn.displayName);
         this.getClientHandle().callProcedure(new DeleteReservationCallback(r),
-                                             txn.proc_class.getSimpleName(),
+                                             txn.getExecName(),
                                              params);
         return (true);
     }
@@ -582,7 +612,9 @@ public class AirlineClient extends AirlineBaseClient {
      * @param txn
      * @throws IOException
      */
-    private boolean executeFindFlight(Transaction txn) throws IOException {
+    private boolean executeFindFlights(Transaction txn) throws IOException {
+        this.startComputeTime(txn.displayName);
+        
         long depart_airport_id;
         long arrive_airport_id;
         TimestampType start_date;
@@ -628,10 +660,12 @@ public class AirlineClient extends AirlineBaseClient {
             stop_date,
             distance
         };
-        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        this.stopComputeTime(txn.displayName);
         this.getClientHandle().callProcedure(new FindFlightsCallback(),
-                                             txn.proc_class.getSimpleName(),
+                                             txn.getExecName(),
                                              params);
+        
         return (true);
     }
 
@@ -641,11 +675,10 @@ public class AirlineClient extends AirlineBaseClient {
     
     class FindOpenSeatsCallback extends AbstractCallback<FlightId> {
         public FindOpenSeatsCallback(FlightId f) {
-            super(f);
+            super(Transaction.FIND_OPEN_SEATS, f);
         }
         @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.FIND_OPEN_SEATS.ordinal());
+        public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
             if (results.length != 1) {
                 if (debug.get()) LOG.warn("Results is " + results.length);
@@ -698,7 +731,6 @@ public class AirlineClient extends AirlineBaseClient {
                             ctr++;
                         }
                     } // FOR
-                    Collections.shuffle(CACHE_PENDING_INSERTS, rng);
                 } // SYNCH
 
                 if (debug.get())
@@ -719,12 +751,19 @@ public class AirlineClient extends AirlineBaseClient {
      * @throws IOException
      */
     private boolean executeFindOpenSeats(Transaction txn) throws IOException {
+        this.startComputeTime(txn.displayName);
         FlightId flight_id = this.getRandomFlightId();
         assert(flight_id != null);
-        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        
+        Object params[] = new Object[] {
+            flight_id.encode()
+        };
+        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        this.stopComputeTime(txn.displayName);
         this.getClientHandle().callProcedure(new FindOpenSeatsCallback(flight_id),
-                                             txn.proc_class.getSimpleName(),
-                                             flight_id.encode());
+                                             txn.execName,
+                                             params);
+        
         return (true);
     }
     
@@ -734,11 +773,10 @@ public class AirlineClient extends AirlineBaseClient {
     
     class NewReservationCallback extends AbstractCallback<Reservation> {
         public NewReservationCallback(Reservation r) {
-            super(r);
+            super(Transaction.NEW_RESERVATION, r);
         }
         @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.NEW_RESERVATION.ordinal());
+        public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
             
             BitSet seats = getSeatsBitSet(element.flight_id);
@@ -804,6 +842,7 @@ public class AirlineClient extends AirlineBaseClient {
     }
     
     private boolean executeNewReservation(Transaction txn) throws IOException {
+        this.startComputeTime(txn.displayName);
         Reservation reservation = null;
         BitSet seats = null;
         
@@ -834,6 +873,7 @@ public class AirlineClient extends AirlineBaseClient {
         } // WHILE
         if (reservation == null) {
             if (debug.get()) LOG.debug("Failed to find a valid pending insert Reservation");
+            this.stopComputeTime(txn.displayName);
             return (false);
         }
         
@@ -855,10 +895,12 @@ public class AirlineClient extends AirlineBaseClient {
                 price,
                 attributes
         };
-        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        this.stopComputeTime(txn.displayName);
         this.getClientHandle().callProcedure(new NewReservationCallback(reservation),
-                                             txn.proc_class.getSimpleName(),
+                                             txn.getExecName(),
                                              params);
+        
         return (true);
     }
 
@@ -868,11 +910,10 @@ public class AirlineClient extends AirlineBaseClient {
     
     class UpdateCustomerCallback extends AbstractCallback<CustomerId> {
         public UpdateCustomerCallback(CustomerId c) {
-            super(c);
+            super(Transaction.UPDATE_CUSTOMER, c);
         }
         @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.UPDATE_CUSTOMER.ordinal());
+        public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert (results.length >= 1);
@@ -885,6 +926,8 @@ public class AirlineClient extends AirlineBaseClient {
     }
 
     private boolean executeUpdateCustomer(Transaction txn) throws IOException {
+        this.startComputeTime(txn.displayName);
+        
         // Pick a random customer and then have at it!
         CustomerId customer_id = this.getRandomCustomerId();
         long attr0 = this.rng.nextLong();
@@ -908,9 +951,10 @@ public class AirlineClient extends AirlineBaseClient {
             params[0] = customer_id.encode();
         }
 
-        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        this.stopComputeTime(txn.displayName);
         this.getClientHandle().callProcedure(new UpdateCustomerCallback(customer_id),
-                                             txn.proc_class.getSimpleName(),
+                                             txn.getExecName(),
                                              params);
         return (true);
     }
@@ -921,11 +965,10 @@ public class AirlineClient extends AirlineBaseClient {
     
     class UpdateReservationCallback extends AbstractCallback<Reservation> {
         public UpdateReservationCallback(Reservation r) {
-            super(r);
+            super(Transaction.UPDATE_RESERVATION, r);
         }
         @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, Transaction.UPDATE_RESERVATION.ordinal());
+        public void clientCallbackImpl(ClientResponse clientResponse) {
             if (clientResponse.getStatus() == Hstore.Status.OK) {
                 assert (clientResponse.getResults().length == 1);
                 assert (clientResponse.getResults()[0].getRowCount() == 1);
@@ -938,9 +981,14 @@ public class AirlineClient extends AirlineBaseClient {
     }
 
     private boolean executeUpdateReservation(Transaction txn) throws IOException {
+        this.startComputeTime(txn.displayName);
+        
         // Pull off the first pending seat change and throw that ma at the server
         Reservation r = CACHE_PENDING_UPDATES.poll();
-        if (r == null) return (false);
+        if (r == null) {
+            this.stopComputeTime(txn.displayName);
+            return (false);
+        }
         
         // Pick a random reservation id
         long value = rng.number(1, 1 << 20);
@@ -954,9 +1002,11 @@ public class AirlineClient extends AirlineBaseClient {
                 attribute_idx,
                 value
         };
-        if (debug.get()) LOG.debug("Calling " + txn.proc_class.getSimpleName());
+        
+        if (trace.get()) LOG.trace("Calling " + txn.getExecName());
+        this.stopComputeTime(txn.displayName);
         this.getClientHandle().callProcedure(new UpdateReservationCallback(r),
-                                             txn.proc_class.getSimpleName(), 
+                                             txn.getExecName(), 
                                              params);
         return (true);
     }

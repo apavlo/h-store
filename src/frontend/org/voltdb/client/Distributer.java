@@ -681,30 +681,31 @@ class Distributer {
         int queuedInvocations = 0;
         long now = System.currentTimeMillis();
         
+        final int totalConnections = m_connections.size();
+
+        if (totalConnections == 0) {
+            throw new NoConnectionsException("No connections.");
+        }
+        if (site_id != null && m_connectionSiteXref.containsKey(site_id)) {
+             cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
+//            cxn = CollectionUtil.first(m_connectionSiteXref.get(site_id));
+            if (cxn == null) {
+                LOG.warn("No direct connection to " + HStoreSite.formatSiteName(site_id));
+            } else backpressure = false; // XXX
+//            else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
+//                backpressure = false;
+//            }
+//            else {
+//                cxn = null;
+//            }
+        }
+        
         /*
          * Synchronization is necessary to ensure that m_connections is not modified
          * as well as to ensure that backpressure is reported correctly
          */
-        synchronized (this) {
-            final int totalConnections = m_connections.size();
-
-            if (totalConnections == 0) {
-                throw new NoConnectionsException("No connections.");
-            }
-            if (site_id != null && m_connectionSiteXref.containsKey(site_id)) {
-                 cxn = CollectionUtil.random(m_connectionSiteXref.get(site_id));
-//                cxn = CollectionUtil.first(m_connectionSiteXref.get(site_id));
-                if (cxn == null) {
-                    LOG.warn("No direct connection to " + HStoreSite.formatSiteName(site_id));
-                } else backpressure = false; // XXX
-//                else if (!cxn.hadBackPressure(now) || ignoreBackpressure) {
-//                    backpressure = false;
-//                }
-//                else {
-//                    cxn = null;
-//                }
-            }            
-            if (cxn == null) {
+        if (cxn == null) {
+            synchronized (this) {
                 for (int i=0; i < totalConnections; ++i) {
                     int idx = Math.abs(++m_nextConnection % totalConnections);
                     cxn = m_connections.get(idx);
@@ -717,15 +718,14 @@ class Distributer {
                         break;
                     }
                 } // FOR
+            } // SYNCH
+        } 
+        if (backpressure) {
+            cxn = null;
+            for (ClientStatusListener s : m_listeners) {
+                s.backpressure(true);
             }
-
-            if (backpressure) {
-                cxn = null;
-                for (ClientStatusListener s : m_listeners) {
-                    s.backpressure(true);
-                }
-            }
-        } // SYNCH
+        }
         
         if (debug.get()) 
             LOG.debug(String.format("Queuing new %s Request [clientHandle=%d, siteId=%s]",
