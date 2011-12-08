@@ -67,6 +67,7 @@ import org.voltdb.VoltType;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
+import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
@@ -85,8 +86,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 
 public class AirlineClient extends AirlineBaseClient {
@@ -147,6 +146,28 @@ public class AirlineClient extends AirlineBaseClient {
             return (this.execName);
         }
     }
+    
+    // -----------------------------------------------------------------
+    // SEPARATE CALLBACK PROCESSING THREAD
+    // -----------------------------------------------------------------
+    
+    protected abstract class AbstractCallback<T> implements ProcedureCallback {
+        final Transaction txn;
+        final T element;
+        public AbstractCallback(Transaction txn, T t) {
+            this.txn = txn;
+            this.element = t;
+        }
+        public final void clientCallback(ClientResponse clientResponse) {
+            incrementTransactionCounter(clientResponse, txn.ordinal());
+            callbackQueue.add(new Pair<AbstractCallback<?>, ClientResponse>(this, clientResponse));
+        }
+        public abstract void clientCallbackImpl(ClientResponse clientResponse);
+    }
+    
+    private static Thread callbackThread;
+    private static final LinkedBlockingQueue<Pair<AbstractCallback<?>, ClientResponse>> callbackQueue = new LinkedBlockingQueue<Pair<AbstractCallback<?>,ClientResponse>>();
+
     
     // -----------------------------------------------------------------
     // RESERVED SEAT BITMAPS
@@ -346,13 +367,13 @@ public class AirlineClient extends AirlineBaseClient {
         assert(weights.getSampleCount() == 100) : "The total weight for the transactions is " + this.xacts.getSampleCount() + ". It needs to be 100";
         if (debug.get()) LOG.debug("Transaction Execution Distribution:\n" + weights);
         
-        Thread t = new Thread(new CallbackProcessor());
-        t.setDaemon(true);
-        t.start();
-        
-        // Load Histograms
-//        if (debug.get()) LOG.debug("Loading data files for histograms");
-//        this.loadHistograms();
+        synchronized (AirlineClient.class) {
+            if (callbackThread == null) {
+                callbackThread = new Thread(new CallbackProcessor());
+                callbackThread.setDaemon(true);
+                callbackThread.start();
+            }
+        } // SYNCH
     }
 
     @Override
@@ -479,23 +500,8 @@ public class AirlineClient extends AirlineBaseClient {
         }
     }
     
-    protected abstract class AbstractCallback<T> implements ProcedureCallback {
-        final Transaction txn;
-        final T element;
-        public AbstractCallback(Transaction txn, T t) {
-            this.txn = txn;
-            this.element = t;
-        }
-        public final void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, txn.ordinal());
-            callbackQueue.offer(new Pair<AbstractCallback<?>, ClientResponse>(this, clientResponse));
-        }
-        public abstract void clientCallbackImpl(ClientResponse clientResponse);
-    }
     
-    final LinkedBlockingQueue<Pair<AbstractCallback<?>, ClientResponse>> callbackQueue = new LinkedBlockingQueue<Pair<AbstractCallback<?>,ClientResponse>>();
-    
-    protected class CallbackProcessor implements Runnable {
+    protected static class CallbackProcessor implements Runnable {
         
         @Override
         public void run() {
@@ -506,9 +512,9 @@ public class AirlineClient extends AirlineBaseClient {
                 } catch (InterruptedException ex) {
                     break;
                 }
+                if (trace.get()) LOG.trace("CallbackProcessor -> " + p.getFirst().getClass().getSimpleName());
                 p.getFirst().clientCallbackImpl(p.getSecond());
             } // WHILE
-            
         }
     }
     
@@ -760,10 +766,15 @@ public class AirlineClient extends AirlineBaseClient {
         };
         if (trace.get()) LOG.trace("Calling " + txn.getExecName());
         this.stopComputeTime(txn.displayName);
+        
+//        try {
+//            this.getClientHandle().callProcedure(txn.execName, params);
+//        } catch (ProcCallException ex) {
+//            // throw new RuntimeException(ex);
+//        }
         this.getClientHandle().callProcedure(new FindOpenSeatsCallback(flight_id),
                                              txn.execName,
                                              params);
-        
         return (true);
     }
     

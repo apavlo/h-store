@@ -177,7 +177,15 @@ public abstract class BenchmarkComponent {
     private static PartitionPlan globalPartitionPlan;
     
     public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
-//        Client newClient = null;
+//        Client newClient = ClientFactory.createClient(
+//                    messageSize,
+//                    null,
+//                    heavyWeight,
+//                    statsSettings,
+//                    catalog
+//            );
+//        return (newClient);
+        
         if (globalClient == null) {
             globalClient = ClientFactory.createClient(
                     messageSize,
@@ -1263,21 +1271,19 @@ public abstract class BenchmarkComponent {
         if (debug.get()) LOG.debug("New Tick Update: " + counter);
         this.tick(counter);
         
-        //if (debug.get()) {
-        if (this.getClientId() == 0) {
+        if (debug.get()) {
             if (this.computeTime.isEmpty() == false) {
                 for (String txnName : this.computeTime.keySet()) {
                     ProfileMeasurement pm = this.computeTime.get(txnName);
                     if (pm.getInvocations() != 0) {
-                        LOG.info(String.format("[%02d] - %s COMPUTE TIME: %s", counter, txnName, pm.debug()));
+                        LOG.debug(String.format("[%02d] - %s COMPUTE TIME: %s", counter, txnName, pm.debug()));
                         pm.reset();
                     }
                 } // FOR
             }
-            LOG.info("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
+            LOG.debug("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
             this.m_voltClient.getQueueTime().reset();
         }
-//        }
     }
     
     protected synchronized void startComputeTime(String txnName) {
