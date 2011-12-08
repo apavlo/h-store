@@ -119,7 +119,9 @@ public class FindOpenSeats extends VoltProcedure {
                                     f_id, seat_price, _seat_price, base_price, seats_total, seats_left));
         
         // Then build the seat map of the remaining seats
-        while (results[1].advanceRow()) {
+        int max = getSeededRandomNumberGenerator().nextInt(10); // AirlineConstants.NUM_SEATS_PER_FLIGHT);
+        int ctr = 0;
+        while (results[1].advanceRow() && ctr++ < max) {
             long r_id = results[1].getLong(0);
             int seatnum = (int)results[1].getLong(2);
             if (debug) LOG.debug(String.format("ROW fid %d rid %d seat %d", f_id, r_id, seatnum));
