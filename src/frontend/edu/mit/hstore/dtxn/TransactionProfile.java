@@ -153,7 +153,7 @@ public class TransactionProfile implements Poolable {
      */
     private final ProfileMeasurement pm_init_est = new ProfileMeasurement("INIT_EST");
     /**
-     * 
+     * Time spent waiting in the DTXN queue
      */
     private final ProfileMeasurement pm_init_dtxn = new ProfileMeasurement("INIT_DTXN");
     
@@ -181,7 +181,7 @@ public class TransactionProfile implements Poolable {
     // ---------------------------------------------------------------
     
     /**
-     * Time spent waiting in queue
+     * Time spent waiting in the ExecutionSite queue
      */
     private final ProfileMeasurement pm_queue = new ProfileMeasurement("QUEUE");
     
