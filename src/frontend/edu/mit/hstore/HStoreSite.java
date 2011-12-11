@@ -1206,16 +1206,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting %s %s on partition %d",
                         (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
         
-        // We have to wrap the StoredProcedureInvocation object into an InitiateTaskMessage so that it can be put
-        // into the ExecutionSite's execution queue
-        InitiateTaskMessage itask = new InitiateTaskMessage(txn_id, base_partition, base_partition, ts.isPredictReadOnly(), ts.getInvocation());
-        
-        // Always execute this mofo right away and let each ExecutionSite figure out what it needs to do
         ExecutionSite executor = this.executors[base_partition];
         assert(executor != null) : "No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
-        boolean ret = executor.queueNewTransaction(ts, itask);
+        boolean ret = executor.queueNewTransaction(ts);
         if (hstore_conf.site.status_show_txn_info && ret) {
             assert(catalog_proc != null) : String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
             TxnCounter.EXECUTED.inc(catalog_proc);

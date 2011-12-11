@@ -51,6 +51,7 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.messaging.InitiateTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
@@ -95,6 +96,8 @@ public class LocalTransaction extends AbstractTransaction {
      * XXX: Why do we need to keep this?
      */
     private StoredProcedureInvocation invocation;
+    
+    private final InitiateTaskMessage itask;
 
     /**
      * The set of partitions that we expected this partition to touch.
@@ -188,6 +191,8 @@ public class LocalTransaction extends AbstractTransaction {
         super(hstore_site);
         this.profiler = (hstore_site.getHStoreConf().site.txn_profiling ? new TransactionProfile() : null);
         
+        this.itask = new InitiateTaskMessage();
+        
         int num_sites = CatalogUtil.getNumberOfSites(hstore_site.getSite());
         this.rpc_transactionInit = new ProtoRpcController[num_sites];
         this.rpc_transactionWork = new ProtoRpcController[num_sites];
@@ -201,6 +206,15 @@ public class LocalTransaction extends AbstractTransaction {
         assert(this.predict_touchedPartitions != null);
         super.init(txnId, clientHandle, base_partition,
                 (this.predict_touchedPartitions.size() == 1), predict_readOnly, predict_canAbort, true);
+        
+        // Initialize the InitialTaskMessage
+        // We have to wrap the StoredProcedureInvocation object into an
+        // InitiateTaskMessage so that it can be put into the ExecutionSite's execution queue
+        this.itask.setTransactionId(txnId);
+        this.itask.setSrcPartition(base_partition);
+        this.itask.setDestPartition(base_partition);
+        this.itask.setReadOnly(predict_readOnly);
+        this.itask.setStoredProcedureInvocation(invocation);
         
         if (this.predict_singlePartition == false) {
             try {
@@ -517,6 +531,10 @@ public class LocalTransaction extends AbstractTransaction {
     
     public void setBatchSize(int batchSize) {
         this.state.batch_size = batchSize;
+    }
+    
+    public InitiateTaskMessage getInitiateTaskMessage() {
+        return (this.itask);
     }
     public StoredProcedureInvocation getInvocation() {
         return invocation;

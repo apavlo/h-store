@@ -36,7 +36,7 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
     int[] m_nonCoordinatorSites = null;
 
     /** Empty constructor for de-serialization */
-    InitiateTaskMessage() {
+    public InitiateTaskMessage() {
         super();
     }
 
@@ -58,6 +58,10 @@ public class InitiateTaskMessage extends TransactionInfoBaseMessage {
         m_invocation = invocation;
         m_invocation.buildParameterSet();
         m_lastSafeTxnID = lastSafeTxnID;
+    }
+    
+    public void setSinglePartition(boolean isSinglePartition) {
+        this.m_isSinglePartition = isSinglePartition;
     }
 
     public void setNonCoordinatorSites(int[] siteIds) {
