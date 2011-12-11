@@ -47,9 +47,9 @@ import org.voltdb.catalog.Table;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
-import edu.brown.benchmark.airline.AirlineProjectBuilder;
 import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
 import edu.brown.benchmark.markov.MarkovProjectBuilder;
+import edu.brown.benchmark.seats.SEATSProjectBuilder;
 import edu.brown.benchmark.tm1.TM1ProjectBuilder;
 import edu.brown.benchmark.tpce.TPCEProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
@@ -206,7 +206,7 @@ public abstract class BaseTestCase extends TestCase {
                         catalog = projectBuilder.createCatalog(fkeys, full_catalog);
                         break;
                     case TM1:
-                    case AIRLINE:
+                    case SEATS:
                     case AUCTIONMARK:
                     case MARKOV:
                     case LOCALITY:
@@ -252,8 +252,8 @@ public abstract class BaseTestCase extends TestCase {
                 case TM1:
                     projectBuilder = new TM1ProjectBuilder();
                     break;
-                case AIRLINE:
-                    projectBuilder = new AirlineProjectBuilder();
+                case SEATS:
+                    projectBuilder = new SEATSProjectBuilder();
                     break;
                 case AUCTIONMARK:
                     projectBuilder = new AuctionMarkProjectBuilder();

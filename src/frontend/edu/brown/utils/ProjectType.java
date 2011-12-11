@@ -9,7 +9,7 @@ public enum ProjectType {
     TPCE        ("TPC-E",       "edu.brown.benchmark.tpce"),
     TM1         ("TM1",         "edu.brown.benchmark.tm1"),
     SIMPLE      ("Simple",      null),
-    AIRLINE     ("Airline",     "edu.brown.benchmark.airline"),
+    SEATS       ("SEATS",       "edu.brown.benchmark.seats"),
     MARKOV      ("Markov",      "edu.brown.benchmark.markov"),
     BINGO       ("Bingo",       "org.voltdb.benchmark.bingo"),
     AUCTIONMARK ("AuctionMark", "edu.brown.benchmark.auctionmark"),
