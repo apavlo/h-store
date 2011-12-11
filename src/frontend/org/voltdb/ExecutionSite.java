@@ -1044,8 +1044,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param task
      * @param callback
      */
-    public boolean queueNewTransaction(LocalTransaction ts, InitiateTaskMessage task) {
-        assert(ts != null) : "The TransactionState is somehow null for txn #" + task.getTxnId();
+    public boolean queueNewTransaction(LocalTransaction ts) {
+        assert(ts != null) : "Unexpected null transaction handle!";
+        final InitiateTaskMessage task = ts.getInitiateTaskMessage();
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean success = true;
         
