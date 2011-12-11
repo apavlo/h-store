@@ -71,12 +71,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         LoadWarehouse.class,
         LoadWarehouseReplicated.class,
         GetTableCounts.class,
-
-        // We shouldn't be calling these, but they're here for now...
-//        paymentByCustomerIdC.class,
-//        paymentByCustomerNameC.class,
-//        paymentByCustomerIdW.class,
-//        paymentByCustomerNameW.class,
     };
     
     // Transaction Frequencies

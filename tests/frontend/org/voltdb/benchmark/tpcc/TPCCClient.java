@@ -445,9 +445,9 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         constraint = Verification.conjunction(ExpressionType.CONJUNCTION_AND,
                                               c_id, c_discount);
         addConstraint(TPCCConstants.PAYMENT_BY_ID, 2, constraint);
-        addConstraint(TPCCConstants.PAYMENT_BY_ID_C, 0, constraint);
+//        addConstraint(TPCCConstants.PAYMENT_BY_ID_C, 0, constraint);
         addConstraint(TPCCConstants.PAYMENT_BY_NAME, 2, constraint);
-        addConstraint(TPCCConstants.PAYMENT_BY_NAME_C, 0, constraint);
+//        addConstraint(TPCCConstants.PAYMENT_BY_NAME_C, 0, constraint);
 
         // slev
         constraint = Verification.compareWithConstant(ExpressionType.COMPARE_GREATERTHANOREQUALTO,

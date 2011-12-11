@@ -45,10 +45,6 @@ public class AllTpccSQL {
         org.voltdb.benchmark.tpcc.procedures.neworder.class,
         org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId.class,
         org.voltdb.benchmark.tpcc.procedures.ostatByCustomerName.class,
-        org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameC.class,
-        org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdC.class,
-        org.voltdb.benchmark.tpcc.procedures.paymentByCustomerNameW.class,
-        org.voltdb.benchmark.tpcc.procedures.paymentByCustomerIdW.class,
         org.voltdb.benchmark.tpcc.procedures.slev.class
     };
 
