@@ -18,6 +18,7 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
@@ -50,12 +51,14 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     private static TransactionTrace txn_trace;
     
     private MockExecutionSite executor;
+    private Histogram<Integer> touched_partitions;
 
     @Override
     @SuppressWarnings("unchecked")
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
+        this.touched_partitions = new Histogram<Integer>();
 
         if (workload == null) {
             catalog_proc = this.getProcedure(TARGET_PROCEDURE);
@@ -154,7 +157,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      */
     public void testPlanMultiPartition() throws Exception {
         BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, args[TARGET_BATCH], false);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[TARGET_BATCH]);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
     }
@@ -171,7 +174,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         partitions.add(BASE_PARTITION);
         partitions.add(BASE_PARTITION+1);
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, args[TARGET_BATCH], true);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, true, this.touched_partitions, args[TARGET_BATCH]);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -188,7 +191,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         partitions.add(BASE_PARTITION);
 //        partitions.add(BASE_PARTITION+1);
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, args[TARGET_BATCH], false);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, false, this.touched_partitions, args[TARGET_BATCH]);
         assert(plan.hasMisprediction());
         if (plan != null) System.err.println(plan.toString());
     }
@@ -199,7 +202,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     public void testGetStatementPartitions() throws Exception {
         for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
             BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator);
-            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, args[batch_idx], false);
+            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, false, this.touched_partitions, args[batch_idx]);
             assertNotNull(plan);
             assertFalse(plan.hasMisprediction());
             
@@ -218,7 +221,30 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             } // FOR
 //            System.err.println(plan);
         }
+    }
+    
+    /**
+     * testReplicatedTableTouchedPartitions
+     */
+    public void testReplicatedTableTouchedPartitions() throws Exception {
+        Procedure catalog_proc = this.getProcedure(neworder.class);
+        Statement catalog_stmt = this.getStatement(catalog_proc, "getItemInfo");
         
+        SQLStmt batch[] = { new SQLStmt(catalog_stmt) };
+        ParameterSet params[] = new ParameterSet[]{
+                VoltProcedure.getCleanParams(batch[0], new Object[]{ new Long(1) })
+        };
+        Collection<Integer> partitions = Collections.singleton(0);
+        
+        // Check to make sure that if we do a SELECT on a replicated table, that
+        // it doesn't get added to our touched partitions histogram
+        BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, partitions, true, this.touched_partitions, params);
+        assertNotNull(plan);
+        assertFalse(plan.hasMisprediction());
+        
+        assertEquals(0, this.touched_partitions.getValueCount());
+        assertEquals(0, this.touched_partitions.getSampleCount());
     }
     
 }

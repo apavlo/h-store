@@ -23,6 +23,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.*;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
@@ -55,6 +56,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static ExecutionSite executor;
     private static BatchPlan plan;
     private static List<FragmentTaskMessage> ftasks;
+    private Histogram<Integer> touched_partitions = new Histogram<Integer>();
     
     private LocalTransaction ts;
     private ExecutionState execState;
@@ -96,7 +98,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, SINGLE_PARTITIONED);
+            plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages(args);
             assertFalse(ftasks.isEmpty());

@@ -153,6 +153,7 @@ begin Statement             "A parameterized SQL statement embedded in a stored 
   bool replicatedtabledml   "Should the result of this statememt be divided by partition count before returned"
   bool replicatedonly       "Does this statement only access replicated tables?"
   bool batched              ""
+  bool secondaryindex       ""
   int paramnum              ""
   StmtParameter* parameters "The set of parameters to this SQL statement"
   Column* output_columns    "The set of columns in the output table"

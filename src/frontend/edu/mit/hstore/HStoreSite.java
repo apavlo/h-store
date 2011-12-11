@@ -1485,7 +1485,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (status != Hstore.Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Set<Integer> most_touched = touched.getMaxCountValues();
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
+            
+            // HACK: We should probably decrement the base partition by one 
+            // so that we only consider where they actually executed queries
+            
+            if (d)
+                LOG.debug("__FILE__:__LINE__ " + String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
@@ -1494,12 +1499,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else {
                 redirect_partition = CollectionUtil.random(this.all_partitions);
             }
+            if (t) {
+                LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
+                LOG.trace("Local Partitions: " + this.local_partitions);
+            }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
             // already redirected at least once. If this txn was already redirected, then it's going to just
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
-            if (this.local_partitions.contains(redirect_partition) == false && spi.hasBasePartition() == false) {
+            if (this.local_partitions.contains(redirect_partition) == false) { // && spi.hasBasePartition() == false) {
                 if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Redirecting mispredicted %s to partition %d", orig_ts, redirect_partition));
                 
                 spi.setBasePartition(redirect_partition.intValue());
@@ -1533,7 +1542,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 base_partition = redirect_partition.intValue();
                 spi.setBasePartition(base_partition);
             } else {
-                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn", orig_ts));
+//                if (d) 
+                    LOG.info("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn", orig_ts));
                 touched.putAll(this.local_partitions);
             }
         }

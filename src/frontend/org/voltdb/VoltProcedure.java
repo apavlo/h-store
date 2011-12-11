@@ -1013,8 +1013,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                       this.client_handle,
                                       this.partitionId, 
                                       this.m_localTxnState.getPredictTouchedPartitions(),
-                                      params,
-                                      this.predict_singlepartition);
+                                      this.predict_singlepartition,
+                                      this.m_localTxnState.getTouchedPartitions(),
+                                      params);
         assert(this.plan != null);
         if (d) LOG.debug("BatchPlan for " + this.m_currentTxnState + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();
