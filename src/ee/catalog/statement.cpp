@@ -41,6 +41,7 @@ Statement::Statement(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["replicatedtabledml"] = value;
     m_fields["replicatedonly"] = value;
     m_fields["batched"] = value;
+    m_fields["secondaryindex"] = value;
     m_fields["paramnum"] = value;
     m_childCollections["parameters"] = &m_parameters;
     m_childCollections["output_columns"] = &m_output_columns;
@@ -63,6 +64,7 @@ void Statement::update() {
     m_replicatedtabledml = m_fields["replicatedtabledml"].intValue;
     m_replicatedonly = m_fields["replicatedonly"].intValue;
     m_batched = m_fields["batched"].intValue;
+    m_secondaryindex = m_fields["secondaryindex"].intValue;
     m_paramnum = m_fields["paramnum"].intValue;
     m_has_singlesited = m_fields["has_singlesited"].intValue;
     m_exptree = m_fields["exptree"].strValue.c_str();
@@ -151,6 +153,10 @@ bool Statement::replicatedonly() const {
 
 bool Statement::batched() const {
     return m_batched;
+}
+
+bool Statement::secondaryindex() const {
+    return m_secondaryindex;
 }
 
 int32_t Statement::paramnum() const {

@@ -47,8 +47,8 @@ public class UpdateLocation extends VoltProcedure{
     public final SQLStmt updateSubscriber = new SQLStmt(
         "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE s_id = ?");
     
-    public final SQLStmt update = new SQLStmt(
-        "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE sub_nbr = ?");
+//    public final SQLStmt update = new SQLStmt(
+//        "UPDATE " + TM1Constants.TABLENAME_SUBSCRIBER + " SET vlr_location = ? WHERE sub_nbr = ?");
 
     public long run(long location, String sub_nbr) {
         voltQueueSQL(getSubscriber, sub_nbr);

@@ -40,6 +40,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
@@ -457,7 +458,9 @@ public class BatchPlanner {
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].catStmt;
             this.stmt_is_readonly[i] = batchStmts[i].catStmt.getReadonly();
-            this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly();
+            this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly() ||
+                                             batchStmts[i].catStmt.getSecondaryindex();
+            LOG.info(batchStmts[i].catStmt.fullName() + " -> " + this.stmt_is_replicatedonly[i]); 
             
             // CACHING
             // Since most batches are going to be single-partition, we will cache
@@ -511,16 +514,21 @@ public class BatchPlanner {
                 this.time_fragmentTaskMessages,
         };
     }
-    
+
     /**
      * 
      * @param txn_id
      * @param client_handle
+     * @param base_partition
+     * @param predict_partitions
+     * @param touched_partitions
      * @param batchArgs
-     * @param predict_singlepartitioned
      * @return
      */
-    public BatchPlan plan(long txn_id, long client_handle, int base_partition, Collection<Integer> predict_partitions, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
+    public BatchPlan plan(long txn_id, long client_handle, int base_partition,
+                          Collection<Integer> predict_partitions, boolean predict_singlepartitioned,
+                          Histogram<Integer> touched_partitions,
+                          ParameterSet[] batchArgs) {
         if (this.enable_profiling) time_plan.start();
         if (debug.get())
             LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
@@ -611,6 +619,9 @@ public class BatchPlanner {
             boolean is_singlepartition = has_singlepartition_plan;
             boolean is_local = true;
             CatalogMap<PlanFragment> fragments = null;
+            
+//            AbstractPlanNode node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+//            LOG.info(PlanNodeUtil.debug(node));
             
             // OPTIMIZATION: Fast partition look-up caching
             // OPTIMIZATION: Read-only queries on replicated tables always just go to the local partition
@@ -720,11 +731,21 @@ public class BatchPlanner {
                     this.sorted_singlep_fragments[stmt_index] = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, true); 
                 }
                 plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
+                
+                // Only mark that we touched these partitions if the Statement is
+                // not on a replicated table
+                if (is_replicated_only == false) {
+                    touched_partitions.putAll(stmt_all_partitions);
+                }
+                
             } else {
                 if (this.sorted_multip_fragments[stmt_index] == null) {
                     this.sorted_multip_fragments[stmt_index] = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, false); 
                 }
                 plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
+                
+                // Always mark that we are touching these partitions
+                touched_partitions.putAll(stmt_all_partitions);
             }
             
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
@@ -783,6 +804,7 @@ public class BatchPlanner {
                 header.put("Local Partition", base_partition);
                 header.put("IsSingledSited", is_singlepartition);
                 header.put("IsStmtLocal", is_local);
+                header.put("IsReplicatedOnly", is_replicated_only);
                 header.put("IsBatchLocal", plan.all_local);
                 header.put("Fragments", fragments.size());
                 maps[0] = header;

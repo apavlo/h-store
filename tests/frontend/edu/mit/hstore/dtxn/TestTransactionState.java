@@ -25,6 +25,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.*;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
@@ -66,6 +67,7 @@ public class TestTransactionState extends BaseTestCase {
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
+    private Histogram<Integer> touched_partitions = new Histogram<Integer>();
     
     @Override
     protected void setUp() throws Exception {
@@ -102,7 +104,7 @@ public class TestTransactionState extends BaseTestCase {
             hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
             
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, SINGLE_PARTITIONED);
+            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
             ftasks = plan.getFragmentTaskMessages(args);
             System.err.println("FTASKS: " + ftasks);

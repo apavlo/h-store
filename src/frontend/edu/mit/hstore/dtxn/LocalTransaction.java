@@ -767,7 +767,12 @@ public class LocalTransaction extends AbstractTransaction {
         boolean blocked = false;
         final int partition = ftask.getDestinationPartitionId();
         final int num_fragments = ftask.getFragmentCount();
-        this.state.exec_touchedPartitions.put(partition, num_fragments);
+        
+        // PAVLO: 2011-12-10
+        // We moved updating the exec_touchedPartitions histogram into the
+        // BatchPlanner so that we won't increase the counter for a partition
+        // if we read from a replicated table at the local partition
+        // this.state.exec_touchedPartitions.put(partition, num_fragments);
         
         // If this task produces output dependencies, then we need to make 
         // sure that the txn wait for it to arrive first

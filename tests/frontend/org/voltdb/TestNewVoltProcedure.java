@@ -16,6 +16,7 @@ import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
@@ -42,11 +43,13 @@ public class TestNewVoltProcedure extends BaseTestCase {
     private static PartitionEstimator p_estimator;
     
     private VoltProcedure volt_proc;
+    private Histogram<Integer> touched_partitions;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITONS);
+        this.touched_partitions = new Histogram<Integer>();
         
         if (site == null) {
             // Figure out whether we are on a machine that has the native lib
@@ -125,7 +128,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, true);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, args);
         assertNotNull(plan);
         
         // Only try to execute a BatchPlan if we have the real EE
