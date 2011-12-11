@@ -302,7 +302,7 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
                     assertNotNull(after_m.get(f));
                     assertFalse(catalog_stmt.fullName() +" ["+f+"]", after_m.get(f).toString().isEmpty());
                 // All the other fields should be the same
-                } else {
+                } else if (f.equals("secondaryindex") == false){
                     assertEquals(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), after_m.get(f));
                 }
             } // FOR
