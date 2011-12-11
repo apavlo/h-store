@@ -64,6 +64,7 @@ import edu.brown.gui.catalog.WrapperNode;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.SQLFormatter;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -522,7 +523,7 @@ public class CatalogViewer extends AbstractViewer {
 		// Default Output
 		if ((catalog_obj instanceof Database) == false) {
 		    Collection<String> skip_fields = CollectionUtil.addAll(new HashSet<String>(),
-		            "exptree", "fullplan", "ms_exptree", "ms_fullplan", "plannodetree");
+		            "exptree", "fullplan", "ms_exptree", "ms_fullplan", "plannodetree", "sqltext");
 		    
 		    Collection<String> catalog_fields = CollectionUtil.addAll(new HashSet<String>(),
                     "partition_column", "partitioncolumn", "foreignkeytable"); 
@@ -644,6 +645,13 @@ public class CatalogViewer extends AbstractViewer {
         else if (catalog_obj instanceof Table) {
             buffer.append(StringUtil.SINGLE_LINE);
             buffer.append("\n").append(CatalogUtil.toSchema((Table)catalog_obj)).append("\n");
+        }
+		// Statement
+        else if (catalog_obj instanceof Statement) {
+            Statement catalog_stmt = (Statement)catalog_obj;
+            SQLFormatter f = new SQLFormatter(catalog_stmt.getSqltext());
+            buffer.append(StringUtil.SINGLE_LINE);
+            buffer.append("\n").append(f.format()).append("\n");
         }
 
 		return (buffer.toString());
