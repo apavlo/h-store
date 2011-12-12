@@ -42,12 +42,15 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.plannodes.AbstractPlanNode;
 
+import com.google.protobuf.ByteString;
+
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -358,6 +361,10 @@ public class BatchPlanner {
             ArrayList<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
             BatchPlanner.this.buildFragmentTaskMessages(this, graph, ftasks, batchArgs);
             return (ftasks);
+        }
+        
+        public void getPartitionFragments(List<Hstore.TransactionWorkRequest.PartitionFragment> tasks) {
+            BatchPlanner.this.buildDistributedTransactionMessage(this, graph, tasks);
         }
 
         public int getBatchSize() {
@@ -845,6 +852,102 @@ public class BatchPlanner {
         return (plan);
     }
 
+    private void buildDistributedTransactionMessage(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<Hstore.TransactionWorkRequest.PartitionFragment> tasks) {
+        if (this.enable_profiling) time_fragmentTaskMessages.start();
+        long txn_id = plan.txn_id;
+        if (debug.get())
+            LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
+
+        for (PlanVertex v : graph.getVertices()) {
+            int stmt_index = v.stmt_index;
+            PlanFragment catalog_frag = v.getCatalogItem();
+            for (int partition : plan.frag_partitions[stmt_index].get(catalog_frag)) {
+                plan.rounds[v.round][partition].add(v);
+            } // FOR
+        } // FOR
+        
+        Hstore.TransactionWorkRequest.Builder builder = Hstore.TransactionWorkRequest.newBuilder();
+        builder.setTransactionId(txn_id);
+        builder.setSysproc(BatchPlanner.this.catalog_proc.getSystemproc());
+        
+//        // Pre-compute Statement Parameter ByteBuffers
+//        for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
+//            try {
+//                batchArgs[stmt_index].writeExternal(plan.param_serializers[stmt_index]);
+//                builder.addParameterSets(ByteString.copyFrom(plan.param_serializers[stmt_index].getBuffer()));
+//            } catch (Exception ex) {
+//                LOG.fatal("Failed to serialize parameters for Statement #" + stmt_index, ex);
+//                throw new RuntimeException(ex);
+//            }
+//        } // FOR
+        
+        if (trace.get()) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #"+ txn_id);
+        for (int round = 0; round < plan.rounds_length; round++) {
+            if (trace.get()) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); //  + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
+
+            for (int partition = 0; partition < this.num_partitions; partition++) {
+                Collection<PlanVertex> vertices = plan.rounds[round][partition];
+                if (vertices.isEmpty()) continue;
+            
+                Hstore.TransactionWorkRequest.PartitionFragment.Builder partitionBuilder = Hstore.TransactionWorkRequest.PartitionFragment.newBuilder(); 
+                boolean read_only = true;
+        
+                for (PlanVertex v : vertices) { // Does this order matter?
+                    Hstore.TransactionWorkRequest.Work.Builder workBuilder = Hstore.TransactionWorkRequest.Work.newBuilder();
+                    
+                    // Fragment Id
+                    workBuilder.setFragmentId(v.frag_id);
+                    
+                    // Not all fragments will have an input dependency so this could be the NULL_DEPENDENCY_ID
+                    workBuilder.addInputDepIds(v.input_dependency_id);
+                    
+                    // All fragments will produce some output
+                    workBuilder.setOutputDepId(v.output_dependency_id);
+                    
+                    // SQLStmt Index
+                    workBuilder.setStmtIndex(v.stmt_index);
+                    
+                    // Read-Only
+                    read_only = read_only && v.read_only;
+                    
+                    if (trace.get()) LOG.trace("Fragment Grouping " + partitionBuilder.getWorkCount() + " => [" +
+                                     "txn_id=#" + txn_id + ", " +
+                                     "frag_id=" + workBuilder.getFragmentId() + ", " +
+                                     "input=" + workBuilder.getInputDepIdsList() + ", " +
+                                     "output=" + workBuilder.getOutputDepId() + ", " +
+                                     "stmt_index=" + workBuilder.getStmtIndex() + "]");
+                    
+                    partitionBuilder.addWork(workBuilder.build());
+                } // FOR (frag_idx)
+            
+                if (partitionBuilder.getWorkCount() == 0) {
+                    if (trace.get()) {
+                        LOG.warn("For some reason we thought it would be a good idea to construct a FragmentTaskMessage with no fragments! [txn_id=#" + txn_id + "]");
+                        LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
+                    }
+                    continue;
+                }
+                
+                partitionBuilder.setPartitionId(partition);
+                partitionBuilder.setReadOnly(read_only);
+                tasks.add(partitionBuilder.build());
+            
+//                if (debug.get()) {
+//                    LOG.debug(String.format("New FragmentTaskMessage to run at partition #%d with %d fragments for txn #%d " +
+//                                            "[ids=%s, inputs=%s, outputs=%s]",
+//                                            partition, num_frags, txn_id,
+//                                            Arrays.toString(frag_ids), Arrays.toString(input_ids), Arrays.toString(output_ids)));
+//                    if (trace.get()) 
+//                        LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
+//                }
+            } // PARTITION
+        } // ROUND            
+        assert(tasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
+        if (debug.get())
+            LOG.debug("Created " + tasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
+        if (this.enable_profiling) time_fragmentTaskMessages.stop();
+    }
+    
     /**
      * Construct a map from PartitionId->FragmentTaskMessage
      * Note that a FragmentTaskMessage may contain multiple fragments that need to be executed

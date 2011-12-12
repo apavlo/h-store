@@ -22,8 +22,6 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.FragmentResponse;
 import edu.mit.hstore.HStoreSite;
 
 /**
@@ -44,12 +42,12 @@ public class TestExecutionSite extends BaseTestCase {
     
     private final Random rand = new Random(); 
     
-    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
-        @Override
-        public void run(FragmentResponse parameter) {
-            // Nothing!
-        }
-    }
+//    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
+//        @Override
+//        public void run(FragmentResponse parameter) {
+//            // Nothing!
+//        }
+//    }
     
     @Override
     protected void setUp() throws Exception {

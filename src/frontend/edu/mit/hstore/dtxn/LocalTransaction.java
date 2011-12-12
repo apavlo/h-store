@@ -588,7 +588,7 @@ public class LocalTransaction extends AbstractTransaction {
     protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
         return (this.state.blocked_tasks);
     }
-    public LinkedBlockingDeque<Collection<FragmentTaskMessage>> getUnblockedFragmentTaskMessageQueue() {
+    public LinkedBlockingDeque<Collection<Hstore.TransactionWorkRequest.PartitionFragment>> getUnblockedFragmentTaskMessageQueue() {
         return (this.state.unblocked_tasks);
     }
     
@@ -758,7 +758,7 @@ public class LocalTransaction extends AbstractTransaction {
      * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
      * @param ftask
      */
-    public boolean addFragmentTaskMessage(FragmentTaskMessage ftask) {
+    public boolean addFragmentTaskMessage(Hstore.TransactionWorkRequest.PartitionFragment ftask) {
         int offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, this.base_partition);

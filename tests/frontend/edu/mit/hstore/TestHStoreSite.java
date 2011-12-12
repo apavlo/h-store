@@ -10,11 +10,6 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.CoordinatorFragment;
-import edu.mit.dtxn.Dtxn.CoordinatorResponse;
-import edu.mit.dtxn.Dtxn.FinishRequest;
-import edu.mit.dtxn.Dtxn.FinishResponse;
 import edu.mit.hstore.HStoreSite;
 
 import org.junit.Before;
@@ -34,7 +29,6 @@ public class TestHStoreSite extends BaseTestCase {
     private static final String TARGET_PROCEDURE = "GetNewDestination";
     private static final long CLIENT_HANDLE = 1l;
     
-    private MockDtxnCoordinator dtxnCoordinator;
 //    private HStoreSite hstore_site;
     private PartitionEstimator p_estimator;
     private StoredProcedureInvocation invocation;
@@ -50,7 +44,6 @@ public class TestHStoreSite extends BaseTestCase {
     @Before
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
-        dtxnCoordinator = new MockDtxnCoordinator();
         p_estimator = new PartitionEstimator(catalog_db);
         invocation = new StoredProcedureInvocation(CLIENT_HANDLE, TARGET_PROCEDURE, PARAMS);
         invocation_bytes = FastSerializer.serialize(invocation);
