@@ -148,6 +148,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
     
+    private final List<Hstore.TransactionWorkRequest.PartitionFragment> partitionFragments = new ArrayList<Hstore.TransactionWorkRequest.PartitionFragment>(); 
+    
     // ----------------------------------------------------------------------------
     // WORKLOAD TRACE HANDLES
     // ----------------------------------------------------------------------------
@@ -1114,11 +1116,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             results = this.executor.executeLocalPlan(m_localTxnState, this.plan, params);
             
         } else {
-            List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages(params);
-            if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for " + this.m_currentTxnState);
+            this.partitionFragments.clear();
+            this.plan.getPartitionFragments(this.partitionFragments);
+            if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
     
             // Block until we get all of our responses.
-            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, tasks, plan.getBatchSize());
+            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, this.partitionFragments, plan.getBatchSize());
         }
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 
