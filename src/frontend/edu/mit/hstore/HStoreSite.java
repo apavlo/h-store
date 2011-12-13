@@ -1245,7 +1245,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
                                                 fragment.getPartitionId(), ts.getTransactionId()));
         int partition = fragment.getPartitionId();
-        FragmentTaskMessage ftask = ts.getFragmentTaskMessage(request, fragment);
+        FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
         this.executors[partition].queueWork(ts, ftask);
     }
 

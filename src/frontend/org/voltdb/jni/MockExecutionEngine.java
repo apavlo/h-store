@@ -24,6 +24,8 @@ import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import com.google.protobuf.ByteString;
+
 public class MockExecutionEngine extends ExecutionEngine {
 
     public MockExecutionEngine() {
@@ -160,6 +162,13 @@ public class MockExecutionEngine extends ExecutionEngine {
     @Override
     public ELTProtoMessage eltAction(boolean mAckAction, boolean mPollAction,
             long mAckTxnId, int partitionId, int mTableId) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(long[] planFragmentIds, int numFragmentIds, int[] input_depIds, int[] output_depIds, ByteString[] serializedParameterSets,
+            int numParameterSets, long txnId, long lastCommittedTxnId, long undoQuantumToken) throws EEException {
         // TODO Auto-generated method stub
         return null;
     }

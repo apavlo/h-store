@@ -40,9 +40,6 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.plannodes.AbstractPlanNode;
-
-import com.google.protobuf.ByteString;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;

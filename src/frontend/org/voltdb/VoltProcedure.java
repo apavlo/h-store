@@ -1121,7 +1121,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
     
             // Block until we get all of our responses.
-            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, this.partitionFragments, plan.getBatchSize());
+            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, this.partitionFragments, params);
         }
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 

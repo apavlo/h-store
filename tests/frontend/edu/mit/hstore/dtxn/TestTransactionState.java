@@ -3,13 +3,18 @@
  */
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.voltdb.BatchPlanner;
+import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.ParameterSet;
@@ -17,20 +22,23 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.BatchPlanner.BatchPlan;
-import org.voltdb.catalog.*;
-import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.*;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProjectType;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.AbstractTransaction;
-import edu.mit.hstore.dtxn.DependencyInfo;
 
 /**
  * @author pavlo
@@ -60,7 +68,7 @@ public class TestTransactionState extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
-    private static List<FragmentTaskMessage> ftasks;
+    private static List<PartitionFragment> ftasks;
     
     private LocalTransaction ts;
     private ExecutionState execState;
@@ -106,7 +114,7 @@ public class TestTransactionState extends BaseTestCase {
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            ftasks = plan.getFragmentTaskMessages(args);
+            plan.getPartitionFragments(ftasks);
             System.err.println("FTASKS: " + ftasks);
             assertFalse(ftasks.isEmpty());
         }
@@ -126,13 +134,14 @@ public class TestTransactionState extends BaseTestCase {
      */
     private void addFragments() {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
-        for (FragmentTaskMessage ftask : ftasks) {
+        for (PartitionFragment ftask : ftasks) {
             assertNotNull(ftask);
             this.ts.addFragmentTaskMessage(ftask);
-            for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
-                this.dependency_ids.add(ftask.getOutputDependencyIds()[i]);
+            for (int i = 0, cnt = ftask.getWorkCount(); i < cnt; i++) {
+                Work work = ftask.getWork(i); 
+                this.dependency_ids.add(work.getOutputDepId());
                 
-                for (Integer input_dep_id : ftask.getInputDepIds(i)) {
+                for (Integer input_dep_id : work.getInputDepIdsList()) {
                     if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                 } // FOR
             } // FOR
@@ -212,7 +221,7 @@ public class TestTransactionState extends BaseTestCase {
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
 //        System.err.println(this.ts.getBlockedFragmentTaskMessages());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getFragmentCount());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getWorkCount());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how
