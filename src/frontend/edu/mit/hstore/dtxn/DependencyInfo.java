@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FragmentTaskMessage;
 
+import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
@@ -60,7 +61,7 @@ public class DependencyInfo implements Poolable {
     /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
-    protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
+    protected final Set<Hstore.TransactionWorkRequest.PartitionFragment> blocked_tasks = new HashSet<Hstore.TransactionWorkRequest.PartitionFragment>();
     private AtomicBoolean blocked_tasks_released = new AtomicBoolean(false);
     // protected boolean blocked_all_local = true;
     
@@ -111,7 +112,7 @@ public class DependencyInfo implements Poolable {
      * for this DependencyInfo
      * @param ftask
      */
-    public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
+    public void addBlockedFragmentTaskMessage(Hstore.TransactionWorkRequest.PartitionFragment ftask) {
         if (t) LOG.trace("Adding block FragmentTaskMessage for txn #" + this.ts.getTransactionId());
         this.blocked_tasks.add(ftask);
 //        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.base_partition);
@@ -122,7 +123,7 @@ public class DependencyInfo implements Poolable {
      * return results/responses for this DependencyInfo 
      * @return
      */
-    protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
+    protected Set<Hstore.TransactionWorkRequest.PartitionFragment> getBlockedFragmentTaskMessages() {
         return (this.blocked_tasks);
     }
     
@@ -131,7 +132,7 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public Collection<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
+    public Collection<Hstore.TransactionWorkRequest.PartitionFragment> getAndReleaseBlockedFragmentTaskMessages() {
         if (this.blocked_tasks_released.compareAndSet(false, true)) {
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
             return (this.blocked_tasks);

@@ -25,18 +25,26 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
+import org.voltdb.messaging.FragmentTaskMessage;
+
+import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
@@ -75,7 +83,17 @@ public abstract class AbstractTransaction implements Poolable {
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
     protected SerializableException pending_error;
+    protected boolean sysproc;
+    
+    private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
+    private List<ByteString> attached_parameterSets;
+    
+    // ----------------------------------------------------------------------------
+    // VoltMessage Wrappers
+    // ----------------------------------------------------------------------------
+    
     private final FinishTaskMessage finish_task;
+    private final FragmentTaskMessage work_task[];
     
     // ----------------------------------------------------------------------------
     // PREDICTIONS FLAGS
@@ -128,6 +146,10 @@ public abstract class AbstractTransaction implements Poolable {
         this.exec_noUndoBuffer = new boolean[cnt];
         
         this.finish_task = new FinishTaskMessage(this, Hstore.Status.OK);
+        this.work_task = new FragmentTaskMessage[cnt];
+        for (int i = 0; i < this.work_task.length; i++) {
+            this.work_task[i] = new FragmentTaskMessage();
+        } // FOR
     }
 
     /**
@@ -167,6 +189,8 @@ public abstract class AbstractTransaction implements Poolable {
         this.predict_abortable = true;
         this.pending_error = null;
         this.touched_partitions.clear();
+        this.attached_inputs.clear();
+        this.attached_parameterSets = null;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.finished[i] = false;
@@ -197,7 +221,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @param predict_readOnly TODO
      * @param predict_abortable TODO
      */
-    public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable);
+//    public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable);
     
     // ----------------------------------------------------------------------------
     // ROUND METHODS
@@ -329,6 +353,10 @@ public abstract class AbstractTransaction implements Poolable {
     public int getBasePartition() {
         return base_partition;
     }
+
+    public boolean isSysProc() {
+        return this.sysproc;
+    }
     
     public boolean isRejected() {
         return (this.rejected);
@@ -388,6 +416,11 @@ public abstract class AbstractTransaction implements Poolable {
         return (this.finish_task);
     }
     
+    public FragmentTaskMessage getFragmentTaskMessage(PartitionFragment fragment) {
+        int offset = hstore_site.getLocalPartitionOffset(fragment.getPartitionId());
+        return (this.work_task[offset].setPartitionFragment(fragment));
+    }
+    
     // ----------------------------------------------------------------------------
     // Keep track of whether this txn executed stuff at this partition's EE
     // ----------------------------------------------------------------------------
@@ -410,6 +443,32 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public boolean hasSubmittedEE(int partition) {
         return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // We can attach input dependencies used on non-local partitions
+    // ----------------------------------------------------------------------------
+    
+    public void attachParameterSets(List<ByteString> parameterSets) {
+        this.attached_parameterSets = parameterSets;
+    }
+    
+    public List<ByteString> getParameterSets() {
+        assert(this.attached_parameterSets != null);
+        return (this.attached_parameterSets);
+    }
+    
+    public void attachInputDependency(int input_dep_id, VoltTable vt) {
+        List<VoltTable> l = this.attached_inputs.get(input_dep_id);
+        if (l == null) {
+            l = new ArrayList<VoltTable>();
+            this.attached_inputs.put(input_dep_id, l);
+        }
+        l.add(vt);
+    }
+    
+    public Map<Integer, List<VoltTable>> getInputDependencies() {
+        return (this.attached_inputs);
     }
     
     // ----------------------------------------------------------------------------

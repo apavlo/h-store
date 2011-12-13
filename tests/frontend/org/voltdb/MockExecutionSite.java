@@ -7,8 +7,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.voltdb.catalog.Catalog;
-import org.voltdb.messaging.FragmentTaskMessage;
 
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -34,7 +34,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    public VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<FragmentTaskMessage> ftasks, int batchSize) {
+    public VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<PartitionFragment> ftasks, int batchSize) {
         return (new VoltTable[]{ });
     }
     

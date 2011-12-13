@@ -90,7 +90,7 @@ public class MockHStoreSite extends HStoreSite {
     public void transactionRestart(LocalTransaction orig_ts, Status status) {
         int restart_limit = 10;
         if (orig_ts.getRestartCounter() > restart_limit) {
-            if (orig_ts.sysproc) {
+            if (orig_ts.isSysProc()) {
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                            orig_ts, orig_ts.getRestartCounter()));
             } else {
