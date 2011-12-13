@@ -464,7 +464,8 @@ public class BatchPlanner {
             this.stmt_is_readonly[i] = batchStmts[i].catStmt.getReadonly();
             this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly() ||
                                              batchStmts[i].catStmt.getSecondaryindex();
-            LOG.info(batchStmts[i].catStmt.fullName() + " -> " + this.stmt_is_replicatedonly[i]); 
+            if (trace.get())
+                LOG.trace(batchStmts[i].catStmt.fullName() + " -> " + this.stmt_is_replicatedonly[i]); 
             
             // CACHING
             // Since most batches are going to be single-partition, we will cache

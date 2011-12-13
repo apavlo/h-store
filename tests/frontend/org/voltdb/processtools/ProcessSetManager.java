@@ -41,6 +41,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 import org.voltdb.utils.Pair;
@@ -69,6 +71,11 @@ public class ProcessSetManager implements Shutdownable {
     final Map<String, ProcessData> m_processes = new ConcurrentHashMap<String, ProcessData>();
     final ProcessSetPoller setPoller = new ProcessSetPoller();
     boolean shutting_down = false;
+    
+    public static final Pattern OUTPUT_CLEAN[] = {
+        Pattern.compile("__(FILE|LINE)__[:]?"),
+        Pattern.compile("[A-Z][\\w\\_]+\\.java:[\\d]+ ")
+    };
     
     public enum Stream { STDERR, STDOUT; }
 
@@ -234,6 +241,14 @@ public class ProcessSetManager implements Shutdownable {
                             } // SYNCH
                         }
                         return;
+                    }
+                    
+                    // HACK: Remove stuff that we don't want printed
+                    if (line != null && line.isEmpty() == false) {
+                        for (Pattern p : OUTPUT_CLEAN) {
+                            Matcher m = p.matcher(line);
+                            if (m != null) line = m.replaceAll("");
+                        }
                     }
 
                     if (line != null) {

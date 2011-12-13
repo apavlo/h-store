@@ -44,7 +44,7 @@ import edu.mit.hstore.HStoreSite;
  * @author pavlo
  */
 public class TestTransactionState extends BaseTestCase {
-    private static final Logger LOG = Logger.getLogger(TestTransactionState.class.getName());
+    private static final Logger LOG = Logger.getLogger(TestTransactionState.class);
 
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
@@ -123,7 +123,7 @@ public class TestTransactionState extends BaseTestCase {
         
         this.execState = new ExecutionState(executor);
         this.ts = new LocalTransaction(hstore_site);
-        this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, false, true);
+        this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, false, false, true);
         this.ts.setExecutionState(this.execState);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
@@ -262,7 +262,7 @@ public class TestTransactionState extends BaseTestCase {
                     // But never out to VoltProcedure
                     assertFalse(this.output_dependency_ids.contains(d_id));
                     // And we should have a task blocked waiting for this dependency
-                    assertFalse(dinfo.getBlockedFragmentTaskMessages().isEmpty());
+                    assertFalse(dinfo.getBlockedPartitionFragments().isEmpty());
                 } else {
                     assertEquals(1, dinfo.getPartitions().size());
                     assertEquals(LOCAL_PARTITION, dinfo.getPartitions().get(0).intValue());

@@ -25,13 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.log4j.Logger;
-import org.voltdb.VoltTable;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -62,8 +56,10 @@ public class RemoteTransaction extends AbstractTransaction {
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
     }
     
-    public RemoteTransaction init(long txnId, int source_partition, boolean predict_readOnly, boolean predict_abortable) {
-        return ((RemoteTransaction)super.init(txnId, -1, source_partition, false, predict_readOnly, predict_abortable, false));
+    public RemoteTransaction init(long txnId, int source_partition, boolean sysproc,
+                                  boolean predict_readOnly, boolean predict_abortable) {
+        return ((RemoteTransaction)super.init(txnId, -1, source_partition, sysproc,
+                                              false, predict_readOnly, predict_abortable, false));
     }
     
     @Override

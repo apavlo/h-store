@@ -132,17 +132,10 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         this.hstore_site.getStartWorkloadObservable().addObserver(new EventObserver<AbstractTransaction>() {
             @Override
             public void update(EventObservable<AbstractTransaction> arg0, AbstractTransaction arg1) {
-                if (debug.get())
-                    LOG.debug(HStoreConstants.SITE_FIRST_TXN + " - " + arg1);
+//                if (debug.get())
+                    LOG.info(HStoreConstants.SITE_FIRST_TXN + " - " + arg1);
             }
         });
-        
-//        if (hstore_conf.global.ringbuffer_debug) {
-//            LOG.info("Enabling RingBufferAppender loggers");
-//            for (Logger logger : DEBUG_LOGGERS) {
-//                RingBufferAppender.enableRingBufferAppender(logger, 1000);
-//            } // FOR
-//        }
         
         // Pre-Compute Header
         this.header.put(String.format("%s Status", HStoreSite.class.getSimpleName()), hstore_site.getSiteName());

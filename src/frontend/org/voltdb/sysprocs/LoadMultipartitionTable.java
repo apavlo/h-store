@@ -203,7 +203,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
             pfs[i].nonExecSites = false;
             pfs[i].destPartitionId = partition; // partitionsToSites[i - 1];
             pfs[i].parameters = params;
-            pfs[i].last_task = true;
+            pfs[i].last_task = (partition != this.partitionId);
             if (trace.get()) sb.append("\n  Partition #").append(partition).append(": ")
                          .append(partitionedTables[partition].getRowCount()).append(" tuples");
         } // FOR
@@ -217,6 +217,7 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };
         pfs[0].multipartition = false;
         pfs[0].nonExecSites = false;
+        pfs[0].last_task = true;
         pfs[0].parameters = new ParameterSet();
 
         return (pfs);

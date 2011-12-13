@@ -525,10 +525,10 @@ public class BenchmarkController {
     
     public void startLoader() {
         LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
-        LOG.info(String.format("Starting %s Benchmark Loader - %s [blocking=%s]",
+        LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
                                m_projectBuilder.getProjectName().toUpperCase(),
                                m_loaderClass.getSimpleName(),
-                               hstore_conf.client.blocking_loader)); 
+                               hstore_conf.client.scalefactor)); 
         final ArrayList<String> allLoaderArgs = new ArrayList<String>();
         final ArrayList<String> loaderCommand = new ArrayList<String>();
 

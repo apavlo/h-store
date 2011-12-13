@@ -116,7 +116,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(hstore_site).init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), false, true);
+        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true);
         this.ts.setExecutionState(this.execState);
     }
 
@@ -184,13 +184,13 @@ public class TestTransactionStateComplex extends BaseTestCase {
         int first_output_dependency_id = first_ftask.getWork(0).getOutputDepId();
         DependencyInfo first_dinfo = this.ts.getDependencyInfo(0, first_output_dependency_id);
         assertNotNull(first_dinfo);
-        assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedFragmentTaskMessages().size());
+        assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedPartitionFragments().size());
         this.ts.addResult(partition, first_output_dependency_id, FAKE_RESULT);
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
-        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.first(first_dinfo.getBlockedFragmentTaskMessages()).getWork(0).getOutputDepId());
-        for (PartitionFragment ftask : first_dinfo.getBlockedFragmentTaskMessages()) {
+        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.first(first_dinfo.getBlockedPartitionFragments()).getWork(0).getOutputDepId());
+        for (PartitionFragment ftask : first_dinfo.getBlockedPartitionFragments()) {
             assertFalse(second_dinfo.hasTasksReady());
             partition = ftask.getPartitionId();
             for (Work work : ftask.getWorkList()) {

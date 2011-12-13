@@ -785,7 +785,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                     return;
                 }
                 task.buildParameterSet();
-                if (task.params.m_params.length != 1) {
+                if (task.params.toArray().length != 1) {
                     final ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1, task.clientHandle, -1,
                                                Hstore.Status.ABORT_UNEXPECTED,
@@ -794,7 +794,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                     c.writeStream().enqueue(errorResponse);
                     return;
                 }
-                String sql = (String) task.params.m_params[0];
+                String sql = (String) task.params.toArray()[0];
                 m_asyncCompilerWorkThread.planSQL(
                                                   sql,
                                                   task.clientHandle,
@@ -824,7 +824,7 @@ public class ClientInterface implements DumpManager.Dumpable {
             if (task.procName.equals("@UpdateApplicationCatalog")) {
                 task.buildParameterSet();
                 // user only provides catalog URL.
-                if (task.params.m_params.length != 1) {
+                if (task.params.size() != 1) {
                     final ClientResponseImpl errorResponse =
                         new ClientResponseImpl(-1,task.clientHandle, -1,
                                                Hstore.Status.ABORT_UNEXPECTED,
@@ -834,7 +834,7 @@ public class ClientInterface implements DumpManager.Dumpable {
                     c.writeStream().enqueue(errorResponse);
                     return;
                 }
-                String catalogURL = (String) task.params.m_params[0];
+                String catalogURL = (String) task.params.toArray()[0];
                 m_asyncCompilerWorkThread.prepareCatalogUpdate(catalogURL,
                                                                task.clientHandle,
                                                                handler.connectionId(),
@@ -919,11 +919,10 @@ public class ClientInterface implements DumpManager.Dumpable {
                     // create the execution site task
                     StoredProcedureInvocation task = new StoredProcedureInvocation();
                     task.procName = "@AdHoc";
-                    task.params = new ParameterSet();
-                    task.params.m_params = new Object[] {
+                    task.params = new ParameterSet(
                             plannedStmt.aggregatorFragment, plannedStmt.collectorFragment,
                             plannedStmt.sql, plannedStmt.isReplicatedTableDML ? 1 : 0
-                    };
+                    );
                     task.clientHandle = plannedStmt.clientHandle;
 
                     // initiate the transaction
@@ -936,11 +935,10 @@ public class ClientInterface implements DumpManager.Dumpable {
                     // create the execution site task
                     StoredProcedureInvocation task = new StoredProcedureInvocation();
                     task.procName = "@UpdateApplicationCatalog";
-                    task.params = new ParameterSet();
-                    task.params.m_params = new Object[] {
+                    task.params = new ParameterSet(
                             changeResult.encodedDiffCommands, changeResult.catalogURL,
                             changeResult.expectedCatalogVersion
-                    };
+                    );
                     task.clientHandle = changeResult.clientHandle;
 
                     // initiate the transaction. These hard-coded values from catalog

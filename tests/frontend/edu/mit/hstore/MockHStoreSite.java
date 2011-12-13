@@ -20,7 +20,6 @@ import edu.brown.hstore.Hstore.Status;
 import edu.brown.hstore.Hstore.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -56,7 +55,6 @@ public class MockHStoreSite extends HStoreSite {
         Collection<Integer> predict_touchedPartitions = hstore_site.getAllPartitionIds();
         boolean predict_readOnly = false;
         boolean predict_canAbort = true;
-        TransactionEstimator.State estimator_state = null;
         Procedure catalog_proc = hstore_site.getDatabase().getProcedures().getIgnoreCase("@NoOp");
         StoredProcedureInvocation invocation = new StoredProcedureInvocation(clientHandle, catalog_proc.getName());
         RpcCallback<byte[]> client_callback = null;
@@ -64,7 +62,7 @@ public class MockHStoreSite extends HStoreSite {
         LocalTransaction ts = new LocalTransaction(hstore_site);
         ts.init(txnId, clientHandle, base_partition,
                 predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                estimator_state, catalog_proc, invocation, client_callback);
+                catalog_proc, invocation, client_callback);
         return (ts);
     }
     
