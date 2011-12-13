@@ -83,7 +83,7 @@ public abstract class AbstractTransaction implements Poolable {
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
     protected SerializableException pending_error;
-    protected boolean sysproc;
+    private boolean sysproc;
     
     private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
     private List<ByteString> attached_parameterSets;
@@ -156,16 +156,20 @@ public abstract class AbstractTransaction implements Poolable {
      * Initialize this TransactionState for a new Transaction invocation
      * @param txn_id
      * @param client_handle
-     * @param predict_readOnly TODO
-     * @param predict_abortable TODO
+     * @param base_partition
+     * @param sysproc
+     * @param predict_singlePartition
+     * @param predict_readOnly
+     * @param predict_abortable
      * @param exec_local
-     * @param dtxn_txn_id
+     * @return
      */
-    protected final AbstractTransaction init(long txn_id, long client_handle, int base_partition,
+    protected final AbstractTransaction init(long txn_id, long client_handle, int base_partition, boolean sysproc,
                                              boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable, boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
         this.base_partition = base_partition;
+        this.sysproc = sysproc;
         this.rejected = false;
         this.predict_singlePartition = predict_singlePartition;
         this.predict_readOnly = predict_readOnly;
@@ -191,6 +195,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.touched_partitions.clear();
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
+        this.sysproc = false;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.finished[i] = false;
@@ -418,7 +423,7 @@ public abstract class AbstractTransaction implements Poolable {
     
     public FragmentTaskMessage getFragmentTaskMessage(PartitionFragment fragment) {
         int offset = hstore_site.getLocalPartitionOffset(fragment.getPartitionId());
-        return (this.work_task[offset].setPartitionFragment(fragment));
+        return (this.work_task[offset].setPartitionFragment(this.txn_id, fragment));
     }
     
     // ----------------------------------------------------------------------------
@@ -531,6 +536,7 @@ public abstract class AbstractTransaction implements Poolable {
     protected Map<String, Object> getDebugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("Transaction #", this.txn_id);
+        m.put("SysProc", this.sysproc);
         m.put("Current Round State", Arrays.toString(this.round_state));
         m.put("Read-Only", Arrays.toString(this.exec_readOnly));
         m.put("Last UndoToken", Arrays.toString(this.last_undo_token));

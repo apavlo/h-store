@@ -324,7 +324,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         try {
             for (int i = 0; i < numFragmentIds; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
-                if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+//                if (t)
+                    LOG.info("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
             }
         } catch (final IOException exception) {
             throw new RuntimeException(exception); // can't happen
@@ -333,28 +334,28 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
     }
     
-    @Override
-    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
-            long[] planFragmentIds,
-            int numFragmentIds,
-            int[] input_depIds,
-            int[] output_depIds,
-            ByteString[] parameterSets,
-            int numParameterSets,
-            long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
-        
-        assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
-        assert (planFragmentIds.length == parameterSets.length);
-        
-        // serialize the param sets
-        fsForParameterSet.clear();
-        for (int i = 0; i < numParameterSets; ++i) {
-            fsForParameterSet.getBBContainer().b.put(parameterSets[i].asReadOnlyByteBuffer());
-            if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
-        }
-        
-        return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
-    }
+//    @Override
+//    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(
+//            long[] planFragmentIds,
+//            int numFragmentIds,
+//            int[] input_depIds,
+//            int[] output_depIds,
+//            ByteString[] parameterSets,
+//            int numParameterSets,
+//            long txnId, long lastCommittedTxnId, long undoToken) throws EEException {
+//        
+//        assert(parameterSets != null) : "Null ParameterSets for txn #" + txnId;
+//        assert (planFragmentIds.length == parameterSets.length);
+//        
+//        // serialize the param sets
+//        fsForParameterSet.clear();
+//        for (int i = 0; i < numParameterSets; ++i) {
+//            fsForParameterSet.getBBContainer().b.put(parameterSets[i].asReadOnlyByteBuffer());
+//            if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+//        }
+//        
+//        return _executeQueryPlanFragmentsAndGetDependencySet(planFragmentIds, numFragmentIds, input_depIds, output_depIds, txnId, lastCommittedTxnId, undoToken);
+//    }
     
 
     /**

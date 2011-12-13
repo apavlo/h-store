@@ -32,6 +32,7 @@ import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
+import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
@@ -151,7 +152,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //        List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
 
         List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
-        ParameterSet params[] = new ParameterSet[pfs.length];
+        ParameterSet params[] = new ParameterSet[1];
         
         for (int i = 0; i < pfs.length; i++) {
             SynthesizedPlanFragment pf = pfs[i];
@@ -172,7 +173,9 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //                }
 //                parambytes = fs.getBuffer();
 //            }
-            params[i] = pf.parameters;
+            if (params[0] == null && pf.parameters != null && pf.parameters.size() > 0) {
+                params[0] = pf.parameters;
+            }
 
             if (debug.get()) 
                 LOG.debug(String.format("Creating SysProc FragmentTaskMessage for %s in %s",
@@ -186,10 +189,16 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             Work.Builder workBuilder = Work.newBuilder()
                                         .setFragmentId(pf.fragmentId)
                                         .setStmtIndex(0);
-            for (int dep : pf.inputDependencyIds)
+            boolean needs_input = false;
+            for (int dep : pf.inputDependencyIds) {
                 workBuilder.addInputDepIds(dep);
-            for (int dep : pf.outputDependencyIds)
+                needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
+            }
+            for (int dep : pf.outputDependencyIds) {
                 workBuilder.setOutputDepId(dep);
+            }
+
+            builder.setNeedsInput(needs_input);
             builder.addWork(workBuilder.build());
             ftasks.add(builder.build());
             

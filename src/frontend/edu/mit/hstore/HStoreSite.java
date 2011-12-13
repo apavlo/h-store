@@ -1069,7 +1069,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         ts.init(txn_id, request.getClientHandle(), base_partition,
                         predict_touchedPartitions, predict_readOnly, predict_abortable,
-                        t_state, catalog_proc, request, done);
+                        catalog_proc, request, done);
+        if (t_state != null) ts.setEstimatorState(t_state);
 //        ClientResponseImpl cresponse = new ClientResponseImpl(txn_id, request.getClientHandle(), Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
 //        this.sendClientResponse(ts, cresponse);
 //        if (true) return;
@@ -1089,7 +1090,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             synchronized (this) {
                 if (this.startWorkload == false) {
                     this.startWorkload = true;
-                    this.startWorkload_observable.notifyObservers();
+                    this.startWorkload_observable.notifyObservers(ts);
                 }
             } // SYNCH
         }
@@ -1219,14 +1220,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
-    public RemoteTransaction createRemoteTransaction(long txn_id, TransactionWorkRequest ftask) {
+    public RemoteTransaction createRemoteTransaction(long txn_id, TransactionWorkRequest request) {
         RemoteTransaction ts = null;
         try {
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
-            ts.init(txn_id, ftask.getSourcePartition(), ftask.getReadOnly(), true);
+            ts.init(txn_id, request.getSourcePartition(), request.getSysproc(), request.getReadOnly(), true);
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
-                                           ts, ftask.getSourcePartition(), ftask.getReadOnly(), false, ts.hashCode()));
+                                           ts, request.getSourcePartition(), request.getReadOnly(), false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("__FILE__:__LINE__ " + "Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
@@ -1609,7 +1610,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (predict_touchedPartitions.isEmpty()) predict_touchedPartitions = this.all_partitions;
         boolean predict_readOnly = orig_ts.getProcedure().getReadonly(); // FIXME
         boolean predict_abortable = true; // FIXME
-        new_ts.init(new_txn_id, base_partition, orig_ts, predict_touchedPartitions, predict_readOnly, predict_abortable);
+        new_ts.init(new_txn_id,
+                    orig_ts.getClientHandle(),
+                    base_partition,
+                    predict_touchedPartitions,
+                    predict_readOnly,
+                    predict_abortable,
+                    orig_ts.getProcedure(),
+                    orig_ts.getInvocation(),
+                    orig_ts.getClientCallback()
+        );
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
          if (d) {

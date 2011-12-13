@@ -573,7 +573,8 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
 
     private Hstore.TransactionWorkRequest.PartitionFragment inner_work;
     
-    public FragmentTaskMessage setPartitionFragment(Hstore.TransactionWorkRequest.PartitionFragment work) {
+    public FragmentTaskMessage setPartitionFragment(long txn_id, Hstore.TransactionWorkRequest.PartitionFragment work) {
+        this.setTransactionId(txn_id);
         this.inner_work = work;
         return (this);
     }
