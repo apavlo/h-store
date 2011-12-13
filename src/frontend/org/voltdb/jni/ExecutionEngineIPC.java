@@ -50,6 +50,8 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import com.google.protobuf.ByteString;
+
 
 /* Serializes data over a connection that presumably is being read
  * by a voltdb execution engine. The serialization is currently a
@@ -1352,6 +1354,13 @@ public class ExecutionEngineIPC extends ExecutionEngine {
             throw new RuntimeException(e);
         }
 
+    }
+
+    @Override
+    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(long[] planFragmentIds, int numFragmentIds, int[] input_depIds, int[] output_depIds, ByteString[] serializedParameterSets,
+            int numParameterSets, long txnId, long lastCommittedTxnId, long undoQuantumToken) throws EEException {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

@@ -891,6 +891,7 @@ public class BatchPlanner {
             
                 Hstore.TransactionWorkRequest.PartitionFragment.Builder partitionBuilder = Hstore.TransactionWorkRequest.PartitionFragment.newBuilder(); 
                 boolean read_only = true;
+                boolean needs_input = false;
         
                 for (PlanVertex v : vertices) { // Does this order matter?
                     Hstore.TransactionWorkRequest.Work.Builder workBuilder = Hstore.TransactionWorkRequest.Work.newBuilder();
@@ -900,6 +901,7 @@ public class BatchPlanner {
                     
                     // Not all fragments will have an input dependency so this could be the NULL_DEPENDENCY_ID
                     workBuilder.addInputDepIds(v.input_dependency_id);
+                    needs_input = needs_input || (v.input_dependency_id != HStoreConstants.NULL_DEPENDENCY_ID);
                     
                     // All fragments will produce some output
                     workBuilder.setOutputDepId(v.output_dependency_id);
@@ -930,6 +932,7 @@ public class BatchPlanner {
                 
                 partitionBuilder.setPartitionId(partition);
                 partitionBuilder.setReadOnly(read_only);
+                partitionBuilder.setNeedsInput(needs_input);
                 tasks.add(partitionBuilder.build());
             
 //                if (debug.get()) {

@@ -17,8 +17,6 @@
 
 package org.voltdb;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +25,12 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.messaging.FastSerializer;
-import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -40,7 +40,12 @@ import edu.mit.hstore.dtxn.LocalTransaction;
  * user procedures (which extend VoltProcedure).
  */
 public abstract class VoltSystemProcedure extends VoltProcedure {
-    private static final Logger LOG = Logger.getLogger(VoltSystemProcedure.class.getName());
+    private static final Logger LOG = Logger.getLogger(VoltSystemProcedure.class);
+    private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     /** Standard column type for host/partition/site id columns */
     protected static VoltType CTYPE_ID = VoltType.INTEGER;
@@ -99,8 +104,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     /** Bundles the data needed to describe a plan fragment. */
     public static class SynthesizedPlanFragment {
-        public long destPartitionId = -1;
-        public long fragmentId = -1;
+        public int destPartitionId = -1;
+        public int fragmentId = -1;
         public int inputDependencyIds[] = null;
         public int outputDependencyIds[] = null;
         public ParameterSet parameters = null;
@@ -143,44 +148,68 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
      */
     protected final VoltTable[] executeSysProcPlanFragmentsAsync(SynthesizedPlanFragment pfs[]) {
         LOG.debug("Preparing to execute " + pfs.length + " sysproc fragments");
-        List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
+//        List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
+
+        List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
+        ParameterSet params[] = new ParameterSet[pfs.length];
         
-        for (SynthesizedPlanFragment pf : pfs) {
+        for (int i = 0; i < pfs.length; i++) {
+            SynthesizedPlanFragment pf = pfs[i];
             // check mutually exclusive flags
             assert(!(pf.multipartition && pf.nonExecSites));
             assert (pf.parameters != null);
             // assert(pf.outputDependencyIds.length > 0) : "The DependencyId list is empty!!!";
 
             // serialize parameters
-            ByteBuffer parambytes = null;
-            if (pf.parameters != null) {
-                FastSerializer fs = new FastSerializer();
-                try {
-                    fs.writeObject(pf.parameters);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    assert (false);
-                }
-                parambytes = fs.getBuffer();
-            }
+//            ByteBuffer parambytes = null;
+//            if (pf.parameters != null) {
+//                FastSerializer fs = new FastSerializer();
+//                try {
+//                    fs.writeObject(pf.parameters);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                    assert (false);
+//                }
+//                parambytes = fs.getBuffer();
+//            }
+            params[i] = pf.parameters;
 
-            LOG.debug("Creating SysProc FragmentTaskMessage for " + (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId) + " in txn #" + this.getTransactionId());
-            FragmentTaskMessage task = new FragmentTaskMessage(
-                    this.executor.getPartitionId(),
-                    (int)pf.destPartitionId,
-                    this.getTransactionId(),
-                    -1,
-                    false,
-                    new long[] { pf.fragmentId },
-                    pf.inputDependencyIds,
-                    pf.outputDependencyIds,
-                    new ByteBuffer[] { parambytes },
-                    new int[] { 0 },
-                    pf.last_task);
-            task.setFragmentTaskType(FragmentTaskMessage.SYS_PROC_PER_PARTITION);
-            ftasks.add(task);
+            if (debug.get()) 
+                LOG.debug(String.format("Creating SysProc FragmentTaskMessage for %s in %s",
+                                       (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId),
+                                       this.getTransactionState()));
+
+            PartitionFragment.Builder builder = PartitionFragment.newBuilder()
+                                                    .setPartitionId(pf.destPartitionId)
+                                                    .setReadOnly(false)
+                                                    .setLastFragment(pf.last_task);
+            Work.Builder workBuilder = Work.newBuilder()
+                                        .setFragmentId(pf.fragmentId)
+                                        .setStmtIndex(0);
+            for (int dep : pf.inputDependencyIds)
+                workBuilder.addInputDepIds(dep);
+            for (int dep : pf.outputDependencyIds)
+                workBuilder.setOutputDepId(dep);
+            builder.addWork(workBuilder.build());
+            ftasks.add(builder.build());
+            
+//            FragmentTaskMessage task = new FragmentTaskMessage(
+//                    this.executor.getPartitionId(),
+//                    (int)pf.destPartitionId,
+//                    this.getTransactionId(),
+//                    -1,
+//                    false,
+//                    new long[] { pf.fragmentId },
+//                    pf.inputDependencyIds,
+//                    pf.outputDependencyIds,
+//                    new ByteBuffer[] { parambytes },
+//                    new int[] { 0 },
+//                    pf.last_task);
+//            task.setFragmentTaskType(FragmentTaskMessage.SYS_PROC_PER_PARTITION);
+//            ftasks.add(task);
         } // FOR
         
-        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, 1));
+        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, params));
+//        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, 1));
     }
 }

@@ -29,6 +29,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
 
+import edu.brown.hstore.Hstore;
 import edu.mit.hstore.HStoreConstants;
 
 /**
@@ -65,7 +66,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     /** PAVLO **/
 
     /** Empty constructor for de-serialization */
-    FragmentTaskMessage() {
+    public FragmentTaskMessage() {
         m_subject = Subject.DEFAULT.getId();
     }
     
@@ -564,5 +565,19 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
         sb.append("\n  HASHCODE: " + this.hashCode());
 
         return sb.toString() + "\n";
+    }
+    
+    // ----------------------------------------------------------------------------
+    // HACK: PROTOCOL BUFFER WRAPPER MODE!
+    // ----------------------------------------------------------------------------
+
+    private Hstore.TransactionWorkRequest.PartitionFragment inner_work;
+    
+    public FragmentTaskMessage setPartitionFragment(Hstore.TransactionWorkRequest.PartitionFragment work) {
+        this.inner_work = work;
+        return (this);
+    }
+    public Hstore.TransactionWorkRequest.PartitionFragment getPartitionFragment() {
+        return (this.inner_work);
     }
 }

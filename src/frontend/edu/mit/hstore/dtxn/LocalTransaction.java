@@ -25,7 +25,6 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +58,8 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.TransactionEstimator;
@@ -85,7 +86,7 @@ public class LocalTransaction extends AbstractTransaction {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
 
-    private static final Set<FragmentTaskMessage> EMPTY_SET = Collections.emptySet();
+    private static final Set<Hstore.TransactionWorkRequest.PartitionFragment> EMPTY_SET = Collections.emptySet();
     
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
@@ -127,10 +128,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private Procedure catalog_proc;
 
-    /**
-     * Whether this is a sysproc
-     */
-    public boolean sysproc;
+
 
     /**
      * Whether this txn is being executed specutatively
@@ -585,7 +583,7 @@ public class LocalTransaction extends AbstractTransaction {
     public int getBlockedFragmentTaskMessageCount() {
         return (this.state.blocked_tasks.size());
     }
-    protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
+    protected Set<Hstore.TransactionWorkRequest.PartitionFragment> getBlockedFragmentTaskMessages() {
         return (this.state.blocked_tasks);
     }
     public LinkedBlockingDeque<Collection<Hstore.TransactionWorkRequest.PartitionFragment>> getUnblockedFragmentTaskMessageQueue() {
@@ -657,7 +655,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ftask
      * @return
      */
-    public boolean isBlocked(FragmentTaskMessage ftask) {
+    public boolean isBlocked(PartitionFragment ftask) {
         return (this.state.blocked_tasks.contains(ftask));
     }
     
@@ -765,8 +763,8 @@ public class LocalTransaction extends AbstractTransaction {
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
-        final int partition = ftask.getDestinationPartitionId();
-        final int num_fragments = ftask.getFragmentCount();
+        final int partition = ftask.getPartitionId();
+        final int num_fragments = ftask.getWorkCount();
         
         // PAVLO: 2011-12-10
         // We moved updating the exec_touchedPartitions histogram into the
@@ -774,26 +772,23 @@ public class LocalTransaction extends AbstractTransaction {
         // if we read from a replicated table at the local partition
         // this.state.exec_touchedPartitions.put(partition, num_fragments);
         
-        // If this task produces output dependencies, then we need to make 
-        // sure that the txn wait for it to arrive first
-        if (ftask.hasOutputDependencies()) {
-            int output_dependencies[] = ftask.getOutputDependencyIds();
-            int stmt_indexes[] = ftask.getFragmentStmtIndexes();
-            
-            if (d) LOG.debug("__FILE__:__LINE__ " +String.format("Attemping to add DependencyInfo for %d fragments in %s",
-                                            num_fragments, this));
-            if (this.predict_singlePartition == false) state.lock.lock();
-            try {
-                for (int i = 0; i < num_fragments; i++) {
-                    Integer dependency_id = output_dependencies[i];
-                    Integer stmt_index = stmt_indexes[i];
-                    
+        if (this.predict_singlePartition == false) state.lock.lock();
+        try {
+            for (Work work : ftask.getWorkList()) {
+                int stmt_index = work.getStmtIndex();
+                
+                // If this task produces output dependencies, then we need to make 
+                // sure that the txn wait for it to arrive first
+                if (work.getOutputDepId() != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    if (d) LOG.debug("__FILE__:__LINE__ " +String.format("Attemping to add DependencyInfo for %d fragments in %s",
+                                                    num_fragments, this));
+                    int dependency_id = work.getOutputDepId();
                     if (t) LOG.trace("__FILE__:__LINE__ " +"Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
-                    this.getOrCreateDependencyInfo(stmt_index.intValue(), dependency_id).addPartition(partition);
+                    this.getOrCreateDependencyInfo(stmt_index, dependency_id).addPartition(partition);
                     this.state.dependency_ctr++;
     
                     // Store the stmt_index of when this dependency will show up
-                    Integer key_idx = this.state.createPartitionDependencyKey(partition, dependency_id.intValue());
+                    Integer key_idx = this.state.createPartitionDependencyKey(partition, dependency_id);
     
                     Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
                     if (rest_stmt_ctr == null) {
@@ -802,37 +797,31 @@ public class LocalTransaction extends AbstractTransaction {
                     }
                     rest_stmt_ctr.add(stmt_index);
                     if (t) LOG.trace("__FILE__:__LINE__ " +String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
-                } // FOR
-            } finally {
-                if (this.predict_singlePartition == false) state.lock.unlock();
-            } // SYNCH
-        }
-        
-        // If this task needs an input dependency, then we need to make sure it arrives at
-        // the executor before it is allowed to start executing
-        if (ftask.hasInputDependencies()) {
-            if (t) LOG.trace("__FILE__:__LINE__ " +"Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
-            if (this.predict_singlePartition == false) state.lock.lock();
-            try {
-                for (int i = 0; i < num_fragments; i++) {
-                    int dependency_id = ftask.getOnlyInputDepId(i);
-                    int stmt_index = ftask.getFragmentStmtIndexes()[i];
-                    this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
-                    this.state.internal_dependencies.add(dependency_id);
-                } // FOR
-            } finally {
-                if (this.predict_singlePartition == false) state.lock.unlock();
-            } // SYNCH
-            this.state.blocked_tasks.add(ftask);
-            blocked = true;
-        }
+                } // IF
+                
+                // If this task needs an input dependency, then we need to make sure it arrives at
+                // the executor before it is allowed to start executing
+                if (work.getInputDepIdsCount() > 0) {
+//                    if (t) LOG.trace("__FILE__:__LINE__ " +"Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
+                    for (int dependency_id : work.getInputDepIdsList()) {
+                        this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedFragmentTaskMessage(ftask);
+                        this.state.internal_dependencies.add(dependency_id);
+                    } // FOR
+                    this.state.blocked_tasks.add(ftask);
+                    blocked = true;
+                }
+            } // FOR
+        } finally {
+            if (this.predict_singlePartition == false) state.lock.unlock();
+        } // SYNCH
+
         if (d) {
             CatalogType catalog_stmt = null;
             if (catalog_proc.getSystemproc()) {
                 catalog_stmt = catalog_proc;
             } else {
-                for (int i = 0; i < ftask.getFragmentCount(); i++) {
-                    int frag_id = ftask.getFragmentId(i);
+                for (Work work : ftask.getWorkList()) {
+                    int frag_id = work.getFragmentId();
                     PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
                     catalog_stmt = catalog_frag.getParent();
                     if (catalog_stmt != null) break;
@@ -927,7 +916,7 @@ public class LocalTransaction extends AbstractTransaction {
             // Check whether we need to start running stuff now
             if (!this.state.blocked_tasks.isEmpty() && dinfo.hasTasksReady()) {
                 // Always double check whether somebody beat us to the punch
-                Collection<FragmentTaskMessage> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
+                Collection<Hstore.TransactionWorkRequest.PartitionFragment> to_unblock = dinfo.getAndReleaseBlockedFragmentTaskMessages();
                 if (to_unblock == null) {
                     if (d) LOG.debug("__FILE__:__LINE__ " +String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
                     return;
@@ -950,28 +939,31 @@ public class LocalTransaction extends AbstractTransaction {
      * @param results
      * @return
      */
-    public Map<Integer, List<VoltTable>> removeInternalDependencies(final FragmentTaskMessage ftask, final Map<Integer, List<VoltTable>> results) {
+    public Map<Integer, List<VoltTable>> removeInternalDependencies(final PartitionFragment ftask, final Map<Integer, List<VoltTable>> results) {
         if (d) LOG.debug("__FILE__:__LINE__ " +String.format("Retrieving %d internal dependencies for txn #%d",
                                        this.state.internal_dependencies.size(), this.txn_id));
         
         Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
-        for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
-            int input_d_id = ftask.getOnlyInputDepId(i);
-            if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
-            int stmt_index = ftask.getFragmentStmtIndexes()[i];
-
-            DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
-            assert(dinfo != null);
-            int num_tables = dinfo.results.size();
-            assert(dinfo.getPartitions().size() == num_tables) :
-                String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
-                              "but we were expecting %d in %s txn #%d\n%s\n%s\n%s%s", 
-                              stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this.getProcedureName(), this.txn_id,
-                              this.toString(), ftask.toString(),
-                              StringUtil.SINGLE_LINE, this.debug()); 
-            results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
-            if (d) LOG.debug("__FILE__:__LINE__ " +String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables",
-                                           stmt_index, input_d_id, results.get(input_d_id).size()));
+        for (int i = 0, cnt = ftask.getWorkCount(); i < cnt; i++) {
+            Work work = ftask.getWork(i);
+            int stmt_index = work.getStmtIndex();
+            
+            for (int input_d_id : work.getInputDepIdsList()) {
+                if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
+                
+                DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
+                assert(dinfo != null);
+                int num_tables = dinfo.results.size();
+                assert(dinfo.getPartitions().size() == num_tables) :
+                    String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
+                                  "but we were expecting %d in %s txn #%d\n%s\n%s\n%s%s", 
+                                  stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this.getProcedureName(), this.txn_id,
+                                  this.toString(), ftask.toString(),
+                                  StringUtil.SINGLE_LINE, this.debug()); 
+                results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
+                if (d) LOG.debug("__FILE__:__LINE__ " +String.format("<Stmt#%d, DependencyId#%d> -> %d VoltTables",
+                                               stmt_index, input_d_id, results.get(input_d_id).size()));
+            } // FOR
         } // FOR
         return (results);
     }
@@ -1067,12 +1059,12 @@ public class LocalTransaction extends AbstractTransaction {
                 boolean none = true;
                 for (Integer dependency_id : dependency_ids) {
                     DependencyInfo d = s_dependencies.get(dependency_id);
-                    for (FragmentTaskMessage task : d.getBlockedFragmentTaskMessages()) {
+                    for (Hstore.TransactionWorkRequest.PartitionFragment task : d.getBlockedFragmentTaskMessages()) {
                         if (task == null) continue;
                         inner += "    [" + dependency_id + "] => [";
                         String add = "";
-                        for (long id : task.getFragmentIds()) {
-                            inner += add + id;
+                        for (Work work : task.getWorkList()) {
+                            inner += add + work.getFragmentId();
                             add = ", ";
                         } // FOR
                         inner += "]";

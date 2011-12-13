@@ -48,6 +48,7 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ExecutionSitePostProcessor;
+import org.voltdb.ParameterSet;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -60,7 +61,6 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.messaging.InitiateTaskMessage;
 import org.voltdb.utils.Pair;
 
 import ca.evanjones.protorpc.NIOEventLoop;
@@ -72,6 +72,8 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TransactionWorkRequest;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -1217,20 +1219,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
     }
     
-    public RemoteTransaction createRemoteTransaction(long txn_id, FragmentTaskMessage ftask) {
+    public RemoteTransaction createRemoteTransaction(long txn_id, TransactionWorkRequest ftask) {
         RemoteTransaction ts = null;
         try {
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
-            ts.init(txn_id, ftask.getClientHandle(), ftask.getSourcePartitionId(), ftask.isReadOnly(), true);
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d to execute at partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
-                                           ts, ftask.getSourcePartitionId(), ftask.getDestinationPartitionId(), ftask.isReadOnly(), false, ts.hashCode()));
+            ts.init(txn_id, ftask.getSourcePartition(), ftask.getReadOnly(), true);
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
+                                           ts, ftask.getSourcePartition(), ftask.getReadOnly(), false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("__FILE__:__LINE__ " + "Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
         }
         this.inflight_txns.put(txn_id, ts);
-        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Stored new transaction state for %s at partition %d", ts, ftask.getDestinationPartitionId()));
+        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Stored new transaction state for %s", ts));
         return (ts);
     }
     
@@ -1239,10 +1241,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @param done
      */
-    public void transactionWork(RemoteTransaction ts, FragmentTaskMessage ftask) {
+    public void transactionWork(RemoteTransaction ts, TransactionWorkRequest request, PartitionFragment fragment) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
-                                       ftask.getDestinationPartitionId(), ts.getTransactionId()));
-        this.executors[ftask.getDestinationPartitionId()].queueWork(ts, ftask);
+                                                fragment.getPartitionId(), ts.getTransactionId()));
+        int partition = fragment.getPartitionId();
+        FragmentTaskMessage ftask = ts.getFragmentTaskMessage(request, fragment);
+        this.executors[partition].queueWork(ts, ftask);
     }
 
 
@@ -1468,10 +1472,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
-        int restart_limit = (orig_ts.sysproc ? hstore_conf.site.txn_restart_limit_sysproc :
+        int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
                                                hstore_conf.site.txn_restart_limit);
         if (orig_ts.getRestartCounter() > restart_limit) {
-            if (orig_ts.sysproc) {
+            if (orig_ts.isSysProc()) {
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                                          orig_ts, orig_ts.getRestartCounter()));
             } else {
@@ -1727,7 +1731,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.status_show_txn_info) {
             if (ts.isSpeculative()) TxnCounter.SPECULATIVE.inc(catalog_proc);
             if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
-            if (ts.sysproc) {
+            if (ts.isSysProc()) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
             } else if (status != Hstore.Status.ABORT_MISPREDICT && ts.isRejected() == false) {
                 (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);

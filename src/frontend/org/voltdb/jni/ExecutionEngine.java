@@ -41,6 +41,8 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import com.google.protobuf.ByteString;
+
 import edu.brown.utils.StringUtil;
 
 /**
@@ -298,6 +300,15 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                                                                        long txnId, long lastCommittedTxnId,
                                                                        long undoQuantumToken) throws EEException;
 
+    abstract public DependencySet executeQueryPlanFragmentsAndGetDependencySet(long[] planFragmentIds,
+            int numFragmentIds,
+            int[] input_depIds,
+            int[] output_depIds,
+            ByteString serializedParameterSets[],
+            int numParameterSets,
+            long txnId, long lastCommittedTxnId,
+            long undoQuantumToken) throws EEException;
+    
     /** Run multiple query plan fragments */
     public VoltTable[] executeQueryPlanFragmentsAndGetResults(long[] planFragmentIds,
                                                                        int numFragmentIds,
