@@ -3,11 +3,18 @@
  */
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.voltdb.BatchPlanner;
+import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.ParameterSet;
@@ -15,20 +22,23 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.BatchPlanner.BatchPlan;
-import org.voltdb.catalog.*;
-import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.*;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProjectType;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.DependencyInfo;
-import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
  * @author pavlo
@@ -55,7 +65,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
-    private static List<FragmentTaskMessage> ftasks;
+    private static List<PartitionFragment> ftasks;
     private Histogram<Integer> touched_partitions = new Histogram<Integer>();
     
     private LocalTransaction ts;
@@ -63,7 +73,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
-    private List<FragmentTaskMessage> first_tasks = new ArrayList<FragmentTaskMessage>();
+    private List<PartitionFragment> first_tasks = new ArrayList<PartitionFragment>();
     private Map<Integer, Set<Integer>> dependency_partitions = new HashMap<Integer, Set<Integer>>();
 
     @Override
@@ -100,7 +110,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            ftasks = plan.getFragmentTaskMessages(args);
+            plan.getPartitionFragments(ftasks);
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(executor);
@@ -116,24 +126,25 @@ public class TestTransactionStateComplex extends BaseTestCase {
      */
     private void addFragments() {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
-        for (FragmentTaskMessage ftask : ftasks) {
+        for (PartitionFragment ftask : ftasks) {
             assertNotNull(ftask);
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
             this.ts.addFragmentTaskMessage(ftask);
-            for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
-                int dep_id = ftask.getOutputDependencyIds()[i];
+            for (int i = 0, cnt = ftask.getWorkCount(); i < cnt; i++) {
+                Work work = ftask.getWork(i);
+                int dep_id = work.getOutputDepId();
                 this.dependency_ids.add(dep_id);
                 
                 if (this.dependency_partitions.containsKey(dep_id) == false) {
                     this.dependency_partitions.put(dep_id, new HashSet<Integer>());
                 }
-                this.dependency_partitions.get(dep_id).add(ftask.getDestinationPartitionId());
+                this.dependency_partitions.get(dep_id).add(ftask.getPartitionId());
                 
-                if (ftask.getInputDependencyCount() == 0) {
+                if (work.getInputDepIdsCount() == 0) {
                     this.first_tasks.add(ftask);
                 } else {
-                    for (Integer input_dep_id : ftask.getInputDepIds(i)) {
+                    for (Integer input_dep_id : work.getInputDepIdsList()) {
                         if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                     } // FOR
                 }
@@ -167,10 +178,10 @@ public class TestTransactionStateComplex extends BaseTestCase {
         // and make sure that the things get unblocked at the right time
         // (1) Add a result for the first output dependency
         assertEquals(1, this.first_tasks.size());
-        FragmentTaskMessage first_ftask = CollectionUtil.first(this.first_tasks);
+        PartitionFragment first_ftask = CollectionUtil.first(this.first_tasks);
         assertNotNull(first_ftask);
-        int partition = first_ftask.getDestinationPartitionId();
-        int first_output_dependency_id = first_ftask.getOutputDepId(0);
+        int partition = first_ftask.getPartitionId();
+        int first_output_dependency_id = first_ftask.getWork(0).getOutputDepId();
         DependencyInfo first_dinfo = this.ts.getDependencyInfo(0, first_output_dependency_id);
         assertNotNull(first_dinfo);
         assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedFragmentTaskMessages().size());
@@ -178,12 +189,14 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
-        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.first(first_dinfo.getBlockedFragmentTaskMessages()).getOutputDepId(0));
-        for (FragmentTaskMessage ftask : first_dinfo.getBlockedFragmentTaskMessages()) {
+        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.first(first_dinfo.getBlockedFragmentTaskMessages()).getWork(0).getOutputDepId());
+        for (PartitionFragment ftask : first_dinfo.getBlockedFragmentTaskMessages()) {
             assertFalse(second_dinfo.hasTasksReady());
-            partition = ftask.getDestinationPartitionId();   
-            int output_dependency_id = ftask.getOutputDepId(0);
-            this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
+            partition = ftask.getPartitionId();
+            for (Work work : ftask.getWorkList()) {
+                int output_dependency_id = work.getOutputDepId();
+                this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
+            } // FOR
         } // FOR
         assert(second_dinfo.hasTasksReleased());
     }

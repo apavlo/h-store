@@ -1,15 +1,10 @@
 package edu.mit.hstore.handlers;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
-import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.messaging.VoltMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
@@ -20,8 +15,8 @@ import com.google.protobuf.RpcController;
 import edu.brown.hstore.Hstore.Dependency;
 import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreCoordinator;
