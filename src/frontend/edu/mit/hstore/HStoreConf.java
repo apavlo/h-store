@@ -172,7 +172,7 @@ public final class HStoreConf {
                         "multi-partition transaction on the partition that was requested most often by queries " +
                         "(using random tie breakers). " +
                         "See http://ibm.co/fLR2cH for more information.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=true
         )
         public boolean exec_db2_redirects;

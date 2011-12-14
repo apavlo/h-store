@@ -1504,16 +1504,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else {
                 redirect_partition = CollectionUtil.random(this.all_partitions);
             }
-//            if (t) {
-                LOG.info("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
-                LOG.info("Local Partitions: " + this.local_partitions);
-//            }
+            if (t) {
+                LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
+                LOG.trace("Local Partitions: " + this.local_partitions);
+            }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
             // already redirected at least once. If this txn was already redirected, then it's going to just
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
-            if (this.local_partitions.contains(redirect_partition) == false) { // && spi.hasBasePartition() == false) {
+            if (this.local_partitions.contains(redirect_partition) == false && spi.hasBasePartition() == false) {
                 if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Redirecting mispredicted %s to partition %d", orig_ts, redirect_partition));
                 
                 spi.setBasePartition(redirect_partition.intValue());
@@ -1543,12 +1543,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 return;
                 
             // Allow local redirect
-            } else if (spi.hasBasePartition() == false) {    
-                base_partition = redirect_partition.intValue();
-                spi.setBasePartition(base_partition);
+            } else if (orig_ts.getRestartCounter() == 0 || spi.hasBasePartition() == false) {
+                if (redirect_partition != base_partition) {
+                    base_partition = redirect_partition.intValue();
+                    spi.setBasePartition(base_partition);
+                }
             } else {
-//                if (d) 
-                    LOG.info("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn\n%s", orig_ts, touched));
+                if (d)
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. " +
+                                                                  "Restarting as all-partition txn [restartCtr=%d, redirectPartition=%d]\n%s",
+                                                                  orig_ts, orig_ts.getRestartCounter(), redirect_partition, touched));
                 touched.putAll(this.local_partitions);
             }
         }
@@ -1622,8 +1626,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         );
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
-         if (d) {
-            LOG.debug("__FILE__:__LINE__ " + String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
+//         if (d) {
+            LOG.info("__FILE__:__LINE__ " + String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
                                     orig_ts,
                                     (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
                                     new_ts,
@@ -1631,7 +1635,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     predict_touchedPartitions));
             if (t && status == Hstore.Status.ABORT_MISPREDICT)
                 LOG.trace("__FILE__:__LINE__ " + String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
-        }
+//        }
         
         this.dispatchInvocation(new_ts);
     }
