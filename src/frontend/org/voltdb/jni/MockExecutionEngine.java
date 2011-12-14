@@ -166,11 +166,11 @@ public class MockExecutionEngine extends ExecutionEngine {
         return null;
     }
 
-    @Override
-    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(long[] planFragmentIds, int numFragmentIds, int[] input_depIds, int[] output_depIds, ByteString[] serializedParameterSets,
-            int numParameterSets, long txnId, long lastCommittedTxnId, long undoQuantumToken) throws EEException {
-        // TODO Auto-generated method stub
-        return null;
-    }
+//    @Override
+//    public DependencySet executeQueryPlanFragmentsAndGetDependencySet(long[] planFragmentIds, int numFragmentIds, int[] input_depIds, int[] output_depIds, ByteString[] serializedParameterSets,
+//            int numParameterSets, long txnId, long lastCommittedTxnId, long undoQuantumToken) throws EEException {
+//        // TODO Auto-generated method stub
+//        return null;
+//    }
 
 }

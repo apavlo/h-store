@@ -324,8 +324,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         try {
             for (int i = 0; i < numFragmentIds; ++i) {
                 parameterSets[i].writeExternal(fsForParameterSet);
-//                if (t)
-                    LOG.info("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
+                if (t) LOG.trace("Batch Executing planfragment:" + planFragmentIds[i] + ", params=" + parameterSets[i].toString());
             }
         } catch (final IOException exception) {
             throw new RuntimeException(exception); // can't happen

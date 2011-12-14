@@ -25,23 +25,17 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
-
-import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
@@ -84,9 +78,6 @@ public abstract class AbstractTransaction implements Poolable {
     protected boolean rejected;
     protected SerializableException pending_error;
     private boolean sysproc;
-    
-    private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
-    private List<ByteString> attached_parameterSets;
     
     // ----------------------------------------------------------------------------
     // VoltMessage Wrappers
@@ -193,8 +184,6 @@ public abstract class AbstractTransaction implements Poolable {
         this.predict_abortable = true;
         this.pending_error = null;
         this.touched_partitions.clear();
-        this.attached_inputs.clear();
-        this.attached_parameterSets = null;
         this.sysproc = false;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
@@ -450,31 +439,6 @@ public abstract class AbstractTransaction implements Poolable {
         return (this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)]);
     }
     
-    // ----------------------------------------------------------------------------
-    // We can attach input dependencies used on non-local partitions
-    // ----------------------------------------------------------------------------
-    
-    public void attachParameterSets(List<ByteString> parameterSets) {
-        this.attached_parameterSets = parameterSets;
-    }
-    
-    public List<ByteString> getParameterSets() {
-        assert(this.attached_parameterSets != null);
-        return (this.attached_parameterSets);
-    }
-    
-    public void attachInputDependency(int input_dep_id, VoltTable vt) {
-        List<VoltTable> l = this.attached_inputs.get(input_dep_id);
-        if (l == null) {
-            l = new ArrayList<VoltTable>();
-            this.attached_inputs.put(input_dep_id, l);
-        }
-        l.add(vt);
-    }
-    
-    public Map<Integer, List<VoltTable>> getInputDependencies() {
-        return (this.attached_inputs);
-    }
     
     // ----------------------------------------------------------------------------
     // Whether the ExecutionSite is finished with the transaction

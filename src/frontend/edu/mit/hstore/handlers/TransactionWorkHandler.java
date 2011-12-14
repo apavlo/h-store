@@ -91,7 +91,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
 //                parameterSets[i] = new ParameterSet();
 //            }
 //        } // FOR
-        ts.attachParameterSets(request.getParameterSetsList());
+        // FIXME ts.attachParameterSets(request.getParameterSetsList());
         
         // Deserialize attached VoltTable input dependencies
         for (Dependency d : request.getAttachedList()) {

@@ -25,7 +25,15 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
+
+import com.google.protobuf.ByteString;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -50,6 +58,9 @@ public class RemoteTransaction extends AbstractTransaction {
     private final TransactionWorkCallback fragment_callback;
     private final TransactionCleanupCallback cleanup_callback;
     
+    private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
+    private List<ByteString> attached_serializedParameterSets;
+    
     public RemoteTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         this.fragment_callback = new TransactionWorkCallback(hstore_site);
@@ -66,6 +77,8 @@ public class RemoteTransaction extends AbstractTransaction {
     public void finish() {
         super.finish();
         this.cleanup_callback.finish();
+        this.attached_inputs.clear();
+        this.attached_serializedParameterSets = null;
     }
     
     @Override
@@ -88,6 +101,32 @@ public class RemoteTransaction extends AbstractTransaction {
     public TransactionCleanupCallback getCleanupCallback() {
         return (this.cleanup_callback);
     }
+
+    // ----------------------------------------------------------------------------
+    // We can attach input dependencies used on non-local partitions
+    // ----------------------------------------------------------------------------
+    
+    public void attachParameterSets(List<ByteString> parameterSets) {
+        this.attached_serializedParameterSets = parameterSets;
+    }
+    
+    public List<ByteString> getParameterSets() {
+        assert(this.attached_serializedParameterSets != null);
+        return (this.attached_serializedParameterSets);
+    }
+    
+    public void attachInputDependency(int input_dep_id, VoltTable vt) {
+        List<VoltTable> l = this.attached_inputs.get(input_dep_id);
+        if (l == null) {
+            l = new ArrayList<VoltTable>();
+            this.attached_inputs.put(input_dep_id, l);
+        }
+        l.add(vt);
+    }
+    
+    public Map<Integer, List<VoltTable>> getInputDependencies() {
+        return (this.attached_inputs);
+    }
     
     @Override
     public String toString() {
@@ -104,3 +143,4 @@ public class RemoteTransaction extends AbstractTransaction {
         return (StringUtil.formatMaps(this.getDebugMap()));
     }
 }
+
