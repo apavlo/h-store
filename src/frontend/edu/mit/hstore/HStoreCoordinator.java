@@ -576,7 +576,8 @@ public class HStoreCoordinator implements Shutdownable {
     public void transactionWork(LocalTransaction ts, Map<Integer, Hstore.TransactionWorkRequest.Builder> builders, RpcCallback<Hstore.TransactionWorkResponse> callback) {
         for (Entry<Integer, Hstore.TransactionWorkRequest.Builder> e : builders.entrySet()) {
             int site_id = e.getKey().intValue();
-            assert(e.getValue().getFragmentsCount() > 0);
+            assert(e.getValue().getFragmentsCount() > 0) :
+                String.format("No PartitionFragments for Site %d in %s", site_id, ts);
             Hstore.TransactionWorkRequest request = e.getValue().build();
             
             // We should never get work for our local partitions
