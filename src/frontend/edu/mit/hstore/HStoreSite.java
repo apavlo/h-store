@@ -48,7 +48,6 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ExecutionSitePostProcessor;
-import org.voltdb.ParameterSet;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
@@ -1225,9 +1224,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         try {
             // Remote Transaction
             ts = HStoreObjectPools.STATES_TXN_REMOTE.borrowObject();
-            ts.init(txn_id, request.getSourcePartition(), request.getSysproc(), request.getReadOnly(), true);
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d [readOnly=%s, singlePartitioned=%s, hashCode=%d]",
-                                           ts, request.getSourcePartition(), request.getReadOnly(), false, ts.hashCode()));
+            ts.init(txn_id, request.getSourcePartition(), request.getSysproc(), true);
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Creating new RemoteTransactionState %s from remote partition %d [singlePartitioned=%s, hashCode=%d]",
+                                           ts, request.getSourcePartition(), false, ts.hashCode()));
         } catch (Exception ex) {
             LOG.fatal("__FILE__:__LINE__ " + "Failed to construct TransactionState for txn #" + txn_id, ex);
             throw new RuntimeException(ex);
@@ -1626,8 +1625,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         );
         new_ts.setRestartCounter(orig_ts.getRestartCounter() + 1);
         
-//         if (d) {
-            LOG.info("__FILE__:__LINE__ " + String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
+         if (d) {
+            LOG.debug("__FILE__:__LINE__ " + String.format("Re-executing %s as new %s-partition %s on partition %d [partitions=%s]",
                                     orig_ts,
                                     (predict_touchedPartitions.size() == 1 ? "single" : "multi"),
                                     new_ts,
@@ -1635,7 +1634,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     predict_touchedPartitions));
             if (t && status == Hstore.Status.ABORT_MISPREDICT)
                 LOG.trace("__FILE__:__LINE__ " + String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
-//        }
+        }
         
         this.dispatchInvocation(new_ts);
     }

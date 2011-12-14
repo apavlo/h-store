@@ -56,10 +56,9 @@ public class RemoteTransaction extends AbstractTransaction {
         this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
     }
     
-    public RemoteTransaction init(long txnId, int source_partition, boolean sysproc,
-                                  boolean predict_readOnly, boolean predict_abortable) {
+    public RemoteTransaction init(long txnId, int source_partition, boolean sysproc, boolean predict_abortable) {
         return ((RemoteTransaction)super.init(txnId, -1, source_partition, sysproc,
-                                              false, predict_readOnly, predict_abortable, false));
+                                              false, true, predict_abortable, false));
     }
     
     @Override
