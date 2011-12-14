@@ -43,6 +43,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogType;
@@ -54,6 +55,7 @@ import org.voltdb.messaging.InitiateTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
@@ -144,6 +146,13 @@ public class LocalTransaction extends AbstractTransaction {
      * 
      */
     public final TransactionProfile profiler;
+    
+    
+    /**
+     * Attached ParameterSets for the current first round
+     * This is so that we don't have to marshal them over to different partitions on the same HStoreSite  
+     */
+    private ParameterSet attached_parameterSets[];
     
     /**
      * Cached ProtoRpcControllers
@@ -331,6 +340,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
+        this.attached_parameterSets = null;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -947,6 +957,19 @@ public class LocalTransaction extends AbstractTransaction {
             } // FOR
         } // FOR
         return (results);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // We can attach input dependencies used on non-local partitions
+    // ----------------------------------------------------------------------------
+    
+    public void attachParameterSets(ParameterSet parameterSets[]) {
+        this.attached_parameterSets = parameterSets;
+    }
+    
+    public ParameterSet[] getParameterSets() {
+        assert(this.attached_parameterSets != null);
+        return (this.attached_parameterSets);
     }
     
     @Override

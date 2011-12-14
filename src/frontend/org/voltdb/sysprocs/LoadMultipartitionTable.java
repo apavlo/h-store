@@ -190,11 +190,10 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         }
 
         // generate a plan fragment for each site using the sub-tables
-        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_partitions  + 1];
-        for (int i = 1; i <= partitionedTables.length; ++i) {
-            int partition = i - 1;
-            ParameterSet params = new ParameterSet();
-            params.setParameters(catalog_tbl.getName(), partitionedTables[partition]);
+        final SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[num_partitions];
+        for (int i = 0; i < partitionedTables.length; ++i) {
+            int partition = i;
+            ParameterSet params = new ParameterSet(catalog_tbl.getName(), partitionedTables[partition]);
             pfs[i] = new SynthesizedPlanFragment();
             pfs[i].fragmentId = SysProcFragmentId.PF_loadDistribute;
             pfs[i].inputDependencyIds = new int[] { };
@@ -210,15 +209,15 @@ public class LoadMultipartitionTable extends VoltSystemProcedure {
         if (trace.get()) LOG.trace(sb.toString());
 
         // a final plan fragment to aggregate the results
-        pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = partitionId;
-        pfs[0].fragmentId = SysProcFragmentId.PF_loadAggregate;
-        pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
-        pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };
-        pfs[0].multipartition = false;
-        pfs[0].nonExecSites = false;
-        pfs[0].last_task = true;
-        pfs[0].parameters = new ParameterSet();
+//        pfs[0] = new SynthesizedPlanFragment();
+//        pfs[0].destPartitionId = partitionId;
+//        pfs[0].fragmentId = SysProcFragmentId.PF_loadAggregate;
+//        pfs[0].inputDependencyIds = new int[] { (int)DEP_distribute };
+//        pfs[0].outputDependencyIds = new int[] { (int)DEP_aggregate };
+//        pfs[0].multipartition = false;
+//        pfs[0].nonExecSites = false;
+//        pfs[0].last_task = true;
+//        pfs[0].parameters = new ParameterSet();
 
         return (pfs);
     }

@@ -911,20 +911,21 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         }
         buffer.append("\n");*/
 
-        buffer.append(" header size: ").append(m_buffer.getInt(0)).append("\n");
+        // buffer.append(" header size: ").append(m_buffer.getInt(0)).append("\n");
 
-        byte statusCode = m_buffer.get(4);
-        buffer.append(" status code: ").append(statusCode);
+//        byte statusCode = m_buffer.get(4);
+//        buffer.append(" status code: ").append(statusCode);
 
         short colCount = m_buffer.getShort(5);
         buffer.append(" column count: ").append(colCount).append("\n");
         assert(colCount == m_colCount);
-
+        
         buffer.append(" cols ");
         for (int i = 0; i < colCount; i++)
             buffer.append("(").append(getColumnName(i)).append(":").append(getColumnType(i).name()).append("), ");
         buffer.append("\n");
 
+        buffer.append(" row count: ").append(getRowCount()).append("\n");
         if (includeData) {
             buffer.append(" rows -\n");
     

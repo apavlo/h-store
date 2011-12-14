@@ -17,6 +17,8 @@
 
 package org.voltdb;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,9 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
+import org.voltdb.messaging.FastSerializer;
+
+import com.google.protobuf.ByteString;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
@@ -152,8 +157,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //        List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
 
         List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
-        ParameterSet params[] = new ParameterSet[1];
-        
+        ParameterSet parameters[] = new ParameterSet[pfs.length];
         for (int i = 0; i < pfs.length; i++) {
             SynthesizedPlanFragment pf = pfs[i];
             // check mutually exclusive flags
@@ -162,7 +166,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             // assert(pf.outputDependencyIds.length > 0) : "The DependencyId list is empty!!!";
 
             // serialize parameters
-//            ByteBuffer parambytes = null;
+            parameters[i] = pf.parameters;
+//            ByteString parambytes = ByteString.EMPTY; 
 //            if (pf.parameters != null) {
 //                FastSerializer fs = new FastSerializer();
 //                try {
@@ -171,11 +176,8 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //                    e.printStackTrace();
 //                    assert (false);
 //                }
-//                parambytes = fs.getBuffer();
+//                parambytes = ByteString.copyFrom(fs.getBuffer());
 //            }
-            if (params[0] == null && pf.parameters != null && pf.parameters.size() > 0) {
-                params[0] = pf.parameters;
-            }
 
             if (debug.get()) 
                 LOG.debug(String.format("Creating SysProc FragmentTaskMessage for %s in %s",
@@ -188,7 +190,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                     .setLastFragment(pf.last_task);
             Work.Builder workBuilder = Work.newBuilder()
                                         .setFragmentId(pf.fragmentId)
-                                        .setStmtIndex(0);
+                                        .setStmtIndex(i);
             boolean needs_input = false;
             for (int dep : pf.inputDependencyIds) {
                 workBuilder.addInputDepIds(dep);
@@ -218,7 +220,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //            ftasks.add(task);
         } // FOR
         
-        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, params));
+        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, parameters));
 //        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, 1));
     }
 }

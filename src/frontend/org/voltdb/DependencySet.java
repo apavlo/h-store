@@ -17,6 +17,12 @@
 
 package org.voltdb;
 
+import java.util.Map;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
+
+import edu.brown.utils.StringUtil;
+
 public class DependencySet {
 
     public final int[] depIds;
@@ -33,5 +39,15 @@ public class DependencySet {
 
     public int size() {
         return depIds.length;
+    }
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        for (int i = 0; i < this.dependencies.length; i++) {
+            m.put(Integer.toString(this.depIds[i]), this.dependencies[i].toString());
+        } // FOR
+        return (StringUtil.formatMaps(m));
+        
     }
 }
