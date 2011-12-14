@@ -428,6 +428,29 @@ public abstract class CollectionUtil {
         });
     }
     
+    public static <T> Iterable<T> iterable(final T values[]) {
+        return (new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return new Iterator<T>() {
+                    private int idx = 0;
+                    @Override
+                    public boolean hasNext() {
+                        return (this.idx < values.length);
+                    }
+                    @Override
+                    public T next() {
+                        return (values[this.idx++]);
+                    }
+                    @Override
+                    public void remove() {
+                        throw new NotImplementedException();
+                    }
+                };
+            }
+        });
+    }
+    
     /**
      * Wrap an Iterable around an Enumeration
      * @param <T>

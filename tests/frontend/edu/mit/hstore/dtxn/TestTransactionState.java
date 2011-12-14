@@ -31,8 +31,8 @@ import org.voltdb.utils.Pair;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -137,12 +137,13 @@ public class TestTransactionState extends BaseTestCase {
         for (PartitionFragment ftask : ftasks) {
             assertNotNull(ftask);
             this.ts.addFragmentTaskMessage(ftask);
-            for (int i = 0, cnt = ftask.getWorkCount(); i < cnt; i++) {
-                Work work = ftask.getWork(i); 
-                this.dependency_ids.add(work.getOutputDepId());
-                
-                for (Integer input_dep_id : work.getInputDepIdsList()) {
-                    if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
+            for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
+                this.dependency_ids.add(ftask.getOutputDepId(i));
+                InputDependency input_dep_ids = ftask.getInputDepId(i);
+                for (Integer input_dep_id : input_dep_ids.getIdsList()) {
+                    if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                        this.internal_dependency_ids.add(input_dep_id);
+                    }
                 } // FOR
             } // FOR
         } // FOR
@@ -221,7 +222,7 @@ public class TestTransactionState extends BaseTestCase {
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
 //        System.err.println(this.ts.getBlockedFragmentTaskMessages());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getWorkCount());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getFragmentIdCount());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how

@@ -31,8 +31,8 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -131,9 +131,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
             this.ts.addFragmentTaskMessage(ftask);
-            for (int i = 0, cnt = ftask.getWorkCount(); i < cnt; i++) {
-                Work work = ftask.getWork(i);
-                int dep_id = work.getOutputDepId();
+            for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
+                int dep_id = ftask.getOutputDepId(i);
                 this.dependency_ids.add(dep_id);
                 
                 if (this.dependency_partitions.containsKey(dep_id) == false) {
@@ -141,10 +140,11 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 }
                 this.dependency_partitions.get(dep_id).add(ftask.getPartitionId());
                 
-                if (work.getInputDepIdsCount() == 0) {
+                InputDependency input_dep_ids = ftask.getInputDepId(i); 
+                if (input_dep_ids.getIdsCount() == 0) {
                     this.first_tasks.add(ftask);
                 } else {
-                    for (Integer input_dep_id : work.getInputDepIdsList()) {
+                    for (Integer input_dep_id : input_dep_ids.getIdsList()) {
                         if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
                     } // FOR
                 }
@@ -181,7 +181,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         PartitionFragment first_ftask = CollectionUtil.first(this.first_tasks);
         assertNotNull(first_ftask);
         int partition = first_ftask.getPartitionId();
-        int first_output_dependency_id = first_ftask.getWork(0).getOutputDepId();
+        int first_output_dependency_id = first_ftask.getOutputDepId(0);
         DependencyInfo first_dinfo = this.ts.getDependencyInfo(0, first_output_dependency_id);
         assertNotNull(first_dinfo);
         assertEquals(NUM_PARTITIONS, first_dinfo.getBlockedPartitionFragments().size());
@@ -189,12 +189,13 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assert(first_dinfo.hasTasksReleased());
 
         // (2) Now add outputs for each of the tasks that became unblocked in the previous step
-        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, CollectionUtil.first(first_dinfo.getBlockedPartitionFragments()).getWork(0).getOutputDepId());
+        first_ftask = CollectionUtil.first(first_dinfo.getBlockedPartitionFragments());
+        DependencyInfo second_dinfo = this.ts.getDependencyInfo(0, first_ftask.getOutputDepId(0));
         for (PartitionFragment ftask : first_dinfo.getBlockedPartitionFragments()) {
             assertFalse(second_dinfo.hasTasksReady());
             partition = ftask.getPartitionId();
-            for (Work work : ftask.getWorkList()) {
-                int output_dependency_id = work.getOutputDepId();
+            for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
+                int output_dependency_id = ftask.getOutputDepId(i);
                 this.ts.addResult(partition, output_dependency_id, FAKE_RESULT);
             } // FOR
         } // FOR

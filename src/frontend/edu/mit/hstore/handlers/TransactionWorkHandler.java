@@ -3,6 +3,7 @@ package edu.mit.hstore.handlers;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
@@ -73,25 +74,25 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // Deserialize embedded ParameterSets and store it in the RemoteTransaction handle
         // This way we only do it once per HStoreSite. This will also force us to avoid having
         // to do it for local work
-//        ParameterSet parameterSets[] = new ParameterSet[request.getParameterSetsCount()]; // TODO: Cache!
-//        for (int i = 0; i < parameterSets.length; i++) {
-//            ByteString paramData = request.getParameterSets(i);
-//            if (paramData != null && paramData.isEmpty() == false) {
-//                final FastDeserializer fds = new FastDeserializer(paramData.asReadOnlyByteBuffer());
-//                if (trace.get()) LOG.trace("__FILE__:__LINE__ " + String.format("Txn #%d paramData[%d] => %s",
-//                                                                  txn_id, i, fds.buffer()));
-//                try {
-//                    parameterSets[i] = fds.readObject(ParameterSet.class);
-//                } catch (Exception ex) {
-//                    LOG.fatal("__FILE__:__LINE__ " + String.format("Failed to deserialize ParameterSet[%d] for txn #%d TransactionRequest", i, txn_id), ex);
-//                    throw new RuntimeException(ex);
-//                }
-//                // LOG.info("PARAMETER[" + i + "]: " + parameterSets[i]);
-//            } else {
-//                parameterSets[i] = new ParameterSet();
-//            }
-//        } // FOR
-        // FIXME ts.attachParameterSets(request.getParameterSetsList());
+        ParameterSet parameterSets[] = new ParameterSet[request.getParameterSetsCount()]; // TODO: Cache!
+        for (int i = 0; i < parameterSets.length; i++) {
+            ByteString paramData = request.getParameterSets(i);
+            if (paramData != null && paramData.isEmpty() == false) {
+                final FastDeserializer fds = new FastDeserializer(paramData.asReadOnlyByteBuffer());
+                if (trace.get()) LOG.trace("__FILE__:__LINE__ " + String.format("Txn #%d paramData[%d] => %s",
+                                                                  txn_id, i, fds.buffer()));
+                try {
+                    parameterSets[i] = fds.readObject(ParameterSet.class);
+                } catch (Exception ex) {
+                    LOG.fatal("__FILE__:__LINE__ " + String.format("Failed to deserialize ParameterSet[%d] for txn #%d TransactionRequest", i, txn_id), ex);
+                    throw new RuntimeException(ex);
+                }
+                // LOG.info("PARAMETER[" + i + "]: " + parameterSets[i]);
+            } else {
+                parameterSets[i] = ParameterSet.EMPTY;
+            }
+        } // FOR
+        ts.attachParameterSets(parameterSets);
         
         // Deserialize attached VoltTable input dependencies
         for (Dependency d : request.getAttachedList()) {

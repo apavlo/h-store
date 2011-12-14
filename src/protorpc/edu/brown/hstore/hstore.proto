@@ -72,47 +72,60 @@ message TransactionInitResponse {
 // -----------------------------------
 
 message TransactionWorkRequest {
-    message Work {
-        // The PlanFragment id that this partition will execute
-        required int32 fragment_id = 1;
-        // The list of DependencyIds that each PlanFragment needs as input
-        repeated int32 inputDepIds = 2 [packed=true];
-        // The single DependencyIds that this work message will generate as output
-        required int32 outputDepId = 3;
-        // What SQLStmt in the batch this PlanFragment belongs to
-        required int32 stmtIndex = 4;
+    message InputDependency {
+        repeated int32 ids = 1;
     }
 
     // Specifies the work to be performed at a single partition.
     message PartitionFragment {
         // The partition that needs to execute this work fragment
         required int32 partition_id = 1;
-        // The list of PlanFragment Work messages that this partition will execute
-        repeated Work work = 2;
+        
+        // The PlanFragment ids that this partition will execute
+        repeated int32 fragment_id = 2 [packed=true];
+        
+        // The list of DependencyIds that each PlanFragment needs as input
+        repeated InputDependency input_dep_id = 3;
+        
+        // The DependencyIds that this work message will generate as output
+        repeated int32 output_dep_id = 4 [packed=true];
+        
+        // What SQLStmt in the batch this PlanFragment belongs to
+        repeated int32 stmt_index = 5 [packed=true];
+        
         // Are all of the PlanFragments read only?
-        required bool readOnly = 3;
-        // If true, this is the final fragment for this transaction at this partition.
-        optional bool last_fragment = 4 [default = false];
+        required bool read_only = 6;
+        
         // If true, then the Work embedded in this PartitionFragment needs input
-        required bool needs_input = 5;
+        required bool needs_input = 7;
+        
+        // If true, this is the final fragment for this transaction at this partition.
+        optional bool last_fragment = 8 [default = false];
     }
 
     // Globally unique transaction id
     required int64 transaction_id = 1;
+    
     // Where this request came from!
     required int32 source_partition = 2;
+    
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
     repeated PartitionFragment fragments = 3;
+    
     // Are all of the PlanFragments read only?
-    required bool readOnly = 4;
+    required bool read_only = 4;
+    
     // Is this request for a sysproc?
     required bool sysproc = 5 [default = false];
+    
     // Serialized ParameterSets (one per Statment).
     // The order of these elements must match Work.stmtIndex
-    repeated bytes parameterSets = 6;
+    repeated bytes parameter_sets = 6;
+    
     // We can attach input dependencies to each message
     repeated Dependency attached = 7;
+    
     // List of partitions that this transaction is done with
     // This allows us to piggyback on this message additional information
     repeated int32 done_partition = 8 [packed=true];
