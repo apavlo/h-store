@@ -25,17 +25,7 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -43,25 +33,22 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.ParameterSet;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.InitiateTaskMessage;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.TransactionEstimator;
@@ -146,13 +133,6 @@ public class LocalTransaction extends AbstractTransaction {
      * 
      */
     public final TransactionProfile profiler;
-    
-    
-    /**
-     * Attached ParameterSets for the current first round
-     * This is so that we don't have to marshal them over to different partitions on the same HStoreSite  
-     */
-    private ParameterSet attached_parameterSets[];
     
     /**
      * Cached ProtoRpcControllers
@@ -340,7 +320,6 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
-        this.attached_parameterSets = null;
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -749,7 +728,7 @@ public class LocalTransaction extends AbstractTransaction {
         // The partition that this task is being sent to for execution
         boolean blocked = false;
         final int partition = ftask.getPartitionId();
-        final int num_fragments = ftask.getWorkCount();
+        final int num_fragments = ftask.getFragmentIdCount();
         
         // PAVLO: 2011-12-10
         // We moved updating the exec_touchedPartitions histogram into the
@@ -759,21 +738,24 @@ public class LocalTransaction extends AbstractTransaction {
         
         if (this.predict_singlePartition == false) state.lock.lock();
         try {
-            for (Work work : ftask.getWorkList()) {
-                int stmt_index = work.getStmtIndex();
+            for (int i = 0; i < num_fragments; i++) {
+                int stmt_index = ftask.getStmtIndex(i);
+                int output_dep_id = ftask.getOutputDepId(i);
+                InputDependency input_dep_ids = ftask.getInputDepId(i);
                 
                 // If this task produces output dependencies, then we need to make 
                 // sure that the txn wait for it to arrive first
-                if (work.getOutputDepId() != HStoreConstants.NULL_DEPENDENCY_ID) {
-                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Attemping to add DependencyInfo for %d fragments in %s",
-                                                    num_fragments, this));
-                    int dependency_id = work.getOutputDepId();
-                    if (t) LOG.trace("__FILE__:__LINE__ " + "Adding new Dependency [stmt_index=" + stmt_index + ", id=" + dependency_id + ", partition=" + partition + "] for txn #" + this.txn_id);
-                    this.getOrCreateDependencyInfo(stmt_index, dependency_id).addPartition(partition);
+                if (output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    if (d) {
+                        LOG.debug("__FILE__:__LINE__ " + String.format("Attemping to add DependencyInfo for PlanFragment %d in %s [StmtIndex=%d]",
+                                                         ftask.getFragmentId(i), this, stmt_index));
+                        if (t) LOG.trace("__FILE__:__LINE__ " + "Adding new Dependency [stmt_index=" + stmt_index + ", id=" + output_dep_id + ", partition=" + partition + "] for txn #" + this.txn_id);
+                    }
+                    this.getOrCreateDependencyInfo(stmt_index, output_dep_id).addPartition(partition);
                     this.state.dependency_ctr++;
     
                     // Store the stmt_index of when this dependency will show up
-                    Integer key_idx = this.state.createPartitionDependencyKey(partition, dependency_id);
+                    Integer key_idx = this.state.createPartitionDependencyKey(partition, output_dep_id);
     
                     Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
                     if (rest_stmt_ctr == null) {
@@ -781,19 +763,23 @@ public class LocalTransaction extends AbstractTransaction {
                         this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
                     }
                     rest_stmt_ctr.add(stmt_index);
-                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, dependency_id, rest_stmt_ctr));
+                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, output_dep_id, rest_stmt_ctr));
                 } // IF
                 
                 // If this task needs an input dependency, then we need to make sure it arrives at
                 // the executor before it is allowed to start executing
-                if (work.getInputDepIdsCount() > 0) {
+                if (input_dep_ids.getIdsCount() > 0) {
 //                    if (t) LOG.trace("__FILE__:__LINE__ " + "Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
-                    for (int dependency_id : work.getInputDepIdsList()) {
-                        this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedPartitionFragment(ftask);
-                        this.state.internal_dependencies.add(dependency_id);
+                    for (int dependency_id : input_dep_ids.getIdsList()) {
+                        if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                            this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedPartitionFragment(ftask);
+                            this.state.internal_dependencies.add(dependency_id);
+                            if (blocked == false) {
+                                this.state.blocked_tasks.add(ftask);
+                                blocked = true;   
+                            }
+                        }
                     } // FOR
-                    this.state.blocked_tasks.add(ftask);
-                    blocked = true;
                 }
             } // FOR
         } finally {
@@ -805,8 +791,8 @@ public class LocalTransaction extends AbstractTransaction {
             if (catalog_proc.getSystemproc()) {
                 catalog_stmt = catalog_proc;
             } else {
-                for (Work work : ftask.getWorkList()) {
-                    int frag_id = work.getFragmentId();
+                for (int i = 0; i < num_fragments; i++) {
+                    int frag_id = ftask.getFragmentId(i);
                     PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
                     catalog_stmt = catalog_frag.getParent();
                     if (catalog_stmt != null) break;
@@ -934,12 +920,13 @@ public class LocalTransaction extends AbstractTransaction {
                                                 this.state.internal_dependencies.size(), this, fragment));
         
         Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
-        for (Work work : fragment.getWorkList()) {
-            int stmt_index = work.getStmtIndex();
+        for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+            int stmt_index = fragment.getStmtIndex(i);
+            InputDependency input_dep_ids = fragment.getInputDepId(i);
             
-            if (t) LOG.trace(String.format("Examining %d dependencies for %s WorkUnit:\n%s",
-                                           work.getInputDepIdsCount(), this, work));
-            for (int input_d_id : work.getInputDepIdsList()) {
+            if (t) LOG.trace(String.format("Examining %d input dependencies for PlanFragment %d in %s\n%s",
+                                           fragment.getInputDepId(i).getIdsCount(), fragment.getFragmentId(i), this, fragment));
+            for (int input_d_id : input_dep_ids.getIdsList()) {
                 if (input_d_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
                 
                 DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
@@ -962,15 +949,7 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // We can attach input dependencies used on non-local partitions
     // ----------------------------------------------------------------------------
-    
-    public void attachParameterSets(ParameterSet parameterSets[]) {
-        this.attached_parameterSets = parameterSets;
-    }
-    
-    public ParameterSet[] getParameterSets() {
-        assert(this.attached_parameterSets != null);
-        return (this.attached_parameterSets);
-    }
+
     
     @Override
     public String toString() {
@@ -1066,8 +1045,8 @@ public class LocalTransaction extends AbstractTransaction {
                         if (task == null) continue;
                         inner += "    [" + dependency_id + "] => [";
                         String add = "";
-                        for (Work work : task.getWorkList()) {
-                            inner += add + work.getFragmentId();
+                        for (int frag_id : task.getFragmentIdList()) {
+                            inner += add + frag_id;
                             add = ", ";
                         } // FOR
                         inner += "]";

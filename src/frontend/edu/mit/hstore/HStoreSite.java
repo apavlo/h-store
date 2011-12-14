@@ -1504,10 +1504,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else {
                 redirect_partition = CollectionUtil.random(this.all_partitions);
             }
-            if (t) {
-                LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
-                LOG.trace("Local Partitions: " + this.local_partitions);
-            }
+//            if (t) {
+                LOG.info("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
+                LOG.info("Local Partitions: " + this.local_partitions);
+//            }
             
             // If the txn wants to execute on another node, then we'll send them off *only* if this txn wasn't
             // already redirected at least once. If this txn was already redirected, then it's going to just
@@ -1548,7 +1548,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 spi.setBasePartition(base_partition);
             } else {
 //                if (d) 
-                    LOG.info("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn", orig_ts));
+                    LOG.info("__FILE__:__LINE__ " + String.format("Mispredicted %s has already been aborted once before. Restarting as all-partition txn\n%s", orig_ts, touched));
                 touched.putAll(this.local_partitions);
             }
         }

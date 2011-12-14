@@ -1398,94 +1398,56 @@ public final class Hstore {
       return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_fieldAccessorTable;
     }
     
-    public static final class Work extends
+    public static final class InputDependency extends
         com.google.protobuf.GeneratedMessage {
-      // Use Work.newBuilder() to construct.
-      private Work() {
+      // Use InputDependency.newBuilder() to construct.
+      private InputDependency() {
         initFields();
       }
-      private Work(boolean noInit) {}
+      private InputDependency(boolean noInit) {}
       
-      private static final Work defaultInstance;
-      public static Work getDefaultInstance() {
+      private static final InputDependency defaultInstance;
+      public static InputDependency getDefaultInstance() {
         return defaultInstance;
       }
       
-      public Work getDefaultInstanceForType() {
+      public InputDependency getDefaultInstanceForType() {
         return defaultInstance;
       }
       
       public static final com.google.protobuf.Descriptors.Descriptor
           getDescriptor() {
-        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_Work_descriptor;
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_descriptor;
       }
       
       protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
           internalGetFieldAccessorTable() {
-        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_Work_fieldAccessorTable;
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_fieldAccessorTable;
       }
       
-      // required int32 fragment_id = 1;
-      public static final int FRAGMENT_ID_FIELD_NUMBER = 1;
-      private boolean hasFragmentId;
-      private int fragmentId_ = 0;
-      public boolean hasFragmentId() { return hasFragmentId; }
-      public int getFragmentId() { return fragmentId_; }
-      
-      // repeated int32 inputDepIds = 2 [packed = true];
-      public static final int INPUTDEPIDS_FIELD_NUMBER = 2;
-      private java.util.List<java.lang.Integer> inputDepIds_ =
+      // repeated int32 ids = 1;
+      public static final int IDS_FIELD_NUMBER = 1;
+      private java.util.List<java.lang.Integer> ids_ =
         java.util.Collections.emptyList();
-      public java.util.List<java.lang.Integer> getInputDepIdsList() {
-        return inputDepIds_;
+      public java.util.List<java.lang.Integer> getIdsList() {
+        return ids_;
       }
-      public int getInputDepIdsCount() { return inputDepIds_.size(); }
-      public int getInputDepIds(int index) {
-        return inputDepIds_.get(index);
+      public int getIdsCount() { return ids_.size(); }
+      public int getIds(int index) {
+        return ids_.get(index);
       }
-      private int inputDepIdsMemoizedSerializedSize = -1;
-      
-      // required int32 outputDepId = 3;
-      public static final int OUTPUTDEPID_FIELD_NUMBER = 3;
-      private boolean hasOutputDepId;
-      private int outputDepId_ = 0;
-      public boolean hasOutputDepId() { return hasOutputDepId; }
-      public int getOutputDepId() { return outputDepId_; }
-      
-      // required int32 stmtIndex = 4;
-      public static final int STMTINDEX_FIELD_NUMBER = 4;
-      private boolean hasStmtIndex;
-      private int stmtIndex_ = 0;
-      public boolean hasStmtIndex() { return hasStmtIndex; }
-      public int getStmtIndex() { return stmtIndex_; }
       
       private void initFields() {
       }
       public final boolean isInitialized() {
-        if (!hasFragmentId) return false;
-        if (!hasOutputDepId) return false;
-        if (!hasStmtIndex) return false;
         return true;
       }
       
       public void writeTo(com.google.protobuf.CodedOutputStream output)
                           throws java.io.IOException {
         getSerializedSize();
-        if (hasFragmentId()) {
-          output.writeInt32(1, getFragmentId());
-        }
-        if (getInputDepIdsList().size() > 0) {
-          output.writeRawVarint32(18);
-          output.writeRawVarint32(inputDepIdsMemoizedSerializedSize);
-        }
-        for (int element : getInputDepIdsList()) {
-          output.writeInt32NoTag(element);
-        }
-        if (hasOutputDepId()) {
-          output.writeInt32(3, getOutputDepId());
-        }
-        if (hasStmtIndex()) {
-          output.writeInt32(4, getStmtIndex());
+        for (int element : getIdsList()) {
+          output.writeInt32(1, element);
         }
         getUnknownFields().writeTo(output);
       }
@@ -1496,72 +1458,55 @@ public final class Hstore {
         if (size != -1) return size;
       
         size = 0;
-        if (hasFragmentId()) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeInt32Size(1, getFragmentId());
-        }
         {
           int dataSize = 0;
-          for (int element : getInputDepIdsList()) {
+          for (int element : getIdsList()) {
             dataSize += com.google.protobuf.CodedOutputStream
               .computeInt32SizeNoTag(element);
           }
           size += dataSize;
-          if (!getInputDepIdsList().isEmpty()) {
-            size += 1;
-            size += com.google.protobuf.CodedOutputStream
-                .computeInt32SizeNoTag(dataSize);
-          }
-          inputDepIdsMemoizedSerializedSize = dataSize;
-        }
-        if (hasOutputDepId()) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeInt32Size(3, getOutputDepId());
-        }
-        if (hasStmtIndex()) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeInt32Size(4, getStmtIndex());
+          size += 1 * getIdsList().size();
         }
         size += getUnknownFields().getSerializedSize();
         memoizedSerializedSize = size;
         return size;
       }
       
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(
           com.google.protobuf.ByteString data)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(
           com.google.protobuf.ByteString data,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(byte[] data)
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(byte[] data)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(
           byte[] data,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(java.io.InputStream input)
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(java.io.InputStream input)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(
           java.io.InputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseDelimitedFrom(java.io.InputStream input)
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseDelimitedFrom(java.io.InputStream input)
           throws java.io.IOException {
         Builder builder = newBuilder();
         if (builder.mergeDelimitedFrom(input)) {
@@ -1570,7 +1515,7 @@ public final class Hstore {
           return null;
         }
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseDelimitedFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseDelimitedFrom(
           java.io.InputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
@@ -1581,12 +1526,12 @@ public final class Hstore {
           return null;
         }
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(
           com.google.protobuf.CodedInputStream input)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.Work parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency parseFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
@@ -1596,25 +1541,25 @@ public final class Hstore {
       
       public static Builder newBuilder() { return Builder.create(); }
       public Builder newBuilderForType() { return newBuilder(); }
-      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionWorkRequest.Work prototype) {
+      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency prototype) {
         return newBuilder().mergeFrom(prototype);
       }
       public Builder toBuilder() { return newBuilder(this); }
       
       public static final class Builder extends
           com.google.protobuf.GeneratedMessage.Builder<Builder> {
-        private edu.brown.hstore.Hstore.TransactionWorkRequest.Work result;
+        private edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency result;
         
-        // Construct using edu.brown.hstore.Hstore.TransactionWorkRequest.Work.newBuilder()
+        // Construct using edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.newBuilder()
         private Builder() {}
         
         private static Builder create() {
           Builder builder = new Builder();
-          builder.result = new edu.brown.hstore.Hstore.TransactionWorkRequest.Work();
+          builder.result = new edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency();
           return builder;
         }
         
-        protected edu.brown.hstore.Hstore.TransactionWorkRequest.Work internalGetResult() {
+        protected edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency internalGetResult() {
           return result;
         }
         
@@ -1623,7 +1568,7 @@ public final class Hstore {
             throw new IllegalStateException(
               "Cannot call clear() after build().");
           }
-          result = new edu.brown.hstore.Hstore.TransactionWorkRequest.Work();
+          result = new edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency();
           return this;
         }
         
@@ -1633,24 +1578,24 @@ public final class Hstore {
         
         public com.google.protobuf.Descriptors.Descriptor
             getDescriptorForType() {
-          return edu.brown.hstore.Hstore.TransactionWorkRequest.Work.getDescriptor();
+          return edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.getDescriptor();
         }
         
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.Work getDefaultInstanceForType() {
-          return edu.brown.hstore.Hstore.TransactionWorkRequest.Work.getDefaultInstance();
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency getDefaultInstanceForType() {
+          return edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.getDefaultInstance();
         }
         
         public boolean isInitialized() {
           return result.isInitialized();
         }
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.Work build() {
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency build() {
           if (result != null && !isInitialized()) {
             throw newUninitializedMessageException(result);
           }
           return buildPartial();
         }
         
-        private edu.brown.hstore.Hstore.TransactionWorkRequest.Work buildParsed()
+        private edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency buildParsed()
             throws com.google.protobuf.InvalidProtocolBufferException {
           if (!isInitialized()) {
             throw newUninitializedMessageException(
@@ -1659,45 +1604,36 @@ public final class Hstore {
           return buildPartial();
         }
         
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.Work buildPartial() {
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency buildPartial() {
           if (result == null) {
             throw new IllegalStateException(
               "build() has already been called on this Builder.");
           }
-          if (result.inputDepIds_ != java.util.Collections.EMPTY_LIST) {
-            result.inputDepIds_ =
-              java.util.Collections.unmodifiableList(result.inputDepIds_);
+          if (result.ids_ != java.util.Collections.EMPTY_LIST) {
+            result.ids_ =
+              java.util.Collections.unmodifiableList(result.ids_);
           }
-          edu.brown.hstore.Hstore.TransactionWorkRequest.Work returnMe = result;
+          edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency returnMe = result;
           result = null;
           return returnMe;
         }
         
         public Builder mergeFrom(com.google.protobuf.Message other) {
-          if (other instanceof edu.brown.hstore.Hstore.TransactionWorkRequest.Work) {
-            return mergeFrom((edu.brown.hstore.Hstore.TransactionWorkRequest.Work)other);
+          if (other instanceof edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency) {
+            return mergeFrom((edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency)other);
           } else {
             super.mergeFrom(other);
             return this;
           }
         }
         
-        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionWorkRequest.Work other) {
-          if (other == edu.brown.hstore.Hstore.TransactionWorkRequest.Work.getDefaultInstance()) return this;
-          if (other.hasFragmentId()) {
-            setFragmentId(other.getFragmentId());
-          }
-          if (!other.inputDepIds_.isEmpty()) {
-            if (result.inputDepIds_.isEmpty()) {
-              result.inputDepIds_ = new java.util.ArrayList<java.lang.Integer>();
+        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency other) {
+          if (other == edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.getDefaultInstance()) return this;
+          if (!other.ids_.isEmpty()) {
+            if (result.ids_.isEmpty()) {
+              result.ids_ = new java.util.ArrayList<java.lang.Integer>();
             }
-            result.inputDepIds_.addAll(other.inputDepIds_);
-          }
-          if (other.hasOutputDepId()) {
-            setOutputDepId(other.getOutputDepId());
-          }
-          if (other.hasStmtIndex()) {
-            setStmtIndex(other.getStmtIndex());
+            result.ids_.addAll(other.ids_);
           }
           this.mergeUnknownFields(other.getUnknownFields());
           return this;
@@ -1725,28 +1661,16 @@ public final class Hstore {
                 break;
               }
               case 8: {
-                setFragmentId(input.readInt32());
+                addIds(input.readInt32());
                 break;
               }
-              case 16: {
-                addInputDepIds(input.readInt32());
-                break;
-              }
-              case 18: {
+              case 10: {
                 int length = input.readRawVarint32();
                 int limit = input.pushLimit(length);
                 while (input.getBytesUntilLimit() > 0) {
-                  addInputDepIds(input.readInt32());
+                  addIds(input.readInt32());
                 }
                 input.popLimit(limit);
-                break;
-              }
-              case 24: {
-                setOutputDepId(input.readInt32());
-                break;
-              }
-              case 32: {
-                setStmtIndex(input.readInt32());
                 break;
               }
             }
@@ -1754,104 +1678,50 @@ public final class Hstore {
         }
         
         
-        // required int32 fragment_id = 1;
-        public boolean hasFragmentId() {
-          return result.hasFragmentId();
+        // repeated int32 ids = 1;
+        public java.util.List<java.lang.Integer> getIdsList() {
+          return java.util.Collections.unmodifiableList(result.ids_);
         }
-        public int getFragmentId() {
-          return result.getFragmentId();
+        public int getIdsCount() {
+          return result.getIdsCount();
         }
-        public Builder setFragmentId(int value) {
-          result.hasFragmentId = true;
-          result.fragmentId_ = value;
+        public int getIds(int index) {
+          return result.getIds(index);
+        }
+        public Builder setIds(int index, int value) {
+          result.ids_.set(index, value);
           return this;
         }
-        public Builder clearFragmentId() {
-          result.hasFragmentId = false;
-          result.fragmentId_ = 0;
-          return this;
-        }
-        
-        // repeated int32 inputDepIds = 2 [packed = true];
-        public java.util.List<java.lang.Integer> getInputDepIdsList() {
-          return java.util.Collections.unmodifiableList(result.inputDepIds_);
-        }
-        public int getInputDepIdsCount() {
-          return result.getInputDepIdsCount();
-        }
-        public int getInputDepIds(int index) {
-          return result.getInputDepIds(index);
-        }
-        public Builder setInputDepIds(int index, int value) {
-          result.inputDepIds_.set(index, value);
-          return this;
-        }
-        public Builder addInputDepIds(int value) {
-          if (result.inputDepIds_.isEmpty()) {
-            result.inputDepIds_ = new java.util.ArrayList<java.lang.Integer>();
+        public Builder addIds(int value) {
+          if (result.ids_.isEmpty()) {
+            result.ids_ = new java.util.ArrayList<java.lang.Integer>();
           }
-          result.inputDepIds_.add(value);
+          result.ids_.add(value);
           return this;
         }
-        public Builder addAllInputDepIds(
+        public Builder addAllIds(
             java.lang.Iterable<? extends java.lang.Integer> values) {
-          if (result.inputDepIds_.isEmpty()) {
-            result.inputDepIds_ = new java.util.ArrayList<java.lang.Integer>();
+          if (result.ids_.isEmpty()) {
+            result.ids_ = new java.util.ArrayList<java.lang.Integer>();
           }
-          super.addAll(values, result.inputDepIds_);
+          super.addAll(values, result.ids_);
           return this;
         }
-        public Builder clearInputDepIds() {
-          result.inputDepIds_ = java.util.Collections.emptyList();
-          return this;
-        }
-        
-        // required int32 outputDepId = 3;
-        public boolean hasOutputDepId() {
-          return result.hasOutputDepId();
-        }
-        public int getOutputDepId() {
-          return result.getOutputDepId();
-        }
-        public Builder setOutputDepId(int value) {
-          result.hasOutputDepId = true;
-          result.outputDepId_ = value;
-          return this;
-        }
-        public Builder clearOutputDepId() {
-          result.hasOutputDepId = false;
-          result.outputDepId_ = 0;
+        public Builder clearIds() {
+          result.ids_ = java.util.Collections.emptyList();
           return this;
         }
         
-        // required int32 stmtIndex = 4;
-        public boolean hasStmtIndex() {
-          return result.hasStmtIndex();
-        }
-        public int getStmtIndex() {
-          return result.getStmtIndex();
-        }
-        public Builder setStmtIndex(int value) {
-          result.hasStmtIndex = true;
-          result.stmtIndex_ = value;
-          return this;
-        }
-        public Builder clearStmtIndex() {
-          result.hasStmtIndex = false;
-          result.stmtIndex_ = 0;
-          return this;
-        }
-        
-        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionWorkRequest.Work)
+        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionWorkRequest.InputDependency)
       }
       
       static {
-        defaultInstance = new Work(true);
+        defaultInstance = new InputDependency(true);
         edu.brown.hstore.Hstore.internalForceInit();
         defaultInstance.initFields();
       }
       
-      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkRequest.Work)
+      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkRequest.InputDependency)
     }
     
     public static final class PartitionFragment extends
@@ -1888,38 +1758,77 @@ public final class Hstore {
       public boolean hasPartitionId() { return hasPartitionId; }
       public int getPartitionId() { return partitionId_; }
       
-      // repeated .edu.brown.hstore.TransactionWorkRequest.Work work = 2;
-      public static final int WORK_FIELD_NUMBER = 2;
-      private java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.Work> work_ =
+      // repeated int32 fragment_id = 2 [packed = true];
+      public static final int FRAGMENT_ID_FIELD_NUMBER = 2;
+      private java.util.List<java.lang.Integer> fragmentId_ =
         java.util.Collections.emptyList();
-      public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.Work> getWorkList() {
-        return work_;
+      public java.util.List<java.lang.Integer> getFragmentIdList() {
+        return fragmentId_;
       }
-      public int getWorkCount() { return work_.size(); }
-      public edu.brown.hstore.Hstore.TransactionWorkRequest.Work getWork(int index) {
-        return work_.get(index);
+      public int getFragmentIdCount() { return fragmentId_.size(); }
+      public int getFragmentId(int index) {
+        return fragmentId_.get(index);
+      }
+      private int fragmentIdMemoizedSerializedSize = -1;
+      
+      // repeated .edu.brown.hstore.TransactionWorkRequest.InputDependency input_dep_id = 3;
+      public static final int INPUT_DEP_ID_FIELD_NUMBER = 3;
+      private java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency> inputDepId_ =
+        java.util.Collections.emptyList();
+      public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency> getInputDepIdList() {
+        return inputDepId_;
+      }
+      public int getInputDepIdCount() { return inputDepId_.size(); }
+      public edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency getInputDepId(int index) {
+        return inputDepId_.get(index);
       }
       
-      // required bool readOnly = 3;
-      public static final int READONLY_FIELD_NUMBER = 3;
+      // repeated int32 output_dep_id = 4 [packed = true];
+      public static final int OUTPUT_DEP_ID_FIELD_NUMBER = 4;
+      private java.util.List<java.lang.Integer> outputDepId_ =
+        java.util.Collections.emptyList();
+      public java.util.List<java.lang.Integer> getOutputDepIdList() {
+        return outputDepId_;
+      }
+      public int getOutputDepIdCount() { return outputDepId_.size(); }
+      public int getOutputDepId(int index) {
+        return outputDepId_.get(index);
+      }
+      private int outputDepIdMemoizedSerializedSize = -1;
+      
+      // repeated int32 stmt_index = 5 [packed = true];
+      public static final int STMT_INDEX_FIELD_NUMBER = 5;
+      private java.util.List<java.lang.Integer> stmtIndex_ =
+        java.util.Collections.emptyList();
+      public java.util.List<java.lang.Integer> getStmtIndexList() {
+        return stmtIndex_;
+      }
+      public int getStmtIndexCount() { return stmtIndex_.size(); }
+      public int getStmtIndex(int index) {
+        return stmtIndex_.get(index);
+      }
+      private int stmtIndexMemoizedSerializedSize = -1;
+      
+      // required bool read_only = 6;
+      public static final int READ_ONLY_FIELD_NUMBER = 6;
       private boolean hasReadOnly;
       private boolean readOnly_ = false;
       public boolean hasReadOnly() { return hasReadOnly; }
       public boolean getReadOnly() { return readOnly_; }
       
-      // optional bool last_fragment = 4 [default = false];
-      public static final int LAST_FRAGMENT_FIELD_NUMBER = 4;
-      private boolean hasLastFragment;
-      private boolean lastFragment_ = false;
-      public boolean hasLastFragment() { return hasLastFragment; }
-      public boolean getLastFragment() { return lastFragment_; }
-      
-      // required bool needs_input = 5;
-      public static final int NEEDS_INPUT_FIELD_NUMBER = 5;
+      // required bool needs_input = 7;
+      public static final int NEEDS_INPUT_FIELD_NUMBER = 7;
       private boolean hasNeedsInput;
       private boolean needsInput_ = false;
       public boolean hasNeedsInput() { return hasNeedsInput; }
       public boolean getNeedsInput() { return needsInput_; }
+      
+      // optional bool last_fragment = 8 [default = false];
+      public static final int LAST_FRAGMENT_FIELD_NUMBER = 8;
+      private boolean hasLastFragment;
+      private boolean lastFragment_ = false;
+      public boolean hasLastFragment() { return hasLastFragment; }
+      public boolean getLastFragment() { return lastFragment_; }
       
       private void initFields() {
       }
@@ -1927,9 +1836,6 @@ public final class Hstore {
         if (!hasPartitionId) return false;
         if (!hasReadOnly) return false;
         if (!hasNeedsInput) return false;
-        for (edu.brown.hstore.Hstore.TransactionWorkRequest.Work element : getWorkList()) {
-          if (!element.isInitialized()) return false;
-        }
         return true;
       }
       
@@ -1939,17 +1845,38 @@ public final class Hstore {
         if (hasPartitionId()) {
           output.writeInt32(1, getPartitionId());
         }
-        for (edu.brown.hstore.Hstore.TransactionWorkRequest.Work element : getWorkList()) {
-          output.writeMessage(2, element);
+        if (getFragmentIdList().size() > 0) {
+          output.writeRawVarint32(18);
+          output.writeRawVarint32(fragmentIdMemoizedSerializedSize);
+        }
+        for (int element : getFragmentIdList()) {
+          output.writeInt32NoTag(element);
+        }
+        for (edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency element : getInputDepIdList()) {
+          output.writeMessage(3, element);
+        }
+        if (getOutputDepIdList().size() > 0) {
+          output.writeRawVarint32(34);
+          output.writeRawVarint32(outputDepIdMemoizedSerializedSize);
+        }
+        for (int element : getOutputDepIdList()) {
+          output.writeInt32NoTag(element);
+        }
+        if (getStmtIndexList().size() > 0) {
+          output.writeRawVarint32(42);
+          output.writeRawVarint32(stmtIndexMemoizedSerializedSize);
+        }
+        for (int element : getStmtIndexList()) {
+          output.writeInt32NoTag(element);
         }
         if (hasReadOnly()) {
-          output.writeBool(3, getReadOnly());
-        }
-        if (hasLastFragment()) {
-          output.writeBool(4, getLastFragment());
+          output.writeBool(6, getReadOnly());
         }
         if (hasNeedsInput()) {
-          output.writeBool(5, getNeedsInput());
+          output.writeBool(7, getNeedsInput());
+        }
+        if (hasLastFragment()) {
+          output.writeBool(8, getLastFragment());
         }
         getUnknownFields().writeTo(output);
       }
@@ -1964,21 +1891,63 @@ public final class Hstore {
           size += com.google.protobuf.CodedOutputStream
             .computeInt32Size(1, getPartitionId());
         }
-        for (edu.brown.hstore.Hstore.TransactionWorkRequest.Work element : getWorkList()) {
+        {
+          int dataSize = 0;
+          for (int element : getFragmentIdList()) {
+            dataSize += com.google.protobuf.CodedOutputStream
+              .computeInt32SizeNoTag(element);
+          }
+          size += dataSize;
+          if (!getFragmentIdList().isEmpty()) {
+            size += 1;
+            size += com.google.protobuf.CodedOutputStream
+                .computeInt32SizeNoTag(dataSize);
+          }
+          fragmentIdMemoizedSerializedSize = dataSize;
+        }
+        for (edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency element : getInputDepIdList()) {
           size += com.google.protobuf.CodedOutputStream
-            .computeMessageSize(2, element);
+            .computeMessageSize(3, element);
+        }
+        {
+          int dataSize = 0;
+          for (int element : getOutputDepIdList()) {
+            dataSize += com.google.protobuf.CodedOutputStream
+              .computeInt32SizeNoTag(element);
+          }
+          size += dataSize;
+          if (!getOutputDepIdList().isEmpty()) {
+            size += 1;
+            size += com.google.protobuf.CodedOutputStream
+                .computeInt32SizeNoTag(dataSize);
+          }
+          outputDepIdMemoizedSerializedSize = dataSize;
+        }
+        {
+          int dataSize = 0;
+          for (int element : getStmtIndexList()) {
+            dataSize += com.google.protobuf.CodedOutputStream
+              .computeInt32SizeNoTag(element);
+          }
+          size += dataSize;
+          if (!getStmtIndexList().isEmpty()) {
+            size += 1;
+            size += com.google.protobuf.CodedOutputStream
+                .computeInt32SizeNoTag(dataSize);
+          }
+          stmtIndexMemoizedSerializedSize = dataSize;
         }
         if (hasReadOnly()) {
           size += com.google.protobuf.CodedOutputStream
-            .computeBoolSize(3, getReadOnly());
-        }
-        if (hasLastFragment()) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeBoolSize(4, getLastFragment());
+            .computeBoolSize(6, getReadOnly());
         }
         if (hasNeedsInput()) {
           size += com.google.protobuf.CodedOutputStream
-            .computeBoolSize(5, getNeedsInput());
+            .computeBoolSize(7, getNeedsInput());
+        }
+        if (hasLastFragment()) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeBoolSize(8, getLastFragment());
         }
         size += getUnknownFields().getSerializedSize();
         memoizedSerializedSize = size;
@@ -2122,9 +2091,21 @@ public final class Hstore {
             throw new IllegalStateException(
               "build() has already been called on this Builder.");
           }
-          if (result.work_ != java.util.Collections.EMPTY_LIST) {
-            result.work_ =
-              java.util.Collections.unmodifiableList(result.work_);
+          if (result.fragmentId_ != java.util.Collections.EMPTY_LIST) {
+            result.fragmentId_ =
+              java.util.Collections.unmodifiableList(result.fragmentId_);
+          }
+          if (result.inputDepId_ != java.util.Collections.EMPTY_LIST) {
+            result.inputDepId_ =
+              java.util.Collections.unmodifiableList(result.inputDepId_);
+          }
+          if (result.outputDepId_ != java.util.Collections.EMPTY_LIST) {
+            result.outputDepId_ =
+              java.util.Collections.unmodifiableList(result.outputDepId_);
+          }
+          if (result.stmtIndex_ != java.util.Collections.EMPTY_LIST) {
+            result.stmtIndex_ =
+              java.util.Collections.unmodifiableList(result.stmtIndex_);
           }
           edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment returnMe = result;
           result = null;
@@ -2145,20 +2126,38 @@ public final class Hstore {
           if (other.hasPartitionId()) {
             setPartitionId(other.getPartitionId());
           }
-          if (!other.work_.isEmpty()) {
-            if (result.work_.isEmpty()) {
-              result.work_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.Work>();
+          if (!other.fragmentId_.isEmpty()) {
+            if (result.fragmentId_.isEmpty()) {
+              result.fragmentId_ = new java.util.ArrayList<java.lang.Integer>();
             }
-            result.work_.addAll(other.work_);
+            result.fragmentId_.addAll(other.fragmentId_);
+          }
+          if (!other.inputDepId_.isEmpty()) {
+            if (result.inputDepId_.isEmpty()) {
+              result.inputDepId_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency>();
+            }
+            result.inputDepId_.addAll(other.inputDepId_);
+          }
+          if (!other.outputDepId_.isEmpty()) {
+            if (result.outputDepId_.isEmpty()) {
+              result.outputDepId_ = new java.util.ArrayList<java.lang.Integer>();
+            }
+            result.outputDepId_.addAll(other.outputDepId_);
+          }
+          if (!other.stmtIndex_.isEmpty()) {
+            if (result.stmtIndex_.isEmpty()) {
+              result.stmtIndex_ = new java.util.ArrayList<java.lang.Integer>();
+            }
+            result.stmtIndex_.addAll(other.stmtIndex_);
           }
           if (other.hasReadOnly()) {
             setReadOnly(other.getReadOnly());
           }
-          if (other.hasLastFragment()) {
-            setLastFragment(other.getLastFragment());
-          }
           if (other.hasNeedsInput()) {
             setNeedsInput(other.getNeedsInput());
+          }
+          if (other.hasLastFragment()) {
+            setLastFragment(other.getLastFragment());
           }
           this.mergeUnknownFields(other.getUnknownFields());
           return this;
@@ -2189,22 +2188,61 @@ public final class Hstore {
                 setPartitionId(input.readInt32());
                 break;
               }
-              case 18: {
-                edu.brown.hstore.Hstore.TransactionWorkRequest.Work.Builder subBuilder = edu.brown.hstore.Hstore.TransactionWorkRequest.Work.newBuilder();
-                input.readMessage(subBuilder, extensionRegistry);
-                addWork(subBuilder.buildPartial());
+              case 16: {
+                addFragmentId(input.readInt32());
                 break;
               }
-              case 24: {
-                setReadOnly(input.readBool());
+              case 18: {
+                int length = input.readRawVarint32();
+                int limit = input.pushLimit(length);
+                while (input.getBytesUntilLimit() > 0) {
+                  addFragmentId(input.readInt32());
+                }
+                input.popLimit(limit);
+                break;
+              }
+              case 26: {
+                edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.Builder subBuilder = edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.newBuilder();
+                input.readMessage(subBuilder, extensionRegistry);
+                addInputDepId(subBuilder.buildPartial());
                 break;
               }
               case 32: {
-                setLastFragment(input.readBool());
+                addOutputDepId(input.readInt32());
+                break;
+              }
+              case 34: {
+                int length = input.readRawVarint32();
+                int limit = input.pushLimit(length);
+                while (input.getBytesUntilLimit() > 0) {
+                  addOutputDepId(input.readInt32());
+                }
+                input.popLimit(limit);
                 break;
               }
               case 40: {
+                addStmtIndex(input.readInt32());
+                break;
+              }
+              case 42: {
+                int length = input.readRawVarint32();
+                int limit = input.pushLimit(length);
+                while (input.getBytesUntilLimit() > 0) {
+                  addStmtIndex(input.readInt32());
+                }
+                input.popLimit(limit);
+                break;
+              }
+              case 48: {
+                setReadOnly(input.readBool());
+                break;
+              }
+              case 56: {
                 setNeedsInput(input.readBool());
+                break;
+              }
+              case 64: {
+                setLastFragment(input.readBool());
                 break;
               }
             }
@@ -2230,58 +2268,160 @@ public final class Hstore {
           return this;
         }
         
-        // repeated .edu.brown.hstore.TransactionWorkRequest.Work work = 2;
-        public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.Work> getWorkList() {
-          return java.util.Collections.unmodifiableList(result.work_);
+        // repeated int32 fragment_id = 2 [packed = true];
+        public java.util.List<java.lang.Integer> getFragmentIdList() {
+          return java.util.Collections.unmodifiableList(result.fragmentId_);
         }
-        public int getWorkCount() {
-          return result.getWorkCount();
+        public int getFragmentIdCount() {
+          return result.getFragmentIdCount();
         }
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.Work getWork(int index) {
-          return result.getWork(index);
+        public int getFragmentId(int index) {
+          return result.getFragmentId(index);
         }
-        public Builder setWork(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.Work value) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          result.work_.set(index, value);
+        public Builder setFragmentId(int index, int value) {
+          result.fragmentId_.set(index, value);
           return this;
         }
-        public Builder setWork(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.Work.Builder builderForValue) {
-          result.work_.set(index, builderForValue.build());
+        public Builder addFragmentId(int value) {
+          if (result.fragmentId_.isEmpty()) {
+            result.fragmentId_ = new java.util.ArrayList<java.lang.Integer>();
+          }
+          result.fragmentId_.add(value);
           return this;
         }
-        public Builder addWork(edu.brown.hstore.Hstore.TransactionWorkRequest.Work value) {
-          if (value == null) {
-            throw new NullPointerException();
+        public Builder addAllFragmentId(
+            java.lang.Iterable<? extends java.lang.Integer> values) {
+          if (result.fragmentId_.isEmpty()) {
+            result.fragmentId_ = new java.util.ArrayList<java.lang.Integer>();
           }
-          if (result.work_.isEmpty()) {
-            result.work_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.Work>();
-          }
-          result.work_.add(value);
+          super.addAll(values, result.fragmentId_);
           return this;
         }
-        public Builder addWork(edu.brown.hstore.Hstore.TransactionWorkRequest.Work.Builder builderForValue) {
-          if (result.work_.isEmpty()) {
-            result.work_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.Work>();
-          }
-          result.work_.add(builderForValue.build());
-          return this;
-        }
-        public Builder addAllWork(
-            java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionWorkRequest.Work> values) {
-          if (result.work_.isEmpty()) {
-            result.work_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.Work>();
-          }
-          super.addAll(values, result.work_);
-          return this;
-        }
-        public Builder clearWork() {
-          result.work_ = java.util.Collections.emptyList();
+        public Builder clearFragmentId() {
+          result.fragmentId_ = java.util.Collections.emptyList();
           return this;
         }
         
-        // required bool readOnly = 3;
+        // repeated .edu.brown.hstore.TransactionWorkRequest.InputDependency input_dep_id = 3;
+        public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency> getInputDepIdList() {
+          return java.util.Collections.unmodifiableList(result.inputDepId_);
+        }
+        public int getInputDepIdCount() {
+          return result.getInputDepIdCount();
+        }
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency getInputDepId(int index) {
+          return result.getInputDepId(index);
+        }
+        public Builder setInputDepId(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency value) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          result.inputDepId_.set(index, value);
+          return this;
+        }
+        public Builder setInputDepId(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.Builder builderForValue) {
+          result.inputDepId_.set(index, builderForValue.build());
+          return this;
+        }
+        public Builder addInputDepId(edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency value) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          if (result.inputDepId_.isEmpty()) {
+            result.inputDepId_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency>();
+          }
+          result.inputDepId_.add(value);
+          return this;
+        }
+        public Builder addInputDepId(edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.Builder builderForValue) {
+          if (result.inputDepId_.isEmpty()) {
+            result.inputDepId_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency>();
+          }
+          result.inputDepId_.add(builderForValue.build());
+          return this;
+        }
+        public Builder addAllInputDepId(
+            java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency> values) {
+          if (result.inputDepId_.isEmpty()) {
+            result.inputDepId_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency>();
+          }
+          super.addAll(values, result.inputDepId_);
+          return this;
+        }
+        public Builder clearInputDepId() {
+          result.inputDepId_ = java.util.Collections.emptyList();
+          return this;
+        }
+        
+        // repeated int32 output_dep_id = 4 [packed = true];
+        public java.util.List<java.lang.Integer> getOutputDepIdList() {
+          return java.util.Collections.unmodifiableList(result.outputDepId_);
+        }
+        public int getOutputDepIdCount() {
+          return result.getOutputDepIdCount();
+        }
+        public int getOutputDepId(int index) {
+          return result.getOutputDepId(index);
+        }
+        public Builder setOutputDepId(int index, int value) {
+          result.outputDepId_.set(index, value);
+          return this;
+        }
+        public Builder addOutputDepId(int value) {
+          if (result.outputDepId_.isEmpty()) {
+            result.outputDepId_ = new java.util.ArrayList<java.lang.Integer>();
+          }
+          result.outputDepId_.add(value);
+          return this;
+        }
+        public Builder addAllOutputDepId(
+            java.lang.Iterable<? extends java.lang.Integer> values) {
+          if (result.outputDepId_.isEmpty()) {
+            result.outputDepId_ = new java.util.ArrayList<java.lang.Integer>();
+          }
+          super.addAll(values, result.outputDepId_);
+          return this;
+        }
+        public Builder clearOutputDepId() {
+          result.outputDepId_ = java.util.Collections.emptyList();
+          return this;
+        }
+        
+        // repeated int32 stmt_index = 5 [packed = true];
+        public java.util.List<java.lang.Integer> getStmtIndexList() {
+          return java.util.Collections.unmodifiableList(result.stmtIndex_);
+        }
+        public int getStmtIndexCount() {
+          return result.getStmtIndexCount();
+        }
+        public int getStmtIndex(int index) {
+          return result.getStmtIndex(index);
+        }
+        public Builder setStmtIndex(int index, int value) {
+          result.stmtIndex_.set(index, value);
+          return this;
+        }
+        public Builder addStmtIndex(int value) {
+          if (result.stmtIndex_.isEmpty()) {
+            result.stmtIndex_ = new java.util.ArrayList<java.lang.Integer>();
+          }
+          result.stmtIndex_.add(value);
+          return this;
+        }
+        public Builder addAllStmtIndex(
+            java.lang.Iterable<? extends java.lang.Integer> values) {
+          if (result.stmtIndex_.isEmpty()) {
+            result.stmtIndex_ = new java.util.ArrayList<java.lang.Integer>();
+          }
+          super.addAll(values, result.stmtIndex_);
+          return this;
+        }
+        public Builder clearStmtIndex() {
+          result.stmtIndex_ = java.util.Collections.emptyList();
+          return this;
+        }
+        
+        // required bool read_only = 6;
         public boolean hasReadOnly() {
           return result.hasReadOnly();
         }
@@ -2299,25 +2439,7 @@ public final class Hstore {
           return this;
         }
         
-        // optional bool last_fragment = 4 [default = false];
-        public boolean hasLastFragment() {
-          return result.hasLastFragment();
-        }
-        public boolean getLastFragment() {
-          return result.getLastFragment();
-        }
-        public Builder setLastFragment(boolean value) {
-          result.hasLastFragment = true;
-          result.lastFragment_ = value;
-          return this;
-        }
-        public Builder clearLastFragment() {
-          result.hasLastFragment = false;
-          result.lastFragment_ = false;
-          return this;
-        }
-        
-        // required bool needs_input = 5;
+        // required bool needs_input = 7;
         public boolean hasNeedsInput() {
           return result.hasNeedsInput();
         }
@@ -2332,6 +2454,24 @@ public final class Hstore {
         public Builder clearNeedsInput() {
           result.hasNeedsInput = false;
           result.needsInput_ = false;
+          return this;
+        }
+        
+        // optional bool last_fragment = 8 [default = false];
+        public boolean hasLastFragment() {
+          return result.hasLastFragment();
+        }
+        public boolean getLastFragment() {
+          return result.getLastFragment();
+        }
+        public Builder setLastFragment(boolean value) {
+          result.hasLastFragment = true;
+          result.lastFragment_ = value;
+          return this;
+        }
+        public Builder clearLastFragment() {
+          result.hasLastFragment = false;
+          result.lastFragment_ = false;
           return this;
         }
         
@@ -2373,8 +2513,8 @@ public final class Hstore {
       return fragments_.get(index);
     }
     
-    // required bool readOnly = 4;
-    public static final int READONLY_FIELD_NUMBER = 4;
+    // required bool read_only = 4;
+    public static final int READ_ONLY_FIELD_NUMBER = 4;
     private boolean hasReadOnly;
     private boolean readOnly_ = false;
     public boolean hasReadOnly() { return hasReadOnly; }
@@ -2387,8 +2527,8 @@ public final class Hstore {
     public boolean hasSysproc() { return hasSysproc; }
     public boolean getSysproc() { return sysproc_; }
     
-    // repeated bytes parameterSets = 6;
-    public static final int PARAMETERSETS_FIELD_NUMBER = 6;
+    // repeated bytes parameter_sets = 6;
+    public static final int PARAMETER_SETS_FIELD_NUMBER = 6;
     private java.util.List<com.google.protobuf.ByteString> parameterSets_ =
       java.util.Collections.emptyList();
     public java.util.List<com.google.protobuf.ByteString> getParameterSetsList() {
@@ -2899,7 +3039,7 @@ public final class Hstore {
         return this;
       }
       
-      // required bool readOnly = 4;
+      // required bool read_only = 4;
       public boolean hasReadOnly() {
         return result.hasReadOnly();
       }
@@ -2935,7 +3075,7 @@ public final class Hstore {
         return this;
       }
       
-      // repeated bytes parameterSets = 6;
+      // repeated bytes parameter_sets = 6;
       public java.util.List<com.google.protobuf.ByteString> getParameterSetsList() {
         return java.util.Collections.unmodifiableList(result.parameterSets_);
       }
@@ -7438,10 +7578,10 @@ public final class Hstore {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_edu_brown_hstore_TransactionWorkRequest_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
-    internal_static_edu_brown_hstore_TransactionWorkRequest_Work_descriptor;
+    internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_edu_brown_hstore_TransactionWorkRequest_Work_fieldAccessorTable;
+      internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
     internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor;
   private static
@@ -7516,65 +7656,66 @@ public final class Hstore {
       "\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162" +
       "\030.edu.brown.hstore.Status\022\030\n\020reject_part" +
       "ition\030\004 \001(\005\022\035\n\025reject_transaction_id\030\005 \001",
-      "(\003\"\262\004\n\026TransactionWorkRequest\022\026\n\016transac" +
+      "(\003\"\326\004\n\026TransactionWorkRequest\022\026\n\016transac" +
       "tion_id\030\001 \002(\003\022\030\n\020source_partition\030\002 \002(\005\022" +
       "M\n\tfragments\030\003 \003(\0132:.edu.brown.hstore.Tr" +
-      "ansactionWorkRequest.PartitionFragment\022\020" +
-      "\n\010readOnly\030\004 \002(\010\022\026\n\007sysproc\030\005 \002(\010:\005false" +
-      "\022\025\n\rparameterSets\030\006 \003(\014\022.\n\010attached\030\007 \003(" +
-      "\0132\034.edu.brown.hstore.Dependency\022\032\n\016done_" +
-      "partition\030\010 \003(\005B\002\020\001\032\\\n\004Work\022\023\n\013fragment_" +
-      "id\030\001 \002(\005\022\027\n\013inputDepIds\030\002 \003(\005B\002\020\001\022\023\n\013out" +
-      "putDepId\030\003 \002(\005\022\021\n\tstmtIndex\030\004 \002(\005\032\253\001\n\021Pa",
-      "rtitionFragment\022\024\n\014partition_id\030\001 \002(\005\022;\n" +
-      "\004work\030\002 \003(\0132-.edu.brown.hstore.Transacti" +
-      "onWorkRequest.Work\022\020\n\010readOnly\030\003 \002(\010\022\034\n\r" +
-      "last_fragment\030\004 \001(\010:\005false\022\023\n\013needs_inpu" +
-      "t\030\005 \002(\010\"\270\002\n\027TransactionWorkResponse\022\026\n\016t" +
-      "ransaction_id\030\001 \002(\003\022J\n\007results\030\002 \003(\01329.e" +
-      "du.brown.hstore.TransactionWorkResponse." +
-      "PartitionResult\022(\n\006status\030\003 \002(\0162\030.edu.br" +
-      "own.hstore.Status\032\216\001\n\017PartitionResult\022\024\n" +
-      "\014partition_id\030\001 \002(\005\022,\n\006output\030\002 \003(\0132\034.ed",
-      "u.brown.hstore.Dependency\022(\n\006status\030\003 \002(" +
-      "\0162\030.edu.brown.hstore.Status\022\r\n\005error\030\004 \001" +
-      "(\014\"K\n\031TransactionPrepareRequest\022\026\n\016trans" +
-      "action_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\"" +
-      "v\n\032TransactionPrepareResponse\022\026\n\016transac" +
-      "tion_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n" +
-      "\006status\030\003 \002(\0162\030.edu.brown.hstore.Status\"" +
-      "t\n\030TransactionFinishRequest\022\026\n\016transacti" +
-      "on_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006s" +
-      "tatus\030\003 \002(\0162\030.edu.brown.hstore.Status\"K\n",
-      "\031TransactionFinishResponse\022\026\n\016transactio" +
-      "n_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\"R\n\032Tr" +
-      "ansactionRedirectRequest\022\021\n\tsender_id\030\001 " +
-      "\002(\005\022\014\n\004work\030\002 \002(\014\022\023\n\013orig_txn_id\030\003 \001(\003\"@" +
-      "\n\033TransactionRedirectResponse\022\021\n\tsender_" +
-      "id\030\001 \002(\005\022\016\n\006output\030\002 \002(\014\"9\n\017ShutdownRequ" +
-      "est\022\021\n\tsender_id\030\001 \002(\005\022\023\n\013exit_status\030\002 " +
-      "\002(\005\"%\n\020ShutdownResponse\022\021\n\tsender_id\030\001 \002" +
-      "(\005*\265\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_USER\020\001\022\022\n" +
-      "\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPECTED\020\003\022",
-      "\031\n\025ABORT_CONNECTION_LOST\020\004\022\024\n\020ABORT_MISP" +
-      "REDICT\020\005\022\021\n\rABORT_RESTART\020\006\022\020\n\014ABORT_REJ" +
-      "ECT\020\007\022\023\n\017ABORT_THROTTLED\020\0102\205\005\n\rHStoreSer" +
-      "vice\022f\n\017TransactionInit\022(.edu.brown.hsto" +
-      "re.TransactionInitRequest\032).edu.brown.hs" +
-      "tore.TransactionInitResponse\022f\n\017Transact" +
-      "ionWork\022(.edu.brown.hstore.TransactionWo" +
-      "rkRequest\032).edu.brown.hstore.Transaction" +
-      "WorkResponse\022o\n\022TransactionPrepare\022+.edu" +
-      ".brown.hstore.TransactionPrepareRequest\032",
-      ",.edu.brown.hstore.TransactionPrepareRes" +
-      "ponse\022l\n\021TransactionFinish\022*.edu.brown.h" +
-      "store.TransactionFinishRequest\032+.edu.bro" +
-      "wn.hstore.TransactionFinishResponse\022r\n\023T" +
-      "ransactionRedirect\022,.edu.brown.hstore.Tr" +
-      "ansactionRedirectRequest\032-.edu.brown.hst" +
-      "ore.TransactionRedirectResponse\022Q\n\010Shutd" +
-      "own\022!.edu.brown.hstore.ShutdownRequest\032\"" +
-      ".edu.brown.hstore.ShutdownResponse"
+      "ansactionWorkRequest.PartitionFragment\022\021" +
+      "\n\tread_only\030\004 \002(\010\022\026\n\007sysproc\030\005 \002(\010:\005fals" +
+      "e\022\026\n\016parameter_sets\030\006 \003(\014\022.\n\010attached\030\007 " +
+      "\003(\0132\034.edu.brown.hstore.Dependency\022\032\n\016don" +
+      "e_partition\030\010 \003(\005B\002\020\001\032\036\n\017InputDependency" +
+      "\022\013\n\003ids\030\001 \003(\005\032\213\002\n\021PartitionFragment\022\024\n\014p" +
+      "artition_id\030\001 \002(\005\022\027\n\013fragment_id\030\002 \003(\005B\002",
+      "\020\001\022N\n\014input_dep_id\030\003 \003(\01328.edu.brown.hst" +
+      "ore.TransactionWorkRequest.InputDependen" +
+      "cy\022\031\n\routput_dep_id\030\004 \003(\005B\002\020\001\022\026\n\nstmt_in" +
+      "dex\030\005 \003(\005B\002\020\001\022\021\n\tread_only\030\006 \002(\010\022\023\n\013need" +
+      "s_input\030\007 \002(\010\022\034\n\rlast_fragment\030\010 \001(\010:\005fa" +
+      "lse\"\270\002\n\027TransactionWorkResponse\022\026\n\016trans" +
+      "action_id\030\001 \002(\003\022J\n\007results\030\002 \003(\01329.edu.b" +
+      "rown.hstore.TransactionWorkResponse.Part" +
+      "itionResult\022(\n\006status\030\003 \002(\0162\030.edu.brown." +
+      "hstore.Status\032\216\001\n\017PartitionResult\022\024\n\014par",
+      "tition_id\030\001 \002(\005\022,\n\006output\030\002 \003(\0132\034.edu.br" +
+      "own.hstore.Dependency\022(\n\006status\030\003 \002(\0162\030." +
+      "edu.brown.hstore.Status\022\r\n\005error\030\004 \001(\014\"K" +
+      "\n\031TransactionPrepareRequest\022\026\n\016transacti" +
+      "on_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\"v\n\032T" +
+      "ransactionPrepareResponse\022\026\n\016transaction" +
+      "_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006sta" +
+      "tus\030\003 \002(\0162\030.edu.brown.hstore.Status\"t\n\030T" +
+      "ransactionFinishRequest\022\026\n\016transaction_i" +
+      "d\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n\006statu",
+      "s\030\003 \002(\0162\030.edu.brown.hstore.Status\"K\n\031Tra" +
+      "nsactionFinishResponse\022\026\n\016transaction_id" +
+      "\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\"R\n\032Transa" +
+      "ctionRedirectRequest\022\021\n\tsender_id\030\001 \002(\005\022" +
+      "\014\n\004work\030\002 \002(\014\022\023\n\013orig_txn_id\030\003 \001(\003\"@\n\033Tr" +
+      "ansactionRedirectResponse\022\021\n\tsender_id\030\001" +
+      " \002(\005\022\016\n\006output\030\002 \002(\014\"9\n\017ShutdownRequest\022" +
+      "\021\n\tsender_id\030\001 \002(\005\022\023\n\013exit_status\030\002 \002(\005\"" +
+      "%\n\020ShutdownResponse\022\021\n\tsender_id\030\001 \002(\005*\265" +
+      "\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_USER\020\001\022\022\n\016ABO",
+      "RT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPECTED\020\003\022\031\n\025A" +
+      "BORT_CONNECTION_LOST\020\004\022\024\n\020ABORT_MISPREDI" +
+      "CT\020\005\022\021\n\rABORT_RESTART\020\006\022\020\n\014ABORT_REJECT\020" +
+      "\007\022\023\n\017ABORT_THROTTLED\020\0102\205\005\n\rHStoreService" +
+      "\022f\n\017TransactionInit\022(.edu.brown.hstore.T" +
+      "ransactionInitRequest\032).edu.brown.hstore" +
+      ".TransactionInitResponse\022f\n\017TransactionW" +
+      "ork\022(.edu.brown.hstore.TransactionWorkRe" +
+      "quest\032).edu.brown.hstore.TransactionWork" +
+      "Response\022o\n\022TransactionPrepare\022+.edu.bro",
+      "wn.hstore.TransactionPrepareRequest\032,.ed" +
+      "u.brown.hstore.TransactionPrepareRespons" +
+      "e\022l\n\021TransactionFinish\022*.edu.brown.hstor" +
+      "e.TransactionFinishRequest\032+.edu.brown.h" +
+      "store.TransactionFinishResponse\022r\n\023Trans" +
+      "actionRedirect\022,.edu.brown.hstore.Transa" +
+      "ctionRedirectRequest\032-.edu.brown.hstore." +
+      "TransactionRedirectResponse\022Q\n\010Shutdown\022" +
+      "!.edu.brown.hstore.ShutdownRequest\032\".edu" +
+      ".brown.hstore.ShutdownResponse"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -7613,20 +7754,20 @@ public final class Hstore {
               new java.lang.String[] { "TransactionId", "SourcePartition", "Fragments", "ReadOnly", "Sysproc", "ParameterSets", "Attached", "DonePartition", },
               edu.brown.hstore.Hstore.TransactionWorkRequest.class,
               edu.brown.hstore.Hstore.TransactionWorkRequest.Builder.class);
-          internal_static_edu_brown_hstore_TransactionWorkRequest_Work_descriptor =
+          internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_descriptor =
             internal_static_edu_brown_hstore_TransactionWorkRequest_descriptor.getNestedTypes().get(0);
-          internal_static_edu_brown_hstore_TransactionWorkRequest_Work_fieldAccessorTable = new
+          internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-              internal_static_edu_brown_hstore_TransactionWorkRequest_Work_descriptor,
-              new java.lang.String[] { "FragmentId", "InputDepIds", "OutputDepId", "StmtIndex", },
-              edu.brown.hstore.Hstore.TransactionWorkRequest.Work.class,
-              edu.brown.hstore.Hstore.TransactionWorkRequest.Work.Builder.class);
+              internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_descriptor,
+              new java.lang.String[] { "Ids", },
+              edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.class,
+              edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.Builder.class);
           internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor =
             internal_static_edu_brown_hstore_TransactionWorkRequest_descriptor.getNestedTypes().get(1);
           internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor,
-              new java.lang.String[] { "PartitionId", "Work", "ReadOnly", "LastFragment", "NeedsInput", },
+              new java.lang.String[] { "PartitionId", "FragmentId", "InputDepId", "OutputDepId", "StmtIndex", "ReadOnly", "NeedsInput", "LastFragment", },
               edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.class,
               edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.Builder.class);
           internal_static_edu_brown_hstore_TransactionWorkResponse_descriptor =

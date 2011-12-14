@@ -35,7 +35,8 @@ import org.voltdb.types.VoltDecimalHelper;
  public class ParameterSet implements FastSerializable {
 
     static final byte ARRAY = -99;
-
+    public static final ParameterSet EMPTY = new ParameterSet();
+    
     private final boolean m_serializingToEE;
 
     public ParameterSet() {

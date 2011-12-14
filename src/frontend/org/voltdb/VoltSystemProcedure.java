@@ -17,8 +17,6 @@
 
 package org.voltdb;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,13 +25,10 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
-import org.voltdb.messaging.FastSerializer;
-
-import com.google.protobuf.ByteString;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.Work;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -187,21 +182,25 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             PartitionFragment.Builder builder = PartitionFragment.newBuilder()
                                                     .setPartitionId(pf.destPartitionId)
                                                     .setReadOnly(false)
-                                                    .setLastFragment(pf.last_task);
-            Work.Builder workBuilder = Work.newBuilder()
-                                        .setFragmentId(pf.fragmentId)
-                                        .setStmtIndex(i);
+                                                    .setLastFragment(pf.last_task)
+                                                    .addFragmentId(pf.fragmentId)
+                                                    .addStmtIndex(i);
+            
+            // Input Dependencies
             boolean needs_input = false;
+            InputDependency.Builder inputBuilder = InputDependency.newBuilder();
             for (int dep : pf.inputDependencyIds) {
-                workBuilder.addInputDepIds(dep);
+                inputBuilder.addIds(dep);
                 needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);
-            }
+            } // FOR
+            builder.addInputDepId(inputBuilder.build());
+            
+            // Output Dependencies
             for (int dep : pf.outputDependencyIds) {
-                workBuilder.setOutputDepId(dep);
-            }
+                builder.addOutputDepId(dep);
+            } // FOR
 
             builder.setNeedsInput(needs_input);
-            builder.addWork(workBuilder.build());
             ftasks.add(builder.build());
             
 //            FragmentTaskMessage task = new FragmentTaskMessage(
@@ -221,6 +220,5 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         } // FOR
         
         return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, parameters));
-//        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, 1));
     }
 }

@@ -25,17 +25,24 @@
  ***************************************************************************/
 package edu.mit.hstore.dtxn;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
+
+import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
@@ -78,6 +85,21 @@ public abstract class AbstractTransaction implements Poolable {
     protected boolean rejected;
     protected SerializableException pending_error;
     private boolean sysproc;
+
+    // ----------------------------------------------------------------------------
+    // Attached Data Structures
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Attached ParameterSets for the current execution round
+     * This is so that we don't have to marshal them over to different partitions on the same HStoreSite  
+     */
+    private final Map<Integer, List<VoltTable>> attached_inputs = new HashMap<Integer, List<VoltTable>>();
+    
+    /**
+     * 
+     */
+    private ParameterSet attached_parameterSets[];
     
     // ----------------------------------------------------------------------------
     // VoltMessage Wrappers
@@ -185,6 +207,9 @@ public abstract class AbstractTransaction implements Poolable {
         this.pending_error = null;
         this.touched_partitions.clear();
         this.sysproc = false;
+        
+        this.attached_inputs.clear();
+        this.attached_parameterSets = null;
         
         for (int i = 0; i < this.exec_readOnly.length; i++) {
             this.finished[i] = false;
@@ -474,6 +499,33 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public Long getLastUndoToken(int partition) {
         return this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)];
+    }
+    
+    // ----------------------------------------------------------------------------
+    // We can attach input dependencies used on non-local partitions
+    // ----------------------------------------------------------------------------
+    
+    
+    public void attachParameterSets(ParameterSet parameterSets[]) {
+        this.attached_parameterSets = parameterSets;
+    }
+    
+    public ParameterSet[] getAttachedParameterSets() {
+        assert(this.attached_parameterSets != null);
+        return (this.attached_parameterSets);
+    }
+    
+    public void attachInputDependency(int input_dep_id, VoltTable vt) {
+        List<VoltTable> l = this.attached_inputs.get(input_dep_id);
+        if (l == null) {
+            l = new ArrayList<VoltTable>();
+            this.attached_inputs.put(input_dep_id, l);
+        }
+        l.add(vt);
+    }
+    
+    public Map<Integer, List<VoltTable>> getAttachedInputDependencies() {
+        return (this.attached_inputs);
     }
     
     @Override

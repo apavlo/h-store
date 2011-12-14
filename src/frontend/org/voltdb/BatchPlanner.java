@@ -48,6 +48,7 @@ import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkRequest;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -892,35 +893,31 @@ public class BatchPlanner {
                 boolean needs_input = false;
         
                 for (PlanVertex v : vertices) { // Does this order matter?
-                    Hstore.TransactionWorkRequest.Work.Builder workBuilder = Hstore.TransactionWorkRequest.Work.newBuilder();
-                    
                     // Fragment Id
-                    workBuilder.setFragmentId(v.frag_id);
+                    partitionBuilder.addFragmentId(v.frag_id);
                     
                     // Not all fragments will have an input dependency so this could be the NULL_DEPENDENCY_ID
-                    workBuilder.addInputDepIds(v.input_dependency_id);
+                    partitionBuilder.addInputDepId(TransactionWorkRequest.InputDependency.newBuilder().addIds(v.input_dependency_id).build());
                     needs_input = needs_input || (v.input_dependency_id != HStoreConstants.NULL_DEPENDENCY_ID);
                     
                     // All fragments will produce some output
-                    workBuilder.setOutputDepId(v.output_dependency_id);
+                    partitionBuilder.addOutputDepId(v.output_dependency_id);
                     
                     // SQLStmt Index
-                    workBuilder.setStmtIndex(v.stmt_index);
+                    partitionBuilder.addStmtIndex(v.stmt_index);
                     
                     // Read-Only
                     read_only = read_only && v.read_only;
                     
-                    if (trace.get()) LOG.trace("Fragment Grouping " + partitionBuilder.getWorkCount() + " => [" +
+                    if (trace.get()) LOG.trace("Fragment Grouping " + partitionBuilder.getFragmentIdCount() + " => [" +
                                      "txn_id=#" + txn_id + ", " +
-                                     "frag_id=" + workBuilder.getFragmentId() + ", " +
-                                     "input=" + workBuilder.getInputDepIdsList() + ", " +
-                                     "output=" + workBuilder.getOutputDepId() + ", " +
-                                     "stmt_index=" + workBuilder.getStmtIndex() + "]");
-                    
-                    partitionBuilder.addWork(workBuilder.build());
+                                     "frag_id=" + v.frag_id + ", " +
+                                     "input=" + v.input_dependency_id + ", " +
+                                     "output=" + v.output_dependency_id + ", " +
+                                     "stmt_index=" + v.stmt_index + "]");
                 } // FOR (frag_idx)
             
-                if (partitionBuilder.getWorkCount() == 0) {
+                if (partitionBuilder.getFragmentIdCount() == 0) {
                     if (trace.get()) {
                         LOG.warn("For some reason we thought it would be a good idea to construct a FragmentTaskMessage with no fragments! [txn_id=#" + txn_id + "]");
                         LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
