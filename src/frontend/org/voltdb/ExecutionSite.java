@@ -1208,16 +1208,15 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             for (ByteString bs : output.getDataList()) {
                 VoltTable vt = null;
-                FastDeserializer fd = new FastDeserializer(bs.asReadOnlyByteBuffer());
-                try {
-                    vt = fd.readObject(VoltTable.class);
-                } catch (Exception ex) {
-                    throw new RuntimeException("Failed to deserialize VoltTable from partition " + fresponse.getPartitionId() + " for " + ts, ex);
+                if (bs.isEmpty() == false) {
+                    FastDeserializer fd = new FastDeserializer(bs.asReadOnlyByteBuffer());
+                    try {
+                        vt = fd.readObject(VoltTable.class);
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Failed to deserialize VoltTable from partition " + fresponse.getPartitionId() + " for " + ts, ex);
+                    }
                 }
-            
-                ts.addResult(fresponse.getPartitionId(),
-                             output.getId(),
-                             vt);
+                ts.addResult(fresponse.getPartitionId(), output.getId(), vt);
             } // FOR (output)
         } // FOR (dependencies)
     }
@@ -1526,7 +1525,18 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         else {
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Constructing FragmentResponseMessage %s with %d bytes from partition %d to send back to initial partition %d",
                                                     ts, result.size(), this.partitionId, ts.getBasePartition()));
-            this.sendFragmentResponseMessage((RemoteTransaction)ts, ftask, result, status, error);
+            
+            RpcCallback<TransactionWorkResponse.PartitionResult> callback = ((RemoteTransaction)ts).getFragmentTaskCallback();
+            if (callback == null) {
+                LOG.fatal("__FILE__:__LINE__ " + "Unable to send FragmentResponseMessage for " + ts);
+                LOG.fatal("__FILE__:__LINE__ " + "Orignal FragmentTaskMessage:\n" + ftask);
+                LOG.fatal("__FILE__:__LINE__ " + ts.toString());
+                throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
+            }
+            PartitionResult response = this.buildPartitionResult((RemoteTransaction)ts, result, status, error);
+            assert(response != null);
+            callback.run(response);
+            
         }
     }
     
@@ -1563,7 +1573,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         if (d) {
             LOG.debug("__FILE__:__LINE__ " + String.format("Getting ready to kick %d fragments to EE for %s", fragmentCount, ts));
-            if (t) LOG.trace("__FILE__:__LINE__ " + "FragmentTaskIds: " + Arrays.toString(fragmentIds));
+            if (t) {
+                LOG.trace("__FILE__:__LINE__ " + "FragmentTaskIds: " + Arrays.toString(fragmentIds));
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                for (int i = 0; i < parameters.length; i++) {
+                    m.put("Parameter[" + i + "]", parameters[i]);
+                } // FOR
+                LOG.trace("Parameters:\n" + StringUtil.formatMaps(m));
+            }
         }
         
         // -------------------------------
@@ -1587,7 +1604,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                    (int)fragment_id,
                                                    fragmentParams,
                                                    this.m_systemProcedureContext);
-            if (d) LOG.debug("__FILE__:__LINE__ " + "Finished executing sysproc fragments for " + volt_proc.getClass().getSimpleName());
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Finished executing sysproc fragments for %s\n%s", ts, result));
         // -------------------------------
         // REGULAR FRAGMENTS
         // -------------------------------
@@ -1812,16 +1829,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * 
      * @param fresponse
      */
-    public void sendFragmentResponseMessage(RemoteTransaction ts, PartitionFragment ftask, DependencySet result, Hstore.Status status, SerializableException error) {
-        RpcCallback<TransactionWorkResponse.PartitionResult> callback = ts.getFragmentTaskCallback();
-        if (callback == null) {
-            LOG.fatal("__FILE__:__LINE__ " + "Unable to send FragmentResponseMessage for " + ts);
-            LOG.fatal("__FILE__:__LINE__ " + "Orignal FragmentTaskMessage:\n" + ftask);
-            LOG.fatal("__FILE__:__LINE__ " + ts.toString());
-            throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
-        }
-        
-        TransactionWorkResponse.PartitionResult.Builder builder = TransactionWorkResponse.PartitionResult.newBuilder();
+    protected PartitionResult buildPartitionResult(AbstractTransaction ts, DependencySet result, Hstore.Status status, SerializableException error) {
+        PartitionResult.Builder builder = PartitionResult.newBuilder();
         
         // Partition Id
         builder.setPartitionId(this.partitionId);
@@ -1840,23 +1849,24 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Push dependencies back to the remote partition that needs it
         if (status == Hstore.Status.OK) {
-            FastSerializer fs = new FastSerializer(); // buffer_pool);
+//            FastSerializer fs = new FastSerializer(); // buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 Dependency.Builder outputBuilder = Dependency.newBuilder();
                 outputBuilder.setId(result.depIds[i]);
                 try {
-                    if (i > 0) fs.clear();
-                    fs.writeObjectForMessaging(result.dependencies[i]);
-                    outputBuilder.addData(ByteString.copyFrom(fs.getBuffer()));
+//                    if (i > 0) fs.clear();
+//                    fs.writeObjectForMessaging(result.dependencies[i]);
+                    outputBuilder.addData(ByteString.copyFrom(FastSerializer.serialize(result.dependencies[i])));
                 } catch (Exception ex) {
                     throw new RuntimeException(String.format("Failed to serialize output dependency %d for %s", result.depIds[i], ts));
                 }
                 builder.addOutput(outputBuilder.build());
+                if (t) LOG.trace(String.format("Serialized Output Dependency %d for %s\n%s", result.depIds[i], ts, result.dependencies[i]));  
             } // FOR
 //            fs.getBBContainer().discard();
         }
         
-        callback.run(builder.build());
+        return (builder.build());
     }
     
     /**
