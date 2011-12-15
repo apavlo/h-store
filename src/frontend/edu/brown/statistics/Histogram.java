@@ -18,10 +18,9 @@ import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
 
 /**
- * This class provides a way to visualize the variation in use of a variable.
- * 
+ * A very nice and simple generic Histogram
  * @author svelagap
- *
+ * @author pavlo
  */
 public class Histogram<X> implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(Histogram.class);
