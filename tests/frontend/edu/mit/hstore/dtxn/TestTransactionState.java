@@ -68,7 +68,7 @@ public class TestTransactionState extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
-    private static List<PartitionFragment> ftasks;
+    private static List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
     
     private LocalTransaction ts;
     private ExecutionState execState;
