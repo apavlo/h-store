@@ -33,7 +33,10 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.SQLStmt;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.CatalogType;
 import org.voltdb.catalog.PlanFragment;
@@ -117,6 +120,10 @@ public class LocalTransaction extends AbstractTransaction {
      */
     private Procedure catalog_proc;
 
+    /**
+     * The queued up ClientResponse that we need to send back for this txn
+     */
+    private ClientResponseImpl cresponse;
 
 
     /**
@@ -490,6 +497,15 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
+    
+    public void setClientResponse(ClientResponseImpl cresponse) {
+        assert(this.cresponse == null);
+        this.cresponse = cresponse;
+    }
+    public ClientResponseImpl getClientResponse() {
+        assert(this.cresponse != null);
+        return (this.cresponse);
+    }
     
     public void setBatchSize(int batchSize) {
         this.state.batch_size = batchSize;
@@ -1014,11 +1030,18 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.state != null) {
             sb.append(StringUtil.SINGLE_LINE);
             String stmt_debug[] = new String[this.state.batch_size];
+            
+            VoltProcedure voltProc = state.executor.getVoltProcedure(catalog_proc.getName());
+            assert(voltProc != null);
+            SQLStmt stmts[] = voltProc.voltLastQueriesExecuted();
+            assert(stmt_debug.length == stmts.length) :
+                String.format("Expected %d SQLStmts but we only got %d", stmt_debug.length, stmts.length); 
+            
             for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
                 Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.state.dependencies[stmt_index]); 
                 Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
                 String inner = "";
-                inner += "  Statement #" + stmt_index + "\n";
+                inner += "  Statement #" + stmt_index + " - " + stmts[stmt_index].getStatement().getName() + "\n";
                 inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
                 
                 inner += "  Dependency Partitions:\n";

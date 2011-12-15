@@ -57,9 +57,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
@@ -275,6 +277,18 @@ public class SEATSClient extends SEATSBaseClient {
         return (f_ids);
     }
     
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("CACHE_PENDING_INSERTS", CACHE_PENDING_INSERTS);
+        m.put("CACHE_PENDING_UPDATES", CACHE_PENDING_UPDATES);
+        m.put("CACHE_PENDING_DELETES", CACHE_PENDING_DELETES);
+        m.put("CACHE_CUSTOMER_BOOKED_FLIGHTS", CACHE_CUSTOMER_BOOKED_FLIGHTS); 
+        m.put("CACHE_BOOKED_SEATS", CACHE_BOOKED_SEATS); 
+        
+        return StringUtil.formatMaps(m);
+    }
+    
     // -----------------------------------------------------------------
     // ADDITIONAL DATA MEMBERS
     // -----------------------------------------------------------------
@@ -310,6 +324,12 @@ public class SEATSClient extends SEATSBaseClient {
                         
             }
             return (false);
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("{Id:%d / %s / %s / SeatNum:%d}",
+                                 this.id, this.flight_id, this.customer_id, this.seatnum);
         }
     } // END CLASS
 
@@ -420,9 +440,22 @@ public class SEATSClient extends SEATSBaseClient {
              */
         }
     }
+    
+    private AtomicBoolean first = new AtomicBoolean(true);
+    
 
     @Override
     protected boolean runOnce() throws IOException {
+        if (this.first.compareAndSet(true, false)) {
+            // Fire off a FindOpenSeats so that we can prime ourselves
+            try {
+                boolean ret = this.executeFindOpenSeats(Transaction.FIND_OPEN_SEATS);
+                assert(ret);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+        
         int tries = 10;
         boolean ret = false;
         while (tries-- > 0 && ret == false) {
@@ -883,7 +916,7 @@ public class SEATSClient extends SEATSBaseClient {
             reservation = r; 
         } // WHILE
         if (reservation == null) {
-            if (debug.get()) LOG.debug("Failed to find a valid pending insert Reservation");
+            if (debug.get()) LOG.debug("Failed to find a valid pending insert Reservation\n" + this.toString());
             this.stopComputeTime(txn.displayName);
             return (false);
         }

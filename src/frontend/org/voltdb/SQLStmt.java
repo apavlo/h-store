@@ -90,6 +90,10 @@ public class SQLStmt {
         return sqlText;
     }
 
+    public Statement getStatement() {
+        return (this.catStmt);
+    }
+    
     @Override
     public int hashCode() {
         return (this.hashCode);

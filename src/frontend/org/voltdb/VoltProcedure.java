@@ -42,7 +42,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -927,6 +926,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Execute the queries and return the VoltTable results
+        last_batchQueryStmtIndex = batchQueryStmtIndex;
         VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
 
         // Workload Trace - Stop Query
@@ -946,7 +946,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             m_workloadQueryHandles.clear();
         }
 
-        last_batchQueryStmtIndex = batchQueryStmtIndex;
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
@@ -963,7 +962,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
         return new SQLStmt[0];
     }
-    
     
     /**
      * 
