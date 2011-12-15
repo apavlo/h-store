@@ -1209,7 +1209,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
         
         ExecutionSite executor = this.executors[base_partition];
-        assert(executor != null) : "No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
+        assert(executor != null) :
+            "Unable to start " + ts + " - No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
         boolean ret = executor.queueNewTransaction(ts);
@@ -1542,8 +1543,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 return;
                 
             // Allow local redirect
-            } else if (orig_ts.getRestartCounter() == 0 || spi.hasBasePartition() == false) {
-                if (redirect_partition != base_partition) {
+            } else if (orig_ts.getRestartCounter() <= 1 || spi.hasBasePartition() == false) {
+                if (redirect_partition != base_partition && local_partitions.contains(redirect_partition)) {
+                    if (d) LOG.info("__FILE__:__LINE__ " + String.format("Redirecting %s to local partition %d. " +
+                                                    "[restartCtr=%d]\n%s",
+                                                    orig_ts, redirect_partition, orig_ts.getRestartCounter(), touched));
                     base_partition = redirect_partition.intValue();
                     spi.setBasePartition(base_partition);
                 }
