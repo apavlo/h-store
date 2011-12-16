@@ -98,7 +98,12 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         for (Dependency d : request.getAttachedList()) {
             int input_dep_id = d.getId();
             for (ByteString data : d.getDataList()) {
-                final FastDeserializer fds = new FastDeserializer(data.asReadOnlyByteBuffer());
+                if (data.isEmpty()) {
+                    String msg = String.format("%s input dependency %d is empty", ts, input_dep_id); 
+                    LOG.warn(msg + "\n" + request);
+                    throw new RuntimeException(msg);
+                }
+                FastDeserializer fds = new FastDeserializer(data.asReadOnlyByteBuffer());
                 VoltTable vt = null;
                 try {
                     vt = fds.readObject(VoltTable.class);

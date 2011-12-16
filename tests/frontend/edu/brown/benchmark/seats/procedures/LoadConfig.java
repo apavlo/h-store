@@ -24,7 +24,7 @@ public class LoadConfig extends VoltProcedure {
         "SELECT AP_ID, AP_CODE FROM " + SEATSConstants.TABLENAME_AIRPORT
     );
     
-    public final SQLStmt getSEATSCodes = new SQLStmt(
+    public final SQLStmt getAirlineCodes = new SQLStmt(
         "SELECT AL_ID, AL_IATA_CODE FROM " + SEATSConstants.TABLENAME_AIRLINE +
         " WHERE AL_IATA_CODE != ''"
     );
@@ -40,7 +40,7 @@ public class LoadConfig extends VoltProcedure {
         voltQueueSQL(getConfigHistogram);
         voltQueueSQL(getCountryCodes);
         voltQueueSQL(getAirportCodes);
-        voltQueueSQL(getSEATSCodes);
+        voltQueueSQL(getAirlineCodes);
         voltQueueSQL(getFlights);
         return voltExecuteSQL(true);
     }

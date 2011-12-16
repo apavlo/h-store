@@ -34,17 +34,11 @@ import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
+import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Cluster;
-import org.voltdb.catalog.Column;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.ProcParameter;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
-import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.Table;
+import org.voltdb.catalog.*;
 import org.voltdb.utils.JarReader;
+import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.auctionmark.AuctionMarkProjectBuilder;
@@ -540,6 +534,21 @@ public abstract class BaseTestCase extends TestCase {
         assert(has_svn) : "Unable to find files directory [last_dir=" + current.getAbsolutePath() + "]";  
         File next = new File(current.getCanonicalPath() + File.separator + "..");
         return (this.getProjectFile(next, type, target_dir, target_ext));
+    }
+ 
+    /**
+     * Generate an array of random input parameters for a given Statement
+     * @param catalog_stmt
+     * @return
+     */
+    protected Object[] makeRandomStatementParameters(Statement catalog_stmt) {
+        Object params[] = new Object[catalog_stmt.getParameters().size()];
+        for (StmtParameter catalog_param : catalog_stmt.getParameters()) {
+            VoltType vtype = VoltType.get(catalog_param.getJavatype());
+            params[catalog_param.getIndex()] = VoltTypeUtil.getRandomValue(vtype);
+            LOG.debug(catalog_param.fullName() + " -> " + params[catalog_param.getIndex()] + " / " + vtype);
+        } // FOR
+        return (params);
     }
     
 }
