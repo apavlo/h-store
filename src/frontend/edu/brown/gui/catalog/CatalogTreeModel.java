@@ -216,7 +216,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             public String toString() {
                                 ProcParameter param_cat = (ProcParameter)this.getCatalogType();
                                 VoltType type = VoltType.get((byte)param_cat.getType());
-                                return (super.toString() + " :: " + type);
+                                return (super.toString() + " :: " + type.name());
                             }
                         });
                         parameters_node.add(param_node);
@@ -255,7 +255,7 @@ public class CatalogTreeModel extends DefaultTreeModel {
                             
                             // Plan Fragments
                             CatalogMap<PlanFragment> fragments = (is_singlepartition ? statement_cat.getFragments() : statement_cat.getMs_fragments());
-                            for (PlanFragment fragment_cat : fragments) {
+                            for (PlanFragment fragment_cat : CatalogUtil.getSortedCatalogItems(fragments, "id")) {
                                 DefaultMutableTreeNode fragment_node = new DefaultMutableTreeNode(new WrapperNode(fragment_cat));
                                 planNode.add(fragment_node);
                                 buildSearchIndex(fragment_cat, fragment_node);
@@ -265,13 +265,13 @@ public class CatalogTreeModel extends DefaultTreeModel {
                         // Statement Parameter
                         DefaultMutableTreeNode paramRootNode = new CatalogMapTreeNode("Parameters", statement_cat.getParameters());
                         statement_node.add(paramRootNode);
-                        for (StmtParameter param_cat : statement_cat.getParameters()) {
+                        for (StmtParameter param_cat : CatalogUtil.getSortedCatalogItems(statement_cat.getParameters(), "index")) {
                             DefaultMutableTreeNode param_node = new DefaultMutableTreeNode(new WrapperNode(param_cat) {
                                 @Override
                                 public String toString() {
-                                    // StmtParameter param_cat = (StmtParameter)this.getCatalogType();
-                                    //HZType type = HZType.get((byte)param_cat.getJatype());
-                                    return (super.toString()); // + " :: " + type);
+                                     StmtParameter param_cat = (StmtParameter)this.getCatalogType();
+                                     VoltType type = VoltType.get((byte)param_cat.getJavatype());
+                                     return (super.toString() + " :: " + type.name());
                                 }
                             });
                             paramRootNode.add(param_node);

@@ -720,6 +720,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
         return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
     }
+    
+    public static Collection<Site> getAllSites(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        return (catalog_clus.getSites());
+    }
 
     /**
      * Get a mapping of sites for each host. We have to return the Site

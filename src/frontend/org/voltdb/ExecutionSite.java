@@ -615,6 +615,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
 //            this.ee = null;
         }
         
+        // Initialize temporary data structures
+        for (Site catalog_site : CatalogUtil.getAllSites(this.catalog)) {
+            if (catalog_site.getId() != this.siteId) {
+                tmp_transactionRequestBuildersParameters.put(catalog_site.getId(), new HashSet<Integer>());
+            }
+            tmp_transactionRequestBuilderInputs.put(catalog_site.getId(), new HashSet<Integer>());
+        } // FOR
+        
         this.initializeVoltProcedures();
     }
     
@@ -774,7 +782,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         exec_lock.unlock();
                     } // SYNCH
                     
-                    this.processFragmentTaskMessage(current_txn, fragment, parameters);
+                    this.processPartitionFragment(current_txn, fragment, parameters);
 
                 // -------------------------------
                 // Invoke Stored Procedure
@@ -990,28 +998,35 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         return (fragmentParams);
     }
     
-    private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts, PartitionFragment fragment) {
-        this.tmp_EEdependencies.clear();
-
+    private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts, PartitionFragment fragment, Map<Integer, List<VoltTable>> inputs) {
+        if (d) LOG.debug(String.format("Attempting to retrieve input dependencies for %s PartitionFragment:\n%s", ts, fragment));
         Map<Integer, List<VoltTable>> attachedInputs = ts.getAttachedInputDependencies();
         assert(attachedInputs != null);
+        boolean is_local = ts.isExecLocal(this.partitionId);
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
+            int stmt_index = fragment.getStmtIndex(i);
             InputDependency input_dep_ids = fragment.getInputDepId(i);
             for (int input_dep_id : input_dep_ids.getIdsList()) {
+                if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
+                
                 if (attachedInputs.containsKey(input_dep_id)) {
-                    this.tmp_EEdependencies.put(input_dep_id, attachedInputs.get(input_dep_id)); 
+                    inputs.put(input_dep_id, attachedInputs.get(input_dep_id)); 
+                }
+                if (is_local) {
+                    List<VoltTable> deps = ((LocalTransaction)ts).removeInternalDependency(stmt_index, input_dep_id);
+                    assert(deps != null);
+                    assert(inputs.containsKey(input_dep_id) == false);
+                    inputs.put(input_dep_id, deps);
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retreived %d VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                                                                          deps.size(), stmt_index, input_dep_id, ts));
                 }
             } // FOR (inputs)
         } // FOR (fragments)
-        
-        if (ts.isExecLocal(this.partitionId) == true) {
-            if (((LocalTransaction)ts).getInternalDependencyIds().isEmpty() == false) {
-                ((LocalTransaction)ts).removeInternalDependencies(fragment, this.tmp_EEdependencies);
-                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retreived %d internal dependencies for %s",
-                                                        tmp_EEdependencies.size(), ts));
-            }
+        if (d && inputs.isEmpty() == false) {
+            LOG.debug(String.format("Retrieved %d InputDependencies for %s\n%s",
+                                    inputs.size(), ts, StringUtil.formatMaps(inputs)));
         }
-        return (this.tmp_EEdependencies);
+        return (inputs);
     }
     
     
@@ -1419,7 +1434,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param ftask
      * @throws Exception
      */
-    private void processFragmentTaskMessage(AbstractTransaction ts, PartitionFragment ftask, ParameterSet parameters[]) {
+    private void processPartitionFragment(AbstractTransaction ts, PartitionFragment ftask, ParameterSet parameters[]) {
+        assert(this.partitionId == ftask.getPartitionId()) :
+            String.format("Tried to execute PartitionFragment %s for %s on partition %d but it was suppose to be executed on partition %d",
+                          ftask.getFragmentIdList(), ts, this.partitionId, ftask.getPartitionId());
         
         // A txn is "local" if the Java is executing at the same site as we are
         boolean is_local = ts.isExecLocal(this.partitionId);
@@ -1471,7 +1489,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } finally {
             // Success, but without any results???
             if (result == null && status == Hstore.Status.OK) {
-                Exception ex = new Exception("The Fragment executed successfully but result is null for " + ts);
+                Exception ex = new Exception(String.format("The PartitionFragment %s executed successfully on Partition %d but result is null for %s",
+                                                           ftask.getFragmentIdList(), this.partitionId, ts));
                 if (d) LOG.warn("__FILE__:__LINE__ " + ex);
                 status = Hstore.Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);
@@ -1567,7 +1586,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } // FOR
         
         // Input Dependencies
-        Map<Integer, List<VoltTable>> fragmentInputs = this.getFragmentInputs(ts, ftask);
+        this.tmp_EEdependencies.clear();
+        this.getFragmentInputs(ts, ftask, this.tmp_EEdependencies);
         
         if (d) {
             LOG.debug("__FILE__:__LINE__ " + String.format("Getting ready to kick %d fragments to EE for %s", fragmentCount, ts));
@@ -1598,7 +1618,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             volt_proc.setTransactionState(ts);
             ts.markExecNotReadOnly(this.partitionId);
             result = volt_proc.executePlanFragment(ts.getTransactionId(),
-                                                   fragmentInputs,
+                                                   this.tmp_EEdependencies,
                                                    (int)fragment_id,
                                                    fragmentParams,
                                                    this.m_systemProcedureContext);
@@ -1614,7 +1634,10 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                parameters,
                                                outputDepIds,
                                                inputDepIds,
-                                               fragmentInputs);
+                                               this.tmp_EEdependencies);
+            if (result == null) {
+                LOG.warn(String.format("Output DependencySet for %s in %s is null?", Arrays.toString(fragmentIds), ts));
+            }
         }
         return (result);
     }
@@ -1944,20 +1967,24 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             
             int target_partition = ftask.getPartitionId();
             int target_site = hstore_site.getSiteIdForPartitionId(target_partition);
+            Set<Integer> input_dep_ids = tmp_transactionRequestBuilderInputs.get(target_site);
             
-            // Make sure things are still legit for our single-partition transaction
+            // Make sure that this isn't a single-partition txn trying to access a remote partition
             if (predict_singlepartition && target_partition != this.partitionId) {
                 if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s on partition %d is suppose to be single-partitioned, but it wants to execute a fragment on partition %d",
                                                ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             }
+            // Make sure that this txn isn't trying ot access a partition that we said we were
+            // done with earlier
             else if (done_partitions.contains(target_partition)) {
                 if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s on partition %d was marked as done on partition %d but now it wants to go back for more!",
                                                ts, this.partitionId, target_partition));
                 need_restart = true;
                 break;
             }
+            // Make sure we at least have something to do!
             else if (ftask.getFragmentIdCount() == 0) {
                 LOG.warn("__FILE__:__LINE__ " + "Trying to send a PartitionFragment request with 0 fragments for " + ts);
                 continue;
@@ -1973,48 +2000,46 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                         .setSysproc(ts.isSysProc())
                                         .addAllDonePartition(done_partitions);
                 tmp_transactionRequestBuildersMap.put(target_site, request);
+                input_dep_ids.clear();
             }
             
             // Also keep track of what Statements they are executing so that we know
             // we need to send over the wire to them.
             Set<Integer> stmt_indexes = tmp_transactionRequestBuildersParameters.get(target_site);
-            if (stmt_indexes == null) {
-                stmt_indexes = new HashSet<Integer>();
-                tmp_transactionRequestBuildersParameters.put(target_site, stmt_indexes);
-            }
+            assert(stmt_indexes != null);
             CollectionUtil.addAll(stmt_indexes, ftask.getStmtIndexList());
             
+            // Input Dependencies
             if (ftask.getNeedsInput()) {
                 if (d) LOG.debug("Retrieving input dependencies for " + ts);
                 
                 tmp_removeDependenciesMap.clear();
-                ts.removeInternalDependencies(ftask, tmp_removeDependenciesMap);
-                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
-                Set<Integer> inputs = tmp_transactionRequestBuilderInputs.get(target_site);
-                if (inputs == null) {
-                    inputs = new HashSet<Integer>();
-                    tmp_transactionRequestBuilderInputs.put(target_site, inputs);
-                }
-                
+                this.getFragmentInputs(ts, ftask, tmp_removeDependenciesMap);
+
+//                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
                 FastSerializer fs = null;
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
-                    if (inputs.contains(e.getKey())) continue;
+                    if (input_dep_ids.contains(e.getKey())) continue;
 
-                    if (d) LOG.debug(String.format("Attaching %d input dependencies for %s to be sent to %s",
+                    if (d) LOG.debug(String.format("Attatching %d input dependencies for %s to be sent to %s",
                                      e.getValue().size(), ts, HStoreSite.formatSiteName(target_site)));
                     Dependency.Builder dBuilder = Dependency.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
+//                        fs = new FastSerializer();
                         if (fs == null) fs = new FastSerializer(); // buffer_pool);
                         else fs.clear();
                         try {
-                            fs.writeObjectForMessaging(vt);
+                            fs.writeObject(vt);
                             dBuilder.addData(ByteString.copyFrom(fs.getBuffer()));
                         } catch (Exception ex) {
                             throw new RuntimeException(String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts));
                         }
+                        if (d)
+                            LOG.debug(String.format("Storing %d rows for InputDependency %d to send to Partition %d for %s [bytes=%d]",
+                                                    vt.getRowCount(), e.getKey(), ftask.getPartitionId(), ts, fs.getBuffer().limit()));
                     } // FOR
-                    inputs.add(e.getKey());
+                    input_dep_ids.add(e.getKey());
                     request.addAttached(dBuilder.build());
                 } // FOR
 //                if (fs != null) fs.getBBContainer().discard();
@@ -2151,7 +2176,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         String.format("Trying to process FragmentTaskMessage for %s on partition %d but it should have been sent to partition %d [singlePartition=%s]\n%s",
                                       ts, this.partitionId, fragment.getPartitionId(), predict_singlePartition, fragment);
                     ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
-                    this.processFragmentTaskMessage(ts, fragment, fragmentParams);
+                    this.processPartitionFragment(ts, fragment, fragmentParams);
 //                    read_only = read_only && ftask.isReadOnly();
                 } // FOR
                 
@@ -2197,6 +2222,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 // Now request the fragments that aren't local
                 // We want to push these out as soon as possible
                 if (num_remote > 0) {
+                    // We only need to serialize the ParameterSets once
                     if (serializedParams == false) {
                         tmp_serializedParams.clear();
                         FastSerializer fs = new FastSerializer();
@@ -2236,7 +2262,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                    num_localPartition, ts));
                     for (PartitionFragment fragment : this.tmp_localPartitionFragmentList) {
                         ParameterSet fragmentParams[] = this.getFragmentParameters(ts, fragment, parameters);
-                        this.processFragmentTaskMessage(ts, fragment, fragmentParams);
+                        this.processPartitionFragment(ts, fragment, fragmentParams);
                     } // FOR
                 }
             }

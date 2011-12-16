@@ -327,6 +327,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
         this.restart_ctr = 0;
+        this.cresponse = null;  
         
         if (this.profiler != null) this.profiler.finish();
     }
@@ -865,9 +866,9 @@ public class LocalTransaction extends AbstractTransaction {
             // Each partition+dependency_id should be unique for a Statement batch.
             // So as the results come back to us, we have to figure out which Statement it belongs to
             Queue<Integer> queue = stmt_ctr.get(key);
-            if (t) {
-                LOG.trace("__FILE__:__LINE__ " + "Storing new result for key " + key + " in txn #" + this.txn_id);
-                LOG.trace("__FILE__:__LINE__ " + "Result stmt_ctr(key=" + key + "): " + queue);
+            if (d) {
+                LOG.debug("__FILE__:__LINE__ " + "Storing new result for key " + key + " in txn #" + this.txn_id);
+                if (t) LOG.trace("__FILE__:__LINE__ " + "Result stmt_ctr(key=" + key + "): " + queue);
             }
             assert(queue != null) :
                 String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
@@ -904,12 +905,12 @@ public class LocalTransaction extends AbstractTransaction {
             // Check whether we need to start running stuff now
             if (this.state.blocked_tasks.isEmpty() == false && dinfo.hasTasksReady()) {
                 // Always double check whether somebody beat us to the punch
-                Collection<Hstore.TransactionWorkRequest.PartitionFragment> to_unblock = dinfo.getAndReleaseBlockedPartitionFragments();
+                Collection<PartitionFragment> to_unblock = dinfo.getAndReleaseBlockedPartitionFragments();
                 if (to_unblock == null) {
                     if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
                     return;
                 }
-                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Got %d FragmentTaskMessages to unblock for txn #%d that were waiting for DependencyId %d",
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Got %d PartitionFragments to unblock for txn #%d that were waiting for DependencyId %d",
                                                to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
                 this.state.unblocked_tasks.add(to_unblock);
@@ -933,7 +934,7 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Map<Integer, List<VoltTable>> removeInternalDependencies(PartitionFragment fragment, Map<Integer, List<VoltTable>> results) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieving %d internal dependencies for %s PartitionFragment:\n%s",
-                                                this.state.internal_dependencies.size(), this, fragment));
+                                                fragment.getInputDepIdCount(), this, fragment));
         
         Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
@@ -950,8 +951,8 @@ public class LocalTransaction extends AbstractTransaction {
                 int num_tables = dinfo.results.size();
                 assert(dinfo.getPartitions().size() == num_tables) :
                     String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
-                                  "but we were expecting %d in %s txn #%d\n%s\n%s\n%s%s", 
-                                  stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this.getProcedureName(), this.txn_id,
+                                  "but we were expecting %d in %s\n%s\n%s\n%s%s", 
+                                  stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this,
                                   this.toString(), fragment.toString(),
                                   StringUtil.SINGLE_LINE, this.debug()); 
                 results.put(input_d_id, dinfo.getResults(localPartitionIds, true));
@@ -960,6 +961,21 @@ public class LocalTransaction extends AbstractTransaction {
             } // FOR
         } // FOR
         return (results);
+    }
+    
+    public List<VoltTable> removeInternalDependency(int stmt_index, int input_d_id) {
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieving %d internal dependencies for <Stmt #%d, DependencyId #%d> in %s",
+                                                this.state.internal_dependencies.size(), stmt_index, input_d_id, this));
+        
+        DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
+        assert(dinfo != null);
+        int num_tables = dinfo.results.size();
+        assert(dinfo.getPartitions().size() == num_tables) :
+                    String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
+                                  "but we were expecting %d in %s\n%s\n%s%s", 
+                                  stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this,
+                                  this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
+        return (dinfo.getResults(hstore_site.getLocalPartitionIds(), true));
     }
     
     // ----------------------------------------------------------------------------

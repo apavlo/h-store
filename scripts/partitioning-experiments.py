@@ -224,7 +224,7 @@ EXPERIMENT_SETTINGS = {
 
 # Thoughput Experiments
 OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
-OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'airline', 'auctionmark' ]
+OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'seats', 'auctionmark' ]
 OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 
 ## ==============================================
@@ -266,7 +266,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
         env["benchmark.neworder_multip_mix"] = -1
         env["benchmark.neworder_multip"] = True
         
-        #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
+        #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "seats" else OPT_BASE_TXNRATE
         #env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
         
         ## Everything but LNS has to use the DB2 redirects
@@ -276,7 +276,7 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["site.exec_db2_redirects"] = True
             #env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         else:
-            env["site.exec_neworder_cheat"] = (benchmark in ["tpcc", "airline"])
+            env["site.exec_neworder_cheat"] = (benchmark in ["tpcc", "seats"])
         ## IF
         
     ## BREAKDOWN
@@ -315,14 +315,14 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             #env["benchmark.temporal_skew"] = False
             #env["benchmark.temporal_skew_rotate"] = False
             #env["benchmark.temporal_skew_mix"] = -1
-    #elif benchmark == "airline":
+    #elif benchmark == "seats":
         # env["client.scalefactor"] = 100
         # env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
 
         ## MOTIVATION
         
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
-    env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
+    #env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
     # env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
 
 ## DEF
