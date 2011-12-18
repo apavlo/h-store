@@ -41,8 +41,6 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
 
-import com.google.protobuf.ByteString;
-
 import edu.brown.utils.StringUtil;
 
 /**
@@ -113,6 +111,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param dependencies
      */
     public void stashWorkUnitDependencies(final Map<Integer, List<VoltTable>> dependencies) {
+        if (d) LOG.debug(String.format("Stashing %d InputDependencies:\n%s",
+                                       dependencies.size(), StringUtil.formatMaps(dependencies)));
         m_dependencyTracker.trackNewWorkUnit(dependencies);
     }
 
@@ -157,12 +157,18 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
                 // create a new list of references to the workunit's table
                 // to avoid any changes to the WorkUnit's list. But do not
                 // copy the table data.
-                final ArrayDeque<VoltTable> deque = new ArrayDeque<VoltTable>();
+                ArrayDeque<VoltTable> deque = m_depsById.get(e.getKey());
+                if (deque == null) {
+                    deque = new ArrayDeque<VoltTable>();
+                    // intentionally overwrite the previous dependency id.
+                    // would a lookup and a clear() be faster?
+                    m_depsById.put(e.getKey(), deque);
+                } else {
+                    deque.clear();
+                }
                 deque.addAll(e.getValue());
-                // intentionally overwrite the previous dependency id.
-                // would a lookup and a clear() be faster?
-                m_depsById.put(e.getKey(), deque);
             }
+            if (d) LOG.debug("Current InputDepencies:\n" + StringUtil.formatMaps(m_depsById));
         }
 
         public VoltTable nextDependency(final int dependencyId) {
@@ -240,17 +246,23 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
         final VoltTable vt =  m_dependencyTracker.nextDependency(dependencyId);
         if (vt != null) {
             ByteBuffer buffer = vt.getTableDataReference();
-            if (d) {
-                int size = vt.getUnderlyingBufferSize();
+            if (d) 
                 LOG.debug(String.format("Passing Dependency %d to EE [rows=%d, cols=%d, bytes=%d/%d]",
-                                        dependencyId, vt.getRowCount(), vt.getColumnCount(), size, buffer.array().length));
-            }
+                                        dependencyId, vt.getRowCount(), vt.getColumnCount(), vt.getUnderlyingBufferSize(), buffer.array().length));
             assert(buffer.hasArray());
             return (buffer.array());
         }
-        else {
-            return null;
+        // Note that we will hit this after retrieving all the VoltTables for the given dependencyId
+        // It does not mean that there were no VoltTables at all, it just means that 
+        // we have gotten all of them
+        else if (d) {
+            LOG.warn(String.format("Failed to find Dependency %d for EE [dep=%s, count=%d, ids=%s]",
+                                    dependencyId,
+                                    m_dependencyTracker.m_depsById.get(dependencyId),
+                                    m_dependencyTracker.m_depsById.size(),
+                                    m_dependencyTracker.m_depsById.keySet()));
         }
+        return null;
     }
 
     /*

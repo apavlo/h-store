@@ -963,16 +963,18 @@ public class LocalTransaction extends AbstractTransaction {
         return (results);
     }
     
-    public List<VoltTable> removeInternalDependency(int stmt_index, int input_d_id) {
+    public List<VoltTable> getInternalDependency(int stmt_index, int input_d_id) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieving %d internal dependencies for <Stmt #%d, DependencyId #%d> in %s",
                                                 this.state.internal_dependencies.size(), stmt_index, input_d_id, this));
         
         DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
-        assert(dinfo != null);
+        assert(dinfo != null) :
+            String.format("No DependencyInfo object for <Stmt #%d, DependencyId #%d> in %s",
+                          stmt_index, input_d_id, this);
         int num_tables = dinfo.results.size();
         assert(dinfo.getPartitions().size() == num_tables) :
-                    String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
-                                  "but we were expecting %d in %s\n%s\n%s%s", 
+                    String.format("Number of results from partitions retrieved for <Stmt #%d, DependencyId #%d> " +
+                                  "is %d but we were expecting %d in %s\n%s\n%s%s", 
                                   stmt_index, input_d_id, num_tables, dinfo.getPartitions().size(), this,
                                   this.toString(), StringUtil.SINGLE_LINE, this.debug()); 
         return (dinfo.getResults(hstore_site.getLocalPartitionIds(), true));

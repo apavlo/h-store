@@ -261,7 +261,8 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     Table *cleanUpTable = NULL;
     m_currentOutputDepId = outputDependencyId;
     m_currentInputDepId = inputDependencyId;
-    VOLT_DEBUG("Executing PlanFragment on partition %d [fragId=%ld, inputId=%d, outputId=%d]", m_partitionId, planfragmentId, outputDependencyId, inputDependencyId);
+    VOLT_DEBUG("Executing PlanFragment on partition %d [fragId=%ld, inputId=%d, outputId=%d]",
+               m_partitionId, planfragmentId, inputDependencyId, outputDependencyId);
     
     /*
      * Reserve space in the result output buffer for the number of

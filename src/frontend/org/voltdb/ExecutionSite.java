@@ -42,6 +42,7 @@
 
 package org.voltdb;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
@@ -55,6 +56,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.apache.tools.ant.taskdefs.condition.IsFileSelected;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
@@ -306,6 +308,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     private volatile long lastCommittedTxnId = -1;
     /** The last undoToken that we handed out */
     private final AtomicLong lastUndoToken = new AtomicLong(0l);
+    
+    /** This flag is true if this ExecutionSite is the "first" partition on this HStoreSite */
+    private final boolean firstPartition;
 
     /**
      * This is the queue of the list of things that we need to execute.
@@ -512,6 +517,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.partitionId = 0;
         this.localPartitionIds = null;
         this.execState = null;
+        this.firstPartition = false;
     }
 
     /**
@@ -540,6 +546,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.site = this.partition.getParent();
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
+        this.firstPartition = CatalogUtil.isFirstPartition(this.site, this.partition);
         
         this.execState = new ExecutionState(this);
         
@@ -999,32 +1006,62 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
     
     private Map<Integer, List<VoltTable>> getFragmentInputs(AbstractTransaction ts, PartitionFragment fragment, Map<Integer, List<VoltTable>> inputs) {
-        if (d) LOG.debug(String.format("Attempting to retrieve input dependencies for %s PartitionFragment:\n%s", ts, fragment));
         Map<Integer, List<VoltTable>> attachedInputs = ts.getAttachedInputDependencies();
         assert(attachedInputs != null);
-        boolean is_local = ts.isExecLocal(this.partitionId);
+        boolean is_local = (ts instanceof LocalTransaction);
+        
+        if (d) LOG.debug(String.format("Attempting to retrieve input dependencies for %s PartitionFragment [isLocal=%s]:\n%s",
+                         ts, is_local, fragment));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             InputDependency input_dep_ids = fragment.getInputDepId(i);
             for (int input_dep_id : input_dep_ids.getIdsList()) {
                 if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
-                
-                if (attachedInputs.containsKey(input_dep_id)) {
-                    inputs.put(input_dep_id, attachedInputs.get(input_dep_id)); 
-                }
+
+                // If the Transaction is on the same HStoreSite, then all the 
+                // input dependencies will be internal and can be retrieved locally
                 if (is_local) {
-                    List<VoltTable> deps = ((LocalTransaction)ts).removeInternalDependency(stmt_index, input_dep_id);
+                    List<VoltTable> deps = ((LocalTransaction)ts).getInternalDependency(stmt_index, input_dep_id);
                     assert(deps != null);
                     assert(inputs.containsKey(input_dep_id) == false);
                     inputs.put(input_dep_id, deps);
-                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retreived %d VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieved %d INTERNAL VoltTables for <Stmt #%d, DependencyId #%d> in %s",
                                                                           deps.size(), stmt_index, input_dep_id, ts));
                 }
+                // Otherwise they will be "attached" inputs to the RemoteTransaction handle
+                // We should really try to merege these two concepts into a single function call
+                else if (attachedInputs.containsKey(input_dep_id)) {
+                    List<VoltTable> deps = attachedInputs.get(input_dep_id);
+                    List<VoltTable> pDeps = null;
+                    // XXX: Do we actually need to copy these???
+                    // XXX: I think we only need to copy if we're debugging the tables!
+                    if (d) { // this.firstPartition == false) {
+                        pDeps = new ArrayList<VoltTable>();
+                        for (VoltTable vt : deps) {
+                            // TODO: Move into VoltTableUtil
+                            ByteBuffer buffer = vt.getTableDataReference();
+                            byte arr[] = new byte[vt.getUnderlyingBufferSize()]; // FIXME
+                            buffer.get(arr, 0, arr.length);
+                            pDeps.add(new VoltTable(ByteBuffer.wrap(arr), true));
+                        }
+                    } else {
+                        pDeps = deps;
+                    }
+                    inputs.put(input_dep_id, pDeps); 
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieved %d ATTACHED VoltTables for <Stmt #%d, DependencyId #%d> in %s",
+                                                                          deps.size(), stmt_index, input_dep_id, ts));
+                }
+
             } // FOR (inputs)
         } // FOR (fragments)
-        if (d && inputs.isEmpty() == false) {
-            LOG.debug(String.format("Retrieved %d InputDependencies for %s\n%s",
-                                    inputs.size(), ts, StringUtil.formatMaps(inputs)));
+        if (d) {
+            if (inputs.isEmpty() == false) {
+                LOG.debug(String.format("Retrieved %d InputDependencies for %s %s on partition %d\n%s",
+                                        inputs.size(), ts, fragment.getFragmentIdList(), fragment.getPartitionId(), StringUtil.formatMaps(inputs)));
+            } else {
+                LOG.warn(String.format("No InputDependencies retrieved for %s %s on partition %d",
+                                       ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
+            }
         }
         return (inputs);
     }
@@ -1210,7 +1247,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             try {
                 error = SerializableException.deserializeFromBuffer(fresponse.getError().asReadOnlyByteBuffer());
             } catch (Exception ex) {
-                throw new RuntimeException("Failed to deserialize SerializableException from partition " + fresponse.getPartitionId() + " for " + ts, ex);
+                throw new RuntimeException(String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
+                                           fresponse.getPartitionId(), ts, fresponse.getError().size()), ex);
             }
             ts.setPendingError(error);
         }
@@ -1218,7 +1256,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         for (Dependency output : fresponse.getOutputList()) {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Storing intermediate results from partition %d for %s",
                                                     fresponse.getPartitionId(), ts));
-            
             for (ByteString bs : output.getDataList()) {
                 VoltTable vt = null;
                 if (bs.isEmpty() == false) {
@@ -1540,10 +1577,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         // REMOTE TRANSACTION
         // -------------------------------
         else {
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Constructing FragmentResponseMessage %s with %d bytes from partition %d to send back to initial partition %d",
-                                                    ts, result.size(), this.partitionId, ts.getBasePartition()));
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Constructing PartitionResult %s with %d bytes from partition %d to send back to initial partition %d [status=%s]",
+                                                    ts,
+                                                    (result != null ? result.size() : null),
+                                                    this.partitionId, ts.getBasePartition(),
+                                                    status));
             
-            RpcCallback<TransactionWorkResponse.PartitionResult> callback = ((RemoteTransaction)ts).getFragmentTaskCallback();
+            RpcCallback<PartitionResult> callback = ((RemoteTransaction)ts).getFragmentTaskCallback();
             if (callback == null) {
                 LOG.fatal("__FILE__:__LINE__ " + "Unable to send FragmentResponseMessage for " + ts);
                 LOG.fatal("__FILE__:__LINE__ " + "Orignal FragmentTaskMessage:\n" + ftask);
@@ -1668,6 +1708,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             undoToken = this.getNextUndoToken();
         }
         ts.fastInitRound(this.partitionId, undoToken);
+        ts.setBatchSize(plan.getBatchSize());
       
         int fragmentCount = plan.getFragmentCount();
         long fragmentIds[] = plan.getFragmentIds();
@@ -1733,7 +1774,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("Executing %d fragments for %s [lastTxnId=%d, undoToken=%d]",
                       batchSize, ts, this.lastCommittedTxnId, undoToken));
-            if (t) {
+//            if (t) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
                 
@@ -1752,13 +1793,14 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
                 m.put("Output Dependencies", Arrays.toString(output_depIds));
                 sb.append("\n" + StringUtil.formatMaps(m)); 
-            }
+//            }
             LOG.debug("__FILE__:__LINE__ " + sb.toString());
         }
 
         // pass attached dependencies to the EE (for non-sysproc work).
         if (input_deps != null && input_deps.isEmpty() == false) {
-            if (t) LOG.trace("__FILE__:__LINE__ " + "Stashing Dependencies: " + input_deps.keySet());
+            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Stashing %d InputDependencies for %s at partition %d",
+                                                    input_deps.size(), ts, this.partitionId));
 //            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
             ee.stashWorkUnitDependencies(input_deps);
         }
@@ -1805,9 +1847,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (d) {
             if (result != null) {
                 LOG.debug("__FILE__:__LINE__ " + String.format("Finished executing fragments for %s and got back %d results", ts, result.depIds.length));
-//                if (t) 
-                    LOG.debug("__FILE__:__LINE__ " + String.format("FRAGMENTS: %s\nRESULTS: %s",
-                                               Arrays.toString(fragmentIds), Arrays.toString(result.depIds)));
             } else {
                 LOG.debug("__FILE__:__LINE__ " + String.format("Finished executing fragments for %s but got back null results? That seems bad...", ts));
             }
@@ -2021,7 +2060,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (input_dep_ids.contains(e.getKey())) continue;
 
-                    if (d) LOG.debug(String.format("Attatching %d input dependencies for %s to be sent to %s",
+                    if (d) LOG.debug(String.format("Attaching %d input dependencies for %s to be sent to %s",
                                      e.getValue().size(), ts, HStoreSite.formatSiteName(target_site)));
                     Dependency.Builder dBuilder = Dependency.newBuilder();
                     dBuilder.setId(e.getKey());                    
@@ -2036,8 +2075,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                             throw new RuntimeException(String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts));
                         }
                         if (d)
-                            LOG.debug(String.format("Storing %d rows for InputDependency %d to send to Partition %d for %s [bytes=%d]",
-                                                    vt.getRowCount(), e.getKey(), ftask.getPartitionId(), ts, fs.getBuffer().limit()));
+                            LOG.debug(String.format("Storing %d rows for InputDependency %d to send to partition %d for %s [bytes=%d]",
+                                                    vt.getRowCount(), e.getKey(), ftask.getPartitionId(), ts,
+                                                    CollectionUtil.last(dBuilder.getDataList()).size()));
                     } // FOR
                     input_dep_ids.add(e.getKey());
                     request.addAttached(dBuilder.build());

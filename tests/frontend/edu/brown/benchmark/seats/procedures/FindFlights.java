@@ -75,7 +75,7 @@ public class FindFlights extends VoltProcedure {
             " WHERE AP_ID = ? AND AP_CO_ID = CO_ID "
     );
     
-    public final static String BaseGetFlights =
+    private final static String BaseGetFlights =
             "SELECT F_ID, F_AL_ID, F_SEATS_LEFT, " +
                   " F_DEPART_AP_ID, F_DEPART_TIME, F_ARRIVE_AP_ID, F_ARRIVE_TIME, " +
                   " AL_NAME, AL_IATTR00, AL_IATTR01 " +

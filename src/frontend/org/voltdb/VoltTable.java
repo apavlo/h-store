@@ -1156,7 +1156,8 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
             System.err.printf("rowStart with value %d is smaller than it should be.\n", rowStart);
             return false;
         }
-        assert(m_buffer.position() > m_rowStart);
+        assert(m_buffer.position() > m_rowStart) :
+            String.format("Buffer position is %d but row start is %d", m_buffer.position(), m_rowStart);
 
         int colCount = m_buffer.getShort(5);
         assert(colCount > 0);

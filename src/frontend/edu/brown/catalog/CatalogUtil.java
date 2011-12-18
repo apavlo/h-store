@@ -720,6 +720,20 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (cache.PARTITION_XREF.isEmpty()) cache.buildPartitionCache(catalog_item);
         return (Collections.unmodifiableCollection(cache.PARTITION_XREF.asList()));
     }
+
+    /**
+     * Returns true if the given Partition is the "first" one at the given Site
+     * @param catalog_site
+     * @param catalog_part
+     * @return
+     */
+    public static boolean isFirstPartition(Site catalog_site, Partition catalog_part) {
+        for (Partition p : getSortedCatalogItems(catalog_site.getPartitions(), "id")) {
+            if (p.getId() == catalog_part.getId()) return (true);
+            break;
+        }
+        return (false);
+    }
     
     public static Collection<Site> getAllSites(CatalogType catalog_item) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
