@@ -508,6 +508,11 @@ public class SEATSClient extends SEATSBaseClient {
                 } // SYNCH
             } // SYNCH
         }
+        
+        if (this.getClientId() == 0) {
+            LOG.info("NewReservation Errors:\n" + newReservationErrors);
+            newReservationErrors.clear();
+        }
     }
     
     /**
@@ -758,6 +763,7 @@ public class SEATSClient extends SEATSBaseClient {
             
             if (reservations.isEmpty() == false) {
                 int ctr = 0;
+                Collections.shuffle(reservations);
                 synchronized (CACHE_PENDING_INSERTS) {
                     for (Reservation r : reservations) {
                         if (CACHE_PENDING_INSERTS.contains(r) == false) {
@@ -810,6 +816,8 @@ public class SEATSClient extends SEATSBaseClient {
     // NewReservation
     // ----------------------------------------------------------------
     
+    private static final Histogram<String> newReservationErrors = new Histogram<String>();
+    
     class NewReservationCallback extends AbstractCallback<Reservation> {
         public NewReservationCallback(Reservation r) {
             super(Transaction.NEW_RESERVATION, r);
@@ -842,7 +850,7 @@ public class SEATSClient extends SEATSBaseClient {
                                        getClientId(), clientResponse.getStatus(), errorType, clientResponse.getStatusString()),
                                        clientResponse.getException());
                 
-                
+                newReservationErrors.put(errorType.name());
                 switch (errorType) {
                     case NO_MORE_SEATS: {
                         seats.set(0, SEATSConstants.NUM_SEATS_PER_FLIGHT);
@@ -870,6 +878,11 @@ public class SEATSClient extends SEATSBaseClient {
                     }
                     case INVALID_FLIGHT_ID: {
                         LOG.warn("Unexpected invalid FlightId: " + element.flight_id);
+                        break;
+                    }
+                    case UNKNOWN: {
+//                        if (debug.get()) 
+                            LOG.warn(msg);
                         break;
                     }
                     default: {

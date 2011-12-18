@@ -176,13 +176,13 @@ public class NewReservation extends VoltProcedure {
             if (results[i].getRowCount() != 1) {
                 String msg = String.format("Failed to add reservation for flight #%d - No rows returned for %s", f_id, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
-                throw new VoltAbortException(msg);
+                throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
             }
             long updated = results[i].asScalarLong();
             if (updated != 1) {
                 String msg = String.format("Failed to add reservation for flight #%d - Updated %d records for %s", f_id, updated, voltLastQueriesExecuted()[i]);
                 if (debug) LOG.warn(msg);
-                throw new VoltAbortException(msg);
+                throw new VoltAbortException(ErrorType.VALIDITY_ERROR + " " + msg);
             }
         } // FOR
         

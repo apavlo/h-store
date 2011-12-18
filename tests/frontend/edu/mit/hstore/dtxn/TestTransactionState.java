@@ -34,7 +34,6 @@ import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.mit.hstore.HStoreConstants;
