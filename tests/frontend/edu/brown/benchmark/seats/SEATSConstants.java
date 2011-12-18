@@ -120,6 +120,10 @@ public abstract class SEATSConstants {
      */
     public static final int NUM_SEATS_PER_FLIGHT = 150;
     
+    /**
+     * How many seats in the front of the plan are considered "first class"
+     * These seats will have a higher price.
+     */
     public static final int FIRST_CLASS_SEATS_OFFSET = 10;
     
     /**
@@ -145,7 +149,13 @@ public abstract class SEATSConstants {
      * Probability that a customer will invoke DeleteReservation using the string
      * version of their Customer Id (0% - 100%)
      */
-    public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 20;
+    public static final int PROB_DELETE_WITH_CUSTOMER_ID_STR = 10;
+
+    /**
+     * Probability that a customer will invoke DeleteReservation using the string
+     * version of their FrequentFlyer Id (0% - 100%)
+     */
+    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 10;
     
     /**
      * Probability that a customer will invoke UpdateCustomer using the string
@@ -154,16 +164,12 @@ public abstract class SEATSConstants {
     public static final int PROB_UPDATE_WITH_CUSTOMER_ID_STR = 20;
     
     /**
-     * Probability that a customer will invoke DeleteReservation using the string
-     * version of their FrequentFlyer Id (0% - 100%)
+     * Probability that UpdateCustomer should update FrequentFlyer records (0% - 100%)
      */
-    public static final int PROB_DELETE_WITH_FREQUENTFLYER_ID_STR = 20;
+    public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
     /** Probability that is a seat is initially occupied (0% - 100%) */
     public static final int PROB_SEAT_OCCUPIED = 0; // 25;
-    
-    /** Probability that UpdateCustomer should update FrequentFlyer records */
-    public static final int PROB_UPDATE_FREQUENT_FLYER = 25;
     
     /** Probability that a new Reservation will be added to the DeleteReservation queue */
     public static final int PROB_DELETE_NEW_RESERVATION = 10;
@@ -177,6 +183,7 @@ public abstract class SEATSConstants {
     /** Probability that FindFlights will use the distance search */
     public static final int PROB_FIND_FLIGHTS_NEARBY_AIRPORT = 25;
     
+    /** Probability that FindFlights will perform a look up using a random pair of depart/arrive airports */
     public static final int PROB_FIND_FLIGHTS_RANDOM_AIRPORTS = 10;
     
     // ----------------------------------------------------------------

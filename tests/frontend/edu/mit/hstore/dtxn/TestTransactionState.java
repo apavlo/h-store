@@ -115,7 +115,7 @@ public class TestTransactionState extends BaseTestCase {
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
             plan.getPartitionFragments(ftasks);
-            System.err.println("FTASKS: " + ftasks);
+//            System.err.println("FTASKS: " + ftasks);
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(ftasks);
@@ -215,14 +215,14 @@ public class TestTransactionState extends BaseTestCase {
         CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         
-        System.err.println(this.ts.toString());
+//        System.err.println(this.ts.toString());
         assertEquals(NUM_EXPECTED_DEPENDENCIES, latch.getCount());
         assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getOutputOrder().size());
         
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
-//        System.err.println(this.ts.getBlockedFragmentTaskMessages());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getFragmentIdCount());
+        System.err.println(this.ts.getBlockedFragmentTaskMessages());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getBlockedFragmentTaskMessages().size());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how

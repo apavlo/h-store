@@ -72,7 +72,7 @@ JNITopend::JNITopend(JNIEnv *env, jobject caller) : m_jniEnv(env), m_javaExecuti
 }
 
 int JNITopend::loadNextDependency(int32_t dependencyId, voltdb::Pool *stringPool, Table* destination) {
-    VOLT_DEBUG("iterating java dependency for id %d", dependencyId);
+    VOLT_DEBUG("Iterating java dependency for id %d", dependencyId);
 
     JNILocalFrameBarrier jni_frame = JNILocalFrameBarrier(m_jniEnv, 10);
     if (jni_frame.checkResult() < 0) {

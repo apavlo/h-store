@@ -130,7 +130,7 @@ public class FindOpenSeats extends VoltProcedure {
         } // WHILE
         
         VoltTable returnResults = new VoltTable(outputColumns);
-        for (int i=0; i < seatmap.length; ++i) {
+        for (int i = 0; i < seatmap.length; ++i) {
             if (seatmap[i] == -1) {
                 // Charge more for the first seats
                 double price = seat_price * (i < SEATSConstants.FIRST_CLASS_SEATS_OFFSET ? 2.0 : 1.0);
@@ -138,8 +138,8 @@ public class FindOpenSeats extends VoltProcedure {
                 returnResults.addRow(row);
             }
         } // FOR
-        assert(seats_left == returnResults.getRowCount()) :
-            String.format("Flight %d - Expected[%d] != Actual[%d]", f_id, seats_left, returnResults.getRowCount());
+//        assert(seats_left == returnResults.getRowCount()) :
+//            String.format("Flight %d - Expected[%d] != Actual[%d]", f_id, seats_left, returnResults.getRowCount());
        
         return returnResults;
     }
