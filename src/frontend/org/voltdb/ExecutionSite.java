@@ -2330,9 +2330,9 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
                 if (done) break;
                 if (this.isShuttingDown() == false) {
-                    LOG.warn("__FILE__:__LINE__ " + String.format("Still waiting for responses for %s after %d ms\n%s",
-                                                    ts, hstore_conf.site.exec_response_timeout, ts.debug()));
-                    throw new VoltAbortException("Responses for " + ts + "never arrived!");
+                    LOG.warn("__FILE__:__LINE__ " + String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
+                                                    ts, hstore_conf.site.exec_response_timeout, latch.getCount(), ts.debug()));
+                    throw new RuntimeException("PartitionResponses for " + ts + " never arrived!");
                 }
             } // WHILE
         }
