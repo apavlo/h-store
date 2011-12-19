@@ -452,6 +452,8 @@ public class LocalTransaction extends AbstractTransaction {
                 if (t) LOG.debug("__FILE__:__LINE__ " + "Setting CountDownLatch to null for txn #" + this.txn_id);
                 this.state.dependency_latch = null;
             }
+        this.state.clearRound();
+            
 //        } finally {
 //            if (this.predict_singlePartition == false) state.lock.unlock();
 //        } // SYNCH
@@ -467,6 +469,7 @@ public class LocalTransaction extends AbstractTransaction {
     public void fastFinishRound(int partition) {
         this.round_state[hstore_site.getLocalPartitionOffset(partition)] = RoundState.STARTED;
         super.finishRound(partition);
+        this.state.clearRound();
     }
     
     // ----------------------------------------------------------------------------
@@ -792,7 +795,7 @@ public class LocalTransaction extends AbstractTransaction {
                                                          this, partition, stmt_index, output_dep_id));
                     this.getOrCreateDependencyInfo(stmt_index, output_dep_id).addPartition(partition);
                     this.state.dependency_ctr++;
-    
+                    
                     // Store the stmt_index of when this dependency will show up
                     Integer key_idx = this.state.createPartitionDependencyKey(partition, output_dep_id);
                     Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
@@ -801,16 +804,20 @@ public class LocalTransaction extends AbstractTransaction {
                         this.state.results_dependency_stmt_ctr.put(key_idx, rest_stmt_ctr);
                     }
                     rest_stmt_ctr.add(stmt_index);
-                    if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, output_dep_id, rest_stmt_ctr));
+                    if (t) 
+                        LOG.trace("__FILE__:__LINE__ " + String.format("Set Dependency Statement Counters for <%d %d>: %s", partition, output_dep_id, rest_stmt_ctr));
                 } // IF
                 
                 // If this task needs an input dependency, then we need to make sure it arrives at
                 // the executor before it is allowed to start executing
                 InputDependency input_dep_ids = ftask.getInputDepId(i);
                 if (input_dep_ids.getIdsCount() > 0) {
-//                    if (t) LOG.trace("__FILE__:__LINE__ " + "Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
                     for (int dependency_id : input_dep_ids.getIdsList()) {
                         if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                            if (d)
+                                LOG.debug(String.format("Creating internal input dependency %d for PlanFragment %d in %s", 
+                                                        dependency_id, ftask.getFragmentId(i), this)); 
+                            
                             this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedPartitionFragment(ftask);
                             this.state.internal_dependencies.add(dependency_id);
                             if (blocked == false) {
@@ -820,6 +827,21 @@ public class LocalTransaction extends AbstractTransaction {
                         }
                     } // FOR
                 }
+                
+                if (d) {
+                    LOG.debug(String.format("%s - Examining %d dependencies at stmt_index %d",
+                                            this, this.state.dependencies[stmt_index].size(), stmt_index));
+                    int output_ctr = 0;
+                    for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
+                        if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) {
+                            output_ctr++;
+                            LOG.debug(dinfo.toString() + " => Output!");
+                        }
+                    } // FOR
+                    LOG.debug(String.format("%s Output Dependencies for StmtIndex %d : %d", 
+                                            this, stmt_index, output_ctr));
+                }
+                
             } // FOR
         } finally {
             if (this.predict_singlePartition == false) state.lock.unlock();
