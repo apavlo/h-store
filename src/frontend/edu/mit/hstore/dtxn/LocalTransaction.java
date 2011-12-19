@@ -249,29 +249,29 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (this);
     }
-    
+
     /**
      * Testing Constructor
      * @param txnId
-     * @param clientHandle
      * @param base_partition
      * @param predict_touchedPartitions
-     * @param predict_readOnly
-     * @param predict_canAbort
+     * @param catalog_proc
      * @return
      */
-    public LocalTransaction testInit(long txnId, int base_partition, Collection<Integer> predict_touchedPartitions, boolean predict_singlePartition) {
+    public LocalTransaction testInit(long txnId, int base_partition, Collection<Integer> predict_touchedPartitions, Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
-//        return super.init(txnId, clientHandle, base_partition, false, false, true);
+        this.catalog_proc = catalog_proc;
+        boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
+        
         return (LocalTransaction)super.init(
-                          txnId,                // TxnId
-                          Integer.MAX_VALUE,    // ClientHandle
-                          base_partition,       // BasePartition
-                          false,                // SysProc
-                          predict_singlePartition, // SinglePartition
-                          false,                // ReadOnly
-                          true,                 // Abortable
-                          true                  // ExecLocal
+                          txnId,                        // TxnId
+                          Integer.MAX_VALUE,            // ClientHandle
+                          base_partition,               // BasePartition
+                          catalog_proc.getSystemproc(), // SysProc
+                          predict_singlePartition,      // SinglePartition
+                          catalog_proc.getReadonly(),   // ReadOnly
+                          true,                         // Abortable
+                          true                          // ExecLocal
         );
     }
     
@@ -344,9 +344,14 @@ public class LocalTransaction extends AbstractTransaction {
     public void initRound(int partition, long undoToken) {
         assert(this.state != null);
         assert(this.state.queued_results.isEmpty()) : 
-            String.format("Trying to initialize round for txn #%d but there are %d queued results",
-                          this.txn_id, this.state.queued_results.size());
+            String.format("Trying to initialize ROUND #%d for %s but there are %d queued results",
+                           this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                           this, this.state.queued_results.size());
 
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Initializing ROUND #%d on partition %d for %s [undoToken=%d]", 
+                                                this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                                                partition, this, undoToken));
+        
         super.initRound(partition, undoToken);
         
         // Reset these guys here so that we don't waste time in the last round
@@ -370,8 +375,9 @@ public class LocalTransaction extends AbstractTransaction {
         // Same site, same partition
         assert(this.state.output_order.isEmpty());
         assert(this.state.batch_size > 0);
-        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting round for local %s with %d queued Statements [blocked=%d]", 
-                                                this, this.state.batch_size, this.state.blocked_tasks.size()));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting ROUND #%d on partition %d for local %s with %d queued Statements [blocked=%d]", 
+                                                this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                                                partition, this, this.state.batch_size, this.state.blocked_tasks.size()));
    
         if (this.predict_singlePartition == false) state.lock.lock();
         try {
@@ -388,7 +394,9 @@ public class LocalTransaction extends AbstractTransaction {
                 } // FOR
             } // FOR
             assert(this.state.batch_size == this.state.output_order.size()) :
-                "Expected " + this.state.batch_size + " output dependencies but we queued up " + this.state.output_order.size();
+                String.format("Expected %d output dependencies but we queued up %d for %s\n%s",
+                              this.state.batch_size, this.state.output_order.size(), this,
+                              StringUtil.join("\n", this.state.output_order));
             
             // Release any queued responses/results
             if (this.state.queued_results.isEmpty() == false) {
@@ -413,33 +421,48 @@ public class LocalTransaction extends AbstractTransaction {
     
     @Override
     public void finishRound(int partition) {
-        // Same site, different partition
-        if (this.base_partition != partition) {
-            super.finishRound(partition);
-            return;
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Finishing ROUND #%d on partition %d for %s", 
+                                                this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                                                partition, this));
+        
+        if (this.base_partition == partition) {
+            // Same site, same partition
+            assert(this.state.dependency_ctr == this.state.received_ctr) :
+                String.format("Trying to finish ROUND #%d on partition %d for %s before it was started",
+                              this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                              partition, this);
+            assert(this.state.queued_results.isEmpty()) :
+                String.format("Trying to finish ROUND #%d on partition %d for %s but there are %d queued results",
+                              this.round_ctr[this.hstore_site.getLocalPartitionOffset(partition)],
+                              partition, this, this.state.queued_results.size());
         }
         
-        assert(this.state.dependency_ctr == this.state.received_ctr) : "Trying to finish round for " + this + " before it was started"; 
-        assert(this.state.queued_results.isEmpty()) : "Trying to finish round for " + this + " but there are " + this.state.queued_results.size() + " queued results";
-
-        if (this.predict_singlePartition == false) state.lock.lock();
-        try {
-            super.finishRound(partition);
-            
+        // This doesn't need to be synchronized because we know that only our
+        // thread should be calling this
+        super.finishRound(partition);
+        
+        // Same site, different partition
+        if (this.base_partition != partition) return;
+        
+//        if (this.predict_singlePartition == false) state.lock.lock();
+//        try {
             // Reset our initialization flag so that we can be ready to run more stuff the next round
-            if (this.base_partition == partition && this.state.dependency_latch != null) {
+            if (this.state.dependency_latch != null) {
                 assert(this.state.dependency_latch.getCount() == 0);
                 if (t) LOG.debug("__FILE__:__LINE__ " + "Setting CountDownLatch to null for txn #" + this.txn_id);
                 this.state.dependency_latch = null;
             }
-        } finally {
-            if (this.predict_singlePartition == false) state.lock.unlock();
-        } // SYNCH
+//        } finally {
+//            if (this.predict_singlePartition == false) state.lock.unlock();
+//        } // SYNCH
     }
     
     /**
-     * Quickly finish this round. Assumes that everything executed locally
-     * and therefore we don't need any locks
+     * Quickly finish this round for a single-partition txn. This allows us
+     * to change the state to FINISHED without having to go through the
+     * INIT and START states first (since we know that we will not be getting results randomly
+     * from PartitionFragments executed on remote partitions). 
+     * @param partition The partition to finish this txn on
      */
     public void fastFinishRound(int partition) {
         this.round_state[hstore_site.getLocalPartitionOffset(partition)] = RoundState.STARTED;
@@ -732,12 +755,12 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Queues up a FragmentTaskMessage for this txn
+     * Queues up a PartitionFragment for this txn
      * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
      * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
      * @param ftask
      */
-    public boolean addFragmentTaskMessage(PartitionFragment ftask) {
+    public boolean addPartitionFragment(PartitionFragment ftask) {
         int offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, this.base_partition);
@@ -757,23 +780,21 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             for (int i = 0; i < num_fragments; i++) {
                 int stmt_index = ftask.getStmtIndex(i);
-                int output_dep_id = ftask.getOutputDepId(i);
-                InputDependency input_dep_ids = ftask.getInputDepId(i);
                 
                 // If this task produces output dependencies, then we need to make 
                 // sure that the txn wait for it to arrive first
+                int output_dep_id = ftask.getOutputDepId(i);
                 if (output_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
-                    if (d) {
-                        LOG.debug("__FILE__:__LINE__ " + String.format("Attemping to add DependencyInfo for PlanFragment %d in %s [StmtIndex=%d]",
-                                                         ftask.getFragmentId(i), this, stmt_index));
-                        if (t) LOG.trace("__FILE__:__LINE__ " + "Adding new Dependency [stmt_index=" + stmt_index + ", id=" + output_dep_id + ", partition=" + partition + "] for txn #" + this.txn_id);
-                    }
+                    if (d)
+                        LOG.debug("__FILE__:__LINE__ " + String.format("[%02d] Adding new DependencyInfo for PlanFragment %d in %s [partition=%d, stmtIndex=%d, outputDepId=%d]",
+                                                         this.state.dependency_ctr,
+                                                         ftask.getFragmentId(i),
+                                                         this, partition, stmt_index, output_dep_id));
                     this.getOrCreateDependencyInfo(stmt_index, output_dep_id).addPartition(partition);
                     this.state.dependency_ctr++;
     
                     // Store the stmt_index of when this dependency will show up
                     Integer key_idx = this.state.createPartitionDependencyKey(partition, output_dep_id);
-    
                     Queue<Integer> rest_stmt_ctr = this.state.results_dependency_stmt_ctr.get(key_idx);
                     if (rest_stmt_ctr == null) {
                         rest_stmt_ctr = new LinkedList<Integer>();
@@ -785,6 +806,7 @@ public class LocalTransaction extends AbstractTransaction {
                 
                 // If this task needs an input dependency, then we need to make sure it arrives at
                 // the executor before it is allowed to start executing
+                InputDependency input_dep_ids = ftask.getInputDepId(i);
                 if (input_dep_ids.getIdsCount() > 0) {
 //                    if (t) LOG.trace("__FILE__:__LINE__ " + "Blocking fragments " + Arrays.toString(ftask.getFragmentIds()) + " waiting for " + ftask.getInputDependencyCount() + " dependencies in txn #" + this.txn_id + ": " + Arrays.toString(ftask.getAllUnorderedInputDepIds()));
                     for (int dependency_id : input_dep_ids.getIdsList()) {

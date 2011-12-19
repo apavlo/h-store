@@ -75,11 +75,16 @@ public class TestTransactionStateComplex extends BaseTestCase {
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
     private List<PartitionFragment> first_tasks = new ArrayList<PartitionFragment>();
     private Map<Integer, Set<Integer>> dependency_partitions = new HashMap<Integer, Set<Integer>>();
+    private Procedure catalog_proc;
+    private Statement catalog_stmt;
 
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
         this.addPartitions(NUM_PARTITIONS);
+        
+        catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
         
         if (executor == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
@@ -87,8 +92,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
             
             // Setup a BatchPlanner for ourselves here
-            Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-            Statement catalog_stmt = this.getStatement(catalog_proc, TARGET_STATEMENT);
+
 
             // Create a SQLStmt batch
             SQLStmt batch[] = new SQLStmt[NUM_DUPLICATE_STATEMENTS];
@@ -116,7 +120,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
         assertNotNull(executor);
         
         this.execState = new ExecutionState(executor);
-        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true);
+        this.ts = new LocalTransaction(hstore_site).testInit(TXN_ID, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), catalog_proc);
         this.ts.setExecutionState(this.execState);
     }
 
@@ -130,7 +134,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             assertNotNull(ftask);
 //            System.err.println(ftask);
 //            System.err.println("+++++++++++++++++++++++++++++++++++");
-            this.ts.addFragmentTaskMessage(ftask);
+            this.ts.addPartitionFragment(ftask);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 int dep_id = ftask.getOutputDepId(i);
                 this.dependency_ids.add(dep_id);

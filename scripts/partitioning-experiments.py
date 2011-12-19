@@ -92,6 +92,7 @@ OPT_NO_SYNC = True
 OPT_STOP_ON_ERROR = False
 OPT_RETRY_ON_ZERO = False
 OPT_FORCE_REBOOT = False
+OPT_SINGLE_CLIENT = False
 
 OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
@@ -395,6 +396,7 @@ if __name__ == '__main__':
         "force-reboot",
         "stop-on-error",
         "retry-on-zero",
+        "single-client",
         "trace",
         
         "codespeed-url=",
@@ -460,6 +462,13 @@ if __name__ == '__main__':
         OPT_NO_CONF = True
         OPT_NO_JAR = True
         OPT_NO_SYNC = True
+    if OPT_SINGLE_CLIENT:
+        LOG.info("Enabling single-client debug mode!")
+        BASE_SETTINGS["client.count"] = 1
+        BASE_SETTINGS["client.processesperclient"] = 1
+        BASE_SETTINGS["client.processesperclient_per_partition"] = False
+        BASE_SETTINGS["client.txnrate"] = 1
+    ## IF
     
     if not "partitions" in options:
         raise Exception("Missing 'partitions' parameter")

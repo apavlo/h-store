@@ -1353,7 +1353,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 
                 LOG.fatal("__FILE__:__LINE__ " + "Unexpected error while executing " + ts, ex);
                 if (last.length > 0) {
-                    LOG.fatal("__FILE__:__LINE__ " + "Last Queries Executed: " + Arrays.toString(last));
+                    LOG.fatal("__FILE__:__LINE__ " + String.format("Last Queries Executed [%d]: %s", last.length, Arrays.toString(last)));
                 }
                 LOG.fatal("__FILE__:__LINE__ " + "LocalTransactionState Dump:\n" + ts.debug());
                 this.crash(ex);
@@ -2135,7 +2135,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     protected VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<PartitionFragment> fragments, ParameterSet parameters[]) {
         if (d) {
-            LOG.debug("__FILE__:__LINE__ " + String.format("Prepaing to dispatch %d messages for %s and wait for the results",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Preparing to dispatch %d messages for %s and wait for the results",
                                              fragments.size(), ts));
             if (t) {
                 StringBuilder sb = new StringBuilder();
@@ -2199,7 +2199,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // FAST PATH: Assume everything is local
             if (predict_singlePartition) {
                 for (PartitionFragment ftask : fragments) {
-                    if (first == false || ts.addFragmentTaskMessage(ftask) == false) 
+                    if (first == false || ts.addPartitionFragment(ftask) == false) 
                         this.tmp_localPartitionFragmentList.add(ftask);
                 } // FOR
                 
@@ -2235,7 +2235,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     is_localSite = localPartitionIds.contains(partition);
                     is_localPartition = (is_localSite && partition == this.partitionId);
                     all_local = all_local && is_localPartition;
-                    if (first == false || ts.addFragmentTaskMessage(ftask) == false) {
+                    if (first == false || ts.addPartitionFragment(ftask) == false) {
                         if (is_localPartition) {
                             this.tmp_localPartitionFragmentList.add(ftask);
                             num_localPartition++;
