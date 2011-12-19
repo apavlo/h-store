@@ -42,8 +42,6 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 
-import com.google.protobuf.ByteString;
-
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
@@ -222,26 +220,11 @@ public abstract class AbstractTransaction implements Poolable {
         } // FOR
 
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " +String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                     txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = -1;
     }
 
-    // ----------------------------------------------------------------------------
-    // IMPLEMENTING CLASS METHODS
-    // ----------------------------------------------------------------------------
-
-    /**
-     * Initialize this TransactionState
-     * @param txnId
-     * @param clientHandle
-     * @param source_partition
-     * @param predict_singlePartitioned TODO
-     * @param predict_readOnly TODO
-     * @param predict_abortable TODO
-     */
-//    public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable);
-    
     // ----------------------------------------------------------------------------
     // ROUND METHODS
     // ----------------------------------------------------------------------------
@@ -253,7 +236,8 @@ public abstract class AbstractTransaction implements Poolable {
     public void initRound(int partition, long undoToken) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == null || this.round_state[offset] == RoundState.FINISHED) : 
-            String.format("Invalid batch round state %s for %s at partition %d [hashCode=%d]", this.round_state[offset], this, partition, this.hashCode());
+            String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
+                          this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         if (this.last_undo_token[offset] == null || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.last_undo_token[offset] = undoToken;
@@ -264,7 +248,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.round_state[offset] = RoundState.INITIALIZED;
 //        this.pending_error = null;
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Initializing new round information for %s at partition %d [undoToken=%d]", this, partition, undoToken));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]", this, partition, undoToken));
     }
     
     /**
@@ -274,10 +258,12 @@ public abstract class AbstractTransaction implements Poolable {
     public void startRound(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
-            String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
+            String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
+                    this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Starting batch round #%d for %s at partition", this.round_ctr[offset], this, partition));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Starting batch ROUND #%d on partition %d for %s",
+                                                          this.round_ctr[offset], partition, this));
     }
     
     /**
@@ -289,7 +275,8 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Finishing batch round #%d for %s at partition", this.round_ctr[offset], this, partition));
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Finishing batch ROUND #%d on partition %d for %s",
+                                                          this.round_ctr[offset], partition, this));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }
@@ -448,7 +435,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " +String.format("Marking %s as having submitted to the EE on partition %d %s",
+        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as having submitted to the EE on partition %d %s",
                                                  this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
@@ -474,7 +461,7 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public void setFinishedEE(int partition) {
         if (debug.get()) 
-            LOG.debug("__FILE__:__LINE__ " +String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
                                    this, partition, Arrays.toString(this.finished),
                                    this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;

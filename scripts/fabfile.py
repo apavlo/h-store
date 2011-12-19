@@ -576,7 +576,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         if inst.private_dns_name in site_hosts: continue
         clients.append(inst.private_dns_name)
     ## FOR
-    assert len(clients) > 0
+    assert len(clients) > 0, "There are no %s client instances available" % env["ec2.client_type"]
     LOG.debug("Client Hosts: %s" % clients)
 
     ## Make sure the the checkout is up to date

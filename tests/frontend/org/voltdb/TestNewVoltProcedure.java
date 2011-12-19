@@ -1,6 +1,5 @@
 package org.voltdb;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +41,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
     private static ExecutionSite site;
     private static PartitionEstimator p_estimator;
     
+    private Procedure catalog_proc;
     private VoltProcedure volt_proc;
     private Histogram<Integer> touched_partitions;
     
@@ -64,7 +64,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
             executors.put(LOCAL_PARTITION, site);
             hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
         }
-        volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        this.volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
     }
         
@@ -84,7 +85,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true);
+        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), catalog_proc);
         // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure

@@ -135,7 +135,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
         for (PartitionFragment ftask : ftasks) {
             assertNotNull(ftask);
-            this.ts.addFragmentTaskMessage(ftask);
+            this.ts.addPartitionFragment(ftask);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 this.dependency_ids.add(ftask.getOutputDepId(i));
                 InputDependency input_dep_ids = ftask.getInputDepId(i);

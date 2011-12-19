@@ -19,7 +19,6 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
-import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
