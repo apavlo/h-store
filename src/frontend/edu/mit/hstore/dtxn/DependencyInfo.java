@@ -129,7 +129,7 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public Collection<PartitionFragment> getAndReleaseBlockedPartitionFragments() {
+    public synchronized Collection<PartitionFragment> getAndReleaseBlockedPartitionFragments() {
         if (this.blocked_tasks_released == false) {
             this.blocked_tasks_released = true;
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
