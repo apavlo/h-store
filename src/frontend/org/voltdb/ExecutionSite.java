@@ -309,9 +309,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /** The last undoToken that we handed out */
     private final AtomicLong lastUndoToken = new AtomicLong(0l);
     
-    /** This flag is true if this ExecutionSite is the "first" partition on this HStoreSite */
-    private final boolean firstPartition;
-
     /**
      * This is the queue of the list of things that we need to execute.
      * The entries may be either InitiateTaskMessages (i.e., start a stored procedure) or
@@ -374,10 +371,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
-     * Temporary space used in ExecutionSite.waitForResponses
+     * PartitionFragments that we need to send to a remote HStoreSite for execution
      */
     private final List<PartitionFragment> tmp_remoteFragmentList = new ArrayList<PartitionFragment>();
+    /**
+     * PartitionFragments that we need to send to our own ExecutionSite
+     */
     private final List<PartitionFragment> tmp_localPartitionFragmentList = new ArrayList<PartitionFragment>();
+    /**
+     * PartitionFragments that we need to send to a different ExecutionSite that is on this same HStoreSite
+     */
     private final List<PartitionFragment> tmp_localSiteFragmentList = new ArrayList<PartitionFragment>();
     
     /**
@@ -440,7 +443,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 PartitionResult result = msg.getResults(i); 
                 if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Got %s from partition %d for %s",
                                                result.getClass().getSimpleName(), result.getPartitionId(), ts));
-                ExecutionSite.this.processFragmentResponseMessage((LocalTransaction)ts, result);
+                ExecutionSite.this.processPartitionResult((LocalTransaction)ts, result);
             } // FOR
         }
     }; // END CLASS
@@ -517,7 +520,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.partitionId = 0;
         this.localPartitionIds = null;
         this.execState = null;
-        this.firstPartition = false;
     }
 
     /**
@@ -546,7 +548,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         this.site = this.partition.getParent();
         assert(site != null) : "Unable to get Site for Partition #" + partitionId;
         this.siteId = this.site.getId();
-        this.firstPartition = CatalogUtil.isFirstPartition(this.site, this.partition);
         
         this.execState = new ExecutionState(this);
         
@@ -1140,6 +1141,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } else {
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
                                            task.getClass().getSimpleName(), ts, this.partitionId, this.currentTxnId));
+            
             exec_lock.lock();
             try {
                 // No outstanding DTXN
@@ -1153,7 +1155,12 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         // this.work_queue.addFirst(task);
                         this.work_queue.add(task);
                     }
-                } else {
+                }
+                // Add the transaction request to the blocked queue
+                else {
+                    // TODO: This is where we can check whether this new transaction request is commutative 
+                    //       with the current dtxn. If it is, then we know that we don't
+                    //       need to block it or worry about whether it will conflict with the current dtxn
                     if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
                     this.current_blockedTxns.add(task);
                 }
@@ -1232,7 +1239,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param ts
      * @param fresponse
      */
-    protected void processFragmentResponseMessage(LocalTransaction ts, PartitionResult fresponse) {
+    protected void processPartitionResult(LocalTransaction ts, PartitionResult fresponse) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Processing FragmentResponseMessage for %s on partition %d [srcPartition=%d, deps=%d]",
                                        ts, this.partitionId, fresponse.getPartitionId(), fresponse.getOutputCount()));
         

@@ -453,6 +453,14 @@ public final class HStoreConf {
         )
         public int planner_max_batch_size;
         
+        @ConfigProperty(
+            description="Use globally unique Dependency Ids for each unique SQLStmt batch when generating PartitionFragments " +
+                        "at run time.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean planner_unique_dependency_ids;
+        
         // ----------------------------------------------------------------------------
         // HStoreCoordinator
         // ----------------------------------------------------------------------------

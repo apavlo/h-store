@@ -82,7 +82,14 @@ public class BatchPlanner {
     // STATIC DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(9000);
+    private static final int FIRST_DEPENDENCY_ID = 9000;
+    
+    /**
+     * If the unique dependency ids option is enabled, all input/output DependencyIds for
+     * PartitionFragments will be globally unique.
+     * @see HStoreConf.SiteConf.planner_unique_dependency_ids
+     */
+    private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(FIRST_DEPENDENCY_ID);
 
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
@@ -100,6 +107,8 @@ public class BatchPlanner {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
+    private final boolean enable_unique_ids;
+    private int last_id = FIRST_DEPENDENCY_ID;
     private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>();
     private final Map<Integer, PartitionFragment.Builder> round_builders = new HashMap<Integer, PartitionFragment.Builder>();
@@ -436,6 +445,7 @@ public class BatchPlanner {
         this.plan = new BatchPlan(this.maxRoundSize);
         this.enable_profiling = hstore_conf.site.planner_profiling;
         this.enable_caching = hstore_conf.site.planner_caching; 
+        this.enable_unique_ids = hstore_conf.site.planner_unique_dependency_ids;
         
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
@@ -955,7 +965,7 @@ public class BatchPlanner {
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
                 assert(f_partitions != null) : String.format("No PartitionIds for [%02d] %s in Statement #%d", round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
-                int output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
+                int output_id = (this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : this.last_id++);
     
                 PlanVertex v = new PlanVertex(catalog_frag,
                                               stmt_index,
