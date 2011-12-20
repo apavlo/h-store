@@ -3,6 +3,7 @@ package edu.mit.hstore;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -277,6 +278,10 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Starting listener thread");
         this.listener_thread.start();
         
+        if (this.hstore_conf.site.coordinator_sync_time) {
+            syncTime();
+        }
+        
         this.ready_observable.notifyObservers(this);
     }
 
@@ -546,6 +551,22 @@ public class HStoreCoordinator implements Shutdownable {
             System.exit(request.getExitStatus());
             
         }
+
+        @Override
+        public void timeSync(RpcController controller, TimeSyncRequest request, RpcCallback<TimeSyncResponse> done) {
+            if (debug.get()) 
+                LOG.debug("__FILE__:__LINE__ " + String.format("Recieved %s from HStoreSite %s",
+                                                 request.getClass().getSimpleName(),
+                                                 HStoreSite.formatSiteName(request.getSenderId())));
+            
+            Hstore.TimeSyncResponse response = Hstore.TimeSyncResponse.newBuilder()
+                                                    .setT0R(System.currentTimeMillis())
+                                                    .setSenderId(local_site_id)
+                                                    .setT0S(request.getT0S())
+                                                    .setT1S(System.currentTimeMillis())
+                                                    .build();
+            done.run(response);
+        }
     } // END CLASS
     
     
@@ -566,6 +587,54 @@ public class HStoreCoordinator implements Shutdownable {
         assert(callback != null) :
             String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
         this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
+    }
+    
+    public void syncTime() {
+        final int num_sites = this.channels.size();
+        final CountDownLatch latch = new CountDownLatch(num_sites);
+        final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
+        
+        RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
+            @Override
+            public void run(TimeSyncResponse request) {
+                long t1_r = System.currentTimeMillis();
+                int dt = (int)((request.getT1S() + request.getT0R()) - (t1_r + request.getT0S())) / 2;
+                time_deltas.put(request.getSenderId(), dt);
+                latch.countDown();
+            }
+        };
+        
+        // Send out TimeSync request 
+        for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
+            Hstore.TimeSyncRequest request = Hstore.TimeSyncRequest.newBuilder()
+                                            .setSenderId(local_site_id)
+                                            .setT0S(System.currentTimeMillis())
+                                            .build();
+            e.getValue().timeSync(new ProtoRpcController(), request, callback);
+            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent TIMESYNC to " + HStoreSite.formatSiteName(e.getKey()));
+        } // FOR
+        
+        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent out all TIMESYNC requests!");
+        try {
+            latch.await();
+        } catch (InterruptedException ex) {
+            // nothing
+        }
+        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Received all TIMESYNC responses!");
+        
+        // Then do the time calculation
+        long max_dt = 0L;
+        int culprit = this.local_site_id;
+        for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
+            LOG.info("__FILE__:__LINE__ " + String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
+            if (e.getValue() > max_dt) {
+                max_dt = e.getValue();
+                culprit = e.getKey();
+            }
+        }
+        this.getHStoreSite().getTransactionIdManager().setTimeDelta(max_dt);
+        LOG.info("__FILE__:__LINE__ " + "Setting time delta to " + max_dt + "ms");
+        LOG.info("__FILE__:__LINE__ " + "I think the killer is site " + culprit + "!");
     }
     
     /**

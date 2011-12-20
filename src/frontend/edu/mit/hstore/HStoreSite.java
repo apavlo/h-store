@@ -71,6 +71,7 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TimeSyncRequest;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
@@ -584,7 +585,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         handler.addObserver(observer);
         
         // First we need to tell the HStoreMessenger to start-up and initialize its connections
-        if (d) LOG.debug("__FILE__:__LINE__ " + "Starting HStoreMessenger for " + this.getSiteName());
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Starting HStoreCoordinator for " + this.getSiteName());
         this.hstore_coordinator.start();
 
         // Start TransactionQueueManager
@@ -1175,6 +1176,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                            TransactionIdManager.toString(last_txn_id),
                                            TransactionIdManager.toString(txn_id)));
                     }
+                    if (hstore_conf.site.status_show_txn_info && ts.getRestartCounter() == 1) TxnCounter.BLOCKED_LOCAL.inc(ts.getProcedure());
                     this.txnQueueManager.queueBlockedDTXN(ts, partition, last_txn_id);
                     return;
                 }
@@ -1422,7 +1424,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * 
+     * Rejects a transaction and returns an empty result back to the client
+     * The transaction will not be re-queued
      * @param ts
      */
     public void transactionReject(LocalTransaction ts, Hstore.Status status) {

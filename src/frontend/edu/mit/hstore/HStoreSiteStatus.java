@@ -76,7 +76,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                       TxnCounter.MISPREDICTED);
         CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW,    TxnCounter.MULTI_PARTITION,
                                                       TxnCounter.SINGLE_PARTITION,
-                                                      TxnCounter.MISPREDICTED);
+                                                      TxnCounter.MISPREDICTED,
+                                                      TxnCounter.BLOCKED_LOCAL,
+                                                      TxnCounter.BLOCKED_REMOTE);
         CollectionUtil.addAll(TXNINFO_EXCLUDES,       TxnCounter.SYSPROCS);
     }
     
@@ -852,7 +854,8 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         Map<String, Object> poolInfo = null;
         if (show_poolinfo) poolInfo = this.poolInfo();
         
-        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo));
+        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo)) +
+                "\nHistogram of rejected txns from this site:\n" + hstore_site.getTransactionQueueManager().getBockedHistogramString();
     }
     
     private String formatPoolCounts(StackObjectPool pool, TypedPoolableObjectFactory<?> factory) {

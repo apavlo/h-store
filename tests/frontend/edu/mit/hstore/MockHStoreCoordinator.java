@@ -9,6 +9,8 @@ import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.ShutdownRequest;
 import edu.brown.hstore.Hstore.ShutdownResponse;
+import edu.brown.hstore.Hstore.TimeSyncRequest;
+import edu.brown.hstore.Hstore.TimeSyncResponse;
 import edu.brown.hstore.Hstore.TransactionFinishRequest;
 import edu.brown.hstore.Hstore.TransactionFinishResponse;
 import edu.brown.hstore.Hstore.TransactionInitRequest;
@@ -124,6 +126,12 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
                                                      .build();
             System.exit(1);
             done.run(response);
+            
+        }
+
+        @Override
+        public void timeSync(RpcController controller, TimeSyncRequest request, RpcCallback<TimeSyncResponse> done) {
+            // TODO Auto-generated method stub
             
         }
     }

@@ -488,6 +488,14 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean coordinator_redirect_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreCoordinator will use an NTP sytle protocol to find the time difference " +
+                        "between sites.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean coordinator_sync_time;
 
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
