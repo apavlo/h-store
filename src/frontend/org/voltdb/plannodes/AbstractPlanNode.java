@@ -110,8 +110,10 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         
         // Clone Children
         if (clone_children) {
+//            clone.m_children.clear();
+//            clone.m_childrenIds.clear();
             for (AbstractPlanNode child_node : this.m_children) {
-                AbstractPlanNode child_clone = (AbstractPlanNode)child_node.clone();
+                AbstractPlanNode child_clone = (AbstractPlanNode)child_node.clone(clone_inline, clone_children);
                 child_clone.m_parents.clear();
                 child_clone.m_parentIds.clear();
                 child_clone.m_parents.add(clone);
@@ -123,8 +125,9 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         
         // Clone Inlines
         if (clone_inline) {
+//            clone.m_inlineNodes.clear();
             for (Entry<PlanNodeType, AbstractPlanNode> e : this.m_inlineNodes.entrySet()) {
-                AbstractPlanNode inline_clone = (AbstractPlanNode)e.getValue().clone();
+                AbstractPlanNode inline_clone = (AbstractPlanNode)e.getValue().clone(clone_inline, clone_children);
                 clone.m_inlineNodes.put(e.getKey(), inline_clone);
             } // FOR
         }
