@@ -40,6 +40,10 @@ public enum TxnCounter {
     SPECULATIVE,
     /** No undo buffers! Naked transactions! */
     NO_UNDO,
+    /** The number of transactions that were blocked due to the local partition's timestamps */
+    BLOCKED_LOCAL,
+    /** The number of transactions that were blocked due to a remote partition's timestamps */
+    BLOCKED_REMOTE,
     ;
     
     private final Histogram<String> h = new Histogram<String>();
@@ -102,6 +106,8 @@ public enum TxnCounter {
             case RECEIVED:
             case EXECUTED:
             case THROTTLED:
+            case BLOCKED_LOCAL:
+            case BLOCKED_REMOTE:
                 total = RECEIVED.get();
                 break;
             case COMPLETED:

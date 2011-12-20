@@ -8,10 +8,14 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 import edu.mit.hstore.HStoreObjectPools;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
@@ -75,6 +79,8 @@ public class TransactionQueueManager implements Runnable {
     
     private PriorityBlockingQueue<LocalTransaction> blocked_dtxns = new PriorityBlockingQueue<LocalTransaction>(100, blocked_comparator);
     
+    private Histogram<Integer> blocked_hist = new Histogram<Integer>();
+    
     /**
      * Constructor
      * @param hstore_site
@@ -83,6 +89,8 @@ public class TransactionQueueManager implements Runnable {
         this.hstore_site = hstore_site;
         this.localPartitions = hstore_site.getLocalPartitionIds();
         assert(this.localPartitions.isEmpty() == false);
+        
+        
         
         Collection<Integer> allPartitions = hstore_site.getAllPartitionIds();
         int num_ids = allPartitions.size();
@@ -102,6 +110,10 @@ public class TransactionQueueManager implements Runnable {
         
         if (debug.get())
             LOG.debug(String.format("Created %d TransactionInitQueues for %s", num_ids, hstore_site.getSiteName()));
+    }
+    
+    public String getBockedHistogramString() {
+        return blocked_hist.toString();
     }
     
     /**
@@ -130,7 +142,7 @@ public class TransactionQueueManager implements Runnable {
         while (true) {
             synchronized (this) {
                 try {
-                    wait(this.wait_time);
+                    wait(this.wait_time*10);
                 } catch (InterruptedException e) {
                     // Nothing...
                 }
@@ -395,7 +407,8 @@ public class TransactionQueueManager implements Runnable {
     }
     
     /**
-     * 
+     * A LocalTransaction from this HStoreSite is blocked because a remote HStoreSite that it needs to
+     * access a partition on has its last tranasction id as greater than what the LocalTransaction was issued.
      * @param ts
      * @param partition
      * @param txn_id
@@ -414,6 +427,13 @@ public class TransactionQueueManager implements Runnable {
         }
         if (this.localPartitions.contains(partition) == false) {
             this.markAsLastTxnId(partition, txn_id);
+        }
+        if (hstore_site.getHStoreConf().site.status_show_txn_info && ts.getRestartCounter() == 1) {
+            TxnCounter.BLOCKED_REMOTE.inc(ts.getProcedure());
+            
+//            Partition catalog_part = CatalogUtil.getPartitionById(hstore_site.getDatabase(), partition);
+            //blocked_hist.put(((Site)catalog_part.getParent()).getId());
+            blocked_hist.put((int)TransactionIdManager.getInitiatorIdFromTransactionId(txn_id));
         }
     }
     
