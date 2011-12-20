@@ -1109,6 +1109,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         VoltTable results[] = null;
+        if (this.plan.isReadOnly() == false) m_localTxnState.markExecNotReadOnlyAllPartitions();
         if (this.plan.isSingledPartitionedAndLocal()) {
             if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
             results = this.executor.executeLocalPlan(m_localTxnState, this.plan, params);

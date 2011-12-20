@@ -107,12 +107,12 @@ public class BatchPlanner {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
-    private final boolean enable_unique_ids;
     private int last_id = FIRST_DEPENDENCY_ID;
     private BatchPlan plan;
     private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>();
     private final Map<Integer, PartitionFragment.Builder> round_builders = new HashMap<Integer, PartitionFragment.Builder>();
-    
+
+    private final boolean enable_unique_ids;
     private final boolean enable_profiling;
     private final boolean enable_caching;
     
