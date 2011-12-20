@@ -85,13 +85,10 @@ public class TestPlanNodeUtil extends BaseTestCase {
                 assertNotNull(exp0);
                 AbstractExpression exp1 = exps1.get(j);
                 assertNotNull(exp1);
-                assertFalse(exp0 == exp1);
+//                assertFalse(exp0 == exp1);
                 assertEquals(exp0, exp1);
             } // FOR (exps)
-            
         } // FOR (nodes)
-        
-        
     }
     
     /**
