@@ -12,6 +12,7 @@ import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.LimitPlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.types.PlanNodeType;
 
@@ -52,6 +53,7 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
             this.addStmtProcedure("AggregateColumnAddition", "SELECT AVG(TABLEC.C_VALUE0), C_B_A_ID FROM TABLEC WHERE TABLEC.C_ID = ? GROUP BY C_B_A_ID");
             this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
             this.addStmtProcedure("GroupBy", "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
+            this.addStmtProcedure("LimitOrderBy", "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
         }
     };
 
@@ -441,5 +443,37 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         assertNotNull(root);
 //        validateNodeColumnOffsets(root);
         // System.err.println(PlanNodeUtil.debug(root));
+    }
+    
+
+    /**
+     * testLimitOrderBy
+     */
+    @Test
+    public void testLimitOrderBy() throws Exception {   
+        Procedure catalog_proc = this.getProcedure("LimitOrderBy");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+        assertNotNull(root);
+        
+        // We should have two LIMITs and two ORDER BYs
+        Class<?> planClasses[] = { LimitPlanNode.class, OrderByPlanNode.class };
+        for (Class<?> c : planClasses) {
+            @SuppressWarnings("unchecked")
+            Collection<AbstractPlanNode> nodes = PlanNodeUtil.getPlanNodes(root, (Class<AbstractPlanNode>)c);
+            assertNotNull(nodes);
+            assertEquals(2, nodes.size());
+            
+            // Make sure each one only has one child!
+            for (AbstractPlanNode node : nodes) {
+                assertEquals(PlanNodeUtil.debug(node), 1, node.getChildPlanNodeCount());
+            } // FOR
+        } // FOR
+        
+//        validateNodeColumnOffsets(root);
+//         System.err.println(PlanNodeUtil.debug(root));
     }
 }
