@@ -56,6 +56,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
@@ -170,16 +171,28 @@ public class SEATSClient extends SEATSBaseClient {
     // RESERVED SEAT BITMAPS
     // -----------------------------------------------------------------
     
-    protected final LinkedList<Reservation> CACHE_PENDING_INSERTS = new LinkedList<Reservation>();
-    protected final LinkedList<Reservation> CACHE_PENDING_UPDATES = new LinkedList<Reservation>();
-    protected final LinkedList<Reservation> CACHE_PENDING_DELETES = new LinkedList<Reservation>();
-
-    protected final Map<List<Reservation>, Integer> CACHE_LOCKS = new HashMap<List<Reservation>, Integer>();
+    public enum CacheType {
+        PENDING_INSERTS     (SEATSConstants.CACHE_LIMIT_PENDING_INSERTS),
+        PENDING_UPDATES     (SEATSConstants.CACHE_LIMIT_PENDING_UPDATES),
+        PENDING_DELETES     (SEATSConstants.CACHE_LIMIT_PENDING_DELETES),
+        ;
+        
+        private CacheType(int limit) {
+            this.limit = limit;
+            this.lock = new ReentrantLock();
+        }
+        
+        private final int limit;
+        private final ReentrantLock lock;
+    }
+    
+    protected final Map<CacheType, LinkedList<Reservation>> CACHE_RESERVATIONS = new HashMap<SEATSClient.CacheType, LinkedList<Reservation>>();
     {
-        CACHE_LOCKS.put(CACHE_PENDING_INSERTS, SEATSConstants.CACHE_LIMIT_PENDING_INSERTS);
-        CACHE_LOCKS.put(CACHE_PENDING_UPDATES, SEATSConstants.CACHE_LIMIT_PENDING_UPDATES);
-        CACHE_LOCKS.put(CACHE_PENDING_DELETES, SEATSConstants.CACHE_LIMIT_PENDING_DELETES);
-    } // STATIC
+        for (CacheType ctype : CacheType.values()) {
+            CACHE_RESERVATIONS.put(ctype, new LinkedList<Reservation>());
+        } // FOR
+    } // STATIC 
+    
     
     protected static final ConcurrentHashMap<CustomerId, Set<FlightId>> CACHE_CUSTOMER_BOOKED_FLIGHTS = new ConcurrentHashMap<CustomerId, Set<FlightId>>();
     protected static final Map<FlightId, BitSet> CACHE_BOOKED_SEATS = new HashMap<FlightId, BitSet>();
@@ -233,10 +246,13 @@ public class SEATSClient extends SEATSBaseClient {
      */
     protected Set<CustomerId> getPendingCustomers(FlightId flight_id) {
         Set<CustomerId> customers = new HashSet<CustomerId>();
-        synchronized (CACHE_PENDING_INSERTS) {
-            for (Reservation r : CACHE_PENDING_INSERTS) {
+        CacheType.PENDING_INSERTS.lock.lock();
+        try {
+            for (Reservation r : CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS)) {
                 if (r.flight_id.equals(flight_id)) customers.add(r.customer_id);
             } // FOR
+        } finally {
+            CacheType.PENDING_INSERTS.lock.unlock();
         } // SYNCH
         return (customers);
     }
@@ -248,12 +264,15 @@ public class SEATSClient extends SEATSBaseClient {
      * @return
      */
     protected boolean isCustomerPendingOnFlight(CustomerId customer_id, FlightId flight_id) {
-        synchronized (CACHE_PENDING_INSERTS) {
-            for (Reservation r : CACHE_PENDING_INSERTS) {
+        CacheType.PENDING_INSERTS.lock.lock();
+        try {
+            for (Reservation r : CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS)) {
                 if (r.flight_id.equals(flight_id) && r.customer_id.equals(customer_id)) {
                     return (true);
                 }
             } // FOR
+        } finally {
+            CacheType.PENDING_INSERTS.lock.unlock();
         } // SYNCH
         return (false);
     }
@@ -275,9 +294,9 @@ public class SEATSClient extends SEATSBaseClient {
     @Override
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        m.put("CACHE_PENDING_INSERTS", CACHE_PENDING_INSERTS);
-        m.put("CACHE_PENDING_UPDATES", CACHE_PENDING_UPDATES);
-        m.put("CACHE_PENDING_DELETES", CACHE_PENDING_DELETES);
+        for (CacheType ctype : CACHE_RESERVATIONS.keySet()) {
+            m.put(ctype.name(), CACHE_RESERVATIONS.get(ctype));
+        } // FOR
         m.put("CACHE_CUSTOMER_BOOKED_FLIGHTS", CACHE_CUSTOMER_BOOKED_FLIGHTS); 
         m.put("CACHE_BOOKED_SEATS", CACHE_BOOKED_SEATS); 
         
@@ -493,21 +512,24 @@ public class SEATSClient extends SEATSBaseClient {
     @Override
     public void tick(int counter) {
         super.tick(counter);
-        for (Entry<List<Reservation>, Integer> e : CACHE_LOCKS.entrySet()) {
-            List<Reservation> cache = e.getKey();
-            int limit = e.getValue();
-            int before = cache.size();
-            if (before > limit) {
-                synchronized (cache) {
-                    Collections.shuffle(cache, rng);
-                    while (cache.size() > limit) {
-                        cache.remove(0);
-                    } // WHILE
-                    if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
-                                                  cache.size(), before)); 
+        for (CacheType ctype : CACHE_RESERVATIONS.keySet()) {
+//            if (ctype.lock.tryLock()) {
+                try {
+                    List<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
+                    int before = cache.size();
+                    if (before > ctype.limit) {
+                        Collections.shuffle(cache, rng);
+                        while (cache.size() > ctype.limit) {
+                            cache.remove(0);
+                        } // WHILE
+                        if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
+                                                   cache.size(), before));
+                    } // IF
+                } finally {
+//                    ctype.lock.unlock();
                 } // SYNCH
-            } // SYNCH
-        }
+//            } // IF
+        } // FOR
         
         if (this.getClientId() == 0) {
             LOG.info("NewReservation Errors:\n" + newReservationErrors);
@@ -525,11 +547,21 @@ public class SEATSClient extends SEATSBaseClient {
         
         // Queue this motha trucka up for a deletin'
         if (val < SEATSConstants.PROB_DELETE_NEW_RESERVATION) {
-            CACHE_PENDING_DELETES.add(r);
+            CacheType.PENDING_DELETES.lock.lock();
+            try {
+                CACHE_RESERVATIONS.get(CacheType.PENDING_DELETES).add(r);
+            } finally {
+                CacheType.PENDING_DELETES.lock.unlock();
+            } // SYNCH
         }
         // Or queue it for an update
         else if (val < SEATSConstants.PROB_UPDATE_NEW_RESERVATION + SEATSConstants.PROB_DELETE_NEW_RESERVATION) {
-            CACHE_PENDING_UPDATES.add(r);
+            CacheType.PENDING_UPDATES.lock.lock();
+            try {
+                CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES).add(r);
+            } finally {
+                CacheType.PENDING_UPDATES.lock.unlock();
+            } // SYNCH
         }
     }
     
@@ -569,8 +601,11 @@ public class SEATSClient extends SEATSBaseClient {
                 
                 // And then put it up for a pending insert
                 if (rng.nextInt(100) < SEATSConstants.PROB_REQUEUE_DELETED_RESERVATION) {
-                    synchronized (CACHE_PENDING_INSERTS) {
-                        CACHE_PENDING_INSERTS.offer(element);
+                    CacheType.PENDING_INSERTS.lock.lock();
+                    try {
+                        CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS).add(element);
+                    } finally {
+                        CacheType.PENDING_INSERTS.lock.unlock();
                     } // SYNCH
                 }
                 
@@ -585,7 +620,7 @@ public class SEATSClient extends SEATSBaseClient {
         this.startComputeTime(txn.displayName);
         
         // Pull off the first cached reservation and drop it on the cluster...
-        Reservation r = CACHE_PENDING_DELETES.poll();
+        Reservation r = CACHE_RESERVATIONS.get(CacheType.PENDING_DELETES).poll();
         if (r == null) {
             this.stopComputeTime(txn.displayName);
             return (false);
@@ -764,18 +799,22 @@ public class SEATSClient extends SEATSBaseClient {
             if (reservations.isEmpty() == false) {
                 int ctr = 0;
                 Collections.shuffle(reservations);
-                synchronized (CACHE_PENDING_INSERTS) {
+                List<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
+                assert(cache != null) : "Unexpected " + CacheType.PENDING_INSERTS;
+                CacheType.PENDING_INSERTS.lock.lock();
+                try {
                     for (Reservation r : reservations) {
-                        if (CACHE_PENDING_INSERTS.contains(r) == false) {
-                            CACHE_PENDING_INSERTS.offer(r);
+                        if (cache.contains(r) == false) {
+                            cache.add(r);
                             ctr++;
                         }
                     } // FOR
+                } finally {
+                    CacheType.PENDING_INSERTS.lock.unlock();
                 } // SYNCH
-
                 if (debug.get())
                     LOG.debug(String.format("Stored %d pending inserts for %s [totalPendingInserts=%d]",
-                              ctr, element, CACHE_PENDING_INSERTS.size()));
+                              ctr, element, cache.size()));
             }
             BitSet seats = getSeatsBitSet(element);
             for (int i = 0; i < SEATSConstants.NUM_SEATS_PER_FLIGHT; i++) {
@@ -897,13 +936,18 @@ public class SEATSClient extends SEATSBaseClient {
         this.startComputeTime(txn.displayName);
         Reservation reservation = null;
         BitSet seats = null;
+        LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_INSERTS);
+        assert(cache != null) : "Unexpected " + CacheType.PENDING_INSERTS;
         
         if (debug.get()) LOG.debug(String.format("Attempting to get a new pending insert Reservation [totalPendingInserts=%d]",
-                                                 CACHE_PENDING_INSERTS.size()));
+                                                 cache.size()));
         while (reservation == null) {
             Reservation r = null;
-            synchronized (CACHE_PENDING_INSERTS) {
-                r = CACHE_PENDING_INSERTS.poll();
+            CacheType.PENDING_INSERTS.lock.lock();
+            try {
+                r = cache.poll();
+            } finally {
+                CacheType.PENDING_INSERTS.lock.unlock();
             } // SYNCH
             if (r == null) break;
             
@@ -1035,8 +1079,17 @@ public class SEATSClient extends SEATSBaseClient {
     private boolean executeUpdateReservation(Transaction txn) throws IOException {
         this.startComputeTime(txn.displayName);
         
+        LinkedList<Reservation> cache = CACHE_RESERVATIONS.get(CacheType.PENDING_UPDATES);
+        assert(cache != null) : "Unexpected " + CacheType.PENDING_UPDATES;
+        
         // Pull off the first pending seat change and throw that ma at the server
-        Reservation r = CACHE_PENDING_UPDATES.poll();
+        Reservation r = null;
+        CacheType.PENDING_UPDATES.lock.lock();
+        try {
+            r = cache.poll();
+        } finally {
+            CacheType.PENDING_UPDATES.lock.unlock();
+        } // SYNCH
         if (r == null) {
             this.stopComputeTime(txn.displayName);
             return (false);

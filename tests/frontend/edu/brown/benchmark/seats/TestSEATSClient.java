@@ -50,7 +50,7 @@ public class TestSEATSClient extends SEATSBaseTestCase {
             for (BitSet seats : CACHE_BOOKED_SEATS.values()) {
                 seats.clear();
             } // FOR
-            for (List<Reservation> queue : CACHE_LOCKS.keySet()) {
+            for (List<Reservation> queue : CACHE_RESERVATIONS.values()) {
                 queue.clear();
             } // FOR
             for (Set<FlightId> f_ids : CACHE_CUSTOMER_BOOKED_FLIGHTS.values()) {

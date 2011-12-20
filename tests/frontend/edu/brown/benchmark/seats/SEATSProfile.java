@@ -27,6 +27,7 @@
  ***************************************************************************/
 package edu.brown.benchmark.seats;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -177,9 +178,12 @@ public class SEATSProfile {
         this.reservation_upcoming_offset = other.reservation_upcoming_offset;
         this.num_records.putHistogram(other.num_records);
         this.code_id_xref.putAll(other.code_id_xref);
-        this.cached_flight_ids.addAll(other.cached_flight_ids);
         this.airport_histograms.putAll(other.airport_histograms);
         this.histograms.putAll(other.histograms);
+        
+        this.cached_flight_ids.addAll(other.cached_flight_ids);
+        Collections.shuffle(this.cached_flight_ids);
+        
         return (this);
     }
     

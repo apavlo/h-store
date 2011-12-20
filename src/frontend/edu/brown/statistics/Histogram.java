@@ -722,9 +722,11 @@ public class Histogram<X> implements JSONSerializable {
                 Field field = Histogram.class.getDeclaredField(element.toString().toLowerCase());
                 if (element == Members.HISTOGRAM) {
                     stringer.key(Members.HISTOGRAM.name()).object();
-                    for (Object value : this.histogram.keySet()) {
-                        stringer.key(value.toString()).value(this.histogram.get(value));
-                    } // FOR
+                    synchronized (this) {
+                        for (Object value : this.histogram.keySet()) {
+                            stringer.key(value.toString()).value(this.histogram.get(value));
+                        } // FOR
+                    } // SYNCH
                     stringer.endObject();
                 } else if (element == Members.KEEP_ZERO_ENTRIES) {
                     if (this.keep_zero_entries) stringer.key(element.name()).value(this.keep_zero_entries);
