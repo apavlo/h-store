@@ -40,15 +40,13 @@ public class LocalityProjectBuilder extends AbstractProjectBuilder {
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
         Get.class,
         Set.class,
-        Get.class,
-        Set.class,
     };
     // Transaction Frequencies
     {
         addTransactionFrequency(Get.class, LocalityConstants.FREQUENCY_GET_LOCAL);
         addTransactionFrequency(Set.class, LocalityConstants.FREQUENCY_SET_LOCAL);
-        addTransactionFrequency(Get.class, LocalityConstants.FREQUENCY_GET_REMOTE);
-        addTransactionFrequency(Set.class, LocalityConstants.FREQUENCY_SET_REMOTE);
+//        addTransactionFrequency(Get.class, LocalityConstants.FREQUENCY_GET_REMOTE);
+//        addTransactionFrequency(Set.class, LocalityConstants.FREQUENCY_SET_REMOTE);
     }
     
     public static final String PARTITIONING[][] = 

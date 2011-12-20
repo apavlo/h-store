@@ -41,6 +41,7 @@ import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
@@ -206,7 +207,7 @@ public class SEATSProfile {
         
         ClientResponse response = null;
         try {
-            response = client.callProcedure("LoadConfig");
+            response = client.callProcedure(LoadConfig.class.getSimpleName());
         } catch (Exception ex) {
             throw new RuntimeException("Failed retrieve data from " + SEATSConstants.TABLENAME_CONFIG_PROFILE, ex);
         }
