@@ -81,8 +81,8 @@ public abstract class AbstractTransaction implements Poolable {
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
-    protected SerializableException pending_error;
     private boolean sysproc;
+    protected SerializableException pending_error;
 
     // ----------------------------------------------------------------------------
     // Attached Data Structures
@@ -107,7 +107,7 @@ public abstract class AbstractTransaction implements Poolable {
     private final FragmentTaskMessage work_task[];
     
     // ----------------------------------------------------------------------------
-    // PREDICTIONS FLAGS
+    // GLOBAL PREDICTIONS FLAGS
     // ----------------------------------------------------------------------------
     
     protected boolean predict_singlePartition = false;
@@ -117,6 +117,12 @@ public abstract class AbstractTransaction implements Poolable {
     
     /** Whether we predict that this txn will be read-only */
     private boolean predict_readOnly = false;
+    
+    // ----------------------------------------------------------------------------
+    // GLOBAL EXECUTION FLAGS
+    // ----------------------------------------------------------------------------
+    
+    private boolean exec_readOnlyAll = true;
     
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
@@ -129,7 +135,7 @@ public abstract class AbstractTransaction implements Poolable {
     
     /** Whether this transaction has been read-only so far */
     protected final boolean exec_readOnly[];
-
+    
     /** Whether this Transaction has submitted work to the EE that may need to be rolled back */
     protected final boolean exec_eeWork[];
     
@@ -205,6 +211,8 @@ public abstract class AbstractTransaction implements Poolable {
         this.pending_error = null;
         this.touched_partitions.clear();
         this.sysproc = false;
+        
+        this.exec_readOnlyAll = true;
         
         this.attached_inputs.clear();
         this.attached_parameterSets = null;
@@ -315,11 +323,27 @@ public abstract class AbstractTransaction implements Poolable {
         this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)] = false;
     }
     /**
+     * Mark this transaction as having issued a SQLStmt batch that modifies data on
+     * some partition
+     */
+    public void markExecNotReadOnlyAllPartitions() {
+        this.exec_readOnlyAll = false;
+    }
+
+    /**
      * Returns true if this transaction has not executed any modifying work at this partition
      */
     public boolean isExecReadOnly(int partition) {
         return (this.exec_readOnly[hstore_site.getLocalPartitionOffset(partition)]);
     }
+    /**
+     * Returns true if this transaction has not executed any modifying work at all the
+     * partitions that it accessed
+     */
+    public boolean isExecReadOnlyAllPartitions() {
+        return (this.exec_readOnlyAll);
+    }
+    
     /**
      * Returns true if this transaction executed without undo buffers at some point
      */

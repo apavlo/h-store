@@ -56,7 +56,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.apache.tools.ant.taskdefs.condition.IsFileSelected;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
@@ -94,7 +93,6 @@ import edu.brown.hstore.Hstore.Dependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
-import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -1391,7 +1389,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     // disable executing all transactions until the multi-partition transaction commits
                     // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
                     // that there already was a multi-partition transaction hanging around.
-                    if (status != Hstore.Status.OK) {
+                    if (status != Hstore.Status.OK && ts.isExecReadOnlyAllPartitions() == false) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
                         int blocked = this.work_queue.drainTo(this.current_blockedTxns);
                         if (t && blocked > 0)
@@ -1512,7 +1510,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         SerializableException error = null;
         
         try {
-            result = this.executeFragmentTaskMessage(ts, ftask, parameters);
+            result = this.executePartitionFragment(ts, ftask, parameters);
         } catch (ConstraintFailureException ex) {
             LOG.fatal("__FILE__:__LINE__ " + "Hit an ConstraintFailureException for " + ts, ex);
             status = Hstore.Status.ABORT_UNEXPECTED;
@@ -1610,7 +1608,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @return
      * @throws Exception
      */
-    private DependencySet executeFragmentTaskMessage(AbstractTransaction ts, PartitionFragment ftask, ParameterSet parameters[]) throws Exception {
+    private DependencySet executePartitionFragment(AbstractTransaction ts, PartitionFragment ftask, ParameterSet parameters[]) throws Exception {
         DependencySet result = null;
         final long undoToken = ts.getLastUndoToken(this.partitionId);
         int fragmentCount = ftask.getFragmentIdCount();
@@ -2484,23 +2482,21 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
                 }
             } else {
-//                synchronized (this.ee) {
-                    if (commit) {
-                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
-                        this.ee.releaseUndoToken(undoToken);
-        
-                    // Evan says that txns will be aborted LIFO. This means the first txn that
-                    // we get in abortWork() will have a the greatest undoToken, which means that 
-                    // it will automagically rollback all other outstanding txns.
-                    // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
-                    // we should be able to check whether our undoToken has already been rolled back
-                    } else {
-                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
-                                                       ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
-                        this.ee.undoUndoToken(undoToken);
-                    }
-//                } // SYNCH
+                if (commit) {
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                                                   ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
+                    this.ee.releaseUndoToken(undoToken);
+    
+                // Evan says that txns will be aborted LIFO. This means the first txn that
+                // we get in abortWork() will have a the greatest undoToken, which means that 
+                // it will automagically rollback all other outstanding txns.
+                // I'm lazy/tired, so for now I'll just rollback everything I get, but in theory
+                // we should be able to check whether our undoToken has already been rolled back
+                } else {
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Aborting %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
+                                                   ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
+                    this.ee.undoUndoToken(undoToken);
+                }
             }
         }
         
