@@ -393,7 +393,7 @@ def setup_env():
     ## WITH
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
-    sudo("ntpdate-debian")
+    __syncTime__()
     
     first_setup = False
     with settings(warn_only=True):
@@ -593,7 +593,6 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
         "client.processesperclient":    env["client.processesperclient"],
-        #"benchmark.warehouses":         partition_id,
         "project":                      project,
         "hosts":                        '"%s"' % ";".join(hosts),
     }
@@ -768,11 +767,18 @@ def sync_time():
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         with settings(host_string=inst.public_dns_name):
-            sudo("echo 1 > /proc/sys/xen/independent_wallclock")
-            sudo("ntpdate-debian -b")
+            __syncTime__()
     ## FOR
 ## DEF
-    
+
+## ----------------------------------------------
+## __syncTime__
+## ----------------------------------------------
+def __syncTime__():
+    sudo("echo 1 > /proc/sys/xen/independent_wallclock")
+    sudo("ntpdate-debian -b")
+## DEF
+
 
 ## ----------------------------------------------
 ## __startInstances__
