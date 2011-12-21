@@ -601,9 +601,10 @@ if __name__ == '__main__':
                                                                     removals=conf_remove, \
                                                                     json=(OPT_NO_JSON == False), \
                                                                     trace=OPT_TRACE, \
-                                                                    updateJar=updateJar,
-                                                                    updateConf=updateConf,
-                                                                    updateSVN=needUpdate)
+                                                                    updateJar=updateJar, \
+                                                                    updateConf=updateConf, \
+                                                                    updateSVN=needUpdate, \
+                                                                    updateLog4j=needUpdate)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
                                 for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:

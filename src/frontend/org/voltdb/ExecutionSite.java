@@ -405,6 +405,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private final List<ByteString> tmp_serializedParams = new ArrayList<ByteString>();
     
+    
+    /**
+     * Reusable ParameterSet arrays
+     * Size of ParameterSet[] -> ParameterSet[]
+     */
+    private final Map<Integer, ParameterSet[]> tmp_parameterSets = new HashMap<Integer, ParameterSet[]>();
+    
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
     // ----------------------------------------------------------------------------
@@ -761,29 +768,25 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     assert(fragment != null);
                     ParameterSet parameters[] = current_txn.getAttachedParameterSets();
                     assert(parameters != null);
-//                    if (current_txn instanceof LocalTransaction) {
-                        parameters = this.getFragmentParameters(current_txn, fragment, parameters);
-                        assert(parameters != null);
-//                    }
+                    parameters = this.getFragmentParameters(current_txn, fragment, parameters);
+                    assert(parameters != null);
                     
                     // At this point we know that we are either the current dtxn or the current dtxn is null
+                    // We will allow any read-only transaction to commit if
+                    // (1) The PartitionFragment for the remote txn is read-only
+                    // (2) This txn has always been read-only up to this point at this partition
+                    ExecutionMode nextMode = (hstore_conf.site.exec_speculative_execution == false ? ExecutionMode.DISABLED :
+                                              fragment.getReadOnly() && current_txn.isExecReadOnly(this.partitionId) ?
+                                                      ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
                     exec_lock.lock();
                     try {
+                        // There is no current DTXN, so that means its us!
                         if (this.current_dtxn == null) {
                             this.setCurrentDtxn(current_txn);
-                            if (hstore_conf.site.exec_speculative_execution) {
-                                this.setExecutionMode(current_txn, fragment.getReadOnly() ? ExecutionMode.COMMIT_READONLY : ExecutionMode.COMMIT_NONE);
-                            } else {
-                                this.setExecutionMode(current_txn, ExecutionMode.DISABLED);
-                            }
-                                
-                            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as current DTXN on partition %d [execMode=%s]",
-                                                           current_txn, this.partitionId, this.current_execMode));                    
-    
-                        // Check whether we should drop down to a less permissive speculative execution mode
-                        } else if (hstore_conf.site.exec_speculative_execution && fragment.getReadOnly() == false) {
-                            this.setExecutionMode(current_txn, ExecutionMode.COMMIT_NONE);
+                            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as current DTXN on partition %d [nextMode=%s]",
+                                                                    current_txn, this.partitionId, nextMode));                    
                         }
+                        this.setExecutionMode(current_txn, nextMode);
                     } finally {
                         exec_lock.unlock();
                     } // SYNCH
@@ -989,12 +992,18 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public VoltProcedure getVoltProcedure(String proc_name) {
         return (this.procedures.get(proc_name));
     }
-    
 
     private ParameterSet[] getFragmentParameters(AbstractTransaction ts, PartitionFragment fragment, ParameterSet allParams[]) {
-        // TODO: Use smart caching of this array!
-        ParameterSet fragmentParams[] = new ParameterSet[fragment.getFragmentIdCount()];
-        for (int i = 0, cnt = fragment.getStmtIndexCount(); i < cnt; i++) {
+        int num_fragments = fragment.getFragmentIdCount();
+        ParameterSet fragmentParams[] = tmp_parameterSets.get(num_fragments);
+        if (fragmentParams == null) {
+            fragmentParams = new ParameterSet[num_fragments];
+            tmp_parameterSets.put(num_fragments, fragmentParams); 
+        }
+        assert(fragmentParams != null);
+        assert(fragmentParams.length == num_fragments);
+        
+        for (int i = 0; i < num_fragments; i++) {
             int stmt_index = fragment.getStmtIndex(i);
             assert(stmt_index < allParams.length) :
                 String.format("StatementIndex is %d but there are only %d ParameterSets for %s",
