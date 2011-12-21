@@ -533,7 +533,7 @@ def deploy_hstore(build=True):
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateSVN=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateSVN=False, updateLog4j=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -615,6 +615,10 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
             prefix += " hstore-prepare"
         cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
         output = run(cmd)
+        
+        if updateLog4j:
+            LOG.info("Reverting log4j.properties")
+            run("svn revert %s %s" % (env["hstore.svn_options"].replace("--ignore-externals", ""), "log4j.properties"))
         
         ## If they wanted a trace file, then we have to ship it back to ourselves
         if trace:
