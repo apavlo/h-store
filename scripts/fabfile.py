@@ -764,6 +764,7 @@ def sync_time():
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         with settings(host_string=inst.public_dns_name):
+            sudo("echo 1 > /proc/sys/xen/independent_wallclock")
             sudo("ntpdate-debian -b")
     ## FOR
 ## DEF
