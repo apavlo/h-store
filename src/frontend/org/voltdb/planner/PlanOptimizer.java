@@ -625,9 +625,9 @@ public class PlanOptimizer {
                 if (col.getExpression() != null)
                     exps.add(col.getExpression());
             } // FOR
-            // ---------------------------------------------------
-            // ORDER BY
-            // ---------------------------------------------------
+        // ---------------------------------------------------
+        // ORDER BY
+        // ---------------------------------------------------
         } else if (node instanceof OrderByPlanNode) {
             OrderByPlanNode orby_node = (OrderByPlanNode) node;
             for (Integer col_guid : orby_node.getSortColumnGuids()) {

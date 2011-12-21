@@ -591,7 +591,10 @@ public class HStoreCoordinator implements Shutdownable {
     
     public void syncTime() {
         final int num_sites = this.channels.size();
-        final CountDownLatch latch = new CountDownLatch(num_sites);
+        // We don't need to do this if there is only one site
+        if (num_sites == 1) return;
+        
+        final CountDownLatch latch = new CountDownLatch(num_sites-1);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
         
         RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
@@ -606,6 +609,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         // Send out TimeSync request 
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
+            if (e.getKey() == this. local_site_id) continue;
             Hstore.TimeSyncRequest request = Hstore.TimeSyncRequest.newBuilder()
                                             .setSenderId(local_site_id)
                                             .setT0S(System.currentTimeMillis())
@@ -626,15 +630,17 @@ public class HStoreCoordinator implements Shutdownable {
         long max_dt = 0L;
         int culprit = this.local_site_id;
         for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
-            LOG.info("__FILE__:__LINE__ " + String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
+            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
             if (e.getValue() > max_dt) {
                 max_dt = e.getValue();
                 culprit = e.getKey();
             }
         }
         this.getHStoreSite().getTransactionIdManager().setTimeDelta(max_dt);
-        LOG.info("__FILE__:__LINE__ " + "Setting time delta to " + max_dt + "ms");
-        LOG.info("__FILE__:__LINE__ " + "I think the killer is site " + culprit + "!");
+        if (debug.get()) {
+            LOG.debug("__FILE__:__LINE__ " + "Setting time delta to " + max_dt + "ms");
+            LOG.debug("__FILE__:__LINE__ " + "I think the killer is site " + culprit + "!");
+        }
     }
     
     /**
