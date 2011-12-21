@@ -112,8 +112,8 @@ public class TransactionQueueManager implements Runnable {
             LOG.debug(String.format("Created %d TransactionInitQueues for %s", num_ids, hstore_site.getSiteName()));
     }
     
-    public String getBockedHistogramString() {
-        return blocked_hist.toString();
+    public Histogram<Integer> getBlockedDtxnHistogram() {
+        return this.blocked_hist;
     }
     
     /**

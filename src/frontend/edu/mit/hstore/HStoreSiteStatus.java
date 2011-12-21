@@ -59,8 +59,6 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private static Logger DEBUG_LOGGERS[] = { HStoreSite.LOG, ExecutionSite.LOG, HStoreCoordinator.LOG };
-    
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
     
     
@@ -854,8 +852,13 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         Map<String, Object> poolInfo = null;
         if (show_poolinfo) poolInfo = this.poolInfo();
         
-        return (StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo)) +
-                "\nHistogram of rejected txns from this site:\n" + hstore_site.getTransactionQueueManager().getBockedHistogramString();
+        String top = StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo);
+        String bot = "";
+        if (hstore_conf.site.status_show_txn_info) {
+            bot = "\nHistogram of rejected txns from this site:\n" + 
+                  hstore_site.getTransactionQueueManager().getBlockedDtxnHistogram(); 
+        }
+        return (top + bot);
     }
     
     private String formatPoolCounts(StackObjectPool pool, TypedPoolableObjectFactory<?> factory) {
