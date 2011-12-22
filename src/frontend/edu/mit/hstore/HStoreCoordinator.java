@@ -592,9 +592,9 @@ public class HStoreCoordinator implements Shutdownable {
     public void syncTime() {
         final int num_sites = this.channels.size();
         // We don't need to do this if there is only one site
-        if (num_sites == 1) return;
+        if (num_sites == 0) return;
         
-        final CountDownLatch latch = new CountDownLatch(num_sites-1);
+        final CountDownLatch latch = new CountDownLatch(num_sites);
         final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
         
         RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
