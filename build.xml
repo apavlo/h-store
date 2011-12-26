@@ -891,7 +891,6 @@ TEST CASES
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                <exclude name='org/voltdb/TestTheHashinator*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
                 <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
             </fileset>
@@ -956,7 +955,6 @@ TEST CASES
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                <exclude name='org/voltdb/TestTheHashinator*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
                 <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
 
