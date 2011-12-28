@@ -892,7 +892,6 @@ TEST CASES
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
-                <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
             </fileset>
         </tests>
     </run_junit>
@@ -956,7 +955,6 @@ TEST CASES
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
-                <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
