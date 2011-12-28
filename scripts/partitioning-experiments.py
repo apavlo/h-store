@@ -402,6 +402,7 @@ if __name__ == '__main__':
         "codespeed-url=",
         "codespeed-benchmark=",
         "codespeed-revision=",
+        "codespeed-lastrevision=",
         
         # Enable debug logging
         "debug",
@@ -488,6 +489,14 @@ if __name__ == '__main__':
         elif type(val) != types.FunctionType:
             env[key] = val
     ## FOR
+    
+    ## Check whether we have already executed this one before
+    if "codespeed-lastrevision" in options:
+        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+        if int(options["codespeed-lastrevision"][0]) <= last_changed_rev:
+            LOG.info("Skipping already executed revision r%d" % last_changed_rev)
+            sys.exit(0)
+    ## IF
     
     ## Figure out what keys we need to remove to ensure that one experiment
     ## doesn't contaminate another
@@ -583,8 +592,6 @@ if __name__ == '__main__':
                     else:
                         env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
                         
-
-                    
                     needCompile = False
                     attempts += 1
                     LOG.info("Executing %s Trial #%d/%d for Factor %s [attempt=%d/%d]" % (\
