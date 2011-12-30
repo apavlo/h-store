@@ -25,7 +25,7 @@ import java.util.*;
 public enum SortDirectionType {
     INVALID      (0),
     ASC          (1),
-    DESC            (2);
+    DESC         (2);
 
     SortDirectionType(int val) {
         assert (this.ordinal() == val) :
