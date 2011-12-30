@@ -3,8 +3,6 @@
  */
 package org.voltdb;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -17,7 +15,6 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.VoltTypeUtil;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
@@ -30,6 +27,8 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.RemoteTransaction;
 
@@ -66,12 +65,9 @@ public class TestExecutionSite extends BaseTestCase {
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
             Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+            HStoreSite hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
-            
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            executors.put(PARTITION_ID, site);
-            HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
-            site.initHStoreSite(hstore_site);
+            hstore_site.addExecutionSite(PARTITION_ID, site);
         }
     }
     

@@ -1,12 +1,9 @@
 package edu.mit.hstore;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Procedure;
@@ -22,7 +19,6 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -38,16 +34,6 @@ public class MockHStoreSite extends HStoreSite {
     // STATIC HELPERS
     // ----------------------------------------------------------------------------
     
-    static Map<Integer, ExecutionSite> makeExecutors(Site catalog_site, PartitionEstimator p_estimator) {
-        Map<Integer, ExecutionSite> m = new HashMap<Integer, ExecutionSite>(); 
-        for (Integer p : CatalogUtil.getLocalPartitionIds(catalog_site)) {
-            m.put(p, new MockExecutionSite(p, catalog_site.getCatalog(), p_estimator));
-        }
-        return (m);
-    }
-    static PartitionEstimator makePartitionEstimator(Site catalog_site) {
-        return new PartitionEstimator(CatalogUtil.getDatabase(catalog_site));
-    }
     static LocalTransaction makeLocalTransaction(HStoreSite hstore_site) {
         long txnId = hstore_site.getTransactionIdManager().getNextUniqueTransactionId();
         long clientHandle = -1;
@@ -70,10 +56,12 @@ public class MockHStoreSite extends HStoreSite {
     // INITIALIZATION
     // ----------------------------------------------------------------------------
     
-    public MockHStoreSite(Site catalog_site, PartitionEstimator p_estimator) {
-        super(catalog_site,
-              makeExecutors(catalog_site, p_estimator),
-              p_estimator);
+    public MockHStoreSite(Site catalog_site, HStoreConf hstore_conf) {
+        super(catalog_site, hstore_conf);
+        
+        for (Integer p : CatalogUtil.getLocalPartitionIds(catalog_site)) {
+            this.addExecutionSite(p, new MockExecutionSite(p, catalog_site.getCatalog(), this.getPartitionEstimator()));
+        }
     }
     @Override
     protected HStoreCoordinator initHStoreCoordinator() {
@@ -115,7 +103,7 @@ public class MockHStoreSite extends HStoreSite {
         hstore_conf.site.cpu_affinity = false;
         hstore_conf.site.status_interval = -1;
         
-        final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, makePartitionEstimator(catalog_site));
+        final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         hstore_site.init().start(); // Blocks until all connections are established
         final MockHStoreCoordinator hstore_coordinator = (MockHStoreCoordinator)hstore_site.getCoordinator();
         assert(hstore_coordinator.isStarted());

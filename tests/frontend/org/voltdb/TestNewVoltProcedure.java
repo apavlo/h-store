@@ -1,8 +1,6 @@
 package org.voltdb;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -20,6 +18,8 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -60,9 +60,8 @@ public class TestNewVoltProcedure extends BaseTestCase {
             site = new MockExecutionSite(LOCAL_PARTITION, catalog, p_estimator);
             
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            executors.put(LOCAL_PARTITION, site);
-            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
+            hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
+            hstore_site.addExecutionSite(LOCAL_PARTITION, site);
         }
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         this.volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);

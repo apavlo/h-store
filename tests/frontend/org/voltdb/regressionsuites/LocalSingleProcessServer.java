@@ -29,8 +29,14 @@ import org.voltdb.BackendTarget;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB.Configuration;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Site;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
+
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.FixCatalog;
+import edu.mit.hstore.HStoreConf;
 
 /**
  * Implementation of a VoltServerConfig for the simplest case:
@@ -130,6 +136,14 @@ public class LocalSingleProcessServer implements VoltServerConfig {
         config.m_pathToCatalog = m_jarFileName;
         config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
 
+        // TODO(mainak): Pass this into ServerThread 
+        Catalog catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
+        Site catalog_site = CatalogUtil.getSiteFromId(catalog, 0);
+        assert(catalog_site != null);
+        
+        // TODO(mainak): Pass this into ServerThread
+        HStoreConf hstore_conf = HStoreConf.singleton();
+        
         m_server = new ServerThread(config);
         m_server.start();
         m_server.waitForInitialization();

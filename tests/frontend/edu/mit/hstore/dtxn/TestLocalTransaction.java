@@ -17,6 +17,7 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.MockHStoreSite;
 
 /**
@@ -84,7 +85,7 @@ public class TestLocalTransaction extends BaseTestCase {
         } // FOR
         
         Site catalog_site = this.getSite(0);
-        this.hstore_site = new MockHStoreSite(catalog_site, p_estimator);
+        this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
         this.executor = (MockExecutionSite)this.hstore_site.getExecutionSite(BASE_PARTITION);
         assertNotNull(this.executor);
         this.ts = new LocalTransaction(this.hstore_site);
