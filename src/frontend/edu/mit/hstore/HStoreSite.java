@@ -25,7 +25,6 @@
  ***************************************************************************/
 package edu.mit.hstore;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -44,11 +43,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-import org.voltdb.BackendTarget;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.ExecutionSite;
 import org.voltdb.ExecutionSitePostProcessor;
-import org.voltdb.ProcedureProfiler;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
@@ -71,7 +68,6 @@ import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TimeSyncRequest;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
@@ -83,12 +79,17 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.markov.MarkovUtil;
 import edu.brown.markov.MarkovVertex;
 import edu.brown.markov.TransactionEstimator;
-import edu.brown.markov.containers.MarkovGraphContainersUtil;
-import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.*;
-import edu.brown.workload.Workload;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObservableExceptionHandler;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.ParameterMangler;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.callbacks.TransactionCleanupCallback;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectCallback;
@@ -302,27 +303,36 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param p_estimator
      */
     @SuppressWarnings("unchecked")
-    public HStoreSite(Site catalog_site, Map<Integer, ExecutionSite> executors, PartitionEstimator p_estimator) {
+    protected HStoreSite(Site catalog_site, HStoreConf hstore_conf) {
         assert(catalog_site != null);
-        assert(p_estimator != null);
         
-        this.hstore_conf = HStoreConf.singleton();
+        this.hstore_conf = hstore_conf;
         this.catalog_site = catalog_site;
         this.catalog_db = CatalogUtil.getDatabase(this.catalog_site);
         this.site_id = this.catalog_site.getId();
+        
+        // TODO: Pull the PartitionEstimator info from HStoreConf
+        this.p_estimator = new PartitionEstimator(this.catalog_db);
         
         // **IMPORTANT**
         // We have to setup the partition offsets before we do anything else here
         this.all_partitions = CatalogUtil.getAllPartitionIds(this.catalog_db);
         final int num_partitions = this.all_partitions.size();
-        this.local_partitions.addAll(executors.keySet());
+        this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         this.num_local_partitions = this.local_partitions.size();
+        
+        this.executors = new ExecutionSite[num_partitions];
+        this.executor_threads = new Thread[num_partitions];
+        this.single_partition_sets = new Collection[num_partitions];
+        
+        // Offset Hack
         this.LOCAL_PARTITION_OFFSETS = new int[num_partitions];
         this.LOCAL_PARTITION_REVERSE = new int[this.num_local_partitions];
         int offset = 0;
-        for (Integer p : executors.keySet()) {
-            this.LOCAL_PARTITION_OFFSETS[p.intValue()] = offset;
-            this.LOCAL_PARTITION_REVERSE[offset] = p.intValue(); 
+        for (int partition : this.local_partitions) {
+            this.LOCAL_PARTITION_OFFSETS[partition] = offset;
+            this.LOCAL_PARTITION_REVERSE[offset] = partition; 
+            this.single_partition_sets[partition] = Collections.singleton(partition);
             offset++;
         } // FOR
         for (Partition catalog_part : CatalogUtil.getAllPartitions(catalog_site)) {
@@ -333,23 +343,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         HStoreObjectPools.initialize(this);
         
         // General Stuff
-        this.p_estimator = p_estimator;
         this.hasher = this.p_estimator.getHasher();
         this.thresholds = new EstimationThresholds(); // default values
 
         // Distributed Transaction Queue Manager
         this.txnQueueManager = new TransactionQueueManager(this);
-        
-        this.executors = new ExecutionSite[num_partitions];
-        this.executor_threads = new Thread[num_partitions];
         this.txnid_manager = new TransactionIdManager(this.site_id);
-        this.single_partition_sets = new Collection[num_partitions];
-        
-        for (int partition : executors.keySet()) {
-            this.executors[partition] = executors.get(partition);
-//            this.inflight_txns_ctr[partition] = new AtomicInteger(0); 
-            this.single_partition_sets[partition] = Collections.singleton(partition); 
-        } // FOR
         this.threadManager = new HStoreThreadManager(this);
         this.voltListener = new VoltProcedureListener(this.procEventLoop, this);
         
@@ -438,6 +437,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public AbstractHasher getHasher() {
         return (this.hasher);
     }
+    
+    public void addExecutionSite(int partition, ExecutionSite executor) {
+        assert(executor != null);
+        this.executors[partition] = executor;
+    }
     public ExecutionSite getExecutionSite(int partition) {
         ExecutionSite es = this.executors[partition]; 
         assert(es != null) : "Unexpected null ExecutionSite for partition #" + partition + " on " + this.getSiteName();
@@ -477,7 +481,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public EstimationThresholds getThresholds() {
         return thresholds;
     }
-    private void setThresholds(EstimationThresholds thresholds) {
+    protected void setThresholds(EstimationThresholds thresholds) {
          this.thresholds = thresholds;
 //         if (d) 
          LOG.info("__FILE__:__LINE__ " + "Set new EstimationThresholds: " + thresholds);
@@ -560,7 +564,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Initializes all the pieces that we need to start this HStore site up
      */
-    public HStoreSite init() {
+    protected HStoreSite init() {
         if (d) LOG.debug("__FILE__:__LINE__ " + "Initializing HStoreSite " + this.getSiteName());
 
         List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
@@ -671,7 +675,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Mark this HStoreSite as ready for action!
      */
-    public synchronized HStoreSite start() {
+    protected synchronized HStoreSite start() {
         if (this.ready) {
             LOG.warn("__FILE__:__LINE__ " + "Already told that we were ready... Ignoring");
             return (this);
@@ -692,9 +696,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * Returns true if this HStoreSite is ready
+     * Returns true if this HStoreSite is fully initialized and running
+     * This will be set to false if the system is shutting down
      */
-    public boolean isReady() {
+    public boolean isRunning() {
         return (this.ready);
     }
 
@@ -1773,21 +1778,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // MAGIC HSTORESITE LAUNCHER
     // ----------------------------------------------------------------------------
     
+
     /**
-     * 
-     * @param hstore_site
-     * @param hstore_conf_path
-     * @param dtxnengine_path
-     * @param dtxncoordinator_path
-     * @param dtxncoord_path
-     * @param execHost
-     * @param execPort
-     * @param coordinatorHost
-     * @param coordinatorPort
+     * Magic HStoreSite launcher
+     * This is a blocking call!
      * @throws Exception
      */
-    public static void launch(final HStoreSite hstore_site, final String hstore_conf_path) throws Exception {
+    public void run() {
         List<Runnable> runnables = new ArrayList<Runnable>();
+        final HStoreSite hstore_site = this;
         final Site catalog_site = hstore_site.getSite();
         
         // ----------------------------------------------------------------------------
@@ -1853,110 +1852,5 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // This will block the MAIN thread!
         ThreadUtil.runNewPool(runnables);
-    }
-    
-    /**
-     * Required Arguments
-     * catalog.jar=<path/to/catalog.jar>
-     * coordinator.host=<hostname>
-     * coordinator.port=<#>
-     * 
-     * @param vargs
-     * @throws Exception
-     */
-    public static void main(String[] vargs) throws Exception {
-        ArgumentsParser args = ArgumentsParser.load(vargs,
-                    ArgumentsParser.PARAM_CATALOG,
-                    ArgumentsParser.PARAM_SITE_ID,
-                    ArgumentsParser.PARAM_CONF
-        );
-        
-        // HStoreSite Stuff
-        final int site_id = args.getIntParam(ArgumentsParser.PARAM_SITE_ID);
-        Thread t = Thread.currentThread();
-        t.setName(HStoreSite.getThreadName(site_id, "main", null));
-        
-        final Site catalog_site = CatalogUtil.getSiteFromId(args.catalog_db, site_id);
-        if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
-        
-        HStoreConf.initArgumentsParser(args, catalog_site);
-        if (d) LOG.debug("__FILE__:__LINE__ " + "HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
-        
-        // For every partition in our local site, we want to setup a new ExecutionSite
-        // Thankfully I had enough sense to have PartitionEstimator take in the local partition
-        // as a parameter, so we can share a single instance across all ExecutionSites
-        PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db, args.hasher);
-        Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-
-        // ----------------------------------------------------------------------------
-        // MarkovGraphs
-        // ----------------------------------------------------------------------------
-        Map<Integer, MarkovGraphsContainer> markovs = null;
-        if (args.hasParam(ArgumentsParser.PARAM_MARKOV)) {
-            File path = new File(args.getParam(ArgumentsParser.PARAM_MARKOV));
-            if (path.exists()) {
-                markovs = MarkovGraphContainersUtil.loadIds(args.catalog_db, path.getAbsolutePath(), CatalogUtil.getLocalPartitionIds(catalog_site));
-                MarkovGraphContainersUtil.setHasher(markovs, p_estimator.getHasher());
-                LOG.info("__FILE__:__LINE__ " + "Finished loading MarkovGraphsContainer '" + path + "'");
-            } else if (d) LOG.warn("__FILE__:__LINE__ " + "The Markov Graphs file '" + path + "' does not exist");
-        }
-
-        // ----------------------------------------------------------------------------
-        // Workload Trace Output
-        // ----------------------------------------------------------------------------
-        if (args.hasParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT)) {
-            ProcedureProfiler.profilingLevel = ProcedureProfiler.Level.INTRUSIVE;
-            String traceClass = Workload.class.getName();
-            String tracePath = args.getParam(ArgumentsParser.PARAM_WORKLOAD_OUTPUT) + "-" + site_id;
-            String traceIgnore = args.getParam(ArgumentsParser.PARAM_WORKLOAD_PROC_EXCLUDE);
-            ProcedureProfiler.initializeWorkloadTrace(args.catalog, traceClass, tracePath, traceIgnore);
-            LOG.info("__FILE__:__LINE__ " + "Enabled workload logging '" + tracePath + "'");
-        }
-        
-        // ----------------------------------------------------------------------------
-        // Partition Initialization
-        // ----------------------------------------------------------------------------
-        for (Partition catalog_part : catalog_site.getPartitions()) {
-            int local_partition = catalog_part.getId();
-            MarkovGraphsContainer local_markovs = null;
-            if (markovs != null) {
-                if (markovs.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID)) {
-                    local_markovs = markovs.get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
-                } else {
-                    local_markovs = markovs.get(local_partition);
-                }
-                assert(local_markovs != null) : "Failed to get the proper MarkovGraphsContainer that we need for partition #" + local_partition;
-            }
-
-            // Initialize TransactionEstimator stuff
-            // Load the Markov models if we were given an input path and pass them to t_estimator
-            // HACK: For now we have to create a TransactionEstimator for all partitions, since
-            // it is written under the assumption that it was going to be running at just a single partition
-            // I'm not proud of this...
-            // Load in all the partition-specific TransactionEstimators and ExecutionSites in order to 
-            // stick them into the HStoreSite
-            if (d) LOG.debug("__FILE__:__LINE__ " + "Creating Estimator for " + HStoreSite.formatSiteName(site_id));
-            TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, local_markovs);
-
-            // setup the EE
-            if (d) LOG.debug("__FILE__:__LINE__ " + "Creating ExecutionSite for Partition #" + local_partition);
-            ExecutionSite executor = new ExecutionSite(
-                    local_partition,
-                    args.catalog,
-                    BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
-                    p_estimator,
-                    t_estimator);
-            executors.put(local_partition, executor);
-        } // FOR
-        
-        // Now we need to create an HStoreMessenger and pass it to all of our ExecutionSites
-        HStoreSite site = new HStoreSite(catalog_site, executors, p_estimator);
-        if (args.thresholds != null) site.setThresholds(args.thresholds);
-        
-        // ----------------------------------------------------------------------------
-        // Bombs Away!
-        // ----------------------------------------------------------------------------
-        LOG.info("__FILE__:__LINE__ " + "Instantiating HStoreSite network connections...");
-        HStoreSite.launch(site, args.getParam(ArgumentsParser.PARAM_DTXN_CONF));
     }
 }

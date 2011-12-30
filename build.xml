@@ -2283,7 +2283,7 @@ H-STORE REMIX
         <not><isset property="mappings"/></not>
     </condition>
 
-    <java fork="yes" classname="edu.mit.hstore.HStoreSite">
+    <java fork="yes" classname="edu.mit.hstore.HStore">
         <jvmarg value="-Dhstore.tag=site" />
         <jvmarg value="-Xms${site.memory}m" />
         <jvmarg value="-Xmx${site.memory}m" />

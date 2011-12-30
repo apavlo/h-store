@@ -160,7 +160,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                 return;
             }
             if (this.hstore_site.isShuttingDown()) break;
-            if (this.hstore_site.isReady() == false) continue;
+            if (this.hstore_site.isRunning() == false) continue;
 
             // Out we go!
             this.printSnapshot();

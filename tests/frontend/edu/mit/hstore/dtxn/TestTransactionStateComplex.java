@@ -37,6 +37,8 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
 
@@ -107,9 +109,8 @@ public class TestTransactionStateComplex extends BaseTestCase {
             } // FOR
             
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            executors.put(LOCAL_PARTITION, executor);
-            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
+            hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
+            hstore_site.addExecutionSite(LOCAL_PARTITION, executor);
             
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);

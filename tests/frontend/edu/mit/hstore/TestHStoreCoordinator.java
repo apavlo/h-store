@@ -6,30 +6,17 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
-import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
-import ca.evanjones.protorpc.ProtoRpcController;
-
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.BaseTestCase;
-import edu.brown.hstore.Hstore;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -62,14 +49,13 @@ public class TestHStoreCoordinator extends BaseTestCase {
         this.initializeCluster(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
+            this.sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
             
             // We have to make our fake ExecutionSites for each Partition at this site
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
             for (Partition catalog_part : catalog_site.getPartitions()) {
-                executors.put(catalog_part.getId(), new MockExecutionSite(catalog_part.getId(), catalog, p_estimator));
+                this.sites[i].addExecutionSite(catalog_part.getId(), new MockExecutionSite(catalog_part.getId(), catalog, p_estimator));
             } // FOR
             
-            this.sites[i] = new HStoreSite(catalog_site, executors, p_estimator);
             this.messengers[i] = this.sites[i].initHStoreCoordinator();
         } // FOR
 

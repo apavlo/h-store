@@ -1,9 +1,7 @@
 package edu.mit.hstore.util;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
@@ -20,6 +18,8 @@ import edu.brown.hstore.Hstore.TransactionInitResponse;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.TransactionInitWrapperCallback;
 
@@ -49,14 +49,10 @@ public class TestTransactionQueueManager extends BaseTestCase {
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
         assertNotNull(catalog_site);
-        Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+        hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
         for (int p = 0; p < NUM_PARTITONS; p++) {
             ExecutionSite site = new MockExecutionSite(p, catalog, p_estimator);
-            executors.put(p, site);
-        } // FOR
-        hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
-        for (ExecutionSite site : executors.values()) {
-            site.initHStoreSite(hstore_site);    
+            hstore_site.addExecutionSite(p, site);
         } // FOR
         
         this.queue = new TransactionQueueManager(hstore_site);
