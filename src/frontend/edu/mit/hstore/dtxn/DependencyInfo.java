@@ -37,30 +37,30 @@ public class DependencyInfo implements Poolable {
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected LocalTransaction ts;
-    protected int stmt_index = -1;
-    protected int dependency_id = -1;
+    private LocalTransaction ts;
+    private int stmt_index = -1;
+    private int dependency_id = -1;
     
     /**
      * List of PartitionIds that we expect to get responses/results back
      */
-    protected final List<Integer> partitions = new ArrayList<Integer>();
+    private final List<Integer> partitions = new ArrayList<Integer>();
     
     /**
      * The list of PartitionIds that have sent results
      */
-    protected final List<Integer> results = new ArrayList<Integer>();
+    private final List<Integer> results = new ArrayList<Integer>();
 
     /**
      * The list of VoltTable results that have been sent back partitions
      * We store it as a list so that we don't have to convert it for ExecutionSite
      */
-    protected final List<VoltTable> results_list = new ArrayList<VoltTable>();
+    private final List<VoltTable> results_list = new ArrayList<VoltTable>();
     
     /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
-    protected final Set<Hstore.TransactionWorkRequest.PartitionFragment> blocked_tasks = new HashSet<Hstore.TransactionWorkRequest.PartitionFragment>();
+    private final Set<Hstore.TransactionWorkRequest.PartitionFragment> blocked_tasks = new HashSet<Hstore.TransactionWorkRequest.PartitionFragment>();
     private boolean blocked_tasks_released = false;
     
     /**
@@ -100,7 +100,7 @@ public class DependencyInfo implements Poolable {
     public int getDependencyId() {
         return (this.dependency_id);
     }
-    public List<Integer> getPartitions() {
+    protected List<Integer> getPartitions() {
         return (this.partitions);
     }
     
@@ -129,7 +129,7 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public synchronized Collection<PartitionFragment> getAndReleaseBlockedPartitionFragments() {
+    public Collection<PartitionFragment> getAndReleaseBlockedPartitionFragments() {
         if (this.blocked_tasks_released == false) {
             this.blocked_tasks_released = true;
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));

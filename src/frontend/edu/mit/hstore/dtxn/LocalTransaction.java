@@ -77,7 +77,7 @@ public class LocalTransaction extends AbstractTransaction {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
 
-    private static final Set<Hstore.TransactionWorkRequest.PartitionFragment> EMPTY_SET = Collections.emptySet();
+    private static final Set<PartitionFragment> EMPTY_SET = Collections.emptySet();
     
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
@@ -382,15 +382,13 @@ public class LocalTransaction extends AbstractTransaction {
    
         if (this.predict_singlePartition == false) this.state.lock.lock();
         try {
-            super.startRound(partition);
-
             // Create our output counters
             for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
                 if (trace.get()) LOG.trace(String.format("%s - Examining %d dependencies at stmt_index %d",
                                            this, this.state.dependencies[stmt_index].size(), stmt_index));
                 for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
-                    if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) {
-                        this.state.output_order.add(dinfo.dependency_id);
+                    if (this.state.internal_dependencies.contains(dinfo.getDependencyId()) == false) {
+                        this.state.output_order.add(dinfo.getDependencyId());
                     }
                 } // FOR
             } // FOR
@@ -415,6 +413,9 @@ public class LocalTransaction extends AbstractTransaction {
             assert(count >= 0);
             assert(this.state.dependency_latch == null) : "This should never happen!\n" + this.toString();
             this.state.dependency_latch = new CountDownLatch(count);
+            
+            // It's now safe to change our state to STARTED
+            super.startRound(partition);
         } finally {
             if (this.predict_singlePartition == false) this.state.lock.unlock();
         } // SYNCH
@@ -587,13 +588,27 @@ public class LocalTransaction extends AbstractTransaction {
     public int getDependencyCount() { 
         return (this.state.dependency_ctr);
     }
-    public int getBlockedFragmentTaskMessageCount() {
-        return (this.state.blocked_tasks.size());
+    
+    /**
+     * Returns true if this transaction still has PartitionFragments
+     * that need to be dispatched to the appropriate ExecutionSite 
+     * @return
+     */
+    public boolean stillHasPartitionFragments() {
+        return (this.state.still_has_tasks);
+//        this.state.lock.lock();
+//        try {
+//            return (this.state.blocked_tasks.isEmpty() == false ||
+//                    this.state.unblocked_tasks.isEmpty() == false);
+//        } finally {
+//            this.state.lock.unlock();
+//        }
     }
-    protected Set<Hstore.TransactionWorkRequest.PartitionFragment> getBlockedFragmentTaskMessages() {
+    
+    protected Set<PartitionFragment> getBlockedPartitionFragments() {
         return (this.state.blocked_tasks);
     }
-    public LinkedBlockingDeque<Collection<Hstore.TransactionWorkRequest.PartitionFragment>> getUnblockedFragmentTaskMessageQueue() {
+    public LinkedBlockingDeque<Collection<PartitionFragment>> getUnblockedPartitionFragmentsQueue() {
         return (this.state.unblocked_tasks);
     }
     
@@ -604,6 +619,11 @@ public class LocalTransaction extends AbstractTransaction {
         this.estimator_state = state;
     }
     
+    /**
+     * Return the latch that will block the ExecutionSite's thread until
+     * all of the query results have been retrieved for this transaction's
+     * current SQLStmt batch
+     */
     public CountDownLatch getDependencyLatch() {
         return this.state.dependency_latch;
     }
@@ -835,7 +855,7 @@ public class LocalTransaction extends AbstractTransaction {
                                         this, this.state.dependencies[stmt_index].size(), stmt_index));
                 int output_ctr = 0;
                 for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
-                    if (this.state.internal_dependencies.contains(dinfo.dependency_id) == false) {
+                    if (this.state.internal_dependencies.contains(dinfo.getDependencyId()) == false) {
                         output_ctr++;
                         LOG.debug(dinfo.toString() + " => Output!");
                     }
@@ -919,11 +939,11 @@ public class LocalTransaction extends AbstractTransaction {
         assert(queue != null) :
             String.format("Unexpected {Partition:%d, Dependency:%d} in %s",
                           partition, dependency_id, this);
-        
         assert(queue.isEmpty() == false) :
             String.format("No more statements for {Partition:%d, Dependency:%d} in %s [key=%d]\nresults_dependency_stmt_ctr = %s",
                           partition, dependency_id, this, key, this.state.results_dependency_stmt_ctr);
-            
+        assert(this.state.dependency_latch != null);    
+        
         int stmt_index = queue.remove().intValue();
         dinfo = this.getDependencyInfo(stmt_index, dependency_id);
         assert(dinfo != null) :
@@ -934,38 +954,46 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             this.state.received_ctr++;
             
-            if (this.state.dependency_latch != null) {
-                long count = this.state.dependency_latch.getCount() - 1;
-                this.state.dependency_latch.countDown();
-                    
-                // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
-                // This will cause the blocked ExecutionSite thread to wake up and realize that he's done
-                if (count == 0) this.state.unblocked_tasks.offer(EMPTY_SET);
-                if (d) LOG.debug("__FILE__:__LINE__ " + "Setting CountDownLatch to " + count + " for txn #" + this.txn_id);
+            // Check whether we need to start running stuff now
+            // 2011-12-31: This needs to be synchronized because they might check
+            //             whether there are no more blocked tasks before we 
+            //             can add to_unblock to the unblocked_tasks queue
+            if (this.state.blocked_tasks.isEmpty() == false && dinfo.hasTasksReady()) {
+                Collection<PartitionFragment> to_unblock = dinfo.getAndReleaseBlockedPartitionFragments();
+                assert(to_unblock != null);
+                assert(to_unblock.isEmpty() == false);
+                if (d) 
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Got %d PartitionFragments to unblock for txn #%d that were waiting for DependencyId %d",
+                                               to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
+                this.state.blocked_tasks.removeAll(to_unblock);
+                this.state.unblocked_tasks.addLast(to_unblock);
             }
+            else if (d) {
+                LOG.debug("__FILE__:__LINE__ " + String.format("No PartitionFragments to unblock for %s after storing {Partition:%d, Dependency:%d} " +
+                                                               "[blockedTasks=%d, dinfo.hasTasksReady=%s]",
+                                                                this, partition, dependency_id, this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
+            }
+            
+            this.state.dependency_latch.countDown();
+                
+            // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
+            // This will cause the blocked ExecutionSite thread to wake up and realize that he's done
+            if (this.state.dependency_latch.getCount() == 0) {
+                if (d)
+                    LOG.debug(String.format("%s - Pushing EMPTY_SET to ExecutionSite because all the dependencies have arrived!", this));
+                this.state.unblocked_tasks.addLast(EMPTY_SET);
+            }
+
+            this.state.still_has_tasks = this.state.blocked_tasks.isEmpty() == false ||
+                                         this.state.unblocked_tasks.isEmpty() == false;
         } finally {
             if (this.predict_singlePartition == false) this.state.lock.unlock();
         } // SYNCH
         
-        // Check whether we need to start running stuff now
-        if (this.state.blocked_tasks.isEmpty() == false && dinfo.hasTasksReady()) {
-            // Always double check whether somebody beat us to the punch
-            Collection<PartitionFragment> to_unblock = dinfo.getAndReleaseBlockedPartitionFragments();
-            if (to_unblock == null) {
-                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("No new FragmentTaskMessages available to unblock for txn #%d. Ignoring...", this.txn_id));
-                return;
-            }
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Got %d PartitionFragments to unblock for txn #%d that were waiting for DependencyId %d",
-                                           to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
-            this.state.blocked_tasks.removeAll(to_unblock);
-            this.state.unblocked_tasks.add(to_unblock);
-        } else if (d) {
-            LOG.debug("__FILE__:__LINE__ " + String.format("No PartitionFragments to unblock for %s after storing {Partition:%d, Dependency:%d} " +
-                                                           "[blockedTasks=%d, dinfo.hasTasksReady=%s]",
-                                                            this, partition, dependency_id, this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
-        }
-        
         if (d) {
+            LOG.debug("__FILE__:__LINE__ " + String.format("Setting CountDownLatch to %d for %s",
+                                             this.state.dependency_latch.getCount(), this));
+            
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("Blocked Tasks", this.state.blocked_tasks.size());
             m.put("DependencyInfo", dinfo.toString());
@@ -999,7 +1027,7 @@ public class LocalTransaction extends AbstractTransaction {
                 
                 DependencyInfo dinfo = this.getDependencyInfo(stmt_index, input_d_id);
                 assert(dinfo != null);
-                int num_tables = dinfo.results.size();
+                int num_tables = dinfo.getResults().size();
                 assert(dinfo.getPartitions().size() == num_tables) :
                     String.format("Number of results retrieved for <Stmt #%d, DependencyId #%d> is %d " +
                                   "but we were expecting %d in %s\n%s\n%s\n%s%s", 
@@ -1022,7 +1050,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(dinfo != null) :
             String.format("No DependencyInfo object for <Stmt #%d, DependencyId #%d> in %s",
                           stmt_index, input_d_id, this);
-        int num_tables = dinfo.results.size();
+        int num_tables = dinfo.getResults().size();
         assert(dinfo.getPartitions().size() == num_tables) :
                     String.format("Number of results from partitions retrieved for <Stmt #%d, DependencyId #%d> " +
                                   "is %d but we were expecting %d in %s\n%s\n%s%s", 
@@ -1111,11 +1139,11 @@ public class LocalTransaction extends AbstractTransaction {
                 Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
                 String inner = "";
                 inner += "  Statement #" + stmt_index + " - " + stmts[stmt_index].getStatement().getName() + "\n";
-                inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
+//                inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
                 
                 inner += "  Dependency Partitions:\n";
                 for (Integer dependency_id : dependency_ids) {
-                    inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).partitions + "\n";
+                    inner += "    [" + dependency_id + "] => " + s_dependencies.get(dependency_id).getPartitions() + "\n";
                 } // FOR
                 
                 inner += "  Dependency Results:\n";
@@ -1133,7 +1161,7 @@ public class LocalTransaction extends AbstractTransaction {
                 boolean none = true;
                 for (Integer dependency_id : dependency_ids) {
                     DependencyInfo d = s_dependencies.get(dependency_id);
-                    for (Hstore.TransactionWorkRequest.PartitionFragment task : d.getBlockedPartitionFragments()) {
+                    for (PartitionFragment task : d.getBlockedPartitionFragments()) {
                         if (task == null) continue;
                         inner += "    [" + dependency_id + "] => [";
                         String add = "";
@@ -1141,8 +1169,16 @@ public class LocalTransaction extends AbstractTransaction {
                             inner += add + frag_id;
                             add = ", ";
                         } // FOR
-                        inner += "]";
-                        if (d.hasTasksReady()) inner += " READY!"; 
+                        inner += "] ";
+                        if (d.hasTasksReady()) {
+                            inner += "*READY*";
+                        }
+                        else if (d.hasTasksReleased()) {
+                            inner += "*RELEASED*";
+                        }
+                        else {
+                            inner += String.format("%d / %d", d.getResults().size(), d.getPartitions().size());
+                        }
                         inner += "\n";
                         none = false;
                     }

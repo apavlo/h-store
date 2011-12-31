@@ -100,6 +100,8 @@ public class ExecutionState {
      * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
      */
     protected final LinkedBlockingDeque<Collection<PartitionFragment>> unblocked_tasks = new LinkedBlockingDeque<Collection<Hstore.TransactionWorkRequest.PartitionFragment>>(); 
+
+    protected boolean still_has_tasks = true;
     
     /**
      * These are the DependencyIds that we don't bother returning to the ExecutionSite
@@ -188,6 +190,8 @@ public class ExecutionState {
         this.output_order.clear();
         this.queued_results.clear();
         this.blocked_tasks.clear();
+        this.unblocked_tasks.clear();
+        this.still_has_tasks = true;
         this.internal_dependencies.clear();
 
         // Note that we only want to clear the queues and not the whole maps

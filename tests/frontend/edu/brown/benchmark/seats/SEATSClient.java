@@ -513,22 +513,21 @@ public class SEATSClient extends SEATSBaseClient {
     public void tick(int counter) {
         super.tick(counter);
         for (CacheType ctype : CACHE_RESERVATIONS.keySet()) {
-//            if (ctype.lock.tryLock()) {
-                try {
-                    List<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
-                    int before = cache.size();
-                    if (before > ctype.limit) {
-                        Collections.shuffle(cache, rng);
-                        while (cache.size() > ctype.limit) {
-                            cache.remove(0);
-                        } // WHILE
-                        if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
-                                                   cache.size(), before));
-                    } // IF
-                } finally {
-//                    ctype.lock.unlock();
-                } // SYNCH
-//            } // IF
+            ctype.lock.lock();
+            try {
+                List<Reservation> cache = CACHE_RESERVATIONS.get(ctype);
+                int before = cache.size();
+                if (before > ctype.limit) {
+                    Collections.shuffle(cache, rng);
+                    while (cache.size() > ctype.limit) {
+                        cache.remove(0);
+                    } // WHILE
+                    if (debug.get()) LOG.debug(String.format("Pruned records from cache [newSize=%d, origSize=%d]",
+                                               cache.size(), before));
+                } // IF
+            } finally {
+                ctype.lock.unlock();
+            } // SYNCH
         } // FOR
         
         if (this.getClientId() == 0) {
