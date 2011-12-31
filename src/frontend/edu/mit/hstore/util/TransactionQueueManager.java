@@ -8,10 +8,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
-import org.voltdb.catalog.Partition;
-import org.voltdb.catalog.Site;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

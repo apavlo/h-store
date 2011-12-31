@@ -34,7 +34,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    protected VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<PartitionFragment> fragments, ParameterSet[] parameters) {
+    protected VoltTable[] dispatchPartitionFragment(LocalTransaction ts, Collection<PartitionFragment> fragments, ParameterSet[] parameters) {
         return (new VoltTable[]{ });
     }
     

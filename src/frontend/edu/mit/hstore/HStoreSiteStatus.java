@@ -62,7 +62,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private static final String POOL_FORMAT = "Active:%-5d / Idle:%-5d / Created:%-5d / Destroyed:%-5d / Passivated:%-7d";
     
     
-    private static final Pattern THREAD_REGEX = Pattern.compile("(edu\\.brown|edu\\.mit|org\\.voltdb)");
+//    private static final Pattern THREAD_REGEX = Pattern.compile("(edu\\.brown|edu\\.mit|org\\.voltdb)");
     
 
     private static final Set<TxnCounter> TXNINFO_COL_DELIMITERS = new HashSet<TxnCounter>();
@@ -854,9 +854,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         
         String top = StringUtil.formatMaps(header, m_exec, m_txn, threadInfo, cpuThreads, txnProfiles, plannerInfo, poolInfo);
         String bot = "";
-        if (hstore_conf.site.status_show_txn_info) {
-            bot = "\nHistogram of rejected txns from this site:\n" + 
-                  hstore_site.getTransactionQueueManager().getBlockedDtxnHistogram(); 
+        Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getBlockedDtxnHistogram(); 
+        if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
+            bot = "\nHistogram of rejected txns from this site:\n" + blockedDtxns;
         }
         return (top + bot);
     }

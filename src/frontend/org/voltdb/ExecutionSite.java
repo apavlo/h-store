@@ -1065,7 +1065,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (d) {
             if (inputs.isEmpty() == false) {
                 LOG.debug(String.format("Retrieved %d InputDependencies for %s %s on partition %d\n%s",
-                                        inputs.size(), ts, fragment.getFragmentIdList(), fragment.getPartitionId(), StringUtil.formatMaps(inputs)));
+                                        inputs.size(), ts, fragment.getFragmentIdList(), fragment.getPartitionId(), "XXXX")); // StringUtil.formatMaps(inputs)));
             } else {
                 LOG.warn(String.format("No InputDependencies retrieved for %s %s on partition %d",
                                        ts, fragment.getFragmentIdList(), fragment.getPartitionId()));
@@ -1534,7 +1534,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             status = Hstore.Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
-            LOG.warn("__FILE__:__LINE__ " + "Something unexpected and bad happended for " + ts, ex);
+            LOG.error("__FILE__:__LINE__ " + "Something unexpected and bad happended for " + ts, ex);
             status = Hstore.Status.ABORT_UNEXPECTED;
             error = new SerializableException(ex);
         } finally {
@@ -2147,7 +2147,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param dependency_ids
      * @return
      */
-    protected VoltTable[] dispatchFragmentTasks(LocalTransaction ts, Collection<PartitionFragment> fragments, ParameterSet parameters[]) {
+    protected VoltTable[] dispatchPartitionFragment(LocalTransaction ts, Collection<PartitionFragment> fragments, ParameterSet parameters[]) {
         if (d) {
             LOG.debug("__FILE__:__LINE__ " + String.format("Preparing to dispatch %d messages for %s and wait for the results",
                                              fragments.size(), ts));
@@ -2181,7 +2181,15 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         
         // Now if we have some work sent out to other partitions, we need to wait until they come back
         // In the first part, we wait until all of our blocked FragmentTaskMessages become unblocked
-        LinkedBlockingDeque<Collection<PartitionFragment>> queue = ts.getUnblockedFragmentTaskMessageQueue();
+        LinkedBlockingDeque<Collection<PartitionFragment>> queue = ts.getUnblockedPartitionFragmentsQueue();
+
+        boolean all_local = true;
+        boolean is_localSite;
+        boolean is_localPartition;
+        int num_localPartition = 0;
+        int num_localSite = 0;
+        int num_remote = 0;
+        int total = 0;
         
         // Run through this loop if:
         //  (1) This is our first time in the loop (first == true)
@@ -2189,10 +2197,22 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         //  (3) If we know that there are still unblocked messages that we need to process
         //  (4) The latch for this round is still greater than zero
 //        if (hstore_conf.site.txn_profiling) ts.profiler.startExecCoordinatorBlocked();
-        while (first == true || ts.getBlockedFragmentTaskMessageCount() > 0 || queue.size() > 0 || (latch != null && latch.getCount() > 0)) {
+        while (first == true || ts.stillHasPartitionFragments() || (latch != null && latch.getCount() > 0)) {
+            if (t) 
+                LOG.trace(String.format("%s - [first=%s, stillHasPartitionFragments=%s, latch=%s]",
+                                        ts, first, ts.stillHasPartitionFragments(), queue.size(), latch));
+            
             
             // If this is the not first time through the loop, then poll the queue to get our list of fragments
             if (first == false) {
+                all_local = true;
+                is_localSite = false;
+                is_localPartition = false;
+                num_localPartition = 0;
+                num_localSite = 0;
+                num_remote = 0;
+                total = 0;
+                
                 if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Waiting for unblocked tasks for %s on partition %d", ts, this.partitionId));
                 try {
                     fragments = queue.takeFirst(); // BLOCKING
@@ -2202,7 +2222,16 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 }
             }
             assert(fragments != null);
-            if (fragments.size() == 0) break;
+            
+            // If the list to fragments unblock is empty, then we 
+            // know that we have dispatched all of the PartitionFragments for the
+            // transaction's current SQLStmt batch. That means we can just wait 
+            // until all the results return to us.
+            if (fragments.isEmpty()) {
+                if (t)
+                    LOG.trace(String.format("%s - Got an empty list of PartitionFragments. Blocking until dependencies arrive", ts)); 
+                break;
+            }
 
             this.tmp_localPartitionFragmentList.clear();
             if (predict_singlePartition == false) {
@@ -2213,8 +2242,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // FAST PATH: Assume everything is local
             if (predict_singlePartition) {
                 for (PartitionFragment ftask : fragments) {
-                    if (first == false || ts.addPartitionFragment(ftask) == false) 
+                    if (first == false || ts.addPartitionFragment(ftask) == false) {
                         this.tmp_localPartitionFragmentList.add(ftask);
+                        total++;
+                        num_localPartition++;
+                    }
                 } // FOR
                 
                 // We have to tell the TransactinState to start the round before we send off the
@@ -2236,12 +2268,6 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 
             // SLOW PATH: Mixed local and remote messages
             } else {
-                boolean all_local = true;
-                boolean is_localSite;
-                boolean is_localPartition;
-                int num_localPartition = 0;
-                int num_localSite = 0;
-                int num_remote = 0;
                 
                 // Look at each task and figure out whether it should be executed remotely or locally
                 for (PartitionFragment ftask : fragments) {
@@ -2250,6 +2276,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     is_localPartition = (is_localSite && partition == this.partitionId);
                     all_local = all_local && is_localPartition;
                     if (first == false || ts.addPartitionFragment(ftask) == false) {
+                        total++;
                         if (is_localPartition) {
                             this.tmp_localPartitionFragmentList.add(ftask);
                             num_localPartition++;
@@ -2262,6 +2289,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         }
                     }
                 } // FOR
+                assert(total == (num_remote + num_localSite + num_localPartition));
                 if (num_localPartition == 0 && num_localSite == 0 && num_remote == 0) {
                     throw new RuntimeException(String.format("Deadlock! All tasks for %s are blocked waiting on input!", ts));
                 }
@@ -2320,18 +2348,28 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                     } // FOR
                 }
             }
-//            if (read_only == false) ts.markExecNotReadOnly(this.partitionId);
+            if (t)
+                LOG.trace(String.format("%s - Dispatched %d PartitionFragments [remoteSite=%d, localSite=%d, localPartition=%d]",
+                          ts, total, num_remote, num_localSite, num_localPartition));
             first = false;
         } // WHILE
-
+        if (t)
+            LOG.trace(String.format("%s - BREAK OUT [first=%s, stillHasPartitionFragments=%s, latch=%s]",
+                      ts, first, ts.stillHasPartitionFragments(), latch));
+//        assert(ts.stillHasPartitionFragments() == false) :
+//            String.format("Trying to block %s before all of its PartitionFragments have been dispatched!\n%s\n%s",
+//                          ts,
+//                          StringUtil.join("** ", "\n", tempDebug),
+//                          this.getVoltProcedure(ts.getProcedureName()).getLastBatchPlan());
+                
         // Now that we know all of our FragmentTaskMessages have been dispatched, we can then
         // wait for all of the results to come back in.
         if (latch == null) latch = ts.getDependencyLatch();
         if (latch.getCount() > 0) {
-            if (d) {
-                LOG.debug("__FILE__:__LINE__ " + String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
+//            if (d) {
+                LOG.info("__FILE__:__LINE__ " + String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
                 if (t) LOG.trace("__FILE__:__LINE__ " + ts.toString());
-            }
+//            }
             while (true) {
                 boolean done = false;
                 try {
@@ -2365,7 +2403,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             throw ts.getPendingError();
         }
         
-        // Important: Don't try to check whether we got back the right number of tables because the batch
+        // IMPORTANT: Don't try to check whether we got back the right number of tables because the batch
         // may have hit an error and we didn't execute all of them.
         VoltTable results[] = ts.getResults();
         ts.finishRound(this.partitionId);

@@ -219,6 +219,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //            ftasks.add(task);
         } // FOR
         
-        return (this.executor.dispatchFragmentTasks((LocalTransaction)this.getTransactionState(), ftasks, parameters));
+        return (this.executor.dispatchPartitionFragment((LocalTransaction)this.getTransactionState(), ftasks, parameters));
     }
 }

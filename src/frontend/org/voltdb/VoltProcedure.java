@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
@@ -665,11 +666,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
 
     
-    protected long getClientHandle() {
+    protected final long getClientHandle() {
         return (this.client_handle);
     }
-    protected Procedure getProcedure() {
+    protected final Procedure getProcedure() {
         return (this.catalog_proc);
+    }
+    protected final BatchPlan getLastBatchPlan() {
+        return (this.plan);
     }
     
     protected final VoltTable executeNoJavaProcedure(Object...params) {
@@ -1120,7 +1124,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
 
             // Block until we get all of our responses.
-            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, this.partitionFragments, params);
+            results = this.executor.dispatchPartitionFragment(this.m_localTxnState, this.partitionFragments, params);
         }
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 
