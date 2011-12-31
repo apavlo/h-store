@@ -122,7 +122,10 @@ public class TestTransactionState extends BaseTestCase {
         
         this.execState = new ExecutionState(executor);
         this.ts = new LocalTransaction(hstore_site);
-        this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, false, false, true);
+        this.ts.testInit(TXN_ID,
+                         LOCAL_PARTITION,
+                         hstore_site.getAllPartitionIds(),
+                         this.getProcedure(TARGET_PROCEDURE));
         this.ts.setExecutionState(this.execState);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
@@ -195,6 +198,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testInitRound
      */
+    @Test
     public void testInitRound() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
@@ -206,6 +210,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testStartRound
      */
+    @Test
     public void testStartRound() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
@@ -238,6 +243,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testAddFragmentTaskMessage
      */
+    @Test
     public void testAddFragmentTaskMessage() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
@@ -276,6 +282,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testAddResult
      */
+    @Test
     public void testAddResult() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
@@ -329,6 +336,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testAddResultsBeforeStart
      */
+    @Test
     public void testAddResultsBeforeStart() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
@@ -369,6 +377,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testGetResults
      */
+    @Test
     public void testGetResults() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
