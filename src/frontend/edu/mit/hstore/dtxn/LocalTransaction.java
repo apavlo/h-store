@@ -384,8 +384,8 @@ public class LocalTransaction extends AbstractTransaction {
         try {
             // Create our output counters
             for (int stmt_index = 0; stmt_index < this.state.batch_size; stmt_index++) {
-                if (trace.get()) LOG.trace(String.format("%s - Examining %d dependencies at stmt_index %d",
-                                           this, this.state.dependencies[stmt_index].size(), stmt_index));
+                if (t) LOG.trace(String.format("%s - Examining %d dependencies at stmt_index %d",
+                                 this, this.state.dependencies[stmt_index].size(), stmt_index));
                 for (DependencyInfo dinfo : this.state.dependencies[stmt_index].values()) {
                     if (this.state.internal_dependencies.contains(dinfo.getDependencyId()) == false) {
                         this.state.output_order.add(dinfo.getDependencyId());
@@ -393,8 +393,8 @@ public class LocalTransaction extends AbstractTransaction {
                 } // FOR
             } // FOR
             assert(this.state.batch_size == this.state.output_order.size()) :
-                String.format("Expected %d output dependencies but we queued up %d for %s\n%s",
-                              this.state.batch_size, this.state.output_order.size(), this,
+                String.format("%s - Expected %d output dependencies but we queued up %d\n%s",
+                              this, this.state.batch_size, this.state.output_order.size(),
                               StringUtil.join("\n", this.state.output_order));
             
             // Release any queued responses/results
@@ -403,7 +403,7 @@ public class LocalTransaction extends AbstractTransaction {
                 int key[] = new int[2];
                 for (Entry<Integer, VoltTable> e : this.state.queued_results.entrySet()) {
                     this.state.getPartitionDependencyFromKey(e.getKey().intValue(), key);
-                    this.processResultResponse(key[0], key[1], e.getKey().intValue(), e.getValue());
+                    this.processResultResponse(key[0], key[1], e.getKey().intValue(), true, e.getValue());
                 } // FOR
                 this.state.queued_results.clear();
             }
@@ -895,7 +895,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(result != null) :
             "The result for DependencyId " + dependency_id + " is null in txn #" + this.txn_id;
         int key = this.state.createPartitionDependencyKey(partition, dependency_id);
-        this.processResultResponse(partition, dependency_id, key, result);
+        this.processResultResponse(partition, dependency_id, key, false, result);
     }
     
     /**
@@ -904,7 +904,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param dependency_id
      * @param result
      */
-    private void processResultResponse(final int partition, final int dependency_id, final int key, VoltTable result) {
+    private void processResultResponse(final int partition, final int dependency_id, final int key, final boolean force, VoltTable result) {
         int base_offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(result != null);
         assert(this.round_state[base_offset] == RoundState.INITIALIZED || this.round_state[base_offset] == RoundState.STARTED) :
@@ -916,21 +916,26 @@ public class LocalTransaction extends AbstractTransaction {
         // If the txn is still in the INITIALIZED state, then we just want to queue up the results
         // for now. They will get released when we switch to STARTED 
         // This is the only part that we need to synchonize on
-        if (this.predict_singlePartition == false) this.state.lock.lock();
-        try {
-            if (this.round_state[base_offset] == RoundState.INITIALIZED) {
-                assert(this.state.queued_results.containsKey(key) == false) : "Duplicate result " + key + " for txn #" + this.txn_id;
-                this.state.queued_results.put(key, result);
-                if (d) LOG.debug("__FILE__:__LINE__ " + "Queued result " + key + " for txn #" + this.txn_id + " until the round is started");
-                return;
-            }
-            if (d) {
-                LOG.debug("__FILE__:__LINE__ " + "Storing new result for key " + key + " in txn #" + this.txn_id);
-                if (t) LOG.trace("__FILE__:__LINE__ " + "Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
-            }
-        } finally {
-            if (this.predict_singlePartition == false) this.state.lock.unlock();
-        } // SYNCH
+        if (force == false) {
+            if (this.predict_singlePartition == false) this.state.lock.lock();
+            try {
+                if (this.round_state[base_offset] == RoundState.INITIALIZED) {
+                    assert(this.state.queued_results.containsKey(key) == false) : 
+                        String.format("%s - Duplicate result {Partition:%d, Dependency:%d} [key=%d]",
+                                      this,  partition, dependency_id, key);
+                    this.state.queued_results.put(key, result);
+                    if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s - Queued result {Partition:%d, Dependency:%d} until the round is started [key=%s]",
+                                                            this, partition, dependency_id, key));
+                    return;
+                }
+                if (d) {
+                    LOG.debug("__FILE__:__LINE__ " + "Storing new result for key " + key + " in txn #" + this.txn_id);
+                    if (t) LOG.trace("__FILE__:__LINE__ " + "Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
+                }
+            } finally {
+                if (this.predict_singlePartition == false) this.state.lock.unlock();
+            } // SYNCH
+        }
             
         // Each partition+dependency_id should be unique for a Statement batch.
         // So as the results come back to us, we have to figure out which Statement it belongs to
@@ -942,8 +947,7 @@ public class LocalTransaction extends AbstractTransaction {
         assert(queue.isEmpty() == false) :
             String.format("No more statements for {Partition:%d, Dependency:%d} in %s [key=%d]\nresults_dependency_stmt_ctr = %s",
                           partition, dependency_id, this, key, this.state.results_dependency_stmt_ctr);
-        assert(this.state.dependency_latch != null);    
-        
+
         int stmt_index = queue.remove().intValue();
         dinfo = this.getDependencyInfo(stmt_index, dependency_id);
         assert(dinfo != null) :
@@ -973,15 +977,20 @@ public class LocalTransaction extends AbstractTransaction {
                                                                "[blockedTasks=%d, dinfo.hasTasksReady=%s]",
                                                                 this, partition, dependency_id, this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
             }
-            
-            this.state.dependency_latch.countDown();
-                
-            // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
-            // This will cause the blocked ExecutionSite thread to wake up and realize that he's done
-            if (this.state.dependency_latch.getCount() == 0) {
+        
+            if (this.state.dependency_latch != null) {    
+                this.state.dependency_latch.countDown();
+                    
+                // HACK: If the latch is now zero, then push an EMPTY set into the unblocked queue
+                // This will cause the blocked ExecutionSite thread to wake up and realize that he's done
+                if (this.state.dependency_latch.getCount() == 0) {
+                    if (d)
+                        LOG.debug(String.format("%s - Pushing EMPTY_SET to ExecutionSite because all the dependencies have arrived!", this));
+                    this.state.unblocked_tasks.addLast(EMPTY_SET);
+                }
                 if (d)
-                    LOG.debug(String.format("%s - Pushing EMPTY_SET to ExecutionSite because all the dependencies have arrived!", this));
-                this.state.unblocked_tasks.addLast(EMPTY_SET);
+                    LOG.debug("__FILE__:__LINE__ " + String.format("%s - Setting CountDownLatch to %d",
+                                                     this, this.state.dependency_latch.getCount()));
             }
 
             this.state.still_has_tasks = this.state.blocked_tasks.isEmpty() == false ||
@@ -991,9 +1000,6 @@ public class LocalTransaction extends AbstractTransaction {
         } // SYNCH
         
         if (d) {
-            LOG.debug("__FILE__:__LINE__ " + String.format("Setting CountDownLatch to %d for %s",
-                                             this.state.dependency_latch.getCount(), this));
-            
             Map<String, Object> m = new ListOrderedMap<String, Object>();
             m.put("Blocked Tasks", this.state.blocked_tasks.size());
             m.put("DependencyInfo", dinfo.toString());
@@ -1131,14 +1137,21 @@ public class LocalTransaction extends AbstractTransaction {
             VoltProcedure voltProc = state.executor.getVoltProcedure(catalog_proc.getName());
             assert(voltProc != null);
             SQLStmt stmts[] = voltProc.voltLastQueriesExecuted();
-            assert(stmt_debug.length == stmts.length) :
-                String.format("Expected %d SQLStmts but we only got %d", stmt_debug.length, stmts.length); 
+            
+            // This won't work in test cases
+//            assert(stmt_debug.length == stmts.length) :
+//                String.format("Expected %d SQLStmts but we only got %d", stmt_debug.length, stmts.length); 
             
             for (int stmt_index = 0; stmt_index < stmt_debug.length; stmt_index++) {
                 Map<Integer, DependencyInfo> s_dependencies = new HashMap<Integer, DependencyInfo>(this.state.dependencies[stmt_index]); 
                 Set<Integer> dependency_ids = new HashSet<Integer>(s_dependencies.keySet());
                 String inner = "";
-                inner += "  Statement #" + stmt_index + " - " + stmts[stmt_index].getStatement().getName() + "\n";
+                
+                inner += "  Statement #" + stmt_index;
+                if (stmts != null && stmts.length > 0) { 
+                    inner += " - " + stmts[stmt_index].getStatement().getName();
+                }
+                inner += "\n";
 //                inner += "  Output Dependency Id: " + (this.state.output_order.contains(stmt_index) ? this.state.output_order.get(stmt_index) : "<NOT STARTED>") + "\n";
                 
                 inner += "  Dependency Partitions:\n";
