@@ -68,6 +68,7 @@ public class TestExecutionSite extends BaseTestCase {
             HStoreSite hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
             hstore_site.addExecutionSite(PARTITION_ID, site);
+            site.initHStoreSite(hstore_site);
         }
     }
     
