@@ -65,7 +65,6 @@ public abstract class HStore {
      * Initialize the HStore server.
      */
     public synchronized static HStoreSite initialize(Site catalog_site, HStoreConf hstore_conf) {
-        assert(singleton == null);
         singleton = new HStoreSite(catalog_site, hstore_conf);
         return (singleton);
     }
