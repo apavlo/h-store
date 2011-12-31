@@ -47,28 +47,28 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
     public void unblockCallback() {
         if (debug.get()) {
             LOG.debug(String.format("Txn #%d - Sending back %d partition results",
-                                    this.txn_id, this.builder.getResultsCount()));
+                                    this.getTransactionId(), this.builder.getResultsCount()));
         }
         
         assert(this.getOrigCounter() == builder.getResultsCount()) :
             String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
-                          builder.getClass().getSimpleName(), txn_id, builder.getResultsCount(), this.getOrigCounter());
+                          builder.getClass().getSimpleName(), this.getTransactionId(), builder.getResultsCount(), this.getOrigCounter());
         this.getOrigCallback().run(this.builder.build());
     }
     
     @Override
     protected void abortCallback(Status status) {
-        assert(false) : String.format("Unexpected %s for txn #%d", status, txn_id);
+        assert(false) : String.format("Unexpected %s for txn #%d", status, this.getTransactionId());
     }
     
     @Override
     protected synchronized int runImpl(Hstore.TransactionWorkResponse.PartitionResult parameter) {
         this.builder.addResults(parameter);
         if (debug.get()) LOG.debug(String.format("Added new %s from partition %d for txn #%d",
-                                                 parameter.getClass().getSimpleName(), parameter.getPartitionId(), txn_id));
+                                                 parameter.getClass().getSimpleName(), parameter.getPartitionId(), this.getTransactionId()));
         if (parameter.hasError()) {
             if (debug.get()) LOG.debug(String.format("Marking response for txn #%d with an error from partition %d",
-                                                     txn_id, parameter.getPartitionId()));    
+                                                     this.getTransactionId(), parameter.getPartitionId()));    
             this.builder.setStatus(Hstore.Status.ABORT_UNEXPECTED);
         }
         return (1);

@@ -19,12 +19,12 @@ import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
 /**
- * A MessageRouter is a wrapper around the invocation methods for some action
+ * AbstractTransactionHandler is a wrapper around the invocation methods for some action
  * There is a local and remote method to send a message to the necessary HStoreSites
  * for a transaction. The sendMessages() method is the main entry point that the 
  * HStoreCoordinator's convenience methods will use. 
- * @param <T>
- * @param <U>
+ * @param <T> The message that we will send out on the network
+ * @param <U> The expected message that we will need to get back as a response 
  */
 public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U extends GeneratedMessage> {
     private static final Logger LOG = Logger.getLogger(AbstractTransactionHandler.class);
@@ -48,6 +48,16 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
         this.local_site_id = hstore_site.getSiteId();
     }
     
+    /**
+     * Send a copy of a single message request to the partitions given as input
+     * If a partition is managed by the local HStoreSite, then we will invoke
+     * the sendLocal() method. If it is on a remote HStoreSite, then we will
+     * invoke sendRemote().
+     * @param ts
+     * @param request
+     * @param callback
+     * @param partitions
+     */
     public void sendMessages(LocalTransaction ts, T request, RpcCallback<U> callback, Collection<Integer> partitions) {
         // If this flag is true, then we'll invoke the local method
         // We want to do this *after* we send out all the messages to the remote sites
@@ -88,8 +98,38 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
                                     ctr, request.getClass().getSimpleName(),  partitions.size(), ts));
     }
     
+    /**
+     * The processing method that is invoked if the outgoing message needs
+     * to be sent to a partition that is on the same machine as where this
+     * handler is executing.
+     * @param txn_id
+     * @param request
+     * @param partitions
+     * @param callback
+     */
     public abstract void sendLocal(long txn_id, T request, Collection<Integer> partitions, RpcCallback<U> callback);
+    
+    /**
+     * The processing method that is invoked if the outgoing message needs
+     * to be sent to a partition that is *not* managed by the same HStoreSite
+     * as where this handler is executing. This is non-blocking and does not 
+     * wait for the callback to be executed in response to the remote side.
+     * @param channel
+     * @param controller
+     * @param request
+     * @param callback
+     */
     public abstract void sendRemote(HStoreService channel, ProtoRpcController controller, T request, RpcCallback<U> callback);
+    
+    /**
+     * This is the method that is invoked on the remote HStoreSite for each incoming
+     * message request. This will then determine whether the message should be queued up
+     * for execution in a different thread, or whether it should invoke remoteHandler()
+     * right away.
+     * @param controller
+     * @param request
+     * @param callback
+     */
     public abstract void remoteQueue(RpcController controller, T request, RpcCallback<U> callback);
     
     /**
@@ -101,5 +141,11 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
      */
     public abstract void remoteHandler(RpcController controller, T request, RpcCallback<U> callback);
     
+    /**
+     * Return a cached ProtoRpcController handler from the LocalTransaction object
+     * @param ts
+     * @param site_id
+     * @return
+     */
     protected abstract ProtoRpcController getProtoRpcController(LocalTransaction ts, int site_id);
 }

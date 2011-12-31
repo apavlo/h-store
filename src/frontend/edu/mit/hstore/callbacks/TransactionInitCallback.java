@@ -60,7 +60,8 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         if (this.isAborted() == false) {
             if (debug.get())
                 LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
-            hstore_site.transactionStart(ts);
+            
+            hstore_site.transactionStart(ts, ts.getBasePartition());
         } else {
             assert(this.finish_callback != null);
             this.finish_callback.allowTransactionCleanup();
@@ -106,7 +107,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         // Note that we do this *even* if we haven't heard back from the remote
         // HStoreSite that they've acknowledged our transaction
         // We don't care when we get the response for this
-        this.finish_callback = this.ts.getTransactionFinishCallback(status);
+        this.finish_callback = this.ts.initTransactionFinishCallback(status);
         this.finish_callback.disableTransactionCleanup();
         this.hstore_site.getCoordinator().transactionFinish(this.ts, status, this.finish_callback);
     }

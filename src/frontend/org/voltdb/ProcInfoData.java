@@ -30,4 +30,8 @@ public class ProcInfoData {
     public String partitionInfo = "";
     /** See ProcInfo.singlePartition() */
     public boolean singlePartition = false;
+    
+    public String mapInputQuery = "";
+    public String reduceInputQuery = "";
+   
 }

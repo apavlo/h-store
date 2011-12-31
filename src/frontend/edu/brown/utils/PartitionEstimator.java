@@ -694,11 +694,12 @@ public class PartitionEstimator {
             
         // Single-Column Partitioning
         } else {
-            if (debug.get()) LOG.debug(catalog_tbl.getName() + " SingleColumn: " + catalog_col.fullName());
-            
             VoltType type = VoltType.get(catalog_col.getType()); 
             Object value = row.get(catalog_col.getIndex(), type);
             partition = this.hasher.hash(value, catalog_col);
+            if (debug.get()) 
+                LOG.debug(String.format("%s SingleColumn: Value=%s / Partition=%d",
+                                       catalog_col.fullName(), value, partition));
         }
         assert(partition >= 0) : "Invalid partition for " + catalog_tbl; 
         return (partition);

@@ -102,7 +102,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
     /**
      * To keep track out how many threads fail
      */
-    private class AssertThreadGroup extends ThreadGroup {
+    public class AssertThreadGroup extends ThreadGroup {
         private List<Throwable> exceptions = new ArrayList<Throwable>();
         
         public AssertThreadGroup() {

@@ -74,16 +74,16 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     public void unblockCallback() {
         if (debug.get()) {
             LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
-                                    this.txn_id,
+                                    this.getTransactionId(),
                                     TransactionInitResponse.class.getSimpleName(),
                                     this.getOrigCallback().getClass().getSimpleName(),
                                     this.builder.getStatus()));
         }
         assert(this.getOrigCounter() == builder.getPartitionsCount()) :
             String.format("The %s for txn #%d has results from %d partitions but it was suppose to have %d.",
-                          builder.getClass().getSimpleName(), txn_id, builder.getPartitionsCount(), this.getOrigCounter());
+                          builder.getClass().getSimpleName(), this.getTransactionId(), builder.getPartitionsCount(), this.getOrigCounter());
         assert(this.getOrigCallback() != null) :
-            String.format("The original callback for txn #%d is null!", txn_id);
+            String.format("The original callback for txn #%d is null!", this.getTransactionId());
         this.getOrigCallback().run(this.builder.build());
     }
     
@@ -97,7 +97,7 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     protected void abortCallback(Hstore.Status status) {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
-                                    this.txn_id, this.getClass().getSimpleName(), status));
+                                    this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
         Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
         for (Integer p : this.partitions) {
@@ -109,9 +109,9 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
     }
     
     @Override
-    protected synchronized int runImpl(Integer parameter) {
+    protected synchronized int runImpl(Integer partition) {
         if (this.isAborted() == false)
-            this.builder.addPartitions(parameter.intValue());
+            this.builder.addPartitions(partition.intValue());
         return 1;
     }
 }

@@ -22,6 +22,7 @@ import org.voltdb.expressions.OperatorExpression;
 import org.voltdb.expressions.ParameterValueExpression;
 import org.voltdb.expressions.TupleAddressExpression;
 import org.voltdb.expressions.TupleValueExpression;
+import org.voltdb.planner.PlanAssembler;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.utils.Encoder;
 
@@ -103,7 +104,7 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
                     if (catalog_tbl == null) {
                         // If it's a temp then we just ignore it. Otherwise throw an error!
-                        if (table_name.contains("VOLT_AGGREGATE_NODE_TEMP_TABLE") == false) {
+                        if (table_name.contains(PlanAssembler.AGGREGATE_TEMP_TABLE) == false) {
                             this.stop();
                             throw new RuntimeException(String.format("Unknown table '%s' referenced in Expression node %s", table_name, element));
                         } else if (debug.get()) {
@@ -124,6 +125,25 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
             }
         }.traverse(exp);
         return (found_columns);
+    }
+    
+    /**
+     * Get the set of table names referenced in this expression tree
+     * @param exp
+     * @return
+     */
+    public static Collection<String> getReferencedTableNames(AbstractExpression exp) {
+        final Set<String> tableNames = new HashSet<String>();
+        new ExpressionTreeWalker() {
+            @Override
+            protected void callback(AbstractExpression element) {
+                if (element instanceof TupleValueExpression) {
+                    tableNames.add(((TupleValueExpression)element).getTableName());
+                }
+                return;
+            }
+        }.traverse(exp);
+        return (tableNames);
     }
     
     

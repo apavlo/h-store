@@ -44,5 +44,10 @@ public @interface ProcInfo {
      */
     boolean singlePartition() default false;
     
-    boolean mapReduce() default false;
+    /**
+     * Is the procedure a map/reduce job.
+     * It must have a map and reduce function
+     */
+    String mapInputQuery() default "";
+    String reduceInputQuery() default "";
 }

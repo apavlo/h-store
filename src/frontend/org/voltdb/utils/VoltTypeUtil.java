@@ -38,12 +38,12 @@ public abstract class VoltTypeUtil {
     protected static final Integer DATE_STOP = Math.round(System.currentTimeMillis() / 1000);
     protected static final Integer DATE_START = VoltTypeUtil.DATE_STOP - 153792000;
     
-    private static final String DATE_FORMAT_PATTERNS[] = {
+    public static final String DATE_FORMAT_PATTERNS[] = {
         TimestampType.STRING_FORMAT,
         "EEE MMM dd HH:mm:ss zzz yyyy",     // Wed Aug 03 00:00:00 EDT 2011
         "yyyy-MM-dd HH:mm:ss",              // 2010-03-05 20:14:15
         "yyyy-MM-dd",                       // 2010-03-05
-        "yyyy-MM-dd'T'HH:mm:ss.SSS.0",      // 2010-03-05T20:14:16.000.0
+        TimestampType.STRING_FORMAT + ".0", // 2010-03-05T20:14:16.000.0
     };
     private static final Map<Thread, SimpleDateFormat[]> CACHED_DATE_FORMATS = new HashMap<Thread, SimpleDateFormat[]>();
 

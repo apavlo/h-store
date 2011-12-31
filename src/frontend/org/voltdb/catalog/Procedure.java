@@ -33,6 +33,11 @@ public class Procedure extends CatalogType {
     boolean m_singlepartition;
     boolean m_everysite;
     boolean m_systemproc;
+    boolean m_mapreduce;
+    String m_mapInputQuery = new String();
+    String m_mapEmitTable = new String();
+    String m_reduceInputQuery = new String();
+    String m_reduceEmitTable = new String();
     boolean m_hasjava;
     int m_partitionparameter;
     CatalogMap<AuthProgram> m_authPrograms;
@@ -50,6 +55,11 @@ public class Procedure extends CatalogType {
         this.addField("singlepartition", m_singlepartition);
         this.addField("everysite", m_everysite);
         this.addField("systemproc", m_systemproc);
+        this.addField("mapreduce", m_mapreduce);
+        this.addField("mapInputQuery", m_mapInputQuery);
+        this.addField("mapEmitTable", m_mapEmitTable);
+        this.addField("reduceInputQuery", m_reduceInputQuery);
+        this.addField("reduceEmitTable", m_reduceEmitTable);
         this.addField("hasjava", m_hasjava);
         this.addField("partitiontable", null);
         this.addField("partitioncolumn", null);
@@ -68,6 +78,11 @@ public class Procedure extends CatalogType {
         m_singlepartition = (Boolean) m_fields.get("singlepartition");
         m_everysite = (Boolean) m_fields.get("everysite");
         m_systemproc = (Boolean) m_fields.get("systemproc");
+        m_mapreduce = (Boolean) m_fields.get("mapreduce");
+        m_mapInputQuery = (String) m_fields.get("mapInputQuery");
+        m_mapEmitTable = (String) m_fields.get("mapEmitTable");
+        m_reduceInputQuery = (String) m_fields.get("reduceInputQuery");
+        m_reduceEmitTable = (String) m_fields.get("reduceEmitTable");
         m_hasjava = (Boolean) m_fields.get("hasjava");
         m_partitionparameter = (Integer) m_fields.get("partitionparameter");
     }
@@ -105,6 +120,31 @@ public class Procedure extends CatalogType {
     /** GETTER: Is this procedure an internal system procedure? */
     public boolean getSystemproc() {
         return m_systemproc;
+    }
+
+    /** GETTER: Is this procedure a Map/Reduce procedure? */
+    public boolean getMapreduce() {
+        return m_mapreduce;
+    }
+
+    /** GETTER: The name of the query that gets executed and fed into the Map function */
+    public String getMapinputquery() {
+        return m_mapInputQuery;
+    }
+
+    /** GETTER: The name of the table that the Map function will store data in */
+    public String getMapemittable() {
+        return m_mapEmitTable;
+    }
+
+    /** GETTER: The name of the query that gets executed and fed into the Reduce function */
+    public String getReduceinputquery() {
+        return m_reduceInputQuery;
+    }
+
+    /** GETTER: The name of the table that the Reduce function will store data in */
+    public String getReduceemittable() {
+        return m_reduceEmitTable;
     }
 
     /** GETTER: Is this a full java stored procedure or is it just a single stmt? */
@@ -181,6 +221,31 @@ public class Procedure extends CatalogType {
     /** SETTER: Is this procedure an internal system procedure? */
     public void setSystemproc(boolean value) {
         m_systemproc = value; m_fields.put("systemproc", value);
+    }
+
+    /** SETTER: Is this procedure a Map/Reduce procedure? */
+    public void setMapreduce(boolean value) {
+        m_mapreduce = value; m_fields.put("mapreduce", value);
+    }
+
+    /** SETTER: The name of the query that gets executed and fed into the Map function */
+    public void setMapinputquery(String value) {
+        m_mapInputQuery = value; m_fields.put("mapInputQuery", value);
+    }
+
+    /** SETTER: The name of the table that the Map function will store data in */
+    public void setMapemittable(String value) {
+        m_mapEmitTable = value; m_fields.put("mapEmitTable", value);
+    }
+
+    /** SETTER: The name of the query that gets executed and fed into the Reduce function */
+    public void setReduceinputquery(String value) {
+        m_reduceInputQuery = value; m_fields.put("reduceInputQuery", value);
+    }
+
+    /** SETTER: The name of the table that the Reduce function will store data in */
+    public void setReduceemittable(String value) {
+        m_reduceEmitTable = value; m_fields.put("reduceEmitTable", value);
     }
 
     /** SETTER: Is this a full java stored procedure or is it just a single stmt? */

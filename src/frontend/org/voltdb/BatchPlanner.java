@@ -96,6 +96,7 @@ public class BatchPlanner {
     
     private final boolean enable_profiling;
     private final boolean enable_caching;
+    private final boolean force_singlePartition;
     
     // FAST SINGLE-PARTITION LOOKUP CACHE
     private final int cache_fastLookups[][];
@@ -416,7 +417,9 @@ public class BatchPlanner {
      */
     public BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator) {
         this(batchStmts, batchStmts.length, catalog_proc, p_estimator);
-        
+    }
+    protected BatchPlanner(SQLStmt[] batchStmts, Procedure catalog_proc, PartitionEstimator p_estimator, boolean forceSinglePartition) {
+        this(batchStmts, batchStmts.length, catalog_proc, p_estimator, forceSinglePartition);
     }
 
     /**
@@ -427,8 +430,20 @@ public class BatchPlanner {
      * @param p_estimator
      * @param local_partition
      */
-    @SuppressWarnings("unchecked")
     public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator) {
+        this(batchStmts, batchSize, catalog_proc, p_estimator, false);
+    }
+
+    /**
+     * Full Constructor
+     * @param batchStmts
+     * @param batchSize
+     * @param catalog_proc
+     * @param p_estimator
+     * @param forceSinglePartition
+     */
+    @SuppressWarnings("unchecked")
+    public BatchPlanner(SQLStmt[] batchStmts, int batchSize, Procedure catalog_proc, PartitionEstimator p_estimator, boolean forceSinglePartition) {
         assert(catalog_proc != null);
         assert(p_estimator != null);
 
@@ -444,6 +459,7 @@ public class BatchPlanner {
         this.plan = new BatchPlan(this.maxRoundSize);
         this.enable_profiling = hstore_conf.site.planner_profiling;
         this.enable_caching = hstore_conf.site.planner_caching; 
+        this.force_singlePartition = forceSinglePartition;
         
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
@@ -526,38 +542,43 @@ public class BatchPlanner {
             LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
                                     this.catalog_proc.getName(), (predict_singlepartitioned ? "single-partition" : "distributed"), txn_id));
         
-        // OPTIMIZATION: Check whether we can use a cached single-partition BatchPlan
         boolean cache_isSinglePartition[] = null;
-        if (this.enable_caching) {
+        
+        // OPTIMIZATION: Check whether we can use a cached single-partition BatchPlan
+        if (this.force_singlePartition || this.enable_caching) {
             boolean is_allSinglePartition = true;
             cache_isSinglePartition = new boolean[this.batchSize];
-            for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
-                Object params[] = batchArgs[stmt_index].toArray();
-                
-                if (cache_fastLookups[stmt_index] == null) {
+            
+            // OPTIMIZATION: Skip all of this if we know that we're always suppose to be single-partitioned
+            if (this.force_singlePartition == false) {
+                for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
+                    Object params[] = batchArgs[stmt_index].toArray();
+                    
+                    if (cache_fastLookups[stmt_index] == null) {
+                        if (debug.get())
+                            LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
+                                                    txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
+                        cache_isSinglePartition[stmt_index] = false;
+                    } else {
+                        if (debug.get())
+                            LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s",
+                                                    txn_id, stmt_index,
+                                                    this.catalog_stmts[stmt_index].fullName(),
+                                                    Arrays.toString(cache_fastLookups[stmt_index])));
+                        cache_isSinglePartition[stmt_index] = true;    
+                        for (int idx : cache_fastLookups[stmt_index]) {
+                            if (hasher.hash(params[idx]) != base_partition) {
+                                cache_isSinglePartition[stmt_index] = false;
+                                break;
+                            }
+                        } // FOR
+                    }
                     if (debug.get())
-                        LOG.debug(String.format("[#%d-%02d] No fast look-ups for %s. Cache is marked as not single-partitioned",
-                                                txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName()));
-                    cache_isSinglePartition[stmt_index] = false;
-                } else {
-                    if (debug.get())
-                        LOG.debug(String.format("[#%d-%02d] Using fast-lookup caching for %s: %s",
-                                                txn_id, stmt_index,
-                                                this.catalog_stmts[stmt_index].fullName(),
-                                                Arrays.toString(cache_fastLookups[stmt_index])));
-                    cache_isSinglePartition[stmt_index] = true;    
-                    for (int idx : cache_fastLookups[stmt_index]) {
-                        if (hasher.hash(params[idx]) != base_partition) {
-                            cache_isSinglePartition[stmt_index] = false;
-                            break;
-                        }
-                    } // FOR
-                }
-                if (debug.get())
-                    LOG.debug(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s",
-                                            txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName(), cache_isSinglePartition[stmt_index]));
-                is_allSinglePartition = is_allSinglePartition && cache_isSinglePartition[stmt_index];
-            } // FOR (Statement)
+                        LOG.debug(String.format("[#%d-%02d] cache_isSinglePartition[%s] = %s",
+                                                txn_id, stmt_index, this.catalog_stmts[stmt_index].fullName(), cache_isSinglePartition[stmt_index]));
+                    is_allSinglePartition = is_allSinglePartition && cache_isSinglePartition[stmt_index];
+                } // FOR (Statement)
+            }
             if (trace.get())
                 LOG.trace(String.format("[#%d] is_allSinglePartition=%s", txn_id, is_allSinglePartition));
             
@@ -614,7 +635,8 @@ public class BatchPlanner {
             
             // OPTIMIZATION: Fast partition look-up caching
             // OPTIMIZATION: Read-only queries on replicated tables always just go to the local partition
-            if (cache_isSinglePartition[stmt_index] || (is_replicated_only && is_read_only)) {
+            // OPTIMIZATION: If we're force to be single-partitioned, pretend that the table is replicated
+            if (cache_isSinglePartition[stmt_index] || (is_replicated_only && is_read_only) || this.force_singlePartition) {
                 if (trace.get()) {
                     if (cache_isSinglePartition[stmt_index]) {
                         LOG.trace(String.format("[#%d-%02d] Using fast-lookup for %s. Skipping PartitionEstimator",
@@ -666,7 +688,6 @@ public class BatchPlanner {
                         if (this.enable_profiling) ProfileMeasurement.swap(this.time_partitionEstimator, this.time_plan);
                         
                         int stmt_all_partitions_size = stmt_all_partitions.size();
-                        
                         if (is_singlepartition && stmt_all_partitions_size > 1) {
                             // If this was suppose to be multi-partitioned, then we want to stop right here!!
                             if (predict_singlepartitioned) {
