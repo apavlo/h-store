@@ -270,8 +270,15 @@ public class VoltProjectBuilder {
         return (null);
     }
     
-    public void addStmtProcedure(String name, String sql) {
-        addStmtProcedure(name, sql, null);
+    /**
+     * Create a single statement procedure that only has one query
+     * The input parameters to the SQL statement will be automatically passed 
+     * from the input parameters to the procedure.
+     * @param procedureName
+     * @param sql
+     */
+    public void addStmtProcedure(String procedureName, String sql) {
+        addStmtProcedure(procedureName, sql, null);
     }
 
     public void addStmtProcedure(String name, String sql, String partitionInfo) {

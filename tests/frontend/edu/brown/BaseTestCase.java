@@ -210,6 +210,7 @@ public abstract class BaseTestCase extends TestCase {
                     case AUCTIONMARK:
                     case MARKOV:
                     case LOCALITY:
+                    case MAPREDUCE:
                         catalog = projectBuilder.getFullCatalog(fkeys);
                         break;
                     default:

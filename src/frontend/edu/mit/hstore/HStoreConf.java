@@ -580,6 +580,13 @@ public final class HStoreConf {
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
+	        description="The max number of MapReduceTransactionStates to keep in the pool",
+	        defaultInt=100,
+	        experimental=false
+	    )
+	    public int pool_mapreducetxnstate_idle;
+        
+        @ConfigProperty(
             description="The max number of RemoteTransactionStates to keep in the pool",
             defaultInt=500,
             experimental=false

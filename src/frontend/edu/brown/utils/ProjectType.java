@@ -14,6 +14,7 @@ public enum ProjectType {
     BINGO       ("Bingo",       null),
     AUCTIONMARK ("AuctionMark", "edu.brown.benchmark.auctionmark"),
     LOCALITY    ("Locality",    "edu.brown.benchmark.locality"),
+    MAPREDUCE   ("MapReduce",   "edu.brown.benchmark.mapreduce"),
     EXAMPLE     ("Example",     "edu.brown.benchmark.example"),
     TEST        ("Test",        null),
     ;

@@ -132,13 +132,13 @@ public class PlanOptimizer {
             }
         } // FOR
 
-        if (trace.get())
-            LOG.trace("Attempting to optimize: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
+        if (debug.get())
+            LOG.debug("Attempting to optimize: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
 
-        if (debug.get()) LOG.debug(StringUtil.header("POPULATING TABLE INFORMATION"));
+        if (trace.get()) LOG.trace(StringUtil.header("POPULATING TABLE INFORMATION"));
         this.populateTableNodeInfo(root);
         
-        if (debug.get()) LOG.debug(StringUtil.header("APPLYING OPTIMIZATIONS"));
+        if (trace.get()) LOG.trace(StringUtil.header("APPLYING OPTIMIZATIONS"));
         try {
             this.process(root);
         } catch (Throwable ex) {
@@ -1413,9 +1413,9 @@ public class PlanOptimizer {
             if (trace.get())
                 LOG.trace("New Inner Input GUIDs:      " + inner_new_input_guids);
 
-            // ---------------------------------------------------
-            // NEST LOOP INDEX
-            // ---------------------------------------------------
+        // ---------------------------------------------------
+        // NEST LOOP INDEX
+        // ---------------------------------------------------
         } else {
             // Otherwise, just grab all of the columns for the target table in
             // the inline scan
@@ -1596,6 +1596,48 @@ public class PlanOptimizer {
     protected void updateColumnInfo(AbstractPlanNode node) {
         this.clearColumnInfo();
         this.populateTableNodeInfo(node);
+    }
+    
+    public static void validate(final AbstractPlanNode root) throws Exception {
+        
+        LOG.info("Validating: " + root + " / " + root.getPlanNodeType());
+        
+        switch (root.getPlanNodeType()) {
+            case HASHAGGREGATE:
+            case AGGREGATE: {
+                // Every PlanColumn referenced in this node must appear in its children's output
+                Collection<Integer> planCols = root.getOutputColumnGUIDs();
+                assert(planCols != null);
+                LOG.info("PLAN COLS: " + planCols);
+                
+                Set<Integer> foundCols = new HashSet<Integer>();
+                for (AbstractPlanNode child : root.getChildren()) {
+                    Collection<Integer> childCols = PlanNodeUtil.getOutputColumnIdsForPlanNode(child);
+                    LOG.info("CHILD " + child + " OUTPUT: " + childCols);
+                    
+                    for (Integer childCol : childCols) {
+                        if (planCols.contains(childCol)) {
+                            foundCols.add(childCol);
+                        }
+                    } // FOR
+                    if (foundCols.size() == planCols.size()) break;
+                } // FOR
+                
+                if (PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class).isEmpty() && // HACK
+                    foundCols.containsAll(planCols) == false) {
+                    throw new Exception(String.format("Failed to find all of the columns referenced by %s in the output columns of %s",
+                                                      root, planCols));
+                }
+                break;
+            }
+            
+            
+        } // SWITCH
+        
+        for (AbstractPlanNode child : root.getChildren()) {
+            PlanOptimizer.validate(child);
+        }
+        return;
     }
 
 }

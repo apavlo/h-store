@@ -16,6 +16,7 @@ import edu.mit.hstore.callbacks.TransactionRedirectCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.mit.hstore.dtxn.DependencyInfo;
 import edu.mit.hstore.dtxn.LocalTransaction;
+import edu.mit.hstore.dtxn.MapReduceTransaction;
 import edu.mit.hstore.dtxn.RemoteTransaction;
 
 public abstract class HStoreObjectPools {
@@ -58,6 +59,11 @@ public abstract class HStoreObjectPools {
      * LocalTransaction State ObjectPool
      */
     public static TypedStackObjectPool<LocalTransaction> STATES_TXN_LOCAL;
+    
+    /**
+     * MapReduceTransaction State ObjectPool
+     */
+    public static TypedStackObjectPool<MapReduceTransaction> STATES_TXN_MAPREDUCE;
     
     /**
      * RemoteTransaction State ObjectPool
@@ -105,6 +111,9 @@ public abstract class HStoreObjectPools {
 
             STATES_TXN_LOCAL = TypedStackObjectPool.factory(LocalTransaction.class,
                     (int)(hstore_conf.site.pool_localtxnstate_idle * hstore_conf.site.pool_scale_factor),
+                    hstore_conf.site.pool_profiling, hstore_site);
+            STATES_TXN_MAPREDUCE = TypedStackObjectPool.factory(MapReduceTransaction.class,
+                    (int)(hstore_conf.site.pool_mapreducetxnstate_idle * hstore_conf.site.pool_scale_factor),
                     hstore_conf.site.pool_profiling, hstore_site);
             STATES_TXN_REMOTE = TypedStackObjectPool.factory(RemoteTransaction.class,
                     (int)(hstore_conf.site.pool_remotetxnstate_idle * hstore_conf.site.pool_scale_factor),

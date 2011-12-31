@@ -61,7 +61,7 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     @Override
     protected void unblockCallback() {
         if (this.can_complete)
-            hstore_site.completeTransaction(txn_id, status);
+            hstore_site.completeTransaction(this.getTransactionId(), status);
     }
     
     @Override
@@ -95,6 +95,10 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
         return (response.getPartitionsCount());
     }
     
+    /**
+     * Prevent this callback from invoking HStoreSite.completeTransaction
+     * until some future time.
+     */
     public void disableTransactionCleanup() {
         assert(this.can_complete);
         if (debug.get())
@@ -102,6 +106,10 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
         this.can_complete = false;
     }
     
+    /**
+     * Allow this callback to invoke HStoreSite.completeTransaction as soon as
+     * all of the partitions send back their acknowledgements
+     */
     public void allowTransactionCleanup() {
         assert(this.can_complete == false);
         if (debug.get())

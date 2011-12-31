@@ -88,6 +88,15 @@ public abstract class StringUtil {
      * @return
      */
     public static String md5sum(String input) {
+        return md5sum(input.getBytes());
+    }
+    
+    /**
+     * Return the MD5 checksum of the given byte array
+     * @param input
+     * @return
+     */
+    public static String md5sum(byte bytes[]) {
         MessageDigest digest = null;
         try {
             digest = MessageDigest.getInstance("MD5");
@@ -95,7 +104,7 @@ public abstract class StringUtil {
             throw new RuntimeException("Unable to compute md5sum for string", ex);
         }
         assert(digest != null);
-        digest.update(input.getBytes());
+        digest.update(bytes);
         BigInteger hash = new BigInteger(1, digest.digest());
         return (hash.toString(16));
     }

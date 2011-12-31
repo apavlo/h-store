@@ -62,9 +62,11 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
+import edu.brown.expressions.ExpressionUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * The query planner accepts catalog data, SQL statements from the catalog, then
@@ -83,6 +85,8 @@ public class PlanAssembler {
     private static final int MAX_LOCAL_ID = 1000000;
     private static boolean m_useGlobalIds = true;
 
+    public static final String AGGREGATE_TEMP_TABLE = "VOLT_AGGREGATE_NODE_TEMP_TABLE";
+    
     /**
      * Internal PlanNodeId counter. Note that this member is static, which means
      * all PlanNodes will have a unique id
@@ -1191,7 +1195,7 @@ public class PlanAssembler {
                     tve.setColumnIndex(outputColumnIndex);
                     tve.setColumnName("");
                     tve.setColumnAlias(col.alias);
-                    tve.setTableName("VOLT_AGGREGATE_NODE_TEMP_TABLE");
+                    tve.setTableName(AGGREGATE_TEMP_TABLE);
                     PlanColumn colInfo = m_context.getPlanColumn(tve, col.alias);
                     aggNode.appendOutputColumn(colInfo);
                     aggNode.getAggregateOutputColumns().add(outputColumnIndex);
@@ -1216,6 +1220,7 @@ public class PlanAssembler {
 
             aggNode.addAndLinkChild(root);
             root = aggNode;
+//            System.out.println(PlanNodeUtil.debug(aggNode));
         }
         
         // PAVLO: Push non-AVG aggregates down into the scan for multi-partition queries
@@ -1370,10 +1375,25 @@ public class PlanAssembler {
             send_node.getOutputColumnGUIDs().clear();
             send_node.getOutputColumnGUIDs().addAll(clone_node.getOutputColumnGUIDs());
             
-            if (debug) LOG.debug("Successfully applied optimization! Eat that John Hugg!");
+            // 2011-12-08: We now need to correct the aggregate columns for the original plan node
+            aggNode.getAggregateColumnGuids().clear();
+            for (Integer aggOutput : clone_node.getOutputColumnGUIDs()) {
+                PlanColumn planCol = m_context.get(aggOutput);
+                assert(planCol != null);
+                AbstractExpression exp = planCol.getExpression();
+                assert(exp != null);
+                Collection<String> refTables = ExpressionUtil.getReferencedTableNames(exp);
+                assert(refTables != null);
+                if (refTables.size() == 1 && refTables.contains(AGGREGATE_TEMP_TABLE)) {
+                    aggNode.getAggregateColumnGuids().add(planCol.guid());
+                }
+            } // FOR
             
-//            System.err.println(PlanNodeUtil.debug(root));
-//            System.err.println(StringUtil.repeat("=", 100));
+            
+            if (debug) {
+                LOG.debug("Successfully applied optimization! Eat that John Hugg!\n" + PlanNodeUtil.debug(root));
+                LOG.debug(StringUtil.repeat("=", 100));
+            }
 //            System.err.println(orig_root_debug2);
 //            System.err.println(StringUtil.repeat("=", 100));
 //            System.err.println(orig_root_debug);

@@ -1,24 +1,26 @@
 package edu.mit.hstore;
 
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
-import org.voltdb.messaging.FragmentTaskMessage;
-import org.voltdb.messaging.VoltMessage;
+import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Pair;
 
 import ca.evanjones.protorpc.NIOEventLoop;
@@ -31,23 +33,43 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.*;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.*;
+import edu.brown.hstore.Hstore.HStoreService;
+import edu.brown.hstore.Hstore.SendDataRequest;
+import edu.brown.hstore.Hstore.SendDataResponse;
+import edu.brown.hstore.Hstore.ShutdownRequest;
+import edu.brown.hstore.Hstore.ShutdownResponse;
+import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TransactionFinishRequest;
+import edu.brown.hstore.Hstore.TransactionFinishResponse;
+import edu.brown.hstore.Hstore.TransactionInitRequest;
+import edu.brown.hstore.Hstore.TransactionInitResponse;
+import edu.brown.hstore.Hstore.TransactionMapRequest;
+import edu.brown.hstore.Hstore.TransactionMapResponse;
+import edu.brown.hstore.Hstore.TransactionPrepareRequest;
+import edu.brown.hstore.Hstore.TransactionPrepareResponse;
+import edu.brown.hstore.Hstore.TransactionRedirectRequest;
+import edu.brown.hstore.Hstore.TransactionRedirectResponse;
+import edu.brown.hstore.Hstore.TransactionReduceRequest;
+import edu.brown.hstore.Hstore.TransactionReduceResponse;
+import edu.brown.hstore.Hstore.TransactionWorkRequest;
+import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.callbacks.TransactionFinishCallback;
 import edu.mit.hstore.callbacks.TransactionInitCallback;
 import edu.mit.hstore.callbacks.TransactionPrepareCallback;
 import edu.mit.hstore.callbacks.TransactionRedirectResponseCallback;
-import edu.mit.hstore.callbacks.TransactionWorkCallback;
 import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.dtxn.RemoteTransaction;
+import edu.mit.hstore.handlers.SendDataHandler;
 import edu.mit.hstore.handlers.TransactionFinishHandler;
 import edu.mit.hstore.handlers.TransactionInitHandler;
+import edu.mit.hstore.handlers.TransactionMapHandler;
 import edu.mit.hstore.handlers.TransactionPrepareHandler;
+import edu.mit.hstore.handlers.TransactionReduceHandler;
 import edu.mit.hstore.handlers.TransactionWorkHandler;
 import edu.mit.hstore.interfaces.Shutdownable;
 
@@ -82,8 +104,12 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final TransactionInitHandler transactionInit_handler;
     private final TransactionWorkHandler transactionWork_handler;
+    private final TransactionMapHandler transactionMap_handler;
+    private final TransactionReduceHandler transactionReduce_handler;
     private final TransactionPrepareHandler transactionPrepare_handler;
     private final TransactionFinishHandler transactionFinish_handler;
+    private final SendDataHandler sendData_handler;
+  
     
     private final InitDispatcher transactionInit_dispatcher;
     private final FinishDispatcher transactionFinish_dispatcher;
@@ -91,6 +117,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private boolean shutting_down = false;
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
+    
     
 
     /**
@@ -231,9 +258,12 @@ public class HStoreCoordinator implements Shutdownable {
 
         this.transactionInit_handler = new TransactionInitHandler(hstore_site, this, transactionInit_dispatcher);
         this.transactionWork_handler = new TransactionWorkHandler(hstore_site, this);
+        this.transactionMap_handler = new TransactionMapHandler(hstore_site, this);
+        this.transactionReduce_handler = new TransactionReduceHandler(hstore_site,this);
         this.transactionPrepare_handler = new TransactionPrepareHandler(hstore_site, this);
         this.transactionFinish_handler = new TransactionFinishHandler(hstore_site, this, transactionFinish_dispatcher);
-        
+        // DONE(xin)
+        this.sendData_handler = new SendDataHandler(hstore_site, this);
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
         this.listener_thread.setDaemon(true);
@@ -333,7 +363,7 @@ public class HStoreCoordinator implements Shutdownable {
         return (this.state == ShutdownState.SHUTDOWN);
     }
     
-    protected int getLocalSiteId() {
+    public int getLocalSiteId() {
         return (this.local_site_id);
     }
     protected int getLocalMessengerPort() {
@@ -478,6 +508,20 @@ public class HStoreCoordinator implements Shutdownable {
         }
         
         @Override
+        public void transactionMap(RpcController controller, TransactionMapRequest request,
+        		RpcCallback<TransactionMapResponse> callback) {
+        	
+        	transactionMap_handler.remoteQueue(controller, request, callback);
+        }
+        
+        @Override
+        public void transactionReduce(RpcController controller, TransactionReduceRequest request,
+        		RpcCallback<TransactionReduceResponse> callback) {
+            
+        	transactionReduce_handler.remoteQueue(controller, request, callback);
+        }
+        
+        @Override
         public void transactionPrepare(RpcController controller, TransactionPrepareRequest request,
                 RpcCallback<TransactionPrepareResponse> callback) {
             transactionPrepare_handler.remoteQueue(controller, request, callback);
@@ -511,6 +555,16 @@ public class HStoreCoordinator implements Shutdownable {
             } else {
                 hstore_site.procedureInvocation(serializedRequest, callback);
             }
+        }
+        
+        @Override
+        public void sendData(RpcController controller, SendDataRequest request,
+        		RpcCallback<SendDataResponse> done) {
+        	// Take the SendDataRequest and pass it to the sendData_handler, which
+            // will deserialize the embedded VoltTable and wrap it in something that we can
+            // then pass down into the underlying ExecutionEngine
+        	sendData_handler.remoteQueue(controller, request, done);
+          
         }
         
         @Override
@@ -598,7 +652,6 @@ public class HStoreCoordinator implements Shutdownable {
                                                         .addAllPartitions(partitions)
                                                         .build();
         this.transactionPrepare_handler.sendMessages(ts, request, callback, partitions);
-        
     }
 
     /**
@@ -650,6 +703,171 @@ public class HStoreCoordinator implements Shutdownable {
                                         .setWork(bs)
                                         .build();
         this.channels.get(dest_site_id).transactionRedirect(new ProtoRpcController(), mr, callback);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // MapReduce METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * Tell all remote partitions to start the map phase for this txn
+     * @param ts
+     */
+    public void transactionMap(LocalTransaction ts, RpcCallback<Hstore.TransactionMapResponse> callback) {
+    	ByteString invocation = null;
+    	try {
+    		ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
+    		invocation = ByteString.copyFrom(b.array()); 
+    	} catch (Exception ex) {
+    		throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
+    	}
+    	
+    	Hstore.TransactionMapRequest request = Hstore.TransactionMapRequest.newBuilder()
+    												 .setTransactionId(ts.getTransactionId())
+    												 .setBasePartition(ts.getBasePartition())
+    												 .setInvocation(invocation)
+    												 .build();
+    	
+    	Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+    	if (debug.get())
+             LOG.debug("__FILE__:__LINE__ " + String.format("Notifying partitions %s that %s is in Map Phase", partitions, ts));
+    	//assert(ts.mapreduce == true) : "MapReduce Transaction flag is not set, " + hstore_site.getSiteName();
+    	
+    	LOG.info("<HStoreCoordinator.TransactionMap> is executing to sendMessages to all partitions\n");
+    	this.transactionMap_handler.sendMessages(ts, request, callback, partitions);
+    }
+    
+    /**
+     * Tell all remote partitions to start the reduce phase for this txn
+     * @param ts
+     */
+    public void transactionReduce(LocalTransaction ts, RpcCallback<Hstore.TransactionReduceResponse> callback) {
+        ByteString invocation = null;
+        try {
+            ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
+            invocation = ByteString.copyFrom(b.array()); 
+        } catch (Exception ex) {
+            throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
+        }
+        
+        TransactionReduceRequest request = Hstore.TransactionReduceRequest.newBuilder()
+                                                     .setTransactionId(ts.getTransactionId())
+                                                     .setBasePartition(ts.getBasePartition())
+                                                     .setInvocation(invocation)
+                                                     .build();
+        
+        Collection<Integer> partitions = ts.getPredictTouchedPartitions();
+        if (debug.get())
+             LOG.debug("__FILE__:__LINE__ " + String.format("Notifying partitions %s that %s is in Reduce Phase", partitions, ts));
+               
+        LOG.info("<HStoreCoordinator.TransactionReduce> is executing to sendMessages to all partitions\n");
+        this.transactionReduce_handler.sendMessages(ts, request, callback, partitions);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // SEND DATA METHODS
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * This is will be the main method used to send data from one partition to another.
+     * We will probably to dispatch these messages and handle then on the remote 
+     * side in a separate thread so that we don't block the ExecutionSite threads
+     * or any networking thread. We also need to make sure that if have to send
+     * data to a partition that's on our same machine, then we don't want to 
+     * waste time serializing + deserializing the data when didn't have to.
+     * @param ts
+     */
+    public void sendData(LocalTransaction ts, Map<Integer, VoltTable> data, RpcCallback<Hstore.SendDataResponse> callback) {
+        
+        // TODO(xin): Loop through all of the remote HStoreSites and grab their partition data
+        //            out of the map given as input. Create a single Hstore.SendDataRequest for that
+        //            HStoreSite and then use the direct channel to send the data. Be sure to skip
+        //            the partitions at the local site
+        //
+        //            this.channels.get(dest_site_id).sendData(new ProtoRpcController(), request, callback);
+        //
+        //            Then go back and grab the local partition data and invoke sendData_handler.sendLocal
+        
+        
+        long txn_id = ts.getTransactionId();
+        Set<Integer> fake_responses = null;
+        for (Site remote_site : CatalogUtil.getAllSites(this.catalog_site)) {
+            int dest_site_id = remote_site.getId();
+            if (debug.get())
+                LOG.debug("Dest_site_id: " + dest_site_id + "  Local_site_id: " + this.local_site_id);
+            if (dest_site_id == this.local_site_id) {
+                // If there is no data for any partition at this remote HStoreSite, then we will fake a response
+                // message to the callback and tell them that everything is ok
+                if (fake_responses == null) fake_responses = new HashSet<Integer>();
+                fake_responses.add(dest_site_id);
+                if (debug.get()) 
+                    LOG.debug("Did not send data to " + remote_site + ". Will send a fake response instead");
+                
+                continue;
+            }
+
+            Hstore.SendDataRequest.Builder builder = Hstore.SendDataRequest.newBuilder()
+                    .setTransactionId(txn_id)
+                    .setSenderId(local_site_id);
+
+            // Loop through and get all the data for this site
+            if (debug.get())
+                LOG.debug("__FILE__:__LINE__ " + String.format("CatalogUtil.getAllSites : " + CatalogUtil.getAllSites(this.catalog_site).size() +
+                		"     Remote_site partitions: " + remote_site.getPartitions().size()));
+            for (Partition catalog_part : remote_site.getPartitions()) {
+                VoltTable vt = data.get(catalog_part.getId());
+                if (vt == null) {
+                    LOG.warn("No data in " + ts + " for partition " + catalog_part.getId());
+                    continue;
+                }
+                ByteString bs = null;
+                byte bytes[] = null;
+                try {
+                    bytes = ByteBuffer.wrap(FastSerializer.serialize(vt)).array();
+                    bs = ByteString.copyFrom(bytes); 
+                    if (debug.get())
+                        LOG.debug(String.format("Outbound data for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
+                                                catalog_part.getId(), vt.getRowCount(), StringUtil.md5sum(bytes), bytes.length));
+                } catch (Exception ex) {
+                    throw new RuntimeException(String.format("Unexpected error when serializing %s data for partition %d",
+                                                             ts, catalog_part.getId()), ex);
+                }
+                if (debug.get()) 
+                    LOG.debug("Constructing PartitionFragment for " + catalog_part);
+                builder.addFragments(Hstore.PartitionFragment.newBuilder()
+                             .setPartitionId(catalog_part.getId())
+                             .setData(bs)
+                             .build());
+            } // FOR n partitions in remote_site
+            
+            if (builder.getFragmentsCount() > 0) {
+                if (debug.get())
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Sending data to %d partitions at %s for %s",
+                                                     builder.getFragmentsCount(), remote_site, ts));
+                this.channels.get(dest_site_id).sendData(new ProtoRpcController(), builder.build(), callback);
+            }
+        } // FOR n sites in this catalog
+                
+        for (int partition : this.local_partitions) {
+            VoltTable vt = data.get(partition);
+            if (vt == null) {
+                LOG.warn("No data in " + ts + " for partition " + partition);
+                continue;
+            }
+            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Storing VoltTable directly at local partition %d for %s", partition, ts));
+            ts.storeData(partition, vt);
+        } // FOR
+        
+        if (fake_responses != null) {
+            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Sending fake responses for %s for partitions %s", ts, fake_responses));
+            for (int dest_site_id : fake_responses) {
+                Hstore.SendDataResponse.Builder builder = Hstore.SendDataResponse.newBuilder()
+                                                                                 .setTransactionId(txn_id)
+                                                                                 .setStatus(Hstore.Status.OK)
+                                                                                 .setSenderId(dest_site_id);
+                callback.run(builder.build());
+            } // FOR
+        }
     }
     
     // ----------------------------------------------------------------------------

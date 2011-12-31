@@ -1,24 +1,35 @@
 package edu.brown.catalog;
 
-import java.io.*;
-import java.net.InetSocketAddress;
+import java.io.File;
 import java.util.*;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-
-import org.json.*;
-
-import org.voltdb.*;
+import org.json.JSONObject;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.*;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.AbstractValueExpression;
+import org.voltdb.expressions.ComparisonExpression;
+import org.voltdb.expressions.ConjunctionExpression;
+import org.voltdb.expressions.ConstantValueExpression;
+import org.voltdb.expressions.InComparisonExpression;
+import org.voltdb.expressions.ParameterValueExpression;
+import org.voltdb.expressions.TupleAddressExpression;
+import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.*;
-import org.voltdb.types.*;
-import org.voltdb.utils.*;
-import org.voltdb.catalog.*;
-import org.voltdb.expressions.*;
+import org.voltdb.types.ConstraintType;
+import org.voltdb.types.ExpressionType;
+import org.voltdb.types.PlanNodeType;
+import org.voltdb.types.QueryType;
+import org.voltdb.utils.Encoder;
+import org.voltdb.utils.JarReader;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
@@ -391,6 +402,28 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // ------------------------------------------------------------
     
     /**
+     * Return all of the internal system Procedures for the database 
+     */
+    public static Collection<Procedure> getSysProcedures(Database catalog_db) {
+        Set<Procedure> sysprocs = new ListOrderedSet<Procedure>();
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getSystemproc()) sysprocs.add(catalog_proc);
+        }
+        return (sysprocs);
+    }
+    
+    /**
+     * Return all of the MapReduce Procedures for the database 
+     */
+    public static Collection<Procedure> getMapReduceProcedures(Database catalog_db) {
+        Set<Procedure> mrprocs = new ListOrderedSet<Procedure>();
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            if (catalog_proc.getMapreduce()) mrprocs.add(catalog_proc);
+        }
+        return (mrprocs);
+    }
+    
+    /**
      * Construct a collection of all the Statements in the catalog
      * @param catalog_obj
      * @return
@@ -554,6 +587,11 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // HOSTS + SITES + PARTITIONS
     // ------------------------------------------------------------ 
 
+    public static Collection<Site> getAllSites(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        return (catalog_clus.getSites());
+    }
+    
     /**
      * Return the unique Site catalog object for the given id
      * @param catalog_item

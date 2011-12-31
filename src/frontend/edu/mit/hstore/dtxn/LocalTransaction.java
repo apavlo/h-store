@@ -91,12 +91,12 @@ public class LocalTransaction extends AbstractTransaction {
      * The original StoredProcedureInvocation request that was sent to the HStoreSite
      * XXX: Why do we need to keep this?
      */
-    private StoredProcedureInvocation invocation;
+    protected StoredProcedureInvocation invocation;
 
     /**
      * The set of partitions that we expected this partition to touch.
      */
-    private Collection<Integer> predict_touchedPartitions;
+    protected Collection<Integer> predict_touchedPartitions;
     
     /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
@@ -107,7 +107,7 @@ public class LocalTransaction extends AbstractTransaction {
      * A handle to the execution state of this transaction
      * This will only get set when the transaction starts running.
      */
-    private ExecutionState state;
+    protected ExecutionState state;
     
     /**
      * 
@@ -119,13 +119,13 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * 
      */
-    private Procedure catalog_proc;
+    protected Procedure catalog_proc;
 
     /**
      * Whether this is a sysproc
      */
     public boolean sysproc;
-
+    
     /**
      * Whether this txn is being executed specutatively
      */
@@ -140,7 +140,7 @@ public class LocalTransaction extends AbstractTransaction {
      * 
      */
     public final TransactionProfile profiler;
-    
+
     /**
      * Cached ProtoRpcControllers
      */
@@ -158,14 +158,14 @@ public class LocalTransaction extends AbstractTransaction {
      * the acknowledgments back from all of the partitions that we're going to access.
      * This is only needed for distributed transactions. 
      */
-    private TransactionInitCallback init_callback;
+    protected TransactionInitCallback init_callback;
     
     /**
      * This callback is used to keep track of what partitions have replied that they are 
      * ready to commit/abort our transaction.
      * This is only needed for distributed transactions.
      */
-    private TransactionPrepareCallback prepare_callback; 
+    protected TransactionPrepareCallback prepare_callback; 
     
     private TransactionFinishCallback finish_callback;
     
@@ -194,7 +194,7 @@ public class LocalTransaction extends AbstractTransaction {
 
     @SuppressWarnings("unchecked")
     public LocalTransaction init(long txnId, long clientHandle, int base_partition,
-                                 boolean predict_readOnly, boolean predict_canAbort) {
+                                       boolean predict_readOnly, boolean predict_canAbort) {
         assert(this.predict_touchedPartitions != null);
         super.init(txnId, clientHandle, base_partition,
                 (this.predict_touchedPartitions.size() == 1), predict_readOnly, predict_canAbort, true);
@@ -242,6 +242,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.estimator_state = estimator_state;
         this.catalog_proc = catalog_proc;
         this.sysproc = catalog_proc.getSystemproc();
+              
         this.invocation = invocation;
         this.client_callback = client_callback;
         
@@ -261,6 +262,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.orig_txn_id = orig.getTransactionId();
         this.catalog_proc = orig.catalog_proc;
         this.sysproc = orig.sysproc;
+
         this.invocation = orig.invocation;
         this.client_callback = orig.client_callback;
         // this.estimator_state = orig.estimator_state;
@@ -297,6 +299,10 @@ public class LocalTransaction extends AbstractTransaction {
     public void setExecutionState(ExecutionState state) {
         assert(this.state == null);
         this.state = state;
+    }
+    
+    protected void resetExecutionState() {
+        this.state = null;
     }
     
     /**
@@ -342,6 +348,7 @@ public class LocalTransaction extends AbstractTransaction {
         this.orig_txn_id = null;
         this.catalog_proc = null;
         this.sysproc = false;
+        
         this.exec_speculative = false;
         this.predict_touchedPartitions = null;
         this.done_partitions.clear();
@@ -496,7 +503,14 @@ public class LocalTransaction extends AbstractTransaction {
     public TransactionPrepareCallback getTransactionPrepareCallback() {
         return (this.prepare_callback);
     }
-    public TransactionFinishCallback getTransactionFinishCallback(Hstore.Status status) {
+    /**
+     * Initialize the TransactionFinishCallback for this transaction using the
+     * given status indicator. You should always use this callback and not allocate
+     * one yourself!
+     * @param status
+     * @return
+     */
+    public TransactionFinishCallback initTransactionFinishCallback(Hstore.Status status) {
         assert(this.finish_callback.isInitialized() == false);
         this.finish_callback.init(this, status);
         return (this.finish_callback);
@@ -511,6 +525,10 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     // ACCESS METHODS
     // ----------------------------------------------------------------------------
+    
+    public boolean isMapReduce() {
+    	return (this.catalog_proc.getMapreduce());
+    }
     
     public void setBatchSize(int batchSize) {
         this.state.batch_size = batchSize;
@@ -957,6 +975,7 @@ public class LocalTransaction extends AbstractTransaction {
         m = super.getDebugMap();
         m.put("Procedure", this.getProcedureName());
         m.put("SysProc", this.sysproc);
+        
         maps.add(m);
         
         // Predictions
@@ -1051,4 +1070,5 @@ public class LocalTransaction extends AbstractTransaction {
         
         return (sb.toString());
     }
+	
 }

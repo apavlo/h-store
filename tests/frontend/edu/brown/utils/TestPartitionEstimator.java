@@ -462,4 +462,98 @@ public class TestPartitionEstimator extends BaseTestCase {
             assert(column_joins.get(catalog_col).containsAll(split[idx]));
         } // FOR
     }
+    
+    /**
+     * testGetTableRowPartitionNumeric
+     */
+    public void testGetTableRowPartitionNumeric() throws Exception {
+        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Column catalog_col = this.getColumn(catalog_tbl, "W_ID");
+        catalog_tbl.setPartitioncolumn(catalog_col);
+        PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+        
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        int num_rows = 1000;
+        Map<Long, Integer> expected = new HashMap<Long, Integer>();
+        for (int i = 0; i < num_rows; i++) {
+            Object row[] = new Object[catalog_tbl.getColumns().size()];
+            for (int j = 0; j < row.length; j++) {
+                Column col = catalog_tbl.getColumns().get(j);
+                assertNotNull(col);
+                VoltType vtype = VoltType.get(col.getType());
+                if (col.equals(catalog_col)) {
+                    long w_id = (i % NUM_PARTITIONS);
+                    row[j] = w_id;
+                    expected.put(w_id, p_estimator.getHasher().hash(w_id));
+                }
+                else row[j] = VoltTypeUtil.getRandomValue(vtype);
+            } // FOR
+            vt.addRow(row);
+        } // FOR
+        assertEquals(num_rows, vt.getRowCount());
+        
+        vt.resetRowPosition();
+        while (vt.advanceRow()) {
+            VoltTableRow row = vt.getRow();
+            long w_id = row.getLong(catalog_col.getIndex());
+            int p = p_estimator.getTableRowPartition(catalog_tbl, row);
+            assert(p >= 0 && p <= NUM_PARTITIONS);
+            
+            Integer last = expected.get(w_id);
+            assertNotNull(last);
+            assertEquals(last.intValue(), p);
+        } // WHILE
+    }
+    
+    /**
+     * testGetTableRowPartitionString
+     */
+    public void testGetTableRowPartitionString() throws Exception {
+        Table catalog_tbl = this.getTable("WAREHOUSE");
+        Column catalog_col = this.getColumn(catalog_tbl, "W_NAME");
+        catalog_tbl.setPartitioncolumn(catalog_col);
+        PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
+        
+        Map<String, Integer> expected = new HashMap<String, Integer>();
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        int num_rows = 1000;
+        for (int i = 0; i < num_rows; i++) {
+            Object row[] = new Object[catalog_tbl.getColumns().size()];
+            for (int j = 0; j < row.length; j++) {
+                Column col = catalog_tbl.getColumns().get(j);
+                assertNotNull(col);
+                VoltType vtype = VoltType.get(col.getType());
+                if (col.equals(catalog_col)) {
+                    String name = "WAREHOUSE-" + (i % NUM_PARTITIONS);
+                    row[j] = name;
+                    expected.put(name, p_estimator.getHasher().hash(name));
+                }
+                else row[j] = VoltTypeUtil.getRandomValue(vtype);
+            } // FOR
+            vt.addRow(row);
+        } // FOR
+        assertEquals(num_rows, vt.getRowCount());
+        
+        vt.resetRowPosition();
+        while (vt.advanceRow()) {
+            VoltTableRow row = vt.getRow();
+            
+            String w_name = row.getString(catalog_col.getIndex());
+            int name_p = p_estimator.getHasher().hash(w_name);
+            assert(name_p >= 0 && name_p <= NUM_PARTITIONS);
+            
+            int row_p = p_estimator.getTableRowPartition(catalog_tbl, row);
+            assert(row_p >= 0 && row_p <= NUM_PARTITIONS);
+            assertEquals(w_name, name_p, row_p);
+
+//            System.err.println(w_name + " => " + row_p);
+            Integer last = expected.get(w_name);
+            assertNotNull(last);
+            assertEquals(last.intValue(), row_p);
+        } // WHILE
+        
+//        System.err.println(StringUtil.formatMaps(expected));
+//        System.err.println(actual);
+    }
+    
 }

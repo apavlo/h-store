@@ -32,6 +32,8 @@ import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltTableRow;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
@@ -84,10 +86,10 @@ public abstract class AbstractTransaction implements Poolable {
     protected boolean predict_singlePartition = false;
     
     /** Whether this txn can abort */
-    private boolean predict_abortable = true;
+    protected boolean predict_abortable = true;
     
     /** Whether we predict that this txn will be read-only */
-    private boolean predict_readOnly = false;
+    protected boolean predict_readOnly = false;
     
     // ----------------------------------------------------------------------------
     // PER PARTITION EXECUTION FLAGS
@@ -198,6 +200,20 @@ public abstract class AbstractTransaction implements Poolable {
      * @param predict_abortable TODO
      */
     public abstract <T extends AbstractTransaction> T init(long txnId, long clientHandle, int source_partition, boolean predict_readOnly, boolean predict_abortable);
+    
+    // ----------------------------------------------------------------------------
+    // DATA STORAGE
+    // ----------------------------------------------------------------------------
+    
+    /*
+     * Store data from mapOutput tables to reduceInput table
+     * reduceInput table should merge all incoming data from the mapOutput tables.
+     */
+    public Hstore.Status storeData(int partition, VoltTable vt) {
+        assert(false) : "Unimplemented!";
+        
+        return (Hstore.Status.OK);
+    }
     
     // ----------------------------------------------------------------------------
     // ROUND METHODS

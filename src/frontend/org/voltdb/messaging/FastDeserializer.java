@@ -86,6 +86,12 @@ public class FastDeserializer implements DataInput {
         final FastDeserializer in = new FastDeserializer(data);
         return in.readObject(expectedType);
     }
+    
+    public final static <T extends FastSerializable> T deserialize(
+            final ByteBuffer data, final Class<T> expectedType) throws IOException {
+        final FastDeserializer in = new FastDeserializer(data);
+        return in.readObject(expectedType);
+    }
 
     /**
      * Read an object from a a byte array stream assuming you know the expected type.

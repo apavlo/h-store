@@ -1584,6 +1584,7 @@ public class BenchmarkController {
             // Disable sending the shutdown command at the end of the benchmark run
             } else if (parts[0].equalsIgnoreCase("NOSHUTDOWN")) {
                 noShutdown = Boolean.parseBoolean(parts[1]);
+                siteParams.put("site.status_kill_if_hung", "false");
                 
             /* Workload Trace Output */
             } else if (parts[0].equalsIgnoreCase("TRACE")) {

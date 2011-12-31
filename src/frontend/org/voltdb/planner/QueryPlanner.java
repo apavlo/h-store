@@ -200,7 +200,7 @@ public class QueryPlanner {
             // ---------------------------------------------------------------
             if (parsedStmt.sql.contains("TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY")) {
                 tpce_limit = 25000;
-                LOG.warn("PAVLO: Enabled TPC-E BrokerVolumn limit: " + tpce_limit);
+                LOG.warn("PAVLO: Enabled TPC-E BrokerVolume limit: " + tpce_limit);
             }
 
             // set up the plan assembler for this particular plan

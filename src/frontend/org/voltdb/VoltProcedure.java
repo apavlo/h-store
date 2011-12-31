@@ -27,12 +27,15 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
@@ -65,6 +68,7 @@ import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
+import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.AbstractTransaction;
 import edu.mit.hstore.dtxn.LocalTransaction;
 import edu.mit.hstore.interfaces.Loggable;
@@ -114,6 +118,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // private members reserved exclusively to VoltProcedure
     private Method procMethod;
     private boolean procMethodNoJava = false;
+    private boolean procIsMapReduce = false;
     private Class<?>[] paramTypes;
     private boolean paramTypeIsPrimitive[];
     private boolean paramTypeIsArray[];
@@ -121,7 +126,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private int paramTypesLength;
     private boolean isNative = true;
     protected Object procParams[];
-    //final HashMap<Object, Statement> stmts = new HashMap<Object, Statement>( 16, (float).1);
+    protected final Map<String, SQLStmt> stmts = new HashMap<String, SQLStmt>();
 
     // cached fake SQLStmt array for single statement non-java procs
     SQLStmt[] m_cachedSingleStmt = { null };
@@ -133,6 +138,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     protected AbstractHasher hasher;
     protected PartitionEstimator p_estimator;
     protected TransactionEstimator t_estimator;
+    protected HStoreSite hstore_site;
     protected HStoreConf hstore_conf;
     
     /** The local partition id where this VoltProcedure is running */
@@ -164,7 +170,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private long client_handle;
     private boolean predict_singlepartition;
     private AbstractTransaction m_currentTxnState;  // assigned in call()
-    private LocalTransaction m_localTxnState;  // assigned in call()
+    protected LocalTransaction m_localTxnState;  // assigned in call()
     private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
@@ -230,8 +236,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             m_initialized = true;
         }
         assert(site != null);
-
+        
         this.executor = site;
+        this.hstore_site = site.getHStoreSite();
         this.hstore_conf = HStoreConf.singleton();
         this.catalog_proc = catalog_proc;
         this.procedure_name = this.catalog_proc.getName();
@@ -258,23 +265,69 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             boolean tempParamTypeIsPrimitive[] = null;
             boolean tempParamTypeIsArray[] = null;
             Class<?> tempParamTypeComponentType[] = null;
+            
+            this.procIsMapReduce = catalog_proc.getMapreduce();
+            boolean hasMap = false;
+            boolean hasReduce = false;
+            
             for (final Method m : methods) {
                 String name = m.getName();
+                // TODO: Change procMethod to point to VoltMapReduceProcedure.runMap() if this is
+                // 		 a MR stored procedure
                 if (name.equals("run")) {
                     //inspect(m);
                     tempProcMethod = m;
-                    tempParamTypes = tempProcMethod.getParameterTypes();
-                    tempParamTypesLength = tempParamTypes.length;
-                    tempParamTypeIsPrimitive = new boolean[tempParamTypesLength];
-                    tempParamTypeIsArray = new boolean[tempParamTypesLength];
-                    tempParamTypeComponentType = new Class<?>[tempParamTypesLength];
-                    for (int ii = 0; ii < tempParamTypesLength; ii++) {
-                        tempParamTypeIsPrimitive[ii] = tempParamTypes[ii].isPrimitive();
-                        tempParamTypeIsArray[ii] = tempParamTypes[ii].isArray();
-                        tempParamTypeComponentType[ii] = tempParamTypes[ii].getComponentType();
+                    
+                    // We can only do this if it's not a MapReduce procedure
+                    if (procIsMapReduce == false) {
+                    	tempParamTypes = tempProcMethod.getParameterTypes();
+                        tempParamTypesLength = tempParamTypes.length;
+                        tempParamTypeIsPrimitive = new boolean[tempParamTypesLength];
+                        tempParamTypeIsArray = new boolean[tempParamTypesLength];
+                        tempParamTypeComponentType = new Class<?>[tempParamTypesLength];
+                    	
+	                    for (int ii = 0; ii < tempParamTypesLength; ii++) {
+	                        tempParamTypeIsPrimitive[ii] = tempParamTypes[ii].isPrimitive();
+	                        tempParamTypeIsArray[ii] = tempParamTypes[ii].isArray();
+	                        tempParamTypeComponentType[ii] = tempParamTypes[ii].getComponentType();
+	                    }
                     }
+                    // Otherwise everything must come from the catalog
+                    else {
+                    	CatalogMap<ProcParameter> params = catalog_proc.getParameters();
+                    	tempParamTypesLength = params.size();
+                    	tempParamTypes = new Class<?>[tempParamTypesLength];
+                    	tempParamTypeIsPrimitive = new boolean[tempParamTypesLength];
+                        tempParamTypeIsArray = new boolean[tempParamTypesLength];
+                        tempParamTypeComponentType = new Class<?>[tempParamTypesLength];
+
+                        for (int i = 0; i < tempParamTypesLength; i++) {
+                        	ProcParameter catalog_param = params.get(i);
+                        	VoltType vtype = VoltType.get(catalog_param.getType());
+                        	assert(vtype != null);
+                        	tempParamTypes[i] = vtype.classFromType(); 
+                        } // FOR
+                        
+                        // We'll try to cast everything as a primitive
+                        Arrays.fill(tempParamTypeIsPrimitive, true);
+                        
+                    	// At this point we don't support arrays as inputs to Statements
+                        Arrays.fill(tempParamTypeIsArray, false);
+                    }
+                } else if(name.equals("map")){
+                	hasMap = true;
+                } else if (name.equals("reduce")) {
+                    hasReduce = true;
+                } 
+            }
+            if (procIsMapReduce) {
+                if (hasMap == false) {
+                    throw new RuntimeException(String.format("%s Map/Reduce is missing MAP function"));
+                } else if (hasReduce == false) {
+                    throw new RuntimeException(String.format("%s Map/Reduce is missing REDUCE function"));
                 }
             }
+            
             paramTypesLength = tempParamTypesLength;
             procMethod = tempProcMethod;
             paramTypes = tempParamTypes;
@@ -301,13 +354,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                             SQLStmt stmt = (SQLStmt) f.get(this);
                             stmt.catStmt = s;
                             initSQLStmt(stmt);
-                            
+                            this.stmts.put(name, stmt);
                         //stmts.put((Object) (f.get(null)), s);
                         } catch (IllegalArgumentException e) {
                             e.printStackTrace();
                         } catch (IllegalAccessException e) {
                             e.printStackTrace();
                         }
+                        
                     //LOG.debug("Found statement " + name);
                     }
                 }
@@ -354,6 +408,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
     }
     
+    protected SQLStmt getSQLStmt(String name) {
+    	return (this.stmts.get(name));
+    }
     
     final void initSQLStmt(SQLStmt stmt) {
         stmt.numFragGUIDs = stmt.catStmt.getFragments().size();
@@ -513,9 +570,17 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             return (response); 
         }
 
+        // Fix for MapReduce transactions
+//        if (m_localTxnState.isMapReduce()) {
+//        	assert(this.procParams.length == 1);
+//        	this.procParams = (Object[])this.procParams[0];
+//        }
+        
         for (int i = 0; i < paramTypesLength; i++) {
+        	String orig = this.procParams[i].getClass().getSimpleName();
             try {
                 this.procParams[i] = tryToMakeCompatible(i, this.procParams[i]);
+                if (trace.get()) LOG.trace(String.format("[%02d] ORIG:%s -> NEW:%s", i, orig, this.procParams[i].getClass().getSimpleName()));
             } catch (Exception e) {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();
@@ -537,7 +602,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Fix to make no-Java procedures work
-        if (procMethodNoJava) this.procParams = new Object[] { this.procParams } ;
+        if (procMethodNoJava || procIsMapReduce) this.procParams = new Object[] { this.procParams } ;
         
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startExecJava();
         try {
@@ -718,8 +783,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 
         Class<?> pclass = param.getClass();
         boolean slotIsArray = paramTypeIsArray[paramTypeIndex];
-        if (slotIsArray != pclass.isArray())
+        if (slotIsArray != pclass.isArray()) {
+        	LOG.warn(String.format("Param #%d -> %s [class=%s, isArray=%s, slotIsArray=%s]",
+        						   paramTypeIndex, param, pclass.getSimpleName(), pclass.isArray(), slotIsArray));
             throw new Exception("Array / Scalar parameter mismatch");
+        }
 
         if (slotIsArray) {
             Class<?> pSubCls = pclass.getComponentType();
@@ -890,9 +958,17 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * query {@link org.voltdb.SQLStmt statements}
      */
     public VoltTable[] voltExecuteSQL() {
-        return voltExecuteSQL(false);
+        return voltExecuteSQL(false, false);
     }
 
+    /**
+     * Execute the currently SQL as always single-partition queries 
+     * @return
+     */
+    protected VoltTable[] voltExecuteSQLForceSinglePartition() {
+        return voltExecuteSQL(false, true);
+    }
+    
     /**
      * Execute the currently queued SQL {@link org.voltdb.SQLStmt statements} and return
      * the result tables. Boolean option allows caller to indicate if this is the final
@@ -903,6 +979,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * query {@link org.voltdb.SQLStmt statements}
      */
     public VoltTable[] voltExecuteSQL(boolean isFinalSQL) {
+        return voltExecuteSQL(isFinalSQL, false);
+    }
+    
+    protected VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
         if (!isNative) {
             VoltTable[] batch_results = queryResults.toArray(new VoltTable[queryResults.size()]);
             queryResults.clear();
@@ -925,7 +1005,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Execute the queries and return the VoltTable results
-        VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL);
+        VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL, forceSinglePartition);
 
         // Workload Trace - Stop Query
         if (this.enable_tracing && m_workloadXactHandle != null) {
@@ -971,7 +1051,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param finalTask
      * @return
      */
-    private VoltTable[] executeQueriesInABatch(final int batchSize, SQLStmt[] batchStmts, Object[][] batchArgs, boolean finalTask) {
+    private VoltTable[] executeQueriesInABatch(final int batchSize, SQLStmt[] batchStmts, Object[][] batchArgs, boolean finalTask, boolean forceSinglePartition) {
         assert(batchStmts != null);
         assert(batchArgs != null);
         assert(batchStmts.length > 0);
@@ -999,7 +1079,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         final Integer batchHashCode = VoltProcedure.getBatchHashCode(batchStmts, batchSize);
         this.planner = this.executor.POOL_BATCH_PLANNERS.get(batchHashCode);
         if (this.planner == null) { // Assume fast case
-            this.planner = new BatchPlanner(batchStmts, batchSize, this.catalog_proc, this.p_estimator);
+            this.planner = new BatchPlanner(batchStmts, batchSize, this.catalog_proc, this.p_estimator, forceSinglePartition);
             this.executor.POOL_BATCH_PLANNERS.put(batchHashCode, planner);
         }
         assert(this.planner != null);

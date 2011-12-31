@@ -52,6 +52,11 @@ protected:
     bool m_singlepartition;
     bool m_everysite;
     bool m_systemproc;
+    bool m_mapreduce;
+    std::string m_mapInputQuery;
+    std::string m_mapEmitTable;
+    std::string m_reduceInputQuery;
+    std::string m_reduceEmitTable;
     bool m_hasjava;
     CatalogType* m_partitiontable;
     CatalogType* m_partitioncolumn;
@@ -81,6 +86,16 @@ public:
     bool everysite() const;
     /** GETTER: Is this procedure an internal system procedure? */
     bool systemproc() const;
+    /** GETTER: Is this procedure a Map/Reduce procedure? */
+    bool mapreduce() const;
+    /** GETTER: The name of the query that gets executed and fed into the Map function */
+    const std::string & mapInputQuery() const;
+    /** GETTER: The name of the table that the Map function will store data in */
+    const std::string & mapEmitTable() const;
+    /** GETTER: The name of the query that gets executed and fed into the Reduce function */
+    const std::string & reduceInputQuery() const;
+    /** GETTER: The name of the table that the Reduce function will store data in */
+    const std::string & reduceEmitTable() const;
     /** GETTER: Is this a full java stored procedure or is it just a single stmt? */
     bool hasjava() const;
     /** GETTER: Which table contains the partition column for this procedure? */

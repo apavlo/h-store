@@ -19,6 +19,7 @@ public class ExampleLoader extends BenchmarkComponent {
         for (String key : m_extraParams.keySet()) {
             // TODO: Retrieve extra configuration parameters
         } // FOR
+        System.out.println("<I am doing ExampleLoader>*****************************************\n");
     }
  
     @Override

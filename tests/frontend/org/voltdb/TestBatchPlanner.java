@@ -83,14 +83,14 @@ public class TestBatchPlanner extends BaseTestCase {
         this.args = new ParameterSet[] { VoltProcedure.getCleanParams(this.batch[0], raw_args) };
     }
     
-    protected int getLocalFragmentCount(Collection<FragmentTaskMessage> ftasks, int base_partition) {
+    protected static int getLocalFragmentCount(Collection<FragmentTaskMessage> ftasks, int base_partition) {
         int cnt = 0;
         for (FragmentTaskMessage ftask : ftasks) {
             if (ftask.getDestinationPartitionId() == base_partition) cnt++;
         } // FOR
         return (cnt);
     }
-    protected int getRemoteFragmentCount(Collection<FragmentTaskMessage> ftasks, int base_partition) {
+    protected static int getRemoteFragmentCount(Collection<FragmentTaskMessage> ftasks, int base_partition) {
         int cnt = 0;
         for (FragmentTaskMessage ftask : ftasks) {
             if (ftask.getDestinationPartitionId() != base_partition) cnt++;
@@ -390,4 +390,5 @@ public class TestBatchPlanner extends BaseTestCase {
             assertFalse(output_dependencies.contains(local_ftask.getOutputDependencyIds()[0]));
         }
     }
+
 }
