@@ -59,7 +59,6 @@ import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
 
@@ -608,17 +607,17 @@ public abstract class SEATSBaseClient extends BenchmarkComponent implements JSON
     // AIRLINE METHODS
     // ----------------------------------------------------------------
     
-    public Collection<Long> getSEATSIds() {
+    public Collection<Long> getAirlineIds() {
         Map<String, Long> m = this.getCodeXref("AL_ID");
         return (m.values());
     }
     
-    public Collection<String> getSEATSCodes() {
+    public Collection<String> getAirlineCodes() {
         Map<String, Long> m = this.getCodeXref("AL_ID");
         return (m.keySet());
     }
     
-    public Long getSEATSId(String airline_code) {
+    public Long getAirlineId(String airline_code) {
         Map<String, Long> m = this.getCodeXref("AL_ID");
         return (m.get(airline_code));
     }
