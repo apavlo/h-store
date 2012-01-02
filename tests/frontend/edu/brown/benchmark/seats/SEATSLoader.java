@@ -772,7 +772,7 @@ public class SEATSLoader extends SEATSBaseClient {
             this.last_customer_id = this.customer_id_iterator.next();
 
             // Flights per Airline
-            this.all_airlines = getSEATSCodes();
+            this.all_airlines = getAirlineCodes();
             Histogram<String> histogram = new Histogram<String>();
             histogram.putAll(this.all_airlines);
             // Embed a Gaussian distribution
@@ -964,7 +964,7 @@ public class SEATSLoader extends SEATSBaseClient {
             assert(days_future >= 0);
             
             // Flights per Airline
-            Collection<String> all_airlines = getSEATSCodes();
+            Collection<String> all_airlines = getAirlineCodes();
             Histogram<String> histogram = new Histogram<String>();
             histogram.putAll(all_airlines);
             // Embed a Gaussian distribution
@@ -1052,7 +1052,7 @@ public class SEATSLoader extends SEATSBaseClient {
 
             // Airline
             this.airline_code = this.airlines.nextValue();
-            this.airline_id = getSEATSId(this.airline_code);
+            this.airline_id = getAirlineId(this.airline_code);
             
             // Status
             this.status = 0; // TODO
