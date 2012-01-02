@@ -123,7 +123,7 @@ public class NewReservation extends VoltProcedure {
             "   ? " +   // R_ATTR08
             ")");
     
-    public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[]) throws VoltAbortException {
+    public VoltTable[] run(long r_id, long c_id, long f_id, long seatnum, double price, long attrs[]) {
         final boolean debug = LOG.isDebugEnabled();
         
         voltQueueSQL(GetFlight, f_id);

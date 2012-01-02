@@ -149,19 +149,19 @@ public class FindFlights extends VoltProcedure {
                     
                     adv = airportResults[++i].advanceRow();
                     assert(adv);
-                    row[r++] = flightResults[0].getTimestampAsLong(4);  // [03] DEPART_TIME
-                    row[r++] = airportResults[0].getString(0);          // [04] DEPART_AP_CODE
-                    row[r++] = airportResults[0].getString(1);          // [05] DEPART_AP_NAME
-                    row[r++] = airportResults[0].getString(2);          // [06] DEPART_AP_CITY
-                    row[r++] = airportResults[0].getString(6);          // [07] DEPART_AP_COUNTRY
+                    row[r++] = flightResults[i].getTimestampAsLong(4);  // [03] DEPART_TIME
+                    row[r++] = airportResults[i].getString(0);          // [04] DEPART_AP_CODE
+                    row[r++] = airportResults[i].getString(1);          // [05] DEPART_AP_NAME
+                    row[r++] = airportResults[i].getString(2);          // [06] DEPART_AP_CITY
+                    row[r++] = airportResults[i].getString(6);          // [07] DEPART_AP_COUNTRY
                     
                     adv = airportResults[++i].advanceRow();
                     assert(adv);
-                    row[r++] = flightResults[0].getTimestampAsLong(6);  // [08] ARRIVE_TIME
-                    row[r++] = airportResults[0].getString(0);          // [09] ARRIVE_AP_CODE
-                    row[r++] = airportResults[0].getString(1);          // [10] ARRIVE_AP_NAME
-                    row[r++] = airportResults[0].getString(2);          // [11] ARRIVE_AP_CITY
-                    row[r++] = airportResults[0].getString(6);          // [12] ARRIVE_AP_COUNTRY
+                    row[r++] = flightResults[i].getTimestampAsLong(6);  // [08] ARRIVE_TIME
+                    row[r++] = airportResults[i].getString(0);          // [09] ARRIVE_AP_CODE
+                    row[r++] = airportResults[i].getString(1);          // [10] ARRIVE_AP_NAME
+                    row[r++] = airportResults[i].getString(2);          // [11] ARRIVE_AP_CITY
+                    row[r++] = airportResults[i].getString(6);          // [12] ARRIVE_AP_COUNTRY
                     
                     finalResults.addRow(row);
                     if (debug)
