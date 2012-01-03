@@ -86,6 +86,12 @@ public class PlanOptimizer {
     /** Maintain the old output columns per PlanNode so we can figure out offsets */
     final Map<AbstractPlanNode, List<Integer>> orig_node_output = new HashMap<AbstractPlanNode, List<Integer>>();
 
+    final Map<Integer, Set<String>> join_tbl_mapping = new HashMap<Integer, Set<String>>();
+    final List<ProjectionPlanNode> projection_plan_nodes = new ArrayList<ProjectionPlanNode>();
+    final Set<String> ref_join_tbls = new HashSet<String>();
+    final SortedMap<Integer, AbstractPlanNode> join_node_index = new TreeMap<Integer, AbstractPlanNode>();
+    final Map<AbstractPlanNode, Map<String, Integer>> join_outputs = new HashMap<AbstractPlanNode, Map<String,Integer>>();
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
@@ -164,14 +170,12 @@ public class PlanOptimizer {
         if (trace.get()) LOG.trace("New Plan:\n" + PlanNodeUtil.debug(rootNode));
         
         if (debug.get()) LOG.debug(StringUtil.header("START OF ADDING PROJECTION TO JOINS OPTIMIZATION"));
+
         // walk the tree a third time and build the Map between nestedloopjoin
         // nodes and Set of Table Names map element id to set of columns
-        final Map<Integer, Set<String>> join_tbl_mapping = new HashMap<Integer, Set<String>>();
-        final List<ProjectionPlanNode> projection_plan_nodes = new ArrayList<ProjectionPlanNode>();
-        final Set<String> ref_join_tbls = new HashSet<String>();
-        final SortedMap<Integer, AbstractPlanNode> join_node_index = new TreeMap<Integer, AbstractPlanNode>();
-        final Map<AbstractPlanNode, Map<String, Integer>> join_outputs = new HashMap<AbstractPlanNode, Map<String,Integer>>();
         new PlanNodeTreeWalker(false) {
+            final HashSet<String> temp_set = new HashSet<String>();
+            
             @Override
             protected void callback(AbstractPlanNode element) {
                 if (element instanceof AbstractScanPlanNode) {
@@ -181,9 +185,12 @@ public class PlanOptimizer {
                     assert (element.getInlinePlanNodeCount() == 1) : "Join has incorrect number of inline nodes";
                     AbstractScanPlanNode inline_scan_node = (AbstractScanPlanNode) CollectionUtil.first(element.getInlinePlanNodes().values());
                     ref_join_tbls.add(inline_scan_node.getTargetTableName());
-                    /** need temp set to put into hashmap! **/
-                    HashSet<String> temp_set = new HashSet<String>(ref_join_tbls);
+                    
+                    // need temp set to put into hashmap!
+                    temp_set.clear();
+                    temp_set.addAll(ref_join_tbls);
                     join_tbl_mapping.put(element.getPlanNodeId(), temp_set);
+
                     // add to join index map which depth is the index
                     join_node_index.put(this.getDepth(), element);
                     Map<String, Integer> single_join_node_output = new HashMap<String, Integer>();
@@ -205,181 +212,12 @@ public class PlanOptimizer {
             if (debug.get()) LOG.debug(StringUtil.header("START OF \"CONSTRUCTING\" THE PROJECTION PLAN NODE"));
             dirtyPlanNodes.clear();
             updateColumnInfo(rootNode);
-            new PlanNodeTreeWalker(false) {
-                @Override
-                protected void callback(AbstractPlanNode element) {
-                    if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
-                        assert (join_node_index.size() == join_tbl_mapping.size()) : "Join data structures don't have the same size!!!";
-                        assert (join_tbl_mapping.get(element.getPlanNodeId()) != null) : "Element : " + element.getPlanNodeId() + " does NOT exist in join map!!!";
-                        final Set<String> current_tbls_in_join = join_tbl_mapping.get(element.getPlanNodeId());
-                        final Set<PlanColumn> join_columns = new HashSet<PlanColumn>();
-                        // traverse the tree from bottom up from the current nestloop index
-                        final int outer_depth = this.getDepth();
-//                        final SortedMap<Integer, PlanColumn> proj_column_order = new TreeMap<Integer, PlanColumn>();
-                        /**
-                         * Adds a projection column as a parent of the the
-                         * current join node. (Sticks it between the send and
-                         * join)
-                         **/
-                        final boolean top_join = (join_node_index.get(join_node_index.firstKey()) == element);
-                        new PlanNodeTreeWalker(true) {
-                            @Override
-                            protected void callback(AbstractPlanNode inner_element) {
-                                int inner_depth = this.getDepth();
-                                if (inner_depth < outer_depth) {
-                                    // only interested in projections and index scans
-                                    if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode || inner_element instanceof AggregatePlanNode) {
-                                        Set<Column> col_set = planNodeColumns.get(inner_element);
-                                        assert (col_set != null) : "Null column set for inner element: " + inner_element + "\n" + sql;
-                                        //Map<String, Integer> current_join_output = new HashMap<String, Integer>();
-                                        // Check whether any output columns have
-                                        // operator, aggregator and project
-                                        // those columns now!
-                                        // iterate through columns and build the
-                                        // projection columns
-                                        if (top_join) {
-                                            for (Integer output_guid : inner_element.getOutputColumnGUIDs()) {
-                                                PlanColumn plan_col = m_context.get(output_guid);
-                                                for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
-                                                    TupleValueExpression tv_exp = (TupleValueExpression) exp;
-                                                    if (current_tbls_in_join.contains(tv_exp.getTableName())) {
-                                                        addProjectionColumn(join_columns, output_guid);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        else {
-                                            for (Column col : col_set) {
-                                                Integer col_guid = CollectionUtil.first(column_guid_xref.get(col));
-                                                PlanColumn plan_col = m_context.get(col_guid);
-                                                for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
-                                                    TupleValueExpression tv_exp = (TupleValueExpression) exp;
-                                                    if (current_tbls_in_join.contains(tv_exp.getTableName())) {
-                                                        addProjectionColumn(join_columns, col_guid);
-                                                    }
-                                                }
-                                            }                                            
-                                        }
-                                    } else if (inner_element instanceof AggregatePlanNode) {
-                                        Set<Column> col_set = planNodeColumns.get(inner_element);
-                                        for (Column col : col_set) {
-                                            Integer col_guid = CollectionUtil.first(column_guid_xref.get(col));
-                                            PlanColumn plan_col = m_context.get(col_guid);
-                                            for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
-                                                TupleValueExpression tv_exp = (TupleValueExpression) exp;
-                                                if (current_tbls_in_join.contains(tv_exp.getTableName())) {
-                                                    addProjectionColumn(join_columns, col_guid);
-                                                }
-                                            }
-                                        }                                                                                   
-//                                        }
-                                    }
-                                }
-                            }
-                        }.traverse(PlanNodeUtil.getRoot(element));
-                        /** END OF "CONSTRUCTING" THE PROJECTION PLAN NODE **/
-                        
-                        // Add a projection above the current nestloopindex plan node
-                        AbstractPlanNode temp_parent = element.getParent(0);
-                        // clear old parents
-                        element.clearParents();
-                        temp_parent.clearChildren();
-                        ProjectionPlanNode projectionNode = new ProjectionPlanNode(m_context, PlanAssembler.getNextPlanNodeId());
-                        projectionNode.getOutputColumnGUIDs().clear();
-
-//                        if (join_node_index.get(join_node_index.firstKey()) == element) {
-//                            assert (proj_column_order != null);
-//                            Iterator<Integer> order_iterator = proj_column_order.keySet().iterator();
-//                            while (order_iterator.hasNext()) {
-//                                projectionNode.appendOutputColumn(proj_column_order.get(order_iterator.next()));                                        
-//                            }
-//                        } else {
-                        AbstractExpression orig_col_exp = null;
-                        int orig_guid = -1;
-                        for (PlanColumn plan_col : join_columns) {
-                            boolean exists = false;
-                            for (Integer guid : element.getOutputColumnGUIDs()) {
-                                PlanColumn output_plan_column = m_context.get(guid);
-                                if (plan_col.equals(output_plan_column, true, true)) {
-//                                        PlanColumn orig_plan_col = plan_col;
-                                    orig_col_exp = output_plan_column.getExpression();
-                                    orig_guid = guid;
-                                    exists = true;
-                                    break;
-                                }
-                            }
-                            if (!exists) {
-                                if (debug.get()) LOG.warn("Trouble plan column name: " + plan_col.m_displayName);
-                            } else {
-                                assert (orig_col_exp != null);
-                                AbstractExpression new_col_exp = null;
-                                try {
-                                    new_col_exp = (AbstractExpression) orig_col_exp.clone();
-                                } catch (CloneNotSupportedException e) {
-                                    // TODO Auto-generated catch block
-                                    e.printStackTrace();
-                                }
-                                assert (new_col_exp != null);
-                                PlanColumn new_plan_col = null;
-                                if (new_col_exp instanceof TupleValueExpression) {
-                                    new_plan_col = new PlanColumn(orig_guid, new_col_exp, ((TupleValueExpression)new_col_exp).getColumnName(), plan_col.getSortOrder(), plan_col.getStorage());                                    
-                                    projectionNode.appendOutputColumn(new_plan_col);                                
-                                }
-                            }
-                        }                            
-//                        }
-                        
-                        projectionNode.addAndLinkChild(element);
-                        temp_parent.addAndLinkChild(projectionNode);
-                        // add to list of projection nodes
-                        projection_plan_nodes.add(projectionNode);
-                        // mark projectionNode as dirty
-                        dirtyPlanNodes.add(projectionNode);
-                        join_columns.clear();
-                        //this.stop();
-                    }
-                }
-            }.traverse(PlanNodeUtil.getRoot(rootNode));
+            this.pushdownProjection(rootNode);
             if (trace.get()) LOG.trace("New Plan:\n" + PlanNodeUtil.debug(rootNode));
 
             /** KILL THE TOP MOST PROJECTION **/
             if (projection_plan_nodes.size() > 0) {
-                if (debug.get()) LOG.debug(StringUtil.header("START OF KILLING TOP MOST PROJECTION"));
-                new PlanNodeTreeWalker(false) {
-                    @Override
-                    protected void callback(AbstractPlanNode element) {
-                        ProjectionPlanNode parent = null;
-                        if (element.getParentPlanNodeCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode) {
-                            parent = (ProjectionPlanNode)element.getParent(0);
-                        }
-                        
-                        /** NOTE: we cannot assume that the projection is the top most node because of the case of the LIMIT case. 
-                         * Limit nodes will always be the top most node so we need to check for that. **/
-                        if (parent != null && (PlanNodeUtil.getRoot(element) == parent) && !projection_plan_nodes.contains(parent)) {
-                            assert (parent.getChildPlanNodeCount() == 1) : "Projection element expected 1 child but has " + parent.getChildPlanNodeCount() + " children!!!!";
-                            // now currently at the child of the top most projection node
-                            parent.removeFromGraph();
-                            new_root = element;
-                            this.stop();
-                            if (trace.get())
-                                LOG.trace("Removed " + parent + " from plan graph");
-                            
-                        } else if (parent != null && (PlanNodeUtil.getRoot(element) != parent) && !projection_plan_nodes.contains(parent)) {
-                            // this is the case where the top most node is not a projection
-                            // make sure current projection has parent
-                            assert (parent.getParentPlanNodeCount() > 0);
-                            AbstractPlanNode projection_parent = parent.getParent(0);
-                            element.clearParents();
-                            projection_parent.clearChildren();
-                            projection_parent.addAndLinkChild(element);
-                            new_root = projection_parent;
-                            this.stop();
-                            if (trace.get())
-                                LOG.trace("Swapped out " + parent + " from plan graph");
-                        }
-                    }
-                }.traverse(rootNode);
-                if (trace.get()) LOG.trace("New Plan:\n" + PlanNodeUtil.debug(rootNode));
+                this.removeRedundantProjection(rootNode);
             }
             /** TOP MOST PROJECTION KILLED **/
 
@@ -403,9 +241,9 @@ public class PlanOptimizer {
                             LOG.fatal("Failed to update join columns in " + element, ex);
                             System.exit(1);
                         }
-                            // ---------------------------------------------------
-                            // ORDER BY
-                            // ---------------------------------------------------
+                    // ---------------------------------------------------
+                    // ORDER BY
+                    // ---------------------------------------------------
                     } else if (element instanceof OrderByPlanNode) {
                         if (areChildrenDirty(element) && updateOrderByColumns((OrderByPlanNode) element) == false) {
                             this.stop();
@@ -429,9 +267,9 @@ public class PlanOptimizer {
                             this.stop();
                             return;
                         }
-                        // ---------------------------------------------------
-                        // PROJECTION
-                        // ---------------------------------------------------
+                    // ---------------------------------------------------
+                    // PROJECTION
+                    // ---------------------------------------------------
                     }
                     else if (element instanceof ProjectionPlanNode) {
                         if (areChildrenDirty(element) && updateProjectionColumns((ProjectionPlanNode) element) == false) {
@@ -441,12 +279,9 @@ public class PlanOptimizer {
                     }
 
                     else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode || element instanceof LimitPlanNode) {
-                        // I think we should always call this to ensure that our
-                        // offsets are ok
-                        // This might be because we don't call whatever that
-                        // bastardized
-                        // AbstractPlanNode.updateOutputColumns() that messes
-                        // everything up for us
+                        // I think we should always call this to ensure that our offsets are ok
+                        // This might be because we don't call whatever that bastardized
+                        // AbstractPlanNode.updateOutputColumns() that messes everything up for us
                         if (element instanceof LimitPlanNode || areChildrenDirty(element)) {
                             assert (element.getChildPlanNodeCount() == 1) : element;
                             AbstractPlanNode child_node = element.getChild(0);
@@ -464,6 +299,9 @@ public class PlanOptimizer {
             }
         /** END OF ADDING PROJECTION TO JOINS OPTIMIZATION **/
 
+        /** LIMIT+ORDERBY PUSHDOWN */
+        this.pushdownLimitOrderBy(new_root);
+        
         if (debug.get())
             LOG.trace("Finished Optimizations!");
         // if (debug.get()) LOG.debug("Optimized PlanNodeTree:\n" +
@@ -500,9 +338,9 @@ public class PlanOptimizer {
                     System.exit(1);
                 }
 
-                // ---------------------------------------------------
-                // JOIN
-                // ---------------------------------------------------
+            // ---------------------------------------------------
+            // JOIN
+            // ---------------------------------------------------
             } else if (element instanceof AbstractJoinPlanNode) {
                 AbstractJoinPlanNode join_node = (AbstractJoinPlanNode) element;
                 try {
@@ -515,43 +353,43 @@ public class PlanOptimizer {
                     System.exit(1);
                 }
 
-                // ---------------------------------------------------
-                // DISTINCT
-                // ---------------------------------------------------
+            // ---------------------------------------------------
+            // DISTINCT
+            // ---------------------------------------------------
             } else if (element instanceof DistinctPlanNode) {
                 if (areChildrenDirty(element) && updateDistinctColumns((DistinctPlanNode) element) == false) {
                     this.stop();
                     return;
                 }
-                // ---------------------------------------------------
-                // AGGREGATE
-                // ---------------------------------------------------
+            // ---------------------------------------------------
+            // AGGREGATE
+            // ---------------------------------------------------
             } else if (element instanceof AggregatePlanNode) {
                 if (areChildrenDirty(element) && updateAggregateColumns((AggregatePlanNode) element) == false) {
                     this.stop();
                     return;
                 }
-                // ---------------------------------------------------
-                // ORDER BY
-                // ---------------------------------------------------
+            // ---------------------------------------------------
+            // ORDER BY
+            // ---------------------------------------------------
             } else if (element instanceof OrderByPlanNode) {
                 if (areChildrenDirty(element) && updateOrderByColumns((OrderByPlanNode) element) == false) {
                     this.stop();
                     return;
                 }
 
-                // ---------------------------------------------------
-                // PROJECTION
-                // ---------------------------------------------------
+            // ---------------------------------------------------
+            // PROJECTION
+            // ---------------------------------------------------
             } else if (element instanceof ProjectionPlanNode) {
                 if (areChildrenDirty(element) && updateProjectionColumns((ProjectionPlanNode) element) == false) {
                     this.stop();
                     return;
                 }
 
-                // ---------------------------------------------------
-                // SEND/RECEIVE/LIMIT
-                // ---------------------------------------------------
+            // ---------------------------------------------------
+            // SEND/RECEIVE/LIMIT
+            // ---------------------------------------------------
             } else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode || element instanceof LimitPlanNode) {
                 // I think we should always call this to ensure that our
                 // offsets are ok
@@ -664,12 +502,7 @@ public class PlanOptimizer {
             proj_columns.add(new_col);
         }
     }
-
-    // ----------------------------------------------------------------------------
-    // OPTIMIZATION METHODS
-    // ----------------------------------------------------------------------------
-
-
+    
     /**
      * Correct any offsets in join nodes
      * @param root
@@ -792,9 +625,9 @@ public class PlanOptimizer {
                 if (col.getExpression() != null)
                     exps.add(col.getExpression());
             } // FOR
-            // ---------------------------------------------------
-            // ORDER BY
-            // ---------------------------------------------------
+        // ---------------------------------------------------
+        // ORDER BY
+        // ---------------------------------------------------
         } else if (node instanceof OrderByPlanNode) {
             OrderByPlanNode orby_node = (OrderByPlanNode) node;
             for (Integer col_guid : orby_node.getSortColumnGuids()) {
@@ -836,6 +669,242 @@ public class PlanOptimizer {
         } // FOR
 
     }
+
+    // ----------------------------------------------------------------------------
+    // OPTIMIZATION METHODS
+    // ----------------------------------------------------------------------------
+
+    /**
+     * Pushdown a LIMIT and ORDER BY to be before we send data over the network
+     * @param root
+     */
+    protected void pushdownLimitOrderBy(AbstractPlanNode root) {
+        // Check whether this PlanTree contains an OrderByPlanNode and a LimitPlanNode
+        // If it does and there are no joins, then we should be able to push duplicates 
+        // down into the ScanPlanNode so that we can prune out as much as we can before
+        // we send it over the wire. This is a basic a Merge-Sort operation
+        Collection<OrderByPlanNode> orderby_nodes = PlanNodeUtil.getPlanNodes(root, OrderByPlanNode.class);
+        Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
+        Collection<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
+        Collection<ReceivePlanNode> recv_nodes = PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class);
+        if (orderby_nodes.size() != 1 || limit_nodes.size() != 1 || join_nodes.isEmpty() == false || recv_nodes.isEmpty()) {
+            return;
+        }
+        
+        OrderByPlanNode orderby_node = null;
+        LimitPlanNode limit_node = null;
+        try {
+            orderby_node = (OrderByPlanNode)CollectionUtil.first(orderby_nodes).clone(false, true);
+            limit_node = (LimitPlanNode)CollectionUtil.first(limit_nodes).clone(false, true);
+        } catch (CloneNotSupportedException ex) {
+            throw new RuntimeException(ex);
+        }
+        assert(orderby_node != null);
+        assert(limit_node != null);
+
+        if (debug.get()) {
+            LOG.debug("ORDER BY: " + PlanNodeUtil.debug(orderby_node));
+            LOG.debug("LIMIT:    " + PlanNodeUtil.debug(limit_node));
+            LOG.debug(PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class));
+        }
+        AbstractScanPlanNode scan_node = CollectionUtil.first(PlanNodeUtil.getPlanNodes(root, AbstractScanPlanNode.class));
+        assert(scan_node != null) : "Unexpected PlanTree:\n" + PlanNodeUtil.debug(root);
+        SendPlanNode send_node = (SendPlanNode)scan_node.getParent(0);
+        assert(send_node != null);
+        
+        send_node.addIntermediary(limit_node);
+        limit_node.addIntermediary(orderby_node);
+        orderby_node.clearChildren();
+        scan_node.clearParents();
+        orderby_node.addAndLinkChild(scan_node);
+        
+        // Need to make sure that the LIMIT has the proper output columns
+        limit_node.setOutputColumns(orderby_node.getOutputColumnGUIDs());
+    }
+    
+    /**
+     * PROJECTION Pushdown
+     * @param root
+     */
+    protected void pushdownProjection(AbstractPlanNode root) {
+        new PlanNodeTreeWalker(false) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
+                    assert (join_node_index.size() == join_tbl_mapping.size()) : "Join data structures don't have the same size!!!";
+                    assert (join_tbl_mapping.get(element.getPlanNodeId()) != null) : "Element : " + element.getPlanNodeId() + " does NOT exist in join map!!!";
+                    final Set<String> current_tbls_in_join = join_tbl_mapping.get(element.getPlanNodeId());
+                    final Set<PlanColumn> join_columns = new HashSet<PlanColumn>();
+                    // traverse the tree from bottom up from the current nestloop index
+                    final int outer_depth = this.getDepth();
+//                    final SortedMap<Integer, PlanColumn> proj_column_order = new TreeMap<Integer, PlanColumn>();
+                    /**
+                     * Adds a projection column as a parent of the the
+                     * current join node. (Sticks it between the send and
+                     * join)
+                     **/
+                    final boolean top_join = (join_node_index.get(join_node_index.firstKey()) == element);
+                    new PlanNodeTreeWalker(true) {
+                        @Override
+                        protected void callback(AbstractPlanNode inner_element) {
+                            int inner_depth = this.getDepth();
+                            if (inner_depth < outer_depth) {
+                                // only interested in projections and index scans
+                                if (inner_element instanceof ProjectionPlanNode || inner_element instanceof IndexScanPlanNode || inner_element instanceof AggregatePlanNode) {
+                                    Set<Column> col_set = planNodeColumns.get(inner_element);
+                                    assert (col_set != null) : "Null column set for inner element: " + inner_element + "\n" + sql;
+                                    //Map<String, Integer> current_join_output = new HashMap<String, Integer>();
+                                    // Check whether any output columns have
+                                    // operator, aggregator and project
+                                    // those columns now!
+                                    // iterate through columns and build the
+                                    // projection columns
+                                    if (top_join) {
+                                        for (Integer output_guid : inner_element.getOutputColumnGUIDs()) {
+                                            PlanColumn plan_col = m_context.get(output_guid);
+                                            for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
+                                                TupleValueExpression tv_exp = (TupleValueExpression) exp;
+                                                if (current_tbls_in_join.contains(tv_exp.getTableName())) {
+                                                    addProjectionColumn(join_columns, output_guid);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        for (Column col : col_set) {
+                                            Integer col_guid = CollectionUtil.first(column_guid_xref.get(col));
+                                            PlanColumn plan_col = m_context.get(col_guid);
+                                            for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
+                                                TupleValueExpression tv_exp = (TupleValueExpression) exp;
+                                                if (current_tbls_in_join.contains(tv_exp.getTableName())) {
+                                                    addProjectionColumn(join_columns, col_guid);
+                                                }
+                                            }
+                                        }                                            
+                                    }
+                                } else if (inner_element instanceof AggregatePlanNode) {
+                                    Set<Column> col_set = planNodeColumns.get(inner_element);
+                                    for (Column col : col_set) {
+                                        Integer col_guid = CollectionUtil.first(column_guid_xref.get(col));
+                                        PlanColumn plan_col = m_context.get(col_guid);
+                                        for (AbstractExpression exp : ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class)) {
+                                            TupleValueExpression tv_exp = (TupleValueExpression) exp;
+                                            if (current_tbls_in_join.contains(tv_exp.getTableName())) {
+                                                addProjectionColumn(join_columns, col_guid);
+                                            }
+                                        }
+                                    }                                                                                   
+//                                    }
+                                }
+                            }
+                        }
+                    }.traverse(PlanNodeUtil.getRoot(element));
+                    /** END OF "CONSTRUCTING" THE PROJECTION PLAN NODE **/
+                    
+                    // Add a projection above the current nestloopindex plan node
+                    AbstractPlanNode temp_parent = element.getParent(0);
+                    // clear old parents
+                    element.clearParents();
+                    temp_parent.clearChildren();
+                    ProjectionPlanNode projectionNode = new ProjectionPlanNode(m_context, PlanAssembler.getNextPlanNodeId());
+                    projectionNode.getOutputColumnGUIDs().clear();
+
+//                    if (join_node_index.get(join_node_index.firstKey()) == element) {
+//                        assert (proj_column_order != null);
+//                        Iterator<Integer> order_iterator = proj_column_order.keySet().iterator();
+//                        while (order_iterator.hasNext()) {
+//                            projectionNode.appendOutputColumn(proj_column_order.get(order_iterator.next()));                                        
+//                        }
+//                    } else {
+                    AbstractExpression orig_col_exp = null;
+                    int orig_guid = -1;
+                    for (PlanColumn plan_col : join_columns) {
+                        boolean exists = false;
+                        for (Integer guid : element.getOutputColumnGUIDs()) {
+                            PlanColumn output_plan_column = m_context.get(guid);
+                            if (plan_col.equals(output_plan_column, true, true)) {
+//                                    PlanColumn orig_plan_col = plan_col;
+                                orig_col_exp = output_plan_column.getExpression();
+                                orig_guid = guid;
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            if (debug.get()) LOG.warn("Trouble plan column name: " + plan_col.m_displayName);
+                        } else {
+                            assert (orig_col_exp != null);
+                            AbstractExpression new_col_exp = null;
+                            try {
+                                new_col_exp = (AbstractExpression) orig_col_exp.clone();
+                            } catch (CloneNotSupportedException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            assert (new_col_exp != null);
+                            PlanColumn new_plan_col = null;
+                            if (new_col_exp instanceof TupleValueExpression) {
+                                new_plan_col = new PlanColumn(orig_guid, new_col_exp, ((TupleValueExpression)new_col_exp).getColumnName(), plan_col.getSortOrder(), plan_col.getStorage());                                    
+                                projectionNode.appendOutputColumn(new_plan_col);                                
+                            }
+                        }
+                    }                            
+//                    }
+                    
+                    projectionNode.addAndLinkChild(element);
+                    temp_parent.addAndLinkChild(projectionNode);
+                    // add to list of projection nodes
+                    projection_plan_nodes.add(projectionNode);
+                    // mark projectionNode as dirty
+                    dirtyPlanNodes.add(projectionNode);
+                    join_columns.clear();
+                    //this.stop();
+                }
+            }
+        }.traverse(PlanNodeUtil.getRoot(root));
+    }
+    
+    protected void removeRedundantProjection(AbstractPlanNode root) {
+        if (debug.get()) LOG.debug(StringUtil.header("START OF KILLING TOP MOST PROJECTION"));
+        new PlanNodeTreeWalker(false) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                ProjectionPlanNode parent = null;
+                if (element.getParentPlanNodeCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode) {
+                    parent = (ProjectionPlanNode)element.getParent(0);
+                }
+                
+                /** NOTE: we cannot assume that the projection is the top most node because of the case of the LIMIT case. 
+                 * Limit nodes will always be the top most node so we need to check for that. **/
+                if (parent != null && (PlanNodeUtil.getRoot(element) == parent) && !projection_plan_nodes.contains(parent)) {
+                    assert (parent.getChildPlanNodeCount() == 1) : "Projection element expected 1 child but has " + parent.getChildPlanNodeCount() + " children!!!!";
+                    // now currently at the child of the top most projection node
+                    parent.removeFromGraph();
+                    new_root = element;
+                    this.stop();
+                    if (trace.get())
+                        LOG.trace("Removed " + parent + " from plan graph");
+                    
+                } else if (parent != null && (PlanNodeUtil.getRoot(element) != parent) && !projection_plan_nodes.contains(parent)) {
+                    // this is the case where the top most node is not a projection
+                    // make sure current projection has parent
+                    assert (parent.getParentPlanNodeCount() > 0);
+                    AbstractPlanNode projection_parent = parent.getParent(0);
+                    element.clearParents();
+                    projection_parent.clearChildren();
+                    projection_parent.addAndLinkChild(element);
+                    new_root = projection_parent;
+                    this.stop();
+                    if (trace.get())
+                        LOG.trace("Swapped out " + parent + " from plan graph");
+                }
+            }
+        }.traverse(root);
+        if (trace.get()) LOG.trace("New Plan:\n" + PlanNodeUtil.debug(root));
+    }
+    
+
+
 
     /**
      * @param scan_node

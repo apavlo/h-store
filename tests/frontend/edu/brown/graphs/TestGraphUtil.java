@@ -3,7 +3,11 @@ package edu.brown.graphs;
 import java.io.File;
 import java.util.Collection;
 
+import org.voltdb.catalog.Table;
+
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.tm1.TM1Constants;
+import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
 import edu.brown.utils.CollectionUtil;
@@ -16,7 +20,11 @@ public class TestGraphUtil extends BaseTestCase {
     protected static AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph;
     protected static DesignerVertex root;
     protected File tempFile;
-    protected static String tables[] = { "SUBSCRIBER", "ACCESS_INFO", "SPECIAL_FACILITY" };
+    protected static String TABLE_NAMES[] = {
+        TM1Constants.TABLENAME_SUBSCRIBER,
+        TM1Constants.TABLENAME_ACCESS_INFO,
+        TM1Constants.TABLENAME_SPECIAL_FACILITY
+    };
     
     @Override
     protected void setUp() throws Exception {
@@ -25,11 +33,11 @@ public class TestGraphUtil extends BaseTestCase {
             graph = new AbstractDirectedGraph<DesignerVertex, DesignerEdge>(catalog_db) {
                 private static final long serialVersionUID = 1L;
             };
-            root = new DesignerVertex(this.getTable("SUBSCRIBER"));
+            root = new DesignerVertex(this.getTable(TM1Constants.TABLENAME_SUBSCRIBER));
             graph.addVertex(root);
             
-            for (int i = 1; i < tables.length; i++) {
-                String table_name = tables[i];
+            for (int i = 1; i < TABLE_NAMES.length; i++) {
+                String table_name = TABLE_NAMES[i];
                 DesignerVertex child = new DesignerVertex(this.getTable(table_name));
                 graph.addEdge(new DesignerEdge(graph), root, child);
             } // FOR
@@ -84,6 +92,36 @@ public class TestGraphUtil extends BaseTestCase {
     }
     
     /**
+     * testRemoveDuplicateEdges
+     */
+    public void testRemoveDuplicateEdges() throws Exception {
+        final int num_edges = 5;
+        DependencyGraph dgraph = new DependencyGraph(catalog_db);
+        DesignerVertex vertices[] = new DesignerVertex[TABLE_NAMES.length];
+        for (int i = 0; i < vertices.length; i++) {
+            Table catalog_tbl = this.getTable(TABLE_NAMES[i]);
+            vertices[i] = new DesignerVertex(catalog_tbl);
+            dgraph.addVertex(vertices[i]);
+            
+            if (i > 0) {
+                for (int j = 0; j < num_edges; j++) {
+                    dgraph.addEdge(new DesignerEdge(dgraph), vertices[i-1], vertices[i]);
+                } // FOR
+                Collection<DesignerEdge> edges = dgraph.findEdgeSet(vertices[i-1], vertices[i]);
+                assertNotNull(edges);
+                assertEquals(num_edges, edges.size());
+            }
+        } // FOR
+        
+        GraphUtil.removeDuplicateEdges(dgraph);
+        for (int i = 1; i < vertices.length; i++) {
+            Collection<DesignerEdge> edges = dgraph.findEdgeSet(vertices[i-1], vertices[i]);
+            assertNotNull(edges);
+            assertEquals(1, edges.size());
+        } // FOR
+    }
+    
+    /**
      * testSave
      */
     public void testSave() throws Exception {
@@ -92,7 +130,7 @@ public class TestGraphUtil extends BaseTestCase {
         String contents = FileUtil.readFile(tempFile);
         assertFalse(contents.isEmpty());
         
-        for (String table_name : tables) {
+        for (String table_name : TABLE_NAMES) {
             assertTrue(contents.contains(table_name));
         } // FOR
         // System.out.println(contents);

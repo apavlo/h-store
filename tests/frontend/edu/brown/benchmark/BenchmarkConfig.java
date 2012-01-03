@@ -73,8 +73,6 @@ public class BenchmarkConfig {
     public String subApplicationName;
     public String partitionPlanPath;
     
-    public String coordinatorHost;
-    
     public int client_initialPollingDelay;
     
     public boolean compileBenchmark;
@@ -83,11 +81,12 @@ public class BenchmarkConfig {
     public String workloadTrace;
     public Set<Integer> profileSiteIds;
     
-    public boolean noCoordinator;
     public boolean noLoader;
     public boolean noUploading;
     public boolean noExecute;
     public boolean noShutdown;
+    
+    public boolean killOnZeroResults;
     
     public String markovPath;
     public String markov_thresholdsPath;
@@ -172,8 +171,6 @@ public class BenchmarkConfig {
             String benchmark_conf_path,
             String benchmarkClient,
             String backend,
-            String coordinatorHost,
-            boolean noCoordinator,
             String[] hosts,
             int sitesPerHost,
             int kFactor,
@@ -204,6 +201,7 @@ public class BenchmarkConfig {
             boolean noUploading,
             boolean noExecute,
             boolean noShutdown,
+            boolean killOnZeroResults,
             String workloadTrace,
             Set<Integer> profileSiteIds,
             String partitionPlanPath,
@@ -219,8 +217,6 @@ public class BenchmarkConfig {
         
         this.projectBuilderClass = benchmarkClient;
         this.backend = backend;
-        this.coordinatorHost = coordinatorHost;
-        this.noCoordinator = noCoordinator;
         this.hosts = new String[hosts.length];
         for (int i = 0; i < hosts.length; i++)
             this.hosts[i] = hosts[i];
@@ -255,6 +251,9 @@ public class BenchmarkConfig {
         this.noUploading = noUploading;
         this.noExecute = noExecute;
         this.noShutdown = noShutdown;
+        
+        this.killOnZeroResults = killOnZeroResults;
+        
         this.workloadTrace = workloadTrace;
         this.profileSiteIds = profileSiteIds;
         

@@ -185,10 +185,10 @@ public class TradeOrder extends VoltProcedure {
                     new String[] { "co_id" },
                     new Object[] { "CO_ID" });
 
-            ProcedureUtil.execute(ret, this, getSecurity1, new Object[] {
-                    ret.get("co_id")[0], issue }, new String[] { "exch_id",
-                    "s_name", "symbol" }, new Object[] { "S_EX_ID", "S_NAME",
-                    "S_SYMB" });
+            ProcedureUtil.execute(ret, this, getSecurity1,
+                    new Object[] { ret.get("co_id")[0], issue },
+                    new String[] { "exch_id", "s_name", "symbol" },
+                    new Object[] { "S_EX_ID", "S_NAME", "S_SYMB" });
         } else {
             ProcedureUtil.execute(ret, this, getSecurity2,
                     new Object[] { symbol },

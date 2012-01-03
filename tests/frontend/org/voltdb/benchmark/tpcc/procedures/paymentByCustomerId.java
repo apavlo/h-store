@@ -140,7 +140,7 @@ public class paymentByCustomerId extends VoltProcedure {
 
         voltQueueSQL(updateWarehouseBalance, h_amount, w_id);
         voltQueueSQL(updateDistrictBalance, h_amount, w_id, d_id);
-        voltExecuteSQL();
+        voltExecuteSQL(); // XXX: Why can't this batch be with the first one?
 
         //do stuff to extract district and warehouse info.
 

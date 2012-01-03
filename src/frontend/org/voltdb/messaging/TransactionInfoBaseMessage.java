@@ -51,6 +51,23 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_isReadOnly = isReadOnly;
         m_subject = Subject.DEFAULT.getId();
     }
+    
+    public void setTransactionId(long m_txnId) {
+        this.m_txnId = m_txnId;
+    }
+    public void setClientHandle(long m_clientHandle) {
+        this.m_clientHandle = m_clientHandle;
+    }
+    public void setSrcPartition(int m_srcPartition) {
+        this.m_srcPartition = m_srcPartition;
+    }
+    public void setDestPartition(int m_destPartition) {
+        this.m_destPartition = m_destPartition;
+    }
+    public void setReadOnly(boolean m_isReadOnly) {
+        this.m_isReadOnly = m_isReadOnly;
+    }
+    
 
     public int getDestinationPartitionId() {
         return (int)m_destPartition;

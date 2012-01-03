@@ -45,6 +45,8 @@ public class TransactionIdManager {
     static final long TIMESTAMP_BITS = 40;
     static final long COUNTER_BITS = 13;
     static final long INITIATORID_BITS = 10;
+    
+    static final int DRIFT_CHECK = 5; // ms
 
     // VOLT_EPOCH holds the time in millis since 1/1/2008 at 12am.
     // The current time - VOLT_EPOCH should fit nicely in 40 bits
@@ -77,6 +79,8 @@ public class TransactionIdManager {
 
     // remembers the last txn generated
     long lastTxnId = 0;
+    
+    long time_delta = 0L;
 
     /**
      * Initialize the TransactionIdManager for this site
@@ -115,10 +119,10 @@ public class TransactionIdManager {
         else {
             // reset the counter and lastUsedTime for the new millisecond
             if (currentTime < lastUsedTime) {
-                LOG.error(String.format("Initiator time moved backwards from %d to %d [diff=%d]",
+                LOG.warn(String.format("Initiator time moved backwards from %d to %d by %d ms!!!",
                                         lastUsedTime, currentTime, (lastUsedTime - currentTime)));
                 // if the diff is less than 5 ms, wait a bit
-                if ((lastUsedTime - currentTime) < 10) {
+                if ((lastUsedTime - currentTime) < DRIFT_CHECK) {
                     int count = 1000;
                     // note, the loop should stop once lastUsedTime is PASSED, not current
                     while ((currentTime <= lastUsedTime) && (count-- > 0)) {
@@ -143,7 +147,7 @@ public class TransactionIdManager {
             counterValue = 0;
         }
 
-        lastTxnId = makeIdFromComponents(currentTime, counterValue, initiatorId);
+        lastTxnId = makeIdFromComponents(currentTime + time_delta, counterValue, initiatorId);
 
         return lastTxnId;
     }
@@ -219,6 +223,10 @@ public class TransactionIdManager {
         return lastUsedTime;
     }
 
+    public void setTimeDelta(long delta) {
+        this.time_delta = delta;
+    }
+    
     /**
      * Get a string representation of the TxnId
      */

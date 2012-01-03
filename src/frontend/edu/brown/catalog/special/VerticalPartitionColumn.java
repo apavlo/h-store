@@ -224,6 +224,7 @@ public class VerticalPartitionColumn extends MultiColumn {
                 assert(catalog_proc.getStatements().contains(backup) == false);
             }
             CatalogUtil.copyQueryPlans(e.getKey(), backup);
+            e.getKey().setSecondaryindex(true);
             
             // Then copy the optimized query plans
             if (debug.get()) LOG.debug(String.format("Copying optimized query plans from %s to %s",

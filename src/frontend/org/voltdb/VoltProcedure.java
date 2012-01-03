@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
+import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
@@ -45,7 +46,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.exceptions.SerializableException;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -153,6 +153,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // cached txnid-seeded RNG so all calls to getSeededRandomNumberGenerator() for
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
+    
+    private final List<Hstore.TransactionWorkRequest.PartitionFragment> partitionFragments = new ArrayList<Hstore.TransactionWorkRequest.PartitionFragment>(); 
     
     // ----------------------------------------------------------------------------
     // WORKLOAD TRACE HANDLES
@@ -729,11 +731,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     }
 
     
-    protected long getClientHandle() {
+    protected final long getClientHandle() {
         return (this.client_handle);
     }
-    protected Procedure getProcedure() {
+    protected final Procedure getProcedure() {
         return (this.catalog_proc);
+    }
+    protected final BatchPlan getLastBatchPlan() {
+        return (this.plan);
     }
     
     protected final VoltTable executeNoJavaProcedure(Object...params) {
@@ -1005,6 +1010,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Execute the queries and return the VoltTable results
+        last_batchQueryStmtIndex = batchQueryStmtIndex;
         VoltTable[] retval = this.executeQueriesInABatch(batchQueryStmtIndex, batchQueryStmts, batchQueryArgs, isFinalSQL, forceSinglePartition);
 
         // Workload Trace - Stop Query
@@ -1024,7 +1030,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             m_workloadQueryHandles.clear();
         }
 
-        last_batchQueryStmtIndex = batchQueryStmtIndex;
         batchQueryStmtIndex = 0;
         batchQueryArgsIndex = 0;
         
@@ -1041,7 +1046,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
         return new SQLStmt[0];
     }
-    
     
     /**
      * 
@@ -1093,8 +1097,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                                       this.client_handle,
                                       this.partitionId, 
                                       this.m_localTxnState.getPredictTouchedPartitions(),
-                                      params,
-                                      this.predict_singlepartition);
+                                      this.predict_singlepartition,
+                                      this.m_localTxnState.getTouchedPartitions(),
+                                      params);
         assert(this.plan != null);
         if (d) LOG.debug("BatchPlan for " + this.m_currentTxnState + ":\n" + plan.toString());
         if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.stopExecPlanning();
@@ -1188,16 +1193,18 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         VoltTable results[] = null;
+        if (this.plan.isReadOnly() == false) m_localTxnState.markExecNotReadOnlyAllPartitions();
         if (this.plan.isSingledPartitionedAndLocal()) {
             if  (d) LOG.debug("Executing BatchPlan directly with ExecutionSite");
             results = this.executor.executeLocalPlan(m_localTxnState, this.plan, params);
             
         } else {
-            List<FragmentTaskMessage> tasks = this.plan.getFragmentTaskMessages(params);
-            if (t) LOG.trace("Got back a set of tasks for " + tasks.size() + " partitions for " + this.m_currentTxnState);
-    
+            this.partitionFragments.clear();
+            this.plan.getPartitionFragments(this.partitionFragments);
+            if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
+
             // Block until we get all of our responses.
-            results = this.executor.dispatchFragmentTasks(this.m_localTxnState, tasks, plan.getBatchSize());
+            results = this.executor.dispatchPartitionFragment(this.m_localTxnState, this.partitionFragments, params);
         }
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 

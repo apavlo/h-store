@@ -9,7 +9,6 @@ import org.voltdb.messaging.FastDeserializer;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
@@ -20,7 +19,6 @@ import edu.brown.hstore.Hstore.SendDataResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
-import edu.mit.dtxn.Dtxn.FragmentResponse.Status;
 import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.AbstractTransaction;

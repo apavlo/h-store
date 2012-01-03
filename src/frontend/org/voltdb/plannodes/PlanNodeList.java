@@ -113,7 +113,7 @@ public class PlanNodeList extends PlanNodeTree implements Comparable<PlanNodeLis
         if (diff != 0) return diff;
 
         for (int i = 0; i < m_list.size(); i++) {
-            diff = m_list.get(i).m_id - o.m_list.get(i).m_id;
+            diff = m_list.get(i).getId() - o.m_list.get(i).getId();
             if (diff != 0) return diff;
         }
 

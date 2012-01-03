@@ -50,6 +50,14 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
     MouseListener<E> edge_listener;
     MouseListener<V> vertex_listener;
 
+    public static <V, E> EventObserver<V> makeVertexObserver(final Graph<V, E> graph) {
+        return new EventObserver<V>() {
+            @Override
+            public void update(EventObservable<V> o, V v) {
+                System.out.println(v);
+            }
+        };
+    }
     
     /**
      * VertexFontTransformer
@@ -117,13 +125,12 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * @param observers
      * @return
      */
-    @SuppressWarnings("unchecked")
-    public static <V, E> JFrame createFrame(Graph<V, E> graph, EventObserver...observers) {
+    public static <V, E> JFrame createFrame(Graph<V, E> graph, EventObserver<V>...observers) {
         GraphVisualizationPanel<V, E> panel = factory(graph);
-        for (EventObserver eo : observers) panel.EVENT_SELECT_VERTEX.addObserver(eo);
+        for (EventObserver<V> eo : observers) panel.EVENT_SELECT_VERTEX.addObserver(eo);
         
         // Check for a graph name
-        Class clazz = graph.getClass();
+        Class<?> clazz = graph.getClass();
         String title = clazz.getCanonicalName();
         try {
             Method handle = clazz.getMethod("getName");
@@ -149,7 +156,6 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
         return (ret);
     }
     
-    @SuppressWarnings("unchecked")
     public static <V, E> GraphVisualizationPanel<V, E> factory(Graph<V, E> graph) {
         Layout<V, E> layout = null;
         if (graph instanceof DelegateForest) { 
@@ -179,7 +185,6 @@ public class GraphVisualizationPanel<V, E> extends VisualizationViewer<V, E> {
      * Map one of our graphs to 
      * @param agraph
      */
-    @SuppressWarnings("unchecked")
     private void init() {
         this.setBackground(Color.white);
         this.visualizer_mouse = new DefaultModalGraphMouse<V, E>();

@@ -93,7 +93,6 @@
     <not><isset property="conf"/></not>
 </condition>
 <property file="${conf}"/>
-<fail message="Missing properties file" unless="coordinator.host" />
 
 <!--
 ***************************************
@@ -892,9 +891,7 @@ TEST CASES
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                <exclude name='org/voltdb/TestTheHashinator*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
-                <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
             </fileset>
         </tests>
     </run_junit>
@@ -957,9 +954,7 @@ TEST CASES
                 <exclude name='org/voltdb/client/TestDistributer*'/>
                 <exclude name='org/voltdb/TestAdHocQueries*'/>
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                <exclude name='org/voltdb/TestTheHashinator*'/>
                 <exclude name='org/voltdb/TestTwoSitePlans*'/>
-                <exclude name='org/voltdb/jni/TestExecutionEngine*'/>
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
@@ -1488,9 +1483,10 @@ BENCHMARKS
         <arg value="REMOTEPATH=${basedir}" />
         <arg value="REMOTEUSER=${remoteuser}"/>
         <arg value="CATALOG=${catalog}" />
-        <arg value="COORDINATORHOST=${coordinator.host}" />
+        
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
+        <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
         
         <arg value="markov=${markov}" />
         <arg value="markov.thresholds=${markov.thresholds}" />
@@ -1533,6 +1529,7 @@ BENCHMARKS
         <arg value="NOUPLOADING=${nouploading}" />
         <arg value="NOEXECUTE=${noexecute}" />
         <arg value="NOSHUTDOWN=${noshutdown}" />
+        <arg value="KILLONZERO=${killonzero}" />
         
         <!-- Actual number of connections opened to cluster will be:
             NUMCONNECTIONS * CLIENTCOUNT * PROCESSESPERCLIENT * HOSTCOUNT -->
@@ -1873,9 +1870,14 @@ DESIGNER
     <java fork="yes" classname="edu.brown.graphs.GraphvizExport">
         <jvmarg value="-Xmx512m" />
         <arg value="catalog.jar=${jar}" />
+        <arg line="${ignore}" />
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
+    
+<!--    <exec dir="${basedir}" executable="dot">
+        <arg line="-Tpng ${project}.dot > ${project}.png"/>
+    </exec>-->
 </target>
 
 <target name='weka' description="Launch Weka GUI">
@@ -2281,7 +2283,7 @@ H-STORE REMIX
         <not><isset property="mappings"/></not>
     </condition>
 
-    <java fork="yes" classname="edu.mit.hstore.HStoreSite">
+    <java fork="yes" classname="edu.mit.hstore.HStore">
         <jvmarg value="-Dhstore.tag=site" />
         <jvmarg value="-Xms${site.memory}m" />
         <jvmarg value="-Xmx${site.memory}m" />
@@ -2308,6 +2310,7 @@ H-STORE REMIX
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.apply=true" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
+        <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
         <arg value="workload.output=${workload.output}" />
         <arg value="workload.procexclude=${benchmark.workload.ignore}" />
         
@@ -2355,6 +2358,19 @@ H-STORE REMIX
 <!--    <antcall target="hstore-conf">
         <param name="jar" value="${benchmark.jar}" />
     </antcall>-->
+</target>
+
+<target name='mock-site' description="EC2 Coordinator Tests">
+    <java fork="yes" failonerror="true" classname="edu.mit.hstore.MockHStoreSite">
+        <jvmarg value="-client" />
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${benchmark.jar}" />
+        <arg value="${site}" />
+        &common;
+        <classpath refid='project.classpath' />
+        <assertions><enable/></assertions>
+    </java>
 </target>
 
 

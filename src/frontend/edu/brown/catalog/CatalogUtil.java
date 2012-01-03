@@ -31,9 +31,7 @@ import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
 import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.special.MultiProcParameter;
 import edu.brown.catalog.special.NullProcParameter;
-import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.SpecialProcParameter;
 import edu.brown.designer.ColumnSet;
@@ -587,11 +585,6 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // HOSTS + SITES + PARTITIONS
     // ------------------------------------------------------------ 
 
-    public static Collection<Site> getAllSites(CatalogType catalog_item) {
-        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
-        return (catalog_clus.getSites());
-    }
-    
     /**
      * Return the unique Site catalog object for the given id
      * @param catalog_item
@@ -709,11 +702,30 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
 
     /**
+     * Returns true if the given Partition is the "first" one at the given Site
+     * @param catalog_site
+     * @param catalog_part
+     * @return
+     */
+    public static boolean isFirstPartition(Site catalog_site, Partition catalog_part) {
+        for (Partition p : getSortedCatalogItems(catalog_site.getPartitions(), "id")) {
+            if (p.getId() == catalog_part.getId()) return (true);
+            break;
+        }
+        return (false);
+    }
+    
+    public static Collection<Site> getAllSites(CatalogType catalog_item) {
+        Cluster catalog_clus = CatalogUtil.getCluster(catalog_item);
+        return (catalog_clus.getSites());
+    }
+
+    /**
      * Get a mapping of sites for each host. We have to return the Site
      * objects in order to get the Partition handle that we want
      * @return
      */
-    public static Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
+    public static synchronized Map<Host, Set<Site>> getSitesPerHost(CatalogType catalog_item) {
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_item);
         final Map<Host, Set<Site>> sites = cache.HOST_SITES;
         
@@ -855,7 +867,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (partitions);
     }
-
+    
     // ------------------------------------------------------------
     // TABLES + COLUMNS
     // ------------------------------------------------------------
@@ -2145,6 +2157,26 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         tuple_exp.setColumnName(catalog_col.getName());
         
         return (new ComparisonExpression(ExpressionType.COMPARE_EQUAL, tuple_exp, exp));
+    }
+    
+    /**
+     * Return a PlanFragment for a given id.
+     * This is slow and should only be used for debugging purposes
+     * @param catalog_obj
+     * @param id
+     * @return
+     */
+    public static PlanFragment getPlanFragment(CatalogType catalog_obj, int id) {
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                for (PlanFragment catalog_frag : catalog_stmt.getFragments())
+                    if (catalog_frag.getId() == id) return (catalog_frag);
+                for (PlanFragment catalog_frag : catalog_stmt.getMs_fragments())
+                    if (catalog_frag.getId() == id) return (catalog_frag);
+            } // FOR (stmt)
+        } // FOR (proc)
+        return (null);
     }
     
     // ------------------------------------------------------------

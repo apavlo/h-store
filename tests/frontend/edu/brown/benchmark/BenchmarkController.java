@@ -62,18 +62,16 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltTable;
@@ -92,12 +90,19 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent.Command;
-import edu.brown.benchmark.BenchmarkResults.Result;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.containers.MarkovGraphContainersUtil;
-import edu.brown.utils.*;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObservableExceptionHandler;
+import edu.brown.utils.EventObserver;
+import edu.brown.utils.FileUtil;
+import edu.brown.utils.ProfileMeasurement;
+import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
@@ -116,11 +121,11 @@ public class BenchmarkController {
         final ReentrantLock lock = new ReentrantLock();
         
         @Override
-        public void update(EventObservable<String> o, String processName) {
+        public void update(EventObservable<String> o, String msg) {
             lock.lock();
             try {
                 if (BenchmarkController.this.stop == false) {
-                    LOG.fatal(String.format("Process '%s' failed. Halting benchmark!", processName));
+                    LOG.fatal(msg);
                     BenchmarkController.this.stop = true;
                     BenchmarkController.this.failed = true;
                     m_clientPSM.prepareShutdown(false);
@@ -145,8 +150,7 @@ public class BenchmarkController {
     final Set<String> m_clientThreads = new HashSet<String>();
     final Set<ClientStatusThread> m_statusThreads = new HashSet<ClientStatusThread>();
     final Set<BenchmarkInterest> m_interested = new HashSet<BenchmarkInterest>();
-    long m_maxCompletedPoll = 0;
-    final long m_pollCount;
+    
     Thread self = null;
     boolean stop = false;
     boolean failed = false;
@@ -154,14 +158,21 @@ public class BenchmarkController {
     HStoreConf hstore_conf;
     AtomicBoolean m_statusThreadShouldContinue = new AtomicBoolean(true);
     AtomicInteger m_clientsNotReady = new AtomicInteger(0);
-    AtomicInteger m_pollIndex = new AtomicInteger(0);
 
     final static String m_tpccClientClassName = "org.voltdb.benchmark.tpcc.TPCCClient"; // DEFAULT
 
     // benchmark parameters
     final BenchmarkConfig m_config;
+    
+    /**
+     * BenchmarkResults Processing
+     */
+    protected int m_pollIndex = 0;
+    protected long m_maxCompletedPoll = 0;
+    protected final long m_pollCount;
+    private int totalNumClients;
+    protected CountDownLatch resultsToRead;
     ResultsUploader resultsUploader = null;
-    final AtomicLong resultsToRead;
 
     Class<? extends BenchmarkComponent> m_clientClass = null;
     Class<? extends AbstractProjectBuilder> m_builderClass = null;
@@ -189,238 +200,12 @@ public class BenchmarkController {
         public void benchmarkHasUpdated(BenchmarkResults currentResults);
     }
 
-    class ClientStatusThread extends Thread {
-        
-        final int thread_id;
-        
-        /** ClientName -> List of all the Previous Messages */
-        final Map<String, List<ProcessSetManager.OutputLine>> previous = new HashMap<String, List<ProcessSetManager.OutputLine>>();
-        
-        /** ClientName -> Timestamp of Previous Message */ 
-        final Map<String, Long> lastTimestamps = new HashMap<String, Long>();
-        
-        /** TransactionName -> # of Executed **/
-        final Map<String, Long> results = new HashMap<String, Long>();
-        
-        boolean finished = false;
-        
-        public ClientStatusThread(int i) {
-            super(String.format("client-status-%02d", i));
-            this.thread_id = i;
-            this.setDaemon(true);
-        }
-        
-        @Override
-        public void run() {
-            this.finished = false;
-            final Database catalog_db = CatalogUtil.getDatabase(catalog);
-
-            while (resultsToRead.get() > 0) {
-                ProcessSetManager.OutputLine line = m_clientPSM.nextBlocking();
-                if (line == null) {
-                    continue;
-                }
-                else if (line.stream == ProcessSetManager.Stream.STDERR) {
-                    System.err.printf("(%s): \"%s\"\n", line.processName, line.value);
-                    continue;
-                }
-                // General Debug Output
-                else if (line.value.startsWith(BenchmarkComponent.CONTROL_MESSAGE_PREFIX) == false) {
-                    System.out.println(line.value);
-                    continue;
-                }
-                
-                // BenchmarkController Coordination Message
-                // split the string on commas and strip whitespace
-                String control_line = line.value.substring(BenchmarkComponent.CONTROL_MESSAGE_PREFIX.length());
-                String[] parts = control_line.split(",");
-                for (int i = 0; i < parts.length; i++)
-                    parts[i] = parts[i].trim();
-
-                // expect at least time and status
-                if (parts.length < 2) {
-                    if (line.value.startsWith("Listening for transport dt_socket at address:") ||
-                            line.value.contains("Attempting to load") ||
-                            line.value.contains("Successfully loaded native VoltDB library")) {
-                        LOG.info(line.processName + ": " + control_line + "\n");
-                        continue;
-                    }
-//                    m_clientPSM.killProcess(line.processName);
-//                    LogKeys logkey =
-//                        LogKeys.benchmark_BenchmarkController_ProcessReturnedMalformedLine;
-//                    LOG.l7dlog( Level.ERROR, logkey.name(),
-//                            new Object[] { line.processName, line.value }, null);
-                    continue;
-                }
-
-                int clientId = -1;
-                long time = -1;
-                try {
-                    clientId = Integer.parseInt(parts[0]);
-                    time = Long.parseLong(parts[1]);
-                } catch (NumberFormatException ex) {
-                    LOG.warn("Failed to parse line '" + control_line + "'", ex);
-                    continue; // IGNORE
-                }
-                final String clientName = getClientName(line.processName, clientId);
-                final BenchmarkComponent.ControlState status = BenchmarkComponent.ControlState.get(parts[2]);
-                assert(status != null) : "Unexpected ControlStatus '" + parts[2] + "'";
-                
-                if (trace.get()) 
-                    LOG.trace(String.format("Client %s -> %s", clientName, status));
-                
-                // Make sure that we never go back in time!
-                Long lastTimestamp = this.lastTimestamps.get(clientName);
-                if (lastTimestamp != null) assert(time >= lastTimestamp) :
-                    String.format("New message from %s is in the past [newTime=%d, lastTime=%d]", clientName, time, lastTimestamp);
-
-                switch (status) {
-                    // ----------------------------------------------------------------------------
-                    // READY
-                    // ----------------------------------------------------------------------------
-                    case READY: {
-//                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_GotReadyMessage;
-//                        LOG.l7dlog( Level.INFO, logkey.name(),
-//                                new Object[] { line.processName }, null);
-                        if (debug.get()) LOG.debug(String.format("Got ready message for '%s'.", line.processName));
-                        m_clientsNotReady.decrementAndGet();
-                        break;
-                    }
-                    // ----------------------------------------------------------------------------
-                    // ERROR
-                    // ----------------------------------------------------------------------------
-                    case ERROR: {
-                        m_clientPSM.killProcess(line.processName);
-//                        LogKeys logkey = LogKeys.benchmark_BenchmarkController_ReturnedErrorMessage;
-//                        LOG.l7dlog( Level.ERROR, logkey.name(),
-//                                new Object[] { line.processName, parts[2] }, null);
-                        LOG.error(String.format("(%s) Returned error message:\n\"%s\"", line.processName, parts[2]));
-                        break;
-                    }
-                    // ----------------------------------------------------------------------------
-                    // RUNNING
-                    // ----------------------------------------------------------------------------
-                    case RUNNING: {
-                        // System.out.println("Got running message: " + Arrays.toString(parts));
-                        if (parts[parts.length-1].equalsIgnoreCase("OK")) continue;
-                        
-                        // HACK
-                        BenchmarkComponent.TransactionCounter tc = new BenchmarkComponent.TransactionCounter();
-                        int offset = 1;
-                        for (int i = 0; i < 3; i++) {
-                            offset += parts[i].length() + 1;
-                        } // FOR
-                        String json_line = control_line.substring(offset);
-                        JSONObject json_object;
-                        try {
-                            json_object = new JSONObject(json_line);
-                            tc.fromJSON(json_object, catalog_db);
-                        } catch (JSONException ex) {
-                            LOG.error("Invalid response:\n" + json_line);
-                            throw new RuntimeException(ex);
-                        }
-                        assert(json_object != null);
-                        if (trace.get()) LOG.trace("Base Partitions:\n " + tc.basePartitions); 
-                        
-                        this.results.clear();
-                        for (String txnName : tc.transactions.values()) {
-                            this.results.put(txnName, tc.transactions.get(txnName));
-                        } // FOR
-                        
-                        try {
-                            if (trace.get()) LOG.trace("UPDATE: " + line);
-                            setPollResponseInfo(clientName, time, this.results, null);
-                            synchronized (m_currentResults) {
-                                m_currentResults.getBasePartitions().putHistogram(tc.basePartitions);
-                            } // SYNCH
-                        } catch (Throwable ex) {
-                            List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
-                            LOG.error(String.format("Invalid response from '%s':\n%s\n%s\n", clientName, JSONUtil.format(json_object), line, results), ex);
-                            LOG.error(String.format("Previous Lines for %s [%s]:\n%s",
-                                                    clientName,
-                                                    (p != null ? p.size() : p),
-                                                    StringUtil.join("\n", p)));
-                            throw new RuntimeException(ex);
-                        }
-                        List<ProcessSetManager.OutputLine> p = this.previous.get(clientName);
-                        if (p == null) {
-                            p = new ArrayList<ProcessSetManager.OutputLine>();
-                            this.previous.put(clientName, p);
-                        }
-                        p.add(line);
-                        resultsToRead.decrementAndGet();
-                        break;
-                    }
-                    default:
-                        assert(false) : "Unexpected ControlStatus " + status;
-                } // SWITCH
-                
-                this.lastTimestamps.put(clientName, time);
-            } // WHILE
-            if (debug.get()) LOG.debug("Status thread is finished");
-            this.finished = true;
-        }
-        
-        void setPollResponseInfo(String clientName, long time, Map<String, Long> transactionCounts, String errMsg) {
-            assert(m_currentResults != null);
-            BenchmarkResults resultCopy = null;
-            int completedCount = 0;
-
-            synchronized(m_currentResults) {
-                m_currentResults.setPollResponseInfo(
-                        clientName,
-                        m_pollIndex.get() - 1,
-                        time,
-                        transactionCounts,
-                        errMsg);
-                completedCount = m_currentResults.getCompletedIntervalCount();
-                if (completedCount > m_maxCompletedPoll) {
-                    resultCopy = m_currentResults.copy();
-                }
-            } // SYNCH
-
-            if (resultCopy != null) {
-                synchronized(m_interested) {
-                    // notify interested parties
-                    for (BenchmarkInterest interest : m_interested)
-                        interest.benchmarkHasUpdated(resultCopy);
-                } // SYNCH
-                m_maxCompletedPoll = completedCount;
-
-                // get total transactions run for this segment
-//                long txnDelta = 0;
-//                for (String client : resultCopy.getClientNames()) {
-//                    try {
-//                        for (String txn : resultCopy.getTransactionNames()) {
-//                            Result[] rs = resultCopy.getResultsForClientAndTransaction(client, txn);
-//                            Result r = rs[rs.length - 1];
-//                            txnDelta += r.transactionCount;
-//                        } // FOR
-//                    } catch (Throwable ex) {
-//                        LOG.error(StringUtil.columns(m_currentResults.toString(), resultCopy.toString()));
-//                        LOG.error(client + " PREVIOUS:\n" + CollectionUtil.first(m_statusThreads).previous.get(client));
-//                        throw new RuntimeException(ex);
-//                    }
-//
-//                } // FOR
-
-                // if nothing done this segment, dump everything
-//                if (txnDelta == 0) {
-//                    tryDumpAll();
-//                    System.out.println("\nDUMPING!\n");
-//                }
-            }
-
-
-        }
-    } // CLASS
-
     @SuppressWarnings("unchecked")
     public BenchmarkController(BenchmarkConfig config, Catalog catalog) {
         m_config = config;
         self = Thread.currentThread();
         hstore_conf = HStoreConf.singleton();
-        this.catalog = catalog;
+        if (catalog != null) this.initializeCatalog(catalog);
         
         // Setup ProcessSetManagers...
         m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
@@ -465,7 +250,6 @@ public class BenchmarkController {
 
         m_pollCount = hstore_conf.client.duration / hstore_conf.client.interval;
         resultsUploader = new ResultsUploader(m_config.projectBuilderClass, config);
-        resultsToRead = new AtomicLong(m_pollCount * hstore_conf.client.processesperclient * hstore_conf.client.count);
 
         AbstractProjectBuilder tempBuilder = null;
         try {
@@ -498,11 +282,45 @@ public class BenchmarkController {
     public String getProjectName() {
         return (m_projectBuilder.getProjectName().toUpperCase());
     }
+    
+    public Catalog getCatalog() {
+        return (this.catalog);
+    }
+    
+    protected BenchmarkResults getBenchmarkResults() {
+        return (this.m_currentResults);
+    }
+    protected CountDownLatch getResultsToReadLatch() {
+        return (this.resultsToRead);
+    }
+    protected ProcessSetManager getClientProcessSetManager() {
+        return (this.m_clientPSM);
+    }
+    protected ProcessSetManager getSiteProcessSetManager() {
+        return (this.m_sitePSM);
+    }
+    protected void clientIsReady(String clientName) {
+        m_clientsNotReady.decrementAndGet();
+    }
+    protected Collection<BenchmarkInterest> getBenchmarkInterests() {
+        return (this.m_interested);
+    }
 
     public void registerInterest(BenchmarkInterest interest) {
         synchronized(m_interested) {
             m_interested.add(interest);
         }
+    }
+    
+    private void initializeCatalog(Catalog catalog) {
+        assert(catalog != null);
+        this.catalog = catalog;
+        int total_num_clients = m_config.clients.length * hstore_conf.client.processesperclient;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            total_num_clients *= CatalogUtil.getNumberOfPartitions(catalog);
+        }
+        this.totalNumClients = total_num_clients;
+        this.resultsToRead = new CountDownLatch((int)(m_pollCount * this.totalNumClients));
     }
 
     /**
@@ -535,8 +353,7 @@ public class BenchmarkController {
         
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
-        this.catalog = CatalogUtil.loadCatalogFromJar(m_jarFileName);
-        assert(catalog != null);
+        this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName));
         
         // Now figure out which hosts we really want to launch this mofo on
         Set<String> unique_hosts = new HashSet<String>();
@@ -581,14 +398,6 @@ public class BenchmarkController {
             
             Set<Thread> threads = new HashSet<Thread>();
             
-            // Dtxn.Coordinator
-            if (m_config.noCoordinator == false) {
-                KillStragglers ks = new KillStragglers(m_config.remoteUser, m_config.coordinatorHost, m_config.remotePath, m_config.sshOptions)
-                                            .enableKillClient()
-                                            .enableKillCoordinator();
-                threads.add(new Thread(ks));
-                Runtime.getRuntime().addShutdownHook(new Thread(ks));
-            }
             // HStoreSite
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
             if (m_config.profileSiteIds.isEmpty()) {
@@ -629,9 +438,8 @@ public class BenchmarkController {
         }
 
         final ProfileMeasurement load_time = new ProfileMeasurement("load").start();
-        final int numClients = (m_config.clients.length * hstore_conf.client.processesperclient);
         if (m_loaderClass != null && m_config.noLoader == false) {
-            this.startLoader(catalog, numClients);
+            this.startLoader();
         } else if (m_config.noLoader) {
             LOG.info("Skipping data loading phase");
         }
@@ -641,7 +449,7 @@ public class BenchmarkController {
                                load_time.getTotalThinkTimeSeconds()));
 
         // Start the clients
-        if (m_config.noExecute == false) this.startClients(numClients);
+        if (m_config.noExecute == false) this.startClients();
         
         // registerInterest(uploader);
     }
@@ -653,7 +461,6 @@ public class BenchmarkController {
         List<String> siteBaseCommand = new ArrayList<String>();
         siteBaseCommand.add("ant hstore-site");
         siteBaseCommand.add("-Dproperties=" + m_config.hstore_conf_path);
-        siteBaseCommand.add("-Dcoordinator.host=" + m_config.coordinatorHost);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
         for (Entry<String, String> e : m_config.siteParameters.entrySet()) {
             String opt = String.format("-D%s=%s", e.getKey(), e.getValue());
@@ -716,12 +523,12 @@ public class BenchmarkController {
         if (debug.get()) LOG.debug("All remote HStoreSites are initialized");
     }
     
-    public void startLoader(final Catalog catalog, final int numClients) {
+    public void startLoader() {
         LOG.info(StringUtil.header("BENCHMARK LOAD :: " + this.getProjectName()));
-        LOG.info(String.format("Starting %s Benchmark Loader - %s [blocking=%s]",
+        LOG.info(String.format("Starting %s Benchmark Loader - %s / ScaleFactor %.2f",
                                m_projectBuilder.getProjectName().toUpperCase(),
                                m_loaderClass.getSimpleName(),
-                               hstore_conf.client.blocking_loader)); 
+                               hstore_conf.client.scalefactor)); 
         final ArrayList<String> allLoaderArgs = new ArrayList<String>();
         final ArrayList<String> loaderCommand = new ArrayList<String>();
 
@@ -759,7 +566,7 @@ public class BenchmarkController {
         allLoaderArgs.add("CONF=" + m_config.hstore_conf_path);
         allLoaderArgs.add("NAME=" + m_projectBuilder.getProjectName());
         allLoaderArgs.add("BENCHMARK.CONF=" + m_config.benchmark_conf_path);
-        allLoaderArgs.add("NUMCLIENTS=" + numClients);
+        allLoaderArgs.add("NUMCLIENTS=" + totalNumClients);
         allLoaderArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allLoaderArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allLoaderArgs.add("LOADER=true");
@@ -771,7 +578,7 @@ public class BenchmarkController {
 
         // RUN THE LOADER
 //        if (true || m_config.localmode) {
-            allLoaderArgs.add("EXITONCOMPLETION=false");
+        allLoaderArgs.add("EXITONCOMPLETION=false");
         try {
             BenchmarkComponent.main(m_loaderClass, m_clientFileUploader, allLoaderArgs.toArray(new String[0]), true);
         } catch (Throwable ex) {
@@ -808,7 +615,7 @@ public class BenchmarkController {
     /**
      * 
      */
-    public void startClients(final int numClients) {
+    public void startClients() {
         
         // java -cp voltdbfat.jar org.voltdb.benchmark.tpcc.TPCCClient warehouses=X etc...
         final ArrayList<String> allClientArgs = new ArrayList<String>();
@@ -854,18 +661,26 @@ public class BenchmarkController {
         allClientArgs.add("STATSDATABASEURL=" + m_config.statsDatabaseURL);
         allClientArgs.add("STATSPOLLINTERVAL=" + hstore_conf.client.interval);
         allClientArgs.add("LOADER=false");
+        
+        int threads_per_client = hstore_conf.client.processesperclient;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            threads_per_client *= CatalogUtil.getNumberOfPartitions(catalog);
+        }
 
         final Map<String, Map<File, File>> sent_files = new ConcurrentHashMap<String, Map<File,File>>();
         final AtomicInteger clientIndex = new AtomicInteger(0);
         List<Runnable> runnables = new ArrayList<Runnable>();
         final Client local_client = (m_clientFileUploader.hasFilesToSend() ? getClientConnection(): null);
-        for (final String clientHost : m_config.clients) {
+        for (int host_idx = 0; host_idx < m_config.clients.length; host_idx++) {
+            final String clientHost = m_config.clients[host_idx];
             m_clients.add(clientHost);
+            final String host_id = clientHost;
+            
             final List<String> curClientArgs = new ArrayList<String>(allClientArgs);
             final List<Integer> clientIds = new ArrayList<Integer>();
-            for (int j = 0; j < hstore_conf.client.processesperclient; j++) {
+            for (int j = 0; j < threads_per_client; j++) {
                 int clientId = clientIndex.getAndIncrement();
-                m_clientThreads.add(getClientName(clientHost, clientId));   
+                m_clientThreads.add(BenchmarkUtil.getClientName(clientHost, clientId));   
                 clientIds.add(clientId);
             } // FOR
             
@@ -900,7 +715,6 @@ public class BenchmarkController {
                     String args[] = SSHTools.convert(m_config.remoteUser, clientHost, m_config.remotePath, m_config.sshOptions, curClientArgs);
                     String fullCommand = StringUtil.join(" ", args);
     
-                    String host_id = clientHost;
                     resultsUploader.setCommandLineForClient(host_id, fullCommand);
                     if (trace.get()) LOG.trace("Client Commnand: " + fullCommand);
                     m_clientPSM.startProcess(host_id, args);
@@ -909,19 +723,20 @@ public class BenchmarkController {
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
         m_clientsNotReady.set(m_clientThreads.size());
-        assert(m_clientThreads.size() == (m_config.clients.length * hstore_conf.client.processesperclient)) :
-            String.format("%d != %d", m_clientThreads.size(),
-                                      (m_config.clients.length * hstore_conf.client.processesperclient));
+        assert(m_clientThreads.size() == totalNumClients) :
+            String.format("%d != %d", m_clientThreads.size(), totalNumClients);
 
         boolean output_clients = hstore_conf.client.output_clients;
         boolean output_basepartitions = hstore_conf.client.output_basepartitions;
         ResultsPrinter rp = (m_config.jsonOutput ? new JSONResultsPrinter(output_clients, output_basepartitions) :
                                                    new ResultsPrinter(output_clients, output_basepartitions));
-        registerInterest(rp);
-    }
-    
-    private String getClientName(String host, int id) {
-        return String.format("%s-%03d", host, id);
+        this.registerInterest(rp);
+        
+        if (m_config.killOnZeroResults) {
+            if (debug.get()) LOG.debug("Will kill benchmark if results are zero for two poll intervals");
+            ResultsChecker checker = new ResultsChecker(this.failure_observer);
+            this.registerInterest(checker);
+        }
     }
 
     private Client getClientConnection() {
@@ -1000,7 +815,7 @@ public class BenchmarkController {
                                 m_projectBuilder.getProjectName().toUpperCase(),
                                 m_clientThreads.size(),
                                 m_config.clients.length,
-                                hstore_conf.client.processesperclient,
+                                hstore_conf.client.processesperclient * (hstore_conf.client.processesperclient_per_partition ? CatalogUtil.getNumberOfPartitions(catalog) : 1),
                                 hstore_conf.client.txnrate,
                                 hstore_conf.client.blocking,
                                 (hstore_conf.client.blocking ? "/" + hstore_conf.client.blocking_concurrent : "")
@@ -1036,7 +851,7 @@ public class BenchmarkController {
         long nextIntervalTime = hstore_conf.client.interval;
         
         for (int i = 0; i < m_clients.size(); i++) {
-            ClientStatusThread t = new ClientStatusThread(i);
+            ClientStatusThread t = new ClientStatusThread(this, i);
             m_statusThreads.add(t);
             t.setUncaughtExceptionHandler(eh);
             t.start();
@@ -1098,11 +913,11 @@ public class BenchmarkController {
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;
         long nowTime = startTime;
-        while (m_pollIndex.get() < m_pollCount && this.stop == false) {
+        while (m_pollIndex < m_pollCount && this.stop == false) {
 
             // check if the next interval time has arrived
             if (nowTime >= nextIntervalTime) {
-                m_pollIndex.incrementAndGet();
+                m_pollIndex++;
 
                 // make all the clients poll
                 if (debug.get()) LOG.debug(String.format("Sending %s to %d clients", Command.POLL, m_clients.size()));
@@ -1110,7 +925,7 @@ public class BenchmarkController {
                     m_clientPSM.writeToProcess(clientName, Command.POLL);
 
                 // get ready for the next interval
-                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex.get() + 1) + startTime;
+                nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
             }
 
             // wait some time
@@ -1154,6 +969,7 @@ public class BenchmarkController {
         if (m_config.noShutdown == false && this.failed == false) m_sitePSM.prepareShutdown(false);
         
         // shut down all the clients
+        m_clientPSM.prepareShutdown(false);
         boolean first = true;
         for (String clientName : m_clients) {
             if (first) {
@@ -1163,26 +979,32 @@ public class BenchmarkController {
                 m_clientPSM.writeToProcess(clientName, Command.STOP);
             }
         }
-        m_clientPSM.prepareShutdown(false);
         LOG.info("Waiting for " + m_clients.size() + " clients to finish");
         m_clientPSM.joinAll();
 
         if (this.failed == false) {
-            LOG.info(String.format("Waiting for %d status threads to finish", m_statusThreads.size()));
-            try {
-                for (ClientStatusThread t : m_statusThreads) {
-                    if (t.finished == false) {
-                        if (debug.get()) LOG.debug(String.format("ClientStatusThread '%s' asked to finish up [remaining=%d]", t.getName(), resultsToRead.get()));
-                        t.interrupt();
-                        t.join();
-                    }
-                } // FOR
-            } catch (InterruptedException e) {
-                LOG.warn(e);
+            if (resultsToRead.getCount() > 0) {
+                LOG.info(String.format("Waiting for %d status threads to finish [remaining=%d]",
+                         m_statusThreads.size(), resultsToRead.getCount()));
+                try {
+                    resultsToRead.await();
+                    for (ClientStatusThread t : m_statusThreads) {
+                        if (t.isFinished() == false) {
+    //                        if (debug.get()) 
+                                LOG.info(String.format("ClientStatusThread '%s' asked to finish up", t.getName()));
+    //                        System.err.println(StringUtil.join("\n", t.getStackTrace()));
+                            t.interrupt();
+                            t.join();
+                        }
+                    } // FOR
+                } catch (InterruptedException e) {
+                    LOG.warn(e);
+                }
             }
             
             // Print out the final results
-            if (debug.get()) LOG.debug("Dumping out final benchmark results");
+//            if (debug.get())
+                LOG.info("Computing final benchmark results");
             for (BenchmarkInterest interest : m_interested) {
                 String finalResults = interest.formatFinalResults(m_currentResults);
                 if (finalResults != null) System.out.println(finalResults);
@@ -1375,17 +1197,17 @@ public class BenchmarkController {
         int snapshotRetain = -1;
         float checkTransaction = 0;
         boolean checkTables = false;
-        String coordinatorHost = null;
         
         String statsTag = null;
         String applicationName = null;
         String subApplicationName = null;
         
-        boolean noCoordinator = false;
         boolean noLoader = false;
         boolean noUploading = false;
         boolean noExecute = false;
         boolean noShutdown = false;
+        
+        boolean killOnZeroResults = false; 
         
         Catalog catalog = null;
         
@@ -1443,6 +1265,9 @@ public class BenchmarkController {
             /* Whether to enable JSON output formatting of the final result */
             } else if (parts[0].equalsIgnoreCase("JSONOUTPUT")) {
                 jsonOutput = Boolean.parseBoolean(parts[1]);
+            /* Whether to kill the benchmark if we get consecutive intervals with zero results */
+            } else if (parts[0].equalsIgnoreCase("KILLONZERO")) {
+                killOnZeroResults = Boolean.parseBoolean(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CHECKTRANSACTION")) {
                 /*
@@ -1532,10 +1357,6 @@ public class BenchmarkController {
                 databaseURL[0] = parts[1];
             } else if (parts[0].equalsIgnoreCase("STATSTAG")) {
                 statsTag = parts[1];
-            } else if (parts[0].equalsIgnoreCase("COORDINATORHOST")) {
-                coordinatorHost = parts[1];
-            } else if (parts[0].equalsIgnoreCase("NOCOORDINATOR")) {
-                noCoordinator = Boolean.valueOf(parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("CATALOG")) {
                 catalogPath = new File(parts[1]);
@@ -1552,6 +1373,9 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY)) {
                 clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
                 siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_NO_SECONDARY, parts[1]);
+            } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
+                clientParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, parts[1]);
+                siteParams.put(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING, parts[1]);
                 
             } else if (parts[0].equalsIgnoreCase("COMPILE")) {
                 /*
@@ -1709,8 +1533,6 @@ public class BenchmarkController {
                 benchmark_conf_path,
                 projectBuilderClassname,
                 backend, 
-                coordinatorHost,
-                noCoordinator,
                 hostNames,
                 sitesPerHost, 
                 k_factor, 
@@ -1741,6 +1563,7 @@ public class BenchmarkController {
                 noUploading,
                 noExecute,
                 noShutdown,
+                killOnZeroResults,
                 workloadTrace,
                 profileSiteIds,
                 partitionPlanPath,
@@ -1759,7 +1582,11 @@ public class BenchmarkController {
             clientParams.put("CATALOG", catalogPath.getAbsolutePath());
             clientParams.put("NUMPARTITIONS", Integer.toString(num_partitions));
         }
-        clientParams.put("NUMCLIENTS", Integer.toString(clientCount * hstore_conf.client.processesperclient));
+        int total_num_clients = clientCount * hstore_conf.client.processesperclient;
+        if (hstore_conf.client.processesperclient_per_partition) {
+            total_num_clients *= num_partitions;
+        }
+        clientParams.put("NUMCLIENTS", Integer.toString(total_num_clients));
         clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         
         config.clientParameters.putAll(clientParams);

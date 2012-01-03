@@ -227,8 +227,8 @@ public class TM1Client extends TM1BaseClient {
      * Return a transaction randomly selected per TM1 probability specs
      */
     private Transaction selectTransaction() {
-        Transaction force = null; // (this.getClientId() == 0 ? Transaction.INSERT_CALL_FORWARDING : Transaction.GET_SUBSCRIBER_DATA); // Transaction.INSERT_CALL_FORWARDING;
-        if (force != null) return (force);
+//        Transaction force = null; // (this.getClientId() == 0 ? Transaction.INSERT_CALL_FORWARDING : Transaction.GET_SUBSCRIBER_DATA); // Transaction.INSERT_CALL_FORWARDING;
+//        if (force != null) return (force);
         return Transaction.values()[SAMPLE_TABLE[TM1Util.number(0,99).intValue()]];
     }
 
@@ -253,10 +253,15 @@ public class TM1Client extends TM1BaseClient {
     @Override
     protected boolean runOnce() throws IOException {
         final Transaction target = this.selectTransaction();
+        
+        this.startComputeTime(target.displayName);
+        Object params[] = target.ag.genArgs(subscriberSize);
+        this.stopComputeTime(target.displayName);
+        
         boolean ret = this.getClientHandle().callProcedure(
                                    this.callbacks[target.ordinal()],
                                    target.callName,
-                                   target.ag.genArgs(subscriberSize));
+                                   params);
         LOG.debug("Executing txn " + target);
         return (ret);
     }

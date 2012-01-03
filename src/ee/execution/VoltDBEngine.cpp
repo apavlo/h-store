@@ -261,7 +261,8 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     Table *cleanUpTable = NULL;
     m_currentOutputDepId = outputDependencyId;
     m_currentInputDepId = inputDependencyId;
-    VOLT_DEBUG("Executing PlanFragment on partition %d [fragId=%ld, inputId=%d, outputId=%d]", m_partitionId, planfragmentId, outputDependencyId, inputDependencyId);
+    VOLT_DEBUG("Executing PlanFragment on partition %d [fragId=%ld, inputId=%d, outputId=%d]",
+               m_partitionId, planfragmentId, inputDependencyId, outputDependencyId);
     
     /*
      * Reserve space in the result output buffer for the number of
@@ -334,10 +335,11 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         // send back the number of tuples modified
         if (executor->forceTupleCount()) {
             send_tuple_count = true;
-            VOLT_DEBUG("Forcing tuple count [txn_id=%jd, planfragmentId=%jd, output_depId=%d, ctr=%d]",
-                       (intmax_t)txnId, (intmax_t)planfragmentId, m_currentOutputDepId, ctr);
+            VOLT_DEBUG("[%02d] Forcing tuple count [txn_id=%jd, PlanFragmentId=%jd, output_depId=%d]",
+                       ctr, (intmax_t)txnId, (intmax_t)planfragmentId, m_currentOutputDepId);
         } else {
-                VOLT_DEBUG("Let's try to actually execute a PlanFragment...");
+                VOLT_DEBUG("[%02d] Let's try to actually execute a PlanFragment %jd for txn #%jd [OutputDep=%d]",
+                            ctr, (intmax_t)planfragmentId, (intmax_t)txnId, m_currentOutputDepId);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
@@ -628,14 +630,14 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
          proc_iterator != m_database->procedures().end(); proc_iterator++) {
         // Procedure
         const catalog::Procedure *catalog_proc = proc_iterator->second;
-        VOLT_DEBUG("proc: %s", catalog_proc->name().c_str());
+        VOLT_DEBUG("Initialize Procedure: %s", catalog_proc->name().c_str());
         std::map<std::string, catalog::Statement*>::const_iterator stmt_iterator;
         for (stmt_iterator = catalog_proc->statements().begin();
              stmt_iterator != catalog_proc->statements().end();
              stmt_iterator++) {
             // PlanFragment
             const catalog::Statement *catalogStmt = stmt_iterator->second;
-            VOLT_DEBUG("  stmt: %s : %s", catalogStmt->name().c_str(),
+            VOLT_DEBUG("  Initialize Statement: %s : %s", catalogStmt->name().c_str(),
                        catalogStmt->sqltext().c_str());
 
             std::map<std::string, catalog::PlanFragment*>::const_iterator pf_iterator;

@@ -3,13 +3,17 @@
  */
 package edu.mit.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.voltdb.BatchPlanner;
+import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.ParameterSet;
@@ -17,25 +21,30 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.BatchPlanner.BatchPlan;
-import org.voltdb.catalog.*;
-import org.voltdb.messaging.FragmentTaskMessage;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 import org.voltdb.utils.Pair;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.utils.*;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.PartitionEstimator;
+import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.AbstractTransaction;
-import edu.mit.hstore.dtxn.DependencyInfo;
 
 /**
  * @author pavlo
  */
 public class TestTransactionState extends BaseTestCase {
-    private static final Logger LOG = Logger.getLogger(TestTransactionState.class.getName());
+    private static final Logger LOG = Logger.getLogger(TestTransactionState.class);
 
     private static final Long TXN_ID = 1000l;
     private static final long CLIENT_HANDLE = 99999l;
@@ -59,13 +68,14 @@ public class TestTransactionState extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
-    private static List<FragmentTaskMessage> ftasks;
+    private static List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
     
     private LocalTransaction ts;
     private ExecutionState execState;
     private ListOrderedSet<Integer> dependency_ids = new ListOrderedSet<Integer>();
     private List<Integer> internal_dependency_ids = new ArrayList<Integer>();
     private List<Integer> output_dependency_ids = new ArrayList<Integer>();
+    private Histogram<Integer> touched_partitions = new Histogram<Integer>();
     
     @Override
     protected void setUp() throws Exception {
@@ -97,15 +107,14 @@ public class TestTransactionState extends BaseTestCase {
             } // FOR
          
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            executors.put(LOCAL_PARTITION, executor);
-            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
+            hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
+            hstore_site.addExecutionSite(LOCAL_PARTITION, executor);
             
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
-            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, SINGLE_PARTITIONED);
+            plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            ftasks = plan.getFragmentTaskMessages(args);
-            System.err.println("FTASKS: " + ftasks);
+            plan.getPartitionFragments(ftasks);
+//            System.err.println("FTASKS: " + ftasks);
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(ftasks);
@@ -113,7 +122,10 @@ public class TestTransactionState extends BaseTestCase {
         
         this.execState = new ExecutionState(executor);
         this.ts = new LocalTransaction(hstore_site);
-        this.ts.init(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, false, false, false, true);
+        this.ts.testInit(TXN_ID,
+                         LOCAL_PARTITION,
+                         hstore_site.getAllPartitionIds(),
+                         this.getProcedure(TARGET_PROCEDURE));
         this.ts.setExecutionState(this.execState);
         assertNull(this.ts.getCurrentRoundState(LOCAL_PARTITION));
     }
@@ -124,14 +136,16 @@ public class TestTransactionState extends BaseTestCase {
      */
     private void addFragments() {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
-        for (FragmentTaskMessage ftask : ftasks) {
+        for (PartitionFragment ftask : ftasks) {
             assertNotNull(ftask);
-            this.ts.addFragmentTaskMessage(ftask);
-            for (int i = 0, cnt = ftask.getFragmentCount(); i < cnt; i++) {
-                this.dependency_ids.add(ftask.getOutputDependencyIds()[i]);
-                
-                for (Integer input_dep_id : ftask.getInputDepIds(i)) {
-                    if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) this.internal_dependency_ids.add(input_dep_id);
+            this.ts.addPartitionFragment(ftask);
+            for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
+                this.dependency_ids.add(ftask.getOutputDepId(i));
+                InputDependency input_dep_ids = ftask.getInputDepId(i);
+                for (Integer input_dep_id : input_dep_ids.getIdsList()) {
+                    if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
+                        this.internal_dependency_ids.add(input_dep_id);
+                    }
                 } // FOR
             } // FOR
         } // FOR
@@ -184,6 +198,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testInitRound
      */
+    @Test
     public void testInitRound() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
@@ -195,6 +210,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testStartRound
      */
+    @Test
     public void testStartRound() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
@@ -203,14 +219,14 @@ public class TestTransactionState extends BaseTestCase {
         CountDownLatch latch = this.ts.getDependencyLatch();
         assertNotNull(latch);
         
-        System.err.println(this.ts.toString());
+//        System.err.println(this.ts.toString());
         assertEquals(NUM_EXPECTED_DEPENDENCIES, latch.getCount());
         assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getOutputOrder().size());
         
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
-//        System.err.println(this.ts.getBlockedFragmentTaskMessages());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, CollectionUtil.first(this.ts.getBlockedFragmentTaskMessages()).getFragmentCount());
+        System.err.println(this.ts.getBlockedPartitionFragments());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getBlockedPartitionFragments().size());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how
@@ -227,6 +243,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testAddFragmentTaskMessage
      */
+    @Test
     public void testAddFragmentTaskMessage() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
@@ -251,7 +268,7 @@ public class TestTransactionState extends BaseTestCase {
                     // But never out to VoltProcedure
                     assertFalse(this.output_dependency_ids.contains(d_id));
                     // And we should have a task blocked waiting for this dependency
-                    assertFalse(dinfo.getBlockedFragmentTaskMessages().isEmpty());
+                    assertFalse(dinfo.getBlockedPartitionFragments().isEmpty());
                 } else {
                     assertEquals(1, dinfo.getPartitions().size());
                     assertEquals(LOCAL_PARTITION, dinfo.getPartitions().get(0).intValue());
@@ -265,6 +282,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testAddResult
      */
+    @Test
     public void testAddResult() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
@@ -318,6 +336,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testAddResultsBeforeStart
      */
+    @Test
     public void testAddResultsBeforeStart() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();
@@ -358,6 +377,7 @@ public class TestTransactionState extends BaseTestCase {
     /**
      * testGetResults
      */
+    @Test
     public void testGetResults() throws Exception {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         this.addFragments();

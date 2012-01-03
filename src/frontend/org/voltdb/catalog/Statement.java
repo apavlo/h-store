@@ -33,6 +33,7 @@ public class Statement extends CatalogType {
     boolean m_replicatedtabledml;
     boolean m_replicatedonly;
     boolean m_batched;
+    boolean m_secondaryindex;
     int m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
     CatalogMap<Column> m_output_columns;
@@ -55,6 +56,7 @@ public class Statement extends CatalogType {
         this.addField("replicatedtabledml", m_replicatedtabledml);
         this.addField("replicatedonly", m_replicatedonly);
         this.addField("batched", m_batched);
+        this.addField("secondaryindex", m_secondaryindex);
         this.addField("paramnum", m_paramnum);
         m_parameters = new CatalogMap<StmtParameter>(catalog, this, path + "/" + "parameters", StmtParameter.class);
         m_childCollections.put("parameters", m_parameters);
@@ -81,6 +83,7 @@ public class Statement extends CatalogType {
         m_replicatedtabledml = (Boolean) m_fields.get("replicatedtabledml");
         m_replicatedonly = (Boolean) m_fields.get("replicatedonly");
         m_batched = (Boolean) m_fields.get("batched");
+        m_secondaryindex = (Boolean) m_fields.get("secondaryindex");
         m_paramnum = (Integer) m_fields.get("paramnum");
         m_has_singlesited = (Boolean) m_fields.get("has_singlesited");
         m_exptree = (String) m_fields.get("exptree");
@@ -122,6 +125,10 @@ public class Statement extends CatalogType {
 
     public boolean getBatched() {
         return m_batched;
+    }
+
+    public boolean getSecondaryindex() {
+        return m_secondaryindex;
     }
 
     public int getParamnum() {
@@ -214,6 +221,10 @@ public class Statement extends CatalogType {
 
     public void setBatched(boolean value) {
         m_batched = value; m_fields.put("batched", value);
+    }
+
+    public void setSecondaryindex(boolean value) {
+        m_secondaryindex = value; m_fields.put("secondaryindex", value);
     }
 
     public void setParamnum(int value) {

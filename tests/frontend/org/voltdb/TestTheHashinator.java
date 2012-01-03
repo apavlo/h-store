@@ -38,7 +38,7 @@ public class TestTheHashinator extends TestCase {
 
     @Override
     public void setUp() {
-        VoltDB.instance().readBuildInfo();
+        EELibraryLoader.loadExecutionEngineLibrary(true);
     }
 
     public void testSameLongHash() {

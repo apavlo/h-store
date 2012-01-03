@@ -1,7 +1,9 @@
 package org.voltdb;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
@@ -14,6 +16,10 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 
@@ -35,12 +41,14 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     private Statement catalog_stmt;
     private SQLStmt batch[];
     private ParameterSet args[];
+    private Histogram<Integer> touched_partitions;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.MAPREDUCE);
         this.addPartitions(NUM_PARTITIONS);
         p_estimator = new PartitionEstimator(catalog_db, new DefaultHasher(catalog_db, NUM_PARTITIONS));
+        this.touched_partitions = new Histogram<Integer>();
     }
  
     private void init(Class<? extends VoltProcedure> volt_proc, String stmt_name, Object raw_args[]) {
@@ -68,18 +76,20 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
     public void testForceSinglePartitionPlan() throws Exception {
         this.init(MULTISITE_PROCEDURE, MULTISITE_STATEMENT, MULTISITE_PROCEDURE_ARGS);
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator, true);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, Collections.singleton(LOCAL_PARTITION), this.args, true);
+        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        Collection<FragmentTaskMessage> ftasks = plan.getFragmentTaskMessages(this.args);
-        int local_frags = TestBatchPlanner.getLocalFragmentCount(ftasks, LOCAL_PARTITION);
-        int remote_frags = TestBatchPlanner.getRemoteFragmentCount(ftasks, LOCAL_PARTITION);
+        
+        List<TransactionWorkRequest.PartitionFragment> tasks = new ArrayList<TransactionWorkRequest.PartitionFragment>(); 
+        plan.getPartitionFragments(tasks);
+        int local_frags = TestBatchPlanner.getLocalFragmentCount(tasks, LOCAL_PARTITION);
+        int remote_frags = TestBatchPlanner.getRemoteFragmentCount(tasks, LOCAL_PARTITION);
         
         System.err.println(plan);
-        System.err.println("Fragments: " + ftasks);
+        System.err.println("Fragments: " + tasks);
         
         assertTrue(plan.isLocal());
         assertTrue(plan.isSingleSited());

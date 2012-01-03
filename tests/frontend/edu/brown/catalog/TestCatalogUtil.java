@@ -43,6 +43,28 @@ public class TestCatalogUtil extends BaseTestCase {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
     }
+    
+    /**
+     * testGetPlanFragment
+     */
+    public void testGetPlanFragment() throws Exception {
+        Procedure catalog_proc = getProcedure(neworder.class);
+        Statement catalog_stmt =  CollectionUtil.first(catalog_proc.getStatements());
+        assert(catalog_stmt != null);
+        
+        for (PlanFragment expected : catalog_stmt.getFragments()) {
+            int id = expected.getId();
+            PlanFragment actual = CatalogUtil.getPlanFragment(expected, id);
+            assertNotNull(actual);
+            assertEquals(expected, actual);
+        } // FOR
+        for (PlanFragment expected : catalog_stmt.getMs_fragments()) {
+            int id = expected.getId();
+            PlanFragment actual = CatalogUtil.getPlanFragment(expected, id);
+            assertNotNull(actual);
+            assertEquals(expected, actual);
+        } // FOR
+    }
 
     /**
      * testGetOrderByColumns

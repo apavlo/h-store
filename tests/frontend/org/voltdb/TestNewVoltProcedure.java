@@ -1,9 +1,6 @@
 package org.voltdb;
 
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -16,10 +13,13 @@ import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -41,12 +41,15 @@ public class TestNewVoltProcedure extends BaseTestCase {
     private static ExecutionSite site;
     private static PartitionEstimator p_estimator;
     
+    private Procedure catalog_proc;
     private VoltProcedure volt_proc;
+    private Histogram<Integer> touched_partitions;
     
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         this.addPartitions(NUM_PARTITONS);
+        this.touched_partitions = new Histogram<Integer>();
         
         if (site == null) {
             // Figure out whether we are on a machine that has the native lib
@@ -57,11 +60,11 @@ public class TestNewVoltProcedure extends BaseTestCase {
             site = new MockExecutionSite(LOCAL_PARTITION, catalog, p_estimator);
             
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            executors.put(LOCAL_PARTITION, site);
-            hstore_site = new HStoreSite((Site)catalog_part.getParent(), executors, p_estimator);
+            hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
+            hstore_site.addExecutionSite(LOCAL_PARTITION, site);
         }
-        volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
+        this.volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);
         assertNotNull(volt_proc);
     }
         
@@ -81,8 +84,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         volt_proc.registerCallback(observer);
 
         Long xact_id = NEXT_TXN_ID.getAndIncrement();
-        Collection<Integer> partitions = Collections.singleton(LOCAL_PARTITION);
-        LocalTransaction ts = new LocalTransaction(hstore_site).init(xact_id, CLIENT_HANDLE++, LOCAL_PARTITION, partitions, false, true);
+        LocalTransaction ts = new LocalTransaction(hstore_site).testInit(xact_id, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), catalog_proc);
         // FIXME site.txn_states.put(xact_id, ts);
         
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
@@ -125,7 +127,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         } // FOR
         
         BatchPlanner planner = new BatchPlanner(batchStmts, catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), args, true);
+        BatchPlanner.BatchPlan plan = planner.plan(txn_id, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, args);
         assertNotNull(plan);
         
         // Only try to execute a BatchPlan if we have the real EE
