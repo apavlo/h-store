@@ -71,11 +71,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         LoadWarehouse.class,
         LoadWarehouseReplicated.class,
         GetTableCounts.class,
-        
-        //MRquery1.class,
-        //MRquery19.class,
-        //MRquery6.class
-        
     };
     
     // Transaction Frequencies
@@ -119,27 +114,19 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         
         addStmtProcedure("Query1", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount),COUNT(*) FROM order_line GROUP BY ol_number order by ol_number");
         addStmtProcedure("Query19","select ol_number, sum(ol_amount) from order_line " +
-        		                   "where ( ol_o_id >= 20 and ol_o_id <= 100  )" +
-        		                   " or (ol_o_id >= 105 and ol_o_id <= 200 )" +
-        		                   " or (ol_o_id >= 210 and ol_o_id <= 290 )" +
-        		                   "GROUP BY ol_number order by ol_number"
-        		                   );
+                                   "where ( ol_o_id >= 20 and ol_o_id <= 100  )" +
+                                   " or (ol_o_id >= 105 and ol_o_id <= 200 )" +
+                                   " or (ol_o_id >= 210 and ol_o_id <= 290 )" +
+                                   "GROUP BY ol_number order by ol_number"
+                                   );
         addStmtProcedure("Query6","select  ol_number, sum(ol_amount) " +
                                     "from    order_line " +
                                     "where  ol_quantity between 1 and 100000 " +
                                     "group by ol_number order by ol_number"
                                     );
-//        addStmtProcedure("Query6","se");
-//        addStmtProcedure("InsertCustomer", "INSERT INTO CUSTOMER VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "CUSTOMER.C_W_ID: 2");
-//        addStmtProcedure("InsertWarehouse", "INSERT INTO WAREHOUSE VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);", "WAREHOUSE.W_ID: 0");
-//        addStmtProcedure("InsertStock", "INSERT INTO STOCK VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "STOCK.S_W_ID: 1");
-//        addStmtProcedure("InsertOrders", "INSERT INTO ORDERS VALUES (?, ?, ?, ?, ?, ?, ?, ?);", "ORDERS.O_W_ID: 2");
-//        addStmtProcedure("InsertOrderLine", "INSERT INTO ORDER_LINE VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "ORDER_LINE.OL_W_ID: 2");
-//        addStmtProcedure("InsertNewOrder", "INSERT INTO NEW_ORDER VALUES (?, ?, ?);", "NEW_ORDER.NO_W_ID: 2");
-//        addStmtProcedure("InsertItem", "INSERT INTO ITEM VALUES (?, ?, ?, ?, ?);");
-//        addStmtProcedure("InsertHistory", "INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?);", "HISTORY.H_W_ID: 4");
-//        addStmtProcedure("InsertDistrict", "INSERT INTO DISTRICT VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", "DISTRICT.D_W_ID: 1");
-//        addStmtProcedure("InsertCustomerName", "INSERT INTO CUSTOMER_NAME VALUES (?, ?, ?, ?, ?);");
+        
+        addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
+        
     }
 
     /**

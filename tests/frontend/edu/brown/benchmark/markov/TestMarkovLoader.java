@@ -28,6 +28,10 @@ public class TestMarkovLoader extends BaseTestCase {
             "scalefactor=" + SCALE_FACTOR,
         };
         this.loader = new MarkovLoader(args) {
+            @Override
+            public Catalog getCatalog() {
+                return (BaseTestCase.catalog);
+            }
             
             @Override
             protected void loadTable(String tablename, VoltTable table) {

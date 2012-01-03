@@ -224,9 +224,14 @@ public class ProfileMeasurement implements JSONSerializable {
         return (this.appendTime(other, true));
     }
  
-    public void addThinkTime(long start, long stop) {
+    public void addThinkTime(long start, long stop, int invocations) {
         assert(this.think_marker == null) : this.type;
         this.total_time += (stop - start);
+        this.invocations += invocations;
+    }
+    
+    public void addThinkTime(long start, long stop) {
+        this.addThinkTime(start, stop, 0);
     }
 
     /**
@@ -296,13 +301,18 @@ public class ProfileMeasurement implements JSONSerializable {
 
     @Override
     public String toString() {
-        return (this.toString(false));
+        return (this.debug(false));
     }
     
-    public String toString(boolean verbose) {
+    public String debug() {
+        return this.debug(true);
+    }
+    
+    public String debug(boolean verbose) {
         if (verbose) {
-            return (String.format("%s[total=%d, marker=%s, invocations=%d]",
-                    this.type, this.total_time, this.think_marker, this.invocations));    
+            return (String.format("%s[total=%d, marker=%s, invocations=%d, avg=%.2f ms]",
+                    this.type, this.total_time, this.think_marker, this.invocations,
+                    this.getAverageThinkTimeMS()));    
         } else {
             return (this.type);
         }

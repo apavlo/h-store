@@ -11,20 +11,15 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
-import sun.tools.tree.ThisExpression;
-
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.TransactionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreSite;
 import edu.mit.hstore.callbacks.SendDataCallback;
-import edu.mit.hstore.callbacks.SendDataWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionMapCallback;
 import edu.mit.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.mit.hstore.callbacks.TransactionReduceCallback;
@@ -124,15 +119,15 @@ public class MapReduceTransaction extends LocalTransaction {
     
     
     @Override
-    public MapReduceTransaction init(long txnId, long clientHandle, int base_partition,
-                                     Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
-                                     TransactionEstimator.State estimator_state, Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
+    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
+            Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
+            Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         assert (invocation != null) : "invalid StoredProcedureInvocation parameter for MapReduceTransaction.init()";
         assert (catalog_proc != null) : "invalid Procedure parameter for MapReduceTransaction.init()";
         
         super.init(txnId, clientHandle, base_partition,
                    predict_touchedPartitions, predict_readOnly, predict_canAbort,
-                   estimator_state, catalog_proc, invocation, client_callback);
+                   catalog_proc, invocation, client_callback);
         
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_proc);
         this.mapEmit = catalog_db.getTables().get(this.catalog_proc.getMapemittable());
@@ -148,7 +143,7 @@ public class MapReduceTransaction extends LocalTransaction {
             this.local_txns[offset].init(this.txn_id, this.client_handle, partition,
                                          Collections.singleton(partition),
                                          this.predict_readOnly, this.predict_abortable,
-                                         null, catalog_proc, invocation, null);
+                                         catalog_proc, invocation, null);
             
             // init map/reduce Output for each partition
             assert(this.mapEmit != null): "mapEmit has not been initialized\n ";
@@ -170,7 +165,9 @@ public class MapReduceTransaction extends LocalTransaction {
     }
 
     public MapReduceTransaction init(long txnId, int base_partition, Procedure catalog_proc, StoredProcedureInvocation invocation) {
-        this.init(txnId, invocation.getClientHandle(), base_partition, hstore_site.getAllPartitionIds(), false, true, null, catalog_proc, invocation, null);
+        this.init(txnId, invocation.getClientHandle(), base_partition,
+                  hstore_site.getAllPartitionIds(), false, true,
+                  catalog_proc, invocation, null);
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);
         assert(this.map_callback.isInitialized()) : "Unexpected error for " + this;
         //assert(this.sendData_callback.isInitialized()) : "Unexpected error for " + this;

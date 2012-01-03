@@ -79,6 +79,7 @@ OPT_EXP_FACTOR_START = "0"
 OPT_EXP_FACTOR_STOP = "100"
 OPT_EXP_ATTEMPTS = 3
 OPT_START_CLUSTER = False
+OPT_MULTIPLY_SCALEFACTOR = False
 OPT_TRACE = False
 OPT_FAST = False
 OPT_NO_EXECUTE = False
@@ -89,16 +90,28 @@ OPT_NO_CONF = False
 OPT_NO_UPDATE = False
 OPT_NO_SYNC = True
 OPT_STOP_ON_ERROR = False
+OPT_RETRY_ON_ZERO = False
 OPT_FORCE_REBOOT = False
+OPT_SINGLE_CLIENT = False
 
 OPT_BASE_BLOCKING = True
 OPT_BASE_BLOCKING_CONCURRENT = 1
 OPT_BASE_TXNRATE_PER_PARTITION = 100000
-OPT_BASE_TXNRATE = 12500
+OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
-OPT_BASE_CLIENT_PROCESSESPERCLIENT = 600
+OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
 OPT_BASE_SCALE_FACTOR = 50
 OPT_BASE_PARTITIONS_PER_SITE = 7
+
+DEBUG_OPTIONS = [
+    "site.exec_profiling",
+    #"site.txn_profiling",
+    #"site.pool_profiling",
+    #"site.planner_profiling",
+    "site.status_show_txn_info",
+    "site.status_show_exec_info",
+    #"client.output_basepartitions",
+]
 
 BASE_SETTINGS = {
     "ec2.client_type":                  "c1.xlarge",
@@ -114,6 +127,8 @@ BASE_SETTINGS = {
     "client.txnrate":                   OPT_BASE_TXNRATE,
     "client.count":                     OPT_BASE_CLIENT_COUNT,
     "client.processesperclient":        OPT_BASE_CLIENT_PROCESSESPERCLIENT,
+    "client.processesperclient_per_partition": True,
+    "client.interval":                  10000,
     "client.skewfactor":                -1,
     "client.duration":                  120000,
     "client.warmup":                    60000,
@@ -122,13 +137,13 @@ BASE_SETTINGS = {
     "client.throttle_backoff":          50,
     "client.memory":                    6000,
     "client.blocking_loader":           False,
+    "client.output_basepartitions":     False,
     
-    "site.exec_profiling":                              True,
+    "site.exec_profiling":                              False,
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              False,
     "site.planner_profiling":                           False,
-    "site.planner_caching":                             True,
-    "site.status_show_txn_info":                        True,
+    "site.status_show_txn_info":                        False,
     "site.status_kill_if_hung":                         False,
     "site.status_show_thread_info":                     False,
     "site.status_show_exec_info":                       False,
@@ -139,19 +154,28 @@ BASE_SETTINGS = {
     "site.txn_restart_limit":                           5,
     "site.txn_restart_limit_sysproc":                   100,
     
+    "site.exec_force_singlepartitioned":                True,
+    "site.exec_mispredict_crash":                       False,
+    
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
     "site.memory":                                      6002,
-    "site.txn_incoming_queue_max_per_partition":        10000,
-    "site.txn_incoming_queue_release_factor":           0.90,
-    "site.txn_incoming_queue_increase":                 10,
+    "site.queue_incoming_max_per_partition":            500,
+    "site.queue_incoming_release_factor":               0.90,
+    "site.queue_incoming_increase":                     0,
+    "site.queue_incoming_throttle":                     False,
+    "site.queue_dtxn_max_per_partition":                1000,
+    "site.queue_dtxn_release_factor":                   0.90,
+    "site.queue_dtxn_increase":                         0,
+    "site.queue_dtxn_throttle":                         False,
+    
     "site.txn_enable_queue_pruning":                    False,
     "site.exec_postprocessing_thread":                  False,
     "site.pool_localtxnstate_idle":                     20000,
     "site.pool_batchplan_idle":                         10000,
     "site.exec_db2_redirects":                          False,
     "site.cpu_affinity":                                True,
-    "site.cpu_affinity_one_partition_per_core":         False,
+    "site.cpu_affinity_one_partition_per_core":         True,
 }
 
 EXPERIMENT_SETTINGS = {
@@ -160,6 +184,7 @@ EXPERIMENT_SETTINGS = {
         {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
+            "benchmark.warehouse_debug":         False,
             "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
@@ -184,9 +209,9 @@ EXPERIMENT_SETTINGS = {
     "throughput": [
         {
             "benchmark.neworder_skew_warehouse": False,
-            "benchmark.neworder_only":          False,
-            "benchmark.neworder_abort":         True,
-            "site.exec_neworder_cheat":         True
+            "benchmark.neworder_only":           False,
+            "benchmark.neworder_abort":          True,
+            "benchmark.warehouse_debug":         False,
         }
         
     ],
@@ -200,7 +225,7 @@ EXPERIMENT_SETTINGS = {
 
 # Thoughput Experiments
 OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
-OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'airline', 'auctionmark' ]
+OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'seats', 'auctionmark' ]
 OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
 
 ## ==============================================
@@ -238,11 +263,11 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
     ## THROUGHPUT
     elif exp_type == "throughput":
         pplan = "%s.%s.pplan" % (benchmark, exp_factor)
-        env["hstore.exec_prefix"] = "-Dpartitionplan=%s" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
+        env["hstore.exec_prefix"] += " -Dpartitionplan=%s -Dpartitionplan.ignore_missing=True" % os.path.join(OPT_PARTITION_PLAN_DIR, pplan)
         env["benchmark.neworder_multip_mix"] = -1
         env["benchmark.neworder_multip"] = True
         
-        #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "airline" else OPT_BASE_TXNRATE
+        #base_txnrate = int(OPT_BASE_TXNRATE / 2) if benchmark == "seats" else OPT_BASE_TXNRATE
         #env["client.txnrate"] = int(base_txnrate * (env["site.partitions"]/float(4)))
         
         ## Everything but LNS has to use the DB2 redirects
@@ -250,9 +275,9 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             env["site.exec_neworder_cheat"] = False
             env["client.txn_hints"] = False
             env["site.exec_db2_redirects"] = True
-            env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
+            #env["client.processesperclient"] = OPT_BASE_CLIENT_PROCESSESPERCLIENT / 2
         else:
-            env["site.exec_neworder_cheat"] = True
+            env["site.exec_neworder_cheat"] = (benchmark in ["tpcc", "seats"])
         ## IF
         
     ## BREAKDOWN
@@ -281,8 +306,8 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
 
     ## CUSTOM BENCHMARK TYPE
     if benchmark.startswith("tpcc"):
-        env["benchmark.warehouses"] = env["site.partitions"]
-        env["benchmark.loadthreads"] = env["site.partitions"]
+        env["benchmark.one_warehouse_per_partition"] = True
+        env["benchmark.one_loadthread_per_warehouse"] = True
         if benchmark.endswith("-skewed"):
             env["benchmark.temporal_skew"] = True
             env["benchmark.temporal_skew_rotate"] = False
@@ -291,15 +316,15 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
             #env["benchmark.temporal_skew"] = False
             #env["benchmark.temporal_skew_rotate"] = False
             #env["benchmark.temporal_skew_mix"] = -1
-    elif benchmark == "airline":
-        env["client.scalefactor"] = 100
-        env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
+    #elif benchmark == "seats":
+        # env["client.scalefactor"] = 100
+        # env["client.txnrate"] = int(OPT_BASE_TXNRATE / 2)
 
         ## MOTIVATION
         
     env["ec2.force_reboot"] = OPT_FORCE_REBOOT
-    env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
-    env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
+    #env["client.scalefactor"] = OPT_BASE_SCALE_FACTOR
+    # env["client.txnrate"] = int((OPT_BASE_TXNRATE_PER_PARTITION * env["site.partitions"]) / (env["client.count"] * env["client.processesperclient"]))
 
 ## DEF
 
@@ -324,10 +349,16 @@ def parseResultsOutput(output):
 ## ==============================================
 ## svnInfo
 ## ==============================================
-def svnInfo(svnRepo):
+def svnInfo(svnRepo, revision = None):
     import pysvn
+    
+    if revision:
+        svnRevision = pysvn.Revision(pysvn.opt_revision_kind.number, revision)
+    else:
+        svnRevision = pysvn.Revision(pysvn.opt_revision_kind.head)
+    
     client = pysvn.Client()
-    info = client.info2(svnRepo, recurse=False)[-1][-1]
+    info = client.info2(svnRepo, revision=svnRevision, recurse=False)[-1][-1]
     last_changed_rev = info['last_changed_rev'].number
     last_changed_date = datetime.fromtimestamp(info['last_changed_date'])
     
@@ -350,6 +381,7 @@ if __name__ == '__main__':
         
         "benchmarks=",
         "partition-plans=",
+        "multiply-scalefactor",
         "repeat-failed-trials=",
         "partitions=",
         "start-cluster",
@@ -363,13 +395,18 @@ if __name__ == '__main__':
         "no-json",
         "force-reboot",
         "stop-on-error",
+        "retry-on-zero",
+        "single-client",
         "trace",
         
         "codespeed-url=",
         "codespeed-benchmark=",
+        "codespeed-revision=",
+        "codespeed-lastrevision=",
         
         # Enable debug logging
         "debug",
+        "debug-hstore",
     ]
     for key in BASE_SETTINGS.keys():
         BASE_OPTIONS.append("%s=" % key)
@@ -391,6 +428,9 @@ if __name__ == '__main__':
     if "debug" in options:
         LOG.setLevel(logging.DEBUG)
         fabfile.LOG.setLevel(logging.DEBUG)
+    for param in DEBUG_OPTIONS:
+        BASE_SETTINGS[param] = ("debug-hstore" in options)
+        
     ## Global Options
     for key in options:
         varname = None
@@ -423,6 +463,13 @@ if __name__ == '__main__':
         OPT_NO_CONF = True
         OPT_NO_JAR = True
         OPT_NO_SYNC = True
+    if OPT_SINGLE_CLIENT:
+        LOG.info("Enabling single-client debug mode!")
+        BASE_SETTINGS["client.count"] = 1
+        BASE_SETTINGS["client.processesperclient"] = 1
+        BASE_SETTINGS["client.processesperclient_per_partition"] = False
+        BASE_SETTINGS["client.txnrate"] = 1
+    ## IF
     
     if not "partitions" in options:
         raise Exception("Missing 'partitions' parameter")
@@ -443,6 +490,14 @@ if __name__ == '__main__':
             env[key] = val
     ## FOR
     
+    ## Check whether we have already executed this one before
+    if "codespeed-lastrevision" in options:
+        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+        if int(options["codespeed-lastrevision"][0]) <= last_changed_rev:
+            LOG.info("Skipping already executed revision r%d" % last_changed_rev)
+            sys.exit(0)
+    ## IF
+    
     ## Figure out what keys we need to remove to ensure that one experiment
     ## doesn't contaminate another
     for other_type in EXPERIMENT_SETTINGS.keys():
@@ -456,10 +511,15 @@ if __name__ == '__main__':
     ## FOR
     LOG.debug("Configuration Parameters to Remove:\n" + pformat(conf_remove))
 
+    # If we get two consecutive intervals with zero results, then stop the benchmark
+    if OPT_RETRY_ON_ZERO:
+        env["hstore.exec_prefix"] += " -Dkillonzero=true"
+    
     needUpdate = (OPT_NO_UPDATE == False)
     needSync = (OPT_NO_SYNC == False)
     needCompile = (OPT_NO_COMPILE == False)
     forceStop = False
+    origScaleFactor = BASE_SETTINGS['client.scalefactor']
     for benchmark in OPT_BENCHMARKS:
         final_results = { }
         totalAttempts = OPT_EXP_TRIALS * OPT_EXP_ATTEMPTS
@@ -471,6 +531,10 @@ if __name__ == '__main__':
             #env["site.partitions_per_site"] = partitions / OPT_BASE_PARTITIONS_PER_SITE
             env["site.partitions"] = partitions
             all_results = [ ]
+                
+            # Increase the client.scalefactor based on the number of partitions
+            if OPT_MULTIPLY_SCALEFACTOR:
+                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor / partitions)
                 
             if OPT_EXP_TYPE == "motivation":
                 # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
@@ -500,7 +564,7 @@ if __name__ == '__main__':
                 
             if OPT_START_CLUSTER:
                 LOG.info("Starting cluster for experiments [noExecute=%s]" % OPT_NO_EXECUTE)
-                fabfile.start_cluster()
+                fabfile.start_cluster(updateSync=needSync)
                 if OPT_NO_EXECUTE: sys.exit(0)
             ## IF
             
@@ -527,8 +591,8 @@ if __name__ == '__main__':
                             env["hstore.exec_prefix"] += " compile"
                     else:
                         env["hstore.exec_prefix"] = env["hstore.exec_prefix"].replace("compile", "")
+                        
                     needCompile = False
-                    
                     attempts += 1
                     LOG.info("Executing %s Trial #%d/%d for Factor %s [attempt=%d/%d]" % (\
                                 benchmark.upper(),
@@ -544,9 +608,10 @@ if __name__ == '__main__':
                                                                     removals=conf_remove, \
                                                                     json=(OPT_NO_JSON == False), \
                                                                     trace=OPT_TRACE, \
-                                                                    updateJar=updateJar,
-                                                                    updateConf=updateConf,
-                                                                    updateSVN=needUpdate)
+                                                                    updateJar=updateJar, \
+                                                                    updateConf=updateConf, \
+                                                                    updateSVN=needUpdate, \
+                                                                    updateLog4j=needUpdate)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
                                 for key in [ 'TOTALTXNPERSECOND', 'TXNPERSECOND' ]:
@@ -556,6 +621,7 @@ if __name__ == '__main__':
                                 ## FOR
                                 minTxnRate = float(data["MINTXNPERSECOND"]) if "MINTXNPERSECOND" in data else None
                                 maxTxnRate = float(data["MAXTXNPERSECOND"]) if "MAXTXNPERSECOND" in data else None
+                                stddevTxnRate = float(data["STDDEVTXNPERSECOND"]) if "STDDEVTXNPERSECOND" in data else None
                                 
                                 if int(txnrate) == 0: pass
                                 results.append(txnrate)
@@ -566,9 +632,14 @@ if __name__ == '__main__':
                                 ## IF
                                 LOG.info("Throughput: %.2f" % txnrate)
                                 
-                                if "codespeed-url" in options and txnrate > 0:
+                                if "codespeed-url" in options and options["codespeed-url"][0] and txnrate > 0:
                                     upload_url = options["codespeed-url"][0]
-                                    last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+                                    
+                                    if "codespeed-revision" in options:
+                                        last_changed_rev = int(options["codespeed-revision"][0])
+                                        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
+                                    else:
+                                        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     
@@ -586,7 +657,8 @@ if __name__ == '__main__':
                                                 revision_date=last_changed_date,
                                                 result_date=datetime.now(),
                                                 min_result=minTxnRate,
-                                                max_result=maxTxnRate
+                                                max_result=maxTxnRate,
+                                                std_dev=stddevTxnRate
                                     )
                                     result.upload(upload_url)
                                 ## IF

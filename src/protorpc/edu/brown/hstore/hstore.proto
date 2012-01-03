@@ -51,6 +51,13 @@ message PartitionResult {
     optional bool error = 4 [default = false];
 }
 
+message Dependency {
+    /// Input Dependency Id
+    required int32 id = 1;
+    // Serialized VoltTables
+    repeated bytes data = 2;
+}
+
 // -----------------------------------
 // INITIALIZE TRANSACTION
 // -----------------------------------
@@ -81,34 +88,72 @@ message TransactionInitResponse {
 // -----------------------------------
 
 message TransactionWorkRequest {
+    message InputDependency {
+        repeated int32 ids = 1;
+    }
+
     // Specifies the work to be performed at a single partition.
     message PartitionFragment {
+        // The partition that needs to execute this work fragment
         required int32 partition_id = 1;
-        // Serialized FragmentTaskMessages
-        required bytes work = 2;
+        
+        // The PlanFragment ids that this partition will execute
+        repeated int32 fragment_id = 2 [packed=true];
+        
+        // The list of DependencyIds that each PlanFragment needs as input
+        repeated InputDependency input_dep_id = 3;
+        
+        // The DependencyIds that this work message will generate as output
+        repeated int32 output_dep_id = 4 [packed=true];
+        
+        // What SQLStmt in the batch this PlanFragment belongs to
+        repeated int32 stmt_index = 5 [packed=true];
+        
+        // Are all of the PlanFragments read only?
+        required bool read_only = 6;
+        
+        // If true, then the Work embedded in this PartitionFragment needs input
+        required bool needs_input = 7;
+        
         // If true, this is the final fragment for this transaction at this partition.
-        optional bool last_fragment = 3 [default = false];
+        optional bool last_fragment = 8 [default = false];
     }
 
     // Globally unique transaction id
     required int64 transaction_id = 1;
-
-    // Set of partitions to send work to. A partition can appear only once in this list.
-    repeated PartitionFragment fragments = 2;
+    
+    // Where this request came from!
+    required int32 source_partition = 2;
+    
+    // The work that the HStoreSite needs to execute for this transaction
+    // The work for a partition can appear only once in this list.
+    repeated PartitionFragment fragments = 3;
+    
+    // Is this request for a sysproc?
+    required bool sysproc = 4 [default = false];
+    
+    // Serialized ParameterSets (one per Statment).
+    // The order of these elements must match Work.stmtIndex
+    repeated bytes parameter_sets = 5;
+    
+    // We can attach input dependencies to each message
+    repeated Dependency attached = 6;
     
     // List of partitions that this transaction is done with
     // This allows us to piggyback on this message additional information
-    repeated int32 done_partition = 3 [packed=true];
+    repeated int32 done_partition = 7 [packed=true];
 }
 
 message TransactionWorkResponse {
     // The output results of PartitionFragments
     message PartitionResult {
         required int32 partition_id = 1;
-        // Serialized FragmentTaskResponse
-        required bytes output = 2;
-        // If this partition hit an error, this field will contain the error message.
-        optional bool error = 3 [default = false];
+        // Output Dependencies
+        repeated Dependency output = 2;
+        // Status of the PartitionResponse
+        required Status status = 3;
+        // If this partition hit an error, this field will contain the SerializableException
+        optional bytes error = 4;
     }
 
     required int64 transaction_id = 1;
@@ -244,6 +289,28 @@ message ShutdownResponse {
 }
 
 // -----------------------------------
+// TIME SYNC MESSAGE
+// -----------------------------------
+
+message TimeSyncRequest {
+    // The id of the HStoreSite sending this timesync request
+    required int32 sender_id = 1;
+    // The time when the local HStoreSite sent this request
+    required int64 t0_s = 2;
+}
+
+message TimeSyncResponse {
+    // The id of the HStoreSite responding to this timesync request
+    required int32 sender_id = 1;
+    // The time when the local HStoreSite sent this request
+    required int64 t0_s = 2;
+    // The time when the remote HStoreSite received this request
+    required int64 t0_r = 3;
+    // The time when the remote HStoreSite sent out the response
+    required int64 t1_s = 4;
+}
+
+// -----------------------------------
 // SERVICE
 // -----------------------------------
 
@@ -257,4 +324,5 @@ service HStoreService {
     rpc TransactionRedirect(TransactionRedirectRequest) returns (TransactionRedirectResponse);
     rpc SendData(SendDataRequest) returns (SendDataResponse);
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+    rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }

@@ -48,6 +48,7 @@ protected:
     bool m_replicatedtabledml;
     bool m_replicatedonly;
     bool m_batched;
+    bool m_secondaryindex;
     int32_t m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
     CatalogMap<Column> m_output_columns;
@@ -80,6 +81,7 @@ public:
     /** GETTER: Does this statement only access replicated tables? */
     bool replicatedonly() const;
     bool batched() const;
+    bool secondaryindex() const;
     int32_t paramnum() const;
     /** GETTER: The set of parameters to this SQL statement */
     const CatalogMap<StmtParameter> & parameters() const;

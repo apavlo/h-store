@@ -161,7 +161,7 @@ def benchmark():
 ## start_cluster
 ## ----------------------------------------------
 @task
-def start_cluster():
+def start_cluster(updateSync=True):
     """Deploy a new H-Store cluster on EC2 using the given configuration"""
     
     ## First make sure that our security group is setup
@@ -207,7 +207,7 @@ def start_cluster():
         ## If it's already running, check its type to see whether we want to make it a client or a site
         if is_running:
             instType = __getInstanceType__(inst)
-            if instType == env["ec2.site_type"]:
+            if instType == env["ec2.site_type"] and len(siteInstances) < siteCount:
                 siteInstances.append(inst)
             elif instType == env["ec2.client_type"]:
                 clientInstances.append(inst)
@@ -359,7 +359,7 @@ def start_cluster():
             first = False
         ## WITH
     ## FOR
-    sync_time()
+    if updateSync: sync_time()
 ## DEF
 
 ## ----------------------------------------------
@@ -393,7 +393,7 @@ def setup_env():
     ## WITH
     sudo("echo sun-java6-jre shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections")
     sudo("apt-get --yes install %s" % " ".join(ALL_PACKAGES))
-    sudo("ntpdate-debian")
+    __syncTime__()
     
     first_setup = False
     with settings(warn_only=True):
@@ -408,7 +408,7 @@ def setup_env():
     ## WITH
     
     ## We may be running a large cluster, in which case we will have a lot of connections
-    handlesAllowed = 4096
+    handlesAllowed = 24000
     for key in [ "soft", "hard" ]:
         update_line = "* %s nofile %d" % (key, handlesAllowed)
         if not contains("/etc/security/limits.conf", update_line):
@@ -533,7 +533,7 @@ def deploy_hstore(build=True):
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateSVN=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateSVN=False, updateLog4j=False):
     __getInstances__()
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
     
@@ -576,7 +576,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         if inst.private_dns_name in site_hosts: continue
         clients.append(inst.private_dns_name)
     ## FOR
-    assert len(clients) > 0
+    assert len(clients) > 0, "There are no %s client instances available" % env["ec2.client_type"]
     LOG.debug("Client Hosts: %s" % clients)
 
     ## Make sure the the checkout is up to date
@@ -586,14 +586,13 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     ## Update H-Store Conf file
     if updateConf:
         LOG.info("Updating H-Store configuration files")
-        write_conf(project, removals)
+        write_conf(project, removals, revertFirst=True)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
         "client.host":                  ",".join(clients),
         "client.count":                 env["client.count"],
         "client.processesperclient":    env["client.processesperclient"],
-        #"benchmark.warehouses":         partition_id,
         "project":                      project,
         "hosts":                        '"%s"' % ";".join(hosts),
     }
@@ -615,6 +614,10 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
             prefix += " hstore-prepare"
         cmd = "ant %s hstore-benchmark %s" % (prefix, hstore_opts_cmd)
         output = run(cmd)
+        
+        if updateLog4j:
+            LOG.info("Reverting log4j.properties")
+            run("svn revert %s %s" % (env["hstore.svn_options"].replace("--ignore-externals", ""), "log4j.properties"))
         
         ## If they wanted a trace file, then we have to ship it back to ourselves
         if trace:
@@ -640,7 +643,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 ## write_conf
 ## ----------------------------------------------
 @task
-def write_conf(project, removals=[ ]):
+def write_conf(project, removals=[ ], revertFirst=False):
     assert project
     prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
     code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
@@ -670,9 +673,17 @@ def write_conf(project, removals=[ ]):
             hstoreConf_removals.add(key)
     ## FOR
 
+    toUpdate = [
+        ("properties/default.properties", hstoreConf_updates, hstoreConf_removals),
+        ("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals),
+    ]
+    
     with cd(code_dir):
-        update_conf("properties/default.properties", hstoreConf_updates, hstoreConf_removals)
-        update_conf("properties/benchmarks/%s.properties" % project, benchmarkConf_updates, benchmarkConf_removals)
+        for _file, _updates, _removals in toUpdate:
+            if revertFirst:
+                run("svn revert %s %s" % (env["hstore.svn_options"].replace("--ignore-externals", ""), _file))
+            update_conf(_file, _updates, _removals)
+        ## FOR
     ## WITH
 ## DEF
 
@@ -756,10 +767,18 @@ def sync_time():
     __getInstances__()
     for inst in env["ec2.running_instances"]:
         with settings(host_string=inst.public_dns_name):
-            sudo("ntpdate-debian -b")
+            __syncTime__()
     ## FOR
 ## DEF
-    
+
+## ----------------------------------------------
+## __syncTime__
+## ----------------------------------------------
+def __syncTime__():
+    sudo("echo 1 > /proc/sys/xen/independent_wallclock")
+    sudo("ntpdate-debian -b")
+## DEF
+
 
 ## ----------------------------------------------
 ## __startInstances__

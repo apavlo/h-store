@@ -66,13 +66,6 @@ public final class HStoreConf {
             experimental=false
         )
         public String defaulthost = "localhost";
-        
-        @ConfigProperty(
-            description="", // TODO
-            defaultBoolean=true,
-            experimental=true
-        )
-        public boolean ringbuffer_debug;
     }
     
     // ============================================================================
@@ -179,7 +172,7 @@ public final class HStoreConf {
                         "multi-partition transaction on the partition that was requested most often by queries " +
                         "(using random tie breakers). " +
                         "See http://ibm.co/fLR2cH for more information.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=true
         )
         public boolean exec_db2_redirects;
@@ -241,6 +234,13 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean exec_queued_response_ee_bypass;
+        
+        @ConfigProperty(
+            description="", // TODO
+            defaultInt=10000,
+            experimental=true
+        )
+        public int exec_response_timeout;
         
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
@@ -312,6 +312,18 @@ public final class HStoreConf {
         public int queue_incoming_increase;
         
         @ConfigProperty(
+            description="If a transaction is rejected by an ExecutionSite because its queue is full, then " +
+                        "this parameter determines what kind of response will be sent back to the client. " +
+                        "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
+                        "status response, which means it will wait for ${client.throttle_backoff} ms before " +
+                        "sending another transaction request. Otherwise, the client will recieve an " +
+                        "ABORT_REJECT status response and will be allowed to queue another transaction immediately.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean queue_incoming_throttle;
+        
+        @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
             defaultInt=5000,
@@ -342,6 +354,18 @@ public final class HStoreConf {
             experimental=false
         )
         public int queue_dtxn_increase;
+        
+        @ConfigProperty(
+            description="If a transaction is rejected by the HStoreSite's distributed txn queue manager, then " +
+                        "this parameter determines what kind of response will be sent back to the client. " +
+                        "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
+                        "status response, which means it will wait for ${client.throttle_backoff} ms before " +
+                        "sending another transaction request. Otherwise, the client will recieve an " +
+                        "ABORT_REJECT status response and will be allowed to queue another transaction immediately.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean queue_dtxn_throttle;
         
         // ----------------------------------------------------------------------------
         // Markov Transaction Estimator Options
@@ -429,6 +453,14 @@ public final class HStoreConf {
         )
         public int planner_max_batch_size;
         
+        @ConfigProperty(
+            description="Use globally unique Dependency Ids for each unique SQLStmt batch when generating PartitionFragments " +
+                        "at run time.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean planner_unique_dependency_ids;
+        
         // ----------------------------------------------------------------------------
         // HStoreCoordinator
         // ----------------------------------------------------------------------------
@@ -456,6 +488,14 @@ public final class HStoreConf {
             experimental=false
         )
         public boolean coordinator_redirect_thread;
+        
+        @ConfigProperty(
+            description="If this enabled, HStoreCoordinator will use an NTP sytle protocol to find the time difference " +
+                        "between sites.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean coordinator_sync_time;
 
         // ----------------------------------------------------------------------------
         // ExecutionSiteHelper
@@ -651,44 +691,6 @@ public final class HStoreConf {
         )
         public int pool_txnprepare_idle;
     }
-
-    // ============================================================================
-    // COORDINATOR
-    // ============================================================================
-    public final class CoordinatorConf extends Conf {
-        
-        @ConfigProperty(
-            description="Dtxn.Coordinator log directory  on the host that the BenchmarkController " +
-                        "is invoked from.",
-            defaultString="${global.temp_dir}/logs/coordinator",
-            experimental=false
-        )
-        public String log_dir = HStoreConf.this.global.temp_dir + "/logs/coordinator";
-        
-        @ConfigProperty(
-            description="The hostname to deploy the Dtxn.Coordinator on in the cluster.",
-            defaultString="${global.defaulthost}",
-            experimental=false
-        )
-        public String host = HStoreConf.this.global.defaulthost;
-        
-        @ConfigProperty(
-            description="The port number that the Dtxn.Coordinator will listen on.",
-            defaultInt=12348,
-            experimental=false
-        )
-        public int port;
-
-        @ConfigProperty(
-            description="How long should we wait before starting the Dtxn.Coordinator (in milliseconds). " +
-                        "You may need to increase this parameter for larger cluster sizes or if the " +
-                        "HStoreSites have to load a lot of supplemental files (e.g., Markov models) before " +
-                        "they attempt to connect to other sites.",
-            defaultInt=0,
-            experimental=false
-        )
-        public int delay;
-    }
     
     // ============================================================================
     // CLIENT
@@ -730,10 +732,18 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="Number of processes to use per client host.",
-            defaultInt=1,
+            defaultInt=10,
             experimental=false
         )
         public int processesperclient;
+        
+        @ConfigProperty(
+            description="Multiply the ${client.processesperclient} parameter by " +
+                        "the number of partitions in the target cluster.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean processesperclient_per_partition;
 
         @ConfigProperty(
             description="Number of clients hosts to use in the benchmark run.",
@@ -785,9 +795,11 @@ public final class HStoreConf {
         public int blocking_concurrent;
         
         @ConfigProperty(
-            description="", // TODO
+            description="When this parameter is enabled, the benchmark's loaders will only be " +
+                        "allowed to load tables into the database cluster one at a time. This is " +
+                        "only useful for debugging.",
             defaultBoolean=false,
-            experimental=false
+            experimental=true
         )
         public boolean blocking_loader;
 
@@ -850,7 +862,7 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
-        public boolean dump_database = false;
+        public boolean dump_database;
         
         @ConfigProperty(
             description="If ${client.dump_database} is enabled, then each DBMS will dump their entire " +
@@ -867,7 +879,7 @@ public final class HStoreConf {
             defaultBoolean=false,
             experimental=false
         )
-        public boolean tablestats = false;
+        public boolean tablestats;
         
         @ConfigProperty(
             description="If ${client.tablestats} is enabled, then the loader will write out a database statistics " +
@@ -884,10 +896,10 @@ public final class HStoreConf {
                         "that has that partition. Note that the HStoreSite will not use the PartitionEstimator to " +
                         "determine whether the client is correct, but the transaction can be restarted and re-executed " +
                         "if ${site.exec_db2_redirects} is enabled.",
-            defaultBoolean=false,
+            defaultBoolean=true,
             experimental=false
         )
-        public boolean txn_hints = false;
+        public boolean txn_hints;
         
         @ConfigProperty(
             description="If a node is executing multiple client processes, then the node may become overloaded if " +
@@ -898,7 +910,7 @@ public final class HStoreConf {
             defaultInt=8,
             experimental=false
         )
-        public int delay_threshold = 8;
+        public int delay_threshold;
         
         @ConfigProperty(
             description="The URL of the CodeSpeed site that the H-Store BenchmarkController will post the transaction " +
@@ -1075,7 +1087,6 @@ public final class HStoreConf {
      */
     public final GlobalConf global = new GlobalConf();
     public final SiteConf site = new SiteConf();
-    public final CoordinatorConf coordinator = new CoordinatorConf();
     public final ClientConf client = new ClientConf();
     
     /**

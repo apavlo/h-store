@@ -6,30 +6,17 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
-import java.util.concurrent.CountDownLatch;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
-import ca.evanjones.protorpc.ProtoRpcController;
-
-import com.google.protobuf.RpcCallback;
-
 import edu.brown.BaseTestCase;
-import edu.brown.hstore.Hstore;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
@@ -44,8 +31,8 @@ public class TestHStoreCoordinator extends BaseTestCase {
     private final int NUM_PARTITIONS_PER_SITE = 2;
     private final int NUM_SITES               = (NUM_HOSTS * NUM_SITES_PER_HOST);
     
-    private final HStoreSite sites[] = new HStoreSite[NUM_SITES_PER_HOST];
-    private final HStoreCoordinator messengers[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
+    private final HStoreSite hstore_sites[] = new HStoreSite[NUM_SITES_PER_HOST];
+    private final HStoreCoordinator coordinators[] = new HStoreCoordinator[NUM_SITES_PER_HOST];
     
     private final VoltTable.ColumnInfo columns[] = {
         new VoltTable.ColumnInfo("key", VoltType.STRING),
@@ -57,23 +44,26 @@ public class TestHStoreCoordinator extends BaseTestCase {
     public void setUp() throws Exception {
         super.setUp(ProjectType.TM1);
         
+        HStoreConf.singleton().site.coordinator_sync_time = false;
+        
         // Create a fake cluster of two HStoreSites, each with two partitions
         // This will allow us to test same site communication as well as cross-site communication
         this.initializeCluster(NUM_HOSTS, NUM_SITES_PER_HOST, NUM_PARTITIONS_PER_SITE);
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
+            this.hstore_sites[i] = new MockHStoreSite(catalog_site, HStoreConf.singleton());
+            this.coordinators[i] = this.hstore_sites[i].initHStoreCoordinator();
             
             // We have to make our fake ExecutionSites for each Partition at this site
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
             for (Partition catalog_part : catalog_site.getPartitions()) {
-                executors.put(catalog_part.getId(), new MockExecutionSite(catalog_part.getId(), catalog, p_estimator));
+                MockExecutionSite es = new MockExecutionSite(catalog_part.getId(), catalog, p_estimator);
+                this.hstore_sites[i].addExecutionSite(catalog_part.getId(), es);
+                es.initHStoreSite(this.hstore_sites[i]);
             } // FOR
-            
-            this.sites[i] = new HStoreSite(catalog_site, executors, p_estimator);
-            this.messengers[i] = this.sites[i].getCoordinator();
         } // FOR
 
         this.startMessengers();
+        System.err.println("All HStoreCoordinators started!");
     }
     
     @Override
@@ -83,7 +73,7 @@ public class TestHStoreCoordinator extends BaseTestCase {
         this.stopMessengers();
         
         // Check to make sure all of the ports are free for each messenger
-        for (HStoreCoordinator m : this.messengers) {
+        for (HStoreCoordinator m : this.coordinators) {
             // assert(m.isStopped()) : "Site #" + m.getLocalSiteId() + " wasn't stopped";
             int port = m.getLocalMessengerPort();
             ServerSocketChannel channel = ServerSocketChannel.open();
@@ -122,12 +112,12 @@ public class TestHStoreCoordinator extends BaseTestCase {
         // We have to fire of threads in parallel because HStoreMessenger.start() blocks!
         List<Thread> threads = new ArrayList<Thread>();
         AssertThreadGroup group = new AssertThreadGroup();
-        for (final HStoreCoordinator m : this.messengers) {
+        for (final HStoreCoordinator m : this.coordinators) {
             threads.add(new Thread(group, "Site#" + m.getLocalSiteId()) {
                 @Override
                 public void run() {
-                    m.start();
                     System.err.println("START: " + m);
+                    m.start();
                 } 
             });
         } // FOR
@@ -142,12 +132,15 @@ public class TestHStoreCoordinator extends BaseTestCase {
      */
     private void stopMessengers() throws Exception {
         // Tell everyone to prepare to stop
-        for (final HStoreCoordinator m : this.messengers) {
-            if (m.isStarted()) m.prepareShutdown(false);
+        for (final HStoreCoordinator m : this.coordinators) {
+            if (m.isStarted()) {
+                System.err.println("PREPARE: " + m);
+                m.prepareShutdown(false);
+            }
         } // FOR
         // Now stop everyone for real!
-        for (final HStoreCoordinator m : this.messengers) {
-            if (m.isStarted() && m.isShuttingDown() == false) {
+        for (final HStoreCoordinator m : this.coordinators) {
+            if (m.isShuttingDown()) {
                 System.err.println("STOP: " + m);
                 m.shutdown();
             }
@@ -159,7 +152,8 @@ public class TestHStoreCoordinator extends BaseTestCase {
 	 */
 	@Test
 	public void testStartConnection() throws Exception {
-		for (final HStoreCoordinator m : this.messengers) {
+	    System.err.println("testStartConnection()");
+		for (final HStoreCoordinator m : this.coordinators) {
 			// Check that the messenger state is correct
 			assert (m.isStarted());
 
@@ -179,6 +173,8 @@ public class TestHStoreCoordinator extends BaseTestCase {
      */
     @Test
     public void testStopConnection() throws Exception {
+        System.err.println("testStopConnection()");
+        
         // TODO: Stop one of the messengers and check
         //          (1) Whether the listener thread has stopped
         //          (2) Whether the socket has been closed and the port freed
@@ -189,12 +185,12 @@ public class TestHStoreCoordinator extends BaseTestCase {
         //      so you test whether they are alive or not. It's not a big deal either way, since 
         //      HStore isn't a production database, but it would be nice to know.
 		for (int i = 0; i < NUM_SITES_PER_HOST; i++) {
-			HStoreCoordinator m = this.messengers[i];
+			HStoreCoordinator m = this.coordinators[i];
 			// stop messenger
 			m.shutdown();
 			assertEquals(m.getListenerThread().getState(), State.TERMINATED);
 			// check that the socket is closed
-			int port = this.sites[i].getSite().getMessenger_port();
+			int port = this.hstore_sites[i].getSite().getMessenger_port();
             ServerSocketChannel channel = ServerSocketChannel.open();
             try {
                 channel.socket().bind(new InetSocketAddress(port));

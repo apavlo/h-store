@@ -40,6 +40,33 @@ public abstract class GraphUtil {
     }
     
     /**
+     * Remove duplicate edges between every unique pair of vertices
+     * @param graph
+     */
+    public static <V extends AbstractVertex, E extends AbstractEdge> void removeDuplicateEdges(IGraph<V, E> graph) {
+        Set<E> toRemove = new HashSet<E>();
+        for (V v0 : graph.getVertices()) {
+            for (V v1 : graph.getVertices()) {
+                Collection<E> edges = graph.findEdgeSet(v0, v1);
+                if (edges == null || edges.size() <= 1) continue;
+                
+                toRemove.clear();
+                boolean first = true;
+                for (E e : edges) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        toRemove.add(e);
+                    }
+                } // FOR
+                for (E e : toRemove) {
+                    graph.removeEdge(e);
+                } // FOR
+            } // FOR
+        } // FOR
+    }
+    
+    /**
      * 
      * @param <V>
      * @param <E>

@@ -18,10 +18,9 @@ import edu.brown.utils.JSONUtil;
 import edu.brown.utils.MathUtil;
 
 /**
- * This class provides a way to visualize the variation in use of a variable.
- * 
+ * A very nice and simple generic Histogram
  * @author svelagap
- *
+ * @author pavlo
  */
 public class Histogram<X> implements JSONSerializable {
     private static final Logger LOG = Logger.getLogger(Histogram.class);
@@ -79,6 +78,14 @@ public class Histogram<X> implements JSONSerializable {
      */
     public Histogram() {
         // Nothing...
+    }
+    
+    /**
+     * Constructor
+     * @param keepZeroEntries
+     */
+    public Histogram(boolean keepZeroEntries) {
+        this.keep_zero_entries = keepZeroEntries;
     }
     
     /**
@@ -256,6 +263,7 @@ public class Histogram<X> implements JSONSerializable {
      * @return
      */
     public long getMinCount() {
+        this.calculateInternalValues();
         return (this.min_count);
     }
     /**
@@ -714,9 +722,11 @@ public class Histogram<X> implements JSONSerializable {
                 Field field = Histogram.class.getDeclaredField(element.toString().toLowerCase());
                 if (element == Members.HISTOGRAM) {
                     stringer.key(Members.HISTOGRAM.name()).object();
-                    for (Object value : this.histogram.keySet()) {
-                        stringer.key(value.toString()).value(this.histogram.get(value));
-                    } // FOR
+                    synchronized (this) {
+                        for (Object value : this.histogram.keySet()) {
+                            stringer.key(value.toString()).value(this.histogram.get(value));
+                        } // FOR
+                    } // SYNCH
                     stringer.endObject();
                 } else if (element == Members.KEEP_ZERO_ENTRIES) {
                     if (this.keep_zero_entries) stringer.key(element.name()).value(this.keep_zero_entries);

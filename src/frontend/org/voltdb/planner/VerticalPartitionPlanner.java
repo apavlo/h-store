@@ -136,6 +136,7 @@ public class VerticalPartitionPlanner {
         if (optimized != null) {
             for (Entry<Statement, Statement> e : optimized.entrySet()) {
                 CatalogUtil.copyQueryPlans(e.getValue(), e.getKey());
+                e.getKey().setSecondaryindex(true);
             } // FOR
             updated.addAll(optimized.keySet());
         }
@@ -158,6 +159,7 @@ public class VerticalPartitionPlanner {
             assert (optimized != null);
             assert (optimized.size() == 1);
             CatalogUtil.copyQueryPlans(CollectionUtil.first(optimized.values()), catalog_stmt);
+            catalog_stmt.setSecondaryindex(true);
             return (true);
         }
         return (false);

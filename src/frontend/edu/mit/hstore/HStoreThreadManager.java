@@ -40,10 +40,14 @@ public class HStoreThreadManager {
         } // FOR
         
         this.disable = (this.num_cores <= this.num_partitions);
-        if (this.disable) {
+        if (hstore_site.getHStoreConf().site.cpu_affinity == false) {
+            // Ignore
+        }
+        else if (this.disable) {
             LOG.warn(String.format("Unable to set CPU affinity - There are %d partitions but only %d available cores",
                                    this.num_partitions, this.num_cores));
-        } else {
+        }
+        else {
             for (int i = 0; i < this.num_partitions; i++) {
                 this.processing_affinity[i] = false;
             } // FOR
@@ -115,6 +119,21 @@ public class HStoreThreadManager {
         for (int i = 0; i < affinity.length; i++) {
             if (affinity[i]) cpus.add(i);
         }
+        return (cpus);
+    }
+    
+    /**
+     * Returns all the CPU ids that the given Thread is allowed to execute on  
+     * @param t
+     * @return
+     */
+    public Collection<Integer> getCPUIds(Thread t) {
+        Collection<Integer> cpus = new HashSet<Integer>();
+        for (Integer cpu : this.cpu_threads.keySet()) {
+            if (this.cpu_threads.get(cpu).contains(t)) {
+                cpus.add(cpu);
+            }
+        } // FOR
         return (cpus);
     }
 

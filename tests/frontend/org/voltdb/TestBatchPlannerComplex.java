@@ -1,224 +1,173 @@
 package org.voltdb;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-import org.voltdb.benchmark.tpcc.procedures.neworder;
+import org.voltdb.BatchPlanner.PlanVertex;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.seats.procedures.DeleteReservation;
+import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.workload.QueryTrace;
-import edu.brown.workload.TransactionTrace;
-import edu.brown.workload.Workload;
-import edu.brown.workload.filters.BasePartitionTxnFilter;
-import edu.brown.workload.filters.Filter;
-import edu.brown.workload.filters.MultiPartitionTxnFilter;
-import edu.brown.workload.filters.ProcedureLimitFilter;
-import edu.brown.workload.filters.ProcedureNameFilter;
+import edu.brown.utils.StringUtil;
+import edu.mit.hstore.HStoreConstants;
 
 public class TestBatchPlannerComplex extends BaseTestCase {
 
-    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = neworder.class;
-    private static final int TARGET_BATCH = 1;
-    private static final int WORKLOAD_XACT_LIMIT = 1;
-    private static final int NUM_PARTITIONS = 50;
+    private static final Class<? extends VoltProcedure> TARGET_PROCEDURE = LoadConfig.class;
+    private static final int NUM_PARTITIONS = 4;
     private static final int BASE_PARTITION = 0;
     private static final long TXN_ID = 123l;
     private static final long CLIENT_HANDLE = Long.MAX_VALUE;
 
-    private static Procedure catalog_proc;
-    private static Workload workload;
-    private static Collection<Integer> all_partitions;
-
-    private static SQLStmt batch[][];
-    private static ParameterSet args[][];
-    private static List<QueryTrace> query_batch[];
-    private static TransactionTrace txn_trace;
+    private SQLStmt batch[];
+    private ParameterSet args[];
     
     private MockExecutionSite executor;
+    private Histogram<Integer> touched_partitions;
+    private Procedure catalog_proc;
+    private BatchPlanner planner;
+    private BatchPlanner.BatchPlan plan;
 
     @Override
-    @SuppressWarnings("unchecked")
     protected void setUp() throws Exception {
-        super.setUp(ProjectType.TPCC);
+        super.setUp(ProjectType.SEATS);
         this.addPartitions(NUM_PARTITIONS);
-
-        if (workload == null) {
-            catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-            all_partitions = CatalogUtil.getAllPartitionIds(catalog_proc);
-            
-            File file = this.getWorkloadFile(ProjectType.TPCC);
-            workload = new Workload(catalog);
-
-            // Check out this beauty:
-            // (1) Filter by procedure name
-            // (2) Filter to only include multi-partition txns
-            // (3) Another limit to stop after allowing ### txns
-            // Where is your god now???
-            Filter filter = new ProcedureNameFilter(false)
-                    .include(TARGET_PROCEDURE.getSimpleName())
-                    .attach(new BasePartitionTxnFilter(p_estimator, BASE_PARTITION))
-                    .attach(new MultiPartitionTxnFilter(p_estimator))
-                    .attach(new ProcedureLimitFilter(WORKLOAD_XACT_LIMIT));
-            workload.load(file.getAbsolutePath(), catalog_db, filter);
-            assert(workload.getTransactionCount() > 0);
-            
-            // Convert the first QueryTrace batch into a SQLStmt+ParameterSet batch
-            txn_trace = CollectionUtil.first(workload.getTransactions());
-            assertNotNull(txn_trace);
-            int num_batches = txn_trace.getBatchCount();
-            query_batch = (List<QueryTrace>[])new List<?>[num_batches];
-            batch = new SQLStmt[num_batches][];
-            args = new ParameterSet[num_batches][];
-            
-            for (int i = 0; i < query_batch.length; i++) {
-                query_batch[i] = txn_trace.getBatchQueries(i);
-                batch[i] = new SQLStmt[query_batch[i].size()];
-                args[i] = new ParameterSet[query_batch[i].size()];
-                for (int ii = 0; ii < batch[i].length; ii++) {
-                    QueryTrace query_trace = query_batch[i].get(ii);
-                    assertNotNull(query_trace);
-                    batch[i][ii] = new SQLStmt(query_trace.getCatalogItem(catalog_db));
-                    args[i][ii] = VoltProcedure.getCleanParams(batch[i][ii], query_trace.getParams());
-                } // FOR
-            } // FOR
-        }
+        this.touched_partitions = new Histogram<Integer>();
+        this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         
+        this.batch = new SQLStmt[this.catalog_proc.getStatements().size()];
+        this.args = new ParameterSet[this.batch.length];
+        int i = 0;
+        for (Statement catalog_stmt : this.catalog_proc.getStatements()) {
+            this.batch[i] = new SQLStmt(catalog_stmt);
+            this.args[i] = ParameterSet.EMPTY;
+            i++;
+        } // FOR
+
         VoltProcedure volt_proc = ClassUtil.newInstance(TARGET_PROCEDURE, new Object[0], new Class<?>[0]);
         assert(volt_proc != null);
         this.executor = new MockExecutionSite(BASE_PARTITION, catalog, p_estimator);
         volt_proc.globalInit(this.executor, catalog_proc, BackendTarget.NONE, null, p_estimator);
-    }
-    
-    /**
-     * testBatchHashCode
-     */
-    public void testBatchHashCode() throws Exception {
-        final List<SQLStmt> statements = new ArrayList<SQLStmt>();
-        for (Statement catalog_stmt : catalog_proc.getStatements()) {
-            statements.add(new SQLStmt(catalog_stmt));
-        } // FOR
-        int num_stmts = statements.size();
-        assert(num_stmts > 0);
         
-        Map<Integer, BatchPlanner> batchPlanners = new HashMap<Integer, BatchPlanner>(100);
-        SQLStmt batches[][] = new SQLStmt[10][];
-        int hashes[] = new int[batches.length];
-        Random rand = new Random();
-        for (int i = 0; i < batches.length; i++) {
-            int batch_size = rand.nextInt(num_stmts - 1) + 1; 
-            batches[i] = new SQLStmt[batch_size];
-            Collections.shuffle(statements, rand);
-            for (int ii = 0; ii < batch_size; ii++) {
-                batches[i][ii] = statements.get(ii);
-            } // FOR
-            hashes[i] = VoltProcedure.getBatchHashCode(batches[i], batch_size);
-            batchPlanners.put(hashes[i], new BatchPlanner(batches[i], catalog_proc, p_estimator));
-        } // FOR
-        
-        for (int i = 0; i < batches.length; i++) {
-            for (int ii = i+1; ii < batches.length; ii++) {
-                assertNotSame(hashes[i], hashes[ii]);
-                if (hashes[i] == hashes[ii]) {
-                    for (SQLStmt s : batches[i])
-                        System.err.println(s.catStmt.fullName());
-                    System.err.println("---------------------------------------");
-                    for (SQLStmt s : batches[ii])
-                        System.err.println(s.catStmt.fullName());
-                }
-                assert(hashes[i] != hashes[ii]) : Arrays.toString(batches[i]) + "\n" + Arrays.toString(batches[ii]);
-            } // FOR
-            
-            int hash = VoltProcedure.getBatchHashCode(batches[i], batches[i].length-1);
-            assert(hashes[i] != hash);
-            assertNull(batchPlanners.get(hash));
-        } // FOR
-    }
-    
-    /**
-     * testPlanMultiPartition
-     */
-    public void testPlanMultiPartition() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, args[TARGET_BATCH], false);
+        this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
+        this.plan = planner.plan(TXN_ID,
+                                 CLIENT_HANDLE,
+                                 0,
+                                 CatalogUtil.getAllPartitionIds(catalog_db),
+                                 false,
+                                 this.touched_partitions,
+                                 this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
     }
-    
+
     /**
-     * testMispredict
+     * testGetPlanGraph
      */
-    public void testMispredict() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
+    public void testGetPlanGraph() throws Exception {
+        BatchPlanner.PlanGraph graph = plan.getPlanGraph();
+        assertNotNull(graph);
         
-        // Ask the planner to plan a multi-partition transaction where we have predicted it
-        // as single-partitioned. It should throw a nice MispredictionException
-        Set<Integer> partitions = new HashSet<Integer>();
-        partitions.add(BASE_PARTITION);
-        partitions.add(BASE_PARTITION+1);
+        // Make sure that only PlanVertexs with input dependencies have a child in the graph
+        for (PlanVertex v : graph.getVertices()) {
+            assertNotNull(v);
+            if (v.input_dependency_id == HStoreConstants.NULL_DEPENDENCY_ID) {
+                assertEquals(0, graph.getSuccessorCount(v));
+            } else {
+                assertEquals(1, graph.getSuccessorCount(v));
+            }
+        } // FOR
         
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, args[TARGET_BATCH], true);
-        assert(plan.hasMisprediction());
-        if (plan != null) System.err.println(plan.toString());
+//        GraphVisualizationPanel.createFrame(graph, GraphVisualizationPanel.makeVertexObserver(graph)).setVisible(true);
+//        ThreadUtil.sleep(1000000);
     }
     
     /**
-     * testMispredict
+     * testFragmentIds
      */
-    public void testMispredictPartitions() throws Exception {
-        BatchPlanner batchPlan = new BatchPlanner(batch[TARGET_BATCH], catalog_proc, p_estimator);
+    public void testFragmentIds() throws Exception {
+        catalog_proc = this.getProcedure(DeleteReservation.class);
         
-        // Ask the planner to plan a multi-partition transaction where we have predicted it
-        // as single-partitioned. It should throw a nice MispredictionException
-        Set<Integer> partitions = new HashSet<Integer>();
-        partitions.add(BASE_PARTITION);
-//        partitions.add(BASE_PARTITION+1);
-        
-        BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION+1, partitions, args[TARGET_BATCH], false);
-        assert(plan.hasMisprediction());
-        if (plan != null) System.err.println(plan.toString());
-    }
-    
-    /**
-     * testGetStatementPartitions
-     */
-    public void testGetStatementPartitions() throws Exception {
-        for (int batch_idx = 0; batch_idx < query_batch.length; batch_idx++) {
-            BatchPlanner batchPlan = new BatchPlanner(batch[batch_idx], catalog_proc, p_estimator);
-            BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, BASE_PARTITION, all_partitions, args[batch_idx], false);
+        // Make sure that PlanFragment ids in each PartitionFragment only
+        // belong to the Procedure
+        for (Statement catalog_stmt : catalog_proc.getStatements()) {
+            batch = new SQLStmt[] { new SQLStmt(catalog_stmt) };
+            args = new ParameterSet[] {
+                    new ParameterSet(this.makeRandomStatementParameters(catalog_stmt))
+            };
+            this.planner = new BatchPlanner(this.batch, this.catalog_proc, p_estimator);
+            this.touched_partitions.clear();
+            this.plan = planner.plan(TXN_ID,
+                                     CLIENT_HANDLE,
+                                     0,
+                                     CatalogUtil.getAllPartitionIds(catalog_db),
+                                     false,
+                                     this.touched_partitions,
+                                     this.args);
             assertNotNull(plan);
             assertFalse(plan.hasMisprediction());
-            
-            Statement catalog_stmts[] = batchPlan.getStatements();
-            assertNotNull(catalog_stmts);
-            assertEquals(query_batch[batch_idx].size(), catalog_stmts.length);
-            
-            Set<Integer> partitions[] = plan.getStatementPartitions();
-            assertNotNull(partitions);
-            
-            for (int i = 0; i < catalog_stmts.length; i++) {
-                assertEquals(query_batch[batch_idx].get(i).getCatalogItem(catalog_db), catalog_stmts[i]);
-                Set<Integer> p = partitions[i];
-                assertNotNull(p);
-                assertFalse(p.isEmpty());
-            } // FOR
-//            System.err.println(plan);
-        }
         
+            List<PartitionFragment> fragments = new ArrayList<PartitionFragment>();
+            plan.getPartitionFragments(fragments);
+            assertFalse(fragments.isEmpty());
+        
+            for (PartitionFragment pf : fragments) {
+                assertNotNull(pf);
+                for (int frag_id : pf.getFragmentIdList()) {
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
+                    assertNotNull(catalog_frag);
+                    assertEquals(catalog_frag.fullName(), catalog_stmt, catalog_frag.getParent());
+                } // FOR
+//                System.err.println(pf);
+            } // FOR
+        } // FOR
     }
     
+    
+    /**
+     * testBuildPartitionFragments
+     */
+    public void testBuildPartitionFragments() throws Exception {
+        List<PartitionFragment> fragments = new ArrayList<PartitionFragment>();
+        plan.getPartitionFragments(fragments);
+        assertFalse(fragments.isEmpty());
+        
+        for (PartitionFragment pf : fragments) {
+            assertNotNull(pf);
+//            System.err.println(pf);
+            
+            // If this PartitionFragment is not for the base partition, then
+            // we should make sure that it only has distributed queries...
+            if (pf.getPartitionId() != BASE_PARTITION) {
+                for (int frag_id : pf.getFragmentIdList()) {
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog, frag_id);
+                    assertNotNull(catalog_frag);
+                    Statement catalog_stmt = catalog_frag.getParent();
+                    assertNotNull(catalog_stmt);
+                    assert(catalog_stmt.getMs_fragments().contains(catalog_frag));
+                } // FOR
+            }
+            
+            // The InputDepId for all PartitionFragments should always be the same
+            Set<Integer> all_ids = new HashSet<Integer>();
+            for (InputDependency input_dep_ids : pf.getInputDepIdList()) {
+                all_ids.addAll(input_dep_ids.getIdsList());
+            } // FOR
+            assertEquals(pf.toString(), 1, all_ids.size());
+            
+//            System.err.println(StringUtil.SINGLE_LINE);
+        } // FOR
+    } // FOR
 }

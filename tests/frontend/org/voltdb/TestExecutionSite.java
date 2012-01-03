@@ -3,28 +3,34 @@
  */
 package org.voltdb;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.utils.VoltTypeUtil;
 
-import com.google.protobuf.RpcCallback;
+import com.google.protobuf.ByteString;
 
 import edu.brown.BaseTestCase;
+import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Dependency;
+import edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.mit.dtxn.Dtxn;
-import edu.mit.dtxn.Dtxn.FragmentResponse;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreSite;
+import edu.mit.hstore.dtxn.RemoteTransaction;
 
 /**
  * @author pavlo
@@ -44,12 +50,12 @@ public class TestExecutionSite extends BaseTestCase {
     
     private final Random rand = new Random(); 
     
-    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
-        @Override
-        public void run(FragmentResponse parameter) {
-            // Nothing!
-        }
-    }
+//    private class MockCallback implements RpcCallback<Dtxn.FragmentResponse> {
+//        @Override
+//        public void run(FragmentResponse parameter) {
+//            // Nothing!
+//        }
+//    }
     
     @Override
     protected void setUp() throws Exception {
@@ -59,11 +65,9 @@ public class TestExecutionSite extends BaseTestCase {
         if (site == null) {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
             Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
+            HStoreSite hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
-            
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            executors.put(PARTITION_ID, site);
-            HStoreSite hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
+            hstore_site.addExecutionSite(PARTITION_ID, site);
             site.initHStoreSite(hstore_site);
         }
     }
@@ -260,4 +264,47 @@ public class TestExecutionSite extends BaseTestCase {
 //        thread.interrupt();
 //        thread.join();
 //    }
+    
+    
+    /**
+     * testBuildPartitionResult
+     */
+    public void testBuildPartitionResult() throws Exception {
+        Table catalog_tbl = this.getTable(TM1Constants.TABLENAME_SPECIAL_FACILITY); 
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        assertNotNull(vt);
+        int num_rows = 50;
+        for (int i = 0; i < num_rows; i++) {
+            Object row[] = new Object[catalog_tbl.getColumns().size()];
+            for (int j = 0; j < row.length; j++) {
+                VoltType vtype = VoltType.get(catalog_tbl.getColumns().get(j).getType());
+                row[j] = VoltTypeUtil.getRandomValue(vtype);
+            } // FOR
+            vt.addRow(row);
+        } // FOR
+        
+        int dep_id = 10001;
+        DependencySet result = new DependencySet(new int[]{ dep_id }, new VoltTable[]{ vt });
+        
+        RemoteTransaction ts = new RemoteTransaction(site.getHStoreSite());
+        PartitionResult partitionResult = site.buildPartitionResult(ts, result, Hstore.Status.OK, null);
+        assertNotNull(partitionResult);
+        assertEquals(result.size(), partitionResult.getOutputCount());
+        
+        for (Dependency d : partitionResult.getOutputList()) {
+            assertNotNull(d);
+            assertEquals(1, d.getDataCount());
+            assertEquals(dep_id, d.getId());
+            
+            ByteString bs = d.getData(0);
+            assertFalse(bs.isEmpty());
+            
+            VoltTable clone = FastDeserializer.deserialize(bs.toByteArray(), VoltTable.class);
+            assertNotNull(clone);
+            assertEquals(vt.getRowCount(), clone.getRowCount());
+            assertEquals(vt.getColumnCount(), clone.getColumnCount());
+        } // FOR
+        
+    }
+    
 }

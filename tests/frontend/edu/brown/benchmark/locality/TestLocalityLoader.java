@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
@@ -41,6 +42,10 @@ public class TestLocalityLoader extends BaseTestCase {
             "NOUPLOADING=true",
         };
         this.loader = new LocalityLoader(args) {
+            @Override
+            public Catalog getCatalog() {
+                return (BaseTestCase.catalog);
+            }
             
             @Override
             public ClientResponse loadVoltTable(String tablename, VoltTable table) {
@@ -110,7 +115,6 @@ public class TestLocalityLoader extends BaseTestCase {
                 return (null);
             }
         };
-        this.loader.setCatalog(catalog);
     }
     
     @Override

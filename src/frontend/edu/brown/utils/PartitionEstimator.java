@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
@@ -717,7 +716,7 @@ public class PartitionEstimator {
      */
     public Integer getBasePartition(StoredProcedureInvocation invocation) throws Exception {
         Procedure catalog_proc = this.catalog_db.getProcedures().get(invocation.getProcName());
-        return (this.getBasePartition(catalog_proc, invocation.getParams().toArray()));
+        return (this.getBasePartition(catalog_proc, invocation.getParams().toArray(), false));
     }
     
     /**

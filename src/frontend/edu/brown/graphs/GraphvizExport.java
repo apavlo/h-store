@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Table;
 
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
@@ -412,6 +413,23 @@ public class GraphvizExport<V extends AbstractVertex, E extends AbstractEdge> {
         args.require(ArgumentsParser.PARAM_CATALOG);
         
         DependencyGraph dgraph = DependencyGraphGenerator.generate(args.catalog_db);
+        GraphUtil.removeDuplicateEdges(dgraph);
+        
+        // Any optional parameters are tables we should igore
+        // To do that we need to just remove them from the DependencyGraph
+        for (String opt : args.getOptParams()) {
+            for (String tableName : opt.split(",")) {
+                Table catalog_tbl = args.catalog_db.getTables().getIgnoreCase(tableName);
+                if (catalog_tbl == null) {
+                    LOG.warn("Unknown table '" + tableName + "'");
+                    continue;
+                }
+                DesignerVertex v = dgraph.getVertex(catalog_tbl);
+                assert(v != null) : "Failed to get vertex for " + catalog_tbl;
+                dgraph.removeVertex(v);
+            } // FOR
+        } // FOR
+        
         GraphvizExport<DesignerVertex, DesignerEdge> gvx = new GraphvizExport<DesignerVertex, DesignerEdge>(dgraph);
         gvx.setEdgeLabels(false);
         String graphviz = gvx.export(args.catalog_type.name());

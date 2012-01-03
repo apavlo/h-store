@@ -949,6 +949,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
 
 
         // CONFIG #2: HSQL
+        /* FIXME: PAVLO
         config = new LocalSingleProcessServer("fixedsql-hsql.jar", 1, BackendTarget.HSQLDB_BACKEND);
         config.compile(project);
         builder.addServerConfig(config);
@@ -958,6 +959,7 @@ public class TestFixedSQLSuite extends RegressionSuite {
                                   1, BackendTarget.NATIVE_EE_JNI);
         config.compile(project);
         builder.addServerConfig(config);
+        */
 
         return builder;
     }

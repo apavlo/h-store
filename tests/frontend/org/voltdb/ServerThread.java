@@ -23,33 +23,62 @@
 
 package org.voltdb;
 
+import org.voltdb.catalog.Catalog;
+
+import edu.brown.catalog.CatalogUtil;
+import edu.mit.hstore.HStoreConf;
+
 /**
  * Wraps VoltDB in a Thread
  */
 public class ServerThread extends Thread {
-    VoltDB.Configuration m_config;
+    final VoltDB.Configuration m_config;
+    final HStoreConf hstore_conf;
     boolean initialized = false;
+
+    // TODO(mainak) Pass this in as an argument to the constructor
+    // final Site catalog_site;
 
     public ServerThread(VoltDB.Configuration config) {
         m_config = config;
         setName("ServerThread");
+        
+        // Use the default HStoreConf
+        // TODO(mainak) Pass this as an argument to the constructor
+        this.hstore_conf = HStoreConf.singleton();
+
+        // Load the catalog
+        // TODO(mainak) Move out of here
+        // this.catalog = CatalogUtil.loadCatalogFromJar(m_config.m_pathToCatalog);
     }
 
     public ServerThread(String jarfile, BackendTarget target) {
         m_config = new VoltDB.Configuration();
         m_config.m_pathToCatalog = jarfile;
         m_config.m_backend = target;
+        
+        // Use the default HStoreConf
+        // TODO(mainak) Pass this as an argument to the constructor
+        this.hstore_conf = HStoreConf.singleton();
+        
+        // Load the catalog
+        // TODO(mainak) Move out of here
+        // this.catalog = CatalogUtil.loadCatalogFromJar(m_config.m_pathToCatalog);
     }
 
     @Override
     public void run() {
         VoltDB.initialize(m_config);
         VoltDB.instance().run();
+        
+        // FIXME(mainak) HStore.initialize(catalog_site, hstore_conf);
+        // FIXME(mainak) HStore.instance().run();
     }
 
     public void waitForInitialization() {
         // Wait until the server has actually started running.
         while (!VoltDB.instance().isRunning()) {
+        // FIXME(mainak) while (!HStore.instance().isRunning()) {
             Thread.yield();
         }
     }
@@ -57,6 +86,7 @@ public class ServerThread extends Thread {
     public void shutdown() throws InterruptedException {
         assert Thread.currentThread() != this;
         VoltDB.instance().shutdown(this);
+        // FIXME(mainak) HStore.instance().shutdown();
         this.join();
     }
 }

@@ -32,11 +32,11 @@ import org.voltdb.benchmark.Verification.Expression;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NullCallback;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.hstore.Hstore;
+import edu.mit.hstore.HStoreConf;
 
 public class BingoClient extends BenchmarkComponent {
 
@@ -51,22 +51,6 @@ public class BingoClient extends BenchmarkComponent {
         public final String displayName;
     }
 
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends VoltProjectBuilder> m_projectBuilderClass = BingoProjectBuilder.class;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final Class<? extends BenchmarkComponent> m_loaderClass = null;
-    /**
-     * Retrieved via reflection by BenchmarkController
-     */
-    public static final String m_jarFileName = "bingo.jar";
-
-    private static int maxTournaments = 10000;
-    private static int maxRounds = 100;
-    private static int boardsPerTournament = 10;
     private final Random random = new Random();
 
     // an array of tournaments with a randomized starting round to get better
@@ -127,11 +111,19 @@ public class BingoClient extends BenchmarkComponent {
     public BingoClient(String args[]) {
         super(args);
         Random r = new Random();
-        for (int i=0; i < maxTournaments; i++) {
+        
+        // Load our good old friend Mister HStoreConf
+        HStoreConf hstore_conf = this.getHStoreConf();
+        
+        final int num_tournaments = (int)Math.round(BingoConstants.maxTournaments / hstore_conf.client.scalefactor);
+        final int num_clients = this.getNumClients();
+        final int client_id = this.getClientId();
+        for (int i=1; i <= num_tournaments; i++) {
+            if (i % num_clients != client_id) continue;
             final Tourney t = new Tourney();
-            t.tid = (i | (getClientId() << 24));
+            t.tid = 10000 + i; //  | (getClientId() << 24));
             t.initialized = false;
-            t.round = java.lang.Math.abs(r.nextInt() % maxRounds);
+            t.round = Math.abs(r.nextInt() % BingoConstants.maxRounds);
             tournaments.offer(t);
         }
 
@@ -263,14 +255,15 @@ public class BingoClient extends BenchmarkComponent {
                 }
             };
 
+//            System.err.println("[" + getClientId() + "] CREATE TOURNEY: " + t.tid);
             queued = this.getClientHandle().callProcedure(
                     callback,
                     "CreateTournament",
                     (long)t.tid,
-                    (long)boardsPerTournament);
+                    (long)BingoConstants.boardsPerTournament);
         }
         // tournament is over, DELETE, mark uninitialized and at round 0.
-        else if (!(t.round < maxRounds)) {
+        else if (!(t.round < BingoConstants.maxRounds)) {
             final Tourney tourney = t;
             proc = Transaction.DELETE;
 
@@ -295,7 +288,7 @@ public class BingoClient extends BenchmarkComponent {
             final Tourney tourney = t;
 
             //Occasionally instead of playing a round check the avg pot value
-            if (random.nextInt(30000) > 29998) {
+            if (random.nextInt(BingoConstants.GETAVGPOT_MAX) > BingoConstants.GETAVGPOT_MIN) {
                 proc = Transaction.GETAVGPOT;
 
                 /*

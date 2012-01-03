@@ -82,9 +82,9 @@ public class TransactionProfile implements Poolable {
             ProfileMeasurement pm = this.stack.pop();
             assert(pm != null);
             if (debug.get()) LOG.debug("STOP " + pm.getType());
-            assert(pm.isStarted()) : pm.toString(true);
+            assert(pm.isStarted()) : pm.debug(true);
             pm.stop(timestamp);
-            assert(pm.isStopped()) : pm.toString(true);
+            assert(pm.isStopped()) : pm.debug(true);
         } // WHILE
         assert(this.stack.isEmpty());
         assert(this.isStopped());
@@ -153,7 +153,7 @@ public class TransactionProfile implements Poolable {
      */
     private final ProfileMeasurement pm_init_est = new ProfileMeasurement("INIT_EST");
     /**
-     * 
+     * Time spent waiting in the DTXN queue
      */
     private final ProfileMeasurement pm_init_dtxn = new ProfileMeasurement("INIT_DTXN");
     
@@ -181,7 +181,7 @@ public class TransactionProfile implements Poolable {
     // ---------------------------------------------------------------
     
     /**
-     * Time spent waiting in queue
+     * Time spent waiting in the ExecutionSite queue
      */
     private final ProfileMeasurement pm_queue = new ProfileMeasurement("QUEUE");
     
@@ -367,7 +367,7 @@ public class TransactionProfile implements Poolable {
                 throw new RuntimeException(e);
             }
             tuple[i] = pm.getTotalThinkTime();
-            if (i == 0) assert(tuple[i] > 0) : "Missing data " + pm.toString(true); 
+            if (i == 0) assert(tuple[i] > 0) : "Missing data " + pm.debug(true); 
         } // FOR
         return (tuple);
     }

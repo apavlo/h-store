@@ -297,6 +297,8 @@ public class LocalityClient extends BenchmarkComponent {
         }
         m_rng = rng;
         
+        System.err.println("ExecutionType: " + m_type);
+        
         HStoreConf hstore_conf = this.getHStoreConf();
         
         // Number of Records Per Table
@@ -343,7 +345,7 @@ public class LocalityClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
         LocalityClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
         assert(txn_type != null);
-        Object params[] = txn_type.params(m_rng,m_type, this.getCatalog(), this.table_sizes);
+        Object params[] = txn_type.params(m_rng, m_type, this.getCatalog(), this.table_sizes);
         boolean ret = this.getClientHandle().callProcedure(new LocalityCallback(txn_type), txn_type.name(), params);
         return (ret);
     }

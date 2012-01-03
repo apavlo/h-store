@@ -51,18 +51,18 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         IS_INLINE,
     }
 
-    protected int m_id = -1;
-    protected final List<AbstractPlanNode> m_children = new ArrayList<AbstractPlanNode>();
-    protected final List<AbstractPlanNode> m_parents = new ArrayList<AbstractPlanNode>();
-    protected final HashSet<AbstractPlanNode> m_dominators = new HashSet<AbstractPlanNode>();
+    private int m_id = -1;
+    protected List<AbstractPlanNode> m_children = new ArrayList<AbstractPlanNode>();
+    protected List<AbstractPlanNode> m_parents = new ArrayList<AbstractPlanNode>();
+    protected HashSet<AbstractPlanNode> m_dominators = new HashSet<AbstractPlanNode>();
 
     // PAVLO: We need this figure out how to reconstruct the tree
-    protected final List<Integer> m_childrenIds = new ArrayList<Integer>();
-    protected final List<Integer> m_parentIds = new ArrayList<Integer>();
+    protected List<Integer> m_childrenIds = new ArrayList<Integer>();
+    protected List<Integer> m_parentIds = new ArrayList<Integer>();
     
     // TODO: planner accesses this data directly. Should be protected.
     protected ArrayList<Integer> m_outputColumns = new ArrayList<Integer>();
-    protected final List<ScalarValueHints> m_outputColumnHints = new ArrayList<ScalarValueHints>();
+    protected List<ScalarValueHints> m_outputColumnHints = new ArrayList<ScalarValueHints>();
     protected long m_estimatedOutputTupleCount = 0;
 
     /**
@@ -70,7 +70,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
      * certain additional tasks while performing their main operation, rather than
      * having to re-read tuples from intermediate results
      */
-    protected final Map<PlanNodeType, AbstractPlanNode> m_inlineNodes = new HashMap<PlanNodeType, AbstractPlanNode>();
+    protected Map<PlanNodeType, AbstractPlanNode> m_inlineNodes = new HashMap<PlanNodeType, AbstractPlanNode>();
     protected boolean m_isInline = false;
 
     protected final PlannerContext m_context;
@@ -87,30 +87,50 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         m_id = id;
     }
 
+    protected final int getId() {
+        return (m_id);
+    }
+    
     @Override
     public Object clone() throws CloneNotSupportedException {
+        return (this.clone(true, true));
+    }
+    
+    public Object clone(boolean clone_children, boolean clone_inline) throws CloneNotSupportedException {
         AbstractPlanNode clone = (AbstractPlanNode)super.clone();
         clone.overrideId(PlanAssembler.getNextPlanNodeId());
         
+        clone.m_children = new ArrayList<AbstractPlanNode>();
+        clone.m_parents = new ArrayList<AbstractPlanNode>();
+        clone.m_dominators = new HashSet<AbstractPlanNode>(m_dominators);
+        clone.m_childrenIds = new ArrayList<Integer>();
+        clone.m_outputColumns = new ArrayList<Integer>(m_outputColumns);
+        clone.m_outputColumnHints = new ArrayList<ScalarValueHints>(m_outputColumnHints);
+        clone.m_inlineNodes = new HashMap<PlanNodeType, AbstractPlanNode>();
+        
         // Clone Children
-        clone.m_children.clear();
-        clone.m_childrenIds.clear();
-        for (AbstractPlanNode child_node : this.m_children) {
-            AbstractPlanNode child_clone = (AbstractPlanNode)child_node.clone();
-            child_clone.m_parents.clear();
-            child_clone.m_parentIds.clear();
-            child_clone.m_parents.add(clone);
-            child_clone.m_parentIds.add(clone.m_id);
-            clone.m_children.add(child_clone);
-            clone.m_childrenIds.add(child_clone.m_id);
-        } // FOR
+        if (clone_children) {
+//            clone.m_children.clear();
+//            clone.m_childrenIds.clear();
+            for (AbstractPlanNode child_node : this.m_children) {
+                AbstractPlanNode child_clone = (AbstractPlanNode)child_node.clone(clone_inline, clone_children);
+                child_clone.m_parents.clear();
+                child_clone.m_parentIds.clear();
+                child_clone.m_parents.add(clone);
+                child_clone.m_parentIds.add(clone.m_id);
+                clone.m_children.add(child_clone);
+                clone.m_childrenIds.add(child_clone.m_id);
+            } // FOR
+        }
         
         // Clone Inlines
-        clone.m_inlineNodes.clear();
-        for (Entry<PlanNodeType, AbstractPlanNode> e : this.m_inlineNodes.entrySet()) {
-            AbstractPlanNode inline_clone = (AbstractPlanNode)e.getValue().clone();
-            clone.m_inlineNodes.put(e.getKey(), inline_clone);
-        } // FOR
+        if (clone_inline) {
+//            clone.m_inlineNodes.clear();
+            for (Entry<PlanNodeType, AbstractPlanNode> e : this.m_inlineNodes.entrySet()) {
+                AbstractPlanNode inline_clone = (AbstractPlanNode)e.getValue().clone(clone_inline, clone_children);
+                clone.m_inlineNodes.put(e.getKey(), inline_clone);
+            } // FOR
+        }
         
         return (clone);
     }
@@ -352,6 +372,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
 
     public void clearChildren() {
         m_children.clear();
+        m_childrenIds.clear();
     }
 
     public boolean hasChild(AbstractPlanNode receive) {
@@ -380,6 +401,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
 
     public void clearParents() {
         m_parents.clear();
+        m_parentIds.clear();
     }
 
     public void removeFromGraph() {

@@ -25,8 +25,16 @@
  ***************************************************************************/
 package org.voltdb;
 
-import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -38,8 +46,6 @@ import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.messaging.FastSerializer;
-import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.AbstractDirectedGraph;
@@ -47,6 +53,9 @@ import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkRequest;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -73,7 +82,14 @@ public class BatchPlanner {
     // STATIC DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(9000);
+    private static final int FIRST_DEPENDENCY_ID = 9000;
+    
+    /**
+     * If the unique dependency ids option is enabled, all input/output DependencyIds for
+     * PartitionFragments will be globally unique.
+     * @see HStoreConf.SiteConf.planner_unique_dependency_ids
+     */
+    private static final AtomicInteger NEXT_DEPENDENCY_ID = new AtomicInteger(FIRST_DEPENDENCY_ID);
 
     // ----------------------------------------------------------------------------
     // GLOBAL DATA MEMBERS
@@ -91,9 +107,12 @@ public class BatchPlanner {
     private final PartitionEstimator p_estimator;
     private final AbstractHasher hasher;
     private final int num_partitions;
+    private int last_id = FIRST_DEPENDENCY_ID;
     private BatchPlan plan;
-    private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>(); 
-    
+    private final Map<Integer, PlanGraph> plan_graphs = new HashMap<Integer, PlanGraph>();
+    private final Map<Integer, PartitionFragment.Builder> round_builders = new HashMap<Integer, PartitionFragment.Builder>();
+
+    private final boolean enable_unique_ids;
     private final boolean enable_profiling;
     private final boolean enable_caching;
     private final boolean force_singlePartition;
@@ -106,7 +125,7 @@ public class BatchPlanner {
     private final ProfileMeasurement time_plan;
     private final ProfileMeasurement time_partitionEstimator;
     private final ProfileMeasurement time_planGraph;
-    private final ProfileMeasurement time_fragmentTaskMessages;
+    private final ProfileMeasurement time_partitionFragments;
     
     // ----------------------------------------------------------------------------
     // INTERNAL PLAN GRAPH ELEMENTS
@@ -156,7 +175,7 @@ public class BatchPlanner {
         }
     }
     
-    private static class PlanEdge extends AbstractEdge {
+    protected static class PlanEdge extends AbstractEdge {
         final int dep_id;
         public PlanEdge(IGraph<PlanVertex, PlanEdge> graph, int dep_id) {
             super(graph);
@@ -169,7 +188,7 @@ public class BatchPlanner {
         }
     }
     
-    private static class PlanGraph extends AbstractDirectedGraph<PlanVertex, PlanEdge> {
+    protected static class PlanGraph extends AbstractDirectedGraph<PlanVertex, PlanEdge> {
         private static final long serialVersionUID = 1L;
 
         /**
@@ -225,15 +244,10 @@ public class BatchPlanner {
         private boolean cached = false;
         
         private long txn_id;
-        private long client_handle;
         private Integer base_partition = -1;
         private PlanGraph graph;
         private MispredictionException mispredict;
 
-        /** The serialized ByteBuffers for each Statement in the batch */ 
-        private final ByteBuffer param_buffers[];
-        private final FastSerializer param_serializers[];
-        
         /** Temporary buffer space for sorting the PlanFragments per Statement */
         private final List<PlanFragment> frag_list[];
         
@@ -292,13 +306,10 @@ public class BatchPlanner {
             this.frag_list = (List<PlanFragment>[])new List<?>[batch_size];
             this.stmt_partitions = (Set<Integer>[])new Set<?>[batch_size];
             this.frag_partitions = (Map<PlanFragment, Set<Integer>>[])new HashMap<?, ?>[batch_size];
-            this.param_buffers = new ByteBuffer[batch_size];
-            this.param_serializers = new FastSerializer[batch_size];
             this.singlepartition_bitmap = new boolean[batch_size];
             for (int i = 0; i < batch_size; i++) {
                 this.stmt_partitions[i] = new HashSet<Integer>();
                 this.frag_partitions[i] = new HashMap<PlanFragment, Set<Integer>>();
-                this.param_serializers[i] = new FastSerializer();
             } // FOR
         }
 
@@ -312,14 +323,12 @@ public class BatchPlanner {
         private BatchPlan init(long txn_id, long client_handle, int base_partition) {
             assert(this.cached == false);
             this.txn_id = txn_id;
-            this.client_handle = client_handle;
             this.base_partition = base_partition;
             this.mispredict = null;
             
             for (int i = 0; i < this.frag_list.length; i++) {
                 if (this.frag_list[i] != null) this.frag_list[i] = null;
                 if (this.stmt_partitions[i] != null) this.stmt_partitions[i].clear();
-                if (this.param_serializers[i] != null) this.param_serializers[i].clear();
                 if (this.frag_partitions[i] != null) {
                     for (Set<Integer> s : this.frag_partitions[i].values()) {
                         s.clear();
@@ -338,7 +347,9 @@ public class BatchPlanner {
         public BatchPlanner getPlanner() {
             return (BatchPlanner.this);
         }
-        
+        protected PlanGraph getPlanGraph() {
+            return (this.graph);
+        }
         public boolean hasMisprediction() {
             return (this.mispredict != null);
         }
@@ -346,18 +357,8 @@ public class BatchPlanner {
             return (this.mispredict);
         }
         
-        /**
-         * Return the list of FragmentTaskMessages that need to be executed for this BatchPlan
-         * @return
-         */
-        public List<FragmentTaskMessage> getFragmentTaskMessages(ParameterSet batchArgs[]) {
-            // We need to generate a list of FragmentTaskMessages that we will ship off to either
-            // remote execution sites or be executed locally. Note that we have to separate
-            // any tasks that have a input dependency from those that don't,  because
-            // we can only block at the FragmentTaskMessage level (as opposed to blocking by PlanFragment)
-            ArrayList<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
-            BatchPlanner.this.buildFragmentTaskMessages(this, graph, ftasks, batchArgs);
-            return (ftasks);
+        public void getPartitionFragments(List<Hstore.TransactionWorkRequest.PartitionFragment> tasks) {
+            BatchPlanner.this.buildPartitionFragments(this, graph, tasks);
         }
 
         public int getBatchSize() {
@@ -460,6 +461,7 @@ public class BatchPlanner {
         this.enable_profiling = hstore_conf.site.planner_profiling;
         this.enable_caching = hstore_conf.site.planner_caching; 
         this.force_singlePartition = forceSinglePartition;
+        this.enable_unique_ids = hstore_conf.site.planner_unique_dependency_ids;
         
         this.sorted_singlep_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
         this.sorted_multip_fragments = (List<PlanFragment>[])new List<?>[this.batchSize];
@@ -473,7 +475,10 @@ public class BatchPlanner {
         for (int i = 0; i < this.batchSize; i++) {
             this.catalog_stmts[i] = batchStmts[i].catStmt;
             this.stmt_is_readonly[i] = batchStmts[i].catStmt.getReadonly();
-            this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly();
+            this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly() ||
+                                             batchStmts[i].catStmt.getSecondaryindex();
+            if (trace.get())
+                LOG.trace(batchStmts[i].catStmt.fullName() + " -> " + this.stmt_is_replicatedonly[i]); 
             
             // CACHING
             // Since most batches are going to be single-partition, we will cache
@@ -490,12 +495,12 @@ public class BatchPlanner {
         // PROFILING
         if (this.enable_profiling) {
             this.time_plan = new ProfileMeasurement("BuildPlan");
-            this.time_fragmentTaskMessages = new ProfileMeasurement("BuildFragments");
+            this.time_partitionFragments = new ProfileMeasurement("BuildFragments");
             this.time_planGraph = new ProfileMeasurement("BuildGraph");
             this.time_partitionEstimator = new ProfileMeasurement("PEstimator");
         } else {
             this.time_plan = null;
-            this.time_fragmentTaskMessages = null;
+            this.time_partitionFragments = null;
             this.time_planGraph = null;
             this.time_partitionEstimator = null;
         }
@@ -511,7 +516,7 @@ public class BatchPlanner {
         return this.catalog_stmts;
     }
     public ProfileMeasurement getBuildFragmentTaskMessagesTime() {
-        return this.time_fragmentTaskMessages;
+        return this.time_partitionFragments;
     }
     public ProfileMeasurement getBuildPlanGraphTime() {
         return this.time_planGraph;
@@ -524,19 +529,24 @@ public class BatchPlanner {
                 this.time_plan,
                 this.time_planGraph,
                 this.time_partitionEstimator,
-                this.time_fragmentTaskMessages,
+                this.time_partitionFragments,
         };
     }
-    
+
     /**
      * 
      * @param txn_id
      * @param client_handle
+     * @param base_partition
+     * @param predict_partitions
+     * @param touched_partitions
      * @param batchArgs
-     * @param predict_singlepartitioned
      * @return
      */
-    public BatchPlan plan(long txn_id, long client_handle, int base_partition, Collection<Integer> predict_partitions, ParameterSet[] batchArgs, boolean predict_singlepartitioned) {
+    public BatchPlan plan(long txn_id, long client_handle, int base_partition,
+                          Collection<Integer> predict_partitions, boolean predict_singlepartitioned,
+                          Histogram<Integer> touched_partitions,
+                          ParameterSet[] batchArgs) {
         if (this.enable_profiling) time_plan.start();
         if (debug.get())
             LOG.debug(String.format("Constructing a new %s BatchPlan for %s txn #%d",
@@ -632,6 +642,9 @@ public class BatchPlanner {
             boolean is_singlepartition = has_singlepartition_plan;
             boolean is_local = true;
             CatalogMap<PlanFragment> fragments = null;
+            
+//            AbstractPlanNode node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+//            LOG.info(PlanNodeUtil.debug(node));
             
             // OPTIMIZATION: Fast partition look-up caching
             // OPTIMIZATION: Read-only queries on replicated tables always just go to the local partition
@@ -741,11 +754,21 @@ public class BatchPlanner {
                     this.sorted_singlep_fragments[stmt_index] = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, true); 
                 }
                 plan.frag_list[stmt_index] = this.sorted_singlep_fragments[stmt_index];
+                
+                // Only mark that we touched these partitions if the Statement is
+                // not on a replicated table
+                if (is_replicated_only == false) {
+                    touched_partitions.putAll(stmt_all_partitions);
+                }
+                
             } else {
                 if (this.sorted_multip_fragments[stmt_index] == null) {
                     this.sorted_multip_fragments[stmt_index] = PlanNodeUtil.getSortedPlanFragments(catalog_stmt, false); 
                 }
                 plan.frag_list[stmt_index] = this.sorted_multip_fragments[stmt_index];
+                
+                // Always mark that we are touching these partitions
+                touched_partitions.putAll(stmt_all_partitions);
             }
             
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
@@ -804,6 +827,7 @@ public class BatchPlanner {
                 header.put("Local Partition", base_partition);
                 header.put("IsSingledSited", is_singlepartition);
                 header.put("IsStmtLocal", is_local);
+                header.put("IsReplicatedOnly", is_replicated_only);
                 header.put("IsBatchLocal", plan.all_local);
                 header.put("Fragments", fragments.size());
                 maps[0] = header;
@@ -845,17 +869,16 @@ public class BatchPlanner {
     }
 
     /**
-     * Construct a map from PartitionId->FragmentTaskMessage
-     * Note that a FragmentTaskMessage may contain multiple fragments that need to be executed
-     * @param txn_id
-     * @return
+     * 
+     * @param plan
+     * @param graph
+     * @param tasks
      */
-    private void buildFragmentTaskMessages(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<FragmentTaskMessage> ftasks, final ParameterSet[] batchArgs) {
-        if (this.enable_profiling) time_fragmentTaskMessages.start();
+    protected void buildPartitionFragments(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<Hstore.TransactionWorkRequest.PartitionFragment> tasks) {
+        if (this.enable_profiling) time_partitionFragments.start();
         long txn_id = plan.txn_id;
-        long client_handle = plan.client_handle;
         if (debug.get())
-            LOG.debug("Constructing list of FragmentTaskMessages to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
+            LOG.debug("Constructing list of PartitionFragments to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
 
         for (PlanVertex v : graph.getVertices()) {
             int stmt_index = v.stmt_index;
@@ -865,110 +888,83 @@ public class BatchPlanner {
             } // FOR
         } // FOR
         
-        // Pre-compute Statement Parameter ByteBuffers
-        for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
-            try {
-                batchArgs[stmt_index].writeExternal(plan.param_serializers[stmt_index]);
-                plan.param_buffers[stmt_index] = plan.param_serializers[stmt_index].getBuffer();
-            } catch (Exception ex) {
-                LOG.fatal("Failed to serialize parameters for Statement #" + stmt_index, ex);
-                throw new RuntimeException(ex);
-            }
-            assert(plan.param_buffers[stmt_index] != null) : "Parameter ByteBuffer is null for Statement #" + stmt_index;
-        } // FOR
-        
+        // The main idea of what we're trying to do here is to group together all of the PlanFragments with
+        // the same input dependency ids into a single PartitionFragment
         if (trace.get()) LOG.trace("Generated " + plan.rounds_length + " rounds of tasks for txn #"+ txn_id);
         for (int round = 0; round < plan.rounds_length; round++) {
             if (trace.get()) LOG.trace(String.format("Txn #%d - Round %02d", txn_id, round)); //  + " - Round " + e.getKey() + ": " + e.getValue().size() + " partitions");
-
+            
             for (int partition = 0; partition < this.num_partitions; partition++) {
                 Collection<PlanVertex> vertices = plan.rounds[round][partition];
                 if (vertices.isEmpty()) continue;
-            
-                int num_frags = vertices.size();
-                long frag_ids[] = new long[num_frags];
-                int input_ids[] = new int[num_frags];
-                int output_ids[] = new int[num_frags];
-                int stmt_indexes[] = new int[num_frags];
-                ByteBuffer params[] = new ByteBuffer[num_frags];
-                boolean read_only = true;
-        
-                int i = 0;
+
+                this.round_builders.clear();
                 for (PlanVertex v : vertices) { // Does this order matter?
+                    // Check whether we can use an existing PartitionFragment builder
+                    PartitionFragment.Builder partitionBuilder = this.round_builders.get(v.input_dependency_id);
+                    if (partitionBuilder == null) {
+                        partitionBuilder = PartitionFragment.newBuilder()
+                                                            .setPartitionId(partition);
+                        this.round_builders.put(v.input_dependency_id, partitionBuilder);
+                    }
+                    
                     // Fragment Id
-                    frag_ids[i] = v.frag_id;
+                    partitionBuilder.addFragmentId(v.frag_id);
                     
                     // Not all fragments will have an input dependency so this could be the NULL_DEPENDENCY_ID
-                    input_ids[i] = v.input_dependency_id;
+                    partitionBuilder.addInputDepId(TransactionWorkRequest.InputDependency.newBuilder().addIds(v.input_dependency_id).build());
+                    partitionBuilder.setNeedsInput(partitionBuilder.getNeedsInput() || (v.input_dependency_id != HStoreConstants.NULL_DEPENDENCY_ID));
                     
                     // All fragments will produce some output
-                    output_ids[i] = v.output_dependency_id;
+                    partitionBuilder.addOutputDepId(v.output_dependency_id);
                     
                     // SQLStmt Index
-                    stmt_indexes[i] = v.stmt_index;
+                    partitionBuilder.addStmtIndex(v.stmt_index);
                     
-                    // Parameters
-                    params[i] = plan.param_buffers[v.stmt_index];
-
                     // Read-Only
-                    read_only = read_only && v.read_only;
+                    partitionBuilder.setReadOnly(partitionBuilder.getReadOnly() || v.read_only);
                     
-                    if (trace.get()) LOG.trace("Fragment Grouping " + i + " => [" +
+                    if (trace.get()) LOG.trace("Fragment Grouping " + partitionBuilder.getFragmentIdCount() + " => [" +
                                      "txn_id=#" + txn_id + ", " +
-                                     "frag_id=" + frag_ids[i] + ", " +
-                                     "input=" + input_ids[i] + ", " +
-                                     "output=" + output_ids[i] + ", " +
-                                     "stmt_indexes=" + stmt_indexes[i] + "]");
-                    
-                    i += 1;
+                                     "frag_id=" + v.frag_id + ", " +
+                                     "input=" + v.input_dependency_id + ", " +
+                                     "output=" + v.output_dependency_id + ", " +
+                                     "stmt_index=" + v.stmt_index + "]");
                 } // FOR (frag_idx)
-            
-                if (i == 0) {
-                    if (trace.get()) {
-                        LOG.warn("For some reason we thought it would be a good idea to construct a FragmentTaskMessage with no fragments! [txn_id=#" + txn_id + "]");
-                        LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
-                    }
-                    continue;
-                }
-            
-                FragmentTaskMessage task = new FragmentTaskMessage(
-                        plan.base_partition.intValue(),
-                        partition,
-                        txn_id,
-                        client_handle,
-                        read_only, // IGNORE
-                        frag_ids,
-                        input_ids,
-                        output_ids,
-                        params,
-                        stmt_indexes,
-                        false); // FIXME(pavlo) Final task?
-                task.setFragmentTaskType(BatchPlanner.this.catalog_proc.getSystemproc() ? FragmentTaskMessage.SYS_PROC_PER_PARTITION : FragmentTaskMessage.USER_PROC);
-                ftasks.add(task);
                 
-                if (debug.get()) {
-                    LOG.debug(String.format("New FragmentTaskMessage to run at partition #%d with %d fragments for txn #%d " +
-                                            "[ids=%s, inputs=%s, outputs=%s]",
-                                            partition, num_frags, txn_id,
-                                            Arrays.toString(frag_ids), Arrays.toString(input_ids), Arrays.toString(output_ids)));
-                    if (trace.get()) 
-                        LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
-                }
+                for (PartitionFragment.Builder partitionBuilder : this.round_builders.values()) {
+                    if (partitionBuilder.getFragmentIdCount() == 0) {
+                        if (trace.get()) {
+                            LOG.warn("For some reason we thought it would be a good idea to construct a PartitionFragment with no fragments! [txn_id=#" + txn_id + "]");
+                            LOG.warn("In case you were wondering, this is a terrible idea, which is why we didn't do it!");
+                        }
+                        continue;
+                    }
+                    tasks.add(partitionBuilder.build());
+                } // FOR
+            
+//                if (debug.get()) {
+//                    LOG.debug(String.format("New PartitionFragment to run at partition #%d with %d fragments for txn #%d " +
+//                                            "[ids=%s, inputs=%s, outputs=%s]",
+//                                            partition, num_frags, txn_id,
+//                                            Arrays.toString(frag_ids), Arrays.toString(input_ids), Arrays.toString(output_ids)));
+//                    if (trace.get()) 
+//                        LOG.trace("Fragment Contents: [txn_id=#" + txn_id + "]\n" + task.toString());
+//                }
             } // PARTITION
         } // ROUND            
-        assert(ftasks.size() > 0) : "Failed to generate any FragmentTaskMessages in this BatchPlan for txn #" + txn_id;
+        assert(tasks.size() > 0) : "Failed to generate any PartitionFragments in this BatchPlan for txn #" + txn_id;
         if (debug.get())
-            LOG.debug("Created " + ftasks.size() + " FragmentTaskMessage(s) for txn #" + txn_id);
-        if (this.enable_profiling) time_fragmentTaskMessages.stop();
+            LOG.debug("Created " + tasks.size() + " PartitionFragment(s) for txn #" + txn_id);
+        if (this.enable_profiling) time_partitionFragments.stop();
     }
-
     
     /**
      * Construct 
      * @param plan
      * @return
      */
-    private PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
+    protected PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
         if (this.enable_profiling) ProfileMeasurement.swap(this.time_plan, this.time_planGraph);
         PlanGraph graph = new PlanGraph(CatalogUtil.getDatabase(this.catalog_proc));
 
@@ -990,7 +986,7 @@ public class BatchPlanner {
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
                 assert(f_partitions != null) : String.format("No PartitionIds for [%02d] %s in Statement #%d", round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(plan.base_partition));
-                int output_id = BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement();
+                int output_id = (this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : this.last_id++);
     
                 PlanVertex v = new PlanVertex(catalog_frag,
                                               stmt_index,
@@ -1033,7 +1029,7 @@ public class BatchPlanner {
         if (this.enable_profiling) ProfileMeasurement.swap(this.time_planGraph, this.time_plan);
         return (graph);
     }
-
+    
     private static Comparator<PlanVertex> PLANVERTEX_COMPARATOR = new Comparator<PlanVertex>() {
         @Override
         public int compare(PlanVertex o1, PlanVertex o2) {

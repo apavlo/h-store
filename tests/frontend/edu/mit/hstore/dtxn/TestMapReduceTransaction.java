@@ -1,46 +1,33 @@
 package edu.mit.hstore.dtxn;
 
-
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
-import org.voltdb.ExecutionSite;
 import org.voltdb.MockExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
-import org.voltdb.VoltType;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
-import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.utils.VoltTypeUtil;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.ThreadUtil;
+import edu.mit.hstore.HStore;
+import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreCoordinator;
 import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.TestHStoreCoordinator.AssertThreadGroup;
-import edu.mit.hstore.TestVoltProcedureListener.MockHandler;
-
-import junit.framework.TestCase;
 
 public class TestMapReduceTransaction extends BaseTestCase{
     static final int NUM_ROWS = 10;
     static final Random rand = new Random();
-    static Collection<Integer> all_partitions;
+    Collection<Integer> all_partitions;
     static Class<? extends VoltProcedure> TARGET_PROCEDURE = MockMapReduce.class;
     
     
@@ -59,8 +46,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
     
     @Override
     protected void setUp() throws Exception {
-        
-            super.setUp(ProjectType.MAPREDUCE);
+        super.setUp(ProjectType.MAPREDUCE);
         
         // Create a fake cluster of two HStoreSites, each with two partitions
         // This will allow us to test same site communication as well as cross-site communication
@@ -68,14 +54,14 @@ public class TestMapReduceTransaction extends BaseTestCase{
         for (int i = 0; i < NUM_SITES; i++) {
             Site catalog_site = this.getSite(i);
             
-            // We have to make our fake ExecutionSites for each Partition at this site
-            Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
-            for (Partition catalog_part : catalog_site.getPartitions()) {
-                executors.put(catalog_part.getId(), new MockExecutionSite(catalog_part.getId(), catalog, p_estimator));
-            } // FOR
-            
-            this.sites[i] = new HStoreSite(catalog_site, executors, p_estimator);
+            this.sites[i] = HStore.initialize(catalog_site, HStoreConf.singleton());
             this.messengers[i] = this.sites[i].getCoordinator();
+            
+            // We have to make our fake ExecutionSites for each Partition at this site
+            for (Partition catalog_part : catalog_site.getPartitions()) {
+                MockExecutionSite executor = new MockExecutionSite(catalog_part.getId(), catalog, p_estimator);
+                this.sites[i].addExecutionSite(catalog_part.getId(), executor);
+            } // FOR
         } // FOR
 
         
@@ -128,7 +114,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
        MapReduceTransaction ts = new MapReduceTransaction (this.sites[0]);
        StoredProcedureInvocation request = new StoredProcedureInvocation(-1, TARGET_PROCEDURE.getSimpleName()); 
        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-       ts.init(123456789, 0, 0, all_partitions, false, true, null, catalog_proc, request, null);
+       ts.init(123456789, 0, 0, all_partitions, false, true, catalog_proc, request, null);
        
 
        ts.storeData(1, table);

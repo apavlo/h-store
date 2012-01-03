@@ -100,6 +100,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
+import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.HStoreConstants;
@@ -176,6 +177,15 @@ public abstract class BenchmarkComponent {
     private static PartitionPlan globalPartitionPlan;
     
     public static synchronized Client getClient(Catalog catalog, int messageSize, boolean heavyWeight, StatsUploaderSettings statsSettings) {
+//        Client newClient = ClientFactory.createClient(
+//                    messageSize,
+//                    null,
+//                    heavyWeight,
+//                    statsSettings,
+//                    catalog
+//            );
+//        return (newClient);
+        
         if (globalClient == null) {
             globalClient = ClientFactory.createClient(
                     messageSize,
@@ -184,6 +194,7 @@ public abstract class BenchmarkComponent {
                     statsSettings,
                     catalog
             );
+            if (debug.get()) LOG.debug("Created global Client handle");
         }
         return (globalClient);
     }
@@ -335,6 +346,8 @@ public abstract class BenchmarkComponent {
     private final Map<Table, TableStatistics> m_tableStatsData = new HashMap<Table, TableStatistics>();
     private final TransactionCounter m_txnStats = new TransactionCounter();
 
+    private final Map<String, ProfileMeasurement> computeTime = new HashMap<String, ProfileMeasurement>();
+    
     /**
      * 
      */
@@ -364,12 +377,8 @@ public abstract class BenchmarkComponent {
     
     public static class TransactionCounter implements JSONSerializable {
         
-        public Histogram<Integer> basePartitions = new Histogram<Integer>();
-        public Histogram<String> transactions = new Histogram<String>();
-        {
-            this.basePartitions.setKeepZeroEntries(true);
-            this.transactions.setKeepZeroEntries(true);
-        }
+        public Histogram<Integer> basePartitions = new Histogram<Integer>(true);
+        public Histogram<String> transactions = new Histogram<String>(true);
 
         public TransactionCounter copy() {
             TransactionCounter copy = new TransactionCounter();
@@ -434,7 +443,7 @@ public abstract class BenchmarkComponent {
                 LOG.error("Not starting prepared!");
                 LOG.error(m_controlState + " " + m_reason);
             }
-
+            
             final BufferedReader in = new BufferedReader(new InputStreamReader(this.in));
             while (true) {
                 try {
@@ -452,6 +461,11 @@ public abstract class BenchmarkComponent {
                 final ControlWorker worker = new ControlWorker();
                 final Thread t = new Thread(worker);
                 t.setDaemon(true);
+                
+                // HACK: Convert a SHUTDOWN to a STOP if we're not the first client
+                if (command == Command.SHUTDOWN && getClientId() != 0) {
+                    command = Command.STOP;
+                }
                 
                 switch (command) {
                     case START: {
@@ -477,7 +491,7 @@ public abstract class BenchmarkComponent {
                         // Call tick on the client if we're not polling ourselves
                         if (BenchmarkComponent.this.m_tickInterval < 0) {
                             if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
-                            BenchmarkComponent.this.tick(m_tickCounter++);
+                            BenchmarkComponent.this.invokeTick(m_tickCounter++);
                         }
                         if (debug.get())
                             LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
@@ -784,6 +798,7 @@ public abstract class BenchmarkComponent {
         File catalogPath = null;
         String projectName = null;
         String partitionPlanPath = null;
+        boolean partitionPlanIgnoreMissing = false;
         long startupWait = -1;
         
         // scan the inputs once to read everything but host names
@@ -851,7 +866,9 @@ public abstract class BenchmarkComponent {
             }
             else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN)) {
                 partitionPlanPath = parts[1];
-                assert(FileUtil.exists(partitionPlanPath)) : "Invalid partition plan path '" + partitionPlanPath + "'";
+            }
+            else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_PARTITION_PLAN_IGNORE_MISSING)) {
+                partitionPlanIgnoreMissing = Boolean.parseBoolean(parts[1]);
             }
             // If it starts with "benchmark.", then it always goes to the implementing class
             else if (parts[0].toLowerCase().startsWith(HStoreConstants.BENCHMARK_PARAM_PREFIX)) {
@@ -920,7 +937,10 @@ public abstract class BenchmarkComponent {
         }
         
         if (partitionPlanPath != null) {
-            this.applyPartitionPlan(partitionPlanPath);
+            boolean exists = FileUtil.exists(partitionPlanPath); 
+            if (partitionPlanIgnoreMissing == false)
+                assert(exists) : "Invalid partition plan path '" + partitionPlanPath + "'";
+            if (exists) this.applyPartitionPlan(partitionPlanPath);
         }
 
         Client new_client = BenchmarkComponent.getClient(
@@ -980,9 +1000,11 @@ public abstract class BenchmarkComponent {
         m_constraints = new LinkedHashMap<Pair<String, Integer>, Expression>();
 
         m_countDisplayNames = getTransactionDisplayNames();
-        for (String txnName : m_countDisplayNames) {
-            m_txnStats.transactions.put(txnName, 0);
-        } // FOR
+        if (m_countDisplayNames != null) {
+            for (String txnName : m_countDisplayNames) {
+                m_txnStats.transactions.put(txnName, 0);
+            } // FOR
+        }
         
         // If we need to call tick more frequently that when POLL is called,
         // then we'll want to use a separate thread
@@ -1248,7 +1270,41 @@ public abstract class BenchmarkComponent {
     private final void invokeTick(int counter) {
         if (debug.get()) LOG.debug("New Tick Update: " + counter);
         this.tick(counter);
+        
+        if (debug.get()) {
+            if (this.computeTime.isEmpty() == false) {
+                for (String txnName : this.computeTime.keySet()) {
+                    ProfileMeasurement pm = this.computeTime.get(txnName);
+                    if (pm.getInvocations() != 0) {
+                        LOG.debug(String.format("[%02d] - %s COMPUTE TIME: %s", counter, txnName, pm.debug()));
+                        pm.reset();
+                    }
+                } // FOR
+            }
+            LOG.debug("Client Queue Time: " + this.m_voltClient.getQueueTime().debug());
+            this.m_voltClient.getQueueTime().reset();
+        }
     }
+    
+    protected synchronized void startComputeTime(String txnName) {
+        ProfileMeasurement pm = this.computeTime.get(txnName);
+        if (pm == null) {
+            pm = new ProfileMeasurement(txnName);
+            this.computeTime.put(txnName, pm);
+        }
+        pm.start();
+    }
+    
+    protected synchronized void stopComputeTime(String txnName) {
+        ProfileMeasurement pm = this.computeTime.get(txnName);
+        assert(pm != null) : "Unexpected " + txnName;
+        pm.stop();
+    }
+    
+    protected ProfileMeasurement getComputeTime(String txnName) {
+        return (this.computeTime.get(txnName));
+    }
+    
     
     /**
      * Is called every time the interval time is reached
@@ -1323,6 +1379,13 @@ public abstract class BenchmarkComponent {
      */
     public final int getNumClients() {
         return (m_numClients);
+    }
+    /**
+     * Returns true if this BenchmarkComponent is not going to make any
+     * client connections to an H-Store cluster. This is used for testing
+     */
+    protected final boolean noClientConnections() {
+       return (m_noConnections); 
     }
     /**
      * Return the file path to the catalog that was loaded for this benchmark invocation

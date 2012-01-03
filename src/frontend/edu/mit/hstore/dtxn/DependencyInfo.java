@@ -7,13 +7,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.messaging.FragmentTaskMessage;
 
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
@@ -37,32 +37,31 @@ public class DependencyInfo implements Poolable {
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    protected LocalTransaction ts;
-    protected int stmt_index = -1;
-    protected int dependency_id = -1;
+    private LocalTransaction ts;
+    private int stmt_index = -1;
+    private int dependency_id = -1;
     
     /**
      * List of PartitionIds that we expect to get responses/results back
      */
-    protected final List<Integer> partitions = new ArrayList<Integer>();
+    private final List<Integer> partitions = new ArrayList<Integer>();
     
     /**
      * The list of PartitionIds that have sent results
      */
-    protected final List<Integer> results = new ArrayList<Integer>();
+    private final List<Integer> results = new ArrayList<Integer>();
 
     /**
      * The list of VoltTable results that have been sent back partitions
      * We store it as a list so that we don't have to convert it for ExecutionSite
      */
-    protected final List<VoltTable> results_list = new ArrayList<VoltTable>();
+    private final List<VoltTable> results_list = new ArrayList<VoltTable>();
     
     /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
-    protected final Set<FragmentTaskMessage> blocked_tasks = new HashSet<FragmentTaskMessage>();
-    private AtomicBoolean blocked_tasks_released = new AtomicBoolean(false);
-    // protected boolean blocked_all_local = true;
+    private final Set<Hstore.TransactionWorkRequest.PartitionFragment> blocked_tasks = new HashSet<Hstore.TransactionWorkRequest.PartitionFragment>();
+    private boolean blocked_tasks_released = false;
     
     /**
      * Constructor
@@ -91,8 +90,7 @@ public class DependencyInfo implements Poolable {
         this.results.clear();
         this.results_list.clear();
         this.blocked_tasks.clear();
-        this.blocked_tasks_released.set(false);
-//        this.blocked_all_local = true;
+        this.blocked_tasks_released = false;
     }
     
     
@@ -102,7 +100,7 @@ public class DependencyInfo implements Poolable {
     public int getDependencyId() {
         return (this.dependency_id);
     }
-    public List<Integer> getPartitions() {
+    protected List<Integer> getPartitions() {
         return (this.partitions);
     }
     
@@ -111,7 +109,7 @@ public class DependencyInfo implements Poolable {
      * for this DependencyInfo
      * @param ftask
      */
-    public void addBlockedFragmentTaskMessage(FragmentTaskMessage ftask) {
+    public void addBlockedPartitionFragment(PartitionFragment ftask) {
         if (t) LOG.trace("Adding block FragmentTaskMessage for txn #" + this.ts.getTransactionId());
         this.blocked_tasks.add(ftask);
 //        this.blocked_all_local = this.blocked_all_local && (ftask.getDestinationPartitionId() == this.ts.base_partition);
@@ -122,7 +120,7 @@ public class DependencyInfo implements Poolable {
      * return results/responses for this DependencyInfo 
      * @return
      */
-    protected Set<FragmentTaskMessage> getBlockedFragmentTaskMessages() {
+    protected Set<PartitionFragment> getBlockedPartitionFragments() {
         return (this.blocked_tasks);
     }
     
@@ -131,8 +129,9 @@ public class DependencyInfo implements Poolable {
      * If the tasks have already been released, then the return value will be null;
      * @return
      */
-    public Collection<FragmentTaskMessage> getAndReleaseBlockedFragmentTaskMessages() {
-        if (this.blocked_tasks_released.compareAndSet(false, true)) {
+    public Collection<PartitionFragment> getAndReleaseBlockedPartitionFragments() {
+        if (this.blocked_tasks_released == false) {
+            this.blocked_tasks_released = true;
             if (t) LOG.trace(String.format("Unblocking %d FragmentTaskMessages for txn #%d", this.blocked_tasks.size(), this.ts.getTransactionId()));
             return (this.blocked_tasks);
         }
@@ -216,7 +215,7 @@ public class DependencyInfo implements Poolable {
             LOG.trace(String.format("# of Results:   %d / %d", this.results.size(), this.partitions.size()));
         }
         boolean ready = (this.blocked_tasks.isEmpty() == false) &&
-                        (this.blocked_tasks_released.get() == false) &&
+                        (this.blocked_tasks_released == false) &&
                         (this.results.size() == this.partitions.size());
         return (ready);
     }
@@ -226,7 +225,7 @@ public class DependencyInfo implements Poolable {
     }
     
     public boolean hasTasksReleased() {
-        return (this.blocked_tasks_released.get());
+        return (this.blocked_tasks_released);
     }
     
     @Override
@@ -237,7 +236,7 @@ public class DependencyInfo implements Poolable {
         
         String status = null;
         if (this.results.size() == this.partitions.size()) {
-            if (this.blocked_tasks_released.get() == false) {
+            if (this.blocked_tasks_released == false) {
                 status = "READY";
             } else {
                 status = "RELEASED";

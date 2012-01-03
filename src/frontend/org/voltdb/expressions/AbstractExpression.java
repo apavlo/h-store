@@ -103,14 +103,12 @@ public abstract class AbstractExpression implements JSONString, Cloneable {
 //        clone.m_type = m_type;
 //        clone.m_valueType = m_valueType;
 //        clone.m_valueSize = m_valueSize;
-        if (m_left != null)
-        {
-            AbstractExpression left_clone = (AbstractExpression)m_left.clone();
+        if (m_left != null) {
+            AbstractExpression left_clone = (AbstractExpression) m_left.clone();
             clone.m_left = left_clone;
         }
-        if (m_right != null)
-        {
-            AbstractExpression right_clone = (AbstractExpression)m_right.clone();
+        if (m_right != null) {
+            AbstractExpression right_clone = (AbstractExpression) m_right.clone();
             clone.m_right = right_clone;
         }
         return clone;

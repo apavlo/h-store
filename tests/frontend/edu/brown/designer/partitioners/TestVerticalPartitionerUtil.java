@@ -301,8 +301,8 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
                 } else if (f.endsWith("exptree")) {
                     assertNotNull(after_m.get(f));
                     assertFalse(catalog_stmt.fullName() +" ["+f+"]", after_m.get(f).toString().isEmpty());
-                // All the other fields should be the same
-                } else {
+                // All the other fields should be the same except for secondaryindex
+                } else if (f.equals("secondaryindex") == false) {
                     assertEquals(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), after_m.get(f));
                 }
             } // FOR
@@ -322,7 +322,9 @@ public class TestVerticalPartitionerUtil extends BasePartitionerTestCase {
             
             // Now everything should be the same again
             for (String f : before_m.keySet()) {
-                assertEquals(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), revert_m.get(f));
+                if (f.equals("secondaryindex") == false) {
+                    assertEquals(catalog_stmt.fullName() +" ["+f+"]", before_m.get(f), revert_m.get(f));
+                }
             } // FOR
         } // FOR
     }

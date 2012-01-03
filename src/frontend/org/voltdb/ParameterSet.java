@@ -35,13 +35,19 @@ import org.voltdb.types.VoltDecimalHelper;
  public class ParameterSet implements FastSerializable {
 
     static final byte ARRAY = -99;
-
+    public static final ParameterSet EMPTY = new ParameterSet();
+    
     private final boolean m_serializingToEE;
 
     public ParameterSet() {
-        m_serializingToEE = false;
+        this(false);
     }
 
+    public ParameterSet(Object...params) {
+        this(false);
+        m_params = params;
+    }
+    
     public ParameterSet(boolean serializingToEE) {
         m_serializingToEE = serializingToEE;
     }
@@ -54,15 +60,20 @@ import org.voltdb.types.VoltDecimalHelper;
 
         return o;
     }
-    Object m_params[] = new Object[0];
+    private Object m_params[] = new Object[0];
 
     /** Sets the internal array to params. Note: this does *not* copy the argument. */
-    public void setParameters(Object... params) {
+    public ParameterSet setParameters(Object... params) {
         this.m_params = params;
+        return (this);
     }
 
     public Object[] toArray() {
         return m_params;
+    }
+    
+    public int size() {
+        return m_params.length;
     }
 
     static Object getParameterAtIndex(int partitionIndex, ByteBuffer unserializedParams) throws IOException {
@@ -223,8 +234,8 @@ import org.voltdb.types.VoltDecimalHelper;
             b.append("NULL");
         } else {
             for (int i = 0; i < m_params.length; ++i) {
-                b.append((i > 0 ? "," : "") + "param[" + i + "]=" + (m_params[i] == null ? "NULL"
-                        : m_params[i].toString() + "(" + m_params[i].getClass().getName() + ")"));
+                b.append((i > 0 ? ", " : "") + "param[" + i + "]=" + (m_params[i] == null ? "NULL"
+                        : m_params[i].toString() + "(" + m_params[i].getClass().getSimpleName() + ")"));
             }
         }
         return new String(b);

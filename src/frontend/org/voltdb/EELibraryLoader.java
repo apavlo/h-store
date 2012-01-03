@@ -37,6 +37,10 @@ public class EELibraryLoader {
                 " library.");
         return false;
     }
+    
+    public synchronized boolean isExecutionEngineLibraryLoaded() {
+        return (voltSharedLibraryLoaded);
+    }
 
     /**
      * Load the shared native library if not yet loaded. Returns true if the library was loaded
