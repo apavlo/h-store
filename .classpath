@@ -7,7 +7,6 @@
 	<classpathentry kind="src" path="tests/hsqldb"/>
 	<classpathentry kind="src" path="third_party/cpp/protobuf/java/src/main/java"/>
 	<classpathentry kind="src" path="third_party/java/src"/>
-	<classpathentry kind="src" path="tools"/>
 	<classpathentry kind="lib" path="third_party/java/jars/ant_doxygen.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/ant-contrib.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/ant-junit.jar"/>
@@ -37,5 +36,5 @@
 	<classpathentry kind="lib" path="third_party/java/jars/velocity-1.6.3.jar"/>
 	<classpathentry kind="lib" path="third_party/java/jars/weka-3.6.3.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="output" path="tools"/>
+	<classpathentry kind="output" path="obj/eclipse"/>
 </classpath>

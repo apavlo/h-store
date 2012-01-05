@@ -1,0 +1,17 @@
+*.trace
+*.trace.gz
+*.jar
+*.jar-ORIG
+*.log
+*.dot
+*.pdf
+*.arff
+junitvmwatcher*
+buildstring.txt
+debugoutput
+.depcache
+new_catalog.txt
+catalog.txt
+typescript
+plannerlog.txt
+keepalive
