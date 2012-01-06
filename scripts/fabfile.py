@@ -66,7 +66,7 @@ import boto
 
 ## List of packages needed on each instance
 ALL_PACKAGES = [
-    'subversion',
+    'git-core',
     'gcc',
     'g++',
     'sun-java6-jdk',
@@ -124,8 +124,9 @@ ENV_DEFAULT = {
     "client.blocking":             False,
     
     ## H-Store Options
-    "hstore.svn":                   "https://database.cs.brown.edu/svn/hstore/branches/newdtxn-branch",
-    "hstore.svn_options":           "--trust-server-cert --non-interactive --ignore-externals",
+    "hstore.git":                   "git://github.com/apavlo/h-store.git",
+    "hstore.git_branch":            "master",
+    "hstore.git_options":           "",
     "hstore.clean":                 False,
     "hstore.exec_prefix":           "compile",
 }
@@ -416,7 +417,7 @@ def setup_env():
     ## FOR
     
     # Bash Aliases
-    code_dir = os.path.join("$HOME", "hstore", os.path.basename(env["hstore.svn"]))
+    code_dir = os.path.join("$HOME", "hstore", env["hstore.git_branch"])
     log_dir = env.get("site.log_dir", "/tmp/hstore/logs/sites")
     aliases = {
         # H-Store Home
@@ -503,7 +504,7 @@ def setup_nfsclient(rebootInst=True):
     ## IF
     LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
     
-    code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
+    code_dir = os.path.join("hstore", env["hstore.git_branch"])
     run("cd " + code_dir)
 ## DEF
 
@@ -512,20 +513,24 @@ def setup_nfsclient(rebootInst=True):
 ## ----------------------------------------------
 @task
 def deploy_hstore(build=True):
-    code_dir = os.path.basename(env["hstore.svn"])
+    code_dir = env["hstore.git_branch"]
+    need_checkout = False
     with cd("hstore"):
         with settings(warn_only=True):
             if run("test -d %s" % code_dir).failed:
-                run("svn checkout %s %s %s" % (env["hstore.svn_options"], env["hstore.svn"], code_dir))
+                run("git clone --branch %s %s %s %s" % (env["hstore.git_branch"], \
+                                                        env["hstore.git_options"], \
+                                                        env["hstore.git"], code_dir))
+                # TODO: Checkout externals
         with cd(code_dir):
-            run("svn update %s" % env["hstore.svn_options"])
+            run("git pull %s" % env["hstore.git_options"])
             if build:
                 LOG.debug("Building H-Store from source code")
                 if env["hstore.clean"]:
                     run("ant clean-all")
                 run("ant build")
     ## WITH
-    code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
+    code_dir = os.path.join("hstore", env["hstore.git_branch"))
     run("cd " + code_dir)
 ## DEF
 
@@ -533,9 +538,9 @@ def deploy_hstore(build=True):
 ## exec_benchmark
 ## ----------------------------------------------
 @task
-def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateSVN=False, updateLog4j=False):
+def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, updateJar=True, updateConf=True, updateRepo=False, updateLog4j=False):
     __getInstances__()
-    code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
+    code_dir = os.path.join("hstore", env["hstore.git_branch"])
     
     ## Make sure we have enough instances
     hostCount, siteCount, partitionCount, clientCount = __getInstanceTypeCounts__()
@@ -580,8 +585,8 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     LOG.debug("Client Hosts: %s" % clients)
 
     ## Make sure the the checkout is up to date
-    if updateSVN: 
-        LOG.info("Updating H-Store SVN checkout")
+    if updateRepo: 
+        LOG.info("Updating H-Store Git checkout")
         deploy_hstore(build=False)
     ## Update H-Store Conf file
     if updateConf:
@@ -617,7 +622,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
         
         if updateLog4j:
             LOG.info("Reverting log4j.properties")
-            run("svn revert %s %s" % (env["hstore.svn_options"].replace("--ignore-externals", ""), "log4j.properties"))
+            run("git checkout %s -- %s" % (env["hstore.git_options"], "log4j.properties"))
         
         ## If they wanted a trace file, then we have to ship it back to ourselves
         if trace:
@@ -646,7 +651,7 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
 def write_conf(project, removals=[ ], revertFirst=False):
     assert project
     prefix_include = [ 'site', 'client', 'global', 'benchmark' ]
-    code_dir = os.path.join("hstore", os.path.basename(env["hstore.svn"]))
+    code_dir = os.path.join("hstore", env["hstore.git_branch"])
     
     hstoreConf_updates = { }
     hstoreConf_removals = set()
@@ -681,7 +686,7 @@ def write_conf(project, removals=[ ], revertFirst=False):
     with cd(code_dir):
         for _file, _updates, _removals in toUpdate:
             if revertFirst:
-                run("svn revert %s %s" % (env["hstore.svn_options"].replace("--ignore-externals", ""), _file))
+                run("git checkout %s -- %s" % (env["hstore.git_options"], _file))
             update_conf(_file, _updates, _removals)
         ## FOR
     ## WITH
