@@ -40,6 +40,7 @@ import logging
 import traceback
 import paramiko
 import socket
+import string 
 from StringIO import StringIO
 from fabric.api import *
 from fabric.contrib.files import *
@@ -433,6 +434,17 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
+    hstore_dir = "/mnt/hstore" 
+    with settings(warn_only=True):
+        # Install the real H-Store directory in /mnt
+        if run("test -d %s" % hstore_dir).failed:
+            sudo("mkdir " + hstore_dir)
+            sudo("chown -R %s %s" % (env.user, hstore_dir))
+        # And use a symlink to that location so that everything works correctly
+        if run("test -L /home/%s/hstore" % env.user).failed:
+            run("ln -s %s" % (hstore_dir))
+    ## WITH
+    
     return (first_setup)
 ## DEF
 
@@ -444,17 +456,7 @@ def setup_nfshead(rebootInst=True):
     """Deploy the NFS head node"""
     __getInstances__()
     
-    real_dir = "/mnt/hstore"
-    hstore_dir = "/home/%s/hstore" % env.user
-    with settings(warn_only=True):
-        # Install the real H-Store directory in /mnt
-        if run("test -d %s" % real_dir).failed:
-            sudo("mkdir " + real_dir)
-            sudo("chown -R %s %s" % (env.user, real_dir))
-        # And use a symlink to that location so that everything works correctly
-        if run("test -d %s" % hstore_dir).failed:
-            run("ln -s %s %s" % (real_dir, hstore_dir))
-    ## WITH
+    hstore_dir = "/mnt/hstore" 
     
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
@@ -482,13 +484,8 @@ def setup_nfshead(rebootInst=True):
 def setup_nfsclient(rebootInst=True):
     """Deploy the NFS client node"""
     __getInstances__()
-
-    # Create an empty directory that will point to the NFS head's directory
-    hstore_dir = "/home/%s/hstore" % env.user
-    with settings(warn_only=True):
-        if run("test -d %s" % hstore_dir).failed:
-            sudo("mkdir " + hstore_dir)
-    ## WITH
+    
+    hstore_dir = "/mnt/hstore" 
     
     ## Update the /etc/hosts files to make it easier for us to point
     ## to different NFS head nodes
@@ -500,8 +497,8 @@ def setup_nfsclient(rebootInst=True):
             append("/etc/hosts", hosts_line, use_sudo=True)
     
         sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
-        append("/etc/auto.master", "/home/%s/hstore /etc/auto.hstore" % env.user, use_sudo=True)
-        append("/etc/auto.hstore", "* hstore-nfs:/home/%s/hstore/&" % env.user, use_sudo=True)
+        append("/etc/auto.master", "%s /etc/auto.hstore" % hstore_dir, use_sudo=True)
+        append("/etc/auto.hstore", "* hstore-nfs:%s/&" % hstore_dir, use_sudo=True)
         sudo("/etc/init.d/autofs start")
     ## IF
     
@@ -555,6 +552,22 @@ def deploy_hstore(build=True):
                 run("ant build")
     ## WITH
     run("cd " + os.path.join("hstore", code_dir))
+## DEF
+
+## ----------------------------------------------
+## get_version
+## ----------------------------------------------
+@task
+def get_version():
+    from datetime import datetime
+    
+    code_dir = os.path.join("hstore", env["hstore.git_branch"])
+    with cd(code_dir):
+        output = run("git log --pretty=format:'%h %at ' -n 1")
+    data = map(string.strip, output.split(" "))
+    rev_id = data[0] 
+    rev_date = datetime.fromtimestamp(int(data[1])) 
+    return (rev_id, rev_date)
 ## DEF
 
 ## ----------------------------------------------

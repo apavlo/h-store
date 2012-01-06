@@ -347,26 +347,6 @@ def parseResultsOutput(output):
 ## DEF
 
 ## ==============================================
-## svnInfo
-## ==============================================
-def svnInfo(svnRepo, revision = None):
-    import pysvn
-    
-    if revision:
-        svnRevision = pysvn.Revision(pysvn.opt_revision_kind.number, revision)
-    else:
-        svnRevision = pysvn.Revision(pysvn.opt_revision_kind.head)
-    
-    client = pysvn.Client()
-    info = client.info2(svnRepo, revision=svnRevision, recurse=False)[-1][-1]
-    last_changed_rev = info['last_changed_rev'].number
-    last_changed_date = datetime.fromtimestamp(info['last_changed_date'])
-    
-    return last_changed_rev, last_changed_date
-## DEF
-
-
-## ==============================================
 ## main
 ## ==============================================
 if __name__ == '__main__':
@@ -491,12 +471,12 @@ if __name__ == '__main__':
     ## FOR
     
     ## Check whether we have already executed this one before
-    if "codespeed-lastrevision" in options:
-        last_changed_rev, last_changed_date = svnInfo(env["hstore.git"])
-        if int(options["codespeed-lastrevision"][0]) <= last_changed_rev:
-            LOG.info("Skipping already executed revision r%d" % last_changed_rev)
-            sys.exit(0)
-    ## IF
+    #if "codespeed-lastrevision" in options:
+        #last_changed_rev, last_changed_date = svnInfo(env["hstore.git"])
+        #if int(options["codespeed-lastrevision"][0]) <= last_changed_rev:
+            #LOG.info("Skipping already executed revision r%d" % last_changed_rev)
+            #sys.exit(0)
+    ### IF
     
     ## Figure out what keys we need to remove to ensure that one experiment
     ## doesn't contaminate another
@@ -610,7 +590,7 @@ if __name__ == '__main__':
                                                                     trace=OPT_TRACE, \
                                                                     updateJar=updateJar, \
                                                                     updateConf=updateConf, \
-                                                                    updateSVN=needUpdate, \
+                                                                    updateRepo=needUpdate, \
                                                                     updateLog4j=needUpdate)
                             if OPT_NO_JSON == False:
                                 data = parseResultsOutput(output)
@@ -639,7 +619,7 @@ if __name__ == '__main__':
                                         last_changed_rev = int(options["codespeed-revision"][0])
                                         last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
                                     else:
-                                        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+                                        last_changed_rev, last_changed_date = get_version()
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     
