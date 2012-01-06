@@ -619,7 +619,7 @@ if __name__ == '__main__':
                                         last_changed_rev = int(options["codespeed-revision"][0])
                                         last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
                                     else:
-                                        last_changed_rev, last_changed_date = get_version()
+                                        last_changed_rev, last_changed_date = fabfile.get_version()
                                     print "last_changed_rev:", last_changed_rev
                                     print "last_changed_date:", last_changed_date
                                     
