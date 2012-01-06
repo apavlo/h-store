@@ -492,7 +492,7 @@ if __name__ == '__main__':
     
     ## Check whether we have already executed this one before
     if "codespeed-lastrevision" in options:
-        last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"])
+        last_changed_rev, last_changed_date = svnInfo(env["hstore.git"])
         if int(options["codespeed-lastrevision"][0]) <= last_changed_rev:
             LOG.info("Skipping already executed revision r%d" % last_changed_rev)
             sys.exit(0)

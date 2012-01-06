@@ -6,6 +6,8 @@
 *.dot
 *.pdf
 *.arff
+*.pyc
+.#kate-*
 junitvmwatcher*
 buildstring.txt
 debugoutput
@@ -15,3 +17,10 @@ catalog.txt
 typescript
 plannerlog.txt
 keepalive
+obj
+
+src/ee/org_voltdb_jni_ExecutionEngine.h
+src/ee/org_voltdb_utils_DBBPool.h
+src/ee/org_voltdb_utils_ThreadUtils.h
+
+tools/SystemPropertyPrinter.class
