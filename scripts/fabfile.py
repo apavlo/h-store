@@ -560,10 +560,11 @@ def get_version():
     
     code_dir = os.path.join("hstore", env["hstore.git_branch"])
     with cd(code_dir):
-        output = run("git log --pretty=format:'%h %at ' -n 1")
+        output = run("git log --pretty=format:' %h %at ' -n 1")
     data = map(string.strip, output.split(" "))
-    rev_id = str(data[0])
-    rev_date = datetime.fromtimestamp(int(data[1])) 
+    rev_id = str(data[1])
+    rev_date = datetime.fromtimestamp(int(data[2])) 
+    LOG.info("Revision: %s / %s" % (rev_id, rev_date))
     return (rev_id, rev_date)
 ## DEF
 
