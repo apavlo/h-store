@@ -562,7 +562,7 @@ def get_version():
     with cd(code_dir):
         output = run("git log --pretty=format:'%h %at ' -n 1")
     data = map(string.strip, output.split(" "))
-    rev_id = data[0] 
+    rev_id = str(data[0])
     rev_date = datetime.fromtimestamp(int(data[1])) 
     return (rev_id, rev_date)
 ## DEF
