@@ -434,15 +434,11 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
-    hstore_dir = "/mnt/hstore" 
+    hstore_dir = "/home/%s/hstore" % env.user
     with settings(warn_only=True):
-        # Install the real H-Store directory in /mnt
+        # Install the real H-Store directory in /home/
         if run("test -d %s" % hstore_dir).failed:
             sudo("mkdir " + hstore_dir)
-            sudo("chown -R %s %s" % (env.user, hstore_dir))
-        # And use a symlink to that location so that everything works correctly
-        if run("test -L /home/%s/hstore" % env.user).failed:
-            run("ln -s %s" % (hstore_dir))
     ## WITH
     
     return (first_setup)
@@ -456,7 +452,7 @@ def setup_nfshead(rebootInst=True):
     """Deploy the NFS head node"""
     __getInstances__()
     
-    hstore_dir = "/mnt/hstore" 
+    hstore_dir = "/home/%s/hstore" % env.user
     
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
@@ -485,7 +481,7 @@ def setup_nfsclient(rebootInst=True):
     """Deploy the NFS client node"""
     __getInstances__()
     
-    hstore_dir = "/mnt/hstore" 
+    hstore_dir = "/home/%s/hstore" % env.user
     
     ## Update the /etc/hosts files to make it easier for us to point
     ## to different NFS head nodes
