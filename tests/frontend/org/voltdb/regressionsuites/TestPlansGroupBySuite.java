@@ -616,8 +616,8 @@ public class TestPlansGroupBySuite extends RegressionSuite {
 
         project.addSchema(TestPlansGroupBy.class
                 .getResource("testplans-groupby-ddl.sql"));
-        project.addPartitionInfo("T1", "PKEY");
-        project.addPartitionInfo("F", "F_PKEY");
+        project.addTablePartitionInfo("T1", "PKEY");
+        project.addTablePartitionInfo("F", "F_PKEY");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("T1Insert", "INSERT INTO T1 VALUES (?, ?);");
 

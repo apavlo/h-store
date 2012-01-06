@@ -31,6 +31,7 @@ public abstract class FixCatalog {
 
     /**
      * Added a hosts/sites/partitions in the catalog.
+     * Returns a clone of the Catalog
      * @param orig_catalog
      * @param triplets - [0] host [1] port# [2] site#
      * @return
@@ -38,6 +39,17 @@ public abstract class FixCatalog {
     @SuppressWarnings("unchecked")
     public static Catalog addHostInfo(Catalog orig_catalog, ClusterConfiguration cc) {
         Catalog catalog = CatalogCloner.cloneBaseCatalog(orig_catalog, Site.class, Host.class, Partition.class);
+        return FixCatalog.writeHostInfo(catalog, cc);
+    }
+        
+        
+    /**
+     * Write the host/sites/partitions directly to the given catalog
+     * @param catalog
+     * @param cc
+     * @return
+     */
+    public static Catalog writeHostInfo(Catalog catalog, ClusterConfiguration cc) {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         
         // Add a bunch of hosts and partitions to this mofo

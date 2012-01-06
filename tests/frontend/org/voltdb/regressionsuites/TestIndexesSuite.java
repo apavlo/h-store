@@ -512,9 +512,9 @@ public class TestIndexesSuite extends RegressionSuite {
 
         VoltProjectBuilder project = new VoltProjectBuilder("indexes");
         project.addSchema(Insert.class.getResource("indexes-ddl.sql"));
-        project.addPartitionInfo("P1", "ID");
-        project.addPartitionInfo("P2", "ID");
-        project.addPartitionInfo("P3", "ID");
+        project.addTablePartitionInfo("P1", "ID");
+        project.addTablePartitionInfo("P2", "ID");
+        project.addTablePartitionInfo("P3", "ID");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("Eng397LimitIndexR1", "select * from R1 where R1.ID > 2 Limit ?");
         project.addStmtProcedure("Eng397LimitIndexP1", "select * from P1 where P1.ID > 2 Limit ?");

@@ -134,7 +134,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
      */
     public void addDefaultPartitioning() {
         for (String pair[] : partitioning) {
-            addPartitionInfo(pair[0], pair[1]);
+            addTablePartitionInfo(pair[0], pair[1]);
         }
     }
 

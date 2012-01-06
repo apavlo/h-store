@@ -54,7 +54,7 @@ public class BlobTortureProjectBuilder extends VoltProjectBuilder {
     public void addAllDefaults() {
         addProcedures(InsertBlob.class, SelectBlob.class);
         addSchema(ddlURL);
-        addPartitionInfo("BLOBS", "BLOB_ID");
+        addTablePartitionInfo("BLOBS", "BLOB_ID");
     }
 
 }

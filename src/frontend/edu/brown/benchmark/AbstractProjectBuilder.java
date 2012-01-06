@@ -152,7 +152,7 @@ public abstract class AbstractProjectBuilder extends VoltProjectBuilder {
     public void addPartitions() {
         if (this.partitioning != null && this.partitioning.length > 0) {
             for (String i[] : this.partitioning) {
-                addPartitionInfo(i[0], i[1]);
+                addTablePartitionInfo(i[0], i[1]);
             } // FOR
         }
     }

@@ -45,7 +45,7 @@ public class OverheadProjectBuilder extends VoltProjectBuilder {
                 measureOverheadMultipartition42Strings.class, measureOverheadMultipartitionBatched.class,
                 measureOverheadMultipartitionNoFinal.class, measureOverheadMultipartitionTwoStatements.class);
         addSchema(ddlURL);
-        addPartitionInfo("NEWORDER", "NO_O_ID");
+        addTablePartitionInfo("NEWORDER", "NO_O_ID");
     }
 
 }

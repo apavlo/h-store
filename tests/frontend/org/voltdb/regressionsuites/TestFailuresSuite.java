@@ -414,10 +414,10 @@ public class TestFailuresSuite extends RegressionSuite {
         // build up a project builder for the workload
         VoltProjectBuilder project = new VoltProjectBuilder("failures");
         project.addSchema(DivideByZero.class.getResource("failures-ddl.sql"));
-        project.addPartitionInfo("NEW_ORDER", "NO_W_ID");
-        project.addPartitionInfo("FIVEK_STRING", "P");
-        project.addPartitionInfo("FIVEK_STRING_WITH_INDEX", "ID");
-        project.addPartitionInfo("WIDE", "P");
+        project.addTablePartitionInfo("NEW_ORDER", "NO_W_ID");
+        project.addTablePartitionInfo("FIVEK_STRING", "P");
+        project.addTablePartitionInfo("FIVEK_STRING_WITH_INDEX", "ID");
+        project.addTablePartitionInfo("WIDE", "P");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("InsertNewOrder", "INSERT INTO NEW_ORDER VALUES (?, ?, ?);", "NEW_ORDER.NO_W_ID: 2");
         // build the jarfile

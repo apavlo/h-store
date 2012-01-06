@@ -95,13 +95,13 @@ public class TestVoltCompiler extends BaseTestCase {
         final VoltProjectBuilder project = new VoltProjectBuilder("sqltypessuite");
         project.addSchema(TestSQLTypesSuite.class.getResource("sqltypessuite-ddl.sql"));
         project.addProcedures(org.voltdb.regressionsuites.sqltypesprocs.Insert.class);
-        project.addPartitionInfo("NO_NULLS", "PKEY");
-        project.addPartitionInfo("ALLOW_NULLS", "PKEY");
-        project.addPartitionInfo("WITH_DEFAULTS", "PKEY");
-        project.addPartitionInfo("WITH_NULL_DEFAULTS", "PKEY");
-        project.addPartitionInfo("EXPRESSIONS_WITH_NULLS", "PKEY");
-        project.addPartitionInfo("EXPRESSIONS_NO_NULLS", "PKEY");
-        project.addPartitionInfo("JUMBO_ROW", "PKEY");
+        project.addTablePartitionInfo("NO_NULLS", "PKEY");
+        project.addTablePartitionInfo("ALLOW_NULLS", "PKEY");
+        project.addTablePartitionInfo("WITH_DEFAULTS", "PKEY");
+        project.addTablePartitionInfo("WITH_NULL_DEFAULTS", "PKEY");
+        project.addTablePartitionInfo("EXPRESSIONS_WITH_NULLS", "PKEY");
+        project.addTablePartitionInfo("EXPRESSIONS_NO_NULLS", "PKEY");
+        project.addTablePartitionInfo("JUMBO_ROW", "PKEY");
         project.addELT("org.voltdb.elt.processors.RawProcessor", false, null, null);
         project.addELTTable("ALLOW_NULLS", false);   // persistent table
         project.addELTTable("WITH_DEFAULTS", true);  // streamed table

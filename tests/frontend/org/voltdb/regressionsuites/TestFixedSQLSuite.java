@@ -928,11 +928,12 @@ public class TestFixedSQLSuite extends RegressionSuite {
             new MultiConfigSuiteBuilder(TestFixedSQLSuite.class);
 
         VoltProjectBuilder project = new VoltProjectBuilder("fixed");
+        project.addPartition("localhost", 0, 0);
         project.addSchema(Insert.class.getResource("fixed-sql-ddl.sql"));
-        project.addPartitionInfo("P1", "ID");
-        project.addPartitionInfo("P2", "ID");
-        project.addPartitionInfo("ASSET", "ASSET_ID");
-        project.addPartitionInfo("OBJECT_DETAIL", "OBJECT_DETAIL_ID");
+        project.addTablePartitionInfo("P1", "ID");
+        project.addTablePartitionInfo("P2", "ID");
+        project.addTablePartitionInfo("ASSET", "ASSET_ID");
+        project.addTablePartitionInfo("OBJECT_DETAIL", "OBJECT_DETAIL_ID");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("Eng397Limit1", "Select P1.NUM from P1 order by P1.NUM limit ?;");
         //project.addStmtProcedure("Eng490Select", "SELECT A.ASSET_ID, A.OBJECT_DETAIL_ID,  OD.OBJECT_DETAIL_ID FROM ASSET A, OBJECT_DETAIL OD WHERE A.OBJECT_DETAIL_ID = OD.OBJECT_DETAIL_ID;");

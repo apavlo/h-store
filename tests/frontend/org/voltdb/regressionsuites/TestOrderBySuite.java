@@ -460,7 +460,7 @@ public class TestOrderBySuite extends RegressionSuite {
         VoltProjectBuilder project = new VoltProjectBuilder("testorderby");
 
         project.addSchema(TestOrderBySuite.class.getResource("testorderby-ddl.sql"));
-        project.addPartitionInfo("O1", "PKEY");
+        project.addTablePartitionInfo("O1", "PKEY");
         project.addProcedures(PROCEDURES);
 
         config = new LocalSingleProcessServer("testorderby-onesite.jar",

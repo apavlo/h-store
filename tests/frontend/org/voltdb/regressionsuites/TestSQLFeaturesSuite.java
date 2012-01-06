@@ -269,11 +269,11 @@ public class TestSQLFeaturesSuite extends RegressionSuite {
         // build up a project builder for the workload
         VoltProjectBuilder project = new VoltProjectBuilder("sqlfeatures");
         project.addSchema(BatchedMultiPartitionTest.class.getResource("sqlfeatures-ddl.sql"));
-        project.addPartitionInfo("NEW_ORDER", "NO_W_ID");
-        project.addPartitionInfo("ORDER_LINE", "OL_W_ID");
-        project.addPartitionInfo("FIVEK_STRING", "P");
-        project.addPartitionInfo("FIVEK_STRING_WITH_INDEX", "ID");
-        project.addPartitionInfo("MANY_COLUMNS", "P");
+        project.addTablePartitionInfo("NEW_ORDER", "NO_W_ID");
+        project.addTablePartitionInfo("ORDER_LINE", "OL_W_ID");
+        project.addTablePartitionInfo("FIVEK_STRING", "P");
+        project.addTablePartitionInfo("FIVEK_STRING_WITH_INDEX", "ID");
+        project.addTablePartitionInfo("MANY_COLUMNS", "P");
         project.addProcedures(PROCEDURES);
         project.addStmtProcedure("InsertOrderLine",
                 "INSERT INTO ORDER_LINE VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");

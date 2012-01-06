@@ -37,9 +37,9 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
             assert(schema.exists()) : "Missing test schema file: " + schema;
             this.addSchema(schema);
             
-            this.addPartitionInfo("TABLEA", "A_ID");
-            this.addPartitionInfo("TABLEB", "B_A_ID");
-            this.addPartitionInfo("TABLEC", "C_B_A_ID");
+            this.addTablePartitionInfo("TABLEA", "A_ID");
+            this.addTablePartitionInfo("TABLEB", "B_A_ID");
+            this.addTablePartitionInfo("TABLEC", "C_B_A_ID");
         }
     }
     
