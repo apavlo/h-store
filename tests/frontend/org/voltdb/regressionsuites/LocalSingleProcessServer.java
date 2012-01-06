@@ -35,7 +35,6 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.FixCatalog;
 import edu.mit.hstore.HStoreConf;
 
 /**
@@ -79,6 +78,7 @@ public class LocalSingleProcessServer implements VoltServerConfig {
     public boolean compile(VoltProjectBuilder builder) {
         if (m_compiled == true)
             return true;
+        builder.addPartition("localhost", 0, 0);
         m_compiled = builder.compile(m_jarFileName, m_siteCount, 0);
         return m_compiled;
     }

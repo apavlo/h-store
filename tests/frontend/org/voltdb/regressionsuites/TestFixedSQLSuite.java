@@ -928,7 +928,6 @@ public class TestFixedSQLSuite extends RegressionSuite {
             new MultiConfigSuiteBuilder(TestFixedSQLSuite.class);
 
         VoltProjectBuilder project = new VoltProjectBuilder("fixed");
-        project.addPartition("localhost", 0, 0);
         project.addSchema(Insert.class.getResource("fixed-sql-ddl.sql"));
         project.addTablePartitionInfo("P1", "ID");
         project.addTablePartitionInfo("P2", "ID");
