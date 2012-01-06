@@ -18,6 +18,11 @@ package org.voltdb.compiler;
 
 public class ClusterConfig
 {
+    
+    public ClusterConfig() {
+        // Nothing...
+    }
+    
     public ClusterConfig(int hostCount, int sitesPerHost,
                          int replicationFactor, String leaderAddress)
     {

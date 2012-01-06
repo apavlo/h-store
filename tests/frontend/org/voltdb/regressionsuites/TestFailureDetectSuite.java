@@ -87,7 +87,7 @@ public class TestFailureDetectSuite extends RegressionSuite
 
         VoltProjectBuilder project = new VoltProjectBuilder("replication");
         project.addSchema(SelectEmptyTable.class.getResource("replication-ddl.sql"));
-        project.addPartitionInfo("P1", "ID");
+        project.addTablePartitionInfo("P1", "ID");
         project.addStmtProcedure("InsertSinglePart",
                                  "INSERT INTO P1 VALUES (?, ?, ?, ?);",
                                  "P1.ID: 0");

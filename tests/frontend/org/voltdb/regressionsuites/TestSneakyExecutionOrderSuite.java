@@ -121,7 +121,7 @@ public class TestSneakyExecutionOrderSuite extends RegressionSuite {
         // build up a project builder for the workload
         VoltProjectBuilder project = new VoltProjectBuilder("sneaky");
         project.addSchema(MultiPartition.class.getResource("sneaky-ddl.sql"));
-        project.addPartitionInfo("P1", "P");
+        project.addTablePartitionInfo("P1", "P");
         project.addProcedures(PROCEDURES);
 
         /////////////////////////////////////////////////////////////

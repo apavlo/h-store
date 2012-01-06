@@ -57,7 +57,7 @@ public class TestVerticalPartitionPlanner extends BaseTestCase {
 
             // Partition everything on S_ID
             for (String tableName : TM1Constants.TABLENAMES) {
-                this.addPartitionInfo(tableName, "S_ID");
+                this.addTablePartitionInfo(tableName, "S_ID");
             } // FOR
             
             // Add Vertical Partition

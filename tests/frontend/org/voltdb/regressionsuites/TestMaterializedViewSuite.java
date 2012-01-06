@@ -319,8 +319,8 @@ public class TestMaterializedViewSuite extends RegressionSuite {
         VoltProjectBuilder project = new VoltProjectBuilder("matview");
         //project.setBackendTarget(BackendTarget.NATIVE_EE_IPC);
         project.addSchema(schemaPath);
-        project.addPartitionInfo("PEOPLE", "PARTITION");
-        project.addPartitionInfo("OVERFLOWTEST", "COL_1");
+        project.addTablePartitionInfo("PEOPLE", "PARTITION");
+        project.addTablePartitionInfo("OVERFLOWTEST", "COL_1");
         project.addProcedures(PROCEDURES);
         // build the jarfile
         //config.compile(project);

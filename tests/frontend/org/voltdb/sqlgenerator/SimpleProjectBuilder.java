@@ -43,7 +43,7 @@ public class SimpleProjectBuilder extends VoltProjectBuilder {
     }
 
     public void addDefaultPartitioning() {
-        addPartitionInfo("P1", "ID");
+        addTablePartitionInfo("P1", "ID");
     }
 
     public void addDefaultSchema() {

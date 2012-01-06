@@ -369,6 +369,7 @@ def start_cluster(updateSync=True):
 ## ----------------------------------------------
 @task
 def update_env():
+    """Update the environment on all of the running instances"""
     LOG.info("Updating environment on all running instances")
     __getInstances__()
     for inst in env["ec2.running_instances"]:
@@ -383,6 +384,8 @@ def update_env():
 ## ----------------------------------------------
 @task
 def setup_env():
+    """Configure the execution environmnt for the current instance."""
+    
     # Get the release name
     output = run("cat /etc/lsb-release | grep DISTRIB_CODENAME")
     releaseName = output.split("=")[1]
@@ -556,6 +559,7 @@ def deploy_hstore(build=True):
 ## ----------------------------------------------
 @task
 def get_version():
+    """Get the current Git commit id and date in the deployment directory"""
     from datetime import datetime
     
     code_dir = os.path.join("hstore", env["hstore.git_branch"])

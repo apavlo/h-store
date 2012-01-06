@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
+import org.voltdb.compiler.ClusterConfig;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -21,7 +22,7 @@ import edu.mit.hstore.HStoreSite;
 /**
  * @author pavlo
  */
-public class ClusterConfiguration {
+public class ClusterConfiguration extends ClusterConfig {
     private static final Logger LOG = Logger.getLogger(ClusterConfiguration.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -60,10 +61,11 @@ public class ClusterConfiguration {
     }
     
     public ClusterConfiguration() {
-        
+        super();
     }
     
     public ClusterConfiguration(Collection<String> host_triplets) {
+        super();
         for (String host_info : host_triplets) {
             this.addPartition(host_info);
         } // FOR
@@ -80,6 +82,15 @@ public class ClusterConfiguration {
         for (String host_info : host_triplets) {
             this.addPartition(host_info);
         } // FOR
+    }
+    
+    @Override
+    public boolean validate() {
+        return (this.host_sites.isEmpty() == false);
+    }
+    
+    public boolean isEmpty() {
+        return (this.host_sites.isEmpty());
     }
     
     public void addPartition(String host_info) {

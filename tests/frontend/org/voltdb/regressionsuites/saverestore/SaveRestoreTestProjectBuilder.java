@@ -58,7 +58,7 @@ public class SaveRestoreTestProjectBuilder extends VoltProjectBuilder
     {
         for (String pair[] : partitioning)
         {
-            addPartitionInfo(pair[0], pair[1]);
+            addTablePartitionInfo(pair[0], pair[1]);
         }
     }
 

@@ -55,7 +55,7 @@ public class ProjectBuilderX extends VoltProjectBuilder {
     public void addAllDefaults() {
         addProcedures(m_procedures);
         for (String partitionInfo[] : m_partitioning) {
-            addPartitionInfo(partitionInfo[0], partitionInfo[1]);
+            addTablePartitionInfo(partitionInfo[0], partitionInfo[1]);
         }
         addSchema(m_ddlURL);
         addSupplementalClasses(m_supplementalClasses);

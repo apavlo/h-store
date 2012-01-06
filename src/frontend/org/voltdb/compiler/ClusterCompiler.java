@@ -24,6 +24,8 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.catalog.ClusterConfiguration;
+import edu.brown.catalog.FixCatalog;
 
 public class ClusterCompiler
 {
@@ -34,6 +36,12 @@ public class ClusterCompiler
      */
     static void compile(Catalog catalog, ClusterConfig clusterConfig)
     {
+        // HACK!
+        if (clusterConfig instanceof ClusterConfiguration) {
+            FixCatalog.writeHostInfo(catalog, (ClusterConfiguration)clusterConfig);
+            return;
+        }
+        
         if (!clusterConfig.validate())
         {
             throw new RuntimeException(clusterConfig.getErrorMsg());

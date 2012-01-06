@@ -353,7 +353,7 @@ public class TestSqlAggregateSuite extends RegressionSuite {
 
         VoltProjectBuilder project = new VoltProjectBuilder("aggregate");
         project.addSchema(Insert.class.getResource("aggregate-sql-ddl.sql"));
-        project.addPartitionInfo("P1", "ID");
+        project.addTablePartitionInfo("P1", "ID");
         project.addProcedures(PROCEDURES);
 
         config = new LocalSingleProcessServer("sqlaggregate-onesite.jar", 1, BackendTarget.NATIVE_EE_JNI);

@@ -60,8 +60,8 @@ public class MultisiteProjectBuilder extends VoltProjectBuilder {
                       UpdateReservation.class,
                       FindOpenSeats.class);
         addSchema(ddlURL);
-        addPartitionInfo("CUSTOMERS", "CID");
-        addPartitionInfo("RESERVATIONS", "FID");
+        addTablePartitionInfo("CUSTOMERS", "CID");
+        addTablePartitionInfo("RESERVATIONS", "FID");
     }
 
 }

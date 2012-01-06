@@ -54,6 +54,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
 
+import edu.brown.catalog.ClusterConfiguration;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.utils.FileUtil;
@@ -197,6 +198,7 @@ public class VoltProjectBuilder {
     PrintStream m_compilerDebugPrintStream = null;
     boolean m_securityEnabled = false;
     final Map<String, ProcInfoData> m_procInfoOverrides = new HashMap<String, ProcInfoData>();
+    final ClusterConfiguration cluster_config = new ClusterConfiguration();
 
     private String m_snapshotPath = null;
     private int m_snapshotRetain = 0;
@@ -232,6 +234,18 @@ public class VoltProjectBuilder {
             }
         }
     }
+    
+    // -------------------------------------------------------------------
+    // DATABASE PARTITIONS
+    // -------------------------------------------------------------------
+    
+    public void addPartition(String hostname, int site_id, int partition_id) {
+        this.cluster_config.addPartition(hostname, site_id, partition_id);
+    }
+    
+    // -------------------------------------------------------------------
+    // SCHEMA
+    // -------------------------------------------------------------------
 
     public void addSchema(final URL schemaURL) {
         assert(schemaURL != null);
@@ -261,6 +275,10 @@ public class VoltProjectBuilder {
         m_schemas.add(schemaPath);
     }
 
+    // -------------------------------------------------------------------
+    // PROCEDURES
+    // -------------------------------------------------------------------
+    
     protected String getStmtProcedureSQL(String name) {
         for (ProcedureInfo pi : m_procedures) {
             if (pi.name.equals(name)) {
@@ -346,7 +364,11 @@ public class VoltProjectBuilder {
             m_supplementals.add(supplemental);
     }
 
-    public void addPartitionInfo(Table catalog_tbl, Column catalog_col) {
+    // -------------------------------------------------------------------
+    // TABLE PARTITIONS
+    // -------------------------------------------------------------------
+    
+    public void addTablePartitionInfo(Table catalog_tbl, Column catalog_col) {
         // TODO: Support special columns
         if (catalog_col instanceof VerticalPartitionColumn) {
             catalog_col = ((VerticalPartitionColumn)catalog_col).getHorizontalColumn();
@@ -354,10 +376,10 @@ public class VoltProjectBuilder {
         if (catalog_col instanceof MultiColumn) {
             catalog_col = ((MultiColumn)catalog_col).get(0);
         }
-        this.addPartitionInfo(catalog_tbl.getName(), catalog_col.getName());
+        this.addTablePartitionInfo(catalog_tbl.getName(), catalog_col.getName());
     }
     
-    public void addPartitionInfo(final String tableName, final String partitionColumnName) {
+    public void addTablePartitionInfo(final String tableName, final String partitionColumnName) {
         assert(m_partitionInfos.containsKey(tableName) == false);
         m_partitionInfos.put(tableName, partitionColumnName);
     }
@@ -516,14 +538,16 @@ public class VoltProjectBuilder {
 
         final File projectFile = writeStringToTempFile(result.getWriter().toString());
         final String projectPath = projectFile.getPath();
-        final ClusterConfig cluster_config =
-            new ClusterConfig(hostCount, sitesPerHost, replication,
-                              leaderAddress);
+        
+        ClusterConfig cc = (this.cluster_config.isEmpty() ? 
+                                new ClusterConfig(hostCount, sitesPerHost, replication, leaderAddress) :
+                                this.cluster_config);
         final boolean success = compiler.compile(projectPath,
-                                           cluster_config,
+                                           cc,
                                            jarPath,
                                            m_compilerDebugPrintStream,
                                            m_procInfoOverrides);
+        
         return success;
     }
 

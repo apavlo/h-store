@@ -377,7 +377,7 @@ public class VerticalPartitionPlanner {
             for (Table catalog_tbl : catalog_db.getTables()) {
                 if (catalog_tbl.getSystable() || catalog_tbl.getIsreplicated())
                     continue;
-                this.addPartitionInfo(catalog_tbl, catalog_tbl.getPartitioncolumn());
+                this.addTablePartitionInfo(catalog_tbl, catalog_tbl.getPartitioncolumn());
             } // FOR
             
             // Make sure that we disable VP optimizations otherwise we will get stuck

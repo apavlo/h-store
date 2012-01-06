@@ -1064,13 +1064,13 @@ public class TestSQLTypesSuite extends RegressionSuite {
 
         final VoltProjectBuilder project = new VoltProjectBuilder("sqltypessuite");
         project.addSchema(TestSQLTypesSuite.class.getResource("sqltypessuite-ddl.sql"));
-        project.addPartitionInfo("NO_NULLS", "PKEY");
-        project.addPartitionInfo("ALLOW_NULLS", "PKEY");
-        project.addPartitionInfo("WITH_DEFAULTS", "PKEY");
-        project.addPartitionInfo("WITH_NULL_DEFAULTS", "PKEY");
-        project.addPartitionInfo("EXPRESSIONS_WITH_NULLS", "PKEY");
-        project.addPartitionInfo("EXPRESSIONS_NO_NULLS", "PKEY");
-        project.addPartitionInfo("JUMBO_ROW", "PKEY");
+        project.addTablePartitionInfo("NO_NULLS", "PKEY");
+        project.addTablePartitionInfo("ALLOW_NULLS", "PKEY");
+        project.addTablePartitionInfo("WITH_DEFAULTS", "PKEY");
+        project.addTablePartitionInfo("WITH_NULL_DEFAULTS", "PKEY");
+        project.addTablePartitionInfo("EXPRESSIONS_WITH_NULLS", "PKEY");
+        project.addTablePartitionInfo("EXPRESSIONS_NO_NULLS", "PKEY");
+        project.addTablePartitionInfo("JUMBO_ROW", "PKEY");
         project.addProcedures(PROCEDURES);
 
 
