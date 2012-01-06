@@ -433,11 +433,6 @@ def setup_env():
     aliases = dict([("alias %s" % key, "\"%s\"" % val) for key,val in aliases.items() ])
     update_conf(".bashrc", aliases, noSpaces=True)
     
-    hstore_dir = "/home/%s/hstore" % env.user
-    with settings(warn_only=True):
-        if run("test -d %s" % hstore_dir).failed:
-            run("mkdir " + hstore_dir)
-    ## WITH
     return (first_setup)
 ## DEF
 
@@ -449,7 +444,18 @@ def setup_nfshead(rebootInst=True):
     """Deploy the NFS head node"""
     __getInstances__()
     
+    real_dir = "/mnt/hstore"
     hstore_dir = "/home/%s/hstore" % env.user
+    with settings(warn_only=True):
+        # Install the real H-Store directory in /mnt
+        if run("test -d %s" % real_dir).failed:
+            sudo("mkdir " + real_dir)
+            sudo("chown -R %s %s" % (env.user, real_dir))
+        # And use a symlink to that location so that everything works correctly
+        if run("test -d %s" % hstore_dir).failed:
+            run("ln -s %s %s" % (real_dir, hstore_dir))
+    ## WITH
+    
     sudo("apt-get --yes install %s" % " ".join(NFSHEAD_PACKAGES))
     append("/etc/exports", "%s *(rw,async,no_subtree_check)" % hstore_dir, use_sudo=True)
     sudo("exportfs -a")
@@ -476,6 +482,13 @@ def setup_nfshead(rebootInst=True):
 def setup_nfsclient(rebootInst=True):
     """Deploy the NFS client node"""
     __getInstances__()
+
+    # Create an empty directory that will point to the NFS head's directory
+    hstore_dir = "/home/%s/hstore" % env.user
+    with settings(warn_only=True):
+        if run("test -d %s" % hstore_dir).failed:
+            sudo("mkdir " + hstore_dir)
+    ## WITH
     
     ## Update the /etc/hosts files to make it easier for us to point
     ## to different NFS head nodes
@@ -504,8 +517,7 @@ def setup_nfsclient(rebootInst=True):
     ## IF
     LOG.info("NFS Client '%s' is online and ready" % __getInstanceName__(inst))
     
-    code_dir = os.path.join("hstore", env["hstore.git_branch"])
-    run("cd " + code_dir)
+    run("cd " + os.path.join("hstore", env["hstore.git_branch"]))
 ## DEF
 
 ## ----------------------------------------------
@@ -514,24 +526,35 @@ def setup_nfsclient(rebootInst=True):
 @task
 def deploy_hstore(build=True):
     code_dir = env["hstore.git_branch"]
-    need_checkout = False
+    need_files = False
     with cd("hstore"):
         with settings(warn_only=True):
             if run("test -d %s" % code_dir).failed:
+                LOG.debug("Initializing H-Store source code directory for branch '%s'" % env["hstore.git_branch"])
                 run("git clone --branch %s %s %s %s" % (env["hstore.git_branch"], \
                                                         env["hstore.git_options"], \
                                                         env["hstore.git"], code_dir))
-                # TODO: Checkout externals
+                need_files = True
         with cd(code_dir):
             run("git pull %s" % env["hstore.git_options"])
+            
+            ## Checkout Extra Files
+            if need_files:
+                LOG.debug("Initializing H-Store research files directory for branch '%s'" % env["hstore.git_branch"])
+                run("git submodule init")
+                run("git submodule update")
+                files_repo = env["hstore.git"].replace("h-store", "h-store-files")
+                with cd("files"):
+                    run("git pull %s %s" % (env["hstore.git_options"], files_repo))
+            ## IF
+            
             if build:
                 LOG.debug("Building H-Store from source code")
                 if env["hstore.clean"]:
                     run("ant clean-all")
                 run("ant build")
     ## WITH
-    code_dir = os.path.join("hstore", env["hstore.git_branch"))
-    run("cd " + code_dir)
+    run("cd " + os.path.join("hstore", code_dir))
 ## DEF
 
 ## ----------------------------------------------
