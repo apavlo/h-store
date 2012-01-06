@@ -616,6 +616,7 @@ if __name__ == '__main__':
                                     upload_url = options["codespeed-url"][0]
                                     
                                     if "codespeed-revision" in options:
+                                        # FIXME
                                         last_changed_rev = int(options["codespeed-revision"][0])
                                         last_changed_rev, last_changed_date = svnInfo(env["hstore.svn"], last_changed_rev)
                                     else:
@@ -628,7 +629,7 @@ if __name__ == '__main__':
                                     LOG.info("Uploading %s results to CODESPEED at %s" % (benchmark, upload_url))
                                     result = codespeed.Result(
                                                 commitid=last_changed_rev,
-                                                branch=os.path.basename(env["hstore.svn"]),
+                                                branch=env["hstore.git_branch"],
                                                 benchmark=codespeedBenchmark,
                                                 project="H-Store",
                                                 num_partitions=partitions,
