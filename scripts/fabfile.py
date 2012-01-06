@@ -438,8 +438,9 @@ def setup_env():
     with settings(warn_only=True):
         # Install the real H-Store directory in /home/
         if run("test -d %s" % hstore_dir).failed:
-            sudo("mkdir " + hstore_dir)
+            run("mkdir " + hstore_dir)
     ## WITH
+    sudo("chown -R %s %s" % (env.user, hstore_dir))
     
     return (first_setup)
 ## DEF
