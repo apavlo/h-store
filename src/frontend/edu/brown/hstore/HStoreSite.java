@@ -59,7 +59,7 @@ import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.Pair;
 
-import ca.evanjones.protorpc.NIOEventLoop;
+import edu.brown.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 

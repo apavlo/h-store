@@ -1,4 +1,4 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -9,6 +9,7 @@ import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
+import ca.evanjones.protorpc.Protocol;
 import ca.evanjones.protorpc.Protocol.RpcRequest;
 import ca.evanjones.protorpc.Protocol.RpcResponse;
 

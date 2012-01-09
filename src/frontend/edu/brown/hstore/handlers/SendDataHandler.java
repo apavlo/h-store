@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
-import ca.evanjones.protorpc.ProtoRpcController;
+import edu.brown.protorpc.ProtoRpcController;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;

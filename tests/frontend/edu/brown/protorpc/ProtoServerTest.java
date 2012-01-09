@@ -1,4 +1,4 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import static org.junit.Assert.*;
 
@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import ca.evanjones.protorpc.Counter.*;
+import ca.evanjones.protorpc.Protocol;
 import ca.evanjones.protorpc.Protocol.RpcResponse;
 
 import com.google.protobuf.CodedInputStream;

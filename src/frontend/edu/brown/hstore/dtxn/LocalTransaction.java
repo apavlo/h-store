@@ -43,7 +43,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
 
-import ca.evanjones.protorpc.ProtoRpcController;
+import edu.brown.protorpc.ProtoRpcController;
 
 import com.google.protobuf.RpcCallback;
 

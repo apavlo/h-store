@@ -18,9 +18,9 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ConnectionUtil;
 import org.voltdb.client.ProcedureCallback;
 
-import ca.evanjones.protorpc.MockEventLoop;
-import ca.evanjones.protorpc.MockServerSocketChannel;
-import ca.evanjones.protorpc.NIOEventLoop;
+import edu.brown.protorpc.MockEventLoop;
+import edu.brown.protorpc.MockServerSocketChannel;
+import edu.brown.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 

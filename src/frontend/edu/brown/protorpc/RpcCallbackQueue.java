@@ -1,7 +1,7 @@
 /**
  *
  */
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import java.util.ArrayList;
 import java.util.Collections;

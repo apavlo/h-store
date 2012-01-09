@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-package ca.evanjones;
+package edu.brown.utils;
 
 // Useful documentation:
 // http://blogs.sun.com/sundararajan/entry/using_mustang_s_attach_api

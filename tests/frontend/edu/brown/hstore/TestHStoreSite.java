@@ -19,7 +19,7 @@ import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.*;
 
-import ca.evanjones.protorpc.StoreResultCallback;
+import edu.brown.protorpc.StoreResultCallback;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;

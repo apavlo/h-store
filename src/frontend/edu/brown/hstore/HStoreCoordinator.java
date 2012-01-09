@@ -25,17 +25,16 @@ import org.voltdb.catalog.Site;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Pair;
 
-import ca.evanjones.protorpc.NIOEventLoop;
-import ca.evanjones.protorpc.ProtoRpcChannel;
-import ca.evanjones.protorpc.ProtoRpcController;
-import ca.evanjones.protorpc.ProtoServer;
+import edu.brown.protorpc.NIOEventLoop;
+import edu.brown.protorpc.ProtoRpcChannel;
+import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.protorpc.ProtoServer;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.*;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.*;
 import edu.brown.logging.LoggerUtil;

@@ -861,8 +861,11 @@ TEST CASES
         </formatters>
         <tests>
             <fileset dir='${build.test.dir}'>
+            	<include name='edu/brown/hstore/Test*.class'/>
+            	<include name='edu/brown/hstore/**/Test*.class'/>
                 <include name='org/hsqldb/**/Test*.class'/>
                 <include name='org/voltdb/**/Test*.class'/>
+            	
                 <include name='org/voltdb/network/**/Test*.class'/>
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
