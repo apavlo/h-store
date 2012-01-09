@@ -1,4 +1,4 @@
-package edu.brown;
+package edu.brown.hstore;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -25,7 +25,6 @@ import edu.brown.utils.StringUtil;
 public class VoltProcedureInvoker {
     private static final Logger LOG = Logger.getLogger(VoltProcedureInvoker.class);
     
-    //private final static Object[] EMPTY_ARRAY = {};
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
         args.require(ArgumentsParser.PARAM_CATALOG);

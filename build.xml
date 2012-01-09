@@ -2335,7 +2335,7 @@ H-STORE REMIX
 
 <target name='hstore-invoke'
         description="Execute on transaction on an already running H-Store cluster">
-    <java fork="yes" failonerror="true" classname="edu.brown.VoltProcedureInvoker">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.VoltProcedureInvoker">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${client.memory}m" />
