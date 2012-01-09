@@ -20,7 +20,7 @@ package org.voltdb.messaging;
 import org.voltdb.utils.DBBPool;
 
 import edu.brown.hstore.Hstore;
-import edu.mit.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.AbstractTransaction;
 
 /**
  * Message from an initiator to an execution site, instructing the

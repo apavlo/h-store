@@ -36,7 +36,7 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
-import edu.mit.hstore.HStoreSite;
+import edu.brown.hstore.HStoreSite;
 
 /**
  * 

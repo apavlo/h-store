@@ -12,7 +12,7 @@ import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConstants;
 
 @ProcInfo(singlePartition = false)
 public class NoOp extends VoltSystemProcedure {

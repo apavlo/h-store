@@ -103,9 +103,9 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreConstants;
-import edu.mit.hstore.HStoreSite;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 
 public class BenchmarkController {
     public static final Logger LOG = Logger.getLogger(BenchmarkController.class);

@@ -17,7 +17,7 @@ import edu.brown.benchmark.seats.SEATSClient.Reservation;
 import edu.brown.benchmark.seats.util.CustomerId;
 import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.hstore.Hstore;
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConstants;
 
 public class TestSEATSClient extends SEATSBaseTestCase {
     

@@ -21,7 +21,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConstants;
 
 public class TestBatchPlannerComplex extends BaseTestCase {
 

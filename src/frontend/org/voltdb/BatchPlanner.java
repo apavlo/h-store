@@ -64,8 +64,8 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConstants;
 
 /**
  * @author pavlo

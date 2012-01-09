@@ -8,8 +8,8 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.MessageLite;
 
-import edu.mit.net.NIOReadStream;
-import edu.mit.net.NonBlockingConnection;
+import edu.brown.net.NIOReadStream;
+import edu.brown.net.NonBlockingConnection;
 
 /**
  * Provides a non-blocking stream of protocol buffers. This is fairly low level, and is intended

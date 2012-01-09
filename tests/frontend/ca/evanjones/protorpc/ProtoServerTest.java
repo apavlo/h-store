@@ -15,7 +15,7 @@ import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.mit.net.MockSocketChannel;
+import edu.brown.net.MockSocketChannel;
 
 public class ProtoServerTest {
     private byte[] prependLength(Message message) {

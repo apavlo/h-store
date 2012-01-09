@@ -34,7 +34,7 @@ import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.ProcedureLimitFilter;
 import edu.brown.workload.filters.ProcedureNameFilter;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 public class TestFeatureClusterer extends BaseTestCase {
 

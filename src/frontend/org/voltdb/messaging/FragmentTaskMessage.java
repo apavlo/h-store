@@ -30,7 +30,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
 
 import edu.brown.hstore.Hstore;
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConstants;
 
 /**
  * Message from a stored procedure coordinator to an execution site

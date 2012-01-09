@@ -58,7 +58,7 @@ import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 /**
  * TPC-C database loader. Note: The methods order id parameters from "top level"

@@ -18,7 +18,7 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcChannel;
 import com.google.protobuf.RpcController;
 
-import edu.mit.net.NonBlockingConnection;
+import edu.brown.net.NonBlockingConnection;
 
 public class ProtoRpcChannel extends AbstractEventHandler implements RpcChannel {
     private static final Logger LOG = Logger.getLogger(ProtoRpcChannel.class);

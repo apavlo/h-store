@@ -17,7 +17,7 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 import com.google.protobuf.Service;
 
-import edu.mit.net.NonBlockingConnection;
+import edu.brown.net.NonBlockingConnection;
 
 public class ProtoServer extends AbstractEventHandler {
     private static final Logger LOG = Logger.getLogger(ProtoServer.class);

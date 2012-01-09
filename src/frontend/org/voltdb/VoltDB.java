@@ -21,7 +21,7 @@ import java.io.File;
 import java.util.Map;
 import java.util.TimeZone;
 
-import edu.mit.hstore.HStoreSite;
+import edu.brown.hstore.HStoreSite;
 
 /**
  * <code>VoltDB</code> is the main class for VoltDB server.

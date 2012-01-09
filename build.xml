@@ -189,7 +189,7 @@ PRIMARY ENTRY POINTS
     description="Run Java and C++ JNI testcases and test plan fragments."
 />
 <target name="check_quick"
-    depends="compile, voltdbipc, junit_quick"
+    depends="compile, voltdbipc, junit"
     description="Run a subset of Java testcases and test fragments."
 />
 <!-- "junit, eecheck, doc, eedoc, jars" -->
@@ -845,7 +845,7 @@ TEST CASES
 
 <!-- Junit tests that run quickly -->
 <target
-    name="junit_quick"
+    name="junit"
     description="Tests and suites that run in under 3 minutes under memcheck"
 >
     <run_junit>
@@ -920,7 +920,7 @@ TEST CASES
     />
 </target>
 
-<target name="junit" description="Run testcases for Java classes.">
+<target name="junit-full" description="Run testcases for Java classes.">
     <!-- Run the unit tests -->
     <condition property="timeoutLength" value="${timeoutLength}" else='600000'>
         <isset property="timeoutLength"/>
@@ -958,13 +958,14 @@ TEST CASES
 
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
+            	<include name='edu/brown/**/*Test.class'/>
                 
                 <!-- We run out of memory on this one -->
                 <exclude name='edu/brown/benchmark/tpce/*'/>
 
                 <!-- Canadian Tests -->
                 <include name='ca/evanjones/**/*Test.class'/>
-                <include name='edu/mit/**/*Test.class'/>
+            	<include name='edu/mit/**/*Test.class'/>
                 <include name='edu/mit/**/Test*.class'/>
             </fileset>
         </tests>
@@ -2283,7 +2284,7 @@ H-STORE REMIX
         <not><isset property="mappings"/></not>
     </condition>
 
-    <java fork="yes" classname="edu.mit.hstore.HStore">
+    <java fork="yes" classname="edu.brown.hstore.HStore">
         <jvmarg value="-Dhstore.tag=site" />
         <jvmarg value="-Xms${site.memory}m" />
         <jvmarg value="-Xmx${site.memory}m" />
@@ -2331,7 +2332,7 @@ H-STORE REMIX
 
 <target name='hstore-invoke'
         description="Execute on transaction on an already running H-Store cluster">
-    <java fork="yes" failonerror="true" classname="edu.mit.VoltProcedureInvoker">
+    <java fork="yes" failonerror="true" classname="edu.brown.VoltProcedureInvoker">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${client.memory}m" />
@@ -2361,7 +2362,7 @@ H-STORE REMIX
 </target>
 
 <target name='mock-site' description="EC2 Coordinator Tests">
-    <java fork="yes" failonerror="true" classname="edu.mit.hstore.MockHStoreSite">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.MockHStoreSite">
         <jvmarg value="-client" />
         <jvmarg value="-Xmx${client.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>

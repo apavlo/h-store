@@ -23,9 +23,9 @@ import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
 
-import edu.mit.net.MockByteChannel;
-import edu.mit.net.MockSocketChannel;
-import edu.mit.net.NonBlockingConnection;
+import edu.brown.net.MockByteChannel;
+import edu.brown.net.MockSocketChannel;
+import edu.brown.net.NonBlockingConnection;
 
 public class ProtoRpcChannelTest {
     private MockEventLoop eventLoop;

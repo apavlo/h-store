@@ -66,12 +66,12 @@ import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreConstants;
-import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.AbstractTransaction;
-import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.interfaces.Loggable;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.interfaces.Loggable;
 
 /**
  * Wraps the stored procedure object created by the user

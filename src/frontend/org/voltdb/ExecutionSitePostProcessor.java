@@ -8,10 +8,10 @@ import org.apache.log4j.Logger;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.LocalTransaction;
-import edu.mit.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.interfaces.Shutdownable;
 
 public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
     private static final Logger LOG = Logger.getLogger(ExecutionSitePostProcessor.class);

@@ -25,7 +25,7 @@ import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.Workload;
-import edu.mit.hstore.HStoreSite;
+import edu.brown.hstore.HStoreSite;
 
 public class CatalogInfo {
 

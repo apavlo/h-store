@@ -59,7 +59,7 @@ import edu.brown.markov.EstimationThresholds;
 import edu.brown.statistics.*;
 import edu.brown.workload.*;
 import edu.brown.workload.filters.*;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 /**
  * 

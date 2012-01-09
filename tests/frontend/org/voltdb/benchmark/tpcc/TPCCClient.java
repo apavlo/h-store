@@ -43,7 +43,7 @@ import org.voltdb.types.ExpressionType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
