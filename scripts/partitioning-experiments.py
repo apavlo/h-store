@@ -226,7 +226,7 @@ EXPERIMENT_SETTINGS = {
 # Thoughput Experiments
 OPT_PARTITION_PLANS = [ 'lns', 'schism', 'popular' ]
 OPT_BENCHMARKS = [ 'tm1', 'tpcc', 'tpcc-skewed', 'seats', 'auctionmark' ]
-OPT_PARTITION_PLAN_DIR = "files/designplans/vldb-aug2011"
+OPT_PARTITION_PLAN_DIR = "files/designplans"
 
 ## ==============================================
 ## updateEnv

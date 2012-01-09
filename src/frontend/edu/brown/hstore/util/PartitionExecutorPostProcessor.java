@@ -15,8 +15,8 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
 
-public final class ExecutionSitePostProcessor implements Runnable, Shutdownable {
-    private static final Logger LOG = Logger.getLogger(ExecutionSitePostProcessor.class);
+public final class PartitionExecutorPostProcessor implements Runnable, Shutdownable {
+    private static final Logger LOG = Logger.getLogger(PartitionExecutorPostProcessor.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -48,7 +48,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
      * 
      * @param hstore_site
      */
-    public ExecutionSitePostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<Object[]> queue) {
+    public PartitionExecutorPostProcessor(HStoreSite hstore_site, LinkedBlockingDeque<Object[]> queue) {
         this.hstore_site = hstore_site;
         this.queue = queue;
     }

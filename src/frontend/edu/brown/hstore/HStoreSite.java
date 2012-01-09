@@ -101,7 +101,7 @@ import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.ExecutionSitePostProcessor;
+import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.TransactionQueueManager;
 import edu.brown.hstore.util.TxnCounter;
@@ -253,7 +253,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * ClientResponse Processor Thread
      */
-    private final List<ExecutionSitePostProcessor> processors = new ArrayList<ExecutionSitePostProcessor>();
+    private final List<PartitionExecutorPostProcessor> processors = new ArrayList<PartitionExecutorPostProcessor>();
     private final LinkedBlockingDeque<Object[]> ready_responses = new LinkedBlockingDeque<Object[]>();
     
     private final HStoreConf hstore_conf;
@@ -375,7 +375,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d)
                 LOG.debug("__FILE__:__LINE__ " + String.format("Starting %d post-processing threads", hstore_conf.site.exec_postprocessing_thread_count));
             for (int i = 0; i < hstore_conf.site.exec_postprocessing_thread_count; i++) {
-                this.processors.add(new ExecutionSitePostProcessor(this, this.ready_responses));
+                this.processors.add(new PartitionExecutorPostProcessor(this, this.ready_responses));
             } // FOR
         }
         
@@ -461,7 +461,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(es != null) : "Unexpected null PartitionExecutor for partition #" + partition + " on " + this.getSiteName();
         return (es);
     }
-    public Collection<ExecutionSitePostProcessor> getExecutionSitePostProcessors() {
+    public Collection<PartitionExecutorPostProcessor> getExecutionSitePostProcessors() {
         return (this.processors);
     }
     
@@ -633,7 +633,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Start the ExecutionSitePostProcessor
         if (hstore_conf.site.exec_postprocessing_thread) {
-            for (ExecutionSitePostProcessor espp : this.processors) {
+            for (PartitionExecutorPostProcessor espp : this.processors) {
                 t = new Thread(espp);
                 t.setDaemon(true);
                 t.setUncaughtExceptionHandler(handler);
@@ -814,7 +814,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     public void prepareShutdown(boolean error) {
         this.shutdown_state = ShutdownState.PREPARE_SHUTDOWN;
         this.hstore_coordinator.prepareShutdown(false);
-        for (ExecutionSitePostProcessor espp : this.processors) {
+        for (PartitionExecutorPostProcessor espp : this.processors) {
             espp.prepareShutdown(false);
         } // FOR
         
@@ -847,7 +847,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (this.status_monitor != null) this.status_monitor.shutdown();
         
         // Tell our local boys to go down too
-        for (ExecutionSitePostProcessor p : this.processors) {
+        for (PartitionExecutorPostProcessor p : this.processors) {
             p.shutdown();
         }
         // TODO(xin) Tell the MapReduceHelperThread to shutdown too
