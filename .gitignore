@@ -1,3 +1,4 @@
+# Testing Artifacts
 *.trace
 *.trace.gz
 *.jar
@@ -7,7 +8,6 @@
 *.pdf
 *.arff
 *.pyc
-.#kate-*
 junitvmwatcher*
 buildstring.txt
 debugoutput
@@ -19,8 +19,11 @@ plannerlog.txt
 keepalive
 obj
 
+# JNI Compiler Artifacts
 src/ee/org_voltdb_jni_ExecutionEngine.h
 src/ee/org_voltdb_utils_DBBPool.h
 src/ee/org_voltdb_utils_ThreadUtils.h
 
-tools/SystemPropertyPrinter.class
+# Kate Swap Files
+.kate-swp
+.#kate-*
