@@ -1,28 +1,27 @@
-## -------------------------------------------------------
+## ---------------------------------------------------------------------------
 ##  _  _     ___ _____ ___  ___ ___ 
 ## | || |___/ __|_   _/ _ \| _ \ __|
 ## | __ |___\__ \ | || (_) |   / _| 
 ## |_||_|   |___/ |_| \___/|_|_\___|
 ##
-## Next Generation OLTP DBMS Research
-## -------------------------------------------------------
+## Next Generation OLTP Database Research
+## ---------------------------------------------------------------------------
 
-More information and documenation is available at:
+More information and documentation is available at:
 
 http://hstore.cs.brown.edu
 
-## -------------------------------------------------------
-## RUNNING A BENCHMARK
-## -------------------------------------------------------
-
-Available benchmarks: tpcc, markov, tm1, auctionmark
+## ---------------------------------------------------------------------------
+## QUICK EXAMPLE
+## ---------------------------------------------------------------------------
 
 (1) First build the entire distribution:
 
     $ ant build
 
-(2) Next make the project jar file. You will need to do this step everytime you 
-    change the benchmark source code in $HSTORE_DIR/tests/
+(2) Next make the project jar file for the target benchmark (e.g., $HSTORE_BENCHMARK).
+    A project jar contains all the of stored procedures and statements for the target
+    benchmark, as well as the cluster configuration for the database system.
 
     $ export HSTORE_BENCHMARK=tm1
     $ ant hstore-prepare -Dproject=$HSTORE_BENCHMARK
@@ -31,9 +30,6 @@ Available benchmarks: tpcc, markov, tm1, auctionmark
 
     $ ant hstore-benchmark -Dproject=$HSTORE_BENCHMARK
 
-## -------------------------------------------------------
-## VIEWING CATALOG
-## -------------------------------------------------------
+More information is available here:
 
-$ ant catalog-viewer -Dproject=$HSTORE_BENCHMARK
-
+http://hstore.cs.brown.edu/documentation/quick-start/
