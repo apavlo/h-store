@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.voltdb.catalog.Catalog;
 
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.utils.PartitionEstimator;
 import edu.mit.hstore.dtxn.LocalTransaction;
 
@@ -34,7 +34,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    protected VoltTable[] dispatchPartitionFragment(LocalTransaction ts, Collection<PartitionFragment> fragments, ParameterSet[] parameters) {
+    protected VoltTable[] dispatchWorkFragment(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet[] parameters) {
         return (new VoltTable[]{ });
     }
     

@@ -15,7 +15,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.utils.ProjectType;
 import edu.mit.hstore.HStoreConf;
 import edu.mit.hstore.MockHStoreSite;
@@ -101,7 +101,7 @@ public class TestLocalTransaction extends BaseTestCase {
         this.ts.initRound(BASE_PARTITION, UNDO_TOKEN);
         this.ts.setBatchSize(this.batchStmts.length);
         
-        // We need to get all of our PartitionFragments for this batch
+        // We need to get all of our WorkFragments for this batch
         BatchPlanner planner = new BatchPlanner(this.batchStmts, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = planner.plan(TXN_ID,
                                                    CLIENT_HANDLE,
@@ -113,13 +113,13 @@ public class TestLocalTransaction extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<PartitionFragment> fragments = new ArrayList<PartitionFragment>();
-        plan.getPartitionFragments(fragments);
+        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+        plan.getWorkFragments(fragments);
         assertFalse(fragments.isEmpty());
         
-        List<PartitionFragment> ready = new ArrayList<PartitionFragment>();
-        for (PartitionFragment pf : fragments) {
-            boolean blocked = this.ts.addPartitionFragment(pf);
+        List<WorkFragment> ready = new ArrayList<WorkFragment>();
+        for (WorkFragment pf : fragments) {
+            boolean blocked = this.ts.addWorkFragment(pf);
             if (blocked == false) {
                 assertFalse(pf.toString(), ready.contains(pf));
                 ready.add(pf);

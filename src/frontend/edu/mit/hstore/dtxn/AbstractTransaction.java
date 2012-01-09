@@ -44,7 +44,7 @@ import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
@@ -461,9 +461,9 @@ public abstract class AbstractTransaction implements Poolable {
         return (this.finish_task);
     }
     
-    public FragmentTaskMessage getFragmentTaskMessage(PartitionFragment fragment) {
+    public FragmentTaskMessage getFragmentTaskMessage(WorkFragment fragment) {
         int offset = hstore_site.getLocalPartitionOffset(fragment.getPartitionId());
-        return (this.work_task[offset].setPartitionFragment(this.txn_id, fragment));
+        return (this.work_task[offset].setWorkFragment(this.txn_id, fragment));
     }
     
     // ----------------------------------------------------------------------------

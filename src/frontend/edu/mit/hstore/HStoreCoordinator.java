@@ -692,7 +692,7 @@ public class HStoreCoordinator implements Shutdownable {
         for (Entry<Integer, Hstore.TransactionWorkRequest.Builder> e : builders.entrySet()) {
             int site_id = e.getKey().intValue();
             assert(e.getValue().getFragmentsCount() > 0) :
-                String.format("No PartitionFragments for Site %d in %s", site_id, ts);
+                String.format("No WorkFragments for Site %d in %s", site_id, ts);
             Hstore.TransactionWorkRequest request = e.getValue().build();
             
             // We should never get work for our local partitions
@@ -903,10 +903,10 @@ public class HStoreCoordinator implements Shutdownable {
                                                              ts, catalog_part.getId()), ex);
                 }
                 if (debug.get()) 
-                    LOG.debug("Constructing PartitionFragment for " + catalog_part);
-                builder.addFragments(Hstore.PartitionFragment.newBuilder()
-                             .setPartitionId(catalog_part.getId())
-                             .setData(bs)
+                    LOG.debug("Constructing Dependency for " + catalog_part);
+                builder.addFragments(Hstore.Dependency.newBuilder()
+                             .setId(catalog_part.getId())
+                             .addData(bs)
                              .build());
             } // FOR n partitions in remote_site
             

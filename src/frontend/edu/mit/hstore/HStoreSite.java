@@ -69,7 +69,7 @@ import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -1344,7 +1344,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param request
      * @param done
      */
-    public void transactionWork(RemoteTransaction ts, TransactionWorkRequest request, PartitionFragment fragment) {
+    public void transactionWork(RemoteTransaction ts, TransactionWorkRequest request, WorkFragment fragment) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Queuing FragmentTaskMessage on partition %d for txn #%d",
                                                 fragment.getPartitionId(), ts.getTransactionId()));
         int partition = fragment.getPartitionId();

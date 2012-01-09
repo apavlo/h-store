@@ -12,8 +12,8 @@ import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 
-import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -200,10 +200,10 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                 throw new RuntimeException(String.format("Unexpected error when serializing %s reduceOutput data for partition %d",
                                                          mr_ts, this.partitionId), ex);
             }
-            Hstore.PartitionResult.Builder builder = Hstore.PartitionResult.newBuilder()
-                                                        .setData(reduceOutData)
-                                                        .setPartitionId(this.partitionId)
-                                                        .setStatus(Status.OK);
+            ReduceResult.Builder builder = ReduceResult.newBuilder()
+                                                       .setData(reduceOutData)
+                                                       .setPartitionId(this.partitionId)
+                                                       .setStatus(Status.OK);
            
             TransactionReduceWrapperCallback callback = mr_ts.getTransactionReduceWrapperCallback();
             assert (callback != null) : "Unexpected null TransactionReduceWrapperCallback for " + mr_ts;

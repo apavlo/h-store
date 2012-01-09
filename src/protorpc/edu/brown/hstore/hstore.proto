@@ -32,30 +32,15 @@ enum Status {
     ABORT_THROTTLED = 8;
 }
 
-// Specifies that some data to be given to a single partition
-message PartitionFragment {
-    required int32 partition_id = 1;
-    // Serialized information. It is left up to the 
-    // handler on the remote side to deserialize properly
-    required bytes data = 2;
-}
-
-// The output results of PartitionFragments
-message PartitionResult {
-    required int32 partition_id = 1;
-    // Serialized response
-    required bytes data = 2;
-    // Status code 
-    required Status status = 3;
-    // If this partition hit an error, this field will contain the error message.
-    optional bool error = 4 [default = false];
-}
+// -----------------------------------
+// GLOBAL DATA HOLDER
+// -----------------------------------
 
 message Dependency {
-    /// Input Dependency Id
-    required int32 id = 1;
+    /// Unique Identifer
+    required int32 id = 2;
     // Serialized VoltTables
-    repeated bytes data = 2;
+    repeated bytes data = 3;
 }
 
 // -----------------------------------
@@ -93,7 +78,7 @@ message TransactionWorkRequest {
     }
 
     // Specifies the work to be performed at a single partition.
-    message PartitionFragment {
+    message WorkFragment {
         // The partition that needs to execute this work fragment
         required int32 partition_id = 1;
         
@@ -112,7 +97,7 @@ message TransactionWorkRequest {
         // Are all of the PlanFragments read only?
         required bool read_only = 6;
         
-        // If true, then the Work embedded in this PartitionFragment needs input
+        // If true, then the Work embedded in this WorkFragment needs input
         required bool needs_input = 7;
         
         // If true, this is the final fragment for this transaction at this partition.
@@ -127,7 +112,7 @@ message TransactionWorkRequest {
     
     // The work that the HStoreSite needs to execute for this transaction
     // The work for a partition can appear only once in this list.
-    repeated PartitionFragment fragments = 3;
+    repeated WorkFragment fragments = 3;
     
     // Is this request for a sysproc?
     required bool sysproc = 4 [default = false];
@@ -145,19 +130,19 @@ message TransactionWorkRequest {
 }
 
 message TransactionWorkResponse {
-    // The output results of PartitionFragments
-    message PartitionResult {
+    // The output results of WorkFragments
+    message WorkResult {
         required int32 partition_id = 1;
         // Output Dependencies
         repeated Dependency output = 2;
-        // Status of the PartitionResponse
+        // Status of the WorkRequest
         required Status status = 3;
         // If this partition hit an error, this field will contain the SerializableException
         optional bytes error = 4;
     }
 
     required int64 transaction_id = 1;
-    repeated PartitionResult results = 2;
+    repeated WorkResult results = 2;
     required Status status = 3;
 }
 
@@ -190,8 +175,19 @@ message TransactionReduceRequest {
 }
 
 message TransactionReduceResponse {
+    // The output results of TransactionReduceRequest
+    message ReduceResult {
+        required int32 partition_id = 1;
+        // Serialized response
+        required bytes data = 2;
+        // Status code 
+        required Status status = 3;
+        // If this partition hit an error, this field will contain the error message.
+        optional bool error = 4 [default = false];
+    }
+
     required int64 transaction_id = 1;
-    repeated PartitionResult results = 2;
+    repeated ReduceResult results = 2;
     required Status status = 3;
 }
 
@@ -259,7 +255,7 @@ message SendDataRequest {
 
     // Set of partitions to send data to. A partition can appear only once in this list.
     // The data stored in each fragment is a serialized VoltTable
-    repeated PartitionFragment fragments = 2;
+    repeated Dependency fragments = 2;
     
     // The SiteId of the HStoreSite that sent this data
     required int32 sender_id = 3;

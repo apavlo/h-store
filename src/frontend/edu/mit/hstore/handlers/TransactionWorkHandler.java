@@ -16,7 +16,7 @@ import com.google.protobuf.RpcController;
 import edu.brown.hstore.Hstore.Dependency;
 import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.hstore.Hstore.TransactionWorkResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -125,7 +125,7 @@ public class TransactionWorkHandler extends AbstractTransactionHandler<Transacti
         // TODO: The base information of a set of FragmentTaskMessages should be moved into
         // the message wrapper (e.g., base partition, client handle)
         boolean first = true;
-        for (PartitionFragment fragment : request.getFragmentsList()) {
+        for (WorkFragment fragment : request.getFragmentsList()) {
             // Always initialize the TransactionWorkCallback for the first callback 
             if (first) {
                 TransactionWorkCallback work_callback = ts.getFragmentTaskCallback();

@@ -16,7 +16,7 @@ import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
@@ -100,7 +100,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     public void testFragmentIds() throws Exception {
         catalog_proc = this.getProcedure(DeleteReservation.class);
         
-        // Make sure that PlanFragment ids in each PartitionFragment only
+        // Make sure that PlanFragment ids in each WorkFragment only
         // belong to the Procedure
         for (Statement catalog_stmt : catalog_proc.getStatements()) {
             batch = new SQLStmt[] { new SQLStmt(catalog_stmt) };
@@ -119,11 +119,11 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             assertNotNull(plan);
             assertFalse(plan.hasMisprediction());
         
-            List<PartitionFragment> fragments = new ArrayList<PartitionFragment>();
-            plan.getPartitionFragments(fragments);
+            List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+            plan.getWorkFragments(fragments);
             assertFalse(fragments.isEmpty());
         
-            for (PartitionFragment pf : fragments) {
+            for (WorkFragment pf : fragments) {
                 assertNotNull(pf);
                 for (int frag_id : pf.getFragmentIdList()) {
                     PlanFragment catalog_frag = CatalogUtil.getPlanFragment(catalog_proc, frag_id);
@@ -137,18 +137,18 @@ public class TestBatchPlannerComplex extends BaseTestCase {
     
     
     /**
-     * testBuildPartitionFragments
+     * testBuildWorkFragments
      */
-    public void testBuildPartitionFragments() throws Exception {
-        List<PartitionFragment> fragments = new ArrayList<PartitionFragment>();
-        plan.getPartitionFragments(fragments);
+    public void testBuildWorkFragments() throws Exception {
+        List<WorkFragment> fragments = new ArrayList<WorkFragment>();
+        plan.getWorkFragments(fragments);
         assertFalse(fragments.isEmpty());
         
-        for (PartitionFragment pf : fragments) {
+        for (WorkFragment pf : fragments) {
             assertNotNull(pf);
 //            System.err.println(pf);
             
-            // If this PartitionFragment is not for the base partition, then
+            // If this WorkFragment is not for the base partition, then
             // we should make sure that it only has distributed queries...
             if (pf.getPartitionId() != BASE_PARTITION) {
                 for (int frag_id : pf.getFragmentIdList()) {
@@ -160,7 +160,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
                 } // FOR
             }
             
-            // The InputDepId for all PartitionFragments should always be the same
+            // The InputDepId for all WorkFragments should always be the same
             Set<Integer> all_ids = new HashSet<Integer>();
             for (InputDependency input_dep_ids : pf.getInputDepIdList()) {
                 all_ids.addAll(input_dep_ids.getIdsList());

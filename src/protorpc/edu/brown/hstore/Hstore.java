@@ -89,751 +89,6 @@ public final class Hstore {
     // @@protoc_insertion_point(enum_scope:edu.brown.hstore.Status)
   }
   
-  public static final class PartitionFragment extends
-      com.google.protobuf.GeneratedMessage {
-    // Use PartitionFragment.newBuilder() to construct.
-    private PartitionFragment() {
-      initFields();
-    }
-    private PartitionFragment(boolean noInit) {}
-    
-    private static final PartitionFragment defaultInstance;
-    public static PartitionFragment getDefaultInstance() {
-      return defaultInstance;
-    }
-    
-    public PartitionFragment getDefaultInstanceForType() {
-      return defaultInstance;
-    }
-    
-    public static final com.google.protobuf.Descriptors.Descriptor
-        getDescriptor() {
-      return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_PartitionFragment_descriptor;
-    }
-    
-    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
-        internalGetFieldAccessorTable() {
-      return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_PartitionFragment_fieldAccessorTable;
-    }
-    
-    // required int32 partition_id = 1;
-    public static final int PARTITION_ID_FIELD_NUMBER = 1;
-    private boolean hasPartitionId;
-    private int partitionId_ = 0;
-    public boolean hasPartitionId() { return hasPartitionId; }
-    public int getPartitionId() { return partitionId_; }
-    
-    // required bytes data = 2;
-    public static final int DATA_FIELD_NUMBER = 2;
-    private boolean hasData;
-    private com.google.protobuf.ByteString data_ = com.google.protobuf.ByteString.EMPTY;
-    public boolean hasData() { return hasData; }
-    public com.google.protobuf.ByteString getData() { return data_; }
-    
-    private void initFields() {
-    }
-    public final boolean isInitialized() {
-      if (!hasPartitionId) return false;
-      if (!hasData) return false;
-      return true;
-    }
-    
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-      getSerializedSize();
-      if (hasPartitionId()) {
-        output.writeInt32(1, getPartitionId());
-      }
-      if (hasData()) {
-        output.writeBytes(2, getData());
-      }
-      getUnknownFields().writeTo(output);
-    }
-    
-    private int memoizedSerializedSize = -1;
-    public int getSerializedSize() {
-      int size = memoizedSerializedSize;
-      if (size != -1) return size;
-    
-      size = 0;
-      if (hasPartitionId()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(1, getPartitionId());
-      }
-      if (hasData()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(2, getData());
-      }
-      size += getUnknownFields().getSerializedSize();
-      memoizedSerializedSize = size;
-      return size;
-    }
-    
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(
-        byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseDelimitedFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseDelimitedFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionFragment parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    
-    public static Builder newBuilder() { return Builder.create(); }
-    public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(edu.brown.hstore.Hstore.PartitionFragment prototype) {
-      return newBuilder().mergeFrom(prototype);
-    }
-    public Builder toBuilder() { return newBuilder(this); }
-    
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessage.Builder<Builder> {
-      private edu.brown.hstore.Hstore.PartitionFragment result;
-      
-      // Construct using edu.brown.hstore.Hstore.PartitionFragment.newBuilder()
-      private Builder() {}
-      
-      private static Builder create() {
-        Builder builder = new Builder();
-        builder.result = new edu.brown.hstore.Hstore.PartitionFragment();
-        return builder;
-      }
-      
-      protected edu.brown.hstore.Hstore.PartitionFragment internalGetResult() {
-        return result;
-      }
-      
-      public Builder clear() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "Cannot call clear() after build().");
-        }
-        result = new edu.brown.hstore.Hstore.PartitionFragment();
-        return this;
-      }
-      
-      public Builder clone() {
-        return create().mergeFrom(result);
-      }
-      
-      public com.google.protobuf.Descriptors.Descriptor
-          getDescriptorForType() {
-        return edu.brown.hstore.Hstore.PartitionFragment.getDescriptor();
-      }
-      
-      public edu.brown.hstore.Hstore.PartitionFragment getDefaultInstanceForType() {
-        return edu.brown.hstore.Hstore.PartitionFragment.getDefaultInstance();
-      }
-      
-      public boolean isInitialized() {
-        return result.isInitialized();
-      }
-      public edu.brown.hstore.Hstore.PartitionFragment build() {
-        if (result != null && !isInitialized()) {
-          throw newUninitializedMessageException(result);
-        }
-        return buildPartial();
-      }
-      
-      private edu.brown.hstore.Hstore.PartitionFragment buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        if (!isInitialized()) {
-          throw newUninitializedMessageException(
-            result).asInvalidProtocolBufferException();
-        }
-        return buildPartial();
-      }
-      
-      public edu.brown.hstore.Hstore.PartitionFragment buildPartial() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "build() has already been called on this Builder.");
-        }
-        edu.brown.hstore.Hstore.PartitionFragment returnMe = result;
-        result = null;
-        return returnMe;
-      }
-      
-      public Builder mergeFrom(com.google.protobuf.Message other) {
-        if (other instanceof edu.brown.hstore.Hstore.PartitionFragment) {
-          return mergeFrom((edu.brown.hstore.Hstore.PartitionFragment)other);
-        } else {
-          super.mergeFrom(other);
-          return this;
-        }
-      }
-      
-      public Builder mergeFrom(edu.brown.hstore.Hstore.PartitionFragment other) {
-        if (other == edu.brown.hstore.Hstore.PartitionFragment.getDefaultInstance()) return this;
-        if (other.hasPartitionId()) {
-          setPartitionId(other.getPartitionId());
-        }
-        if (other.hasData()) {
-          setData(other.getData());
-        }
-        this.mergeUnknownFields(other.getUnknownFields());
-        return this;
-      }
-      
-      public Builder mergeFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-          com.google.protobuf.UnknownFieldSet.newBuilder(
-            this.getUnknownFields());
-        while (true) {
-          int tag = input.readTag();
-          switch (tag) {
-            case 0:
-              this.setUnknownFields(unknownFields.build());
-              return this;
-            default: {
-              if (!parseUnknownField(input, unknownFields,
-                                     extensionRegistry, tag)) {
-                this.setUnknownFields(unknownFields.build());
-                return this;
-              }
-              break;
-            }
-            case 8: {
-              setPartitionId(input.readInt32());
-              break;
-            }
-            case 18: {
-              setData(input.readBytes());
-              break;
-            }
-          }
-        }
-      }
-      
-      
-      // required int32 partition_id = 1;
-      public boolean hasPartitionId() {
-        return result.hasPartitionId();
-      }
-      public int getPartitionId() {
-        return result.getPartitionId();
-      }
-      public Builder setPartitionId(int value) {
-        result.hasPartitionId = true;
-        result.partitionId_ = value;
-        return this;
-      }
-      public Builder clearPartitionId() {
-        result.hasPartitionId = false;
-        result.partitionId_ = 0;
-        return this;
-      }
-      
-      // required bytes data = 2;
-      public boolean hasData() {
-        return result.hasData();
-      }
-      public com.google.protobuf.ByteString getData() {
-        return result.getData();
-      }
-      public Builder setData(com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  result.hasData = true;
-        result.data_ = value;
-        return this;
-      }
-      public Builder clearData() {
-        result.hasData = false;
-        result.data_ = getDefaultInstance().getData();
-        return this;
-      }
-      
-      // @@protoc_insertion_point(builder_scope:edu.brown.hstore.PartitionFragment)
-    }
-    
-    static {
-      defaultInstance = new PartitionFragment(true);
-      edu.brown.hstore.Hstore.internalForceInit();
-      defaultInstance.initFields();
-    }
-    
-    // @@protoc_insertion_point(class_scope:edu.brown.hstore.PartitionFragment)
-  }
-  
-  public static final class PartitionResult extends
-      com.google.protobuf.GeneratedMessage {
-    // Use PartitionResult.newBuilder() to construct.
-    private PartitionResult() {
-      initFields();
-    }
-    private PartitionResult(boolean noInit) {}
-    
-    private static final PartitionResult defaultInstance;
-    public static PartitionResult getDefaultInstance() {
-      return defaultInstance;
-    }
-    
-    public PartitionResult getDefaultInstanceForType() {
-      return defaultInstance;
-    }
-    
-    public static final com.google.protobuf.Descriptors.Descriptor
-        getDescriptor() {
-      return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_PartitionResult_descriptor;
-    }
-    
-    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
-        internalGetFieldAccessorTable() {
-      return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_PartitionResult_fieldAccessorTable;
-    }
-    
-    // required int32 partition_id = 1;
-    public static final int PARTITION_ID_FIELD_NUMBER = 1;
-    private boolean hasPartitionId;
-    private int partitionId_ = 0;
-    public boolean hasPartitionId() { return hasPartitionId; }
-    public int getPartitionId() { return partitionId_; }
-    
-    // required bytes data = 2;
-    public static final int DATA_FIELD_NUMBER = 2;
-    private boolean hasData;
-    private com.google.protobuf.ByteString data_ = com.google.protobuf.ByteString.EMPTY;
-    public boolean hasData() { return hasData; }
-    public com.google.protobuf.ByteString getData() { return data_; }
-    
-    // required .edu.brown.hstore.Status status = 3;
-    public static final int STATUS_FIELD_NUMBER = 3;
-    private boolean hasStatus;
-    private edu.brown.hstore.Hstore.Status status_;
-    public boolean hasStatus() { return hasStatus; }
-    public edu.brown.hstore.Hstore.Status getStatus() { return status_; }
-    
-    // optional bool error = 4 [default = false];
-    public static final int ERROR_FIELD_NUMBER = 4;
-    private boolean hasError;
-    private boolean error_ = false;
-    public boolean hasError() { return hasError; }
-    public boolean getError() { return error_; }
-    
-    private void initFields() {
-      status_ = edu.brown.hstore.Hstore.Status.OK;
-    }
-    public final boolean isInitialized() {
-      if (!hasPartitionId) return false;
-      if (!hasData) return false;
-      if (!hasStatus) return false;
-      return true;
-    }
-    
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-      getSerializedSize();
-      if (hasPartitionId()) {
-        output.writeInt32(1, getPartitionId());
-      }
-      if (hasData()) {
-        output.writeBytes(2, getData());
-      }
-      if (hasStatus()) {
-        output.writeEnum(3, getStatus().getNumber());
-      }
-      if (hasError()) {
-        output.writeBool(4, getError());
-      }
-      getUnknownFields().writeTo(output);
-    }
-    
-    private int memoizedSerializedSize = -1;
-    public int getSerializedSize() {
-      int size = memoizedSerializedSize;
-      if (size != -1) return size;
-    
-      size = 0;
-      if (hasPartitionId()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(1, getPartitionId());
-      }
-      if (hasData()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(2, getData());
-      }
-      if (hasStatus()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(3, getStatus().getNumber());
-      }
-      if (hasError()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBoolSize(4, getError());
-      }
-      size += getUnknownFields().getSerializedSize();
-      memoizedSerializedSize = size;
-      return size;
-    }
-    
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(
-        byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseDelimitedFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseDelimitedFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static edu.brown.hstore.Hstore.PartitionResult parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    
-    public static Builder newBuilder() { return Builder.create(); }
-    public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(edu.brown.hstore.Hstore.PartitionResult prototype) {
-      return newBuilder().mergeFrom(prototype);
-    }
-    public Builder toBuilder() { return newBuilder(this); }
-    
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessage.Builder<Builder> {
-      private edu.brown.hstore.Hstore.PartitionResult result;
-      
-      // Construct using edu.brown.hstore.Hstore.PartitionResult.newBuilder()
-      private Builder() {}
-      
-      private static Builder create() {
-        Builder builder = new Builder();
-        builder.result = new edu.brown.hstore.Hstore.PartitionResult();
-        return builder;
-      }
-      
-      protected edu.brown.hstore.Hstore.PartitionResult internalGetResult() {
-        return result;
-      }
-      
-      public Builder clear() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "Cannot call clear() after build().");
-        }
-        result = new edu.brown.hstore.Hstore.PartitionResult();
-        return this;
-      }
-      
-      public Builder clone() {
-        return create().mergeFrom(result);
-      }
-      
-      public com.google.protobuf.Descriptors.Descriptor
-          getDescriptorForType() {
-        return edu.brown.hstore.Hstore.PartitionResult.getDescriptor();
-      }
-      
-      public edu.brown.hstore.Hstore.PartitionResult getDefaultInstanceForType() {
-        return edu.brown.hstore.Hstore.PartitionResult.getDefaultInstance();
-      }
-      
-      public boolean isInitialized() {
-        return result.isInitialized();
-      }
-      public edu.brown.hstore.Hstore.PartitionResult build() {
-        if (result != null && !isInitialized()) {
-          throw newUninitializedMessageException(result);
-        }
-        return buildPartial();
-      }
-      
-      private edu.brown.hstore.Hstore.PartitionResult buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        if (!isInitialized()) {
-          throw newUninitializedMessageException(
-            result).asInvalidProtocolBufferException();
-        }
-        return buildPartial();
-      }
-      
-      public edu.brown.hstore.Hstore.PartitionResult buildPartial() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "build() has already been called on this Builder.");
-        }
-        edu.brown.hstore.Hstore.PartitionResult returnMe = result;
-        result = null;
-        return returnMe;
-      }
-      
-      public Builder mergeFrom(com.google.protobuf.Message other) {
-        if (other instanceof edu.brown.hstore.Hstore.PartitionResult) {
-          return mergeFrom((edu.brown.hstore.Hstore.PartitionResult)other);
-        } else {
-          super.mergeFrom(other);
-          return this;
-        }
-      }
-      
-      public Builder mergeFrom(edu.brown.hstore.Hstore.PartitionResult other) {
-        if (other == edu.brown.hstore.Hstore.PartitionResult.getDefaultInstance()) return this;
-        if (other.hasPartitionId()) {
-          setPartitionId(other.getPartitionId());
-        }
-        if (other.hasData()) {
-          setData(other.getData());
-        }
-        if (other.hasStatus()) {
-          setStatus(other.getStatus());
-        }
-        if (other.hasError()) {
-          setError(other.getError());
-        }
-        this.mergeUnknownFields(other.getUnknownFields());
-        return this;
-      }
-      
-      public Builder mergeFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-          com.google.protobuf.UnknownFieldSet.newBuilder(
-            this.getUnknownFields());
-        while (true) {
-          int tag = input.readTag();
-          switch (tag) {
-            case 0:
-              this.setUnknownFields(unknownFields.build());
-              return this;
-            default: {
-              if (!parseUnknownField(input, unknownFields,
-                                     extensionRegistry, tag)) {
-                this.setUnknownFields(unknownFields.build());
-                return this;
-              }
-              break;
-            }
-            case 8: {
-              setPartitionId(input.readInt32());
-              break;
-            }
-            case 18: {
-              setData(input.readBytes());
-              break;
-            }
-            case 24: {
-              int rawValue = input.readEnum();
-              edu.brown.hstore.Hstore.Status value = edu.brown.hstore.Hstore.Status.valueOf(rawValue);
-              if (value == null) {
-                unknownFields.mergeVarintField(3, rawValue);
-              } else {
-                setStatus(value);
-              }
-              break;
-            }
-            case 32: {
-              setError(input.readBool());
-              break;
-            }
-          }
-        }
-      }
-      
-      
-      // required int32 partition_id = 1;
-      public boolean hasPartitionId() {
-        return result.hasPartitionId();
-      }
-      public int getPartitionId() {
-        return result.getPartitionId();
-      }
-      public Builder setPartitionId(int value) {
-        result.hasPartitionId = true;
-        result.partitionId_ = value;
-        return this;
-      }
-      public Builder clearPartitionId() {
-        result.hasPartitionId = false;
-        result.partitionId_ = 0;
-        return this;
-      }
-      
-      // required bytes data = 2;
-      public boolean hasData() {
-        return result.hasData();
-      }
-      public com.google.protobuf.ByteString getData() {
-        return result.getData();
-      }
-      public Builder setData(com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  result.hasData = true;
-        result.data_ = value;
-        return this;
-      }
-      public Builder clearData() {
-        result.hasData = false;
-        result.data_ = getDefaultInstance().getData();
-        return this;
-      }
-      
-      // required .edu.brown.hstore.Status status = 3;
-      public boolean hasStatus() {
-        return result.hasStatus();
-      }
-      public edu.brown.hstore.Hstore.Status getStatus() {
-        return result.getStatus();
-      }
-      public Builder setStatus(edu.brown.hstore.Hstore.Status value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        result.hasStatus = true;
-        result.status_ = value;
-        return this;
-      }
-      public Builder clearStatus() {
-        result.hasStatus = false;
-        result.status_ = edu.brown.hstore.Hstore.Status.OK;
-        return this;
-      }
-      
-      // optional bool error = 4 [default = false];
-      public boolean hasError() {
-        return result.hasError();
-      }
-      public boolean getError() {
-        return result.getError();
-      }
-      public Builder setError(boolean value) {
-        result.hasError = true;
-        result.error_ = value;
-        return this;
-      }
-      public Builder clearError() {
-        result.hasError = false;
-        result.error_ = false;
-        return this;
-      }
-      
-      // @@protoc_insertion_point(builder_scope:edu.brown.hstore.PartitionResult)
-    }
-    
-    static {
-      defaultInstance = new PartitionResult(true);
-      edu.brown.hstore.Hstore.internalForceInit();
-      defaultInstance.initFields();
-    }
-    
-    // @@protoc_insertion_point(class_scope:edu.brown.hstore.PartitionResult)
-  }
-  
   public static final class Dependency extends
       com.google.protobuf.GeneratedMessage {
     // Use Dependency.newBuilder() to construct.
@@ -861,15 +116,15 @@ public final class Hstore {
       return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_Dependency_fieldAccessorTable;
     }
     
-    // required int32 id = 1;
-    public static final int ID_FIELD_NUMBER = 1;
+    // required int32 id = 2;
+    public static final int ID_FIELD_NUMBER = 2;
     private boolean hasId;
     private int id_ = 0;
     public boolean hasId() { return hasId; }
     public int getId() { return id_; }
     
-    // repeated bytes data = 2;
-    public static final int DATA_FIELD_NUMBER = 2;
+    // repeated bytes data = 3;
+    public static final int DATA_FIELD_NUMBER = 3;
     private java.util.List<com.google.protobuf.ByteString> data_ =
       java.util.Collections.emptyList();
     public java.util.List<com.google.protobuf.ByteString> getDataList() {
@@ -891,10 +146,10 @@ public final class Hstore {
                         throws java.io.IOException {
       getSerializedSize();
       if (hasId()) {
-        output.writeInt32(1, getId());
+        output.writeInt32(2, getId());
       }
       for (com.google.protobuf.ByteString element : getDataList()) {
-        output.writeBytes(2, element);
+        output.writeBytes(3, element);
       }
       getUnknownFields().writeTo(output);
     }
@@ -907,7 +162,7 @@ public final class Hstore {
       size = 0;
       if (hasId()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(1, getId());
+          .computeInt32Size(2, getId());
       }
       {
         int dataSize = 0;
@@ -1114,11 +369,11 @@ public final class Hstore {
               }
               break;
             }
-            case 8: {
+            case 16: {
               setId(input.readInt32());
               break;
             }
-            case 18: {
+            case 26: {
               addData(input.readBytes());
               break;
             }
@@ -1127,7 +382,7 @@ public final class Hstore {
       }
       
       
-      // required int32 id = 1;
+      // required int32 id = 2;
       public boolean hasId() {
         return result.hasId();
       }
@@ -1145,7 +400,7 @@ public final class Hstore {
         return this;
       }
       
-      // repeated bytes data = 2;
+      // repeated bytes data = 3;
       public java.util.List<com.google.protobuf.ByteString> getDataList() {
         return java.util.Collections.unmodifiableList(result.data_);
       }
@@ -2430,31 +1685,31 @@ public final class Hstore {
       // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkRequest.InputDependency)
     }
     
-    public static final class PartitionFragment extends
+    public static final class WorkFragment extends
         com.google.protobuf.GeneratedMessage {
-      // Use PartitionFragment.newBuilder() to construct.
-      private PartitionFragment() {
+      // Use WorkFragment.newBuilder() to construct.
+      private WorkFragment() {
         initFields();
       }
-      private PartitionFragment(boolean noInit) {}
+      private WorkFragment(boolean noInit) {}
       
-      private static final PartitionFragment defaultInstance;
-      public static PartitionFragment getDefaultInstance() {
+      private static final WorkFragment defaultInstance;
+      public static WorkFragment getDefaultInstance() {
         return defaultInstance;
       }
       
-      public PartitionFragment getDefaultInstanceForType() {
+      public WorkFragment getDefaultInstanceForType() {
         return defaultInstance;
       }
       
       public static final com.google.protobuf.Descriptors.Descriptor
           getDescriptor() {
-        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor;
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_descriptor;
       }
       
       protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
           internalGetFieldAccessorTable() {
-        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_fieldAccessorTable;
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_fieldAccessorTable;
       }
       
       // required int32 partition_id = 1;
@@ -2660,41 +1915,41 @@ public final class Hstore {
         return size;
       }
       
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(
           com.google.protobuf.ByteString data)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(
           com.google.protobuf.ByteString data,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(byte[] data)
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(byte[] data)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(
           byte[] data,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(java.io.InputStream input)
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(java.io.InputStream input)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(
           java.io.InputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseDelimitedFrom(java.io.InputStream input)
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseDelimitedFrom(java.io.InputStream input)
           throws java.io.IOException {
         Builder builder = newBuilder();
         if (builder.mergeDelimitedFrom(input)) {
@@ -2703,7 +1958,7 @@ public final class Hstore {
           return null;
         }
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseDelimitedFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseDelimitedFrom(
           java.io.InputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
@@ -2714,12 +1969,12 @@ public final class Hstore {
           return null;
         }
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(
           com.google.protobuf.CodedInputStream input)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment parseFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
@@ -2729,25 +1984,25 @@ public final class Hstore {
       
       public static Builder newBuilder() { return Builder.create(); }
       public Builder newBuilderForType() { return newBuilder(); }
-      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment prototype) {
+      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment prototype) {
         return newBuilder().mergeFrom(prototype);
       }
       public Builder toBuilder() { return newBuilder(this); }
       
       public static final class Builder extends
           com.google.protobuf.GeneratedMessage.Builder<Builder> {
-        private edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment result;
+        private edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment result;
         
-        // Construct using edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.newBuilder()
+        // Construct using edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.newBuilder()
         private Builder() {}
         
         private static Builder create() {
           Builder builder = new Builder();
-          builder.result = new edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment();
+          builder.result = new edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment();
           return builder;
         }
         
-        protected edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment internalGetResult() {
+        protected edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment internalGetResult() {
           return result;
         }
         
@@ -2756,7 +2011,7 @@ public final class Hstore {
             throw new IllegalStateException(
               "Cannot call clear() after build().");
           }
-          result = new edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment();
+          result = new edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment();
           return this;
         }
         
@@ -2766,24 +2021,24 @@ public final class Hstore {
         
         public com.google.protobuf.Descriptors.Descriptor
             getDescriptorForType() {
-          return edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.getDescriptor();
+          return edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.getDescriptor();
         }
         
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment getDefaultInstanceForType() {
-          return edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.getDefaultInstance();
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment getDefaultInstanceForType() {
+          return edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.getDefaultInstance();
         }
         
         public boolean isInitialized() {
           return result.isInitialized();
         }
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment build() {
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment build() {
           if (result != null && !isInitialized()) {
             throw newUninitializedMessageException(result);
           }
           return buildPartial();
         }
         
-        private edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment buildParsed()
+        private edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment buildParsed()
             throws com.google.protobuf.InvalidProtocolBufferException {
           if (!isInitialized()) {
             throw newUninitializedMessageException(
@@ -2792,7 +2047,7 @@ public final class Hstore {
           return buildPartial();
         }
         
-        public edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment buildPartial() {
+        public edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment buildPartial() {
           if (result == null) {
             throw new IllegalStateException(
               "build() has already been called on this Builder.");
@@ -2813,22 +2068,22 @@ public final class Hstore {
             result.stmtIndex_ =
               java.util.Collections.unmodifiableList(result.stmtIndex_);
           }
-          edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment returnMe = result;
+          edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment returnMe = result;
           result = null;
           return returnMe;
         }
         
         public Builder mergeFrom(com.google.protobuf.Message other) {
-          if (other instanceof edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment) {
-            return mergeFrom((edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment)other);
+          if (other instanceof edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment) {
+            return mergeFrom((edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment)other);
           } else {
             super.mergeFrom(other);
             return this;
           }
         }
         
-        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment other) {
-          if (other == edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.getDefaultInstance()) return this;
+        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment other) {
+          if (other == edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.getDefaultInstance()) return this;
           if (other.hasPartitionId()) {
             setPartitionId(other.getPartitionId());
           }
@@ -3181,16 +2436,16 @@ public final class Hstore {
           return this;
         }
         
-        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionWorkRequest.PartitionFragment)
+        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionWorkRequest.WorkFragment)
       }
       
       static {
-        defaultInstance = new PartitionFragment(true);
+        defaultInstance = new WorkFragment(true);
         edu.brown.hstore.Hstore.internalForceInit();
         defaultInstance.initFields();
       }
       
-      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkRequest.PartitionFragment)
+      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkRequest.WorkFragment)
     }
     
     // required int64 transaction_id = 1;
@@ -3207,15 +2462,15 @@ public final class Hstore {
     public boolean hasSourcePartition() { return hasSourcePartition; }
     public int getSourcePartition() { return sourcePartition_; }
     
-    // repeated .edu.brown.hstore.TransactionWorkRequest.PartitionFragment fragments = 3;
+    // repeated .edu.brown.hstore.TransactionWorkRequest.WorkFragment fragments = 3;
     public static final int FRAGMENTS_FIELD_NUMBER = 3;
-    private java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment> fragments_ =
+    private java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment> fragments_ =
       java.util.Collections.emptyList();
-    public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment> getFragmentsList() {
+    public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment> getFragmentsList() {
       return fragments_;
     }
     public int getFragmentsCount() { return fragments_.size(); }
-    public edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment getFragments(int index) {
+    public edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment getFragments(int index) {
       return fragments_.get(index);
     }
     
@@ -3269,7 +2524,7 @@ public final class Hstore {
       if (!hasTransactionId) return false;
       if (!hasSourcePartition) return false;
       if (!hasSysproc) return false;
-      for (edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment element : getFragmentsList()) {
+      for (edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment element : getFragmentsList()) {
         if (!element.isInitialized()) return false;
       }
       for (edu.brown.hstore.Hstore.Dependency element : getAttachedList()) {
@@ -3287,7 +2542,7 @@ public final class Hstore {
       if (hasSourcePartition()) {
         output.writeInt32(2, getSourcePartition());
       }
-      for (edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment element : getFragmentsList()) {
+      for (edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment element : getFragmentsList()) {
         output.writeMessage(3, element);
       }
       if (hasSysproc()) {
@@ -3323,7 +2578,7 @@ public final class Hstore {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(2, getSourcePartition());
       }
-      for (edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment element : getFragmentsList()) {
+      for (edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment element : getFragmentsList()) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(3, element);
       }
@@ -3540,7 +2795,7 @@ public final class Hstore {
         }
         if (!other.fragments_.isEmpty()) {
           if (result.fragments_.isEmpty()) {
-            result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment>();
+            result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment>();
           }
           result.fragments_.addAll(other.fragments_);
         }
@@ -3599,7 +2854,7 @@ public final class Hstore {
               break;
             }
             case 26: {
-              edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.Builder subBuilder = edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.newBuilder();
+              edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.Builder subBuilder = edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addFragments(subBuilder.buildPartial());
               break;
@@ -3672,48 +2927,48 @@ public final class Hstore {
         return this;
       }
       
-      // repeated .edu.brown.hstore.TransactionWorkRequest.PartitionFragment fragments = 3;
-      public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment> getFragmentsList() {
+      // repeated .edu.brown.hstore.TransactionWorkRequest.WorkFragment fragments = 3;
+      public java.util.List<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment> getFragmentsList() {
         return java.util.Collections.unmodifiableList(result.fragments_);
       }
       public int getFragmentsCount() {
         return result.getFragmentsCount();
       }
-      public edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment getFragments(int index) {
+      public edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment getFragments(int index) {
         return result.getFragments(index);
       }
-      public Builder setFragments(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment value) {
+      public Builder setFragments(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment value) {
         if (value == null) {
           throw new NullPointerException();
         }
         result.fragments_.set(index, value);
         return this;
       }
-      public Builder setFragments(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.Builder builderForValue) {
+      public Builder setFragments(int index, edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.Builder builderForValue) {
         result.fragments_.set(index, builderForValue.build());
         return this;
       }
-      public Builder addFragments(edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment value) {
+      public Builder addFragments(edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment value) {
         if (value == null) {
           throw new NullPointerException();
         }
         if (result.fragments_.isEmpty()) {
-          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment>();
+          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment>();
         }
         result.fragments_.add(value);
         return this;
       }
-      public Builder addFragments(edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.Builder builderForValue) {
+      public Builder addFragments(edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.Builder builderForValue) {
         if (result.fragments_.isEmpty()) {
-          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment>();
+          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment>();
         }
         result.fragments_.add(builderForValue.build());
         return this;
       }
       public Builder addAllFragments(
-          java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment> values) {
+          java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment> values) {
         if (result.fragments_.isEmpty()) {
-          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment>();
+          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment>();
         }
         super.addAll(values, result.fragments_);
         return this;
@@ -3905,31 +3160,31 @@ public final class Hstore {
       return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkResponse_fieldAccessorTable;
     }
     
-    public static final class PartitionResult extends
+    public static final class WorkResult extends
         com.google.protobuf.GeneratedMessage {
-      // Use PartitionResult.newBuilder() to construct.
-      private PartitionResult() {
+      // Use WorkResult.newBuilder() to construct.
+      private WorkResult() {
         initFields();
       }
-      private PartitionResult(boolean noInit) {}
+      private WorkResult(boolean noInit) {}
       
-      private static final PartitionResult defaultInstance;
-      public static PartitionResult getDefaultInstance() {
+      private static final WorkResult defaultInstance;
+      public static WorkResult getDefaultInstance() {
         return defaultInstance;
       }
       
-      public PartitionResult getDefaultInstanceForType() {
+      public WorkResult getDefaultInstanceForType() {
         return defaultInstance;
       }
       
       public static final com.google.protobuf.Descriptors.Descriptor
           getDescriptor() {
-        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_descriptor;
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_descriptor;
       }
       
       protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
           internalGetFieldAccessorTable() {
-        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_fieldAccessorTable;
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_fieldAccessorTable;
       }
       
       // required int32 partition_id = 1;
@@ -4022,41 +3277,41 @@ public final class Hstore {
         return size;
       }
       
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(
           com.google.protobuf.ByteString data)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(
           com.google.protobuf.ByteString data,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(byte[] data)
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(byte[] data)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(
           byte[] data,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
         return newBuilder().mergeFrom(data, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(java.io.InputStream input)
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(java.io.InputStream input)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(
           java.io.InputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input, extensionRegistry)
                  .buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseDelimitedFrom(java.io.InputStream input)
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseDelimitedFrom(java.io.InputStream input)
           throws java.io.IOException {
         Builder builder = newBuilder();
         if (builder.mergeDelimitedFrom(input)) {
@@ -4065,7 +3320,7 @@ public final class Hstore {
           return null;
         }
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseDelimitedFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseDelimitedFrom(
           java.io.InputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
@@ -4076,12 +3331,12 @@ public final class Hstore {
           return null;
         }
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(
           com.google.protobuf.CodedInputStream input)
           throws java.io.IOException {
         return newBuilder().mergeFrom(input).buildParsed();
       }
-      public static edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult parseFrom(
+      public static edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult parseFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
@@ -4091,25 +3346,25 @@ public final class Hstore {
       
       public static Builder newBuilder() { return Builder.create(); }
       public Builder newBuilderForType() { return newBuilder(); }
-      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult prototype) {
+      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult prototype) {
         return newBuilder().mergeFrom(prototype);
       }
       public Builder toBuilder() { return newBuilder(this); }
       
       public static final class Builder extends
           com.google.protobuf.GeneratedMessage.Builder<Builder> {
-        private edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult result;
+        private edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult result;
         
-        // Construct using edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.newBuilder()
+        // Construct using edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.newBuilder()
         private Builder() {}
         
         private static Builder create() {
           Builder builder = new Builder();
-          builder.result = new edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult();
+          builder.result = new edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult();
           return builder;
         }
         
-        protected edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult internalGetResult() {
+        protected edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult internalGetResult() {
           return result;
         }
         
@@ -4118,7 +3373,7 @@ public final class Hstore {
             throw new IllegalStateException(
               "Cannot call clear() after build().");
           }
-          result = new edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult();
+          result = new edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult();
           return this;
         }
         
@@ -4128,24 +3383,24 @@ public final class Hstore {
         
         public com.google.protobuf.Descriptors.Descriptor
             getDescriptorForType() {
-          return edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.getDescriptor();
+          return edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.getDescriptor();
         }
         
-        public edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult getDefaultInstanceForType() {
-          return edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.getDefaultInstance();
+        public edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult getDefaultInstanceForType() {
+          return edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.getDefaultInstance();
         }
         
         public boolean isInitialized() {
           return result.isInitialized();
         }
-        public edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult build() {
+        public edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult build() {
           if (result != null && !isInitialized()) {
             throw newUninitializedMessageException(result);
           }
           return buildPartial();
         }
         
-        private edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult buildParsed()
+        private edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult buildParsed()
             throws com.google.protobuf.InvalidProtocolBufferException {
           if (!isInitialized()) {
             throw newUninitializedMessageException(
@@ -4154,7 +3409,7 @@ public final class Hstore {
           return buildPartial();
         }
         
-        public edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult buildPartial() {
+        public edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult buildPartial() {
           if (result == null) {
             throw new IllegalStateException(
               "build() has already been called on this Builder.");
@@ -4163,22 +3418,22 @@ public final class Hstore {
             result.output_ =
               java.util.Collections.unmodifiableList(result.output_);
           }
-          edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult returnMe = result;
+          edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult returnMe = result;
           result = null;
           return returnMe;
         }
         
         public Builder mergeFrom(com.google.protobuf.Message other) {
-          if (other instanceof edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult) {
-            return mergeFrom((edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult)other);
+          if (other instanceof edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult) {
+            return mergeFrom((edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult)other);
           } else {
             super.mergeFrom(other);
             return this;
           }
         }
         
-        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult other) {
-          if (other == edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.getDefaultInstance()) return this;
+        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult other) {
+          if (other == edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.getDefaultInstance()) return this;
           if (other.hasPartitionId()) {
             setPartitionId(other.getPartitionId());
           }
@@ -4359,16 +3614,16 @@ public final class Hstore {
           return this;
         }
         
-        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionWorkResponse.PartitionResult)
+        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionWorkResponse.WorkResult)
       }
       
       static {
-        defaultInstance = new PartitionResult(true);
+        defaultInstance = new WorkResult(true);
         edu.brown.hstore.Hstore.internalForceInit();
         defaultInstance.initFields();
       }
       
-      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkResponse.PartitionResult)
+      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionWorkResponse.WorkResult)
     }
     
     // required int64 transaction_id = 1;
@@ -4378,15 +3633,15 @@ public final class Hstore {
     public boolean hasTransactionId() { return hasTransactionId; }
     public long getTransactionId() { return transactionId_; }
     
-    // repeated .edu.brown.hstore.TransactionWorkResponse.PartitionResult results = 2;
+    // repeated .edu.brown.hstore.TransactionWorkResponse.WorkResult results = 2;
     public static final int RESULTS_FIELD_NUMBER = 2;
-    private java.util.List<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult> results_ =
+    private java.util.List<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult> results_ =
       java.util.Collections.emptyList();
-    public java.util.List<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult> getResultsList() {
+    public java.util.List<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult> getResultsList() {
       return results_;
     }
     public int getResultsCount() { return results_.size(); }
-    public edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult getResults(int index) {
+    public edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult getResults(int index) {
       return results_.get(index);
     }
     
@@ -4403,7 +3658,7 @@ public final class Hstore {
     public final boolean isInitialized() {
       if (!hasTransactionId) return false;
       if (!hasStatus) return false;
-      for (edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult element : getResultsList()) {
+      for (edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult element : getResultsList()) {
         if (!element.isInitialized()) return false;
       }
       return true;
@@ -4415,7 +3670,7 @@ public final class Hstore {
       if (hasTransactionId()) {
         output.writeInt64(1, getTransactionId());
       }
-      for (edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult element : getResultsList()) {
+      for (edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult element : getResultsList()) {
         output.writeMessage(2, element);
       }
       if (hasStatus()) {
@@ -4434,7 +3689,7 @@ public final class Hstore {
         size += com.google.protobuf.CodedOutputStream
           .computeInt64Size(1, getTransactionId());
       }
-      for (edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult element : getResultsList()) {
+      for (edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult element : getResultsList()) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(2, element);
       }
@@ -4609,7 +3864,7 @@ public final class Hstore {
         }
         if (!other.results_.isEmpty()) {
           if (result.results_.isEmpty()) {
-            result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult>();
+            result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult>();
           }
           result.results_.addAll(other.results_);
         }
@@ -4646,7 +3901,7 @@ public final class Hstore {
               break;
             }
             case 18: {
-              edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.Builder subBuilder = edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.newBuilder();
+              edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.Builder subBuilder = edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addResults(subBuilder.buildPartial());
               break;
@@ -4684,48 +3939,48 @@ public final class Hstore {
         return this;
       }
       
-      // repeated .edu.brown.hstore.TransactionWorkResponse.PartitionResult results = 2;
-      public java.util.List<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult> getResultsList() {
+      // repeated .edu.brown.hstore.TransactionWorkResponse.WorkResult results = 2;
+      public java.util.List<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult> getResultsList() {
         return java.util.Collections.unmodifiableList(result.results_);
       }
       public int getResultsCount() {
         return result.getResultsCount();
       }
-      public edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult getResults(int index) {
+      public edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult getResults(int index) {
         return result.getResults(index);
       }
-      public Builder setResults(int index, edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult value) {
+      public Builder setResults(int index, edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult value) {
         if (value == null) {
           throw new NullPointerException();
         }
         result.results_.set(index, value);
         return this;
       }
-      public Builder setResults(int index, edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.Builder builderForValue) {
+      public Builder setResults(int index, edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.Builder builderForValue) {
         result.results_.set(index, builderForValue.build());
         return this;
       }
-      public Builder addResults(edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult value) {
+      public Builder addResults(edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult value) {
         if (value == null) {
           throw new NullPointerException();
         }
         if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult>();
+          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult>();
         }
         result.results_.add(value);
         return this;
       }
-      public Builder addResults(edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.Builder builderForValue) {
+      public Builder addResults(edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.Builder builderForValue) {
         if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult>();
+          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult>();
         }
         result.results_.add(builderForValue.build());
         return this;
       }
       public Builder addAllResults(
-          java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult> values) {
+          java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult> values) {
         if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult>();
+          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult>();
         }
         super.addAll(values, result.results_);
         return this;
@@ -5957,6 +5212,423 @@ public final class Hstore {
       return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionReduceResponse_fieldAccessorTable;
     }
     
+    public static final class ReduceResult extends
+        com.google.protobuf.GeneratedMessage {
+      // Use ReduceResult.newBuilder() to construct.
+      private ReduceResult() {
+        initFields();
+      }
+      private ReduceResult(boolean noInit) {}
+      
+      private static final ReduceResult defaultInstance;
+      public static ReduceResult getDefaultInstance() {
+        return defaultInstance;
+      }
+      
+      public ReduceResult getDefaultInstanceForType() {
+        return defaultInstance;
+      }
+      
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_descriptor;
+      }
+      
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return edu.brown.hstore.Hstore.internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_fieldAccessorTable;
+      }
+      
+      // required int32 partition_id = 1;
+      public static final int PARTITION_ID_FIELD_NUMBER = 1;
+      private boolean hasPartitionId;
+      private int partitionId_ = 0;
+      public boolean hasPartitionId() { return hasPartitionId; }
+      public int getPartitionId() { return partitionId_; }
+      
+      // required bytes data = 2;
+      public static final int DATA_FIELD_NUMBER = 2;
+      private boolean hasData;
+      private com.google.protobuf.ByteString data_ = com.google.protobuf.ByteString.EMPTY;
+      public boolean hasData() { return hasData; }
+      public com.google.protobuf.ByteString getData() { return data_; }
+      
+      // required .edu.brown.hstore.Status status = 3;
+      public static final int STATUS_FIELD_NUMBER = 3;
+      private boolean hasStatus;
+      private edu.brown.hstore.Hstore.Status status_;
+      public boolean hasStatus() { return hasStatus; }
+      public edu.brown.hstore.Hstore.Status getStatus() { return status_; }
+      
+      // optional bool error = 4 [default = false];
+      public static final int ERROR_FIELD_NUMBER = 4;
+      private boolean hasError;
+      private boolean error_ = false;
+      public boolean hasError() { return hasError; }
+      public boolean getError() { return error_; }
+      
+      private void initFields() {
+        status_ = edu.brown.hstore.Hstore.Status.OK;
+      }
+      public final boolean isInitialized() {
+        if (!hasPartitionId) return false;
+        if (!hasData) return false;
+        if (!hasStatus) return false;
+        return true;
+      }
+      
+      public void writeTo(com.google.protobuf.CodedOutputStream output)
+                          throws java.io.IOException {
+        getSerializedSize();
+        if (hasPartitionId()) {
+          output.writeInt32(1, getPartitionId());
+        }
+        if (hasData()) {
+          output.writeBytes(2, getData());
+        }
+        if (hasStatus()) {
+          output.writeEnum(3, getStatus().getNumber());
+        }
+        if (hasError()) {
+          output.writeBool(4, getError());
+        }
+        getUnknownFields().writeTo(output);
+      }
+      
+      private int memoizedSerializedSize = -1;
+      public int getSerializedSize() {
+        int size = memoizedSerializedSize;
+        if (size != -1) return size;
+      
+        size = 0;
+        if (hasPartitionId()) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeInt32Size(1, getPartitionId());
+        }
+        if (hasData()) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeBytesSize(2, getData());
+        }
+        if (hasStatus()) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeEnumSize(3, getStatus().getNumber());
+        }
+        if (hasError()) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeBoolSize(4, getError());
+        }
+        size += getUnknownFields().getSerializedSize();
+        memoizedSerializedSize = size;
+        return size;
+      }
+      
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(
+          com.google.protobuf.ByteString data)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return newBuilder().mergeFrom(data).buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(
+          com.google.protobuf.ByteString data,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return newBuilder().mergeFrom(data, extensionRegistry)
+                 .buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(byte[] data)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return newBuilder().mergeFrom(data).buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(
+          byte[] data,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return newBuilder().mergeFrom(data, extensionRegistry)
+                 .buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(java.io.InputStream input)
+          throws java.io.IOException {
+        return newBuilder().mergeFrom(input).buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(
+          java.io.InputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        return newBuilder().mergeFrom(input, extensionRegistry)
+                 .buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseDelimitedFrom(java.io.InputStream input)
+          throws java.io.IOException {
+        Builder builder = newBuilder();
+        if (builder.mergeDelimitedFrom(input)) {
+          return builder.buildParsed();
+        } else {
+          return null;
+        }
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseDelimitedFrom(
+          java.io.InputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        Builder builder = newBuilder();
+        if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+          return builder.buildParsed();
+        } else {
+          return null;
+        }
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(
+          com.google.protobuf.CodedInputStream input)
+          throws java.io.IOException {
+        return newBuilder().mergeFrom(input).buildParsed();
+      }
+      public static edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult parseFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        return newBuilder().mergeFrom(input, extensionRegistry)
+                 .buildParsed();
+      }
+      
+      public static Builder newBuilder() { return Builder.create(); }
+      public Builder newBuilderForType() { return newBuilder(); }
+      public static Builder newBuilder(edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult prototype) {
+        return newBuilder().mergeFrom(prototype);
+      }
+      public Builder toBuilder() { return newBuilder(this); }
+      
+      public static final class Builder extends
+          com.google.protobuf.GeneratedMessage.Builder<Builder> {
+        private edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult result;
+        
+        // Construct using edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.newBuilder()
+        private Builder() {}
+        
+        private static Builder create() {
+          Builder builder = new Builder();
+          builder.result = new edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult();
+          return builder;
+        }
+        
+        protected edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult internalGetResult() {
+          return result;
+        }
+        
+        public Builder clear() {
+          if (result == null) {
+            throw new IllegalStateException(
+              "Cannot call clear() after build().");
+          }
+          result = new edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult();
+          return this;
+        }
+        
+        public Builder clone() {
+          return create().mergeFrom(result);
+        }
+        
+        public com.google.protobuf.Descriptors.Descriptor
+            getDescriptorForType() {
+          return edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.getDescriptor();
+        }
+        
+        public edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult getDefaultInstanceForType() {
+          return edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.getDefaultInstance();
+        }
+        
+        public boolean isInitialized() {
+          return result.isInitialized();
+        }
+        public edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult build() {
+          if (result != null && !isInitialized()) {
+            throw newUninitializedMessageException(result);
+          }
+          return buildPartial();
+        }
+        
+        private edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult buildParsed()
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          if (!isInitialized()) {
+            throw newUninitializedMessageException(
+              result).asInvalidProtocolBufferException();
+          }
+          return buildPartial();
+        }
+        
+        public edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult buildPartial() {
+          if (result == null) {
+            throw new IllegalStateException(
+              "build() has already been called on this Builder.");
+          }
+          edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult returnMe = result;
+          result = null;
+          return returnMe;
+        }
+        
+        public Builder mergeFrom(com.google.protobuf.Message other) {
+          if (other instanceof edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult) {
+            return mergeFrom((edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult)other);
+          } else {
+            super.mergeFrom(other);
+            return this;
+          }
+        }
+        
+        public Builder mergeFrom(edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult other) {
+          if (other == edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.getDefaultInstance()) return this;
+          if (other.hasPartitionId()) {
+            setPartitionId(other.getPartitionId());
+          }
+          if (other.hasData()) {
+            setData(other.getData());
+          }
+          if (other.hasStatus()) {
+            setStatus(other.getStatus());
+          }
+          if (other.hasError()) {
+            setError(other.getError());
+          }
+          this.mergeUnknownFields(other.getUnknownFields());
+          return this;
+        }
+        
+        public Builder mergeFrom(
+            com.google.protobuf.CodedInputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+            com.google.protobuf.UnknownFieldSet.newBuilder(
+              this.getUnknownFields());
+          while (true) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                this.setUnknownFields(unknownFields.build());
+                return this;
+              default: {
+                if (!parseUnknownField(input, unknownFields,
+                                       extensionRegistry, tag)) {
+                  this.setUnknownFields(unknownFields.build());
+                  return this;
+                }
+                break;
+              }
+              case 8: {
+                setPartitionId(input.readInt32());
+                break;
+              }
+              case 18: {
+                setData(input.readBytes());
+                break;
+              }
+              case 24: {
+                int rawValue = input.readEnum();
+                edu.brown.hstore.Hstore.Status value = edu.brown.hstore.Hstore.Status.valueOf(rawValue);
+                if (value == null) {
+                  unknownFields.mergeVarintField(3, rawValue);
+                } else {
+                  setStatus(value);
+                }
+                break;
+              }
+              case 32: {
+                setError(input.readBool());
+                break;
+              }
+            }
+          }
+        }
+        
+        
+        // required int32 partition_id = 1;
+        public boolean hasPartitionId() {
+          return result.hasPartitionId();
+        }
+        public int getPartitionId() {
+          return result.getPartitionId();
+        }
+        public Builder setPartitionId(int value) {
+          result.hasPartitionId = true;
+          result.partitionId_ = value;
+          return this;
+        }
+        public Builder clearPartitionId() {
+          result.hasPartitionId = false;
+          result.partitionId_ = 0;
+          return this;
+        }
+        
+        // required bytes data = 2;
+        public boolean hasData() {
+          return result.hasData();
+        }
+        public com.google.protobuf.ByteString getData() {
+          return result.getData();
+        }
+        public Builder setData(com.google.protobuf.ByteString value) {
+          if (value == null) {
+    throw new NullPointerException();
+  }
+  result.hasData = true;
+          result.data_ = value;
+          return this;
+        }
+        public Builder clearData() {
+          result.hasData = false;
+          result.data_ = getDefaultInstance().getData();
+          return this;
+        }
+        
+        // required .edu.brown.hstore.Status status = 3;
+        public boolean hasStatus() {
+          return result.hasStatus();
+        }
+        public edu.brown.hstore.Hstore.Status getStatus() {
+          return result.getStatus();
+        }
+        public Builder setStatus(edu.brown.hstore.Hstore.Status value) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          result.hasStatus = true;
+          result.status_ = value;
+          return this;
+        }
+        public Builder clearStatus() {
+          result.hasStatus = false;
+          result.status_ = edu.brown.hstore.Hstore.Status.OK;
+          return this;
+        }
+        
+        // optional bool error = 4 [default = false];
+        public boolean hasError() {
+          return result.hasError();
+        }
+        public boolean getError() {
+          return result.getError();
+        }
+        public Builder setError(boolean value) {
+          result.hasError = true;
+          result.error_ = value;
+          return this;
+        }
+        public Builder clearError() {
+          result.hasError = false;
+          result.error_ = false;
+          return this;
+        }
+        
+        // @@protoc_insertion_point(builder_scope:edu.brown.hstore.TransactionReduceResponse.ReduceResult)
+      }
+      
+      static {
+        defaultInstance = new ReduceResult(true);
+        edu.brown.hstore.Hstore.internalForceInit();
+        defaultInstance.initFields();
+      }
+      
+      // @@protoc_insertion_point(class_scope:edu.brown.hstore.TransactionReduceResponse.ReduceResult)
+    }
+    
     // required int64 transaction_id = 1;
     public static final int TRANSACTION_ID_FIELD_NUMBER = 1;
     private boolean hasTransactionId;
@@ -5964,15 +5636,15 @@ public final class Hstore {
     public boolean hasTransactionId() { return hasTransactionId; }
     public long getTransactionId() { return transactionId_; }
     
-    // repeated .edu.brown.hstore.PartitionResult results = 2;
+    // repeated .edu.brown.hstore.TransactionReduceResponse.ReduceResult results = 2;
     public static final int RESULTS_FIELD_NUMBER = 2;
-    private java.util.List<edu.brown.hstore.Hstore.PartitionResult> results_ =
+    private java.util.List<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult> results_ =
       java.util.Collections.emptyList();
-    public java.util.List<edu.brown.hstore.Hstore.PartitionResult> getResultsList() {
+    public java.util.List<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult> getResultsList() {
       return results_;
     }
     public int getResultsCount() { return results_.size(); }
-    public edu.brown.hstore.Hstore.PartitionResult getResults(int index) {
+    public edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult getResults(int index) {
       return results_.get(index);
     }
     
@@ -5989,7 +5661,7 @@ public final class Hstore {
     public final boolean isInitialized() {
       if (!hasTransactionId) return false;
       if (!hasStatus) return false;
-      for (edu.brown.hstore.Hstore.PartitionResult element : getResultsList()) {
+      for (edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult element : getResultsList()) {
         if (!element.isInitialized()) return false;
       }
       return true;
@@ -6001,7 +5673,7 @@ public final class Hstore {
       if (hasTransactionId()) {
         output.writeInt64(1, getTransactionId());
       }
-      for (edu.brown.hstore.Hstore.PartitionResult element : getResultsList()) {
+      for (edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult element : getResultsList()) {
         output.writeMessage(2, element);
       }
       if (hasStatus()) {
@@ -6020,7 +5692,7 @@ public final class Hstore {
         size += com.google.protobuf.CodedOutputStream
           .computeInt64Size(1, getTransactionId());
       }
-      for (edu.brown.hstore.Hstore.PartitionResult element : getResultsList()) {
+      for (edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult element : getResultsList()) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(2, element);
       }
@@ -6195,7 +5867,7 @@ public final class Hstore {
         }
         if (!other.results_.isEmpty()) {
           if (result.results_.isEmpty()) {
-            result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionResult>();
+            result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult>();
           }
           result.results_.addAll(other.results_);
         }
@@ -6232,7 +5904,7 @@ public final class Hstore {
               break;
             }
             case 18: {
-              edu.brown.hstore.Hstore.PartitionResult.Builder subBuilder = edu.brown.hstore.Hstore.PartitionResult.newBuilder();
+              edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.Builder subBuilder = edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addResults(subBuilder.buildPartial());
               break;
@@ -6270,48 +5942,48 @@ public final class Hstore {
         return this;
       }
       
-      // repeated .edu.brown.hstore.PartitionResult results = 2;
-      public java.util.List<edu.brown.hstore.Hstore.PartitionResult> getResultsList() {
+      // repeated .edu.brown.hstore.TransactionReduceResponse.ReduceResult results = 2;
+      public java.util.List<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult> getResultsList() {
         return java.util.Collections.unmodifiableList(result.results_);
       }
       public int getResultsCount() {
         return result.getResultsCount();
       }
-      public edu.brown.hstore.Hstore.PartitionResult getResults(int index) {
+      public edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult getResults(int index) {
         return result.getResults(index);
       }
-      public Builder setResults(int index, edu.brown.hstore.Hstore.PartitionResult value) {
+      public Builder setResults(int index, edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult value) {
         if (value == null) {
           throw new NullPointerException();
         }
         result.results_.set(index, value);
         return this;
       }
-      public Builder setResults(int index, edu.brown.hstore.Hstore.PartitionResult.Builder builderForValue) {
+      public Builder setResults(int index, edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.Builder builderForValue) {
         result.results_.set(index, builderForValue.build());
         return this;
       }
-      public Builder addResults(edu.brown.hstore.Hstore.PartitionResult value) {
+      public Builder addResults(edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult value) {
         if (value == null) {
           throw new NullPointerException();
         }
         if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionResult>();
+          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult>();
         }
         result.results_.add(value);
         return this;
       }
-      public Builder addResults(edu.brown.hstore.Hstore.PartitionResult.Builder builderForValue) {
+      public Builder addResults(edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.Builder builderForValue) {
         if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionResult>();
+          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult>();
         }
         result.results_.add(builderForValue.build());
         return this;
       }
       public Builder addAllResults(
-          java.lang.Iterable<? extends edu.brown.hstore.Hstore.PartitionResult> values) {
+          java.lang.Iterable<? extends edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult> values) {
         if (result.results_.isEmpty()) {
-          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionResult>();
+          result.results_ = new java.util.ArrayList<edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult>();
         }
         super.addAll(values, result.results_);
         return this;
@@ -8687,15 +8359,15 @@ public final class Hstore {
     public boolean hasTransactionId() { return hasTransactionId; }
     public long getTransactionId() { return transactionId_; }
     
-    // repeated .edu.brown.hstore.PartitionFragment fragments = 2;
+    // repeated .edu.brown.hstore.Dependency fragments = 2;
     public static final int FRAGMENTS_FIELD_NUMBER = 2;
-    private java.util.List<edu.brown.hstore.Hstore.PartitionFragment> fragments_ =
+    private java.util.List<edu.brown.hstore.Hstore.Dependency> fragments_ =
       java.util.Collections.emptyList();
-    public java.util.List<edu.brown.hstore.Hstore.PartitionFragment> getFragmentsList() {
+    public java.util.List<edu.brown.hstore.Hstore.Dependency> getFragmentsList() {
       return fragments_;
     }
     public int getFragmentsCount() { return fragments_.size(); }
-    public edu.brown.hstore.Hstore.PartitionFragment getFragments(int index) {
+    public edu.brown.hstore.Hstore.Dependency getFragments(int index) {
       return fragments_.get(index);
     }
     
@@ -8711,7 +8383,7 @@ public final class Hstore {
     public final boolean isInitialized() {
       if (!hasTransactionId) return false;
       if (!hasSenderId) return false;
-      for (edu.brown.hstore.Hstore.PartitionFragment element : getFragmentsList()) {
+      for (edu.brown.hstore.Hstore.Dependency element : getFragmentsList()) {
         if (!element.isInitialized()) return false;
       }
       return true;
@@ -8723,7 +8395,7 @@ public final class Hstore {
       if (hasTransactionId()) {
         output.writeInt64(1, getTransactionId());
       }
-      for (edu.brown.hstore.Hstore.PartitionFragment element : getFragmentsList()) {
+      for (edu.brown.hstore.Hstore.Dependency element : getFragmentsList()) {
         output.writeMessage(2, element);
       }
       if (hasSenderId()) {
@@ -8742,7 +8414,7 @@ public final class Hstore {
         size += com.google.protobuf.CodedOutputStream
           .computeInt64Size(1, getTransactionId());
       }
-      for (edu.brown.hstore.Hstore.PartitionFragment element : getFragmentsList()) {
+      for (edu.brown.hstore.Hstore.Dependency element : getFragmentsList()) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(2, element);
       }
@@ -8917,7 +8589,7 @@ public final class Hstore {
         }
         if (!other.fragments_.isEmpty()) {
           if (result.fragments_.isEmpty()) {
-            result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionFragment>();
+            result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.Dependency>();
           }
           result.fragments_.addAll(other.fragments_);
         }
@@ -8954,7 +8626,7 @@ public final class Hstore {
               break;
             }
             case 18: {
-              edu.brown.hstore.Hstore.PartitionFragment.Builder subBuilder = edu.brown.hstore.Hstore.PartitionFragment.newBuilder();
+              edu.brown.hstore.Hstore.Dependency.Builder subBuilder = edu.brown.hstore.Hstore.Dependency.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addFragments(subBuilder.buildPartial());
               break;
@@ -8986,48 +8658,48 @@ public final class Hstore {
         return this;
       }
       
-      // repeated .edu.brown.hstore.PartitionFragment fragments = 2;
-      public java.util.List<edu.brown.hstore.Hstore.PartitionFragment> getFragmentsList() {
+      // repeated .edu.brown.hstore.Dependency fragments = 2;
+      public java.util.List<edu.brown.hstore.Hstore.Dependency> getFragmentsList() {
         return java.util.Collections.unmodifiableList(result.fragments_);
       }
       public int getFragmentsCount() {
         return result.getFragmentsCount();
       }
-      public edu.brown.hstore.Hstore.PartitionFragment getFragments(int index) {
+      public edu.brown.hstore.Hstore.Dependency getFragments(int index) {
         return result.getFragments(index);
       }
-      public Builder setFragments(int index, edu.brown.hstore.Hstore.PartitionFragment value) {
+      public Builder setFragments(int index, edu.brown.hstore.Hstore.Dependency value) {
         if (value == null) {
           throw new NullPointerException();
         }
         result.fragments_.set(index, value);
         return this;
       }
-      public Builder setFragments(int index, edu.brown.hstore.Hstore.PartitionFragment.Builder builderForValue) {
+      public Builder setFragments(int index, edu.brown.hstore.Hstore.Dependency.Builder builderForValue) {
         result.fragments_.set(index, builderForValue.build());
         return this;
       }
-      public Builder addFragments(edu.brown.hstore.Hstore.PartitionFragment value) {
+      public Builder addFragments(edu.brown.hstore.Hstore.Dependency value) {
         if (value == null) {
           throw new NullPointerException();
         }
         if (result.fragments_.isEmpty()) {
-          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionFragment>();
+          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.Dependency>();
         }
         result.fragments_.add(value);
         return this;
       }
-      public Builder addFragments(edu.brown.hstore.Hstore.PartitionFragment.Builder builderForValue) {
+      public Builder addFragments(edu.brown.hstore.Hstore.Dependency.Builder builderForValue) {
         if (result.fragments_.isEmpty()) {
-          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionFragment>();
+          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.Dependency>();
         }
         result.fragments_.add(builderForValue.build());
         return this;
       }
       public Builder addAllFragments(
-          java.lang.Iterable<? extends edu.brown.hstore.Hstore.PartitionFragment> values) {
+          java.lang.Iterable<? extends edu.brown.hstore.Hstore.Dependency> values) {
         if (result.fragments_.isEmpty()) {
-          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.PartitionFragment>();
+          result.fragments_ = new java.util.ArrayList<edu.brown.hstore.Hstore.Dependency>();
         }
         super.addAll(values, result.fragments_);
         return this;
@@ -11680,16 +11352,6 @@ public final class Hstore {
   }
   
   private static com.google.protobuf.Descriptors.Descriptor
-    internal_static_edu_brown_hstore_PartitionFragment_descriptor;
-  private static
-    com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_edu_brown_hstore_PartitionFragment_fieldAccessorTable;
-  private static com.google.protobuf.Descriptors.Descriptor
-    internal_static_edu_brown_hstore_PartitionResult_descriptor;
-  private static
-    com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_edu_brown_hstore_PartitionResult_fieldAccessorTable;
-  private static com.google.protobuf.Descriptors.Descriptor
     internal_static_edu_brown_hstore_Dependency_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -11715,20 +11377,20 @@ public final class Hstore {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_edu_brown_hstore_TransactionWorkRequest_InputDependency_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
-    internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor;
+    internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_fieldAccessorTable;
+      internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
     internal_static_edu_brown_hstore_TransactionWorkResponse_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_edu_brown_hstore_TransactionWorkResponse_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
-    internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_descriptor;
+    internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_fieldAccessorTable;
+      internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
     internal_static_edu_brown_hstore_TransactionMapRequest_descriptor;
   private static
@@ -11749,6 +11411,11 @@ public final class Hstore {
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_edu_brown_hstore_TransactionReduceResponse_fieldAccessorTable;
+  private static com.google.protobuf.Descriptors.Descriptor
+    internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
     internal_static_edu_brown_hstore_TransactionPrepareRequest_descriptor;
   private static
@@ -11820,132 +11487,114 @@ public final class Hstore {
     java.lang.String[] descriptorData = {
       "\n\035edu/brown/hstore/hstore.proto\022\020edu.bro" +
       "wn.hstore\032$ca/evanjones/protorpc/Protoco" +
-      "l.proto\"7\n\021PartitionFragment\022\024\n\014partitio" +
-      "n_id\030\001 \002(\005\022\014\n\004data\030\002 \002(\014\"u\n\017PartitionRes" +
-      "ult\022\024\n\014partition_id\030\001 \002(\005\022\014\n\004data\030\002 \002(\014\022" +
-      "(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Statu" +
-      "s\022\024\n\005error\030\004 \001(\010:\005false\"&\n\nDependency\022\n\n" +
-      "\002id\030\001 \002(\005\022\014\n\004data\030\002 \003(\014\"H\n\026TransactionIn" +
-      "itRequest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npar" +
-      "titions\030\002 \003(\005B\002\020\001\"\254\001\n\027TransactionInitRes",
-      "ponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartiti" +
-      "ons\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.brow" +
-      "n.hstore.Status\022\030\n\020reject_partition\030\004 \001(" +
-      "\005\022\035\n\025reject_transaction_id\030\005 \001(\003\"\303\004\n\026Tra" +
-      "nsactionWorkRequest\022\026\n\016transaction_id\030\001 " +
-      "\002(\003\022\030\n\020source_partition\030\002 \002(\005\022M\n\tfragmen" +
-      "ts\030\003 \003(\0132:.edu.brown.hstore.TransactionW" +
-      "orkRequest.PartitionFragment\022\026\n\007sysproc\030" +
-      "\004 \002(\010:\005false\022\026\n\016parameter_sets\030\005 \003(\014\022.\n\010" +
-      "attached\030\006 \003(\0132\034.edu.brown.hstore.Depend",
-      "ency\022\032\n\016done_partition\030\007 \003(\005B\002\020\001\032\036\n\017Inpu" +
-      "tDependency\022\013\n\003ids\030\001 \003(\005\032\213\002\n\021PartitionFr" +
-      "agment\022\024\n\014partition_id\030\001 \002(\005\022\027\n\013fragment" +
-      "_id\030\002 \003(\005B\002\020\001\022N\n\014input_dep_id\030\003 \003(\01328.ed" +
-      "u.brown.hstore.TransactionWorkRequest.In" +
-      "putDependency\022\031\n\routput_dep_id\030\004 \003(\005B\002\020\001" +
-      "\022\026\n\nstmt_index\030\005 \003(\005B\002\020\001\022\021\n\tread_only\030\006 " +
-      "\002(\010\022\023\n\013needs_input\030\007 \002(\010\022\034\n\rlast_fragmen" +
-      "t\030\010 \001(\010:\005false\"\270\002\n\027TransactionWorkRespon" +
-      "se\022\026\n\016transaction_id\030\001 \002(\003\022J\n\007results\030\002 ",
-      "\003(\01329.edu.brown.hstore.TransactionWorkRe" +
-      "sponse.PartitionResult\022(\n\006status\030\003 \002(\0162\030" +
-      ".edu.brown.hstore.Status\032\216\001\n\017PartitionRe" +
-      "sult\022\024\n\014partition_id\030\001 \002(\005\022,\n\006output\030\002 \003" +
-      "(\0132\034.edu.brown.hstore.Dependency\022(\n\006stat" +
-      "us\030\003 \002(\0162\030.edu.brown.hstore.Status\022\r\n\005er" +
-      "ror\030\004 \001(\014\"[\n\025TransactionMapRequest\022\026\n\016tr" +
-      "ansaction_id\030\001 \002(\003\022\026\n\016base_partition\030\002 \002" +
-      "(\005\022\022\n\ninvocation\030\003 \002(\014\"r\n\026TransactionMap" +
-      "Response\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npart",
-      "itions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.b" +
-      "rown.hstore.Status\"^\n\030TransactionReduceR" +
-      "equest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\016base_p" +
-      "artition\030\002 \002(\005\022\022\n\ninvocation\030\003 \002(\014\"\221\001\n\031T" +
-      "ransactionReduceResponse\022\026\n\016transaction_" +
-      "id\030\001 \002(\003\0222\n\007results\030\002 \003(\0132!.edu.brown.hs" +
-      "tore.PartitionResult\022(\n\006status\030\003 \002(\0162\030.e" +
-      "du.brown.hstore.Status\"K\n\031TransactionPre" +
-      "pareRequest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\np" +
-      "artitions\030\002 \003(\005B\002\020\001\"v\n\032TransactionPrepar",
-      "eResponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npar" +
-      "titions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu." +
-      "brown.hstore.Status\"t\n\030TransactionFinish" +
-      "Request\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\nparti" +
-      "tions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.br" +
-      "own.hstore.Status\"K\n\031TransactionFinishRe" +
-      "sponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartit" +
-      "ions\030\002 \003(\005B\002\020\001\"R\n\032TransactionRedirectReq" +
-      "uest\022\021\n\tsender_id\030\001 \002(\005\022\014\n\004work\030\002 \002(\014\022\023\n" +
-      "\013orig_txn_id\030\003 \001(\003\"@\n\033TransactionRedirec",
-      "tResponse\022\021\n\tsender_id\030\001 \002(\005\022\016\n\006output\030\002" +
-      " \002(\014\"t\n\017SendDataRequest\022\026\n\016transaction_i" +
-      "d\030\001 \002(\003\0226\n\tfragments\030\002 \003(\0132#.edu.brown.h" +
-      "store.PartitionFragment\022\021\n\tsender_id\030\003 \002" +
-      "(\005\"\177\n\020SendDataResponse\022\026\n\016transaction_id" +
-      "\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022\021\n\tsender" +
-      "_id\030\003 \002(\005\022(\n\006status\030\004 \002(\0162\030.edu.brown.hs" +
-      "tore.Status\"9\n\017ShutdownRequest\022\021\n\tsender" +
-      "_id\030\001 \002(\005\022\023\n\013exit_status\030\002 \002(\005\"%\n\020Shutdo" +
-      "wnResponse\022\021\n\tsender_id\030\001 \002(\005\"2\n\017TimeSyn",
-      "cRequest\022\021\n\tsender_id\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(" +
-      "\003\"O\n\020TimeSyncResponse\022\021\n\tsender_id\030\001 \002(\005" +
-      "\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002(\003\022\014\n\004t1_s\030\004 \002" +
-      "(\003*\265\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_USER\020\001\022\022\n" +
-      "\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPECTED\020\003\022" +
-      "\031\n\025ABORT_CONNECTION_LOST\020\004\022\024\n\020ABORT_MISP" +
-      "REDICT\020\005\022\021\n\rABORT_RESTART\020\006\022\020\n\014ABORT_REJ" +
-      "ECT\020\007\022\023\n\017ABORT_THROTTLED\020\0102\376\007\n\rHStoreSer" +
-      "vice\022f\n\017TransactionInit\022(.edu.brown.hsto" +
-      "re.TransactionInitRequest\032).edu.brown.hs",
-      "tore.TransactionInitResponse\022f\n\017Transact" +
-      "ionWork\022(.edu.brown.hstore.TransactionWo" +
-      "rkRequest\032).edu.brown.hstore.Transaction" +
-      "WorkResponse\022c\n\016TransactionMap\022\'.edu.bro" +
-      "wn.hstore.TransactionMapRequest\032(.edu.br" +
-      "own.hstore.TransactionMapResponse\022l\n\021Tra" +
-      "nsactionReduce\022*.edu.brown.hstore.Transa" +
-      "ctionReduceRequest\032+.edu.brown.hstore.Tr" +
-      "ansactionReduceResponse\022o\n\022TransactionPr" +
-      "epare\022+.edu.brown.hstore.TransactionPrep",
-      "areRequest\032,.edu.brown.hstore.Transactio" +
-      "nPrepareResponse\022l\n\021TransactionFinish\022*." +
-      "edu.brown.hstore.TransactionFinishReques" +
-      "t\032+.edu.brown.hstore.TransactionFinishRe" +
-      "sponse\022r\n\023TransactionRedirect\022,.edu.brow" +
-      "n.hstore.TransactionRedirectRequest\032-.ed" +
-      "u.brown.hstore.TransactionRedirectRespon" +
-      "se\022Q\n\010SendData\022!.edu.brown.hstore.SendDa" +
-      "taRequest\032\".edu.brown.hstore.SendDataRes" +
-      "ponse\022Q\n\010Shutdown\022!.edu.brown.hstore.Shu",
-      "tdownRequest\032\".edu.brown.hstore.Shutdown" +
-      "Response\022Q\n\010TimeSync\022!.edu.brown.hstore." +
-      "TimeSyncRequest\032\".edu.brown.hstore.TimeS" +
-      "yncResponse"
+      "l.proto\"&\n\nDependency\022\n\n\002id\030\002 \002(\005\022\014\n\004dat" +
+      "a\030\003 \003(\014\"H\n\026TransactionInitRequest\022\026\n\016tra" +
+      "nsaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020" +
+      "\001\"\254\001\n\027TransactionInitResponse\022\026\n\016transac" +
+      "tion_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(\n" +
+      "\006status\030\003 \002(\0162\030.edu.brown.hstore.Status\022" +
+      "\030\n\020reject_partition\030\004 \001(\005\022\035\n\025reject_tran" +
+      "saction_id\030\005 \001(\003\"\271\004\n\026TransactionWorkRequ",
+      "est\022\026\n\016transaction_id\030\001 \002(\003\022\030\n\020source_pa" +
+      "rtition\030\002 \002(\005\022H\n\tfragments\030\003 \003(\01325.edu.b" +
+      "rown.hstore.TransactionWorkRequest.WorkF" +
+      "ragment\022\026\n\007sysproc\030\004 \002(\010:\005false\022\026\n\016param" +
+      "eter_sets\030\005 \003(\014\022.\n\010attached\030\006 \003(\0132\034.edu." +
+      "brown.hstore.Dependency\022\032\n\016done_partitio" +
+      "n\030\007 \003(\005B\002\020\001\032\036\n\017InputDependency\022\013\n\003ids\030\001 " +
+      "\003(\005\032\206\002\n\014WorkFragment\022\024\n\014partition_id\030\001 \002" +
+      "(\005\022\027\n\013fragment_id\030\002 \003(\005B\002\020\001\022N\n\014input_dep" +
+      "_id\030\003 \003(\01328.edu.brown.hstore.Transaction",
+      "WorkRequest.InputDependency\022\031\n\routput_de" +
+      "p_id\030\004 \003(\005B\002\020\001\022\026\n\nstmt_index\030\005 \003(\005B\002\020\001\022\021" +
+      "\n\tread_only\030\006 \002(\010\022\023\n\013needs_input\030\007 \002(\010\022\034" +
+      "\n\rlast_fragment\030\010 \001(\010:\005false\"\256\002\n\027Transac" +
+      "tionWorkResponse\022\026\n\016transaction_id\030\001 \002(\003" +
+      "\022E\n\007results\030\002 \003(\01324.edu.brown.hstore.Tra" +
+      "nsactionWorkResponse.WorkResult\022(\n\006statu" +
+      "s\030\003 \002(\0162\030.edu.brown.hstore.Status\032\211\001\n\nWo" +
+      "rkResult\022\024\n\014partition_id\030\001 \002(\005\022,\n\006output" +
+      "\030\002 \003(\0132\034.edu.brown.hstore.Dependency\022(\n\006",
+      "status\030\003 \002(\0162\030.edu.brown.hstore.Status\022\r" +
+      "\n\005error\030\004 \001(\014\"[\n\025TransactionMapRequest\022\026" +
+      "\n\016transaction_id\030\001 \002(\003\022\026\n\016base_partition" +
+      "\030\002 \002(\005\022\022\n\ninvocation\030\003 \002(\014\"r\n\026Transactio" +
+      "nMapResponse\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\n" +
+      "partitions\030\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.e" +
+      "du.brown.hstore.Status\"^\n\030TransactionRed" +
+      "uceRequest\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\016ba" +
+      "se_partition\030\002 \002(\005\022\022\n\ninvocation\030\003 \002(\014\"\234" +
+      "\002\n\031TransactionReduceResponse\022\026\n\016transact",
+      "ion_id\030\001 \002(\003\022I\n\007results\030\002 \003(\01328.edu.brow" +
+      "n.hstore.TransactionReduceResponse.Reduc" +
+      "eResult\022(\n\006status\030\003 \002(\0162\030.edu.brown.hsto" +
+      "re.Status\032r\n\014ReduceResult\022\024\n\014partition_i" +
+      "d\030\001 \002(\005\022\014\n\004data\030\002 \002(\014\022(\n\006status\030\003 \002(\0162\030." +
+      "edu.brown.hstore.Status\022\024\n\005error\030\004 \001(\010:\005" +
+      "false\"K\n\031TransactionPrepareRequest\022\026\n\016tr" +
+      "ansaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002" +
+      "\020\001\"v\n\032TransactionPrepareResponse\022\026\n\016tran" +
+      "saction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001",
+      "\022(\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Stat" +
+      "us\"t\n\030TransactionFinishRequest\022\026\n\016transa" +
+      "ction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\022(" +
+      "\n\006status\030\003 \002(\0162\030.edu.brown.hstore.Status" +
+      "\"K\n\031TransactionFinishResponse\022\026\n\016transac" +
+      "tion_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003(\005B\002\020\001\"R\n" +
+      "\032TransactionRedirectRequest\022\021\n\tsender_id" +
+      "\030\001 \002(\005\022\014\n\004work\030\002 \002(\014\022\023\n\013orig_txn_id\030\003 \001(" +
+      "\003\"@\n\033TransactionRedirectResponse\022\021\n\tsend" +
+      "er_id\030\001 \002(\005\022\016\n\006output\030\002 \002(\014\"m\n\017SendDataR",
+      "equest\022\026\n\016transaction_id\030\001 \002(\003\022/\n\tfragme" +
+      "nts\030\002 \003(\0132\034.edu.brown.hstore.Dependency\022" +
+      "\021\n\tsender_id\030\003 \002(\005\"\177\n\020SendDataResponse\022\026" +
+      "\n\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030\002 \003" +
+      "(\005B\002\020\001\022\021\n\tsender_id\030\003 \002(\005\022(\n\006status\030\004 \002(" +
+      "\0162\030.edu.brown.hstore.Status\"9\n\017ShutdownR" +
+      "equest\022\021\n\tsender_id\030\001 \002(\005\022\023\n\013exit_status" +
+      "\030\002 \002(\005\"%\n\020ShutdownResponse\022\021\n\tsender_id\030" +
+      "\001 \002(\005\"2\n\017TimeSyncRequest\022\021\n\tsender_id\030\001 " +
+      "\002(\005\022\014\n\004t0_s\030\002 \002(\003\"O\n\020TimeSyncResponse\022\021\n",
+      "\tsender_id\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003" +
+      " \002(\003\022\014\n\004t1_s\030\004 \002(\003*\265\001\n\006Status\022\006\n\002OK\020\000\022\016\n" +
+      "\nABORT_USER\020\001\022\022\n\016ABORT_GRACEFUL\020\002\022\024\n\020ABO" +
+      "RT_UNEXPECTED\020\003\022\031\n\025ABORT_CONNECTION_LOST" +
+      "\020\004\022\024\n\020ABORT_MISPREDICT\020\005\022\021\n\rABORT_RESTAR" +
+      "T\020\006\022\020\n\014ABORT_REJECT\020\007\022\023\n\017ABORT_THROTTLED" +
+      "\020\0102\376\007\n\rHStoreService\022f\n\017TransactionInit\022" +
+      "(.edu.brown.hstore.TransactionInitReques" +
+      "t\032).edu.brown.hstore.TransactionInitResp" +
+      "onse\022f\n\017TransactionWork\022(.edu.brown.hsto",
+      "re.TransactionWorkRequest\032).edu.brown.hs" +
+      "tore.TransactionWorkResponse\022c\n\016Transact" +
+      "ionMap\022\'.edu.brown.hstore.TransactionMap" +
+      "Request\032(.edu.brown.hstore.TransactionMa" +
+      "pResponse\022l\n\021TransactionReduce\022*.edu.bro" +
+      "wn.hstore.TransactionReduceRequest\032+.edu" +
+      ".brown.hstore.TransactionReduceResponse\022" +
+      "o\n\022TransactionPrepare\022+.edu.brown.hstore" +
+      ".TransactionPrepareRequest\032,.edu.brown.h" +
+      "store.TransactionPrepareResponse\022l\n\021Tran",
+      "sactionFinish\022*.edu.brown.hstore.Transac" +
+      "tionFinishRequest\032+.edu.brown.hstore.Tra" +
+      "nsactionFinishResponse\022r\n\023TransactionRed" +
+      "irect\022,.edu.brown.hstore.TransactionRedi" +
+      "rectRequest\032-.edu.brown.hstore.Transacti" +
+      "onRedirectResponse\022Q\n\010SendData\022!.edu.bro" +
+      "wn.hstore.SendDataRequest\032\".edu.brown.hs" +
+      "tore.SendDataResponse\022Q\n\010Shutdown\022!.edu." +
+      "brown.hstore.ShutdownRequest\032\".edu.brown" +
+      ".hstore.ShutdownResponse\022Q\n\010TimeSync\022!.e",
+      "du.brown.hstore.TimeSyncRequest\032\".edu.br" +
+      "own.hstore.TimeSyncResponse"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
         public com.google.protobuf.ExtensionRegistry assignDescriptors(
             com.google.protobuf.Descriptors.FileDescriptor root) {
           descriptor = root;
-          internal_static_edu_brown_hstore_PartitionFragment_descriptor =
-            getDescriptor().getMessageTypes().get(0);
-          internal_static_edu_brown_hstore_PartitionFragment_fieldAccessorTable = new
-            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-              internal_static_edu_brown_hstore_PartitionFragment_descriptor,
-              new java.lang.String[] { "PartitionId", "Data", },
-              edu.brown.hstore.Hstore.PartitionFragment.class,
-              edu.brown.hstore.Hstore.PartitionFragment.Builder.class);
-          internal_static_edu_brown_hstore_PartitionResult_descriptor =
-            getDescriptor().getMessageTypes().get(1);
-          internal_static_edu_brown_hstore_PartitionResult_fieldAccessorTable = new
-            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-              internal_static_edu_brown_hstore_PartitionResult_descriptor,
-              new java.lang.String[] { "PartitionId", "Data", "Status", "Error", },
-              edu.brown.hstore.Hstore.PartitionResult.class,
-              edu.brown.hstore.Hstore.PartitionResult.Builder.class);
           internal_static_edu_brown_hstore_Dependency_descriptor =
-            getDescriptor().getMessageTypes().get(2);
+            getDescriptor().getMessageTypes().get(0);
           internal_static_edu_brown_hstore_Dependency_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_Dependency_descriptor,
@@ -11953,7 +11602,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.Dependency.class,
               edu.brown.hstore.Hstore.Dependency.Builder.class);
           internal_static_edu_brown_hstore_TransactionInitRequest_descriptor =
-            getDescriptor().getMessageTypes().get(3);
+            getDescriptor().getMessageTypes().get(1);
           internal_static_edu_brown_hstore_TransactionInitRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionInitRequest_descriptor,
@@ -11961,7 +11610,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionInitRequest.class,
               edu.brown.hstore.Hstore.TransactionInitRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionInitResponse_descriptor =
-            getDescriptor().getMessageTypes().get(4);
+            getDescriptor().getMessageTypes().get(2);
           internal_static_edu_brown_hstore_TransactionInitResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionInitResponse_descriptor,
@@ -11969,7 +11618,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionInitResponse.class,
               edu.brown.hstore.Hstore.TransactionInitResponse.Builder.class);
           internal_static_edu_brown_hstore_TransactionWorkRequest_descriptor =
-            getDescriptor().getMessageTypes().get(5);
+            getDescriptor().getMessageTypes().get(3);
           internal_static_edu_brown_hstore_TransactionWorkRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionWorkRequest_descriptor,
@@ -11984,32 +11633,32 @@ public final class Hstore {
               new java.lang.String[] { "Ids", },
               edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.class,
               edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency.Builder.class);
-          internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor =
+          internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_descriptor =
             internal_static_edu_brown_hstore_TransactionWorkRequest_descriptor.getNestedTypes().get(1);
-          internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_fieldAccessorTable = new
+          internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-              internal_static_edu_brown_hstore_TransactionWorkRequest_PartitionFragment_descriptor,
+              internal_static_edu_brown_hstore_TransactionWorkRequest_WorkFragment_descriptor,
               new java.lang.String[] { "PartitionId", "FragmentId", "InputDepId", "OutputDepId", "StmtIndex", "ReadOnly", "NeedsInput", "LastFragment", },
-              edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.class,
-              edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment.Builder.class);
+              edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.class,
+              edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment.Builder.class);
           internal_static_edu_brown_hstore_TransactionWorkResponse_descriptor =
-            getDescriptor().getMessageTypes().get(6);
+            getDescriptor().getMessageTypes().get(4);
           internal_static_edu_brown_hstore_TransactionWorkResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionWorkResponse_descriptor,
               new java.lang.String[] { "TransactionId", "Results", "Status", },
               edu.brown.hstore.Hstore.TransactionWorkResponse.class,
               edu.brown.hstore.Hstore.TransactionWorkResponse.Builder.class);
-          internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_descriptor =
+          internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_descriptor =
             internal_static_edu_brown_hstore_TransactionWorkResponse_descriptor.getNestedTypes().get(0);
-          internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_fieldAccessorTable = new
+          internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-              internal_static_edu_brown_hstore_TransactionWorkResponse_PartitionResult_descriptor,
+              internal_static_edu_brown_hstore_TransactionWorkResponse_WorkResult_descriptor,
               new java.lang.String[] { "PartitionId", "Output", "Status", "Error", },
-              edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.class,
-              edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult.Builder.class);
+              edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.class,
+              edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult.Builder.class);
           internal_static_edu_brown_hstore_TransactionMapRequest_descriptor =
-            getDescriptor().getMessageTypes().get(7);
+            getDescriptor().getMessageTypes().get(5);
           internal_static_edu_brown_hstore_TransactionMapRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionMapRequest_descriptor,
@@ -12017,7 +11666,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionMapRequest.class,
               edu.brown.hstore.Hstore.TransactionMapRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionMapResponse_descriptor =
-            getDescriptor().getMessageTypes().get(8);
+            getDescriptor().getMessageTypes().get(6);
           internal_static_edu_brown_hstore_TransactionMapResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionMapResponse_descriptor,
@@ -12025,7 +11674,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionMapResponse.class,
               edu.brown.hstore.Hstore.TransactionMapResponse.Builder.class);
           internal_static_edu_brown_hstore_TransactionReduceRequest_descriptor =
-            getDescriptor().getMessageTypes().get(9);
+            getDescriptor().getMessageTypes().get(7);
           internal_static_edu_brown_hstore_TransactionReduceRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionReduceRequest_descriptor,
@@ -12033,15 +11682,23 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionReduceRequest.class,
               edu.brown.hstore.Hstore.TransactionReduceRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionReduceResponse_descriptor =
-            getDescriptor().getMessageTypes().get(10);
+            getDescriptor().getMessageTypes().get(8);
           internal_static_edu_brown_hstore_TransactionReduceResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionReduceResponse_descriptor,
               new java.lang.String[] { "TransactionId", "Results", "Status", },
               edu.brown.hstore.Hstore.TransactionReduceResponse.class,
               edu.brown.hstore.Hstore.TransactionReduceResponse.Builder.class);
+          internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_descriptor =
+            internal_static_edu_brown_hstore_TransactionReduceResponse_descriptor.getNestedTypes().get(0);
+          internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_fieldAccessorTable = new
+            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+              internal_static_edu_brown_hstore_TransactionReduceResponse_ReduceResult_descriptor,
+              new java.lang.String[] { "PartitionId", "Data", "Status", "Error", },
+              edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.class,
+              edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult.Builder.class);
           internal_static_edu_brown_hstore_TransactionPrepareRequest_descriptor =
-            getDescriptor().getMessageTypes().get(11);
+            getDescriptor().getMessageTypes().get(9);
           internal_static_edu_brown_hstore_TransactionPrepareRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionPrepareRequest_descriptor,
@@ -12049,7 +11706,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionPrepareRequest.class,
               edu.brown.hstore.Hstore.TransactionPrepareRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionPrepareResponse_descriptor =
-            getDescriptor().getMessageTypes().get(12);
+            getDescriptor().getMessageTypes().get(10);
           internal_static_edu_brown_hstore_TransactionPrepareResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionPrepareResponse_descriptor,
@@ -12057,7 +11714,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionPrepareResponse.class,
               edu.brown.hstore.Hstore.TransactionPrepareResponse.Builder.class);
           internal_static_edu_brown_hstore_TransactionFinishRequest_descriptor =
-            getDescriptor().getMessageTypes().get(13);
+            getDescriptor().getMessageTypes().get(11);
           internal_static_edu_brown_hstore_TransactionFinishRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionFinishRequest_descriptor,
@@ -12065,7 +11722,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionFinishRequest.class,
               edu.brown.hstore.Hstore.TransactionFinishRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionFinishResponse_descriptor =
-            getDescriptor().getMessageTypes().get(14);
+            getDescriptor().getMessageTypes().get(12);
           internal_static_edu_brown_hstore_TransactionFinishResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionFinishResponse_descriptor,
@@ -12073,7 +11730,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionFinishResponse.class,
               edu.brown.hstore.Hstore.TransactionFinishResponse.Builder.class);
           internal_static_edu_brown_hstore_TransactionRedirectRequest_descriptor =
-            getDescriptor().getMessageTypes().get(15);
+            getDescriptor().getMessageTypes().get(13);
           internal_static_edu_brown_hstore_TransactionRedirectRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionRedirectRequest_descriptor,
@@ -12081,7 +11738,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionRedirectRequest.class,
               edu.brown.hstore.Hstore.TransactionRedirectRequest.Builder.class);
           internal_static_edu_brown_hstore_TransactionRedirectResponse_descriptor =
-            getDescriptor().getMessageTypes().get(16);
+            getDescriptor().getMessageTypes().get(14);
           internal_static_edu_brown_hstore_TransactionRedirectResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TransactionRedirectResponse_descriptor,
@@ -12089,7 +11746,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TransactionRedirectResponse.class,
               edu.brown.hstore.Hstore.TransactionRedirectResponse.Builder.class);
           internal_static_edu_brown_hstore_SendDataRequest_descriptor =
-            getDescriptor().getMessageTypes().get(17);
+            getDescriptor().getMessageTypes().get(15);
           internal_static_edu_brown_hstore_SendDataRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_SendDataRequest_descriptor,
@@ -12097,7 +11754,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.SendDataRequest.class,
               edu.brown.hstore.Hstore.SendDataRequest.Builder.class);
           internal_static_edu_brown_hstore_SendDataResponse_descriptor =
-            getDescriptor().getMessageTypes().get(18);
+            getDescriptor().getMessageTypes().get(16);
           internal_static_edu_brown_hstore_SendDataResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_SendDataResponse_descriptor,
@@ -12105,7 +11762,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.SendDataResponse.class,
               edu.brown.hstore.Hstore.SendDataResponse.Builder.class);
           internal_static_edu_brown_hstore_ShutdownRequest_descriptor =
-            getDescriptor().getMessageTypes().get(19);
+            getDescriptor().getMessageTypes().get(17);
           internal_static_edu_brown_hstore_ShutdownRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_ShutdownRequest_descriptor,
@@ -12113,7 +11770,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.ShutdownRequest.class,
               edu.brown.hstore.Hstore.ShutdownRequest.Builder.class);
           internal_static_edu_brown_hstore_ShutdownResponse_descriptor =
-            getDescriptor().getMessageTypes().get(20);
+            getDescriptor().getMessageTypes().get(18);
           internal_static_edu_brown_hstore_ShutdownResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_ShutdownResponse_descriptor,
@@ -12121,7 +11778,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.ShutdownResponse.class,
               edu.brown.hstore.Hstore.ShutdownResponse.Builder.class);
           internal_static_edu_brown_hstore_TimeSyncRequest_descriptor =
-            getDescriptor().getMessageTypes().get(21);
+            getDescriptor().getMessageTypes().get(19);
           internal_static_edu_brown_hstore_TimeSyncRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TimeSyncRequest_descriptor,
@@ -12129,7 +11786,7 @@ public final class Hstore {
               edu.brown.hstore.Hstore.TimeSyncRequest.class,
               edu.brown.hstore.Hstore.TimeSyncRequest.Builder.class);
           internal_static_edu_brown_hstore_TimeSyncResponse_descriptor =
-            getDescriptor().getMessageTypes().get(22);
+            getDescriptor().getMessageTypes().get(20);
           internal_static_edu_brown_hstore_TimeSyncResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TimeSyncResponse_descriptor,

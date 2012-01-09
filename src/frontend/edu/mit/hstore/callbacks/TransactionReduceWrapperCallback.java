@@ -10,6 +10,7 @@ import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
 import edu.brown.hstore.Hstore.TransactionInitResponse;
 import edu.brown.hstore.Hstore.TransactionReduceResponse;
+import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -22,7 +23,7 @@ import edu.mit.hstore.util.MapReduceHelperThread;
  * at this HStoreSite is finished with the Map phase. 
  * @author pavlo
  */
-public class TransactionReduceWrapperCallback extends BlockingCallback<Hstore.TransactionReduceResponse, Hstore.PartitionResult> {
+public class TransactionReduceWrapperCallback extends BlockingCallback<Hstore.TransactionReduceResponse, ReduceResult> {
 	private static final Logger LOG = Logger.getLogger(TransactionReduceWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -77,7 +78,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Hstore.Tr
     }
 
 	@Override
-	protected int runImpl(Hstore.PartitionResult result) {
+	protected int runImpl(ReduceResult result) {
 		if (this.isAborted() == false) {
             this.builder.addResults(result);
             LOG.debug(String.format("%s - Added %s from partition %d!",

@@ -31,7 +31,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
@@ -68,7 +68,7 @@ public class TestTransactionState extends BaseTestCase {
     private static HStoreSite hstore_site;
     private static ExecutionSite executor;
     private static BatchPlan plan;
-    private static List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
+    private static List<WorkFragment> ftasks = new ArrayList<WorkFragment>();
     
     private LocalTransaction ts;
     private ExecutionState execState;
@@ -113,7 +113,7 @@ public class TestTransactionState extends BaseTestCase {
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            plan.getPartitionFragments(ftasks);
+            plan.getWorkFragments(ftasks);
 //            System.err.println("FTASKS: " + ftasks);
             assertFalse(ftasks.isEmpty());
         }
@@ -136,9 +136,9 @@ public class TestTransactionState extends BaseTestCase {
      */
     private void addFragments() {
         this.ts.setBatchSize(NUM_DUPLICATE_STATEMENTS);
-        for (PartitionFragment ftask : ftasks) {
+        for (WorkFragment ftask : ftasks) {
             assertNotNull(ftask);
-            this.ts.addPartitionFragment(ftask);
+            this.ts.addWorkFragment(ftask);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 this.dependency_ids.add(ftask.getOutputDepId(i));
                 InputDependency input_dep_ids = ftask.getInputDepId(i);
@@ -225,8 +225,8 @@ public class TestTransactionState extends BaseTestCase {
         
         // Although there will be a single blocked FragmentTaskMessage, it will contain
         // the same number of PlanFragments as we have duplicate Statements
-        System.err.println(this.ts.getBlockedPartitionFragments());
-        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getBlockedPartitionFragments().size());
+        System.err.println(this.ts.getBlockedWorkFragments());
+        assertEquals(NUM_DUPLICATE_STATEMENTS, this.ts.getBlockedWorkFragments().size());
         
         // We now need to make sure that our output order is correct
         // We should be getting back the same number of results as how
@@ -268,7 +268,7 @@ public class TestTransactionState extends BaseTestCase {
                     // But never out to VoltProcedure
                     assertFalse(this.output_dependency_ids.contains(d_id));
                     // And we should have a task blocked waiting for this dependency
-                    assertFalse(dinfo.getBlockedPartitionFragments().isEmpty());
+                    assertFalse(dinfo.getBlockedWorkFragments().isEmpty());
                 } else {
                     assertEquals(1, dinfo.getPartitions().size());
                     assertEquals(LOCAL_PARTITION, dinfo.getPartitions().get(0).intValue());

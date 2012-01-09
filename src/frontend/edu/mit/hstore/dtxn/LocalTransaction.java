@@ -50,7 +50,7 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.TransactionEstimator;
@@ -77,7 +77,7 @@ public class LocalTransaction extends AbstractTransaction {
     private static boolean d = debug.get();
     private static boolean t = trace.get();
 
-    private static final Set<PartitionFragment> EMPTY_SET = Collections.emptySet();
+    private static final Set<WorkFragment> EMPTY_SET = Collections.emptySet();
     
     // ----------------------------------------------------------------------------
     // TRANSACTION INVOCATION DATA MEMBERS
@@ -470,7 +470,7 @@ public class LocalTransaction extends AbstractTransaction {
      * Quickly finish this round for a single-partition txn. This allows us
      * to change the state to FINISHED without having to go through the
      * INIT and START states first (since we know that we will not be getting results randomly
-     * from PartitionFragments executed on remote partitions). 
+     * from WorkFragments executed on remote partitions). 
      * @param partition The partition to finish this txn on
      */
     public void fastFinishRound(int partition) {
@@ -607,11 +607,11 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Returns true if this transaction still has PartitionFragments
+     * Returns true if this transaction still has WorkFragments
      * that need to be dispatched to the appropriate ExecutionSite 
      * @return
      */
-    public boolean stillHasPartitionFragments() {
+    public boolean stillHasWorkFragments() {
         return (this.state.still_has_tasks);
 //        this.state.lock.lock();
 //        try {
@@ -622,10 +622,10 @@ public class LocalTransaction extends AbstractTransaction {
 //        }
     }
     
-    protected Set<PartitionFragment> getBlockedPartitionFragments() {
+    protected Set<WorkFragment> getBlockedWorkFragments() {
         return (this.state.blocked_tasks);
     }
-    public LinkedBlockingDeque<Collection<PartitionFragment>> getUnblockedPartitionFragmentsQueue() {
+    public LinkedBlockingDeque<Collection<WorkFragment>> getUnblockedWorkFragmentsQueue() {
         return (this.state.unblocked_tasks);
     }
     
@@ -699,7 +699,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ftask
      * @return
      */
-    public boolean isBlocked(PartitionFragment ftask) {
+    public boolean isBlocked(WorkFragment ftask) {
         return (this.state.blocked_tasks.contains(ftask));
     }
     
@@ -795,12 +795,12 @@ public class LocalTransaction extends AbstractTransaction {
     }
     
     /**
-     * Queues up a PartitionFragment for this txn
+     * Queues up a WorkFragment for this txn
      * If the return value is true, then the FragmentTaskMessage is blocked waiting for dependencies
      * If the return value is false, then the FragmentTaskMessage can be executed immediately (either locally or on at a remote partition)
      * @param ftask
      */
-    public boolean addPartitionFragment(PartitionFragment ftask) {
+    public boolean addWorkFragment(WorkFragment ftask) {
         int offset = hstore_site.getLocalPartitionOffset(this.base_partition);
         assert(this.round_state[offset] == RoundState.INITIALIZED) :
             String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, this.base_partition);
@@ -857,7 +857,7 @@ public class LocalTransaction extends AbstractTransaction {
                             LOG.debug(String.format("Creating internal input dependency %d for PlanFragment %d in %s", 
                                                     dependency_id, ftask.getFragmentId(i), this)); 
                         
-                        this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedPartitionFragment(ftask);
+                        this.getOrCreateDependencyInfo(stmt_index, dependency_id).addBlockedWorkFragment(ftask);
                         this.state.internal_dependencies.add(dependency_id);
                         if (blocked == false) {
                             this.state.blocked_tasks.add(ftask);
@@ -895,9 +895,9 @@ public class LocalTransaction extends AbstractTransaction {
                     if (catalog_stmt != null) break;
                 } // FOR
             }
-            LOG.debug("__FILE__:__LINE__ " + String.format("Queued up PartitionFragment %s for %s on partition %d and marked as %s",
+            LOG.debug("__FILE__:__LINE__ " + String.format("Queued up WorkFragment %s for %s on partition %d and marked as %s",
                                              catalog_stmt.fullName(), this, partition, (blocked ? "blocked" : "not blocked")));
-            if (t) LOG.trace("__FILE__:__LINE__ " + "PartitionFragment Contents for txn #" + this.txn_id + ":\n" + ftask);
+            if (t) LOG.trace("__FILE__:__LINE__ " + "WorkFragment Contents for txn #" + this.txn_id + ":\n" + ftask);
         }
         return (blocked);
     }
@@ -980,17 +980,17 @@ public class LocalTransaction extends AbstractTransaction {
             //             whether there are no more blocked tasks before we 
             //             can add to_unblock to the unblocked_tasks queue
             if (this.state.blocked_tasks.isEmpty() == false && dinfo.hasTasksReady()) {
-                Collection<PartitionFragment> to_unblock = dinfo.getAndReleaseBlockedPartitionFragments();
+                Collection<WorkFragment> to_unblock = dinfo.getAndReleaseBlockedWorkFragments();
                 assert(to_unblock != null);
                 assert(to_unblock.isEmpty() == false);
                 if (d) 
-                    LOG.debug("__FILE__:__LINE__ " + String.format("Got %d PartitionFragments to unblock for txn #%d that were waiting for DependencyId %d",
+                    LOG.debug("__FILE__:__LINE__ " + String.format("Got %d WorkFragments to unblock for txn #%d that were waiting for DependencyId %d",
                                                to_unblock.size(), this.txn_id, dinfo.getDependencyId()));
                 this.state.blocked_tasks.removeAll(to_unblock);
                 this.state.unblocked_tasks.addLast(to_unblock);
             }
             else if (d) {
-                LOG.debug("__FILE__:__LINE__ " + String.format("No PartitionFragments to unblock for %s after storing {Partition:%d, Dependency:%d} " +
+                LOG.debug("__FILE__:__LINE__ " + String.format("No WorkFragments to unblock for %s after storing {Partition:%d, Dependency:%d} " +
                                                                "[blockedTasks=%d, dinfo.hasTasksReady=%s]",
                                                                 this, partition, dependency_id, this.state.blocked_tasks.size(), dinfo.hasTasksReady()));
             }
@@ -1034,8 +1034,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @param results
      * @return
      */
-    public Map<Integer, List<VoltTable>> removeInternalDependencies(PartitionFragment fragment, Map<Integer, List<VoltTable>> results) {
-        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieving %d internal dependencies for %s PartitionFragment:\n%s",
+    public Map<Integer, List<VoltTable>> removeInternalDependencies(WorkFragment fragment, Map<Integer, List<VoltTable>> results) {
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Retrieving %d internal dependencies for %s WorkFragment:\n%s",
                                                 fragment.getInputDepIdCount(), this, fragment));
         
         Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
@@ -1188,11 +1188,11 @@ public class LocalTransaction extends AbstractTransaction {
                     inner += "]\n";
                 } // FOR
                 
-                inner += "  Blocked PartitionFragments:\n";
+                inner += "  Blocked WorkFragments:\n";
                 boolean none = true;
                 for (Integer dependency_id : dependency_ids) {
                     DependencyInfo d = s_dependencies.get(dependency_id);
-                    for (PartitionFragment task : d.getBlockedPartitionFragments()) {
+                    for (WorkFragment task : d.getBlockedWorkFragments()) {
                         if (task == null) continue;
                         inner += "    [" + dependency_id + "] => [";
                         String add = "";
