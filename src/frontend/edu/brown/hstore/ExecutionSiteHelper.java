@@ -23,7 +23,7 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.util.Collection;
 import java.util.concurrent.LinkedBlockingDeque;

@@ -21,13 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 import org.voltdb.debugstate.ExecutorContext.ExecutorTxnState;
 import org.voltdb.messaging.FragmentResponseMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.Mailbox;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
+
+import edu.brown.hstore.ExecutionSite;
 
 /**
  * Controls the state of a transaction. Encapsulates from the SimpleDTXNConnection

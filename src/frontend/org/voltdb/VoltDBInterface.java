@@ -25,6 +25,8 @@ import org.voltdb.messaging.HostMessenger;
 import org.voltdb.messaging.Messenger;
 import org.voltdb.network.VoltNetwork;
 
+import edu.brown.hstore.ExecutionSite;
+
 public interface VoltDBInterface
 {
     /**

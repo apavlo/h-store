@@ -23,7 +23,7 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +39,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.ParameterSet;
+import org.voltdb.SQLStmt;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Database;
@@ -473,12 +475,12 @@ public class BatchPlanner {
         this.cache_fastLookups = (this.enable_caching ? new int[this.batchSize][] : null);
         this.cache_singlePartitionPlans = (this.enable_caching ? new BatchPlan[this.num_partitions] : null);
         for (int i = 0; i < this.batchSize; i++) {
-            this.catalog_stmts[i] = batchStmts[i].catStmt;
-            this.stmt_is_readonly[i] = batchStmts[i].catStmt.getReadonly();
-            this.stmt_is_replicatedonly[i] = batchStmts[i].catStmt.getReplicatedonly() ||
-                                             batchStmts[i].catStmt.getSecondaryindex();
+            this.catalog_stmts[i] = batchStmts[i].getStatement();
+            this.stmt_is_readonly[i] = batchStmts[i].getStatement().getReadonly();
+            this.stmt_is_replicatedonly[i] = batchStmts[i].getStatement().getReplicatedonly() ||
+                                             batchStmts[i].getStatement().getSecondaryindex();
             if (trace.get())
-                LOG.trace(batchStmts[i].catStmt.fullName() + " -> " + this.stmt_is_replicatedonly[i]); 
+                LOG.trace(batchStmts[i].getStatement().fullName() + " -> " + this.stmt_is_replicatedonly[i]); 
             
             // CACHING
             // Since most batches are going to be single-partition, we will cache

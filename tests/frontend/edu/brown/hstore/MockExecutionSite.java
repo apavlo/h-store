@@ -1,4 +1,4 @@
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -6,6 +6,10 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.voltdb.BackendTarget;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
@@ -34,7 +38,7 @@ public class MockExecutionSite extends ExecutionSite {
     }
     
     @Override
-    protected VoltTable[] dispatchWorkFragment(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet[] parameters) {
+    public VoltTable[] dispatchWorkFragment(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet[] parameters) {
         return (new VoltTable[]{ });
     }
     

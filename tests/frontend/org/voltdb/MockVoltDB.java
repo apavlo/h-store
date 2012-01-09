@@ -41,6 +41,7 @@ import org.voltdb.messaging.Messenger;
 import org.voltdb.network.VoltNetwork;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.ExecutionSite;
 
 public class MockVoltDB implements VoltDBInterface
 {

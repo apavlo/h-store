@@ -1,4 +1,4 @@
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.Set;
 
 import org.junit.Test;
+import org.voltdb.ParameterSet;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;

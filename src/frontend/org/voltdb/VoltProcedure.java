@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.log4j.Logger;
-import org.voltdb.BatchPlanner.BatchPlan;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
@@ -66,6 +65,9 @@ import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
+import edu.brown.hstore.BatchPlanner;
+import edu.brown.hstore.BatchPlanner.BatchPlan;
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
@@ -98,7 +100,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     // Used to get around the "abstract" for StmtProcedures.
     // Path of least resistance?
-    protected static class StmtProcedure extends VoltProcedure {}
+    public static class StmtProcedure extends VoltProcedure {}
 
     private final static Double DOUBLE_NULL = new Double(-1.7976931348623157E+308);
     
@@ -1135,7 +1137,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                     sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
                                             i,
                                             batchStmts[i].catStmt.fullName(),
-                                            planner.catalog_stmts[i].fullName(),
+                                            planner.getStatements()[i].fullName(),
                                             batchStmts[i].catStmt.getSqltext(),
                                             Arrays.toString(params[i].toArray())));
                 } // FOR
@@ -1162,7 +1164,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                         GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
                         gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
                         
-                        LOG.info("PARTITION: " + this.executor.partitionId);
+                        LOG.info("PARTITION: " + this.executor.getPartitionId());
                         LOG.info("GRAPH: " + gv.writeToTempFile(procedure_name));
                     } catch (Exception ex2) {
                         LOG.fatal("???????????????????????", ex2);
@@ -1173,7 +1175,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 
                 sb.append("\nPLANNER\n");
                 for (int i = 0; i < batchSize; i++) {
-                    Statement stmt0 = planner.catalog_stmts[i];
+                    Statement stmt0 = planner.getStatements()[i];
                     Statement stmt1 = batchStmts[i].catStmt;
                     assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
                     sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));

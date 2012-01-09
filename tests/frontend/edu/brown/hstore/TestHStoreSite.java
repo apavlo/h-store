@@ -14,7 +14,7 @@ import edu.brown.hstore.HStoreSite;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.*;

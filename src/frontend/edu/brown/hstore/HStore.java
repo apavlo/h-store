@@ -30,7 +30,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;

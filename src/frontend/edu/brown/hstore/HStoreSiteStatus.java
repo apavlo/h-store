@@ -16,14 +16,12 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
-import org.voltdb.BatchPlanner;
-import org.voltdb.ExecutionSite;
-import org.voltdb.ExecutionSitePostProcessor;
+import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.ExecutionSitePostProcessor;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 

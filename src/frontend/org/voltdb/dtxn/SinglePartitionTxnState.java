@@ -19,7 +19,7 @@ package org.voltdb.dtxn;
 
 import java.util.ArrayList;
 
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.debugstate.ExecutorContext.ExecutorTxnState;
 import org.voltdb.messaging.InitiateResponseMessage;

@@ -1,11 +1,14 @@
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.voltdb.BatchPlanner.PlanVertex;
+import org.voltdb.BackendTarget;
+import org.voltdb.ParameterSet;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -15,6 +18,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.BatchPlanner.PlanVertex;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.statistics.Histogram;
@@ -81,7 +85,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
         assertNotNull(graph);
         
         // Make sure that only PlanVertexs with input dependencies have a child in the graph
-        for (PlanVertex v : graph.getVertices()) {
+        for (BatchPlanner.PlanVertex v : graph.getVertices()) {
             assertNotNull(v);
             if (v.input_dependency_id == HStoreConstants.NULL_DEPENDENCY_ID) {
                 assertEquals(0, graph.getSuccessorCount(v));

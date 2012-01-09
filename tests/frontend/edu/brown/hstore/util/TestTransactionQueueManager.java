@@ -5,8 +5,7 @@ import java.util.HashSet;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
-import org.voltdb.ExecutionSite;
-import org.voltdb.MockExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.catalog.Site;
 
 import com.google.protobuf.RpcCallback;
@@ -21,6 +20,7 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.MockExecutionSite;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 
 public class TestTransactionQueueManager extends BaseTestCase {

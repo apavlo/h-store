@@ -40,7 +40,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -56,6 +56,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
+import org.voltdb.*;
 import org.voltdb.VoltProcedure.VoltAbortException;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
@@ -1728,7 +1729,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param plan
      * @return
      */
-    protected VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
+    public VoltTable[] executeLocalPlan(LocalTransaction ts, BatchPlanner.BatchPlan plan, ParameterSet parameterSets[]) {
         long undoToken = HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN;
         
         // If we originally executed this transaction with undo buffers and we have a MarkovEstimate,
@@ -2172,7 +2173,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param dependency_ids
      * @return
      */
-    protected VoltTable[] dispatchWorkFragment(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
+    public VoltTable[] dispatchWorkFragment(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
         if (d) {
             LOG.debug("__FILE__:__LINE__ " + String.format("Preparing to dispatch %d messages for %s and wait for the results",
                                              fragments.size(), ts));
