@@ -45,7 +45,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     }
 
     /**
-     * @see ExecutionSitePostProcessor
+     * @see PartitionExecutorPostProcessor
      */
     @Override
     public void run() {

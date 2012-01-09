@@ -21,7 +21,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.util.ExecutionSitePostProcessor;
+import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -297,7 +297,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
             
             String val = String.format("%-5d [min=%d, max=%d]", processing_cur, processing_min, processing_max);
             int i = 0;
-            for (ExecutionSitePostProcessor espp : hstore_site.getExecutionSitePostProcessors()) {
+            for (PartitionExecutorPostProcessor espp : hstore_site.getExecutionSitePostProcessors()) {
                 pm = espp.getExecTime();
                 val += String.format("\n[%02d] %d total / %.2fms total / %.2fms avg",
                                      i++,

@@ -43,8 +43,8 @@ import edu.brown.hstore.HStoreSite;
  * 
  * @author pavlo
  */
-public class ExecutionSiteHelper implements Runnable {
-    public static final Logger LOG = Logger.getLogger(ExecutionSiteHelper.class);
+public class PartitionExecutorHelper implements Runnable {
+    public static final Logger LOG = Logger.getLogger(PartitionExecutorHelper.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -86,7 +86,7 @@ public class ExecutionSiteHelper implements Runnable {
     private final EventObserver<Object> shutdown_observer = new EventObserver<Object>() {
         @Override
         public void update(EventObservable<Object> o, Object t) {
-            ExecutionSiteHelper.this.shutdown();
+            PartitionExecutorHelper.this.shutdown();
             LOG.debug("Got shutdown notification from HStoreSite. Dumping profile information");
         }
     };
@@ -98,7 +98,7 @@ public class ExecutionSiteHelper implements Runnable {
      * @param txn_expire
      * @param enable_profiling
      */
-    public ExecutionSiteHelper(HStoreSite hstore_site, Collection<PartitionExecutor> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
+    public PartitionExecutorHelper(HStoreSite hstore_site, Collection<PartitionExecutor> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
         assert(executors != null);
         assert(executors.isEmpty() == false);
         this.executors = executors;
