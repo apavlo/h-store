@@ -1,4 +1,6 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
+
+import ca.evanjones.protorpc.Protocol;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;

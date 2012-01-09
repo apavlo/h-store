@@ -1,9 +1,12 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import static org.junit.Assert.*;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import ca.evanjones.protorpc.Counter;
+import ca.evanjones.protorpc.Protocol;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;

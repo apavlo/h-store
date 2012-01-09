@@ -1,4 +1,4 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;

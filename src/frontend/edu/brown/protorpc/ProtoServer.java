@@ -1,4 +1,4 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -10,6 +10,7 @@ import org.apache.log4j.Logger;
 
 import ca.evanjones.protorpc.Protocol.RpcRequest;
 import ca.evanjones.protorpc.Protocol.RpcResponse;
+import ca.evanjones.protorpc.Protocol;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;

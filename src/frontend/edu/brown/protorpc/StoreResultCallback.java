@@ -1,4 +1,4 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import com.google.protobuf.RpcCallback;
 

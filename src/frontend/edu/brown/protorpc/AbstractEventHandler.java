@@ -1,9 +1,9 @@
-package ca.evanjones.protorpc;
+package edu.brown.protorpc;
 
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 
-import ca.evanjones.protorpc.EventLoop.Handler;
+import edu.brown.protorpc.EventLoop.Handler;
 
 /** Implements all EventLoop.Handler methods by throwing UnsupportedOperationException. */
 public abstract class AbstractEventHandler implements Handler {

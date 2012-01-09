@@ -5,7 +5,7 @@ import java.util.HashSet;
 
 import org.apache.log4j.Logger;
 
-import ca.evanjones.protorpc.ProtoRpcController;
+import edu.brown.protorpc.ProtoRpcController;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;

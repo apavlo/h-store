@@ -17,9 +17,9 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
-import ca.evanjones.protorpc.AbstractEventHandler;
-import ca.evanjones.protorpc.EventLoop;
-import ca.evanjones.protorpc.NIOEventLoop;
+import edu.brown.protorpc.AbstractEventHandler;
+import edu.brown.protorpc.EventLoop;
+import edu.brown.protorpc.NIOEventLoop;
 
 import com.google.protobuf.RpcCallback;
 
