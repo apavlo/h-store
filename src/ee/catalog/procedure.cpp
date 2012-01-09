@@ -38,6 +38,7 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
   m_authUsers(catalog, this, path + "/" + "authUsers"), m_authGroups(catalog, this, path + "/" + "authGroups"), m_authPrograms(catalog, this, path + "/" + "authPrograms"), m_statements(catalog, this, path + "/" + "statements"), m_parameters(catalog, this, path + "/" + "parameters")
 {
     CatalogValue value;
+    m_fields["id"] = value;
     m_fields["classname"] = value;
     m_childCollections["authUsers"] = &m_authUsers;
     m_childCollections["authGroups"] = &m_authGroups;
@@ -60,6 +61,7 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
 }
 
 void Procedure::update() {
+    m_id = m_fields["id"].intValue;
     m_classname = m_fields["classname"].strValue.c_str();
     m_readonly = m_fields["readonly"].intValue;
     m_singlepartition = m_fields["singlepartition"].intValue;
@@ -136,6 +138,10 @@ void Procedure::removeChild(const std::string &collectionName, const std::string
         return m_statements.remove(childName);
     if (collectionName.compare("parameters") == 0)
         return m_parameters.remove(childName);
+}
+
+int32_t Procedure::id() const {
+    return m_id;
 }
 
 const string & Procedure::classname() const {

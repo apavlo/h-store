@@ -45,6 +45,7 @@ class Procedure : public CatalogType {
 protected:
     Procedure(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
+    int32_t m_id;
     std::string m_classname;
     CatalogMap<UserRef> m_authUsers;
     CatalogMap<GroupRef> m_authGroups;
@@ -72,6 +73,8 @@ protected:
     virtual void removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
+    int32_t id() const;
     /** GETTER: The full class name for the Java class for this procedure */
     const std::string & classname() const;
     /** GETTER: Users authorized to invoke this procedure */

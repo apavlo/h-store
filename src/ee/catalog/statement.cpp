@@ -34,6 +34,7 @@ Statement::Statement(Catalog *catalog, CatalogType *parent, const string &path, 
   m_parameters(catalog, this, path + "/" + "parameters"), m_output_columns(catalog, this, path + "/" + "output_columns"), m_fragments(catalog, this, path + "/" + "fragments"), m_ms_fragments(catalog, this, path + "/" + "ms_fragments")
 {
     CatalogValue value;
+    m_fields["id"] = value;
     m_fields["sqltext"] = value;
     m_fields["querytype"] = value;
     m_fields["readonly"] = value;
@@ -58,6 +59,7 @@ Statement::Statement(Catalog *catalog, CatalogType *parent, const string &path, 
 }
 
 void Statement::update() {
+    m_id = m_fields["id"].intValue;
     m_sqltext = m_fields["sqltext"].strValue.c_str();
     m_querytype = m_fields["querytype"].intValue;
     m_readonly = m_fields["readonly"].intValue;
@@ -127,6 +129,10 @@ void Statement::removeChild(const std::string &collectionName, const std::string
         return m_fragments.remove(childName);
     if (collectionName.compare("ms_fragments") == 0)
         return m_ms_fragments.remove(childName);
+}
+
+int32_t Statement::id() const {
+    return m_id;
 }
 
 const string & Statement::sqltext() const {

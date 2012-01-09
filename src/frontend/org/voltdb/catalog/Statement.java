@@ -26,6 +26,7 @@ package org.voltdb.catalog;
  */
 public class Statement extends CatalogType {
 
+    int m_id;
     String m_sqltext = new String();
     int m_querytype;
     boolean m_readonly;
@@ -50,6 +51,7 @@ public class Statement extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
+        this.addField("id", m_id);
         this.addField("sqltext", m_sqltext);
         this.addField("querytype", m_querytype);
         this.addField("readonly", m_readonly);
@@ -78,6 +80,7 @@ public class Statement extends CatalogType {
     }
 
     public void update() {
+        m_id = (Integer) m_fields.get("id");
         m_sqltext = (String) m_fields.get("sqltext");
         m_querytype = (Integer) m_fields.get("querytype");
         m_readonly = (Boolean) m_fields.get("readonly");
@@ -95,6 +98,11 @@ public class Statement extends CatalogType {
         m_ms_exptree = (String) m_fields.get("ms_exptree");
         m_ms_fullplan = (String) m_fields.get("ms_fullplan");
         m_cost = (Integer) m_fields.get("cost");
+    }
+
+    /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
+    public int getId() {
+        return m_id;
     }
 
     /** GETTER: The text of the sql statement */
@@ -196,6 +204,11 @@ public class Statement extends CatalogType {
     /** GETTER: The cost of this plan measured in arbitrary units */
     public int getCost() {
         return m_cost;
+    }
+
+    /** SETTER: Unique identifier for this Procedure. Allows for faster look-ups */
+    public void setId(int value) {
+        m_id = value; m_fields.put("id", value);
     }
 
     /** SETTER: The text of the sql statement */

@@ -28,32 +28,46 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.voltdb.ProcInfoData;
 import org.voltdb.benchmark.tpcc.TPCCClient;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
-import org.voltdb.catalog.Catalog;
-import org.voltdb.catalog.Column;
-import org.voltdb.catalog.ColumnRef;
-import org.voltdb.catalog.Connector;
-import org.voltdb.catalog.Constraint;
-import org.voltdb.catalog.ConstraintRef;
-import org.voltdb.catalog.Database;
-import org.voltdb.catalog.MaterializedViewInfo;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.SnapshotSchedule;
-import org.voltdb.catalog.Table;
+import org.voltdb.catalog.*;
+import org.voltdb.compiler.VoltCompiler.Feedback;
 import org.voltdb.regressionsuites.TestSQLTypesSuite;
 import org.voltdb.types.ConstraintType;
+import org.voltdb.utils.BuildDirectoryUtils;
 import org.voltdb.utils.JarReader;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 
 public class TestVoltCompiler extends BaseTestCase {
+    
+    String nothing_jar;
+    String testout_jar;
+
+    final ClusterConfig cluster_config = new ClusterConfig(1, 1, 0, "localhost");
+    
+    @Override
+    public void setUp() {
+        nothing_jar = BuildDirectoryUtils.getBuildDirectoryPath() + File.pathSeparator + "nothing.jar";
+        testout_jar = BuildDirectoryUtils.getBuildDirectoryPath() + File.pathSeparator + "testout.jar";
+    }
+
+    @Override
+    public void tearDown() {
+        File njar = new File(nothing_jar);
+        njar.delete();
+        File tjar = new File(testout_jar);
+        tjar.delete();
+    }
     
     public void testSnapshotSettings() throws IOException {
         String schemaPath = "";
@@ -940,5 +954,50 @@ public class TestVoltCompiler extends BaseTestCase {
 
         final Catalog catalog = compiler.compileCatalog(projectPath, cluster_config);
         assert(catalog == null);
+    }
+    
+    public void testUniqueProcedureStatementIds() {
+        final File schemaFile = VoltProjectBuilder.writeStringToTempFile("create table T(ID INTEGER);");
+        int expected = 5;
+        String simpleXML =
+            "<?xml version=\"1.0\"?>\n" +
+            "<project>" +
+            "<database name='database'>" +
+            "<schemas>" +
+            "<schema path='" + schemaFile.getAbsolutePath() + "'/>" +
+            "</schemas>" +
+            "<procedures>";
+        for (int i = 0; i < expected; i++) {
+            simpleXML += "<procedure class='proc" + i + "'><sql>select * from T</sql></procedure>";
+        }
+        simpleXML += "</procedures>" +
+                     "</database>" +
+                     "</project>";
+
+        final File projectFile = VoltProjectBuilder.writeStringToTempFile(simpleXML);
+        final String projectPath = projectFile.getPath();
+
+        final VoltCompiler compiler = new VoltCompiler();
+        final Catalog catalog = compiler.compileCatalog(projectPath, cluster_config);
+        assertNotNull(catalog);
+        
+        Set<Integer> proc_ids = new HashSet<Integer>();
+        Set<Integer> stmt_ids = new HashSet<Integer>();
+        
+        Database catalog_db = CatalogUtil.getDatabase(catalog);
+        int actual_procs = 0;
+        int actual_stmts = 0;
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            assertFalse(proc_ids.contains(catalog_proc.getId()));
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                assertFalse(stmt_ids.contains(catalog_stmt.getId()));
+                stmt_ids.add(catalog_stmt.getId());
+                if (catalog_proc.getSystemproc() == false) actual_stmts++;
+            } // FOR
+            proc_ids.add(catalog_proc.getId());
+            if (catalog_proc.getSystemproc() == false) actual_procs++;
+        } // FOR
+        assertEquals(expected, actual_procs);
+        assertEquals(expected, actual_stmts);
     }
 }

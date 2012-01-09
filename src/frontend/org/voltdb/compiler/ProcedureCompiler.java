@@ -47,7 +47,6 @@ import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.utils.ClassUtil;
-import edu.brown.utils.CollectionUtil;
 
 /**
  * Compiles stored procedures into a given catalog, invoking the StatementCompiler as needed.
@@ -88,6 +87,7 @@ public abstract class ProcedureCompiler {
 
         // add an entry to the catalog
         final Procedure procedure = db.getProcedures().add(shortName);
+        procedure.setId(compiler.getNextProcedureId());
         for (String userName : procedureDescriptor.m_authUsers) {
             final User user = db.getUsers().get(userName);
             if (user == null) {
@@ -189,14 +189,6 @@ public abstract class ProcedureCompiler {
             procedure.setReduceemittable(tableReduceOutput);
             procedure.setReduceinputquery(info.reduceInputQuery);
         }
-
-        // make sure multi-partition implies no partitoning info
-        /**
-         * PAVLO if (info.singlePartition == false) { if ((info.partitionInfo != null) && (info.partitionInfo.length() >
-         * 0)) { String msg = "Procedure: " + shortName + " is annotated as multi-partition"; msg +=
-         * " but partitionInfo has non-empty value: \"" + info.partitionInfo + "\""; throw compiler.new
-         * VoltCompilerException(msg); } }
-         **/
 
         // track if there are any writer stmts
         boolean procHasWriteStmts = false;
@@ -405,6 +397,7 @@ public abstract class ProcedureCompiler {
 
         // add an entry to the catalog
         final Procedure procedure = db.getProcedures().add(shortName);
+        procedure.setId(compiler.getNextProcedureId());
         for (String userName : procedureDescriptor.m_authUsers) {
             final User user = db.getUsers().get(userName);
             if (user == null) {

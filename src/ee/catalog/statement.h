@@ -41,6 +41,7 @@ class Statement : public CatalogType {
 protected:
     Statement(Catalog * catalog, CatalogType * parent, const std::string &path, const std::string &name);
 
+    int32_t m_id;
     std::string m_sqltext;
     int32_t m_querytype;
     bool m_readonly;
@@ -70,6 +71,8 @@ protected:
     virtual void removeChild(const std::string &collectionName, const std::string &childName);
 
 public:
+    /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
+    int32_t id() const;
     /** GETTER: The text of the sql statement */
     const std::string & sqltext() const;
     int32_t querytype() const;
