@@ -86,7 +86,7 @@ public class TestLocalTransaction extends BaseTestCase {
         
         Site catalog_site = this.getSite(0);
         this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
-        this.executor = (MockExecutionSite)this.hstore_site.getExecutionSite(BASE_PARTITION);
+        this.executor = (MockExecutionSite)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
         assertNotNull(this.executor);
         this.ts = new LocalTransaction(this.hstore_site);
     }

@@ -41,7 +41,7 @@ import org.voltdb.messaging.Messenger;
 import org.voltdb.network.VoltNetwork;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 
 public class MockVoltDB implements VoltDBInterface
 {
@@ -234,7 +234,7 @@ public class MockVoltDB implements VoltDBInterface
     }
 
     @Override
-    public Hashtable<Integer, ExecutionSite> getLocalSites()
+    public Hashtable<Integer, PartitionExecutor> getLocalSites()
     {
         // TODO Auto-generated method stub
         return null;

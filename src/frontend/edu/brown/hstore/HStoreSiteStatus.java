@@ -20,8 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
-import edu.brown.hstore.ExecutionSite;
-import edu.brown.hstore.ExecutionSitePostProcessor;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.util.ExecutionSitePostProcessor;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
@@ -81,7 +81,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     private final HStoreSite hstore_site;
     private final HStoreConf hstore_conf;
     private final int interval; // milliseconds
-    private final TreeMap<Integer, ExecutionSite> executors;
+    private final TreeMap<Integer, PartitionExecutor> executors;
     
     private Integer last_completed = null;
     private AtomicInteger snapshot_ctr = new AtomicInteger(0);
@@ -121,9 +121,9 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         this.hstore_conf = hstore_conf;
         this.interval = hstore_conf.site.status_interval;
         
-        this.executors = new TreeMap<Integer, ExecutionSite>();
+        this.executors = new TreeMap<Integer, PartitionExecutor>();
         for (Integer partition : hstore_site.getLocalPartitionIds()) {
-            this.executors.put(partition, hstore_site.getExecutionSite(partition));
+            this.executors.put(partition, hstore_site.getPartitionExecutor(partition));
         } // FOR
 
         // Print a debug message when the first non-sysproc shows up
@@ -313,12 +313,12 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         // EXECUTION ENGINES
         Map<Integer, String> partitionLabels = new HashMap<Integer, String>();
         Histogram<Integer> invokedTxns = new Histogram<Integer>();
-        for (Entry<Integer, ExecutionSite> e : this.executors.entrySet()) {
+        for (Entry<Integer, PartitionExecutor> e : this.executors.entrySet()) {
             int partition = e.getKey().intValue();
             String partitionLabel = String.format("%02d", partition);
             partitionLabels.put(partition, partitionLabel);
             
-            ExecutionSite es = e.getValue();
+            PartitionExecutor es = e.getValue();
             ThrottlingQueue<?> es_queue = es.getThrottlingQueue();
             ThrottlingQueue<?> dtxn_queue = manager.getQueue(partition);
             AbstractTransaction current_dtxn = es.getCurrentDtxn();
@@ -490,7 +490,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
     protected Map<String, String> batchPlannerInfo() {
         // First get all the BatchPlanners that we have
         Collection<BatchPlanner> bps = new HashSet<BatchPlanner>();
-        for (ExecutionSite es : this.executors.values()) {
+        for (PartitionExecutor es : this.executors.values()) {
             bps.addAll(es.POOL_BATCH_PLANNERS.values());
         } // FOR
         Map<Procedure, ProfileMeasurement[]> proc_totals = new HashMap<Procedure, ProfileMeasurement[]>();

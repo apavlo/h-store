@@ -19,7 +19,7 @@ package org.voltdb.dtxn;
 
 import java.util.ArrayList;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.debugstate.ExecutorContext.ExecutorTxnState;
 import org.voltdb.messaging.InitiateResponseMessage;
@@ -33,7 +33,7 @@ public class SinglePartitionTxnState extends TransactionState {
     InitiateTaskMessage m_task = null;
 
     public SinglePartitionTxnState(Mailbox mbox,
-                                   ExecutionSite site,
+                                   PartitionExecutor site,
                                    TransactionInfoBaseMessage task)
     {
         super(mbox, site, task);

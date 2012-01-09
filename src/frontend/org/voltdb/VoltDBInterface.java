@@ -25,7 +25,7 @@ import org.voltdb.messaging.HostMessenger;
 import org.voltdb.messaging.Messenger;
 import org.voltdb.network.VoltNetwork;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 
 public interface VoltDBInterface
 {
@@ -64,7 +64,7 @@ public interface VoltDBInterface
     public Messenger getMessenger();
     public HostMessenger getHostMessenger();
     public List<ClientInterface> getClientInterfaces();
-    public Map<Integer, ExecutionSite> getLocalSites();
+    public Map<Integer, PartitionExecutor> getLocalSites();
     public VoltNetwork getNetwork();
     public StatsAgent getStatsAgent();
     public FaultDistributorInterface getFaultDistributor();

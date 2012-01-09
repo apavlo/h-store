@@ -23,7 +23,7 @@
  *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
  *   OTHER DEALINGS IN THE SOFTWARE.                                       *
  ***************************************************************************/
-package edu.brown.hstore;
+package edu.brown.hstore.util;
 
 import java.util.Collection;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -36,6 +36,7 @@ import edu.brown.markov.MarkovGraph;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStoreSite;
 
 /**
@@ -61,7 +62,7 @@ public class ExecutionSiteHelper implements Runnable {
     /**
      * The sites we need to invoke cleanupTransaction() + tick() for
      */
-    private final Collection<ExecutionSite> executors;
+    private final Collection<PartitionExecutor> executors;
     /**
      * HStoreSite Handle
      */
@@ -97,7 +98,7 @@ public class ExecutionSiteHelper implements Runnable {
      * @param txn_expire
      * @param enable_profiling
      */
-    public ExecutionSiteHelper(HStoreSite hstore_site, Collection<ExecutionSite> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
+    public ExecutionSiteHelper(HStoreSite hstore_site, Collection<PartitionExecutor> executors, int max_txn_per_round, int txn_expire, boolean enable_profiling) {
         assert(executors != null);
         assert(executors.isEmpty() == false);
         this.executors = executors;
@@ -108,7 +109,7 @@ public class ExecutionSiteHelper implements Runnable {
         assert(this.hstore_site != null) : "Missing HStoreSite!";
         
         assert(this.executors.size() > 0) : "No ExecutionSites for helper";
-        ExecutionSite executor = CollectionUtil.first(this.executors);
+        PartitionExecutor executor = CollectionUtil.first(this.executors);
         assert(executor != null);
         this.hstore_site.getShutdownObservable().addObserver(this.shutdown_observer);
 
@@ -139,7 +140,7 @@ public class ExecutionSiteHelper implements Runnable {
         if (t) LOG.trace("New invocation of the ExecutionSiteHelper. Let's clean-up some txns!");
 
         this.hstore_site.updateLogging();
-        for (ExecutionSite es : this.executors) {
+        for (PartitionExecutor es : this.executors) {
 //            if (t) LOG.trace(String.format("Partition %d has %d finished transactions", es.partitionId, es.finished_txn_states.size()));
             long to_remove = System.currentTimeMillis() - this.txn_expire;
             
@@ -159,7 +160,7 @@ public class ExecutionSiteHelper implements Runnable {
 //                    this.total_cleaned++;
 //                } else break;
 //            } // WHILE
-            if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.partitionId, this.total_cleaned));
+            if (d && cleaned > 0) LOG.debug(String.format("Cleaned %d TransactionStates at partition %d [total=%d]", cleaned, es.getPartitionId(), this.total_cleaned));
             // Only call tick here!
             es.tick();
         } // FOR

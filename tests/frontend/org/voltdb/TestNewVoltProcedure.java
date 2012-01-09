@@ -19,7 +19,7 @@ import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreSite;
@@ -41,7 +41,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
     
     private static HStoreSite hstore_site;
-    private static ExecutionSite site;
+    private static PartitionExecutor site;
     private static PartitionEstimator p_estimator;
     
     private Procedure catalog_proc;
@@ -64,7 +64,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
             hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
-            hstore_site.addExecutionSite(LOCAL_PARTITION, site);
+            hstore_site.addPartitionExecutor(LOCAL_PARTITION, site);
         }
         this.catalog_proc = this.getProcedure(TARGET_PROCEDURE);
         this.volt_proc = site.getVoltProcedure(TARGET_PROCEDURE);

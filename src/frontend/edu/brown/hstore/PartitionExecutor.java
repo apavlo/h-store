@@ -127,8 +127,8 @@ import edu.brown.hstore.util.ThrottlingQueue;
  * fragments. Interacts with the DTXN system to get work to do. The thread might
  * do other things, but this is where the good stuff happens.
  */
-public class ExecutionSite implements Runnable, Shutdownable, Loggable {
-    public static final Logger LOG = Logger.getLogger(ExecutionSite.class);
+public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
+    public static final Logger LOG = Logger.getLogger(PartitionExecutor.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     private static boolean d;
@@ -195,11 +195,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 } else {
                     volt_proc = new VoltProcedure.StmtProcedure();
                 }
-                volt_proc.globalInit(ExecutionSite.this,
+                volt_proc.globalInit(PartitionExecutor.this,
                                this.catalog_proc,
-                               ExecutionSite.this.backend_target,
-                               ExecutionSite.this.hsql,
-                               ExecutionSite.this.p_estimator);
+                               PartitionExecutor.this.backend_target,
+                               PartitionExecutor.this.hsql,
+                               PartitionExecutor.this.p_estimator);
             } catch (Exception e) {
                 if (d) LOG.warn("__FILE__:__LINE__ " + "Failed to created VoltProcedure instance for " + catalog_proc.getName() , e);
                 throw e;
@@ -375,11 +375,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      */
     private final List<WorkFragment> tmp_remoteFragmentList = new ArrayList<WorkFragment>();
     /**
-     * WorkFragments that we need to send to our own ExecutionSite
+     * WorkFragments that we need to send to our own PartitionExecutor
      */
     private final List<WorkFragment> tmp_localWorkFragmentList = new ArrayList<WorkFragment>();
     /**
-     * WorkFragments that we need to send to a different ExecutionSite that is on this same HStoreSite
+     * WorkFragments that we need to send to a different PartitionExecutor that is on this same HStoreSite
      */
     private final List<WorkFragment> tmp_localSiteFragmentList = new ArrayList<WorkFragment>();
     
@@ -419,11 +419,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // ----------------------------------------------------------------------------
     
     /**
-     * How much time the ExecutionSite was idle waiting for work to do in its queue
+     * How much time the PartitionExecutor was idle waiting for work to do in its queue
      */
     private final ProfileMeasurement work_idle_time = new ProfileMeasurement("EE_IDLE");
     /**
-     * How much time it takes for this ExecutionSite to execute a transaction
+     * How much time it takes for this PartitionExecutor to execute a transaction
      */
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
     
@@ -450,7 +450,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                 WorkResult result = msg.getResults(i); 
                 if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Got %s from partition %d for %s",
                                                result.getClass().getSimpleName(), result.getPartitionId(), ts));
-                ExecutionSite.this.processWorkResult((LocalTransaction)ts, result);
+                PartitionExecutor.this.processWorkResult((LocalTransaction)ts, result);
             } // FOR
         }
     }; // END CLASS
@@ -474,7 +474,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
 
     /**
-     * SystemProcedures are "friends" with ExecutionSites and granted
+     * SystemProcedures are "friends" with PartitionExecutors and granted
      * access to internal state via m_systemProcedureContext.
      * access to internal state via m_systemProcedureContext.
      */
@@ -496,7 +496,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         public Cluster getCluster()                 { return cluster; }
         public Site getSite()                       { return site; }
         public ExecutionEngine getExecutionEngine() { return ee; }
-        public long getLastCommittedTxnId()         { return ExecutionSite.this.getLastCommittedTxnId(); }
+        public long getLastCommittedTxnId()         { return PartitionExecutor.this.getLastCommittedTxnId(); }
 //        public long getNextUndo()                   { return getNextUndoToken(); }
 //        public long getTxnId()                      { return getCurrentTxnId(); }
 //        public String getOperStatus()               { return VoltDB.getOperStatus(); }
@@ -511,7 +511,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     /**
      * Dummy constructor...
      */
-    protected ExecutionSite() {
+    protected PartitionExecutor() {
         this.work_throttler = null;
         this.ee = null;
         this.hsql = null;
@@ -538,7 +538,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
      * @param serializedCatalog A list of catalog commands, separated by
      * newlines that, when executed, reconstruct the complete m_catalog.
      */
-    public ExecutionSite(final int partitionId, final Catalog catalog, final BackendTarget target, PartitionEstimator p_estimator, TransactionEstimator t_estimator) {
+    public PartitionExecutor(final int partitionId, final Catalog catalog, final BackendTarget target, PartitionEstimator p_estimator, TransactionEstimator t_estimator) {
         this.hstore_conf = HStoreConf.singleton();
         
         this.work_throttler = new ThrottlingQueue<TransactionInfoBaseMessage>(
@@ -618,7 +618,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         // just print error info an bail if we run into an error here
         catch (final Exception ex) {
-            LOG.fatal("__FILE__:__LINE__ " + "Failed to initialize ExecutionSite", ex);
+            LOG.fatal("__FILE__:__LINE__ " + "Failed to initialize PartitionExecutor", ex);
             VoltDB.crashVoltDB();
         }
         this.ee = eeTemp;
@@ -666,7 +666,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             } else {
                 volt_proc = new VoltProcedure.StmtProcedure();
             }
-            volt_proc.globalInit(ExecutionSite.this,
+            volt_proc.globalInit(PartitionExecutor.this,
                                  catalog_proc,
                                  this.backend_target,
                                  this.hsql,
@@ -676,8 +676,8 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
 
     /**
-     * Link this ExecutionSite with its parent HStoreSite
-     * This will initialize the references the various components shared among the ExecutionSites 
+     * Link this PartitionExecutor with its parent HStoreSite
+     * This will initialize the references the various components shared among the PartitionExecutors 
      * @param hstore_site
      */
     public void initHStoreSite(HStoreSite hstore_site) {
@@ -728,7 +728,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             // Setup shutdown lock
             this.shutdown_latch = new Semaphore(0);
             
-            if (d) LOG.debug("__FILE__:__LINE__ " + "Starting ExecutionSite run loop...");
+            if (d) LOG.debug("__FILE__:__LINE__ " + "Starting PartitionExecutor run loop...");
             while (stop == false && this.isShuttingDown() == false) {
                 txn_id = -1;
                 work = null;
@@ -745,7 +745,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                         if (hstore_conf.site.exec_profiling) this.work_idle_time.stop();
                     }
                 } catch (InterruptedException ex) {
-                    if (d && this.isShuttingDown() == false) LOG.debug("__FILE__:__LINE__ " + "Unexpected interuption while polling work queue. Halting ExecutionSite...", ex);
+                    if (d && this.isShuttingDown() == false) LOG.debug("__FILE__:__LINE__ " + "Unexpected interuption while polling work queue. Halting PartitionExecutor...", ex);
                     stop = true;
                     break;
                 }
@@ -850,7 +850,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         } catch (final Throwable ex) {
             if (this.isShuttingDown() == false) {
                 ex.printStackTrace();
-                LOG.fatal("__FILE__:__LINE__ " + String.format("Unexpected error for ExecutionSite partition #%d [%s]%s",
+                LOG.fatal("__FILE__:__LINE__ " + String.format("Unexpected error for PartitionExecutor partition #%d [%s]%s",
                                         this.partitionId, (current_txn != null ? " - " + current_txn : ""), ex), ex);
                 if (current_txn != null) LOG.fatal("__FILE__:__LINE__ " + "TransactionState Dump:\n" + current_txn.debug());
                 
@@ -861,7 +861,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
             if (debug.get() && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
                 txnDebug = "\n" + current_txn.debug();
             }
-            LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d ExecutionSite is stopping.%s%s",
+            LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d PartitionExecutor is stopping.%s%s",
                                    this.partitionId, (txn_id > 0 ? " In-Flight Txn: #" + txn_id : ""), txnDebug));
             
             // Release the shutdown latch in case anybody waiting for us
@@ -917,7 +917,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
-    public HStoreCoordinator getHStoreMessenger() {
+    public HStoreCoordinator getHStoreCoordinator() {
         return (this.hstore_coordinator);
     }
 
@@ -1114,7 +1114,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
     
     // ---------------------------------------------------------------
-    // ExecutionSite API
+    // PartitionExecutor API
     // ---------------------------------------------------------------
     
     /**
@@ -1319,7 +1319,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Attempting to begin processing %s for %s on partition %d [taskHash=%d]",
                                        itask.getClass().getSimpleName(), ts, this.partitionId, itask.hashCode()));
         // If this is going to be a multi-partition transaction, then we will mark it as the current dtxn
-        // for this ExecutionSite.
+        // for this PartitionExecutor.
         if (predict_singlePartition == false) {
             this.exec_lock.lock();
             try {
@@ -1723,7 +1723,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * Execute a BatcPlan directly on this ExecutionSite without having to covert it
+     * Execute a BatcPlan directly on this PartitionExecutor without having to covert it
      * to FragmentTaskMessages first. This is big speed improvement over having to queue things up
      * @param ts
      * @param plan
@@ -2358,13 +2358,13 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
                                                    num_localSite, ts));
                     for (WorkFragment fragment : this.tmp_localSiteFragmentList) {
                         FragmentTaskMessage ftask = ts.getFragmentTaskMessage(fragment);
-                        hstore_site.getExecutionSite(fragment.getPartitionId()).queueWork(ts, ftask);
+                        hstore_site.getPartitionExecutor(fragment.getPartitionId()).queueWork(ts, ftask);
                     } // FOR
                 }
         
                 // Then execute all of the tasks need to access the partitions at this HStoreSite
                 // We'll dispatch the remote-partition-local-site fragments first because they're going
-                // to need to get queued up by at the other ExecutionSites
+                // to need to get queued up by at the other PartitionExecutors
                 if (num_localPartition > 0) {
                     if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Executing %d FragmentTaskMessages on local partition for %s",
                                                    num_localPartition, ts));
@@ -2469,7 +2469,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug("__FILE__:__LINE__ " + "Total # of Queued Responses: " + this.queued_responses.size());
     }
     
-    protected void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
@@ -2741,11 +2741,11 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
     // ---------------------------------------------------------------
     
     /**
-     * Cause this ExecutionSite to make the entire HStore cluster shutdown
+     * Cause this PartitionExecutor to make the entire HStore cluster shutdown
      * This won't return!
      */
     public synchronized void crash(Throwable ex) {
-        LOG.warn("__FILE__:__LINE__ " + String.format("ExecutionSite for Partition #%d is crashing", this.partitionId), ex);
+        LOG.warn("__FILE__:__LINE__ " + String.format("PartitionExecutor for Partition #%d is crashing", this.partitionId), ex);
         assert(this.hstore_coordinator != null);
         this.hstore_coordinator.shutdownCluster(ex); // This won't return
     }
@@ -2770,7 +2770,7 @@ public class ExecutionSite implements Runnable, Shutdownable, Loggable {
         }
         this.shutdown_state = ShutdownState.SHUTDOWN;
         
-        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Shutting down ExecutionSite for Partition #%d", this.partitionId));
+        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Shutting down PartitionExecutor for Partition #%d", this.partitionId));
         
         // Clear the queue
         this.work_queue.clear();

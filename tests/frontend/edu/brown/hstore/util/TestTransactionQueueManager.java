@@ -5,7 +5,7 @@ import java.util.HashSet;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Test;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.catalog.Site;
 
 import com.google.protobuf.RpcCallback;
@@ -51,8 +51,8 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertNotNull(catalog_site);
         hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
         for (int p = 0; p < NUM_PARTITONS; p++) {
-            ExecutionSite site = new MockExecutionSite(p, catalog, p_estimator);
-            hstore_site.addExecutionSite(p, site);
+            PartitionExecutor site = new MockExecutionSite(p, catalog, p_estimator);
+            hstore_site.addPartitionExecutor(p, site);
         } // FOR
         
         this.queue = new TransactionQueueManager(hstore_site);

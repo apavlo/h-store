@@ -20,7 +20,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  * 
  * @author pavlo
  */
-public class MockExecutionSite extends ExecutionSite {
+public class MockExecutionSite extends PartitionExecutor {
     
     private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
     

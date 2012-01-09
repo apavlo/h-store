@@ -27,7 +27,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
@@ -73,7 +73,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 
     
     @Override
-    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
+    public void globalInit(PartitionExecutor site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator pEstimator) {
         super.globalInit(site, catalog_proc, eeType, hsql, pEstimator);
         this.database = CatalogUtil.getDatabase(catalog_proc);
         this.num_partitions = CatalogUtil.getNumberOfPartitions(catalog_proc);
@@ -120,7 +120,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                                       Map<Integer,List<VoltTable>> dependencies,
                                                       int fragmentId,
                                                       ParameterSet params,
-                                                      ExecutionSite.SystemProcedureExecutionContext context);
+                                                      PartitionExecutor.SystemProcedureExecutionContext context);
 
     /**
      * Produce work units, possibly on all sites, for a list of plan fragments.

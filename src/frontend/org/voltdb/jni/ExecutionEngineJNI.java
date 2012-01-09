@@ -40,7 +40,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.ByteString;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -99,7 +99,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
      * @see #nativeCreate()
      */
     public ExecutionEngineJNI(
-            final ExecutionSite site,
+            final PartitionExecutor site,
             final int clusterIndex,
             final int siteId,
             final int partitionId,

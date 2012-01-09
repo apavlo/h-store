@@ -30,7 +30,7 @@ import java.util.logging.Logger;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientInterface;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.InsertOrderLineBatched;
@@ -47,7 +47,7 @@ public class ResetTestMain {
         Logger.getLogger(Client.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(ClientInterface.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(ExecutionEngine.class.getName()).setLevel(Level.SEVERE);
-        Logger.getLogger(ExecutionSite.class.getName()).setLevel(Level.SEVERE);
+        Logger.getLogger(PartitionExecutor.class.getName()).setLevel(Level.SEVERE);
         Logger.getLogger(VoltProcedure.class.getName()).setLevel(Level.SEVERE);
 
         ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(1, 1);

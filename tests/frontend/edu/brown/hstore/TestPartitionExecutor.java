@@ -40,7 +40,7 @@ import edu.brown.hstore.dtxn.RemoteTransaction;
  * @author pavlo
  *
  */
-public class TestExecutionSite extends BaseTestCase {
+public class TestPartitionExecutor extends BaseTestCase {
 
     private static final int NUM_PARTITONS = 10;
     private static final int PARTITION_ID = 1;
@@ -50,7 +50,7 @@ public class TestExecutionSite extends BaseTestCase {
     private static final String TARGET_PROCEDURE = "GetAccessData";
     private static final Object TARGET_PARAMS[] = new Object[] { new Long(1), new Long(1) };
     
-    private static ExecutionSite site;
+    private static PartitionExecutor site;
     
     private final Random rand = new Random(); 
     
@@ -71,7 +71,7 @@ public class TestExecutionSite extends BaseTestCase {
             Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
             HStoreSite hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
             site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
-            hstore_site.addExecutionSite(PARTITION_ID, site);
+            hstore_site.addPartitionExecutor(PARTITION_ID, site);
             site.initHStoreSite(hstore_site);
         }
     }

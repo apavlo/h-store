@@ -12,7 +12,7 @@ import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstore.Status;
 import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
@@ -70,7 +70,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     // -----------------------------------------------------------------
     
     @Override
-    public void globalInit(ExecutionSite site, Procedure catalogProc, BackendTarget eeType, HsqlBackend hsql,
+    public void globalInit(PartitionExecutor site, Procedure catalogProc, BackendTarget eeType, HsqlBackend hsql,
             PartitionEstimator pEstimator) {
         super.globalInit(site, catalogProc, eeType, hsql, pEstimator);
         
@@ -109,7 +109,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             if (is_local) {
                 // Send out network messages to all other partitions to tell them to
                 // execute the MAP phase of this job
-                this.executor.getHStoreMessenger().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
+                this.executor.getHStoreCoordinator().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
             }
 
             if (debug.get())
@@ -160,7 +160,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                 if (debug.get())
                     LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
                 // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
-                this.executor.getHStoreMessenger().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
+                this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
             } 
             
             // Sort the the MAP_OUTPUT table

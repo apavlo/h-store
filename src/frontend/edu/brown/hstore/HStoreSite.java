@@ -44,8 +44,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
-import edu.brown.hstore.ExecutionSite;
-import edu.brown.hstore.ExecutionSitePostProcessor;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.TransactionIdManager;
 import org.voltdb.catalog.Database;
@@ -103,6 +101,7 @@ import edu.brown.hstore.estimators.TM1Estimator;
 import edu.brown.hstore.estimators.TPCCEstimator;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.ExecutionSitePostProcessor;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.TransactionQueueManager;
 import edu.brown.hstore.util.TxnCounter;
@@ -196,9 +195,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private HStoreCoordinator hstore_coordinator;
 
     /**
-     * Local ExecutionSite Stuff
+     * Local PartitionExecutor Stuff
      */
-    private final ExecutionSite executors[];
+    private final PartitionExecutor executors[];
     private final Thread executor_threads[];
     
     /**
@@ -329,7 +328,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.local_partitions.addAll(CatalogUtil.getLocalPartitionIds(catalog_site));
         this.num_local_partitions = this.local_partitions.size();
         
-        this.executors = new ExecutionSite[num_partitions];
+        this.executors = new PartitionExecutor[num_partitions];
         this.executor_threads = new Thread[num_partitions];
         this.single_partition_sets = new Collection[num_partitions];
         
@@ -453,18 +452,15 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.hasher);
     }
     
-    public void addExecutionSite(int partition, ExecutionSite executor) {
+    public void addPartitionExecutor(int partition, PartitionExecutor executor) {
         assert(executor != null);
         this.executors[partition] = executor;
     }
-    public ExecutionSite getExecutionSite(int partition) {
-        ExecutionSite es = this.executors[partition]; 
-        assert(es != null) : "Unexpected null ExecutionSite for partition #" + partition + " on " + this.getSiteName();
+    public PartitionExecutor getPartitionExecutor(int partition) {
+        PartitionExecutor es = this.executors[partition]; 
+        assert(es != null) : "Unexpected null PartitionExecutor for partition #" + partition + " on " + this.getSiteName();
         return (es);
     }
-//    public ExecutionSiteHelper getExecutionSiteHelper() {
-//        return (this.helper);
-//    }
     public Collection<ExecutionSitePostProcessor> getExecutionSitePostProcessors() {
         return (this.processors);
     }
@@ -591,9 +587,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     protected HStoreSite init() {
         if (d) LOG.debug("__FILE__:__LINE__ " + "Initializing HStoreSite " + this.getSiteName());
 
-        List<ExecutionSite> executor_list = new ArrayList<ExecutionSite>();
+        List<PartitionExecutor> executor_list = new ArrayList<PartitionExecutor>();
         for (int partition : this.local_partitions) {
-            executor_list.add(this.getExecutionSite(partition));
+            executor_list.add(this.getPartitionExecutor(partition));
         } // FOR
         
         this.hstore_coordinator = this.initHStoreCoordinator();
@@ -669,9 +665,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //                                             TimeUnit.MILLISECONDS);
         
         // Then we need to start all of the ExecutionSites in threads
-        if (d) LOG.debug("__FILE__:__LINE__ " + "Starting ExecutionSite threads for " + this.local_partitions.size() + " partitions on " + this.getSiteName());
+        if (d) LOG.debug("__FILE__:__LINE__ " + "Starting PartitionExecutor threads for " + this.local_partitions.size() + " partitions on " + this.getSiteName());
         for (int partition : this.local_partitions) {
-            ExecutionSite executor = this.getExecutionSite(partition);
+            PartitionExecutor executor = this.getPartitionExecutor(partition);
             executor.initHStoreSite(this);
 
             t = new Thread(executor);
@@ -859,7 +855,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         
         for (int p : this.local_partitions) {
-            if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the ExecutionSite for partition " + p + " to shutdown");
+            if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the PartitionExecutor for partition " + p + " to shutdown");
             this.executors[p].shutdown();
         } // FOR
       
@@ -1000,7 +996,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        // Grab a new LocalTransactionState object from the target base partition's ExecutionSite object pool
+        // Grab a new LocalTransactionState object from the target base partition's PartitionExecutor object pool
         // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
         long txn_id = id_generator.getNextUniqueTransactionId();
         LocalTransaction ts = null;
@@ -1272,9 +1268,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting %s %s on partition %d",
                         (ts.isPredictSinglePartition() ? "single-partition" : "distributed"), ts, base_partition));
         
-        ExecutionSite executor = this.executors[base_partition];
+        PartitionExecutor executor = this.executors[base_partition];
         assert(executor != null) :
-            "Unable to start " + ts + " - No ExecutionSite exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
+            "Unable to start " + ts + " - No PartitionExecutor exists for partition #" + base_partition + " at HStoreSite " + this.site_id;
         
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
         boolean ret = executor.queueNewTransaction(ts);
@@ -1328,7 +1324,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /** TODO(xin)
-     * Execute some map work on a particular ExecutionSite
+     * Execute some map work on a particular PartitionExecutor
      * @param request
      * @param done
      */
@@ -1340,7 +1336,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     /**
-     * Execute some work on a particular ExecutionSite
+     * Execute some work on a particular PartitionExecutor
      * @param request
      * @param done
      */
@@ -1355,7 +1351,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 
     /**
      * This method is the first part of two phase commit for a transaction.
-     * If speculative execution is enabled, then we'll notify each the ExecutionSites
+     * If speculative execution is enabled, then we'll notify each the PartitionExecutors
      * for the listed partitions that it is done. This will cause all the 
      * that are blocked on this transaction to be released immediately and queued 
      * @param txn_id
@@ -1367,7 +1363,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // We could have been asked to participate in a distributed transaction but
         // they never actually sent us anything, so we should just tell the queue manager
-        // that the txn is done. There is nothing that we need to do at the ExecutionSites
+        // that the txn is done. There is nothing that we need to do at the PartitionExecutors
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
         boolean is_local = (ts instanceof LocalTransaction);
         
@@ -1379,7 +1375,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
             this.txnQueueManager.finished(txn_id, Hstore.Status.OK, p.intValue());
             
-            // If speculative execution is enabled, then we'll turn it on at the ExecutionSite
+            // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
             if (ts != null && hstore_conf.site.exec_speculative_execution) {
                 if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Telling partition %d to enable speculative execution because of txn #%d", p, txn_id));
@@ -1400,7 +1396,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     
     /**
      * This method is used to finally complete the transaction.
-     * The ExecutionSite will either commit or abort the transaction at the specified partitions
+     * The PartitionExecutor will either commit or abort the transaction at the specified partitions
      * @param txn_id
      * @param status
      * @param partitions
@@ -1462,7 +1458,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @return
      */
     private ByteBuffer serializeClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        FastSerializer out = new FastSerializer(ExecutionSite.buffer_pool);
+        FastSerializer out = new FastSerializer(PartitionExecutor.buffer_pool);
         try {
             out.writeObject(cresponse);
         } catch (IOException e) {
@@ -1485,7 +1481,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * 
      * At this point the transaction should been properly committed or aborted at
-     * the ExecutionSite, including if it was mispredicted.
+     * the PartitionExecutor, including if it was mispredicted.
      * @param ts
      * @param cresponse
      */
@@ -1767,7 +1763,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      * @param cr
      */
-    public void queueClientResponse(ExecutionSite es, LocalTransaction ts, ClientResponseImpl cr) {
+    public void queueClientResponse(PartitionExecutor es, LocalTransaction ts, ClientResponseImpl cr) {
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
@@ -1808,7 +1804,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final boolean singlePartitioned = ts.isPredictSinglePartition();
        
         // Update Transaction profiles
-        // We have to calculate the profile information *before* we call ExecutionSite.cleanup!
+        // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
         // XXX: Should we include totals for mispredicted txns?
         if (hstore_conf.site.txn_profiling && this.status_monitor != null &&
             ts.profiler.isDisabled() == false && status != Hstore.Status.ABORT_MISPREDICT) {

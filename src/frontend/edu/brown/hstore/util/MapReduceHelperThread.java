@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
-import edu.brown.hstore.ExecutionSitePostProcessor;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 
@@ -18,7 +17,6 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.SendDataCallback;
-import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
