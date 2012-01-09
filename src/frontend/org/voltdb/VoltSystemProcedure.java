@@ -28,7 +28,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -151,7 +151,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
         LOG.debug("Preparing to execute " + pfs.length + " sysproc fragments");
 //        List<FragmentTaskMessage> ftasks = new ArrayList<FragmentTaskMessage>();
 
-        List<PartitionFragment> ftasks = new ArrayList<PartitionFragment>();
+        List<WorkFragment> ftasks = new ArrayList<WorkFragment>();
         ParameterSet parameters[] = new ParameterSet[pfs.length];
         for (int i = 0; i < pfs.length; i++) {
             SynthesizedPlanFragment pf = pfs[i];
@@ -179,7 +179,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
                                        (pf.destPartitionId < 0 ? "coordinator" : "partition #" + pf.destPartitionId),
                                        this.getTransactionState()));
 
-            PartitionFragment.Builder builder = PartitionFragment.newBuilder()
+            WorkFragment.Builder builder = WorkFragment.newBuilder()
                                                     .setPartitionId(pf.destPartitionId)
                                                     .setReadOnly(false)
                                                     .setLastFragment(pf.last_task)
@@ -219,6 +219,6 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
 //            ftasks.add(task);
         } // FOR
         
-        return (this.executor.dispatchPartitionFragment((LocalTransaction)this.getTransactionState(), ftasks, parameters));
+        return (this.executor.dispatchWorkFragment((LocalTransaction)this.getTransactionState(), ftasks, parameters));
     }
 }

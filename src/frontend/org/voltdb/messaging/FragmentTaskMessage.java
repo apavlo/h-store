@@ -571,14 +571,14 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     // HACK: PROTOCOL BUFFER WRAPPER MODE!
     // ----------------------------------------------------------------------------
 
-    private Hstore.TransactionWorkRequest.PartitionFragment inner_work;
+    private Hstore.TransactionWorkRequest.WorkFragment inner_work;
     
-    public FragmentTaskMessage setPartitionFragment(long txn_id, Hstore.TransactionWorkRequest.PartitionFragment work) {
+    public FragmentTaskMessage setWorkFragment(long txn_id, Hstore.TransactionWorkRequest.WorkFragment work) {
         this.setTransactionId(txn_id);
         this.inner_work = work;
         return (this);
     }
-    public Hstore.TransactionWorkRequest.PartitionFragment getPartitionFragment() {
+    public Hstore.TransactionWorkRequest.WorkFragment getWorkFragment() {
         return (this.inner_work);
     }
 }

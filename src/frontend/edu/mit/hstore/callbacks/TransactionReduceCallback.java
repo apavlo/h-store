@@ -9,8 +9,8 @@ import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
 
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.PartitionResult;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
@@ -148,7 +148,7 @@ public class TransactionReduceCallback extends BlockingCallback<Hstore.Transacti
         }
         // Here we should receive the reduceOutput data
         
-        for (PartitionResult pr : response.getResultsList()) {
+        for (ReduceResult pr : response.getResultsList()) {
             int partition = pr.getPartitionId();
             ByteBuffer bs = pr.getData().asReadOnlyByteBuffer();
             

@@ -21,7 +21,7 @@ import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Dependency;
-import edu.brown.hstore.Hstore.TransactionWorkResponse.PartitionResult;
+import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -287,7 +287,7 @@ public class TestExecutionSite extends BaseTestCase {
         DependencySet result = new DependencySet(new int[]{ dep_id }, new VoltTable[]{ vt });
         
         RemoteTransaction ts = new RemoteTransaction(site.getHStoreSite());
-        PartitionResult partitionResult = site.buildPartitionResult(ts, result, Hstore.Status.OK, null);
+        WorkResult partitionResult = site.buildWorkResult(ts, result, Hstore.Status.OK, null);
         assertNotNull(partitionResult);
         assertEquals(result.size(), partitionResult.getOutputCount());
         

@@ -1,7 +1,6 @@
 package org.voltdb;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -9,15 +8,11 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.types.QueryType;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.PartitionFragment;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
@@ -83,8 +78,8 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<TransactionWorkRequest.PartitionFragment> tasks = new ArrayList<TransactionWorkRequest.PartitionFragment>(); 
-        plan.getPartitionFragments(tasks);
+        List<TransactionWorkRequest.WorkFragment> tasks = new ArrayList<TransactionWorkRequest.WorkFragment>(); 
+        plan.getWorkFragments(tasks);
         int local_frags = TestBatchPlanner.getLocalFragmentCount(tasks, LOCAL_PARTITION);
         int remote_frags = TestBatchPlanner.getRemoteFragmentCount(tasks, LOCAL_PARTITION);
         

@@ -20,7 +20,7 @@ import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.PartitionFragment;
+import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -92,14 +92,14 @@ public class ExecutionState {
     /**
      * Blocked FragmentTaskMessages
      */
-    protected final Set<PartitionFragment> blocked_tasks = new HashSet<PartitionFragment>();
+    protected final Set<WorkFragment> blocked_tasks = new HashSet<WorkFragment>();
     
     /**
      * Unblocked FragmentTaskMessages
      * The VoltProcedure thread will block on this queue waiting for tasks to execute inside of ExecutionSite
      * This has to be a set so that we make sure that we only submit a single message that contains all of the tasks to the Dtxn.Coordinator
      */
-    protected final LinkedBlockingDeque<Collection<PartitionFragment>> unblocked_tasks = new LinkedBlockingDeque<Collection<Hstore.TransactionWorkRequest.PartitionFragment>>(); 
+    protected final LinkedBlockingDeque<Collection<WorkFragment>> unblocked_tasks = new LinkedBlockingDeque<Collection<Hstore.TransactionWorkRequest.WorkFragment>>(); 
 
     protected boolean still_has_tasks = true;
     

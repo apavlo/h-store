@@ -9,10 +9,12 @@ import org.voltdb.messaging.FastDeserializer;
 
 import ca.evanjones.protorpc.ProtoRpcController;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Dependency;
 import edu.brown.hstore.Hstore.HStoreService;
 import edu.brown.hstore.Hstore.SendDataRequest;
 import edu.brown.hstore.Hstore.SendDataResponse;
@@ -71,33 +73,35 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
                                                              .setStatus(Hstore.Status.OK)
                                                              .setSenderId(hstore_site.getSiteId());
         
-        for (Hstore.PartitionFragment frag : request.getFragmentsList()) {
-            int partition = frag.getPartitionId();
+        for (Dependency frag : request.getFragmentsList()) {
+            int partition = frag.getId();
             
             assert(hstore_site.getLocalPartitionIds().contains(partition));
-            ByteBuffer data = frag.getData().asReadOnlyByteBuffer();
-            assert(data != null);
-            
-            // Deserialize the VoltTable object for the given byte array
-            VoltTable vt = null;
-            try {
-                vt = FastDeserializer.deserialize(data, VoltTable.class);
+            for (ByteString bs : frag.getDataList()) {
+                ByteBuffer data = bs.asReadOnlyByteBuffer();
+                assert(data != null);
                 
-            } catch (Exception ex) {
-                LOG.warn("Unexpected error when deserializing VoltTable", ex);
-            }
-            assert(vt != null);
-            if (debug.get()) {
-                byte bytes[] = frag.getData().toByteArray();
-                LOG.debug(String.format("Inbound data for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
-                                        partition, vt.getRowCount(),StringUtil.md5sum(bytes), bytes.length));
-            }
-            
-            if (debug.get())
-                LOG.debug(String.format("<StoreTable from Partition %d to Partition:%d>\n %s",hstore_site.getSiteId() ,partition,vt));
-            Hstore.Status status = ts.storeData(partition, vt);
-            if (status != Hstore.Status.OK) builder.setStatus(status);
-            builder.addPartitions(partition);
+                // Deserialize the VoltTable object for the given byte array
+                VoltTable vt = null;
+                try {
+                    vt = FastDeserializer.deserialize(data, VoltTable.class);
+                    
+                } catch (Exception ex) {
+                    LOG.warn("Unexpected error when deserializing VoltTable", ex);
+                }
+                assert(vt != null);
+                if (debug.get()) {
+                    byte bytes[] = bs.toByteArray();
+                    LOG.debug(String.format("Inbound data for Partition #%d: RowCount=%d / MD5=%s / Length=%d",
+                                            partition, vt.getRowCount(),StringUtil.md5sum(bytes), bytes.length));
+                }
+                
+                if (debug.get())
+                    LOG.debug(String.format("<StoreTable from Partition %d to Partition:%d>\n %s",hstore_site.getSiteId() ,partition,vt));
+                Hstore.Status status = ts.storeData(partition, vt);
+                if (status != Hstore.Status.OK) builder.setStatus(status);
+                builder.addPartitions(partition);
+            } // FOR
         } // FOR
         
         callback.run(builder.build());

@@ -6,6 +6,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.mit.hstore.HStoreSite;
@@ -14,7 +15,7 @@ import edu.mit.hstore.HStoreSite;
  * 
  * @author pavlo
  */
-public class TransactionWorkCallback extends BlockingCallback<Hstore.TransactionWorkResponse, Hstore.TransactionWorkResponse.PartitionResult> {
+public class TransactionWorkCallback extends BlockingCallback<Hstore.TransactionWorkResponse, WorkResult> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -62,7 +63,7 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
     }
     
     @Override
-    protected synchronized int runImpl(Hstore.TransactionWorkResponse.PartitionResult parameter) {
+    protected synchronized int runImpl(WorkResult parameter) {
         this.builder.addResults(parameter);
         if (debug.get()) LOG.debug(String.format("Added new %s from partition %d for txn #%d",
                                                  parameter.getClass().getSimpleName(), parameter.getPartitionId(), this.getTransactionId()));
