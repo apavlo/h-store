@@ -26,7 +26,7 @@ package org.voltdb;
 import org.voltdb.catalog.Catalog;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 /**
  * Wraps VoltDB in a Thread

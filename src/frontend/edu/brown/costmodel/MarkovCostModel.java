@@ -46,7 +46,7 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.workload.TransactionTrace;
 import edu.brown.workload.Workload;
 import edu.brown.workload.filters.Filter;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 public class MarkovCostModel extends AbstractCostModel {
     private static final Logger LOG = Logger.getLogger(MarkovCostModel.class);

@@ -37,8 +37,8 @@ import org.apache.log4j.Logger;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConstants;
 
 public class BenchmarkConfig {
     private static final Logger LOG = Logger.getLogger(BenchmarkConfig.class);

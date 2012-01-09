@@ -54,7 +54,7 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.mit.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.interfaces.Shutdownable;
 
 public class ProcessSetManager implements Shutdownable {
     private static final Logger LOG = Logger.getLogger(ProcessSetManager.class);

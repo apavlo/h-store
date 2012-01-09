@@ -24,7 +24,7 @@ import edu.brown.markov.TransactionEstimator;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.PartitionEstimator;
-import edu.mit.hstore.HStoreSite;
+import edu.brown.hstore.HStoreSite;
 
 @ProcInfo(singlePartition = false)
 public class RecomputeMarkovs extends VoltSystemProcedure {

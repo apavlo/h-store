@@ -24,7 +24,7 @@ import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.graphs.IGraph;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.workload.Workload;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 public class Designer {
     private static final Logger LOG = Logger.getLogger(Designer.class.getName());

@@ -13,8 +13,8 @@ import org.junit.Test;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 
-import edu.mit.net.MockByteChannel;
-import edu.mit.net.NonBlockingConnection;
+import edu.brown.net.MockByteChannel;
+import edu.brown.net.NonBlockingConnection;
 
 public class ProtoConnectionTest {
     MockByteChannel channel;

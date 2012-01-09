@@ -27,8 +27,8 @@ import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConstants;
 
 public class TestBatchPlanner extends BaseTestCase {
 

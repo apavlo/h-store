@@ -17,9 +17,9 @@ import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
-import edu.mit.hstore.callbacks.TransactionMapWrapperCallback;
-import edu.mit.hstore.callbacks.TransactionReduceWrapperCallback;
-import edu.mit.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
+import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
+import edu.brown.hstore.dtxn.MapReduceTransaction;
 
 public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     public static final Logger LOG = Logger.getLogger(VoltMapReduceProcedure.class);

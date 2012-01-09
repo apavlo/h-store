@@ -45,7 +45,7 @@ import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 /**
  *

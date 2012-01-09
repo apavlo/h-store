@@ -33,7 +33,7 @@ import java.util.Map.Entry;
 import org.voltdb.processtools.SSHTools;
 
 import edu.brown.benchmark.BenchmarkResults.Result;
-import edu.mit.hstore.HStoreConf;
+import edu.brown.hstore.HStoreConf;
 
 
 public class ResultsUploader implements BenchmarkController.BenchmarkInterest {

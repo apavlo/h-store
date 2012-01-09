@@ -52,7 +52,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
-import edu.mit.hstore.HStoreSite;
+import edu.brown.hstore.HStoreSite;
 
 /**
  *   De/multiplexes transactions across a cluster

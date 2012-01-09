@@ -27,10 +27,10 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.mit.hstore.HStore;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.HStoreSite;
-import edu.mit.hstore.dtxn.RemoteTransaction;
+import edu.brown.hstore.HStore;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.dtxn.RemoteTransaction;
 
 /**
  * @author pavlo

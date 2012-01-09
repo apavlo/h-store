@@ -35,9 +35,9 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.TypedStackObjectPool;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.dtxn.AbstractTransaction;
-import edu.mit.hstore.interfaces.Loggable;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.interfaces.Loggable;
 
 /**
  * 

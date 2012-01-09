@@ -25,8 +25,8 @@ import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
-import edu.mit.hstore.HStoreConf;
-import edu.mit.hstore.interfaces.Loggable;
+import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.interfaces.Loggable;
 
 /**
  * Path Estimator for TransactionEstimator
