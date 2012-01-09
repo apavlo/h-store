@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSitePostProcessor;
+import edu.brown.hstore.ExecutionSitePostProcessor;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
 

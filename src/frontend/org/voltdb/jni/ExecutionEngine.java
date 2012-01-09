@@ -28,7 +28,6 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
-import org.voltdb.ExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltDB;
@@ -41,6 +40,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
 
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.utils.StringUtil;
 
 /**

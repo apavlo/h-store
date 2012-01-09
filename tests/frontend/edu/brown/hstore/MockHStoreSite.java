@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
-import org.voltdb.MockExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;

@@ -27,6 +27,7 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;

@@ -3,7 +3,6 @@ package edu.brown.hstore.dtxn;
 import java.util.Collection;
 import java.util.Random;
 
-import org.voltdb.MockExecutionSite;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltProcedure;
@@ -23,6 +22,7 @@ import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.MockExecutionSite;
 
 public class TestMapReduceTransaction extends BaseTestCase{
     static final int NUM_ROWS = 10;

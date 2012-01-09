@@ -8,14 +8,14 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
+import edu.brown.hstore.ExecutionSite.SystemProcedureExecutionContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.MarkovGraph;

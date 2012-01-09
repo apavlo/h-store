@@ -36,7 +36,7 @@ import java.util.logging.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;

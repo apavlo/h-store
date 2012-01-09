@@ -1,4 +1,4 @@
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -12,6 +12,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.HashSet;
 
+import org.voltdb.BackendTarget;
+import org.voltdb.ParameterSet;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
@@ -138,10 +142,10 @@ public class TestBatchPlannerUtil extends BaseTestCase {
                 assertNotSame(hashes[i], hashes[ii]);
                 if (hashes[i] == hashes[ii]) {
                     for (SQLStmt s : batches[i])
-                        System.err.println(s.catStmt.fullName());
+                        System.err.println(s.getStatement().fullName());
                     System.err.println("---------------------------------------");
                     for (SQLStmt s : batches[ii])
-                        System.err.println(s.catStmt.fullName());
+                        System.err.println(s.getStatement().fullName());
                 }
                 assert(hashes[i] != hashes[ii]) : Arrays.toString(batches[i]) + "\n" + Arrays.toString(batches[ii]);
             } // FOR

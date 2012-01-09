@@ -12,10 +12,7 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.junit.Test;
-import org.voltdb.BatchPlanner;
-import org.voltdb.BatchPlanner.BatchPlan;
-import org.voltdb.ExecutionSite;
-import org.voltdb.MockExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -35,10 +32,13 @@ import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.brown.hstore.BatchPlanner;
+import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.MockExecutionSite;
 
 /**
  * @author pavlo

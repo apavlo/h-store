@@ -8,7 +8,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.ExecutionSite.SystemProcedureExecutionContext;
+import edu.brown.hstore.ExecutionSite.SystemProcedureExecutionContext;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 

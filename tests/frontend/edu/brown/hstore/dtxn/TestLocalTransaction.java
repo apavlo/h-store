@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.voltdb.BatchPlanner;
-import org.voltdb.MockExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -17,7 +15,9 @@ import org.voltdb.catalog.Statement;
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.utils.ProjectType;
+import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.MockExecutionSite;
 import edu.brown.hstore.MockHStoreSite;
 
 /**

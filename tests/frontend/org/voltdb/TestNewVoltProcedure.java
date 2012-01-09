@@ -18,9 +18,12 @@ import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
+import edu.brown.hstore.BatchPlanner;
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.MockExecutionSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
 /**

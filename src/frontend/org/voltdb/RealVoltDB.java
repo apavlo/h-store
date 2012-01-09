@@ -57,6 +57,8 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.VoltSampler;
 
+import edu.brown.hstore.ExecutionSite;
+
 public class RealVoltDB implements VoltDBInterface
 {
     private static final Logger log =

@@ -1,9 +1,10 @@
-package org.voltdb;
+package edu.brown.hstore;
 
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
 
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

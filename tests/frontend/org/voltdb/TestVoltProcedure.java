@@ -57,6 +57,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.catalog.*;
 
 import edu.brown.hashing.DefaultHasher;
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.utils.PartitionEstimator;
 
 public class TestVoltProcedure extends TestCase {

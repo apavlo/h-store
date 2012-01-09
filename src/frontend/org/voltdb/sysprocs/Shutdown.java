@@ -23,7 +23,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;

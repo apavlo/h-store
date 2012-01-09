@@ -30,7 +30,7 @@ import java.util.logging.Logger;
 
 import org.voltdb.BackendTarget;
 import org.voltdb.ClientInterface;
-import org.voltdb.ExecutionSite;
+import edu.brown.hstore.ExecutionSite;
 import org.voltdb.ServerThread;
 import org.voltdb.VoltProcedure;
 import org.voltdb.benchmark.tpcc.procedures.InsertOrderLineBatched;

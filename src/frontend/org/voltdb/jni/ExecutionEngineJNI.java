@@ -25,7 +25,6 @@ import java.util.Arrays;
 import org.apache.log4j.Logger;
 import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
-import org.voltdb.ExecutionSite;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
@@ -41,6 +40,7 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import com.google.protobuf.ByteString;
 
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 

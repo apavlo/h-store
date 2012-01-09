@@ -16,9 +16,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-import org.voltdb.ExecutionSite;
 import org.voltdb.VoltTable;
 
+import edu.brown.hstore.ExecutionSite;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
