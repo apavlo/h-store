@@ -67,7 +67,7 @@ import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
@@ -113,7 +113,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     protected HsqlBackend hsql;
 
     // package scoped members used by VoltSystemProcedure
-    protected ExecutionSite executor;
+    protected PartitionExecutor executor;
      
     private boolean m_initialized;
 
@@ -233,7 +233,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param hsql
      * @param p_estimator
      */
-    public void globalInit(ExecutionSite site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
+    public void globalInit(PartitionExecutor site, Procedure catalog_proc, BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
         if (m_initialized) {
             throw new IllegalStateException("VoltProcedure has already been initialized");
         } else {
@@ -784,7 +784,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             return null;
         }
 
-        if (param instanceof ExecutionSite.SystemProcedureExecutionContext) {
+        if (param instanceof PartitionExecutor.SystemProcedureExecutionContext) {
             return param;
         }
 

@@ -30,7 +30,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
@@ -163,13 +163,13 @@ public abstract class HStore {
 
             // setup the EE
             if (debug.get()) LOG.debug("Creating ExecutionSite for Partition #" + local_partition);
-            ExecutionSite executor = new ExecutionSite(
+            PartitionExecutor executor = new PartitionExecutor(
                     local_partition,
                     args.catalog,
                     BackendTarget.NATIVE_EE_JNI, // BackendTarget.NULL,
                     p_estimator,
                     t_estimator);
-            hstore_site.addExecutionSite(local_partition, executor);
+            hstore_site.addPartitionExecutor(local_partition, executor);
         } // FOR
         
         

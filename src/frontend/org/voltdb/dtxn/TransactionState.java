@@ -28,7 +28,7 @@ import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.messaging.Mailbox;
 import org.voltdb.messaging.TransactionInfoBaseMessage;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 
 /**
  * Controls the state of a transaction. Encapsulates from the SimpleDTXNConnection
@@ -56,7 +56,7 @@ public abstract class TransactionState implements Comparable<TransactionState> {
      * @param notice The information about the new transaction.
      */
     protected TransactionState(Mailbox mbox,
-                               ExecutionSite site,
+                               PartitionExecutor site,
                                TransactionInfoBaseMessage notice)
     {
         m_mbox = mbox;

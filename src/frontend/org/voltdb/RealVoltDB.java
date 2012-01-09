@@ -57,7 +57,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.VoltSampler;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 
 public class RealVoltDB implements VoltDBInterface
 {
@@ -112,7 +112,7 @@ public class RealVoltDB implements VoltDBInterface
         private volatile boolean m_isSiteCreated = false;
         private final int m_siteId;
         private final String m_serializedCatalog;
-        private volatile ExecutionSite m_siteObj;
+        private volatile PartitionExecutor m_siteObj;
 
         public ExecutionSiteRunner(final int siteId, final CatalogContext context, final String serializedCatalog) {
             m_siteId = siteId;
@@ -149,12 +149,12 @@ public class RealVoltDB implements VoltDBInterface
     private HostMessenger m_messenger = null;
     private final ArrayList<ClientInterface> m_clientInterfaces =
         new ArrayList<ClientInterface>();
-    private Hashtable<Integer, ExecutionSite> m_localSites;
+    private Hashtable<Integer, PartitionExecutor> m_localSites;
     private VoltNetwork m_network = null;
     private HTTPAdminListener m_adminListener;
     private Hashtable<Integer, Thread> m_siteThreads;
     private ArrayList<ExecutionSiteRunner> m_runners;
-    private ExecutionSite m_currentThreadSite;
+    private PartitionExecutor m_currentThreadSite;
     private StatsAgent m_statsAgent = new StatsAgent();
     private FaultDistributor m_faultManager;
     private Object m_instanceId[];
@@ -286,7 +286,7 @@ public class RealVoltDB implements VoltDBInterface
             }
 
             // set up site structure
-            m_localSites = new Hashtable<Integer, ExecutionSite>();
+            m_localSites = new Hashtable<Integer, PartitionExecutor>();
             m_siteThreads = new Hashtable<Integer, Thread>();
             m_runners = new ArrayList<ExecutionSiteRunner>();
 
@@ -325,7 +325,7 @@ public class RealVoltDB implements VoltDBInterface
              * this thread can set up its own execution site.
              */
             int siteId = Integer.parseInt(siteForThisThread.getTypeName());
-            ExecutionSite siteObj = null;
+            PartitionExecutor siteObj = null;
 //                new ExecutionSite(VoltDB.instance(),
 //                                  VoltDB.instance().getMessenger().createMailbox(siteId, VoltDB.DTXN_MAILBOX_ID, null),
 //                                  siteId,
@@ -647,7 +647,7 @@ public class RealVoltDB implements VoltDBInterface
         return m_clientInterfaces;
     }
 
-    public Hashtable<Integer, ExecutionSite> getLocalSites() {
+    public Hashtable<Integer, PartitionExecutor> getLocalSites() {
         return m_localSites;
     }
 
@@ -696,7 +696,7 @@ public class RealVoltDB implements VoltDBInterface
         }
 
         out.print("\n\n--reportsection\nContent-Type: text/plain\n\nLocalSite Report\n");
-        for(ExecutionSite es : getLocalSites().values()) {
+        for(PartitionExecutor es : getLocalSites().values()) {
             out.print(es.toString() + "\n");
         }
 

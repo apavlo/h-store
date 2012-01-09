@@ -18,7 +18,7 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
 import edu.brown.logging.LoggerUtil;
@@ -45,7 +45,7 @@ public class ExecutionState {
     // ----------------------------------------------------------------------------
     
     /** The ExecutionSite that this TransactionState is tied to **/
-    protected final ExecutionSite executor;
+    protected final PartitionExecutor executor;
     
     /**
      * List of encoded Partition/Dependency keys
@@ -141,7 +141,7 @@ public class ExecutionState {
      * Constructor
      */
     @SuppressWarnings("unchecked")
-    public ExecutionState(ExecutionSite executor) {
+    public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
         this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[HStoreConf.singleton().site.planner_max_batch_size];
         for (int i = 0; i < this.dependencies.length; i++) {

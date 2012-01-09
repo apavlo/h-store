@@ -40,7 +40,7 @@ import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 import org.voltdb.utils.DBBPool.BBContainer;
 
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -54,7 +54,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     private static final boolean d = LOG.isDebugEnabled();
 
 //    private static boolean voltSharedLibraryLoaded = false;
-    protected ExecutionSite site;
+    protected PartitionExecutor site;
 
     // is the execution site dirty
     protected boolean m_dirty;
@@ -94,7 +94,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     }
 
     /** Create an ee and load the volt shared library */
-    public ExecutionEngine(final ExecutionSite site) {
+    public ExecutionEngine(final PartitionExecutor site) {
         this.site = site;
     }
 

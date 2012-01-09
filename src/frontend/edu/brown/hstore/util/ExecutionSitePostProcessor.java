@@ -1,4 +1,4 @@
-package edu.brown.hstore;
+package edu.brown.hstore.util;
 
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -9,6 +9,7 @@ import org.voltdb.ClientResponseImpl;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ProfileMeasurement;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
@@ -76,7 +77,7 @@ public final class ExecutionSitePostProcessor implements Runnable, Shutdownable 
                 break;
             }
             if (hstore_conf.site.status_show_executor_info) execTime.start();
-            ExecutionSite es = (ExecutionSite)triplet[0];
+            PartitionExecutor es = (PartitionExecutor)triplet[0];
             LocalTransaction ts = (LocalTransaction)triplet[1];
             ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",

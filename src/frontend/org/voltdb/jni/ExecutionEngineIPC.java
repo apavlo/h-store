@@ -36,7 +36,7 @@ import java.util.logging.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
@@ -627,7 +627,7 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     // private int m_counter;
 
     public ExecutionEngineIPC(
-            final ExecutionSite site,
+            final PartitionExecutor site,
             final int clusterIndex,
             final int siteId,
             final int partitionId,

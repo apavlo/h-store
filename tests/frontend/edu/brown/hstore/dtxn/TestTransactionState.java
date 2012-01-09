@@ -12,7 +12,7 @@ import java.util.concurrent.CountDownLatch;
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.junit.Test;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -66,7 +66,7 @@ public class TestTransactionState extends BaseTestCase {
     private static final VoltTable FAKE_RESULT = new VoltTable(FAKE_RESULTS_COLUMNS);
     
     private static HStoreSite hstore_site;
-    private static ExecutionSite executor;
+    private static PartitionExecutor executor;
     private static BatchPlan plan;
     private static List<WorkFragment> ftasks = new ArrayList<WorkFragment>();
     
@@ -108,7 +108,7 @@ public class TestTransactionState extends BaseTestCase {
          
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
             hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());
-            hstore_site.addExecutionSite(LOCAL_PARTITION, executor);
+            hstore_site.addPartitionExecutor(LOCAL_PARTITION, executor);
             
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);

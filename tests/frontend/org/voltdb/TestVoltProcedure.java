@@ -57,7 +57,7 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.catalog.*;
 
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.PartitionEstimator;
 
 public class TestVoltProcedure extends TestCase {
@@ -226,7 +226,7 @@ public class TestVoltProcedure extends TestCase {
 //        return wrapper.callAndBlock(1l, CLIENT_HANDLE++, (Object) null);
 //    }
 
-    private class MockExecutionSite extends ExecutionSite {
+    private class MockExecutionSite extends PartitionExecutor {
         public MockExecutionSite(int siteId, String serializedCatalog) {
             this.siteId = siteId;
 

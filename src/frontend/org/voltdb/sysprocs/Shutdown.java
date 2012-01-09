@@ -23,7 +23,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
@@ -53,7 +53,7 @@ public class Shutdown extends VoltSystemProcedure {
     static final long DEP_aggregate = SysProcFragmentId.PF_loadAggregate;
 
     @Override
-    public void globalInit(ExecutionSite site, Procedure catalog_proc,
+    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
             BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
         super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
         site.registerPlanFragment(SysProcFragmentId.PF_shutdownCommand, this);
@@ -65,7 +65,7 @@ public class Shutdown extends VoltSystemProcedure {
                                              Map<Integer, List<VoltTable>> dependencies,
                                              int fragmentId,
                                              ParameterSet params,
-                                             ExecutionSite.SystemProcedureExecutionContext context) {
+                                             PartitionExecutor.SystemProcedureExecutionContext context) {
         if (fragmentId == SysProcFragmentId.PF_shutdownCommand) {
             ProcedureProfiler.flushProfile();
             try {

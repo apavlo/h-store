@@ -14,7 +14,7 @@ import edu.brown.hstore.HStoreSite;
 
 import org.junit.Before;
 import org.junit.Test;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.catalog.Site;
 import org.voltdb.messaging.*;
@@ -49,7 +49,7 @@ public class TestHStoreSite extends BaseTestCase {
         invocation_bytes = FastSerializer.serialize(invocation);
         
         Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
-        Map<Integer, ExecutionSite> executors = new HashMap<Integer, ExecutionSite>();
+        Map<Integer, PartitionExecutor> executors = new HashMap<Integer, PartitionExecutor>();
 //        hstore_site = new HStoreSite(catalog_site, executors, p_estimator);
         // FIXME coordinator.addDtxnCoordinator(dtxnCoordinator);
     }

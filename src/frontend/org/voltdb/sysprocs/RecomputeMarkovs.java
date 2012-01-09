@@ -8,14 +8,14 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import edu.brown.hstore.ExecutionSite;
+import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import edu.brown.hstore.ExecutionSite.SystemProcedureExecutionContext;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.markov.MarkovGraph;
@@ -32,7 +32,7 @@ public class RecomputeMarkovs extends VoltSystemProcedure {
     private static final Logger LOG = Logger.getLogger(RecomputeMarkovs.class);
 
     @Override
-    public void globalInit(ExecutionSite site, Procedure catalog_proc,
+    public void globalInit(PartitionExecutor site, Procedure catalog_proc,
             BackendTarget eeType, HsqlBackend hsql, PartitionEstimator p_estimator) {
         super.globalInit(site, catalog_proc, eeType, hsql, p_estimator);
         site.registerPlanFragment(SysProcFragmentId.PF_recomputeMarkovsDistribute, this);
