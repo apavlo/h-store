@@ -36,11 +36,42 @@ enum Status {
 // GLOBAL DATA HOLDER
 // -----------------------------------
 
-message Dependency {
+message DataFragment {
     /// Unique Identifer
     required int32 id = 2;
     // Serialized VoltTables
     repeated bytes data = 3;
+}
+
+// Specifies the work to be performed at a single partition.
+message WorkFragment {
+    message InputDependency {
+        repeated int32 ids = 1;
+    }
+
+    // The partition that needs to execute this work fragment
+    required int32 partition_id = 1;
+    
+    // The PlanFragment ids that this partition will execute
+    repeated int32 fragment_id = 2 [packed=true];
+    
+    // The list of DependencyIds that each PlanFragment needs as input
+    repeated InputDependency input_dep_id = 3;
+    
+    // The DependencyIds that this work message will generate as output
+    repeated int32 output_dep_id = 4 [packed=true];
+    
+    // What SQLStmt in the batch this PlanFragment belongs to
+    repeated int32 stmt_index = 5 [packed=true];
+    
+    // Are all of the PlanFragments read only?
+    required bool read_only = 6;
+    
+    // If true, then the Work embedded in this WorkFragment needs input
+    required bool needs_input = 7;
+    
+    // If true, this is the final fragment for this transaction at this partition.
+    optional bool last_fragment = 8 [default = false];
 }
 
 // -----------------------------------
@@ -52,12 +83,24 @@ message TransactionInitRequest {
     // Globally unique transaction id
     required int64 transaction_id = 1;
 
+    // Procedure Id
+    required int32 procedure_id = 2;
+    
     // List of partitions at this site that are will be involved
     // with this transaction.
-    repeated int32 partitions = 2 [packed=true];
+    repeated int32 partitions = 3 [packed=true];
 
-    // TODO: Embed the first queries that need to execute at the remote partitions
-    // if they are known ahead of time.
+    // -----------------------------------
+    // PRE-FETCH QUERIES
+    // -----------------------------------
+    
+    // The work that the HStoreSite needs to execute for this transaction
+    // The work for a partition can appear only once in this list.
+    repeated WorkFragment prefetch_fragments = 4;
+    
+    // Serialized ParameterSets (one per Statment).
+    // The order of these elements must match Work.stmtIndex
+    optional bytes prefetch_parameter_sets = 5;
 }
 
 message TransactionInitResponse {
@@ -73,37 +116,6 @@ message TransactionInitResponse {
 // -----------------------------------
 
 message TransactionWorkRequest {
-    message InputDependency {
-        repeated int32 ids = 1;
-    }
-
-    // Specifies the work to be performed at a single partition.
-    message WorkFragment {
-        // The partition that needs to execute this work fragment
-        required int32 partition_id = 1;
-        
-        // The PlanFragment ids that this partition will execute
-        repeated int32 fragment_id = 2 [packed=true];
-        
-        // The list of DependencyIds that each PlanFragment needs as input
-        repeated InputDependency input_dep_id = 3;
-        
-        // The DependencyIds that this work message will generate as output
-        repeated int32 output_dep_id = 4 [packed=true];
-        
-        // What SQLStmt in the batch this PlanFragment belongs to
-        repeated int32 stmt_index = 5 [packed=true];
-        
-        // Are all of the PlanFragments read only?
-        required bool read_only = 6;
-        
-        // If true, then the Work embedded in this WorkFragment needs input
-        required bool needs_input = 7;
-        
-        // If true, this is the final fragment for this transaction at this partition.
-        optional bool last_fragment = 8 [default = false];
-    }
-
     // Globally unique transaction id
     required int64 transaction_id = 1;
     
@@ -122,7 +134,7 @@ message TransactionWorkRequest {
     repeated bytes parameter_sets = 5;
     
     // We can attach input dependencies to each message
-    repeated Dependency attached = 6;
+    repeated DataFragment attached = 6;
     
     // List of partitions that this transaction is done with
     // This allows us to piggyback on this message additional information
@@ -134,7 +146,7 @@ message TransactionWorkResponse {
     message WorkResult {
         required int32 partition_id = 1;
         // Output Dependencies
-        repeated Dependency output = 2;
+        repeated DataFragment output = 2;
         // Status of the WorkRequest
         required Status status = 3;
         // If this partition hit an error, this field will contain the SerializableException
@@ -255,7 +267,7 @@ message SendDataRequest {
 
     // Set of partitions to send data to. A partition can appear only once in this list.
     // The data stored in each fragment is a serialized VoltTable
-    repeated Dependency fragments = 2;
+    repeated DataFragment fragments = 2;
     
     // The SiteId of the HStoreSite that sent this data
     required int32 sender_id = 3;

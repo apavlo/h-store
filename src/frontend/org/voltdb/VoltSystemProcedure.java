@@ -28,8 +28,7 @@ import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
@@ -189,7 +188,7 @@ public abstract class VoltSystemProcedure extends VoltProcedure {
             
             // Input Dependencies
             boolean needs_input = false;
-            InputDependency.Builder inputBuilder = InputDependency.newBuilder();
+            WorkFragment.InputDependency.Builder inputBuilder = WorkFragment.InputDependency.newBuilder();
             for (int dep : pf.inputDependencyIds) {
                 inputBuilder.addIds(dep);
                 needs_input = needs_input || (dep != HStoreConstants.NULL_DEPENDENCY_ID);

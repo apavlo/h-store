@@ -294,7 +294,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.listener_thread.start();
         
         if (this.hstore_conf.site.coordinator_sync_time) {
-            syncTime();
+            syncClusterTimes();
         }
         
         this.ready_observable.notifyObservers(this);
@@ -621,65 +621,12 @@ public class HStoreCoordinator implements Shutdownable {
     public void transactionInit(LocalTransaction ts, RpcCallback<Hstore.TransactionInitResponse> callback) {
         Hstore.TransactionInitRequest request = Hstore.TransactionInitRequest.newBuilder()
                                                          .setTransactionId(ts.getTransactionId())
+                                                         .setProcedureId(ts.getProcedure().getId())
                                                          .addAllPartitions(ts.getPredictTouchedPartitions())
                                                          .build();
         assert(callback != null) :
             String.format("Trying to initialize %s with a null TransactionInitCallback", ts);
         this.transactionInit_handler.sendMessages(ts, request, callback, request.getPartitionsList());
-    }
-    
-    public void syncTime() {
-        final int num_sites = this.channels.size();
-        // We don't need to do this if there is only one site
-        if (num_sites == 0) return;
-        
-        final CountDownLatch latch = new CountDownLatch(num_sites);
-        final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
-        
-        RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
-            @Override
-            public void run(TimeSyncResponse request) {
-                long t1_r = System.currentTimeMillis();
-                int dt = (int)((request.getT1S() + request.getT0R()) - (t1_r + request.getT0S())) / 2;
-                time_deltas.put(request.getSenderId(), dt);
-                latch.countDown();
-            }
-        };
-        
-        // Send out TimeSync request 
-        for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-            if (e.getKey() == this. local_site_id) continue;
-            Hstore.TimeSyncRequest request = Hstore.TimeSyncRequest.newBuilder()
-                                            .setSenderId(local_site_id)
-                                            .setT0S(System.currentTimeMillis())
-                                            .build();
-            e.getValue().timeSync(new ProtoRpcController(), request, callback);
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent TIMESYNC to " + HStoreSite.formatSiteName(e.getKey()));
-        } // FOR
-        
-        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent out all TIMESYNC requests!");
-        try {
-            latch.await();
-        } catch (InterruptedException ex) {
-            // nothing
-        }
-        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Received all TIMESYNC responses!");
-        
-        // Then do the time calculation
-        long max_dt = 0L;
-        int culprit = this.local_site_id;
-        for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
-            if (e.getValue() > max_dt) {
-                max_dt = e.getValue();
-                culprit = e.getKey();
-            }
-        }
-        this.getHStoreSite().getTransactionIdManager().setTimeDelta(max_dt);
-        if (debug.get()) {
-            LOG.debug("__FILE__:__LINE__ " + "Setting time delta to " + max_dt + "ms");
-            LOG.debug("__FILE__:__LINE__ " + "I think the killer is site " + culprit + "!");
-        }
     }
     
     /**
@@ -903,7 +850,7 @@ public class HStoreCoordinator implements Shutdownable {
                 }
                 if (debug.get()) 
                     LOG.debug("Constructing Dependency for " + catalog_part);
-                builder.addFragments(Hstore.Dependency.newBuilder()
+                builder.addFragments(Hstore.DataFragment.newBuilder()
                              .setId(catalog_part.getId())
                              .addData(bs)
                              .build());
@@ -936,6 +883,67 @@ public class HStoreCoordinator implements Shutdownable {
                                                                                  .setSenderId(dest_site_id);
                 callback.run(builder.build());
             } // FOR
+        }
+    }
+    
+    // ----------------------------------------------------------------------------
+    // TIME SYNCHRONZIATION
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     */
+    public void syncClusterTimes() {
+        final int num_sites = this.channels.size();
+        // We don't need to do this if there is only one site
+        if (num_sites == 0) return;
+        
+        final CountDownLatch latch = new CountDownLatch(num_sites);
+        final Map<Integer, Integer> time_deltas = Collections.synchronizedMap(new HashMap<Integer, Integer>());
+        
+        RpcCallback<TimeSyncResponse> callback = new RpcCallback<TimeSyncResponse>() {
+            @Override
+            public void run(TimeSyncResponse request) {
+                long t1_r = System.currentTimeMillis();
+                int dt = (int)((request.getT1S() + request.getT0R()) - (t1_r + request.getT0S())) / 2;
+                time_deltas.put(request.getSenderId(), dt);
+                latch.countDown();
+            }
+        };
+        
+        // Send out TimeSync request 
+        for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
+            if (e.getKey() == this. local_site_id) continue;
+            Hstore.TimeSyncRequest request = Hstore.TimeSyncRequest.newBuilder()
+                                            .setSenderId(local_site_id)
+                                            .setT0S(System.currentTimeMillis())
+                                            .build();
+            e.getValue().timeSync(new ProtoRpcController(), request, callback);
+            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent TIMESYNC to " + HStoreSite.formatSiteName(e.getKey()));
+        } // FOR
+        
+        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent out all TIMESYNC requests!");
+        try {
+            latch.await();
+        } catch (InterruptedException ex) {
+            // nothing
+        }
+        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Received all TIMESYNC responses!");
+        
+        // Then do the time calculation
+        long max_dt = 0L;
+        int culprit = this.local_site_id;
+        for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
+            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
+            if (e.getValue() > max_dt) {
+                max_dt = e.getValue();
+                culprit = e.getKey();
+            }
+        }
+        this.getHStoreSite().getTransactionIdManager().setTimeDelta(max_dt);
+        if (debug.get()) {
+            LOG.debug("__FILE__:__LINE__ " + "Setting time delta to " + max_dt + "ms");
+            LOG.debug("__FILE__:__LINE__ " + "I think the killer is site " + culprit + "!");
         }
     }
     

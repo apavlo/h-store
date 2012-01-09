@@ -29,8 +29,8 @@ import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.utils.DBBPool;
 
-import edu.brown.hstore.Hstore;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.Hstore.WorkFragment;
 
 /**
  * Message from a stored procedure coordinator to an execution site
@@ -571,14 +571,14 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     // HACK: PROTOCOL BUFFER WRAPPER MODE!
     // ----------------------------------------------------------------------------
 
-    private Hstore.TransactionWorkRequest.WorkFragment inner_work;
+    private WorkFragment inner_work;
     
-    public FragmentTaskMessage setWorkFragment(long txn_id, Hstore.TransactionWorkRequest.WorkFragment work) {
+    public FragmentTaskMessage setWorkFragment(long txn_id, WorkFragment work) {
         this.setTransactionId(txn_id);
         this.inner_work = work;
         return (this);
     }
-    public Hstore.TransactionWorkRequest.WorkFragment getWorkFragment() {
+    public WorkFragment getWorkFragment() {
         return (this.inner_work);
     }
 }

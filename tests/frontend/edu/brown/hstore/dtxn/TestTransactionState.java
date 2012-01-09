@@ -27,8 +27,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
@@ -141,7 +140,7 @@ public class TestTransactionState extends BaseTestCase {
             this.ts.addWorkFragment(ftask);
             for (int i = 0, cnt = ftask.getFragmentIdCount(); i < cnt; i++) {
                 this.dependency_ids.add(ftask.getOutputDepId(i));
-                InputDependency input_dep_ids = ftask.getInputDepId(i);
+                WorkFragment.InputDependency input_dep_ids = ftask.getInputDepId(i);
                 for (Integer input_dep_id : input_dep_ids.getIdsList()) {
                     if (input_dep_id != HStoreConstants.NULL_DEPENDENCY_ID) {
                         this.internal_dependency_ids.add(input_dep_id);

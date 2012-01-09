@@ -12,19 +12,15 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.seats.procedures.DeleteReservation;
 import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.BatchPlanner.PlanVertex;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
-import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreConstants;
 
 public class TestBatchPlannerComplex extends BaseTestCase {
@@ -166,7 +162,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             
             // The InputDepId for all WorkFragments should always be the same
             Set<Integer> all_ids = new HashSet<Integer>();
-            for (InputDependency input_dep_ids : pf.getInputDepIdList()) {
+            for (WorkFragment.InputDependency input_dep_ids : pf.getInputDepIdList()) {
                 all_ids.addAll(input_dep_ids.getIdsList());
             } // FOR
             assertEquals(pf.toString(), 1, all_ids.size());

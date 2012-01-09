@@ -16,7 +16,7 @@ import org.voltdb.types.QueryType;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstore.TransactionWorkRequest;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
@@ -81,7 +81,7 @@ public class TestBatchPlannerMapReduce extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        List<TransactionWorkRequest.WorkFragment> tasks = new ArrayList<TransactionWorkRequest.WorkFragment>(); 
+        List<WorkFragment> tasks = new ArrayList<WorkFragment>(); 
         plan.getWorkFragments(tasks);
         int local_frags = TestBatchPlanner.getLocalFragmentCount(tasks, LOCAL_PARTITION);
         int remote_frags = TestBatchPlanner.getRemoteFragmentCount(tasks, LOCAL_PARTITION);

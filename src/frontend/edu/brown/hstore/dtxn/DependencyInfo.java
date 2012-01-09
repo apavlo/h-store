@@ -12,8 +12,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
@@ -60,7 +59,7 @@ public class DependencyInfo implements Poolable {
     /**
      * We assume a 1-to-n mapping from DependencyInfos to blocked FragmentTaskMessages
      */
-    private final Set<Hstore.TransactionWorkRequest.WorkFragment> blocked_tasks = new HashSet<Hstore.TransactionWorkRequest.WorkFragment>();
+    private final Set<WorkFragment> blocked_tasks = new HashSet<WorkFragment>();
     private boolean blocked_tasks_released = false;
     
     /**

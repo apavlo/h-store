@@ -24,7 +24,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Dependency;
+import edu.brown.hstore.Hstore.DataFragment;
 import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
@@ -295,7 +295,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         assertNotNull(partitionResult);
         assertEquals(result.size(), partitionResult.getOutputCount());
         
-        for (Dependency d : partitionResult.getOutputList()) {
+        for (DataFragment d : partitionResult.getOutputList()) {
             assertNotNull(d);
             assertEquals(1, d.getDataCount());
             assertEquals(dep_id, d.getId());

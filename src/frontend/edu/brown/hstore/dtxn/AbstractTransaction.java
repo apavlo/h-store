@@ -44,7 +44,7 @@ import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
