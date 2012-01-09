@@ -19,7 +19,7 @@ http://hstore.cs.brown.edu
 
     $ ant build
 
-(2) Next make the project jar file for the target benchmark (e.g., $HSTORE_BENCHMARK).
+(2) Next make the project jar file for the target benchmark.
     A project jar contains all the of stored procedures and statements for the target
     benchmark, as well as the cluster configuration for the database system.
 
