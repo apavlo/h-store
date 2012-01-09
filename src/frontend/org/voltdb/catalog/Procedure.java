@@ -26,6 +26,7 @@ package org.voltdb.catalog;
  */
 public class Procedure extends CatalogType {
 
+    int m_id;
     String m_classname = new String();
     CatalogMap<UserRef> m_authUsers;
     CatalogMap<GroupRef> m_authGroups;
@@ -46,6 +47,7 @@ public class Procedure extends CatalogType {
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
+        this.addField("id", m_id);
         this.addField("classname", m_classname);
         m_authUsers = new CatalogMap<UserRef>(catalog, this, path + "/" + "authUsers", UserRef.class);
         m_childCollections.put("authUsers", m_authUsers);
@@ -73,6 +75,7 @@ public class Procedure extends CatalogType {
     }
 
     public void update() {
+        m_id = (Integer) m_fields.get("id");
         m_classname = (String) m_fields.get("classname");
         m_readonly = (Boolean) m_fields.get("readonly");
         m_singlepartition = (Boolean) m_fields.get("singlepartition");
@@ -85,6 +88,11 @@ public class Procedure extends CatalogType {
         m_reduceEmitTable = (String) m_fields.get("reduceEmitTable");
         m_hasjava = (Boolean) m_fields.get("hasjava");
         m_partitionparameter = (Integer) m_fields.get("partitionparameter");
+    }
+
+    /** GETTER: Unique identifier for this Procedure. Allows for faster look-ups */
+    public int getId() {
+        return m_id;
     }
 
     /** GETTER: The full class name for the Java class for this procedure */
@@ -196,6 +204,11 @@ public class Procedure extends CatalogType {
     /** GETTER: The set of parameters to this stored procedure */
     public CatalogMap<ProcParameter> getParameters() {
         return m_parameters;
+    }
+
+    /** SETTER: Unique identifier for this Procedure. Allows for faster look-ups */
+    public void setId(int value) {
+        m_id = value; m_fields.put("id", value);
     }
 
     /** SETTER: The full class name for the Java class for this procedure */

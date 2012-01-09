@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,7 +95,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.catalog.HStoreDtxnConf;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
 import edu.brown.logging.LoggerUtil;
@@ -284,6 +284,17 @@ public class VoltCompiler {
             m_partitionString = partitionString;
         }
     }
+    
+    final AtomicInteger m_procIds = new AtomicInteger(0);
+    public int getNextProcedureId() {
+        return m_procIds.incrementAndGet();
+    }
+    
+    final AtomicInteger m_stmtIds = new AtomicInteger(0);
+    public int getNextStatementId() {
+        return m_stmtIds.incrementAndGet();
+    }
+    
 
     public boolean hasErrors() {
         return m_errors.size() > 0;
@@ -1225,6 +1236,7 @@ public class VoltCompiler {
 
             // add an entry to the catalog
             final Procedure procedure = database.getProcedures().add(shortName);
+            procedure.setId(this.getNextProcedureId());
             procedure.setClassname(classname);
             procedure.setReadonly(readonly);
             procedure.setSystemproc(true);

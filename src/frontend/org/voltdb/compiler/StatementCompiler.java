@@ -86,6 +86,9 @@ public abstract class StatementCompiler {
             Statement catalogStmt, String stmt, boolean singlePartition)
     throws VoltCompiler.VoltCompilerException {
 
+        // Always add in a unique Id
+        catalogStmt.setId(compiler.getNextStatementId());
+        
         // Strip newlines for catalog compatibility
         stmt = stmt.replaceAll("\n", " ");
         // remove leading and trailing whitespace so the lines not
