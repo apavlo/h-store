@@ -49,8 +49,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.TransactionEstimator;
@@ -849,7 +848,7 @@ public class LocalTransaction extends AbstractTransaction {
             
             // If this task needs an input dependency, then we need to make sure it arrives at
             // the executor before it is allowed to start executing
-            InputDependency input_dep_ids = ftask.getInputDepId(i);
+            WorkFragment.InputDependency input_dep_ids = ftask.getInputDepId(i);
             if (input_dep_ids.getIdsCount() > 0) {
                 for (int dependency_id : input_dep_ids.getIdsList()) {
                     if (dependency_id != HStoreConstants.NULL_DEPENDENCY_ID) {
@@ -1041,7 +1040,7 @@ public class LocalTransaction extends AbstractTransaction {
         Collection<Integer> localPartitionIds = hstore_site.getLocalPartitionIds();
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
-            InputDependency input_dep_ids = fragment.getInputDepId(i);
+            WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             
             if (t) LOG.trace(String.format("Examining %d input dependencies for PlanFragment %d in %s\n%s",
                                            fragment.getInputDepId(i).getIdsCount(), fragment.getFragmentId(i), this, fragment));

@@ -55,9 +55,7 @@ import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.AbstractVertex;
 import edu.brown.graphs.IGraph;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -359,7 +357,7 @@ public class BatchPlanner {
             return (this.mispredict);
         }
         
-        public void getWorkFragments(List<Hstore.TransactionWorkRequest.WorkFragment> tasks) {
+        public void getWorkFragments(List<WorkFragment> tasks) {
             BatchPlanner.this.buildWorkFragments(this, graph, tasks);
         }
 
@@ -876,7 +874,7 @@ public class BatchPlanner {
      * @param graph
      * @param tasks
      */
-    protected void buildWorkFragments(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<Hstore.TransactionWorkRequest.WorkFragment> tasks) {
+    protected void buildWorkFragments(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<WorkFragment> tasks) {
         if (this.enable_profiling) time_partitionFragments.start();
         long txn_id = plan.txn_id;
         if (debug.get())
@@ -914,7 +912,7 @@ public class BatchPlanner {
                     partitionBuilder.addFragmentId(v.frag_id);
                     
                     // Not all fragments will have an input dependency so this could be the NULL_DEPENDENCY_ID
-                    partitionBuilder.addInputDepId(TransactionWorkRequest.InputDependency.newBuilder().addIds(v.input_dependency_id).build());
+                    partitionBuilder.addInputDepId(WorkFragment.InputDependency.newBuilder().addIds(v.input_dependency_id).build());
                     partitionBuilder.setNeedsInput(partitionBuilder.getNeedsInput() || (v.input_dependency_id != HStoreConstants.NULL_DEPENDENCY_ID));
                     
                     // All fragments will produce some output

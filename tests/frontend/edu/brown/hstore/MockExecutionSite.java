@@ -12,7 +12,7 @@ import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Catalog;
 
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.hstore.dtxn.LocalTransaction;
 

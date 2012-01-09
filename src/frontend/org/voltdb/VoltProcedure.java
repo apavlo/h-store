@@ -67,6 +67,7 @@ import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
@@ -156,7 +157,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // a given call don't re-seed and generate the same number over and over
     private Random m_cachedRNG = null;
     
-    private final List<Hstore.TransactionWorkRequest.WorkFragment> partitionFragments = new ArrayList<Hstore.TransactionWorkRequest.WorkFragment>(); 
+    private final List<WorkFragment> partitionFragments = new ArrayList<WorkFragment>(); 
     
     // ----------------------------------------------------------------------------
     // WORKLOAD TRACE HANDLES

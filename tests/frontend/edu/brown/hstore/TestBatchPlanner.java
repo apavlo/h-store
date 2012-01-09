@@ -24,8 +24,7 @@ import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -402,7 +401,7 @@ public class TestBatchPlanner extends BaseTestCase {
 //            with_input_dependencies++;
             assertEquals(output_dependencies.size(), local_ftask.getInputDepIdCount());
             for (int i = 0, cnt = local_ftask.getFragmentIdCount(); i < cnt; i++) {
-                InputDependency input_dep = local_ftask.getInputDepId(i);
+                WorkFragment.InputDependency input_dep = local_ftask.getInputDepId(i);
                 assertEquals(1, input_dep.getIdsCount());
                 int input_dependency = input_dep.getIds(0);
                 assert(output_dependencies.contains(input_dependency));

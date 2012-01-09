@@ -13,7 +13,7 @@ import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.HStoreConf;

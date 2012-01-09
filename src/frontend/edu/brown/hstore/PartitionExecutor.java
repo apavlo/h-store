@@ -90,10 +90,9 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Dependency;
+import edu.brown.hstore.Hstore.DataFragment;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -1043,7 +1042,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                          ts, is_local, fragment));
         for (int i = 0, cnt = fragment.getFragmentIdCount(); i < cnt; i++) {
             int stmt_index = fragment.getStmtIndex(i);
-            InputDependency input_dep_ids = fragment.getInputDepId(i);
+            WorkFragment.InputDependency input_dep_ids = fragment.getInputDepId(i);
             for (int input_dep_id : input_dep_ids.getIdsList()) {
                 if (input_dep_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
 
@@ -1288,7 +1287,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             ts.setPendingError(error);
         }
         
-        for (Dependency output : fresponse.getOutputList()) {
+        for (DataFragment output : fresponse.getOutputList()) {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Storing intermediate results from partition %d for %s",
                                                     fresponse.getPartitionId(), ts));
             for (ByteString bs : output.getDataList()) {
@@ -1951,7 +1950,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (status == Hstore.Status.OK) {
 //            FastSerializer fs = new FastSerializer(); // buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                Dependency.Builder outputBuilder = Dependency.newBuilder();
+                DataFragment.Builder outputBuilder = DataFragment.newBuilder();
                 outputBuilder.setId(result.depIds[i]);
                 try {
 //                    if (i > 0) fs.clear();
@@ -2102,7 +2101,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
                     if (d) LOG.debug(String.format("Attaching %d input dependencies for %s to be sent to %s",
                                      e.getValue().size(), ts, HStoreSite.formatSiteName(target_site)));
-                    Dependency.Builder dBuilder = Dependency.newBuilder();
+                    DataFragment.Builder dBuilder = DataFragment.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
 //                        fs = new FastSerializer();

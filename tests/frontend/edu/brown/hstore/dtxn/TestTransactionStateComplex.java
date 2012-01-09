@@ -27,8 +27,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.benchmark.auctionmark.procedures.GetUserInfo;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.InputDependency;
-import edu.brown.hstore.Hstore.TransactionWorkRequest.WorkFragment;
+import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -145,7 +144,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
                 }
                 this.dependency_partitions.get(dep_id).add(ftask.getPartitionId());
                 
-                InputDependency input_dep_ids = ftask.getInputDepId(i); 
+                WorkFragment.InputDependency input_dep_ids = ftask.getInputDepId(i); 
                 if (input_dep_ids.getIdsCount() == 1 && input_dep_ids.getIds(0) == HStoreConstants.NULL_DEPENDENCY_ID) {
                     this.first_tasks.add(ftask);
                 } else {
