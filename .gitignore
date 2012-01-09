@@ -25,5 +25,5 @@ src/ee/org_voltdb_utils_DBBPool.h
 src/ee/org_voltdb_utils_ThreadUtils.h
 
 # Kate Swap Files
-.kate-swp
+*.kate-swp
 .#kate-*
