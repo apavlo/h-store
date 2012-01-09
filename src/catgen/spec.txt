@@ -159,6 +159,7 @@ begin Statement             "A parameterized SQL statement embedded in a stored 
   bool replicatedonly       "Does this statement only access replicated tables?"
   bool batched              ""
   bool secondaryindex       ""
+  bool prefetch             "Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction"
   int paramnum              ""
   StmtParameter* parameters "The set of parameters to this SQL statement"
   Column* output_columns    "The set of columns in the output table"
