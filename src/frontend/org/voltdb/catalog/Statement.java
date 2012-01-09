@@ -34,6 +34,7 @@ public class Statement extends CatalogType {
     boolean m_replicatedonly;
     boolean m_batched;
     boolean m_secondaryindex;
+    boolean m_prefetch;
     int m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
     CatalogMap<Column> m_output_columns;
@@ -57,6 +58,7 @@ public class Statement extends CatalogType {
         this.addField("replicatedonly", m_replicatedonly);
         this.addField("batched", m_batched);
         this.addField("secondaryindex", m_secondaryindex);
+        this.addField("prefetch", m_prefetch);
         this.addField("paramnum", m_paramnum);
         m_parameters = new CatalogMap<StmtParameter>(catalog, this, path + "/" + "parameters", StmtParameter.class);
         m_childCollections.put("parameters", m_parameters);
@@ -84,6 +86,7 @@ public class Statement extends CatalogType {
         m_replicatedonly = (Boolean) m_fields.get("replicatedonly");
         m_batched = (Boolean) m_fields.get("batched");
         m_secondaryindex = (Boolean) m_fields.get("secondaryindex");
+        m_prefetch = (Boolean) m_fields.get("prefetch");
         m_paramnum = (Integer) m_fields.get("paramnum");
         m_has_singlesited = (Boolean) m_fields.get("has_singlesited");
         m_exptree = (String) m_fields.get("exptree");
@@ -129,6 +132,11 @@ public class Statement extends CatalogType {
 
     public boolean getSecondaryindex() {
         return m_secondaryindex;
+    }
+
+    /** GETTER: Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction */
+    public boolean getPrefetch() {
+        return m_prefetch;
     }
 
     public int getParamnum() {
@@ -225,6 +233,11 @@ public class Statement extends CatalogType {
 
     public void setSecondaryindex(boolean value) {
         m_secondaryindex = value; m_fields.put("secondaryindex", value);
+    }
+
+    /** SETTER: Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction */
+    public void setPrefetch(boolean value) {
+        m_prefetch = value; m_fields.put("prefetch", value);
     }
 
     public void setParamnum(int value) {

@@ -26,7 +26,6 @@
 #include <string.h>
 #include "catalog.h"
 #include "cluster.h"
-#include "common/debuglog.h"
 #include "common/SerializableEEException.h"
 
 using namespace voltdb;
@@ -54,16 +53,10 @@ void Catalog::execute(const string &stmts) {
     for (int32_t i = 0; i < lines.size(); ++i) {
         executeOne(lines[i]);
     }
-    if (m_unresolved.size() > 0) {
-        VOLT_ERROR("Number of Unresolved References: %d", (int)m_unresolved.size());
-        int32_t i = 0;
-        for (std::map<std::string, std::list<UnresolvedInfo> >::const_iterator iter = m_unresolved.begin(); iter != m_unresolved.end(); iter++) {
-            VOLT_ERROR("[%02d] %s", i, iter->first.c_str());
-            i += 1;
-        } // FOR
+    std::map<std::string, UnresolvedInfo>::const_iterator iter;
+    if (m_unresolved.size() > 0)
         throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                       "failed to execute catalog");
-    }
 }
 
 void Catalog::executeOne(const string &stmt) {
@@ -87,8 +80,10 @@ void Catalog::executeOne(const string &stmt) {
     end = stmt.length() + 1;
     string b = stmt.substr(pos, end - pos);
 
-    VOLT_DEBUG("Statement: %s\nCommand:%s | Ref:%s | A:%s | B:%s", \
-               stmt.c_str(), command.c_str(), ref.c_str(), a.c_str(), b.c_str());
+    //cout << "Command: " << command << endl;
+    //cout << "Ref: " << ref << endl;
+    //cout << "A: " << a << endl;
+    //cout << "B: " << b << endl;
 
     CatalogType *item = itemForRef(ref);
     assert(item != NULL);
@@ -96,11 +91,9 @@ void Catalog::executeOne(const string &stmt) {
     // execute
     if (command.compare("add") == 0) {
         CatalogType *type = item->addChild(a, b);
-        if (type == NULL) {
-            VOLT_ERROR("Invalid Catalog Statement: %s", stmt.c_str());
+        if (type == NULL)
             throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                           "failed to add child");
-        }
         std::string path = type->path();
         if (m_unresolved.count(path) != 0) {
             //printf("catalog unresolved has a match for path: %s\n", path.c_str());
@@ -125,7 +118,6 @@ void Catalog::executeOne(const string &stmt) {
         item->removeChild(a, b);
     }
     else {
-        VOLT_ERROR("Invalid Catalog Statement: %s", stmt.c_str());
         throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
                                       "command isn't 'set' or 'add'.");
     }

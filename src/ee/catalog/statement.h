@@ -49,6 +49,7 @@ protected:
     bool m_replicatedonly;
     bool m_batched;
     bool m_secondaryindex;
+    bool m_prefetch;
     int32_t m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
     CatalogMap<Column> m_output_columns;
@@ -82,6 +83,8 @@ public:
     bool replicatedonly() const;
     bool batched() const;
     bool secondaryindex() const;
+    /** GETTER: Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction */
+    bool prefetch() const;
     int32_t paramnum() const;
     /** GETTER: The set of parameters to this SQL statement */
     const CatalogMap<StmtParameter> & parameters() const;
