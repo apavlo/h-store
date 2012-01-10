@@ -36,7 +36,6 @@ import java.util.Set;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltTableRow;
 import org.voltdb.ParameterSet;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
