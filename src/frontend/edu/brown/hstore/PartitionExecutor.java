@@ -2602,8 +2602,10 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     LOG.fatal("__FILE__:__LINE__ " + ts.debug());
                     this.crash(new RuntimeException("TRYING TO ABORT TRANSACTION WITHOUT UNDO LOGGING: "+ ts));
                 }
-                if(d) LOG.debug("<FinishWork> undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN");
+                if (d) LOG.debug("<FinishWork> undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN");
             } else {
+                boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
+                if (needs_profiling) ((LocalTransaction)ts).profiler.startPostEE();
                 if (commit) {
                     if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
                                                    ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
@@ -2619,6 +2621,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                    ts, this.partitionId, this.lastCommittedTxnId, undoToken, ts.hasSubmittedEE(this.partitionId)));
                     this.ee.undoUndoToken(undoToken);
                 }
+                if (needs_profiling) ((LocalTransaction)ts).profiler.stopPostEE();
             }
         }
         
