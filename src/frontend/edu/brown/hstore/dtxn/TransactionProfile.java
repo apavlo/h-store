@@ -331,6 +331,10 @@ public class TransactionProfile implements Poolable {
      * 2PC-FINISH
      */
     private final ProfileMeasurement pm_post_finish = new ProfileMeasurement("POST_FINISH");
+    /**
+     * The amount of time spent commiting or aborting a txn in the EE
+     */
+    private final ProfileMeasurement pm_post_ee = new ProfileMeasurement("POST_EE");
 
     /**
      * 
@@ -370,6 +374,15 @@ public class TransactionProfile implements Poolable {
     public void stopPostFinish() {
         if (this.disabled) return;
         this.stopInner(this.pm_post_total, this.pm_post_finish);
+    }
+    
+    public void startPostEE() {
+        if (this.disabled) return;
+        this.startInner(this.pm_post_total, this.pm_post_ee);
+    }
+    public void stopPostEE() {
+        if (this.disabled) return;
+        this.stopInner(this.pm_post_total, this.pm_post_ee);
     }
     
 
