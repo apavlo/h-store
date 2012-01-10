@@ -282,7 +282,7 @@ public class BatchPlanner {
         protected boolean all_singlepartitioned = true;    
 
         /** check if all local fragment work is non-transactional **/
-        protected boolean localFragsAreNonTransactional = true;
+//        protected boolean localFragsAreNonTransactional = true;
         
         /**
          * Default Constructor
@@ -325,6 +325,10 @@ public class BatchPlanner {
             this.txn_id = txn_id;
             this.base_partition = base_partition;
             this.mispredict = null;
+            
+            this.readonly = true;
+            this.all_local = true;
+            this.all_singlepartitioned = true;
             
             for (int i = 0; i < this.frag_list.length; i++) {
                 if (this.frag_list[i] != null) this.frag_list[i] = null;
@@ -621,6 +625,7 @@ public class BatchPlanner {
         // Only maintain the histogram of what partitions were touched if we know that we're going to
         // throw a MispredictionException
         Histogram<Integer> mispredict_h = null;
+        boolean mispredict = false;
         
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
             final Statement catalog_stmt = this.catalog_stmts[stmt_index];
@@ -637,8 +642,7 @@ public class BatchPlanner {
             boolean has_singlepartition_plan = catalog_stmt.getHas_singlesited();
             boolean is_replicated_only = this.stmt_is_replicatedonly[stmt_index];
             boolean is_read_only = this.stmt_is_readonly[stmt_index];
-            boolean stmt_localFragsAreNonTransactional = plan.localFragsAreNonTransactional;
-            boolean mispredict = false;
+//            boolean stmt_localFragsAreNonTransactional = plan.localFragsAreNonTransactional;
             boolean is_singlepartition = has_singlepartition_plan;
             boolean is_local = true;
             CatalogMap<PlanFragment> fragments = null;
@@ -772,7 +776,7 @@ public class BatchPlanner {
             }
             
             plan.readonly = plan.readonly && catalog_stmt.getReadonly();
-            plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
+//            plan.localFragsAreNonTransactional = plan.localFragsAreNonTransactional || stmt_localFragsAreNonTransactional;
             plan.all_singlepartitioned = plan.all_singlepartitioned && is_singlepartition;
             plan.all_local = plan.all_local && is_local;
 
