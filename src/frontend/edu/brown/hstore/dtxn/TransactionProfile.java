@@ -90,11 +90,16 @@ public class TransactionProfile implements Poolable {
         assert(this.isStopped());
     }
     
+    /**
+     * 
+     * @param parent - The expected parent
+     * @param inner
+     */
     private void startInner(ProfileMeasurement parent, ProfileMeasurement inner) {
         if (debug.get()) LOG.debug(String.format("Start PARENT[%s] -> INNER[%s]", parent, inner));
         assert(this.stack.size() > 0);
         assert(this.stack.peek() == parent) : String.format("Unexpected state %s: PARENT[%s] -> INNER[%s]\n%s",
-                                                            this.stack.peek(), parent.getType(), inner.getType(), this.stack);
+                                                            this.stack.peek(), parent.getType(), inner.getType(), StringUtil.join("\n", this.stack));
         inner.start();
         this.stack.push(inner);
     }
@@ -225,12 +230,10 @@ public class TransactionProfile implements Poolable {
      * Time spent blocked on the initialization latch
      */
     private final ProfileMeasurement pm_exec_dtxn = new ProfileMeasurement("EXEC_DTXN");
-    
     /**
      * Time spent blocked waiting for a TransactionWorkResponse to come back
      */
     private final ProfileMeasurement pm_exec_dtxn_work = new ProfileMeasurement("EXEC_DTXN_WORK");
-    
     /**
      * The amount of time spent planning the transaction
      */
@@ -392,13 +395,13 @@ public class TransactionProfile implements Poolable {
     protected Map<String, Object> debugMap() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         for (Field f : PROFILE_FIELDS) {
-            Object val = null;
+            ProfileMeasurement val = null;
             try {
-                val = f.get(this);
+                val = (ProfileMeasurement)f.get(this);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            m.put(StringUtil.title(f.getName().replace("_", " ")), val); 
+            m.put(StringUtil.title(f.getName().replace("_", " ")), val.debug(true)); 
         } // FOR
         return (m);
     }

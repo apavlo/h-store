@@ -851,9 +851,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         for (PartitionExecutorPostProcessor p : this.processors) {
             p.shutdown();
         }
-        // TODO(xin) Tell the MapReduceHelperThread to shutdown too
-        this.mr_helper.shutdown();
-        
+        // Tell the MapReduceHelperThread to shutdown too
+        if (this.mr_helper != null) this.mr_helper.shutdown();
         
         for (int p : this.local_partitions) {
             if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the PartitionExecutor for partition " + p + " to shutdown");
