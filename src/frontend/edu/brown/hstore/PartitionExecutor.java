@@ -681,7 +681,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(this.hstore_site == null);
         this.hstore_site = hstore_site;
         this.hstore_coordinator = hstore_site.getCoordinator();
-//        this.helper = hstore_site.getExecutionSiteHelper();
         this.thresholds = (hstore_site != null ? hstore_site.getThresholds() : null);
         this.localPartitionIds = hstore_site.getLocalPartitionIds();
         
@@ -1280,16 +1279,21 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (fresponse.getStatus() != Hstore.Status.OK) {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Received non-success response %s from partition %d for %s",
                                                     fresponse.getStatus(), fresponse.getPartitionId(), ts));
+
             SerializableException error = null;
+            if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
             try {
                 error = SerializableException.deserializeFromBuffer(fresponse.getError().asReadOnlyByteBuffer());
             } catch (Exception ex) {
                 throw new RuntimeException(String.format("Failed to deserialize SerializableException from partition %d for %s [bytes=%d]",
                                            fresponse.getPartitionId(), ts, fresponse.getError().size()), ex);
+            } finally {
+                if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
             }
             ts.setPendingError(error);
         }
         
+        if (hstore_conf.site.txn_profiling) ts.profiler.startDeserialization();
         for (DataFragment output : fresponse.getOutputList()) {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Storing intermediate results from partition %d for %s",
                                                     fresponse.getPartitionId(), ts));
@@ -1306,6 +1310,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 ts.addResult(fresponse.getPartitionId(), output.getId(), vt);
             } // FOR (output)
         } // FOR (dependencies)
+        if (hstore_conf.site.txn_profiling) ts.profiler.stopDeserialization();
     }
     
     /**
@@ -1411,13 +1416,25 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
         // We assume that most transactions are not speculatively executed and are successful
         // Therefore we don't want to grab the exec_mode lock here.
-        if (this.canProcessClientResponseNow(ts, status, before_mode)) {
-            this.processClientResponse(ts, cresponse);
+        if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, before_mode)) {
+            if (hstore_conf.site.exec_postprocessing_thread) {
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
+                hstore_site.queueClientResponse(this, ts, cresponse);
+            } else {
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
+                this.processClientResponse(ts, cresponse);
+            }
         } else {
             exec_lock.lock();
             try {
                 if (this.canProcessClientResponseNow(ts, status, before_mode)) {
-                    this.processClientResponse(ts, cresponse);
+                    if (hstore_conf.site.exec_postprocessing_thread) {
+                        if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
+                        hstore_site.queueClientResponse(this, ts, cresponse);
+                    } else {
+                        if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
+                        this.processClientResponse(ts, cresponse);
+                    }
                 // Otherwise always queue our response, since we know that whatever thread is out there
                 // is waiting for us to finish before it drains the queued responses
                 } else {
@@ -1446,16 +1463,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         volt_proc.finish();
     }
     
-    private void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
-        if (hstore_conf.site.exec_postprocessing_thread) {
-            if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
-            hstore_site.queueClientResponse(this, ts, cresponse);
-        } else {
-            if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
-            this.sendClientResponse(ts, cresponse);
-        }
-    }
-
     /**
      * Determines whether a finished transaction that executed locally can have their ClientResponse processed immediately
      * or if it needs to wait for the response from the outstanding multi-partition transaction for this partition 
@@ -1471,7 +1478,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.current_execMode));
         // Commit All
-        if (ts.isPredictSinglePartition() == false || this.current_execMode == ExecutionMode.COMMIT_ALL) {
+        if (this.current_execMode == ExecutionMode.COMMIT_ALL) {
             return (true);
             
         // Process successful txns based on the mode that it was executed under
@@ -1528,18 +1535,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (is_local == false) {
             ts.initRound(this.partitionId, this.getNextUndoToken());
             ts.startRound(this.partitionId);
-            
-            // Copy the input dependencies from the txn's base partition into our "thread memory"
-            // TODO: This should be optimized using something down in the EE
-            // TODO: I think that this should be done once at the base partition
-//            if (is_dtxn == false && ftask.hasInputDependencies()) {
-//                this.tmp_removeDependenciesMap.clear();
-//                ((LocalTransaction)ts).removeInternalDependencies(ftask, this.tmp_removeDependenciesMap);
-//                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s - Attaching %d dependencies to %s", ts, this.tmp_removeDependenciesMap.size(), ftask));
-//                for (Entry<Integer, List<VoltTable>> e : this.tmp_removeDependenciesMap.entrySet()) {
-//                    ftask.attachResults(e.getKey(), e.getValue());
-//                } // FOR
-//            }
         }
         
         DependencySet result = null;
@@ -2263,7 +2258,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
                                         ts, first, ts.stillHasWorkFragments(), queue.size(), latch));
             
-            
             // If this is the not first time through the loop, then poll the queue to get our list of fragments
             if (first == false) {
                 all_local = true;
@@ -2372,6 +2366,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 if (num_remote > 0) {
                     // We only need to serialize the ParameterSets once
                     if (serializedParams == false) {
+                        if (hstore_conf.site.txn_profiling) ts.profiler.startSerialization();
                         tmp_serializedParams.clear();
                         FastSerializer fs = new FastSerializer();
                         for (int i = 0; i < parameters.length; i++) {
@@ -2386,6 +2381,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                 throw new RuntimeException("Failed to serialize ParameterSet " + i + " for " + ts, ex);
                             }
                         } // FOR
+                        if (hstore_conf.site.txn_profiling) ts.profiler.stopSerialization();
                     }
                     if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Requesting %d FragmentTaskMessages to be executed on remote partitions for %s", num_remote, ts));
                     this.requestWork(ts, tmp_remoteFragmentList, tmp_serializedParams);
@@ -2509,7 +2505,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (d) LOG.debug("__FILE__:__LINE__ " + "Total # of Queued Responses: " + this.queued_responses.size());
     }
     
-    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    /**
+     * For the given transaction's ClientResponse, figure out whether we can send it back to the client
+     * right now or whether we need to initiate two-phase commit.
+     * @param ts
+     * @param cresponse
+     */
+    public void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // IMPORTANT: If we executed this locally and only touched our partition, then we need to commit/abort right here
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
@@ -2548,6 +2550,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             Collection<Integer> predictPartitions = ts.getPredictTouchedPartitions();
             Collection<Integer> donePartitions = ts.getDonePartitions();
             Collection<Integer> partitions = CollectionUtils.subtract(predictPartitions, donePartitions);
+            
+            if (hstore_conf.site.txn_profiling) ts.profiler.startPostPrepare();
             this.hstore_coordinator.transactionPrepare(ts, ts.getTransactionPrepareCallback(), partitions);
             
             if (hstore_conf.site.exec_speculative_execution) {
@@ -2568,6 +2572,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // Then send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the
             // results back because we'll start working on new txns right away.
+            if (hstore_conf.site.txn_profiling) ts.profiler.startPostFinish();
             TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(status);
             this.hstore_coordinator.transactionFinish(ts, status, finish_callback);
         }
@@ -2764,7 +2769,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     hstore_site.queueClientResponse(this, ts, cr);
                 } else {
                     if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Sending queued ClientResponse for %s back directly [status=%s]", ts, cr.getStatus()));
-                    this.sendClientResponse(ts, cr);
+                    this.processClientResponse(ts, cr);
                 }
             } catch (Throwable ex) {
                 throw new RuntimeException("Failed to complete queued " + ts, ex);

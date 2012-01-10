@@ -22,6 +22,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private final boolean txn_profiling;
     private LocalTransaction ts;
     private ClientResponseImpl cresponse;
 
@@ -31,6 +32,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
      */
     public TransactionPrepareCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
+        this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
     
     public void init(LocalTransaction ts) {
@@ -66,19 +68,29 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         this.hstore_site.sendClientResponse(this.ts, this.cresponse);
         
         // Everybody returned ok, so we'll tell them all commit right now
-        TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(Hstore.Status.OK);
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, Hstore.Status.OK, finish_callback);
+        this._finish(Status.OK);
     }
     
     @Override
     protected void abortCallback(Status status) {
-        // Let everybody know that the party is over!
-        TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
-        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
+        // As soon as we get an ABORT from any partition, fire off the final ABORT 
+        // to all of the partitions
+        this._finish(status);
         
         // Change the response's status and send back the result to the client
         this.cresponse.setStatus(status);
         this.hstore_site.sendClientResponse(this.ts, this.cresponse);
+    }
+    
+    private void _finish(Status status) {
+        if (this.txn_profiling) {
+            this.ts.profiler.stopPostPrepare();
+            this.ts.profiler.startPostFinish();
+        }
+        
+        // Let everybody know that the party is over!
+        TransactionFinishCallback finish_callback = this.ts.initTransactionFinishCallback(status);
+        this.hstore_site.getCoordinator().transactionFinish(this.ts, status, finish_callback);
     }
     
     @Override

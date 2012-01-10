@@ -26,6 +26,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     private Integer reject_partition = null;
     private Long reject_txnId = null;
     private TransactionFinishCallback finish_callback;
+    private final boolean txn_profiling;
     
     /**
      * Constructor
@@ -33,6 +34,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
      */
     public TransactionInitCallback(HStoreSite hstore_site) {
         super(hstore_site, true);
+        this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
 
     public void init(LocalTransaction ts) {
@@ -60,7 +62,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
         if (this.isAborted() == false) {
             if (debug.get())
                 LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
-            if (hstore_site.getHStoreConf().site.txn_profiling) ts.profiler.stopCoordinatorBlocked();
+            if (this.txn_profiling) ts.profiler.stopInitDtxn();
             hstore_site.transactionStart(ts, ts.getBasePartition());
         } else {
             assert(this.finish_callback != null);

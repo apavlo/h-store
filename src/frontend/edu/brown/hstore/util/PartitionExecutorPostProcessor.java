@@ -83,7 +83,7 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
                                            ts, es.getPartitionId(), cr.getStatus()));
             try {
-                es.sendClientResponse(ts, cr);
+                es.processClientResponse(ts, cr);
             } catch (Throwable ex) {
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);
                 break;

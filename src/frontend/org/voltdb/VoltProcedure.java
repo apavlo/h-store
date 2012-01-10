@@ -711,7 +711,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             LOG.fatal(e);
             System.exit(1);
         } finally {
-            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startFinish();
+            if (hstore_conf.site.txn_profiling) this.m_localTxnState.profiler.startPost();
         }
 
         // Workload Trace - Stop the transaction trace record.

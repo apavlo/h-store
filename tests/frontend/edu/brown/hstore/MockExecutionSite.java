@@ -33,7 +33,7 @@ public class MockExecutionSite extends PartitionExecutor {
     }
 
     @Override
-    public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
+    public void processClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         // Nothing!
     }
     

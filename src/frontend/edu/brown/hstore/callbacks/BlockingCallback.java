@@ -150,7 +150,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     }
     
     /**
-     * This method is invoked once all of the T messages are recieved 
+     * This method is invoked once all of the T messages are received 
      */
     protected abstract void unblockCallback();
     
