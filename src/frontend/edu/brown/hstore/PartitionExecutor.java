@@ -2223,7 +2223,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } // FOR
             if (has_remote == false) {
                 LOG.warn(ts.debug() + "\n" + fragments);
-                LOG.warn(this.getVoltProcedure(ts.getProcedureName()).plan);
                 throw new RuntimeException(String.format("%s - Trying to execute all local single-partition queries using the slow-path!", ts));
             }
         }
