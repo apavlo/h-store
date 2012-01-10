@@ -1,4 +1,4 @@
-package edu.brown.hstore.util;
+package edu.brown.hstore.dtxn;
 
 import java.util.Map;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -11,6 +11,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.util.ThrottlingQueue;
 
 /**
  * <p>Extends a PriorityQueue such that is only stores transaction state
@@ -32,8 +33,6 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private static final long serialVersionUID = 1L;
-
     public enum QueueState {
         UNBLOCKED,
         BLOCKED_EMPTY,

@@ -31,6 +31,8 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.conf.HStoreConf;
+
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
@@ -102,7 +104,8 @@ public abstract class HStore {
         if (catalog_site == null) throw new RuntimeException("Invalid site #" + site_id);
         
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
-        if (debug.get()) LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
+        if (debug.get()) 
+            LOG.debug("HStoreConf Parameters:\n" + HStoreConf.singleton().toString(true));
         
         HStoreSite hstore_site = HStore.initialize(catalog_site, hstore_conf);
         

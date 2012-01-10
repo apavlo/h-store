@@ -1,4 +1,6 @@
-# Testing Artifacts
+## -------------------------------
+## Development + Testing Artifacts
+## -------------------------------
 *.trace
 *.trace.gz
 *.jar
@@ -8,6 +10,7 @@
 *.pdf
 *.arff
 *.pyc
+*.png
 junitvmwatcher*
 buildstring.txt
 debugoutput
@@ -19,14 +22,20 @@ plannerlog.txt
 keepalive
 obj
 
-# JNI Compiler Artifacts
+## -------------------------------
+## JNI Compiler Artifacts
+## -------------------------------
 src/ee/org_voltdb_jni_ExecutionEngine.h
 src/ee/org_voltdb_utils_DBBPool.h
 src/ee/org_voltdb_utils_ThreadUtils.h
 
-# Catalog Compiler Artifacts
+## -------------------------------
+## Catalog Compiler Artifacts
+## -------------------------------
 src/catgen/out
 
-# Kate Swap Files
+## -------------------------------
+## Kate Swap Files
+## -------------------------------
 *.kate-swp
 .#kate-*

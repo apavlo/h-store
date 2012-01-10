@@ -225,6 +225,12 @@ public class TransactionProfile implements Poolable {
      * Time spent blocked on the initialization latch
      */
     private final ProfileMeasurement pm_exec_dtxn = new ProfileMeasurement("EXEC_DTXN");
+    
+    /**
+     * Time spent blocked waiting for a TransactionWorkResponse to come back
+     */
+    private final ProfileMeasurement pm_exec_dtxn_work = new ProfileMeasurement("EXEC_DTXN_WORK");
+    
     /**
      * The amount of time spent planning the transaction
      */
@@ -268,6 +274,7 @@ public class TransactionProfile implements Poolable {
         if (this.disabled) return;
         this.stopInner(this.pm_exec_total, this.pm_exec_planner);
     }
+    
     public void startExecEstimation() {
         if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_est);
@@ -276,6 +283,16 @@ public class TransactionProfile implements Poolable {
         if (this.disabled) return;
         this.stopInner(this.pm_exec_total, this.pm_exec_est);
     }
+    
+    public void startExecDtxnWork() {
+        if (this.disabled) return;
+        this.startInner(this.pm_exec_total, this.pm_exec_dtxn_work);
+    }
+    public void stopExecDtxnWork() {
+        if (this.disabled) return;
+        this.stopInner(this.pm_exec_total, this.pm_exec_dtxn_work);
+    }
+    
     public void startExecEE() {
         if (this.disabled) return;
         this.startInner(this.pm_exec_total, this.pm_exec_ee);

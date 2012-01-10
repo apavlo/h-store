@@ -40,7 +40,7 @@ import org.voltdb.catalog.Table;
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf;
 
 public class MapReduceLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(MapReduceLoader.class);

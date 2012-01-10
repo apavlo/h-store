@@ -1,4 +1,4 @@
-package edu.brown.hstore;
+package edu.brown.hstore.conf;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -88,7 +88,7 @@ public final class HStoreConf {
         public int memory;
 
         @ConfigProperty(
-            description="When enabled, the ExecutionSite threads will be pinned to the first n CPU cores (where " +
+            description="When enabled, the PartitionExecutor threads will be pinned to the first n CPU cores (where " +
                         "n is the total number of partitions hosted by the local HStoreSite). All other threads " +
                         "(e.g., for network handling) will be pinned to the remaining CPU cores. If there are fewer " +
                         "CPU cores than partitions, then this option will be disabled. ",
@@ -98,9 +98,9 @@ public final class HStoreConf {
         public boolean cpu_affinity;
         
         @ConfigProperty(
-            description="When used in conjunction with ${site.cpu_affinity}, each ExecutionSite thread will be " +
+            description="When used in conjunction with ${site.cpu_affinity}, each PartitionExecutor thread will be " +
                         "assigned to one and only CPU core. No other thread within the HStoreSite (including all " +
-                        "other ExecutionSites) will be allowed to execute on that core. This configuration option is " +
+                        "other PartitionExecutors) will be allowed to execute on that core. This configuration option is " +
                         "mostly used for debugging and is unlikely to provide any speed improvement because the " +
                         "operating system will automatically maintain CPU affinity.",
             defaultBoolean=false,
@@ -120,7 +120,7 @@ public final class HStoreConf {
         public int exec_ee_log_level;
         
         @ConfigProperty(
-            description="Enable execution site profiling. This will keep track of how busy each ExecutionSite thread" +
+            description="Enable execution site profiling. This will keep track of how busy each PartitionExecutor thread" +
                         "is during execution (i.e., the percentage of time that it spends executing a transaction versus " +
                         "waiting for work to be added to its queue).",
             defaultBoolean=false,
@@ -209,7 +209,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="If this enabled, HStoreSite will use a separate thread to process every outbound ClientResponse for " +
-                        "all of the ExecutionSites. This may help with multi-partition transactions but will be the bottleneck " +
+                        "all of the PartitionExecutors. This may help with multi-partition transactions but will be the bottleneck " +
                         "for single-partition txn heavy workloads because the thread must acquire the lock on each partition's " +
                         "ExecutionEngine in order to commit or abort a transaction.",
             defaultBoolean=false,
@@ -236,11 +236,21 @@ public final class HStoreConf {
         public boolean exec_queued_response_ee_bypass;
         
         @ConfigProperty(
-            description="", // TODO
+            description="The maximum amount of time that the PartitionExecutor will wait for the results of a distributed  " +
+            		    "query to return to the transaction's base partition. Usually if this limit is reached, then there " +
+                        "is something very wrong with the distributed transaction protocol.",
             defaultInt=10000,
             experimental=true
         )
         public int exec_response_timeout;
+        
+        @ConfigProperty(
+            description="If this parameter is enabled, then the PartitionExecutor will check whether a transaction is " +
+                        "trying to use the 'slow path' to execute queries that are all local and single-partitioned.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean exec_check_incorrect_slowpath;
         
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
@@ -301,7 +311,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
-                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "for that transaction's base partition is empty (i.e., the PartitionExecutor is idle). " +
                         "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
                         "value by this amount. The release limit will also be recalculated using the new value " +
                         "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
@@ -312,7 +322,7 @@ public final class HStoreConf {
         public int queue_incoming_increase;
         
         @ConfigProperty(
-            description="If a transaction is rejected by an ExecutionSite because its queue is full, then " +
+            description="If a transaction is rejected by an PartitionExecutor because its queue is full, then " +
                         "this parameter determines what kind of response will be sent back to the client. " +
                         "Setting this parameter to true causes the client to recieve an ABORT_THROTTLED " +
                         "status response, which means it will wait for ${client.throttle_backoff} ms before " +
@@ -345,7 +355,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Whenever a transaction completes, the HStoreSite will check whether the work queue " +
-                        "for that transaction's base partition is empty (i.e., the ExecutionSite is idle). " +
+                        "for that transaction's base partition is empty (i.e., the PartitionExecutor is idle). " +
                         "If it is, then the HStoreSite will increase the ${site.txn_incoming_queue_max_per_partition} " +
                         "value by this amount. The release limit will also be recalculated using the new value " +
                         "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
@@ -373,8 +383,8 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="Recompute a Markov model's execution state probabilities every time a transaction " +
-                        "is aborted due to a misprediction. The Markov model is queued in the ExecutionSiteHelper " +
-                        "for processing rather than being executed directly within the ExecutionSite's thread.",
+                        "is aborted due to a misprediction. The Markov model is queued in the PartitionExecutorHelper " +
+                        "for processing rather than being executed directly within the PartitionExecutor's thread.",
             defaultBoolean=true,
             experimental=false
         )
@@ -498,11 +508,11 @@ public final class HStoreConf {
         public boolean coordinator_sync_time;
 
         // ----------------------------------------------------------------------------
-        // ExecutionSiteHelper
+        // PartitionExecutorHelper
         // ----------------------------------------------------------------------------
     
         @ConfigProperty(
-            description="How many ms to wait initially before starting the ExecutionSiteHelper after " +
+            description="How many ms to wait initially before starting the PartitionExecutorHelper after " +
                         "the HStoreSite has started.",
             defaultInt=2000,
             experimental=true
@@ -510,14 +520,14 @@ public final class HStoreConf {
         public int helper_initial_delay;
         
         @ConfigProperty(
-            description="How often (in ms) should the ExecutionSiteHelper execute to clean up completed transactions.",
+            description="How often (in ms) should the PartitionExecutorHelper execute to clean up completed transactions.",
             defaultInt=100,
             experimental=false
         )
         public int helper_interval;
         
         @ConfigProperty(
-            description="How many txns can the ExecutionSiteHelper clean-up per partition per round. Any value less " +
+            description="How many txns can the PartitionExecutorHelper clean-up per partition per round. Any value less " +
                         "than zero means that it will clean-up all txns it can per round",
             defaultInt=-1,
             experimental=true
@@ -578,7 +588,7 @@ public final class HStoreConf {
         public boolean status_show_txn_info;
 
         @ConfigProperty(
-            description="When this property is set to true, HStoreSite status will include information about each ExecutionSite, " +
+            description="When this property is set to true, HStoreSite status will include information about each PartitionExecutor, " +
                         "such as the number of transactions currently queued, blocked for execution, or waiting to have their results " +
                         "returned to the client.",
             defaultBoolean=true,
@@ -992,7 +1002,7 @@ public final class HStoreConf {
     /**
      * Base Configuration Class
      */
-    private abstract class Conf {
+    protected abstract class Conf {
         
         final Map<Field, ConfigProperty> properties;
         final String prefix;
@@ -1061,11 +1071,18 @@ public final class HStoreConf {
                 
                 Field f = e.getKey();
                 String key = f.getName().toUpperCase();
+                Object val = null;
                 try {
-                    m.put(key, f.get(this));
+                    val = f.get(this);
+                    if (isLoadedFromArgs(this, f.getName())) {
+                        String val_str = (val != null ? val.toString() : "null");
+                        val_str += "   **EXTERNAL**";
+                        val = val_str;
+                    }
                 } catch (IllegalAccessException ex) {
                     m.put(key, ex.getMessage());
                 }
+                m.put(key, val);
             }
             return (StringUtil.formatMaps(m));
         }
@@ -1097,7 +1114,7 @@ public final class HStoreConf {
     private final Map<Conf, Set<String>> loaded_params = new HashMap<Conf, Set<String>>();
     
     // ----------------------------------------------------------------------------
-    // METHODS
+    // CONSTRUCTORS
     // ----------------------------------------------------------------------------
 
     private HStoreConf() {
@@ -1127,32 +1144,9 @@ public final class HStoreConf {
         }
     }
     
-    private Object getDefaultValue(Field f, ConfigProperty cp) {
-        Class<?> f_class = f.getType();
-        Object value = null;
-        
-        if (cp.defaultNull() == false) {
-            if (f_class.equals(int.class)) {
-                value = cp.defaultInt();
-            } else if (f_class.equals(long.class)) {
-                value = cp.defaultLong();
-            } else if (f_class.equals(double.class)) {
-                value = cp.defaultDouble();
-            } else if (f_class.equals(boolean.class)) {
-                value = cp.defaultBoolean();
-            } else if (f_class.equals(String.class)) {
-                value = cp.defaultString();
-            } else {
-                LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f.getName()));
-            }
-        }
-        return (value);
-    }
-    
-    private Pattern makePattern() {
-        // return Pattern.compile(String.format("(%s)\\.(.*)", StringUtil.join("|", this.confHandles.keySet())));
-        return REGEX_PARSE;
-    }
+    // ----------------------------------------------------------------------------
+    // LOADING METHODS
+    // ----------------------------------------------------------------------------
     
     /**
      * 
@@ -1165,10 +1159,9 @@ public final class HStoreConf {
             throw new RuntimeException("Failed to load configuration file " + path);
         }
 
-        Pattern p = this.makePattern();
         for (Object obj_k : CollectionUtil.iterable(this.config.getKeys())) {
             String k = obj_k.toString();
-            Matcher m = p.matcher(k);
+            Matcher m = REGEX_PARSE.matcher(k);
             boolean found = m.matches();
             if (m == null || found == false) {
                 if (debug.get()) LOG.warn("Invalid key '" + k + "' from configuration file '" + path + "'");
@@ -1242,12 +1235,11 @@ public final class HStoreConf {
     }
     
     public void loadFromArgs(Map<String, String> args) {
-        Pattern p = this.makePattern();
         for (Entry<String, String> e : args.entrySet()) {
             String k = e.getKey();
             String v = e.getValue();
             
-            Matcher m = p.matcher(k);
+            Matcher m = REGEX_PARSE.matcher(k);
             boolean found = m.matches();
             if (m == null || found == false) {
                 if (debug.get()) LOG.warn("Invalid key '" + k + "'");
@@ -1307,11 +1299,51 @@ public final class HStoreConf {
         for (Conf confHandle : this.loaded_params.keySet()) {
             for (String f_name : this.loaded_params.get(confHandle)) {
                 Object val = confHandle.getValue(f_name);
-                if (val != null) m.put(f_name, val.toString());
+                if (val != null) m.put(String.format("%s.%s", confHandle.prefix, f_name), val.toString());
             } // FOR
         } // FOR
         return (m);
     }
+    
+    private Object getDefaultValue(Field f, ConfigProperty cp) {
+        Class<?> f_class = f.getType();
+        Object value = null;
+        
+        if (cp.defaultNull() == false) {
+            if (f_class.equals(int.class)) {
+                value = cp.defaultInt();
+            } else if (f_class.equals(long.class)) {
+                value = cp.defaultLong();
+            } else if (f_class.equals(double.class)) {
+                value = cp.defaultDouble();
+            } else if (f_class.equals(boolean.class)) {
+                value = cp.defaultBoolean();
+            } else if (f_class.equals(String.class)) {
+                value = cp.defaultString();
+            } else {
+                LOG.warn(String.format("Unexpected default value type '%s' for property '%s'", f_class.getSimpleName(), f.getName()));
+            }
+        }
+        return (value);
+    }
+    
+    /**
+     * Returns true if the given parameter name was loaded from an input argument
+     * @param confHandle
+     * @param name
+     * @return
+     */
+    private boolean isLoadedFromArgs(Conf confHandle, String name) {
+        Set<String> params = this.loaded_params.get(confHandle);
+        if (params != null) {
+            return (params.contains(name));
+        }
+        return (false);
+    }
+    
+    // ----------------------------------------------------------------------------
+    // OUTPUT METHODS
+    // ----------------------------------------------------------------------------
     
     public String makeIndexHTML(String group) {
         final Conf handle = this.confHandles.get(group);

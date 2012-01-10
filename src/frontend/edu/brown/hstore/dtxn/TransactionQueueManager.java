@@ -1,4 +1,4 @@
-package edu.brown.hstore.util;
+package edu.brown.hstore.dtxn;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -16,7 +16,7 @@ import edu.brown.statistics.Histogram;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.util.TxnCounter;
 
 public class TransactionQueueManager implements Runnable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
@@ -76,6 +76,9 @@ public class TransactionQueueManager implements Runnable {
     
     private PriorityBlockingQueue<LocalTransaction> blocked_dtxns = new PriorityBlockingQueue<LocalTransaction>(100, blocked_comparator);
     
+    /**
+     * This Histogram keeps track of what sites have blocked the most transactions from us
+     */
     private Histogram<Integer> blocked_hist = new Histogram<Integer>();
     
     /**

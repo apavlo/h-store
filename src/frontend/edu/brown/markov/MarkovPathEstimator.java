@@ -25,7 +25,7 @@ import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
-import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Loggable;
 
 /**

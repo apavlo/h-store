@@ -42,7 +42,7 @@ import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.locality.LocalityConstants.ExecutionType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.rand.AbstractRandomGenerator;
-import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf;
 
 public class LocalityClient extends BenchmarkComponent {
     

@@ -25,11 +25,11 @@ import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProjectType;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 
 public class TestBatchPlanner extends BaseTestCase {

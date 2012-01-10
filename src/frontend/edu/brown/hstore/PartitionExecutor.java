@@ -50,7 +50,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.collections15.CollectionUtils;
@@ -89,11 +88,21 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.DataFragment;
 import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
+import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.callbacks.TransactionFinishCallback;
+import edu.brown.hstore.callbacks.TransactionPrepareCallback;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.ExecutionState;
+import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.hstore.interfaces.Loggable;
+import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.EstimationThresholds;
@@ -105,20 +114,6 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TypedPoolableObjectFactory;
-import edu.brown.hstore.HStoreConf;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
-import edu.brown.hstore.callbacks.TransactionPrepareCallback;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.ExecutionState;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.dtxn.RemoteTransaction;
-import edu.brown.hstore.interfaces.Loggable;
-import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.ThrottlingQueue;
 
 /**
  * The main executor of transactional work in the system. Controls running
@@ -306,7 +301,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /** The last txn id that we committed */
     private volatile long lastCommittedTxnId = -1;
     /** The last undoToken that we handed out */
-    private final AtomicLong lastUndoToken = new AtomicLong(0l);
+    private long lastUndoToken = 0l;
     
     /**
      * This is the queue of the list of things that we need to execute.
@@ -427,7 +422,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final ProfileMeasurement work_exec_time = new ProfileMeasurement("EE_EXEC");
     
     // ----------------------------------------------------------------------------
-    // Callbacks
+    // CALLBACKS
     // ----------------------------------------------------------------------------
 
     /**
@@ -717,6 +712,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.hstore_site.getThreadManager().registerEEThread(partition);
         }
         
+        // *********************************** DEBUG ***********************************
+        if (hstore_conf.site.exec_check_incorrect_slowpath) {
+            LOG.warn("Enabled Checking Incorrect Slowpath Transactions");
+        } else {
+            LOG.warn("?????");
+        }
+        if (hstore_conf.site.txn_profiling) {
+            LOG.warn("Enabled Transaction Profiling");
+        }
+        // *********************************** DEBUG ***********************************
+        
         // Things that we will need in the loop below
         AbstractTransaction current_txn = null;
         TransactionInfoBaseMessage work = null;
@@ -857,7 +863,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.hstore_coordinator.shutdownCluster(new Exception(ex));
         } finally {
             String txnDebug = "";
-            if (debug.get() && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
+            if (d && current_txn != null && current_txn.getBasePartition() == this.partitionId) {
                 txnDebug = "\n" + current_txn.debug();
             }
             LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d PartitionExecutor is stopping.%s%s",
@@ -953,7 +959,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     public long getNextUndoToken() {
-        return (this.lastUndoToken.incrementAndGet());
+        return (++this.lastUndoToken);
     }
     
     /**
@@ -1809,32 +1815,32 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(this.ee != null) : "The EE object is null. This is bad!";
         long txn_id = ts.getTransactionId();
         
+        // *********************************** DEBUG ***********************************
         if (d) {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("Executing %d fragments for %s [lastTxnId=%d, undoToken=%d]",
                       batchSize, ts, this.lastCommittedTxnId, undoToken));
-//            if (t) {
-                Map<String, Object> m = new ListOrderedMap<String, Object>();
-                m.put("Fragments", Arrays.toString(fragmentIds));
-                
-                Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
-                for (int i = 0; i < parameterSets.length; i++)
-                    inner.put(i, parameterSets[i].toString());
-                m.put("Parameters", inner);
-                
-                if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
-                    inner = new ListOrderedMap<Integer, Object>();
-                    for (int i = 0; i < input_depIds.length; i++) {
-                        List<VoltTable> deps = input_deps.get(input_depIds[i]);
-                        inner.put(input_depIds[i], (deps != null ? StringUtil.join("\n", deps) : "???"));
-                    } // FOR
-                    m.put("Input Dependencies", inner);
-                }
-                m.put("Output Dependencies", Arrays.toString(output_depIds));
-                sb.append("\n" + StringUtil.formatMaps(m)); 
-//            }
+            Map<String, Object> m = new ListOrderedMap<String, Object>();
+            m.put("Fragments", Arrays.toString(fragmentIds));
+            
+            Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
+            for (int i = 0; i < parameterSets.length; i++)
+                inner.put(i, parameterSets[i].toString());
+            m.put("Parameters", inner);
+            
+            if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
+                inner = new ListOrderedMap<Integer, Object>();
+                for (int i = 0; i < input_depIds.length; i++) {
+                    List<VoltTable> deps = input_deps.get(input_depIds[i]);
+                    inner.put(input_depIds[i], (deps != null ? StringUtil.join("\n", deps) : "???"));
+                } // FOR
+                m.put("Input Dependencies", inner);
+            }
+            m.put("Output Dependencies", Arrays.toString(output_depIds));
+            sb.append("\n" + StringUtil.formatMaps(m)); 
             LOG.debug("__FILE__:__LINE__ " + sb.toString());
         }
+        // *********************************** DEBUG ***********************************
 
         // pass attached dependencies to the EE (for non-sysproc work).
         if (input_deps != null && input_deps.isEmpty() == false) {
@@ -1848,7 +1854,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         if (ts.isExecReadOnly(this.partitionId)) {
             boolean readonly = CatalogUtil.areFragmentsReadOnly(this.database, fragmentIds, batchSize); 
             if (readonly == false) {
-                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Marking txn #%d as not read-only %s", txn_id, Arrays.toString(fragmentIds))); 
+                if (d) LOG.debug("__FILE__:__LINE__ " + String.format("%s - Marking txn as not read-only %s", ts, Arrays.toString(fragmentIds))); 
                 ts.markExecNotReadOnly(this.partitionId);
             }
             
@@ -1858,11 +1864,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         DependencySet result = null;
+        boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
+        if (needs_profiling) ((LocalTransaction)ts).profiler.startExecEE();
         try {
             if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));
-            if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
-                ((LocalTransaction)ts).profiler.startExecEE();
-            }
+            
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                             fragmentIds,
                             batchSize,
@@ -1873,23 +1879,25 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             txn_id,
                             this.lastCommittedTxnId,
                             undoToken);
-            if (hstore_conf.site.txn_profiling && ts instanceof LocalTransaction) {
-                ((LocalTransaction)ts).profiler.stopExecEE();
-            }
+            
         } catch (EEException ex) {
-            LOG.fatal("__FILE__:__LINE__ " + "Unrecoverable error in the ExecutionEngine", ex);
+            LOG.fatal("__FILE__:__LINE__ " + String.format("%s - Unrecoverable error in the ExecutionEngine", ts), ex);
             System.exit(1);
         } catch (Throwable ex) {
-            new RuntimeException(String.format("Failed to execute PlanFragments for %s: %s", ts, Arrays.toString(fragmentIds)), ex);
+            new RuntimeException(String.format("%s - Failed to execute PlanFragments: %s", ts, Arrays.toString(fragmentIds)), ex);
+        } finally {
+            if (needs_profiling) ((LocalTransaction)ts).profiler.stopExecEE();
         }
         
+        // *********************************** DEBUG ***********************************
         if (d) {
             if (result != null) {
-                LOG.debug("__FILE__:__LINE__ " + String.format("Finished executing fragments for %s and got back %d results", ts, result.depIds.length));
+                LOG.debug("__FILE__:__LINE__ " + String.format("%s - Finished executing fragments and got back %d results", ts, result.depIds.length));
             } else {
-                LOG.debug("__FILE__:__LINE__ " + String.format("Finished executing fragments for %s but got back null results? That seems bad...", ts));
+                LOG.warn("__FILE__:__LINE__ " + String.format("%s - Finished executing fragments but got back null results? That seems bad...", ts));
             }
         }
+        // *********************************** DEBUG ***********************************
         return (result);
     }
     
@@ -2164,18 +2172,22 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // the next time we need to use this
         tmp_transactionRequestBuildersMap.clear();
     }
-    
+
     /**
      * Execute the given tasks and then block the current thread waiting for the list of dependency_ids to come
-     * back from whatever it was we were suppose to do... 
+     * back from whatever it was we were suppose to do...
+     * This is the slowest way to execute a bunch of WorkFragments and therefore should only be invoked
+     * for batches that need to access non-local Partitions
      * @param ts
-     * @param dependency_ids
+     * @param fragments
+     * @param parameters
      * @return
      */
-    public VoltTable[] dispatchWorkFragment(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
+    public VoltTable[] dispatchWorkFragments(LocalTransaction ts, Collection<WorkFragment> fragments, ParameterSet parameters[]) {
+        // *********************************** DEBUG ***********************************
         if (d) {
-            LOG.debug("__FILE__:__LINE__ " + String.format("Preparing to dispatch %d messages for %s and wait for the results",
-                                             fragments.size(), ts));
+            LOG.debug("__FILE__:__LINE__ " + String.format("%s - Preparing to dispatch %d messages and wait for the results",
+                                             ts, fragments.size()));
             if (t) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(ts + " WorkFragments:\n");
@@ -2187,6 +2199,23 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     sb.append(ps + "\n");
                 } // FOR
                 LOG.trace(sb);
+            }
+        }
+        // *********************************** DEBUG *********************************** 
+        
+        // OPTIONAL: Check to make sure that at least one of the WorkFragments needs to be executed on a remote partition
+        if (hstore_conf.site.exec_check_incorrect_slowpath && ts.isSysProc() == false) {
+            LOG.warn(String.format("%s - Checking whether at least one WorkFragment is for a remote partition", ts));
+            boolean valid = false;
+            for (WorkFragment frag : fragments) {
+                if (frag.getPartitionId() != this.partitionId) {
+                    valid = true;
+                    break;
+                }
+            } // FOR
+            if (valid == false) {
+                LOG.warn(ts.debug() + "\n" + fragments); 
+                throw new RuntimeException(String.format("%s - Trying to execute all local single-partition queries using the slow-path!", ts));
             }
         }
         
@@ -2221,7 +2250,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (2) If we know that there are still messages being blocked
         //  (3) If we know that there are still unblocked messages that we need to process
         //  (4) The latch for this round is still greater than zero
-//        if (hstore_conf.site.txn_profiling) ts.profiler.startExecCoordinatorBlocked();
         while (first == true || ts.stillHasWorkFragments() || (latch != null && latch.getCount() > 0)) {
             if (t) 
                 LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
@@ -2238,12 +2266,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 num_remote = 0;
                 total = 0;
                 
-                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Waiting for unblocked tasks for %s on partition %d", ts, this.partitionId));
+                if (t) LOG.trace("__FILE__:__LINE__ " + String.format("%s - Waiting for unblocked tasks on partition %d", ts, this.partitionId));
+                if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
                 try {
                     fragments = queue.takeFirst(); // BLOCKING
                 } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) LOG.error("__FILE__:__LINE__ " + "We were interrupted while waiting for blocked tasks for " + ts, ex);
+                    if (this.hstore_site.isShuttingDown() == false) {
+                        LOG.error("__FILE__:__LINE__ " + String.format("%s - We were interrupted while waiting for blocked tasks", ts), ex);
+                    }
                     return (null);
+                } finally {
+                    if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
                 }
             }
             assert(fragments != null);
@@ -2391,34 +2424,34 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // wait for all of the results to come back in.
         if (latch == null) latch = ts.getDependencyLatch();
         if (latch.getCount() > 0) {
-//            if (d) {
-                LOG.info("__FILE__:__LINE__ " + String.format("All blocked messages dispatched for %s. Waiting for %d dependencies", ts, latch.getCount()));
+            if (d) {
+                LOG.debug("__FILE__:__LINE__ " + String.format("%s - All blocked messages dispatched. Waiting for %d dependencies", ts, latch.getCount()));
                 if (t) LOG.trace("__FILE__:__LINE__ " + ts.toString());
-//            }
-            while (true) {
-                boolean done = false;
-                try {
-                    done = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
-                } catch (InterruptedException ex) {
-                    if (this.hstore_site.isShuttingDown() == false) LOG.error("__FILE__:__LINE__ " + "We were interrupted while waiting for results for " + ts, ex);
-                    return (null);
-                } catch (Throwable ex) {
-                    new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
+            }
+            if (hstore_conf.site.txn_profiling) ts.profiler.startExecDtxnWork();
+            boolean done = false;
+            try {
+                done = latch.await(hstore_conf.site.exec_response_timeout, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ex) {
+                if (this.hstore_site.isShuttingDown() == false) {
+                    LOG.error("__FILE__:__LINE__ " + String.format("%s - We were interrupted while waiting for results", ts), ex);
                 }
-                if (done) break;
-                if (this.isShuttingDown() == false) {
-                    LOG.warn("__FILE__:__LINE__ " + String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
-                                                    ts, hstore_conf.site.exec_response_timeout, latch.getCount(), ts.debug()));
-                    LOG.warn("__FILE__:__LINE__ " + "Procedure Parameters:\n" + ts.getInvocation().getParams());
-                    hstore_conf.site.exec_profiling = true;
-                    LOG.warn(hstore_site.statusSnapshot());
-                    
-                    throw new RuntimeException("PartitionResponses for " + ts + " never arrived!");
-                }
-            } // WHILE
+                return (null);
+            } catch (Throwable ex) {
+                new RuntimeException(String.format("Fatal error for %s while waiting for results", ts), ex);
+            } finally {
+                if (hstore_conf.site.txn_profiling) ts.profiler.stopExecDtxnWork();
+            }
+            if (done == false && this.isShuttingDown() == false) {
+                LOG.warn("__FILE__:__LINE__ " + String.format("Still waiting for responses for %s after %d ms [latch=%d]\n%s",
+                                                ts, hstore_conf.site.exec_response_timeout, latch.getCount(), ts.debug()));
+                LOG.warn("__FILE__:__LINE__ " + "Procedure Parameters:\n" + ts.getInvocation().getParams());
+                hstore_conf.site.exec_profiling = true;
+                LOG.warn(hstore_site.statusSnapshot());
+                
+                throw new RuntimeException("PartitionResponses for " + ts + " never arrived!");
+            }
         }
-        
-//        if (hstore_conf.site.txn_profiling) ts.profiler.stopExecCoordinatorBlocked();
         
         // IMPORTANT: Check whether the fragments failed somewhere and we got a response with an error
         // We will rethrow this so that it pops the stack all the way back to VoltProcedure.call()
@@ -2634,7 +2667,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             ((RemoteTransaction)ts).getCleanupCallback().run(this.partitionId);
         } else {
             TransactionFinishCallback finish_callback = ((LocalTransaction)ts).getTransactionFinishCallback();
-            if (trace.get())
+            if (t)
                 LOG.trace("__FILE__:__LINE__ " + String.format("Notifying %s that %s is finished at partition %d",
                                         finish_callback.getClass().getSimpleName(), ts, this.partitionId));
             finish_callback.decrementCounter(1);

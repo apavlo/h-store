@@ -2279,7 +2279,7 @@ H-STORE REMIX
     </antcall>
 </target>
 
-<target name="hstore-site" description="H-Store Execution Node/Coordinator">
+<target name="hstore-site" description="H-Store Execution Site">
     <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
         <not><isset property="markov"/></not>
     </condition>
@@ -2362,6 +2362,18 @@ H-STORE REMIX
 <!--    <antcall target="hstore-conf">
         <param name="jar" value="${benchmark.jar}" />
     </antcall>-->
+</target>
+
+<target name='hstore-dist' description="Prepare Repository for New Release">
+    <java fork="yes" failonerror="true" classname="edu.brown.hstore.conf.HStoreConfUtil">
+        <jvmarg value="-Xmx${client.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="${basedir}/build-common.xml" />
+        <classpath refid='project.classpath' />
+        <assertions>
+            <enable/>
+        </assertions>
+    </java>
 </target>
 
 <target name='mock-site' description="EC2 Coordinator Tests">
