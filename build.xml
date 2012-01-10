@@ -580,17 +580,17 @@ JAVA COMPILATION
     
     <delete dir="${build.prod.dir}/META-INF/"/>
     
-    <antcall target="log4j_properties" />
+<!--     <antcall target="log4j_properties" /> -->
 </target>
 
-<target name="log4j_properties.check">
+<!--<target name="log4j_properties.check">
    <available property="log4j_properties.exists" file="${build.prod.dir}/log4j.properties" />
 </target>
 
 <target name="log4j_properties" depends="log4j_properties.check" unless="log4j_properties.exists">
     <property name="log4j.properties" location="log4j.properties"/>
     <symlink link="${build.prod.dir}" resource="${log4j.properties}" failonerror="false"/>
-</target>
+</target>-->
 
 <!--
 ***************************************

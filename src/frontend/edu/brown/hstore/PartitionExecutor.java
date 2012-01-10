@@ -2604,7 +2604,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 }
                 if (d) LOG.debug("<FinishWork> undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN");
             } else {
-                boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
+                boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId) && ts.isPredictSinglePartition());
                 if (needs_profiling) ((LocalTransaction)ts).profiler.startPostEE();
                 if (commit) {
                     if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Committing %s at partition=%d [lastTxnId=%d, undoToken=%d, submittedEE=%s]",
