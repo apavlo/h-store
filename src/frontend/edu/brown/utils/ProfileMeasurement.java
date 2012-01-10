@@ -39,6 +39,9 @@ public class ProfileMeasurement implements JSONSerializable {
 
     private transient boolean reset = false;
     
+    private transient EventObservable<ProfileMeasurement> start_observable;
+    private transient EventObservable<ProfileMeasurement> stop_observable;
+    
     // ----------------------------------------------------------------------------
     // CONSTRUCTORS
     // ----------------------------------------------------------------------------
@@ -155,10 +158,12 @@ public class ProfileMeasurement implements JSONSerializable {
      */
 
     public synchronized ProfileMeasurement start(long timestamp) {
-        assert(this.think_marker == null) : this.type + " - " + this.hashCode();
+        assert(this.think_marker == null) : 
+            String.format("Trying to start %s before it was stopped!", this.type);
         if (debug.get()) LOG.debug(String.format("START %s", this));
         this.think_marker = timestamp;
         this.invocations++;
+        if (this.start_observable != null) this.start_observable.notifyObservers(this);
         return (this);
     }
     
@@ -168,6 +173,13 @@ public class ProfileMeasurement implements JSONSerializable {
     
     public boolean isStarted() {
         return (this.think_marker != null);
+    }
+    
+    public synchronized void addStartObserver(EventObserver<ProfileMeasurement> observer) {
+        if (this.start_observable == null) {
+            this.start_observable = new EventObservable<ProfileMeasurement>();
+        }
+        this.start_observable.addObserver(observer);
     }
 
     // ----------------------------------------------------------------------------
@@ -186,7 +198,8 @@ public class ProfileMeasurement implements JSONSerializable {
             return (this);
         }
         if (debug.get()) LOG.debug(String.format("STOP %s", this));
-        assert(this.think_marker != null) : this.type + " - " + this.hashCode();
+        assert(this.think_marker != null) :
+            String.format("Trying to stop %s before it was started!", this.type);
         long added = (timestamp - this.think_marker);
         if (added < 0) {
             LOG.warn(String.format("Invalid stop timestamp for %s [timestamp=%d, marker=%d, added=%d]",
@@ -195,6 +208,7 @@ public class ProfileMeasurement implements JSONSerializable {
             this.total_time += added;
         }
         this.think_marker = null;
+        if (this.stop_observable != null) this.stop_observable.notifyObservers(this);
 //        if (type == Type.JAVA) LOG.info(String.format("STOP %s [time=%d, id=%d]", this.type, added, this.hashCode()));
         return (this);
     }
@@ -205,6 +219,13 @@ public class ProfileMeasurement implements JSONSerializable {
 
     public boolean isStopped() {
         return (this.think_marker == null);
+    }
+    
+    public synchronized void addStopObserver(EventObserver<ProfileMeasurement> observer) {
+        if (this.stop_observable == null) {
+            this.stop_observable = new EventObservable<ProfileMeasurement>();
+        }
+        this.stop_observable.addObserver(observer);
     }
 
     // ----------------------------------------------------------------------------

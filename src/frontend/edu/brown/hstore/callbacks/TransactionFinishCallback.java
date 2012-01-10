@@ -30,12 +30,15 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
      */
     private boolean can_complete;
     
+    private final boolean txn_profiling;
+    
     /**
      * Constructor
      * @param hstore_site
      */
     public TransactionFinishCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
+        this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
 
     public void init(LocalTransaction ts, Hstore.Status status) {
@@ -60,8 +63,11 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     
     @Override
     protected void unblockCallback() {
-        if (this.can_complete)
+        if (this.can_complete) {
+            if (this.txn_profiling) ts.profiler.stopPostFinish();
+            
             hstore_site.completeTransaction(this.getTransactionId(), status);
+        }
     }
     
     @Override
@@ -72,9 +78,9 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     @Override
     protected int runImpl(Hstore.TransactionFinishResponse response) {
         if (debug.get())
-            LOG.debug(String.format("Got %s with for %s %s [partitions=%s, counter=%d]",
-                                    response.getClass().getSimpleName(),
-                                    this.ts, this.status, response.getPartitionsList(), this.getCounter()));
+            LOG.debug(String.format("%s - Got %s with %s [partitions=%s, counter=%d]",
+                                    this.ts, response.getClass().getSimpleName(),
+                                    this.status, response.getPartitionsList(), this.getCounter()));
         
         long orig_txn_id = this.getOrigTransactionId();
         long resp_txn_id = response.getTransactionId();

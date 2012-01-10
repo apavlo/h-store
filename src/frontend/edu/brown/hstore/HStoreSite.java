@@ -1242,7 +1242,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // This callback prevents us from making additional requests to the Dtxn.Coordinator until
             // we get hear back about our our initialization request
-            if (hstore_conf.site.txn_profiling) ts.profiler.startCoordinatorBlocked();
+            if (hstore_conf.site.txn_profiling) ts.profiler.startInitDtxn();
             this.hstore_coordinator.transactionInit(ts, ts.getTransactionInitCallback());
         }
     }

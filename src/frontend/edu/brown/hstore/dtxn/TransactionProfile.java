@@ -47,13 +47,53 @@ public class TransactionProfile implements Poolable {
     // ---------------------------------------------------------------
     // INTERNAL STATE
     // ---------------------------------------------------------------
-    
+
     /**
      * 
      */
     private final Stack<ProfileMeasurement> stack = new Stack<ProfileMeasurement>();
     
     private transient boolean disabled = false;
+    
+    /**
+     * 
+     * @param parent - The expected parent
+     * @param inner
+     */
+    private void startInner(ProfileMeasurement parent, ProfileMeasurement inner) {
+        if (debug.get()) LOG.debug(String.format("Start PARENT[%s] -> INNER[%s]", parent, inner));
+        assert(this.stack.size() > 0);
+        assert(this.stack.peek() == parent) : String.format("Unexpected state %s: PARENT[%s] -> INNER[%s]\n%s",
+                                                            this.stack.peek(), parent.getType(), inner.getType(), StringUtil.join("\n", this.stack));
+        inner.start();
+        this.stack.push(inner);
+    }
+    private void stopInner(ProfileMeasurement expected_parent, ProfileMeasurement inner) {
+        if (debug.get()) LOG.debug(String.format("Stop PARENT[%s] <- INNER[%s]", expected_parent, inner));
+        assert(this.stack.size() > 0);
+        ProfileMeasurement pm = this.stack.pop();
+        assert(pm == inner) :
+            String.format("Expected current state %s but was %s! [expectedParent=%s]\n%s",
+                          inner, pm, expected_parent, this.stack);
+        assert(expected_parent == this.stack.peek()) :
+            String.format("Expected current parent %s but was %s! [inner=%s]",
+            		      expected_parent, this.stack.peek(), inner);
+        pm.stop();
+    }
+    
+//    private void startGlobal(ProfileMeasurement global_pm) {
+//        assert(this.stack.size() > 0);
+//        ProfileMeasurement parent = this.stack.peek();
+//        ProfileMeasurement.swap(parent, global_pm);
+//        this.stack.push(global_pm);
+//    }
+//    
+//    private void stopGlobal(ProfileMeasurement global_pm) {
+//        assert(this.stack.size() > 0);
+//        ProfileMeasurement pop = this.stack.pop();
+//        assert(global_pm == pop);
+//        ProfileMeasurement.swap(global_pm, this.stack.peek());
+//    }
     
     // ---------------------------------------------------------------
     // GLOBAL METHODS
@@ -66,6 +106,10 @@ public class TransactionProfile implements Poolable {
      */
     private final ProfileMeasurement pm_total = new ProfileMeasurement("TOTAL");
     
+    private final ProfileMeasurement pm_serialize = new ProfileMeasurement("SERIALIZE");
+    private final ProfileMeasurement pm_deserialize = new ProfileMeasurement("DESERIALIZE");
+    
+    
     public void startTransaction(long timestamp) {
         if (this.disabled) return;
         if (debug.get()) LOG.debug(String.format("START %s -> %s", this.pm_total.getType(), this.pm_init_total.getType()));
@@ -74,7 +118,7 @@ public class TransactionProfile implements Poolable {
         this.stack.push(this.pm_total);
         this.stack.push(this.pm_init_total);
     }
-    public synchronized void stopTransaction() {
+    public void stopTransaction() {
         if (this.disabled) return;
         this.disabled = true;
         long timestamp = ProfileMeasurement.getTime();
@@ -90,58 +134,26 @@ public class TransactionProfile implements Poolable {
         assert(this.isStopped());
     }
     
-    /**
-     * 
-     * @param parent - The expected parent
-     * @param inner
-     */
-    private void startInner(ProfileMeasurement parent, ProfileMeasurement inner) {
-        if (debug.get()) LOG.debug(String.format("Start PARENT[%s] -> INNER[%s]", parent, inner));
-        assert(this.stack.size() > 0);
-        assert(this.stack.peek() == parent) : String.format("Unexpected state %s: PARENT[%s] -> INNER[%s]\n%s",
-                                                            this.stack.peek(), parent.getType(), inner.getType(), StringUtil.join("\n", this.stack));
-        inner.start();
-        this.stack.push(inner);
+    public void startSerialization() {
+        if (this.disabled) return;
+        this.pm_serialize.start();
+//        this.startGlobal(this.pm_serialize);
     }
-    private void stopInner(ProfileMeasurement parent, ProfileMeasurement inner) {
-        if (debug.get()) LOG.debug(String.format("Stop PARENT[%s] <- INNER[%s]", parent, inner));
-        assert(this.stack.size() > 0);
-        ProfileMeasurement pm = this.stack.pop();
-        assert(pm == inner) : String.format("Unexpected state %s: PARENT[%s] <- INNER[%s]\n%s",
-                                            pm, parent.getType(), inner.getType(), this.stack);
-        assert(parent == this.stack.peek()) : String.format("Unexpected outer state PARENT[%s] <- INNER[%s]", parent.getType(), inner.getType());
-        pm.stop();
+    public void stopSerialization() {
+        if (this.disabled) return;
+        this.pm_serialize.stop();
+//        this.stopGlobal(this.pm_serialize);
     }
     
-    public void startCoordinatorBlocked() {
+    public void startDeserialization() {
         if (this.disabled) return;
-        ProfileMeasurement parent = this.stack.peek();
-        ProfileMeasurement inner = null;
-        if (parent == this.pm_init_total) {
-            inner = this.pm_init_dtxn;
-        } else if (parent == this.pm_exec_total) {
-            inner = this.pm_exec_dtxn;
-        } else if (parent == this.pm_finish_total) {
-            inner = this.pm_finish_dtxn;
-        } else {
-            assert(false) : "Unexpected parent state " + parent;    
-        }
-        this.startInner(parent, inner);
+        this.pm_deserialize.start();
+//        this.startGlobal(this.pm_deserialize);
     }
-    public void stopCoordinatorBlocked() {
+    public void stopDeserialization() {
         if (this.disabled) return;
-        ProfileMeasurement parent = null;
-        ProfileMeasurement inner = this.stack.peek();
-        if (inner == this.pm_init_dtxn) {
-            parent = this.pm_init_total;
-        } else if (inner == this.pm_exec_dtxn) {
-            parent = this.pm_exec_total;
-        } else if (inner == this.pm_finish_dtxn) {
-            parent = this.pm_finish_total;
-        } else {
-            assert(false) : "Unexpected inner state " + inner;    
-        }
-        this.stopInner(parent, inner);
+        this.pm_deserialize.stop();
+//        this.stopGlobal(this.pm_deserialize);
     }
     
     // ---------------------------------------------------------------
@@ -167,18 +179,20 @@ public class TransactionProfile implements Poolable {
      */
     public void startInitEstimation() {
         if (this.disabled) return;
-        if (debug.get()) LOG.debug("START " + this.pm_init_est.getType());
-        assert(this.stack.size() == 0);
-        this.pm_init_est.start();
-        this.stack.push(this.pm_init_est);
+        this.startInner(this.pm_init_est, this.pm_init_est);
     }
     public void stopInitEstimation() {
         if (this.disabled) return;
-        if (debug.get()) LOG.debug("STOP " + this.pm_init_est.getType());
-        assert(this.stack.size() > 0);
-        ProfileMeasurement orig = this.stack.pop();
-        assert(orig == this.pm_init_est) : this.stack.toString();
-        orig.stop();
+        this.stopInner(this.pm_init_total, this.pm_init_est);
+    }
+    
+    public void startInitDtxn() {
+        if (this.disabled) return;
+        this.startInner(this.pm_init_total, this.pm_init_dtxn);
+    }
+    public void stopInitDtxn() {
+        if (this.disabled) return;
+        this.stopInner(this.pm_init_total, this.pm_init_dtxn);
     }
     
     // ---------------------------------------------------------------
@@ -226,10 +240,6 @@ public class TransactionProfile implements Poolable {
      * The amount of time spent executing the Java-portion of the stored procedure
      */
     private final ProfileMeasurement pm_exec_java = new ProfileMeasurement("EXEC_JAVA");
-    /**
-     * Time spent blocked on the initialization latch
-     */
-    private final ProfileMeasurement pm_exec_dtxn = new ProfileMeasurement("EXEC_DTXN");
     /**
      * Time spent blocked waiting for a TransactionWorkResponse to come back
      */
@@ -306,40 +316,62 @@ public class TransactionProfile implements Poolable {
     }
 
     // ---------------------------------------------------------------
-    // FINISH TIMES
+    // CLEAN-UP TIMES
     // ---------------------------------------------------------------
 
     /**
      * Time spent getting the response back to the client
      */
-    private final ProfileMeasurement pm_finish_total = new ProfileMeasurement("FINISH");
+    private final ProfileMeasurement pm_post_total = new ProfileMeasurement("POST");
+    /**
+     * 2PC-PREPARE
+     */
+    private final ProfileMeasurement pm_post_prepare = new ProfileMeasurement("POST_PREPARE");
+    /**
+     * 2PC-FINISH
+     */
+    private final ProfileMeasurement pm_post_finish = new ProfileMeasurement("POST_FINISH");
+
     /**
      * 
      */
-    private final ProfileMeasurement pm_finish_dtxn = new ProfileMeasurement("FINISH_DTXN");
-    
-    /**
-     * 
-     */
-    public void startFinish() {
+    public void startPost() {
         if (this.disabled) return;
         assert(this.stack.size() > 0);
-        long timestamp = ProfileMeasurement.getTime();
-        
-        // The transaction may have aborted in different states, so we need to 
-        // pop things off the stack until we reach the outer execution time
-        ProfileMeasurement pm = null;
-        while (this.stack.isEmpty() == false) {
-            pm = this.stack.pop();
-            assert(pm != null);
-            if (pm == this.pm_exec_total) break;
-            if (pm.isStarted()) pm.stop(timestamp);
+        ProfileMeasurement current = null;
+        while ((current = this.stack.pop()) != this.pm_exec_total) {
+            // Keep this ball rollin'
+            current.stop();
+            if (trace.get()) LOG.trace("-> STOPPED: " + current + "[" + current.hashCode() + "]");
         } // WHILE
-        assert(pm != null);
-        assert(pm.isStarted());
-        ProfileMeasurement.swap(timestamp, pm, this.pm_finish_total);
-        this.stack.push(this.pm_finish_total);
+        assert(current == this.pm_exec_total) : "Unexpected " + current;
+        if (trace.get()) LOG.trace("STATUS: " + current.debug(true) + "[" + current.hashCode() + "]");
+        if (current.isStopped()) {
+            this.pm_post_total.start();
+        } else {
+            ProfileMeasurement.swap(current, this.pm_post_total);
+        }
+        this.stack.push(this.pm_post_total);
     }
+    
+    public void startPostPrepare() {
+        if (this.disabled) return;
+        this.startInner(this.pm_post_total, this.pm_post_prepare);
+    }
+    public void stopPostPrepare() {
+        if (this.disabled) return;
+        this.stopInner(this.pm_post_total, this.pm_post_prepare);
+    }
+    
+    public void startPostFinish() {
+        if (this.disabled) return;
+        this.startInner(this.pm_post_total, this.pm_post_finish);
+    }
+    public void stopPostFinish() {
+        if (this.disabled) return;
+        this.stopInner(this.pm_post_total, this.pm_post_finish);
+    }
+    
 
     // ---------------------------------------------------------------
     // UTILITY METHODS
