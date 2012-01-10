@@ -378,11 +378,14 @@ public class TransactionProfile implements Poolable {
     
     public void startPostEE() {
         if (this.disabled) return;
-        this.startInner(this.pm_post_total, this.pm_post_ee);
+        // Need to figure out whether we are in POST_FINISH or not
+        ProfileMeasurement parent = this.stack.peek();
+        this.startInner(parent, this.pm_post_ee);
     }
     public void stopPostEE() {
         if (this.disabled) return;
-        this.stopInner(this.pm_post_total, this.pm_post_ee);
+        ProfileMeasurement parent = this.stack.elementAt(this.stack.size() - 2);
+        this.stopInner(parent, this.pm_post_ee);
     }
     
 

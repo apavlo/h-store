@@ -521,7 +521,7 @@ def setup_nfsclient(rebootInst=True):
 ## deploy_hstore
 ## ----------------------------------------------
 @task
-def deploy_hstore(build=True):
+def deploy_hstore(build=True, update=True):
     code_dir = env["hstore.git_branch"]
     need_files = False
     with cd("hstore"):
@@ -531,9 +531,13 @@ def deploy_hstore(build=True):
                 run("git clone --branch %s %s %s %s" % (env["hstore.git_branch"], \
                                                         env["hstore.git_options"], \
                                                         env["hstore.git"], code_dir))
+                update = True
                 need_files = True
-        with cd(code_dir):
-            run("git pull %s" % env["hstore.git_options"])
+        ## WITH
+            
+        with cd(env["hstore.git_branch"]):
+            if update:
+                run("git pull %s" % env["hstore.git_options"])
             
             ## Checkout Extra Files
             if need_files:
@@ -543,13 +547,13 @@ def deploy_hstore(build=True):
                 files_repo = env["hstore.git"].replace("h-store", "h-store-files")
                 with cd("files"):
                     run("git pull %s %s" % (env["hstore.git_options"], files_repo))
-            ## IF
-            
+                
             if build:
                 LOG.debug("Building H-Store from source code")
                 if env["hstore.clean"]:
                     run("ant clean-all")
                 run("ant build")
+        ## WITH
     ## WITH
     run("cd " + os.path.join("hstore", code_dir))
 ## DEF
@@ -622,14 +626,16 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     assert len(clients) > 0, "There are no %s client instances available" % env["ec2.client_type"]
     LOG.debug("Client Hosts: %s" % clients)
 
-    ## Make sure the the checkout is up to date
-    if updateRepo: 
-        LOG.info("Updating H-Store Git checkout")
-        deploy_hstore(build=False)
     ## Update H-Store Conf file
+    ## Do this first so that we always revert any changes
     if updateConf:
         LOG.info("Updating H-Store configuration files")
         write_conf(project, removals, revertFirst=True)
+    ## Make sure the the checkout is up to date
+    if updateRepo: 
+        LOG.info("Updating H-Store Git checkout")
+        deploy_hstore(build=False, update=True)
+
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
@@ -724,6 +730,7 @@ def write_conf(project, removals=[ ], revertFirst=False):
     with cd(code_dir):
         for _file, _updates, _removals in toUpdate:
             if revertFirst:
+                LOG.info("Reverting '%s'" % _file)
                 run("git checkout %s -- %s" % (env["hstore.git_options"], _file))
             update_conf(_file, _updates, _removals)
         ## FOR
