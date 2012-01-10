@@ -33,6 +33,7 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -86,6 +87,7 @@ public class CatalogViewer extends AbstractViewer {
     // CATALOG ELEMENTS
     // ----------------------------------------------
 	protected Catalog catalog;
+	protected File catalog_file_path;
 	protected String catalog_path;
 	
 	protected boolean text_mode = true;
@@ -117,8 +119,12 @@ public class CatalogViewer extends AbstractViewer {
 	 * @param catalog_path
 	 */
 	public CatalogViewer(ArgumentsParser args) {
-	    super(args, WINDOW_TITLE, 1000, DEFAULT_WINDOW_HEIGHT);
+	    super(args,
+	          String.format("%s [%s]", WINDOW_TITLE, args.catalog_path),
+	          1000,
+	          DEFAULT_WINDOW_HEIGHT);
 		this.catalog = args.catalog;
+		this.catalog_file_path = args.catalog_path;
 		this.catalog_path = args.catalog_path.getAbsolutePath();
 		this.menuHandler = new CatalogViewer.MenuHandler();
 		this.init();
@@ -278,7 +284,7 @@ public class CatalogViewer extends AbstractViewer {
 				CatalogViewer.this.text_mode = text_mode;
 			}
 		});
-		this.generateCatalogTree(this.catalog, this.catalog_path);
+		this.generateCatalogTree(this.catalog, this.catalog_file_path.getName());
 
 		//
 		// Text Information Panel
