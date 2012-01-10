@@ -1,4 +1,4 @@
-package edu.brown.hstore;
+package edu.brown.hstore.conf;
 
 import java.io.File;
 import java.lang.reflect.Field;

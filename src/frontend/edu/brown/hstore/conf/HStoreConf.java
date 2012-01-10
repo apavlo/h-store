@@ -245,12 +245,12 @@ public final class HStoreConf {
         public int exec_response_timeout;
         
         @ConfigProperty(
-            description="If this parameter is enabled, then the PartitionExecutor will check whether a transaction is " +
-                        "trying to use the 'slow path' to execute queries that are all local and single-partitioned.",
+            description="If this parameter is enabled, then the PartitionExecutor will check for every SQLStmt batch " +
+                        "for each distributed transaction contains valid WorkFragments.",
             defaultBoolean=false,
             experimental=true
         )
-        public boolean exec_check_incorrect_slowpath;
+        public boolean exec_validate_work;
         
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options

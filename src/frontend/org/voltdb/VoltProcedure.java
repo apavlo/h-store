@@ -196,7 +196,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     // BATCH EXECUTION MEMBERS
     // ----------------------------------------------------------------------------
     private BatchPlanner planner = null;     
-    private BatchPlanner.BatchPlan plan = null;
+    public BatchPlanner.BatchPlan plan = null;
     
     /**
      * End users should not instantiate VoltProcedure instances.

@@ -61,8 +61,10 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.ConstraintFailureException;
 import org.voltdb.exceptions.EEException;
@@ -713,13 +715,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         // *********************************** DEBUG ***********************************
-        if (hstore_conf.site.exec_check_incorrect_slowpath) {
-            LOG.warn("Enabled Checking Incorrect Slowpath Transactions");
-        } else {
-            LOG.warn("?????");
-        }
-        if (hstore_conf.site.txn_profiling) {
-            LOG.warn("Enabled Transaction Profiling");
+        if (hstore_conf.site.exec_validate_work) {
+            LOG.warn("Enabled Distributed Transaction Checking");
         }
         // *********************************** DEBUG ***********************************
         
@@ -2072,7 +2069,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             // Make sure we at least have something to do!
             else if (ftask.getFragmentIdCount() == 0) {
-                LOG.warn("__FILE__:__LINE__ " + "Trying to send a WorkFragment request with 0 fragments for " + ts);
+                LOG.warn("__FILE__:__LINE__ " + String.format("%s - Trying to send a WorkFragment request with 0 fragments", ts));
                 continue;
             }
             
@@ -2107,8 +2104,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 for (Entry<Integer, List<VoltTable>> e : tmp_removeDependenciesMap.entrySet()) {
                     if (input_dep_ids.contains(e.getKey())) continue;
 
-                    if (d) LOG.debug(String.format("Attaching %d input dependencies for %s to be sent to %s",
-                                     e.getValue().size(), ts, HStoreSite.formatSiteName(target_site)));
+                    if (d) LOG.debug(String.format("%s - Attaching %d input dependencies to be sent to %s",
+                                     ts, e.getValue().size(), HStoreSite.formatSiteName(target_site)));
                     DataFragment.Builder dBuilder = DataFragment.newBuilder();
                     dBuilder.setId(e.getKey());                    
                     for (VoltTable vt : e.getValue()) {
@@ -2122,8 +2119,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             throw new RuntimeException(String.format("Failed to serialize input dependency %d for %s", e.getKey(), ts));
                         }
                         if (d)
-                            LOG.debug(String.format("Storing %d rows for InputDependency %d to send to partition %d for %s [bytes=%d]",
-                                                    vt.getRowCount(), e.getKey(), ftask.getPartitionId(), ts,
+                            LOG.debug(String.format("%s - Storing %d rows for InputDependency %d to send to partition %d [bytes=%d]",
+                                                    ts, vt.getRowCount(), e.getKey(), ftask.getPartitionId(),
                                                     CollectionUtil.last(dBuilder.getDataList()).size()));
                     } // FOR
                     input_dep_ids.add(e.getKey());
@@ -2203,18 +2200,30 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         // *********************************** DEBUG *********************************** 
         
-        // OPTIONAL: Check to make sure that at least one of the WorkFragments needs to be executed on a remote partition
-        if (hstore_conf.site.exec_check_incorrect_slowpath && ts.isSysProc() == false) {
-            LOG.warn(String.format("%s - Checking whether at least one WorkFragment is for a remote partition", ts));
-            boolean valid = false;
+        // OPTIONAL: Check to make sure that this request is valid 
+        //  (1) At least one of the WorkFragments needs to be executed on a remote partition
+        //  (2) All of the PlanFragments ids in the WorkFragments match this txn's Procedure
+        if (hstore_conf.site.exec_validate_work && ts.isSysProc() == false) {
+            LOG.warn(String.format("%s - Checking whether all of the WorkFragments are valid", ts));
+            boolean has_remote = false; 
             for (WorkFragment frag : fragments) {
                 if (frag.getPartitionId() != this.partitionId) {
-                    valid = true;
-                    break;
+                    has_remote = true;
+                }
+                for (int frag_id : frag.getFragmentIdList()) {
+                    PlanFragment catalog_frag = CatalogUtil.getPlanFragment(database, frag_id);
+                    Statement catalog_stmt = catalog_frag.getParent();
+                    assert(catalog_stmt != null);
+                    Procedure catalog_proc = catalog_stmt.getParent();
+                    if (catalog_proc.equals(ts.getProcedure()) == false) {
+                        LOG.warn(ts.debug() + "\n" + fragments + "\n---- INVALID ----\n" + frag);
+                        throw new RuntimeException(String.format("%s - Unexpected %s", ts, catalog_frag.fullName()));
+                    }
                 }
             } // FOR
-            if (valid == false) {
-                LOG.warn(ts.debug() + "\n" + fragments); 
+            if (has_remote == false) {
+                LOG.warn(ts.debug() + "\n" + fragments);
+                LOG.warn(this.getVoltProcedure(ts.getProcedureName()).plan);
                 throw new RuntimeException(String.format("%s - Trying to execute all local single-partition queries using the slow-path!", ts));
             }
         }
