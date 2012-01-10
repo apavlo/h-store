@@ -46,6 +46,7 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.handlers.SendDataHandler;
 import edu.brown.hstore.handlers.TransactionFinishHandler;

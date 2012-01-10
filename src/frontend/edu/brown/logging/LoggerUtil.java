@@ -126,7 +126,9 @@ public abstract class LoggerUtil {
         
         // Hack for testing...
         List<String> paths = new ArrayList<String>();
-        paths.add(System.getProperty("log4j.configuration", LOG4J_FILENAME));
+        String log4jPath = System.getProperty("log4j.configuration", LOG4J_FILENAME); 
+        paths.add(log4jPath);
+//        System.err.println(log4jPath + " -> " + FileUtil.exists(log4jPath));
         
         for (String p : paths) {
             File file = new File(p);

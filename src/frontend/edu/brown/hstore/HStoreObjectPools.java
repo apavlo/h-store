@@ -14,6 +14,7 @@ import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.DependencyInfo;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;

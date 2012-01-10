@@ -19,10 +19,10 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockExecutionSite;
+import edu.brown.hstore.conf.HStoreConf;
 
 public class TestMapReduceTransaction extends BaseTestCase{
     static final int NUM_ROWS = 10;

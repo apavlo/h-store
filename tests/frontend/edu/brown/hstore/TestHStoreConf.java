@@ -8,6 +8,7 @@ import java.util.Map.Entry;
 import org.apache.commons.collections15.map.ListOrderedMap;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 

@@ -20,10 +20,10 @@ import org.voltdb.VoltTable;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
-import edu.brown.hstore.HStoreConf;
 
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);

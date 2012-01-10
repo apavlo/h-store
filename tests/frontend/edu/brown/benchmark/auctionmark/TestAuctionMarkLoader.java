@@ -17,7 +17,7 @@ import org.voltdb.client.ClientResponse;
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * @author pavlo

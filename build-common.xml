@@ -40,6 +40,7 @@
 <arg value="client.output_basepartitions=${client.output_basepartitions}" />
 <arg value="client.output_json=${client.output_json}" />
 
+
 <!-- SITE -->
 <arg value="site.log_dir=${site.log_dir}" />
 <arg value="site.memory=${site.memory}" />
@@ -59,6 +60,7 @@
 <arg value="site.exec_postprocessing_thread_count=${site.exec_postprocessing_thread_count}" />
 <arg value="site.exec_queued_response_ee_bypass=${site.exec_queued_response_ee_bypass}" />
 <arg value="site.exec_response_timeout=${site.exec_response_timeout}" />
+<arg value="site.exec_check_incorrect_slowpath=${site.exec_check_incorrect_slowpath}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />

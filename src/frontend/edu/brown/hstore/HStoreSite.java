@@ -91,10 +91,12 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.hstore.dtxn.TransactionQueueManager;
 import edu.brown.hstore.estimators.AbstractEstimator;
 import edu.brown.hstore.estimators.SEATSEstimator;
 import edu.brown.hstore.estimators.TM1Estimator;
@@ -103,7 +105,6 @@ import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import edu.brown.hstore.util.MapReduceHelperThread;
-import edu.brown.hstore.util.TransactionQueueManager;
 import edu.brown.hstore.util.TxnCounter;
 
 /**

@@ -1,4 +1,4 @@
-package edu.brown.hstore.util;
+package edu.brown.hstore.dtxn;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -18,10 +18,11 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.HStore;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.MockExecutionSite;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.dtxn.TransactionQueueManager;
 
 public class TestTransactionQueueManager extends BaseTestCase {
 

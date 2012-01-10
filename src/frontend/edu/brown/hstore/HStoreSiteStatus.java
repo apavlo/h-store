@@ -38,11 +38,12 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.TypedPoolableObjectFactory;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.TransactionProfile;
+import edu.brown.hstore.dtxn.TransactionQueueManager;
 import edu.brown.hstore.interfaces.Shutdownable;
 import edu.brown.hstore.util.ThrottlingQueue;
-import edu.brown.hstore.util.TransactionQueueManager;
 import edu.brown.hstore.util.TxnCounter;
 
 /**
@@ -854,7 +855,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
         String bot = "";
         Histogram<Integer> blockedDtxns = hstore_site.getTransactionQueueManager().getBlockedDtxnHistogram(); 
         if (hstore_conf.site.status_show_txn_info && blockedDtxns != null && blockedDtxns.isEmpty() == false) {
-            bot = "\nHistogram of rejected txns from this site:\n" + blockedDtxns;
+            bot = "\nRejected Transactions:\n" + blockedDtxns;
         }
         return (top + bot);
     }

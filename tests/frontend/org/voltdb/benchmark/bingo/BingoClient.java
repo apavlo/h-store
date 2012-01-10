@@ -36,7 +36,7 @@ import org.voltdb.types.ExpressionType;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.hstore.Hstore;
-import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf;
 
 public class BingoClient extends BenchmarkComponent {
 

@@ -102,9 +102,9 @@ import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * Base class for clients that will work with the multi-host multi-process

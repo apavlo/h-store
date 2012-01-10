@@ -16,6 +16,7 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
 import edu.brown.BaseTestCase;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 

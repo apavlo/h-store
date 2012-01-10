@@ -35,7 +35,7 @@ import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.jni.ExecutionEngineIPC;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.HStoreConf;
+import edu.brown.hstore.conf.HStoreConf;
 
 /**
  * Implementation of a VoltServerConfig for the simplest case:

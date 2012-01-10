@@ -14,9 +14,9 @@ import org.voltdb.catalog.Statement;
 
 import edu.brown.BaseTestCase;
 import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.MockExecutionSite;
 import edu.brown.hstore.MockHStoreSite;
 

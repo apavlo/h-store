@@ -103,9 +103,9 @@ import edu.brown.utils.FileUtil;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.conf.HStoreConf;
 
 public class BenchmarkController {
     public static final Logger LOG = Logger.getLogger(BenchmarkController.class);
@@ -460,12 +460,13 @@ public class BenchmarkController {
         
         List<String> siteBaseCommand = new ArrayList<String>();
         siteBaseCommand.add("ant hstore-site");
-        siteBaseCommand.add("-Dproperties=" + m_config.hstore_conf_path);
+        siteBaseCommand.add("-Dconf=" + m_config.hstore_conf_path);
         siteBaseCommand.add("-Dproject=" + m_projectBuilder.getProjectName());
         for (Entry<String, String> e : m_config.siteParameters.entrySet()) {
             String opt = String.format("-D%s=%s", e.getKey(), e.getValue());
             siteBaseCommand.add(opt);
-            if (trace.get()) LOG.trace("  " + opt);
+            if (trace.get()) 
+                LOG.trace("  " + e);
         } // FOR
 
         for (Entry<Integer, Set<Pair<String, Integer>>> e : m_launchHosts.entrySet()) {
@@ -1454,7 +1455,8 @@ public class BenchmarkController {
         assert(hstore_conf_path != null) : "Missing HStoreConf file";
         File f = new File(hstore_conf_path);
         HStoreConf hstore_conf = HStoreConf.init(f, vargs);
-        if (debug.get()) LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true));
+        if (debug.get()) 
+            LOG.debug("HStore Conf '" + f.getName() + "'\n" + hstore_conf.toString(true));
         
         if (hstore_conf.client.duration < 1000) {
             LOG.error("Duration is specified in milliseconds");
@@ -1589,6 +1591,9 @@ public class BenchmarkController {
         clientParams.put("NUMCLIENTS", Integer.toString(total_num_clients));
         clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         
+        // Make sure we put in the parameters passed from the command-line into both components
+        clientParams.putAll(hstore_conf.getParametersLoadedFromArgs());
+        siteParams.putAll(hstore_conf.getParametersLoadedFromArgs());
         config.clientParameters.putAll(clientParams);
         config.siteParameters.putAll(siteParams);
         

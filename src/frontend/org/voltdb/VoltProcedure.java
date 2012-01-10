@@ -69,9 +69,9 @@ import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.BatchPlanner.BatchPlan;
 import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.HStoreConf;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.interfaces.Loggable;
@@ -1070,12 +1070,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             this.m_localTxnState.profiler.startExecPlanning();
         }
 
-
-        /*if (lastBatchNeedsRollback) {
-            lastBatchNeedsRollback = false;
-            m_site.ee.undoUndoToken(m_site.undoWindowEnd);
-        }*/
-
         // Create a list of clean parameters
         final ParameterSet params[] = new ParameterSet[batchSize];
         for (int i = 0; i < batchSize; i++) {
@@ -1128,61 +1122,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 // FIXME this.executor.helper.queueMarkovToRecompute(markov);
             }
             
+            // Print Misprediction Debug
             if (d || hstore_conf.site.exec_mispredict_crash) {
-                StringBuilder sb = new StringBuilder();
-                sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
-                  .append(StringUtil.SINGLE_LINE);
-                
-                sb.append("CURRENT BATCH\n");
-                for (int i = 0; i < batchSize; i++) {
-                    sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
-                                            i,
-                                            batchStmts[i].catStmt.fullName(),
-                                            planner.getStatements()[i].fullName(),
-                                            batchStmts[i].catStmt.getSqltext(),
-                                            Arrays.toString(params[i].toArray())));
-                } // FOR
-                
-                sb.append(String.format("\n%s PARAMS:\n%s", this.m_currentTxnState, sb.toString()));
-                ParameterMangler pm = new ParameterMangler(catalog_proc);
-                Object mangled[] = pm.convert(this.procParams); 
-                for (int i = 0; i < mangled.length; i++) {
-                    sb.append(String.format("  [%02d] ", i));
-                    if (this.paramTypeIsArray[i]) {
-                        sb.append(Arrays.toString((Object[])mangled[i]));
-                    } else {
-                        sb.append(mangled[i]);
-                    }
-                    sb.append("\n");
-                } // FOR
-                
-                sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
-                
-                sb.append("\nESTIMATOR STATE:\n");
-                if (s != null) {
-                    sb.append(s.toString());
-                    try {
-                        GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
-                        gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
-                        
-                        LOG.info("PARTITION: " + this.executor.getPartitionId());
-                        LOG.info("GRAPH: " + gv.writeToTempFile(procedure_name));
-                    } catch (Exception ex2) {
-                        LOG.fatal("???????????????????????", ex2);
-                    }
-                } else {
-                    sb.append("No TransactionEstimator.State! Can't dump out MarkovGraph!\n");
-                }
-                
-                sb.append("\nPLANNER\n");
-                for (int i = 0; i < batchSize; i++) {
-                    Statement stmt0 = planner.getStatements()[i];
-                    Statement stmt1 = batchStmts[i].catStmt;
-                    assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
-                    sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
-                } // FOR
-
-                LOG.warn("\n" + sb.toString());
+                LOG.warn("\n" + mispredictDebug(batchStmts, params, markov, s, ex, batchSize));
             }
             
             // Crash on Misprediction!
@@ -1207,7 +1149,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
 
             // Block until we get all of our responses.
-            results = this.executor.dispatchWorkFragment(this.m_localTxnState, this.partitionFragments, params);
+            results = this.executor.dispatchWorkFragments(this.m_localTxnState, this.partitionFragments, params);
         }
         assert(results != null) : "Got back a null results array for " + this.m_currentTxnState + "\n" + plan.toString();
 
@@ -1600,5 +1542,62 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                 m_statusString,
                 new VoltTable[0],
                 msgOut.toString(), e);
+    }
+    
+    private String mispredictDebug(SQLStmt batchStmts[], ParameterSet params[], MarkovGraph markov, TransactionEstimator.State s, Exception ex, int batchSize) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Caught " + ex.getClass().getSimpleName() + "!\n")
+          .append(StringUtil.SINGLE_LINE);
+        
+        sb.append("CURRENT BATCH\n");
+        for (int i = 0; i < batchSize; i++) {
+            sb.append(String.format("[%02d] %s <==> %s\n     %s\n     %s\n",
+                                    i,
+                                    batchStmts[i].catStmt.fullName(),
+                                    planner.getStatements()[i].fullName(),
+                                    batchStmts[i].catStmt.getSqltext(),
+                                    Arrays.toString(params[i].toArray())));
+        } // FOR
+        
+        sb.append(String.format("\n%s PARAMS:\n%s", this.m_currentTxnState, sb.toString()));
+        ParameterMangler pm = new ParameterMangler(catalog_proc);
+        Object mangled[] = pm.convert(this.procParams); 
+        for (int i = 0; i < mangled.length; i++) {
+            sb.append(String.format("  [%02d] ", i));
+            if (this.paramTypeIsArray[i]) {
+                sb.append(Arrays.toString((Object[])mangled[i]));
+            } else {
+                sb.append(mangled[i]);
+            }
+            sb.append("\n");
+        } // FOR
+        
+        sb.append("\nTRANSACTION STATE\n").append(this.m_localTxnState.debug());
+        
+        sb.append("\nESTIMATOR STATE:\n");
+        if (s != null) {
+            sb.append(s.toString());
+            try {
+                GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(s.getInitialPath()));
+                gv.highlightPath(markov.getPath(s.getActualPath()), "blue");
+                
+                LOG.info("PARTITION: " + this.executor.getPartitionId());
+                LOG.info("GRAPH: " + gv.writeToTempFile(procedure_name));
+            } catch (Exception ex2) {
+                LOG.fatal("???????????????????????", ex2);
+            }
+        } else {
+            sb.append("No TransactionEstimator.State! Can't dump out MarkovGraph!\n");
+        }
+        
+        sb.append("\nPLANNER\n");
+        for (int i = 0; i < batchSize; i++) {
+            Statement stmt0 = planner.getStatements()[i];
+            Statement stmt1 = batchStmts[i].catStmt;
+            assert(stmt0.fullName().equals(stmt1.fullName())) : stmt0.fullName() + " != " + stmt1.fullName(); 
+            sb.append(String.format("[%02d] %s\n     %s\n", i, stmt0.fullName(), stmt1.fullName()));
+        } // FOR
+        
+        return (sb.toString());
     }
 }
