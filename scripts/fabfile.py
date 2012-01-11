@@ -546,7 +546,9 @@ def deploy_hstore(build=True, update=True):
                 run("git submodule update")
                 files_repo = env["hstore.git"].replace("h-store", "h-store-files")
                 with cd("files"):
+                    run("git checkout master")
                     run("git pull %s %s" % (env["hstore.git_options"], files_repo))
+                ## WITH
                 
             if build:
                 LOG.debug("Building H-Store from source code")
