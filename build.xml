@@ -2342,7 +2342,17 @@ H-STORE REMIX
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${benchmark.jar}" />
         <arg value="${proc}" />
-        <arg line="${params}" />
+        <arg value="${params}" />
+        <arg value="${param0}" />
+        <arg value="${param1}" />
+        <arg value="${param2}" />
+        <arg value="${param3}" />
+        <arg value="${param4}" />
+        <arg value="${param5}" />
+        <arg value="${param6}" />
+        <arg value="${param7}" />
+        <arg value="${param8}" />
+        <arg value="${param9}" />
         <classpath refid='project.classpath' />
         <assertions><enable/></assertions>
     </java>

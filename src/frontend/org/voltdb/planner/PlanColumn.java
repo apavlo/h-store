@@ -140,7 +140,7 @@ public class PlanColumn
     //
     // Constructors
     //
-    PlanColumn(
+    public PlanColumn(
             int guid,
             AbstractExpression expression,
             String columnName,

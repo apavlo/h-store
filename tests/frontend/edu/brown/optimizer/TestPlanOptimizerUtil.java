@@ -1,14 +1,14 @@
-package org.voltdb.planner;
+package edu.brown.optimizer;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
-import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -19,8 +19,7 @@ import edu.brown.utils.CollectionUtil;
 /**
  * @author sw47
  */
-public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
-    private static final Logger LOG = Logger.getLogger(TestPlanOptimizer1.class);
+public class TestPlanOptimizerUtil extends BasePlanOptimizerTestCase {
 
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt1") {
         {
@@ -30,9 +29,12 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
         }
     };
 
+    PlanOptimizerState state;
+    
     @Override
     protected void setUp() throws Exception {
         super.setUp(pb);
+        this.state = new PlanOptimizerState(catalog_db, PlannerContext.singleton());
     }
 
     /**
@@ -53,42 +55,44 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
     }
 
     private void checkPlanNodeColumns(Map<AbstractPlanNode, Set<Column>> planNodeCols) {
-        LOG.debug("planNodeCols: " + planNodeCols);
+        System.out.println("planNodeCols: " + planNodeCols);
     }
 
     /**
      * Checks a column gets properly added to tableColumns in the correct order
      */
-    public void testaddTableColumn() throws Exception {
-        PlannerContext m_context = PlannerContext.singleton();
+    public void testAddTableColumn() throws Exception {
         Procedure catalog_proc = this.getProcedure("SingleProjection");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement
         AbstractPlanNode rootNode = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-        PlanOptimizer plan_opt = new PlanOptimizer(m_context, catalog_db);
-        plan_opt.populateTableNodeInfo(rootNode);
+        PlanOptimizerUtil.populateTableNodeInfo(state, rootNode);
+        
         // check two hashmaps contain what we expect
-        checkPlanNodeColumns(plan_opt.planNodeColumns);
-        checkTableColumns(plan_opt.tableColumns);
+        checkPlanNodeColumns(state.planNodeColumns);
+        checkTableColumns(state.tableColumns);
+        
         // add column A_VALUE5
-        plan_opt.addTableColumn(catalog_db.getTables().get("TABLEA").getColumns().get("A_VALUE5"));
-        assert (plan_opt.tableColumns.size() == 1) : " ERROR: more than 1 entry in tableCols";
-        Table t = CollectionUtil.first(plan_opt.tableColumns.keySet());
+        state.addTableColumn(catalog_db.getTables().get("TABLEA").getColumns().get("A_VALUE5"));
+        assert (state.tableColumns.size() == 1) : " ERROR: more than 1 entry in tableCols";
+        Table t = CollectionUtil.first(state.tableColumns.keySet());
         assert (t != null);
         assert (t.getName().equals("TABLEA")) : "table " + t.getName() + " does not match TABLEA";
-        Set<Column> cols = CollectionUtil.first(plan_opt.tableColumns.values());
+        Set<Column> cols = CollectionUtil.first(state.tableColumns.values());
         assert (cols.size() == 3) : "Size: " + cols.size() + " doesn't match 3";
         assert (((Column) cols.toArray()[0]).getName().equals("A_ID")) : " first column: " + ((Column) cols.toArray()[0]).getName() + " doesn't match: " + " A_ID";
         assert (((Column) cols.toArray()[1]).getName().equals("A_VALUE0")) : "second column: " + ((Column) cols.toArray()[1]).getName() + " doesn't match: " + " A_VALUE0";
         assert (((Column) cols.toArray()[2]).getName().equals("A_VALUE5")) : "third column: " + ((Column) cols.toArray()[2]).getName() + " doesn't match: " + " A_VALUE5";
+        
         // add column A_VALUE3
-        plan_opt.addTableColumn(catalog_db.getTables().get("TABLEA").getColumns().get("A_VALUE3"));
+        state.addTableColumn(catalog_db.getTables().get("TABLEA").getColumns().get("A_VALUE3"));
+        
         // expect the order to be A_ID, A_VALUE0, A_VALUE3, A_VALUE5
-        Table t2 = CollectionUtil.first(plan_opt.tableColumns.keySet());
+        Table t2 = CollectionUtil.first(state.tableColumns.keySet());
         assert (t2 != null);
         assert (t2.getName().equals("TABLEA")) : "table " + t2.getName() + " does not match TABLEA";
-        Set<Column> cols2 = CollectionUtil.first(plan_opt.tableColumns.values());
+        Set<Column> cols2 = CollectionUtil.first(state.tableColumns.values());
         assert (cols2.size() == 4) : "Size: " + cols2.size() + " doesn't match 4";
         assert (((Column) cols2.toArray()[0]).getName().equals("A_ID")) : " first column: " + ((Column) cols2.toArray()[0]).getName() + " doesn't match: " + " A_ID";
         assert (((Column) cols2.toArray()[1]).getName().equals("A_VALUE0")) : "second column: " + ((Column) cols2.toArray()[1]).getName() + " doesn't match: " + " A_VALUE0";
@@ -97,40 +101,35 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
     }
 
     /**
-     * testpopulateTableNodeInfo
+     * testPopulateTableNodeInfo
      */
-    public void testpopulateTableNodeInfo() throws Exception {
-        PlannerContext m_context = PlannerContext.singleton();
+    public void testPopulateTableNodeInfo() throws Exception {
         Procedure catalog_proc = this.getProcedure("SingleProjection");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement
         AbstractPlanNode rootNode = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-        PlanOptimizer plan_opt = new PlanOptimizer(m_context, catalog_db);
-        plan_opt.populateTableNodeInfo(rootNode);
+        PlanOptimizerUtil.populateTableNodeInfo(state, rootNode);
+        
         // check two hashmaps contain what we expect
-        checkPlanNodeColumns(plan_opt.planNodeColumns);
-        checkTableColumns(plan_opt.tableColumns);
+        checkPlanNodeColumns(state.planNodeColumns);
+        checkTableColumns(state.tableColumns);
     }
 
     /**
      * Checks a column gets properly added to tableColumns in the correct order
-     * 
-     * @throws Exception
      */
     public void testExtractColumnInfo() throws Exception {
-        PlannerContext m_context = PlannerContext.singleton(); // new
-                                                               // PlannerContext();
         Procedure catalog_proc = this.getProcedure("SingleProjection");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
+        
+        // Grab the root node of the multi-partition query plan tree for this Statement
         AbstractPlanNode rootNode = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-        final PlanOptimizer plan_opt = new PlanOptimizer(m_context, catalog_db);
-        plan_opt.populateTableNodeInfo(rootNode);
+        PlanOptimizerUtil.populateTableNodeInfo(state, rootNode);
+        
         // check two hashmaps contain what we expect
-        checkPlanNodeColumns(plan_opt.planNodeColumns);
-        checkTableColumns(plan_opt.tableColumns);
+        checkPlanNodeColumns(state.planNodeColumns);
+        checkTableColumns(state.tableColumns);
         System.out.println("Root Node: " + rootNode + " output columns: " + rootNode.getOutputColumnGUIDs() + " child type: " + rootNode.getChild(0).getPlanNodeType());
         // walk the tree and call extractColumnInfo on a rootNode
         new PlanNodeTreeWalker(true) {
@@ -141,24 +140,22 @@ public class TestPlanOptimizer1 extends BasePlanOptimizerTestCase {
                 // to the columns they affect
                 try {
                     if (this.getDepth() != 0) {
-                        plan_opt.extractColumnInfo(element, false);
+                        PlanOptimizerUtil.extractColumnInfo(state, element, false);
                         this.stop();
                     }
                 } catch (Exception ex) {
-                    // LOG.fatal(PlanNodeUtil.debug(rootNode));
-                    LOG.fatal("Failed to extract column information for " + element, ex);
-                    System.exit(1);
+                    throw new RuntimeException("Failed to extract column information for " + element, ex);
                 }
             }
         }.traverse(rootNode);
 
         // plan_opt.propagateProjections(rootNode);
         // check planNodeColumns + tableColumns
-        LOG.debug("planNodeColumns: " + plan_opt.planNodeColumns);
-        LOG.debug("tableColumns: " + plan_opt.tableColumns);
-        LOG.debug("column_guid_xref: " + plan_opt.column_guid_xref);
-        LOG.debug("guid_column_xref: " + plan_opt.guid_column_xref);
-        LOG.debug("orig_node_output: " + plan_opt.orig_node_output);
+        System.out.println("planNodeColumns: " + state.planNodeColumns);
+        System.out.println("tableColumns: " + state.tableColumns);
+        System.out.println("column_guid_xref: " + state.column_guid_xref);
+        System.out.println("guid_column_xref: " + state.guid_column_xref);
+        System.out.println("orig_node_output: " + state.orig_node_output);
     }
 
 }

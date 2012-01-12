@@ -89,24 +89,26 @@ public abstract class PlanNodeUtil {
     /**
      * PlanFragmentId -> AbstractPlanNode
      */
-    public static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<String, AbstractPlanNode>();
+    private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_FRAGMENT = new HashMap<String, AbstractPlanNode>();
+    
     /**
      * Procedure.Statement -> AbstractPlanNode
      */
-    public static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_SS_STATEMENT = new HashMap<String, AbstractPlanNode>();
-    public static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_MS_STATEMENT = new HashMap<String, AbstractPlanNode>();
+    private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_SP_STATEMENT = new HashMap<String, AbstractPlanNode>();
+    private static final Map<String, AbstractPlanNode> CACHE_DESERIALIZE_MP_STATEMENT = new HashMap<String, AbstractPlanNode>();
+    
     /**
      * Statement -> Sorted List of PlanFragments
      */
-    public static final Map<Statement, List<PlanFragment>> CACHE_SORTED_SS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
-    public static final Map<Statement, List<PlanFragment>> CACHE_SORTED_MS_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    private static final Map<Statement, List<PlanFragment>> CACHE_SORTED_SP_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
+    private static final Map<Statement, List<PlanFragment>> CACHE_SORTED_MP_FRAGMENTS = new HashMap<Statement, List<PlanFragment>>();
     
-    public static final Map<Statement, Collection<Column>> CACHE_OUTPUT_COLUMNS = new HashMap<Statement, Collection<Column>>();
+    private static final Map<Statement, Collection<Column>> CACHE_OUTPUT_COLUMNS = new HashMap<Statement, Collection<Column>>();
     
     /**
      * 
      */
-    public static final Map<String, String> CACHE_STMTPARAMETER_COLUMN = new HashMap<String, String>();
+    private static final Map<String, String> CACHE_STMTPARAMETER_COLUMN = new HashMap<String, String>();
     
     // ------------------------------------------------------------
     // UTILITY METHODS
@@ -114,10 +116,10 @@ public abstract class PlanNodeUtil {
     
     public static void clearCache() {
         CACHE_DESERIALIZE_FRAGMENT.clear();
-        CACHE_DESERIALIZE_MS_STATEMENT.clear();
-        CACHE_DESERIALIZE_SS_STATEMENT.clear();
-        CACHE_SORTED_MS_FRAGMENTS.clear();
-        CACHE_SORTED_SS_FRAGMENTS.clear();
+        CACHE_DESERIALIZE_MP_STATEMENT.clear();
+        CACHE_DESERIALIZE_SP_STATEMENT.clear();
+        CACHE_SORTED_MP_FRAGMENTS.clear();
+        CACHE_SORTED_SP_FRAGMENTS.clear();
         CACHE_OUTPUT_COLUMNS.clear();
         CACHE_STMTPARAMETER_COLUMN.clear();
     }
@@ -737,7 +739,7 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static List<PlanFragment> getSortedPlanFragments(Statement catalog_stmt, boolean singlepartition) {
-        Map<Statement, List<PlanFragment>> cache = (singlepartition ? PlanNodeUtil.CACHE_SORTED_SS_FRAGMENTS : PlanNodeUtil.CACHE_SORTED_MS_FRAGMENTS); 
+        Map<Statement, List<PlanFragment>> cache = (singlepartition ? PlanNodeUtil.CACHE_SORTED_SP_FRAGMENTS : PlanNodeUtil.CACHE_SORTED_MP_FRAGMENTS); 
         List<PlanFragment> ret = cache.get(catalog_stmt);
         if (ret == null) {
             CatalogMap<PlanFragment> catalog_frags = null;
@@ -799,25 +801,27 @@ public abstract class PlanNodeUtil {
     }
 
     /**
-     * 
+     * Get the root AbstractPlanNode for the given Statement's query plan
+     * If the singlePartition flag is true, then it will return the tree for the single-partition query
+     * Otherwise, it will return the distributed query plan tree
      * @param catalog_stmt
+     * @param singlePartition
      * @return
-     * @throws Exception
      */
-    public static AbstractPlanNode getRootPlanNodeForStatement(Statement catalog_stmt, boolean singlesited) {
-        if (singlesited && !catalog_stmt.getHas_singlesited()) {
-            String msg = "No single-sited plan is available for " + catalog_stmt + ". ";
+    public static AbstractPlanNode getRootPlanNodeForStatement(Statement catalog_stmt, boolean singlePartition) {
+        if (singlePartition && !catalog_stmt.getHas_singlesited()) {
+            String msg = "No single-partition plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_multisited()) {
-                LOG.debug(msg + "Going to try to use multi-site plan");
+                if (debug.get()) LOG.debug(msg + "Going to try to use multi-partition plan");
                 return (getRootPlanNodeForStatement(catalog_stmt, false));
             } else {
                 LOG.fatal(msg + "No other plan is available");
                 return (null);
             }
-        } else if (!singlesited && !catalog_stmt.getHas_multisited()) {
+        } else if (!singlePartition && !catalog_stmt.getHas_multisited()) {
             String msg = "No multi-sited plan is available for " + catalog_stmt + ". ";
             if (catalog_stmt.getHas_singlesited()) {
-                if (LOG.isDebugEnabled()) LOG.warn(msg + "Going to try to use single-site plan");
+                if (debug.get()) LOG.warn(msg + "Going to try to use single-partition plan");
                 return (getRootPlanNodeForStatement(catalog_stmt, true));
             } else {
                 LOG.fatal(msg + "No other plan is available");
@@ -829,49 +833,48 @@ public abstract class PlanNodeUtil {
         // This is probably not thread-safe because the AbstractPlanNode tree has pointers to
         // specific table catalog objects
         String cache_key = CatalogKey.createKey(catalog_stmt);
-        Map<String, AbstractPlanNode> cache = (singlesited ? PlanNodeUtil.CACHE_DESERIALIZE_SS_STATEMENT : PlanNodeUtil.CACHE_DESERIALIZE_MS_STATEMENT);
+        Map<String, AbstractPlanNode> cache = (singlePartition ? PlanNodeUtil.CACHE_DESERIALIZE_SP_STATEMENT : PlanNodeUtil.CACHE_DESERIALIZE_MP_STATEMENT);
         AbstractPlanNode ret = cache.get(cache_key);
         if (ret != null) return (ret);
         
         // Otherwise construct the AbstractPlanNode tree
         Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
-        String fullPlan = (singlesited ? catalog_stmt.getFullplan() : catalog_stmt.getMs_fullplan());
+        String fullPlan = (singlePartition ? catalog_stmt.getFullplan() : catalog_stmt.getMs_fullplan());
         if (fullPlan == null || fullPlan.isEmpty()) {
             throw new RuntimeException("Unable to deserialize full query plan tree for " + catalog_stmt + ": The plan attribute is empty");
         }
     
         try {
-            if (true) { 
-                String jsonString = Encoder.hexDecodeToString(fullPlan);
-                JSONObject jsonObject = new JSONObject(jsonString);
-                PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
-                ret = list.getRootPlanNode();
-            } else {
-                //
-                // FIXME: If it's an INSERT query, then we have to use the plan fragments instead of
-                // the full query plan tree because the full plan is missing the MaterializePlanNode
-                // part for some reason.
-                // NEVER TRUST THE FULL PLAN!
-                //
-                JSONObject jsonObject = null;
-                List<AbstractPlanNode> nodes = new ArrayList<AbstractPlanNode>();
-                CatalogMap<PlanFragment> fragments = (singlesited ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-                for (PlanFragment catalog_frag : fragments) {
-                    String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
-                    jsonObject = new JSONObject(jsonString);
-                    PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
-                    nodes.add(list.getRootPlanNode());
-                } // FOR
-                if (nodes.isEmpty()) {
-                    throw new Exception("Failed to retrieve query plan nodes from catalog for " + catalog_stmt + " in " + catalog_stmt.getParent());
-                }
-                try {
-                    ret = reconstructPlanNodeTree(catalog_stmt, nodes, true);
-                } catch (Exception ex) {
-                    System.out.println("ORIGINAL NODES: " + nodes);
-                    throw ex;
-                }
-            }
+            String jsonString = Encoder.hexDecodeToString(fullPlan);
+            JSONObject jsonObject = new JSONObject(jsonString);
+            PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+            ret = list.getRootPlanNode();
+//            } else {
+//                //
+//                // FIXME: If it's an INSERT query, then we have to use the plan fragments instead of
+//                // the full query plan tree because the full plan is missing the MaterializePlanNode
+//                // part for some reason.
+//                // NEVER TRUST THE FULL PLAN!
+//                //
+//                JSONObject jsonObject = null;
+//                List<AbstractPlanNode> nodes = new ArrayList<AbstractPlanNode>();
+//                CatalogMap<PlanFragment> fragments = (singlePartition ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
+//                for (PlanFragment catalog_frag : fragments) {
+//                    String jsonString = Encoder.hexDecodeToString(catalog_frag.getPlannodetree());
+//                    jsonObject = new JSONObject(jsonString);
+//                    PlanNodeList list = (PlanNodeList)PlanNodeTree.fromJSONObject(jsonObject, catalog_db);
+//                    nodes.add(list.getRootPlanNode());
+//                } // FOR
+//                if (nodes.isEmpty()) {
+//                    throw new Exception("Failed to retrieve query plan nodes from catalog for " + catalog_stmt + " in " + catalog_stmt.getParent());
+//                }
+//                try {
+//                    ret = reconstructPlanNodeTree(catalog_stmt, nodes, true);
+//                } catch (Exception ex) {
+//                    System.out.println("ORIGINAL NODES: " + nodes);
+//                    throw ex;
+//                }
+//            }
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
