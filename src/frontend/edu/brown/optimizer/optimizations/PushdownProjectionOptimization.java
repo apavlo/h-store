@@ -69,8 +69,9 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                 else if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
                     assert(state.join_node_index.size() == state.join_tbl_mapping.size()) :
                         "Join data structures don't have the same size";
-                    assert(state.join_tbl_mapping.get(element.getPlanNodeId()) != null) :
-                        "Element : " + element.getPlanNodeId() + " does NOT exist in join map";
+                    if (state.join_tbl_mapping.get(element) == null) LOG.error("BUSTED:\n" + state);
+                    assert(state.join_tbl_mapping.get(element) != null) :
+                        element + " does NOT exist in join map";
                     
                     // This will contain all the PlanColumns that are needed to perform the join
                     final Set<PlanColumn> join_columns = extractReferencedColumns(element, state.join_tbl_mapping.get(element));

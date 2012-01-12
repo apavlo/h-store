@@ -39,7 +39,7 @@ public abstract class PlanNodeTreeWalker extends AbstractTreeWalker<AbstractPlan
     protected void populate_children(PlanNodeTreeWalker.Children<AbstractPlanNode> children, AbstractPlanNode node) {
         if (this.reverse) {
             for (int ctr = 0, cnt = node.getParentPlanNodeCount(); ctr < cnt; ctr++) {
-                children.addBefore(node.getParent(ctr));
+                children.addAfter(node.getParent(ctr));
             }
         } else {
             for (int ctr = 0, cnt = node.getChildPlanNodeCount(); ctr < cnt; ctr++) {
