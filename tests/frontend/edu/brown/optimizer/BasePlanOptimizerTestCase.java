@@ -1,4 +1,4 @@
-package org.voltdb.planner;
+package edu.brown.optimizer;
 
 import java.io.File;
 import java.util.Collection;
@@ -10,6 +10,8 @@ import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Column;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
+import org.voltdb.planner.PlanColumn;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.AggregatePlanNode;

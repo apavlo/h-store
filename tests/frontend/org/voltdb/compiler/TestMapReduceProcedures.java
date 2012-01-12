@@ -3,11 +3,11 @@ package org.voltdb.compiler;
 import org.junit.Test;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.planner.PlanOptimizer;
 import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
+import edu.brown.optimizer.PlanOptimizer;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ProjectType;
 

@@ -1,4 +1,4 @@
-package org.voltdb.planner;
+package edu.brown.optimizer;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -8,6 +8,8 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
+import org.voltdb.planner.PlanColumn;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
@@ -25,7 +27,7 @@ import edu.brown.utils.CollectionUtil;
 /**
  * @author pavlo
  */
-public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
+public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt3") {
         {
@@ -54,6 +56,12 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
             this.addStmtProcedure("OrderBy", "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
             this.addStmtProcedure("GroupBy", "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
             this.addStmtProcedure("LimitOrderBy", "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
+            this.addStmtProcedure("SingleSelect", "SELECT A_ID FROM TABLEA");
+            this.addStmtProcedure("TwoTableJoin", "SELECT B_ID, B_A_ID, B_VALUE0, C_ID, C_VALUE0 " +
+                                                  "  FROM TABLEB, TABLEC " +
+                                                  " WHERE B_A_ID = ? AND B_ID = ? " +
+                                                  "   AND B_A_ID = C_B_A_ID AND B_ID = C_B_ID  " +
+                                                  " ORDER BY B_VALUE1 ASC LIMIT 25");
         }
     };
 
@@ -475,5 +483,37 @@ public class TestPlanOptimizer3 extends BasePlanOptimizerTestCase {
         
 //        validateNodeColumnOffsets(root);
 //         System.err.println(PlanNodeUtil.debug(root));
+    }
+    
+    /**
+     * testSingleSelect
+     */
+    @Test
+    public void testSingleSelect() throws Exception {   
+        Procedure catalog_proc = this.getProcedure("SingleSelect");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        System.err.println(PlanNodeUtil.debug(root));
+//        validateNodeColumnOffsets(root);
+    }
+     
+    /**
+     * testTwoTableJoin
+     */
+    @Test
+    public void testTwoTableJoin() throws Exception {   
+        Procedure catalog_proc = this.getProcedure("TwoTableJoin");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        System.err.println(PlanNodeUtil.debug(root));
+//        validateNodeColumnOffsets(root);
     }
 }

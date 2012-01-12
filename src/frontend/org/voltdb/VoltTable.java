@@ -22,6 +22,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.voltdb.messaging.FastDeserializer;
@@ -444,6 +445,14 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         assert(verifyTableInvariants());
         return name;
     }
+    
+    protected final String[] getColumnNames() {
+        String col_names[] = new String[m_colCount];
+        for (int i = 0; i < m_colCount; i++) {
+            col_names[i] = this.getColumnName(i);
+        }
+        return (col_names);
+    }
 
     @Override
     public final VoltType getColumnType(int index) {
@@ -828,7 +837,7 @@ public final class VoltTable extends VoltTableRow implements FastSerializable {
         }
         if (m_colCount != 1) {
             throw new IllegalStateException(
-                    "table must contain exactly 1 column; columns = " + m_colCount);
+                    "table must contain exactly 1 column; columns = " + Arrays.toString(this.getColumnNames()));
         }
         final VoltType colType = getColumnType(0);
         switch (colType) {

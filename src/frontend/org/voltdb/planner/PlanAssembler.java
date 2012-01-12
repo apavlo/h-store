@@ -63,6 +63,7 @@ import org.voltdb.types.SortDirectionType;
 import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.expressions.ExpressionUtil;
+import edu.brown.optimizer.PlanOptimizer;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
