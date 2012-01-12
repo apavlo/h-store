@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -55,37 +56,51 @@ public abstract class PlanOptimizerUtil {
     }
     
     /**
-     * Populate the mappings between NestedLoopJoinPlanNodes and the tableNames,
+     * Populate the mappings between AbstractPlanNodes and the tableNames,
      * and the element id(?) to set of columns
      * @param state
      * @param rootNode
      */
     public static void populateJoinTableInfo(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
-        new PlanNodeTreeWalker(false) {
+        final Set<String> join_tbls = new HashSet<String>();
+
+        // Traverse from the bottom up and figure out what tables are referenced
+        // in each AbstractJoinPlanNode
+        new PlanNodeTreeWalker(false, true) {
             @Override
             protected void callback(AbstractPlanNode element) {
+                // ---------------------------------------------------
+                // AbstractScanPlanNode
+                // ---------------------------------------------------
                 if (element instanceof AbstractScanPlanNode) {
-                    state.ref_join_tbls.add(((AbstractScanPlanNode) element).getTargetTableName());
-                } else if (element instanceof AbstractJoinPlanNode) {
-                    // Get target table of inline scan
-                    assert (element.getInlinePlanNodeCount() == 1) :
-                        "Join has incorrect number of inline nodes";
-                    AbstractScanPlanNode inline_scan_node = (AbstractScanPlanNode) CollectionUtil.first(element.getInlinePlanNodes().values());
-                    state.ref_join_tbls.add(inline_scan_node.getTargetTableName());
+                    join_tbls.add(((AbstractScanPlanNode) element).getTargetTableName());
+                }
+                // ---------------------------------------------------
+                // AbstractJoinPlanNode
+                // ---------------------------------------------------
+                else if (element instanceof AbstractJoinPlanNode) {
+                    // We don't NestLoopPlanNode for now
+                    assert((element instanceof NestLoopPlanNode) == false);
                     
-                    // need temp set to put into hashmap!
-                    HashSet<String> temp = new HashSet<String>(state.ref_join_tbls);
-                    state.join_tbl_mapping.put(element.getPlanNodeId(), temp);
+                    // Get target table of inline scan
+                    Collection<AbstractScanPlanNode> inline_nodes = element.getInlinePlanNodes(AbstractScanPlanNode.class);
+                    assert(inline_nodes.isEmpty() == false);
+                    AbstractScanPlanNode inline_scan_node = CollectionUtil.first(inline_nodes);
+                    assert(inline_scan_node != null);
+                    join_tbls.add(inline_scan_node.getTargetTableName());
+                    
+                    // Add all of the tables that we've seen at this point in the tree
+                    state.join_tbl_mapping.put(element, new HashSet<String>(join_tbls));
 
-                    // add to join index map which depth is the index
-                    state.join_node_index.put(this.getDepth(), element);
+                    // Add to join index map which depth is the index
+                    state.join_node_index.put(this.getDepth(), (AbstractJoinPlanNode)element);
                     Map<String, Integer> single_join_node_output = new HashMap<String, Integer>();
                     for (int i = 0; i < element.getOutputColumnGUIDCount(); i++) {
                         int guid = element.getOutputColumnGUID(i);
                         PlanColumn pc = state.plannerContext.get(guid);
                         single_join_node_output.put(pc.getDisplayName(), i);
-                    }
-                    state.join_outputs.put(element, single_join_node_output);
+                    } // FOR
+                    state.join_outputs.put((AbstractJoinPlanNode)element, single_join_node_output);
                 }
                 
             }
@@ -97,11 +112,16 @@ public abstract class PlanOptimizerUtil {
      * @param is_root
      * @throws Exception
      */
-    public static void extractColumnInfo(final PlanOptimizerState state, AbstractPlanNode node, boolean is_root) throws Exception {
-        //System.out.println("current node type: " + node.getPlanNodeType() + " id: " + node.getPlanNodeId());
+    public static void extractColumnInfo(final PlanOptimizerState state, final AbstractPlanNode node, final boolean is_root) throws Exception {
+        if (trace.get())
+            LOG.trace("Extracting Column Info for " + node);
         
         // Store the original output column information per node
-        state.orig_node_output.put(node, new ArrayList<Integer>(node.getOutputColumnGUIDs()));
+        if (state.orig_node_output.containsKey(node) == false) {
+            if (trace.get())
+                LOG.trace("Storing original PlanNode output information for " + node);
+            state.orig_node_output.put(node, new ArrayList<Integer>(node.getOutputColumnGUIDs()));
+        }
 
         // Get all of the AbstractExpression roots for this node
         final Collection<AbstractExpression> exps = PlanNodeUtil.getExpressionsForPlanNode(node);

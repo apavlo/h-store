@@ -215,7 +215,7 @@ public class VoltCompiler {
         private static final long serialVersionUID = -2267780579911448600L;
         private String message = null;
 
-        VoltCompilerException(final Exception e) {
+        VoltCompilerException(final Throwable e) {
             super(e);
         }
 
@@ -229,7 +229,7 @@ public class VoltCompiler {
             this.message = message;
         }
         
-        VoltCompilerException(final String message, Exception e) {
+        VoltCompilerException(final String message, Throwable e) {
             super(message, e);
             this.message = message;
             addErr(message);

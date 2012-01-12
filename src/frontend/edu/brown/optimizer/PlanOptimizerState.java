@@ -2,66 +2,74 @@ package edu.brown.optimizer;
 
 import java.util.*;
 
+import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.planner.PlannerContext;
+import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 public class PlanOptimizerState {
     private static final Logger LOG = Logger.getLogger(PlanOptimizerState.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
-    /** convenience pointer to the database object in the catalog */
+    /**
+     * Database Catalog Object
+     */
     public final Database catalog_db;
 
-    /** Context object with planner-local information. */
+    /**
+     * Context object with planner-local information.
+     */
     public final PlannerContext plannerContext;
     
-    /** All the columns a plan node references */
+    /**
+     * All the columns a plan node references
+     */
     protected final Map<AbstractPlanNode, Set<Column>> planNodeColumns = new HashMap<AbstractPlanNode, Set<Column>>();
 
-    /** All referenced columns for a given table */
+    /**
+     * All referenced columns for a given table
+     */
     public final Map<Table, SortedSet<Column>> tableColumns = new HashMap<Table, SortedSet<Column>>();
 
-    /** Mapping from Column -> Set<PlanColumnGUID> */
+    /**
+     * Mapping from Column -> Set<PlanColumnGUID>
+     */
     public final Map<Column, Set<Integer>> column_guid_xref = new HashMap<Column, Set<Integer>>();
 
-    /** Mapping from PlanColumnGUID -> Column */
+    /**
+     * Mapping from PlanColumnGUID -> Column
+     */
     public final Map<Integer, Column> guid_column_xref = new HashMap<Integer, Column>();
 
-    /** Maintain the old output columns per PlanNode so we can figure out offsets */
+    /**
+     * Maintain the original output PlanColumnnGUIDs per PlanNode so we can figure out offsets
+     */
     public final Map<AbstractPlanNode, List<Integer>> orig_node_output = new HashMap<AbstractPlanNode, List<Integer>>();
 
     /**
-     * 
+     * AbstractPlanNode -> TableNames
      */
-    public final Map<Integer, Set<String>> join_tbl_mapping = new HashMap<Integer, Set<String>>();
+    public final Map<AbstractPlanNode, Set<String>> join_tbl_mapping = new HashMap<AbstractPlanNode, Set<String>>();
     
     /**
-     * 
+     * AbstractJoinPlanNode to the order that it appears in the tree 
      */
-    public final List<ProjectionPlanNode> projection_plan_nodes = new ArrayList<ProjectionPlanNode>();
+    public final SortedMap<Integer, AbstractJoinPlanNode> join_node_index = new TreeMap<Integer, AbstractJoinPlanNode>();
     
     /**
-     * 
+     * AbstractJoinPlanNode -> Output PlanColumnDisplayName -> Offset
      */
-    public final Set<String> ref_join_tbls = new HashSet<String>();
-    
-    /**
-     * 
-     */
-    public final SortedMap<Integer, AbstractPlanNode> join_node_index = new TreeMap<Integer, AbstractPlanNode>();
-    
-    /**
-     * 
-     */
-    public final Map<AbstractPlanNode, Map<String, Integer>> join_outputs = new HashMap<AbstractPlanNode, Map<String,Integer>>();
+    public final Map<AbstractJoinPlanNode, Map<String, Integer>> join_outputs = new HashMap<AbstractJoinPlanNode, Map<String,Integer>>();
     
     // ------------------------------------------------------------
     // INTERNAL STATE 
@@ -116,6 +124,8 @@ public class PlanOptimizerState {
     
     public void updateColumnInfo(AbstractPlanNode node) {
         // Clears the internal data structures that stores the column info
+        if (debug.get())
+            LOG.debug("Clearing internal state information");
         this.orig_node_output.clear();
         this.tableColumns.clear();
         this.column_guid_xref.clear();
@@ -147,6 +157,8 @@ public class PlanOptimizerState {
         if (this.planNodeColumns.containsKey(node) == false) {
             this.planNodeColumns.put(node, new HashSet<Column>());
         }
+        if (debug.get())
+            LOG.debug(String.format("Referenced Columns %s -> %s", node, catalog_col));
         this.planNodeColumns.get(node).add(catalog_col);
     }
     
@@ -154,4 +166,24 @@ public class PlanOptimizerState {
         return this.planNodeColumns.get(node);
     }
     
+    // ------------------------------------------------------------
+    // DEBUG
+    // ------------------------------------------------------------
+    
+    @Override
+    public String toString() {
+        Map<String, Object> m = new ListOrderedMap<String, Object>();
+        
+        m.put("PlanNode Columns", this.planNodeColumns);
+        m.put("PlanNode Hash", Arrays.toString(CollectionUtil.hashCode(this.planNodeColumns.keySet())));
+        m.put("Table Columns", this.tableColumns);
+        m.put("Column -> PlanColumnGUID", this.column_guid_xref);
+        m.put("PlanColumnGUID -> Column", this.guid_column_xref);
+        m.put("Original Output PlanColumnGUIDs", this.orig_node_output);
+        m.put("JoinPlanNode Tables", this.join_tbl_mapping);
+        m.put("JoinPlanNode Depths", this.join_node_index);
+        m.put("JoinPlanNode Output", this.join_outputs);
+        
+        return (StringUtil.formatMaps(m));
+    }
 }

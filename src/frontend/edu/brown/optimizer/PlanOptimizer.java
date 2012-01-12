@@ -153,10 +153,12 @@ public class PlanOptimizer {
                 assert(opt != null);
                 new_root = opt.optimize(new_root);
             } catch (Throwable ex) {
-                LOG.error(String.format("Failed to apply %s to query plan\n%s",
-                                        optClass.getSimpleName(), sql), ex);
                 if (debug.get())
                     LOG.debug("Last Query Plan:\n" + PlanNodeUtil.debug(new_root));
+                
+                String msg = String.format("Failed to apply %s to query plan\n%s", optClass.getSimpleName(), sql);
+                if (ex instanceof AssertionError) throw new RuntimeException(msg, ex);
+                LOG.warn(msg, ex);
                 return (null);
             }
             
