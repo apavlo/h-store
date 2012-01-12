@@ -37,8 +37,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
                                   "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
             this.addStmtProcedure("DistinctCount", "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
             this.addStmtProcedure("MaxGroup", "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
-            this.addStmtProcedure("Max", "SELECT Max(TABLEB.B_A_ID) FROM TABLEB");
-            this.addStmtProcedure("Min", "SELECT Min(TABLEB.B_A_ID) FROM TABLEB");
+            this.addStmtProcedure("Max", "SELECT MAX(TABLEB.B_A_ID) FROM TABLEB");
+            this.addStmtProcedure("Min", "SELECT MIN(TABLEB.B_A_ID) FROM TABLEB");
             this.addStmtProcedure("Aggregate", "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
             this.addStmtProcedure("Limit", "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
             this.addStmtProcedure("LimitJoin", "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");

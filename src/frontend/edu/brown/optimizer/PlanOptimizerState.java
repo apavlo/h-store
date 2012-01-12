@@ -24,7 +24,7 @@ public class PlanOptimizerState {
     public final PlannerContext plannerContext;
     
     /** All the columns a plan node references */
-    public final Map<AbstractPlanNode, Set<Column>> planNodeColumns = new HashMap<AbstractPlanNode, Set<Column>>();
+    protected final Map<AbstractPlanNode, Set<Column>> planNodeColumns = new HashMap<AbstractPlanNode, Set<Column>>();
 
     /** All referenced columns for a given table */
     public final Map<Table, SortedSet<Column>> tableColumns = new HashMap<Table, SortedSet<Column>>();
@@ -114,17 +114,14 @@ public class PlanOptimizerState {
         return (ctr > 0);
     }
     
-    /** clears the internal data structures that stores the column info **/
-    protected void clearColumnInfo() {
-        orig_node_output.clear();
-        tableColumns.clear();
-        column_guid_xref.clear();
-        planNodeColumns.clear();
-        guid_column_xref.clear();
-    }
-    
     public void updateColumnInfo(AbstractPlanNode node) {
-        this.clearColumnInfo();
+        // Clears the internal data structures that stores the column info
+        this.orig_node_output.clear();
+        this.tableColumns.clear();
+        this.column_guid_xref.clear();
+        this.planNodeColumns.clear();
+        this.guid_column_xref.clear();
+        
         PlanOptimizerUtil.populateTableNodeInfo(this, node);
     }
     
@@ -151,6 +148,10 @@ public class PlanOptimizerState {
             this.planNodeColumns.put(node, new HashSet<Column>());
         }
         this.planNodeColumns.get(node).add(catalog_col);
+    }
+    
+    public Set<Column> getPlanNodeColumns(AbstractPlanNode node) {
+        return this.planNodeColumns.get(node);
     }
     
 }
