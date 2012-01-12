@@ -66,9 +66,14 @@ public abstract class PlanOptimizerUtil {
 
         // Traverse from the bottom up and figure out what tables are referenced
         // in each AbstractJoinPlanNode
+//        for (AbstractPlanNode leaf : PlanNodeUtil.getLeafPlanNodes(rootNode)) {
+//            
+//        }
         new PlanNodeTreeWalker(false, true) {
             @Override
             protected void callback(AbstractPlanNode element) {
+                LOG.info("XXXX " + element);
+                
                 // ---------------------------------------------------
                 // AbstractScanPlanNode
                 // ---------------------------------------------------
@@ -79,6 +84,9 @@ public abstract class PlanOptimizerUtil {
                 // AbstractJoinPlanNode
                 // ---------------------------------------------------
                 else if (element instanceof AbstractJoinPlanNode) {
+                    if (debug.get())
+                        LOG.debug("Updating the list of tables joined at " + element);
+                    
                     // We don't NestLoopPlanNode for now
                     assert((element instanceof NestLoopPlanNode) == false);
                     
@@ -112,7 +120,7 @@ public abstract class PlanOptimizerUtil {
      * @param is_root
      * @throws Exception
      */
-    public static void extractColumnInfo(final PlanOptimizerState state, final AbstractPlanNode node, final boolean is_root) throws Exception {
+    protected static void extractColumnInfo(final PlanOptimizerState state, final AbstractPlanNode node, final boolean is_root) throws Exception {
         if (trace.get())
             LOG.trace("Extracting Column Info for " + node);
         
