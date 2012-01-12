@@ -84,9 +84,11 @@ public class TestPlanOptimizerTPCC extends BasePlanOptimizerTestCase {
         assertEquals(1, scan_node.getInlinePlanNodeCount());
         assertEquals(catalog_tbl.getName(), scan_node.getTargetTableName());
         
+        // The inline projection in the leaf ScanPlanNode should only output a 
+        // single column (S_I_ID), since this is the only column used in the JOIN
         ProjectionPlanNode proj_node = scan_node.getInlinePlanNode(PlanNodeType.PROJECTION);
         assertNotNull(proj_node);
-        assertEquals(col_offset_xref.size(), proj_node.getOutputColumnGUIDCount());
+        assertEquals(1, proj_node.getOutputColumnGUIDCount());
         
         System.err.println(PlanNodeUtil.debug(scan_node));
         checkExpressionOffsets(proj_node, col_offset_xref);

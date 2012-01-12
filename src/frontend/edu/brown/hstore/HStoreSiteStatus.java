@@ -73,9 +73,7 @@ public class HStoreSiteStatus implements Runnable, Shutdownable {
                                                       TxnCounter.MISPREDICTED);
         CollectionUtil.addAll(TXNINFO_ALWAYS_SHOW,    TxnCounter.MULTI_PARTITION,
                                                       TxnCounter.SINGLE_PARTITION,
-                                                      TxnCounter.MISPREDICTED,
-                                                      TxnCounter.BLOCKED_LOCAL,
-                                                      TxnCounter.BLOCKED_REMOTE);
+                                                      TxnCounter.MISPREDICTED);
         CollectionUtil.addAll(TXNINFO_EXCLUDES,       TxnCounter.SYSPROCS);
     }
     
