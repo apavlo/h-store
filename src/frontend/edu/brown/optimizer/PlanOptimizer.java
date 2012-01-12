@@ -14,11 +14,7 @@ import org.voltdb.plannodes.SeqScanPlanNode;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.optimizer.optimizations.AbstractOptimization;
-import edu.brown.optimizer.optimizations.PushdownInlineProjectionOptimization;
-import edu.brown.optimizer.optimizations.PushdownLimitOrderByOptimization;
-import edu.brown.optimizer.optimizations.PushdownProjectionOptimization;
-import edu.brown.optimizer.optimizations.RemoveRedundantProjectionsOptimizations;
+import edu.brown.optimizer.optimizations.*;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.StringUtil;
@@ -66,7 +62,6 @@ public class PlanOptimizer {
      */
     @SuppressWarnings("unchecked")
     protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = (Class<? extends AbstractOptimization>[])new Class<?>[]{
-        PushdownInlineProjectionOptimization.class,
         PushdownProjectionOptimization.class,
         PushdownLimitOrderByOptimization.class,
         RemoveRedundantProjectionsOptimizations.class,
@@ -133,7 +128,7 @@ public class PlanOptimizer {
         // Populate the PlanOptimizerState with the information that we will
         // need to figure out our various optimizations
         if (debug.get())
-            LOG.debug(StringUtil.header("POPULATING OPTIMIZER STATE"));
+            LOG.debug(StringUtil.header("POPULATING OPTIMIZER STATE", "*"));
         PlanOptimizerUtil.populateTableNodeInfo(state, new_root);
         PlanOptimizerUtil.populateJoinTableInfo(state, new_root);
             
@@ -142,10 +137,10 @@ public class PlanOptimizer {
         // We will pass in the new_root each time to ensure that each optimization
         // gets a full view of the quey plan tree
         if (debug.get())
-            LOG.debug(StringUtil.header("APPLYING OPTIMIZATIONS"));
+            LOG.debug(StringUtil.header("APPLYING OPTIMIZATIONS", "*"));
         for (Class<? extends AbstractOptimization> optClass : OPTIMIZATONS) {
             if (debug.get())
-                LOG.debug("Attempting to apply " + optClass.getSimpleName());
+                LOG.debug(StringUtil.header(optClass.getSimpleName()));
             
             // Always reset everything so that each optimization has a clean slate to work with
             state.clearDirtyNodes();
@@ -164,6 +159,11 @@ public class PlanOptimizer {
                     LOG.debug("Last Query Plan:\n" + PlanNodeUtil.debug(new_root));
                 return (null);
             }
+            
+            // STEP #3
+            // If any nodes were modified by this optimization, go through the tree
+            // and make sure our output columns and other information is all in sync
+            if (state.hasDirtyNodes()) PlanOptimizerUtil.updateAllColumns(state, new_root);
         } // FOR
         
         if (debug.get())

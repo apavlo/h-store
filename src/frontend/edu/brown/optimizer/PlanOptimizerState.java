@@ -15,12 +15,13 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 public class PlanOptimizerState {
     private static final Logger LOG = Logger.getLogger(PlanOptimizerState.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
 
     /** convenience pointer to the database object in the catalog */
-    public final Database m_catalogDb;
+    public final Database catalog_db;
 
     /** Context object with planner-local information. */
-    public final PlannerContext m_context;
+    public final PlannerContext plannerContext;
     
     /** All the columns a plan node references */
     public final Map<AbstractPlanNode, Set<Column>> planNodeColumns = new HashMap<AbstractPlanNode, Set<Column>>();
@@ -76,8 +77,8 @@ public class PlanOptimizerState {
     // ------------------------------------------------------------
     
     public PlanOptimizerState(Database catalog_db, PlannerContext context) {
-        this.m_catalogDb = catalog_db;
-        this.m_context = context;
+        this.catalog_db = catalog_db;
+        this.plannerContext = context;
     }
     
     // ------------------------------------------------------------
@@ -93,7 +94,11 @@ public class PlanOptimizerState {
             LOG.debug("Marking " + node + " as dirty");
         this.dirtyPlanNodes.add(node);
     }
-
+    
+    public boolean hasDirtyNodes() {
+        return (this.dirtyPlanNodes.isEmpty() == false);
+    }
+    
     public boolean isDirty(AbstractPlanNode node) {
         return (this.dirtyPlanNodes.contains(node));
     }
@@ -131,14 +136,14 @@ public class PlanOptimizerState {
         this.tableColumns.get(catalog_tbl).add(catalog_col);
     }
 
-    protected void addColumnMapping(Column catalog_col, Integer guid) {
+    public void addColumnMapping(Column catalog_col, Integer guid) {
         if (this.column_guid_xref.containsKey(catalog_col) == false) {
             this.column_guid_xref.put(catalog_col, new HashSet<Integer>());
         }
         this.column_guid_xref.get(catalog_col).add(guid);
         this.guid_column_xref.put(guid, catalog_col);
-        if (debug.get()) 
-            LOG.debug(String.format("Added Column GUID Mapping: %s => %d", catalog_col.fullName(), guid));
+        if (trace.get()) 
+            LOG.trace(String.format("Added Column GUID Mapping: %s => %d", catalog_col.fullName(), guid));
     }
 
     protected void addPlanNodeColumn(AbstractPlanNode node, Column catalog_col) {

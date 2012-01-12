@@ -47,20 +47,20 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     if (proj_node == null) return;
                     
                     String table_name = scan_node.getTargetTableName();
-                    Table catalog_tbl = state.m_catalogDb.getTables().get(table_name);
+                    Table catalog_tbl = state.catalog_db.getTables().get(table_name);
                     assert(catalog_tbl != null) : "Unexpected table '" + table_name + "'";
                     if (catalog_tbl.getColumns().size() != proj_node.getOutputColumnGUIDCount()) return;
                     
                     for (int i = 0, cnt = catalog_tbl.getColumns().size(); i < cnt; i++) {
                         int col_guid = proj_node.getOutputColumnGUID(i);
-                        PlanColumn plan_col = state.m_context.get(col_guid);
+                        PlanColumn plan_col = state.plannerContext.get(col_guid);
                         assert(plan_col != null);
                         
                         AbstractExpression col_exp = plan_col.getExpression();
                         assert(col_exp != null);
                         if ((col_exp instanceof TupleValueExpression) == false) return;
                         
-                        Collection<Column> columns = ExpressionUtil.getReferencedColumns(state.m_catalogDb, col_exp);
+                        Collection<Column> columns = ExpressionUtil.getReferencedColumns(state.catalog_db, col_exp);
                         assert(columns.size() == 1);
                         Column catalog_col = CollectionUtil.first(columns);
                         if (catalog_col.getIndex() != i) return;

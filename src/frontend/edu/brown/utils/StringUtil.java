@@ -91,7 +91,11 @@ public abstract class StringUtil {
     }
     
     public static String header(String msg) {
-        return StringUtil.header(msg, "-", 100);
+        return StringUtil.header(msg, "-");
+    }
+    
+    public static String header(String msg, String marker) {
+        return StringUtil.header(msg, marker, 100);
     }
     
     /**
