@@ -55,6 +55,7 @@ public class QueryPlanner {
     Cluster m_cluster;
     Database m_db;
     String m_recentErrorMsg;
+    Throwable m_recentError;
     boolean m_useGlobalIds;
     boolean m_quietPlanner;
     final PlannerContext m_context;
@@ -213,7 +214,8 @@ public class QueryPlanner {
                     rawplan = m_assembler.getNextPlan();
                 }
                 // on exception, set the error message and bail...
-                catch (PlanningErrorException e) {
+                catch (Throwable e) {
+                    m_recentError = e;
                     m_recentErrorMsg = e.getMessage();
                     return null;
                 }
@@ -394,7 +396,9 @@ public class QueryPlanner {
     public PlannerContext getPlannerContext() {
         return m_context;
     }
-
+    public Throwable getError() {
+        return m_recentError;
+    }
     public String getErrorMessage() {
         return m_recentErrorMsg;
     }

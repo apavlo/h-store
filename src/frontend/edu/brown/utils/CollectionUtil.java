@@ -515,44 +515,16 @@ public abstract class CollectionUtil {
         return (t);
     }
     
-//    
-//    /**
-//     * Create a set of all possible permutations of the given size for the elements in the data set
-//     * @param <T>
-//     * @param size
-//     * @return
-//     */
-//    public static <T> Set<Set<T>> createCombinations(Collection<T> data, final int size) {
-//        assert(size > 1);
-//        assert(size < data.size());
-//
-//        final int total_num_elements = data.size();
-//        final List<T> list = new ArrayList<T>(data);
-//        
-//        Set<Set<T>> ret = new HashSet<Set<T>>();
-//        for (int i = 0; i < total_num_elements; i++) {
-//            ListOrderedSet<T> buffer = new ListOrderedSet<T>();
-//            T t = list.get(i);
-//            buffer.add(t);
-//            populatePermutation(ret, list, buffer, size - 1, total_num_elements, i+1);
-//        } // FOR
-//        return (ret);
-//    }
-//    
-//    private static <T> void populatePermutation(Set<Set<T>> sets, List<T> list, ListOrderedSet<T> buffer, int size, int num_elements, int i) {
-//        for ( ; i < num_elements; i++) {
-//            buffer.add(list.get(i));
-//            if (size > 0 && (i+size) < num_elements) {
-//                populatePermutation(sets, list, buffer, size-1, num_elements, i+1);
-//            } else if (size == 0) {
-//                
-//                
-//            }
-//            
-//            // Remove ourselves from the buffer
-//            buffer.remove(num_elements-size);
-//            
-//        } // FOR
-//    }
+    /**
+     * Return an ordered array of the hash codes for the given items
+     * Any null item will have a null hash code
+     */
+    public static int[] hashCode(Iterable<?> items) {
+        List<Integer> codes = new ArrayList<Integer>();
+        for (Object o : items) {
+            codes.add(o != null ? o.hashCode() : null);
+        }
+        return CollectionUtil.toIntArray(codes);
+    }
     
 }

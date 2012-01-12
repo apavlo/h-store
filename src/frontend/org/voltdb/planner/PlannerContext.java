@@ -44,10 +44,6 @@ public class PlannerContext {
     
     private transient final Map<Integer, PlanColumn> hashcode_col_xref = new HashMap<Integer, PlanColumn>();
 
-    public TreeMap<Integer, PlanColumn> getscolumnPool() {
-        return s_columnPool;
-    }
-    
     /**
      * Return the Collection of all the PlanColumns managed under this PlannerContext instance
      * @return

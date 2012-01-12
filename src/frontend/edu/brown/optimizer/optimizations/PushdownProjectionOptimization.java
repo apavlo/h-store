@@ -68,17 +68,15 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                 // ---------------------------------------------------
                 else if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
                     assert(state.join_node_index.size() == state.join_tbl_mapping.size()) :
-                        "Join data structures don't have the same size!!!";
+                        "Join data structures don't have the same size";
                     assert(state.join_tbl_mapping.get(element.getPlanNodeId()) != null) :
-                        "Element : " + element.getPlanNodeId() + " does NOT exist in join map!!!";
+                        "Element : " + element.getPlanNodeId() + " does NOT exist in join map";
                     
                     // This will contain all the PlanColumns that are needed to perform the join
-                    final Set<PlanColumn> join_columns = extractReferencedColumns(element, state.join_tbl_mapping.get(element.getPlanNodeId()));
+                    final Set<PlanColumn> join_columns = extractReferencedColumns(element, state.join_tbl_mapping.get(element));
                     
                     ProjectionPlanNode proj_node = new ProjectionPlanNode(state.plannerContext, PlanAssembler.getNextPlanNodeId());
                     assert(proj_node.getOutputColumnGUIDCount() == 0);
-//                    proj_node.getOutputColumnGUIDs().clear(); // Is this necessary?
-
                     populateProjectionPlanNode(element, proj_node, join_columns);
                     
                     // Add a projection above the current NestLoopIndexPlanNode
@@ -91,9 +89,7 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                     proj_node.addAndLinkChild(element);
                     parent.addAndLinkChild(proj_node);
 
-                    // Add it to the global list of ProjectionPlanNodes in this plan tree
-                    // and mark the new ProjectionPlanNode as dirty
-                    state.projection_plan_nodes.add(proj_node);
+                    // Mark the new ProjectionPlanNode as dirty
                     state.markDirty(proj_node);
                 }
             }
@@ -172,18 +168,22 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                     element instanceof AbstractScanPlanNode ||
                     element instanceof AggregatePlanNode) {
                     
-                    // Check whether any output columns have operator, aggregator and project those columns now!
-                    // iterate through columns and build the projection columns
-                    if (top_join) {
+                    // This is set can actually be null because we can parallelize certain operations on each node
+                    // so that we don't have to send the entire data set back to the base partition
+                    Set<Column> col_set = state.getPlanNodeColumns(element);
+                    
+                    // Check whether we're the top-most join, or that we don't have any referenced columns
+                    if (top_join || col_set == null) {
                         ctr += element.getOutputColumnGUIDCount();
                         col_guids.addAll(element.getOutputColumnGUIDs());
                     } else {
-                        Set<Column> col_set = state.getPlanNodeColumns(element);
-                        assert (col_set != null) : "Null column set for " + element;
-                        for (Column col : col_set) {
-                            col_guids.add(CollectionUtil.first(state.column_guid_xref.get(col)));
-                            ctr++;
-                        } // FOR
+                        assert (col_set != null) : "Null column set for " + element + " [" + element.hashCode() + "]";
+                        if (col_set != null) {
+                            for (Column col : col_set) {
+                                col_guids.add(CollectionUtil.first(state.column_guid_xref.get(col)));
+                                ctr++;
+                            } // FOR
+                        }
                     }
                 }
                 // ---------------------------------------------------

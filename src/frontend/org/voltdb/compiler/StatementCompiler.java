@@ -166,7 +166,11 @@ public abstract class StatementCompiler {
 
             if (plan == null) {
                 String msg = "Failed to plan for stmt: " + catalogStmt.fullName();
+                if (planner.getError() != null) {
+                    throw compiler.new VoltCompilerException(msg, planner.getError());
+                }
                 String plannerMsg = planner.getErrorMessage();
+
                 if (plannerMsg == null) plannerMsg = "PlannerMessage was empty!";
                 
                 // HACK: Ignore if they were trying to do a single-sited INSERT/UPDATE/DELETE

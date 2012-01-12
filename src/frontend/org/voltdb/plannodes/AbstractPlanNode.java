@@ -472,6 +472,22 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
     public <T extends AbstractPlanNode> T getInlinePlanNode(PlanNodeType type) {
         return (T)m_inlineNodes.get(type);
     }
+    
+    /**
+     * Return all of the inline AbstractPlanNodes with the same class
+     * @param clazz
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends AbstractPlanNode> Collection<T> getInlinePlanNodes(Class<T> clazz) {
+        Set<T> ret = new HashSet<T>(); 
+        for (AbstractPlanNode inline : this.m_inlineNodes.values()) {
+            if (ClassUtil.getSuperClasses(inline.getClass()).contains(clazz)) {
+                ret.add((T)inline);
+            }
+        } // FOR
+        return (ret);
+    }
 
     /**
      *
