@@ -39,19 +39,19 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
         Collection<AbstractJoinPlanNode> join_nodes = PlanNodeUtil.getPlanNodes(root, AbstractJoinPlanNode.class);
         Collection<ReceivePlanNode> recv_nodes = PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class);
         if (orderby_nodes.size() != 1) {
-            if (debug.get()) LOG.debug("Number of OrderByPlanNodes is " + orderby_nodes.size());
+            if (debug.get()) LOG.debug("SKIP - Number of OrderByPlanNodes is " + orderby_nodes.size());
             return (root);
         }
         else if (limit_nodes.size() != 1) {
-            if (debug.get()) LOG.debug("Number of LimitPlanNodes is " + limit_nodes.size());
+            if (debug.get()) LOG.debug("SKIP - Number of LimitPlanNodes is " + limit_nodes.size());
             return (root);
         }
         else if (join_nodes.isEmpty() == false) {
-            if (debug.get()) LOG.debug("Contains a JoinPlanNode " + join_nodes);
+            if (debug.get()) LOG.debug("SKIP - Contains a JoinPlanNode " + join_nodes);
             return (root);
         }
         else if (recv_nodes.isEmpty()) {
-            if (debug.get()) LOG.debug("Does not contain any ReceivePlanNodes");
+            if (debug.get()) LOG.debug("SKIP - Does not contain any ReceivePlanNodes");
             return (root);
         }
         

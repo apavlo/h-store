@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -16,7 +15,6 @@ import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
-import org.voltdb.planner.PlanAssembler;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlanColumn.Storage;
 import org.voltdb.plannodes.*;
@@ -84,7 +82,7 @@ public abstract class PlanOptimizerUtil {
                     Map<String, Integer> single_join_node_output = new HashMap<String, Integer>();
                     for (int i = 0; i < element.getOutputColumnGUIDCount(); i++) {
                         int guid = element.getOutputColumnGUID(i);
-                        PlanColumn pc = state.m_context.get(guid);
+                        PlanColumn pc = state.plannerContext.get(guid);
                         single_join_node_output.put(pc.getDisplayName(), i);
                     }
                     state.join_outputs.put(element, single_join_node_output);
@@ -110,7 +108,7 @@ public abstract class PlanOptimizerUtil {
         // If this is the root node, then include the output columns + also include output columns if its a projection or limit node
         if (is_root || node instanceof ProjectionPlanNode | node instanceof LimitPlanNode) {
             for (Integer col_guid : node.getOutputColumnGUIDs()) {
-                PlanColumn col = state.m_context.get(col_guid);
+                PlanColumn col = state.plannerContext.get(col_guid);
                 assert (col != null) : "Invalid PlanColumn #" + col_guid;
                 if (col.getExpression() != null) {
                     exps.add(col.getExpression());
@@ -128,13 +126,13 @@ public abstract class PlanOptimizerUtil {
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode agg_node = (AggregatePlanNode) node;
             for (Integer col_guid : agg_node.getAggregateColumnGuids()) {
-                PlanColumn col = state.m_context.get(col_guid);
+                PlanColumn col = state.plannerContext.get(col_guid);
                 assert (col != null) : "Invalid PlanColumn #" + col_guid;
                 if (col.getExpression() != null)
                     exps.add(col.getExpression());
             } // FOR
             for (Integer col_guid : agg_node.getGroupByColumnIds()) {
-                PlanColumn col = state.m_context.get(col_guid);
+                PlanColumn col = state.plannerContext.get(col_guid);
                 assert (col != null) : "Invalid PlanColumn #" + col_guid;
                 if (col.getExpression() != null)
                     exps.add(col.getExpression());
@@ -145,7 +143,7 @@ public abstract class PlanOptimizerUtil {
         } else if (node instanceof OrderByPlanNode) {
             OrderByPlanNode orby_node = (OrderByPlanNode) node;
             for (Integer col_guid : orby_node.getSortColumnGuids()) {
-                PlanColumn col = state.m_context.get(col_guid);
+                PlanColumn col = state.plannerContext.get(col_guid);
                 assert (col != null) : "Invalid PlanColumn #" + col_guid;
                 if (col.getExpression() != null)
                     exps.add(col.getExpression());
@@ -158,7 +156,7 @@ public abstract class PlanOptimizerUtil {
         // Now go through our expressions and extract out the columns that are referenced
         StringBuilder sb = new StringBuilder();
         for (AbstractExpression exp : exps) {
-            for (Column catalog_col : ExpressionUtil.getReferencedColumns(state.m_catalogDb, exp)) {
+            for (Column catalog_col : ExpressionUtil.getReferencedColumns(state.catalog_db, exp)) {
                 if (trace.get())
                     sb.append(String.format("\n%s => %s", node, catalog_col.fullName()));
                 state.addTableColumn(catalog_col);
@@ -170,10 +168,10 @@ public abstract class PlanOptimizerUtil {
 
         // Populate our map from Column objects to PlanColumn GUIDs
         for (Integer col_guid : node.getOutputColumnGUIDs()) {
-            PlanColumn col = state.m_context.get(col_guid);
+            PlanColumn col = state.plannerContext.get(col_guid);
             assert (col != null) : "Invalid PlanColumn #" + col_guid;
             if (col.getExpression() != null) {
-                Collection<Column> catalog_cols = ExpressionUtil.getReferencedColumns(state.m_catalogDb, col.getExpression());
+                Collection<Column> catalog_cols = ExpressionUtil.getReferencedColumns(state.catalog_db, col.getExpression());
                 // If there is more than one column, then it's some sort of compound expression
                 // So we don't want to include in our mapping
                 if (catalog_cols.size() == 1) {
@@ -187,92 +185,13 @@ public abstract class PlanOptimizerUtil {
     // ------------------------------------------------------------
     // QUERY PLAN HELPERS
     // ------------------------------------------------------------
-    
+
     /**
-     * @param scan_node
+     * 
+     * @param state
+     * @param rootNode
      * @return
      */
-    public static boolean addInlineProjection(final PlanOptimizerState state, final AbstractScanPlanNode scan_node) throws Exception {
-        Collection<Table> tables = CatalogUtil.getReferencedTablesForPlanNode(state.m_catalogDb, scan_node);
-        if (tables.size() != 1) {
-            LOG.error(PlanNodeUtil.debugNode(scan_node));
-        }
-        assert (tables.size() == 1) : scan_node + ": " + tables;
-        Table catalog_tbl = CollectionUtil.first(tables);
-
-        Set<Column> output_columns = state.tableColumns.get(catalog_tbl);
-
-        // Stop if there is no column information.
-        // XXX: Is this a bad thing?
-        if (output_columns == null) {
-            if (trace.get())
-                LOG.warn("No column information for " + catalog_tbl);
-            return (false);
-            // Only create the projection if the number of columns we need to
-            // output is less
-            // then the total number of columns for the table
-        } else if (output_columns.size() == catalog_tbl.getColumns().size()) {
-            if (trace.get())
-                LOG.warn("All columns needed in query. No need for inline projection on " + catalog_tbl);
-            return (false);
-        }
-
-        // Create new projection and add in all of the columns that our table
-        // will ever need
-        ProjectionPlanNode proj_node = new ProjectionPlanNode(state.m_context, PlanAssembler.getNextPlanNodeId());
-        if (debug.get())
-            LOG.debug(String.format("Adding inline Projection for %s with %d columns. Original table has %d columns", catalog_tbl.getName(), output_columns.size(), catalog_tbl.getColumns().size()));
-//        int idx = 0;
-        for (Column catalog_col : output_columns) {
-            // Get the old GUID from the original output columns
-            int orig_idx = catalog_col.getIndex();
-            int orig_guid = scan_node.getOutputColumnGUID(orig_idx);
-            PlanColumn orig_col = state.m_context.get(orig_guid);
-            assert (orig_col != null);
-            proj_node.appendOutputColumn(orig_col);
-
-            // Set<Integer> guids = column_guid_xref.get(catalog_col);
-            // assert(guids != null && guids.isEmpty() == false) :
-            // "No PlanColumn GUID for " +
-            // CatalogUtil.getDisplayName(catalog_col);
-            // Integer col_guid = CollectionUtil.getFirst(guids);
-            //            
-            //
-            // // Always try make a new PlanColumn and update the
-            // TupleValueExpresion index
-            // // This ensures that we always get the ordering correct
-            // TupleValueExpression clone_exp =
-            // (TupleValueExpression)orig_col.getExpression().clone();
-            // clone_exp.setColumnIndex(idx);
-            // Storage storage = (catalog_tbl.getIsreplicated() ?
-            // Storage.kReplicated : Storage.kPartitioned);
-            // PlanColumn new_col = state.m_context.getPlanColumn(clone_exp,
-            // orig_col.displayName(), orig_col.getSortOrder(), storage);
-            // assert(new_col != null);
-            // proj_node.appendOutputColumn(new_col);
-            state.addColumnMapping(catalog_col, orig_col.guid());
-//            idx++;
-        } // FOR
-        if (trace.get())
-            LOG.trace("New Projection Output Columns:\n" + PlanNodeUtil.debugNode(proj_node));
-
-        // Add projection inline to scan node
-        scan_node.addInlinePlanNode(proj_node);
-        assert (proj_node.isInline());
-
-        // Then make sure that we update it's output columns to match the inline
-        // output
-        scan_node.getOutputColumnGUIDs().clear();
-        scan_node.getOutputColumnGUIDs().addAll(proj_node.getOutputColumnGUIDs());
-
-        // add element to the "dirty" list
-        state.markDirty(scan_node);
-        if (trace.get())
-            LOG.trace(String.format("Added inline %s with %d columns to leaf node %s", proj_node, proj_node.getOutputColumnGUIDCount(), scan_node));
-        return (true);
-    }
-
-    
     public static boolean updateAllColumns(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
         new PlanNodeTreeWalker(false) {
             @Override
@@ -281,16 +200,10 @@ public abstract class PlanOptimizerUtil {
                 // JOIN
                 // ---------------------------------------------------
                 if (element instanceof AbstractJoinPlanNode) {
-                    AbstractJoinPlanNode join_node = (AbstractJoinPlanNode) element;
-                    try {
-                        if (state.areChildrenDirty(join_node) &&
-                            PlanOptimizerUtil.updateJoinsColumns(state, join_node) == false) {
-                            this.stop();
-                            return;
-                        }
-                    } catch (Exception ex) {
-                        LOG.fatal("Failed to update join columns in " + element, ex);
-                        System.exit(1);
+                    if (state.areChildrenDirty(element) &&
+                        PlanOptimizerUtil.updateJoinsColumns(state, (AbstractJoinPlanNode) element) == false) {
+                        this.stop();
+                        return;
                     }
                 // ---------------------------------------------------
                 // ORDER BY
@@ -365,7 +278,7 @@ public abstract class PlanOptimizerUtil {
         // Find the offset of our distinct column in our output. That will
         // tell us where to get the guid in the input table information
         int orig_guid = node.getDistinctColumnGuid();
-        PlanColumn orig_pc = state.m_context.get(orig_guid);
+        PlanColumn orig_pc = state.plannerContext.get(orig_guid);
         assert (orig_pc != null);
 
         node.setOutputColumns(child_node.getOutputColumnGUIDs());
@@ -418,14 +331,14 @@ public abstract class PlanOptimizerUtil {
 
         for (int i = 0, cnt = node.getSortColumnGuids().size(); i < cnt; i++) {
             int orig_guid = node.getSortColumnGuids().get(i);
-            PlanColumn orig_pc = state.m_context.get(orig_guid);
+            PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
             if (trace.get()) LOG.trace("Looking for matching PlanColumn: " + orig_pc);
             
             PlanColumn new_pc = null;
             int new_idx = 0;
             for (Integer guid : node.getOutputColumnGUIDs()) {
-                PlanColumn pc = state.m_context.get(guid);
+                PlanColumn pc = state.plannerContext.get(guid);
                 assert (pc != null);
                 if (pc.equals(orig_pc, true, true)) {
                     if (trace.get())
@@ -439,7 +352,7 @@ public abstract class PlanOptimizerUtil {
             } // FOR
             // XXX: Can we just loop through all our PlanColumns and find the one we want?
             if (new_pc == null) {
-                for (PlanColumn pc : state.m_context.getAllPlanColumns()) {
+                for (PlanColumn pc : state.plannerContext.getAllPlanColumns()) {
                     if (pc.equals(orig_pc, true, true)) {
                         new_pc = pc;
                     }
@@ -447,7 +360,7 @@ public abstract class PlanOptimizerUtil {
             }
             if (new_pc == null) {    
                 LOG.error(String.format("[%02d] Failed to find %s", i, orig_pc));
-                if (trace.get()) LOG.error("PlannerContext Dump:\n" + state.m_context.debug());
+                if (trace.get()) LOG.error("PlannerContext Dump:\n" + state.plannerContext.debug());
             }
             assert (new_pc != null);
             node.getSortColumnGuids().set(i, new_pc.guid());
@@ -473,13 +386,13 @@ public abstract class PlanOptimizerUtil {
 
         for (int i = 0, cnt = node.getAggregateColumnGuids().size(); i < cnt; i++) {
             Integer orig_guid = node.getAggregateColumnGuids().get(i);
-            PlanColumn orig_pc = state.m_context.get(orig_guid);
+            PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
 
             PlanColumn new_pc = null;
             int new_idx = 0;
             for (Integer guid : child_node.getOutputColumnGUIDs()) {
-                PlanColumn pc = state.m_context.get(guid);
+                PlanColumn pc = state.plannerContext.get(guid);
                 if (pc.getStorage().equals(Storage.kTemporary)) {
                     new_pc = pc;
                     break;
@@ -505,13 +418,13 @@ public abstract class PlanOptimizerUtil {
         // Need to update output column guids for GROUP BYs...
         for (int i = 0, cnt = node.getGroupByColumnIds().size(); i < cnt; i++) {
             Integer orig_guid = node.getGroupByColumnIds().get(i);
-            PlanColumn orig_pc = state.m_context.get(orig_guid);
+            PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
 
             PlanColumn new_pc = null;
             int new_idx = 0;
             for (Integer guid : child_node.getOutputColumnGUIDs()) {
-                PlanColumn pc = state.m_context.get(guid);
+                PlanColumn pc = state.plannerContext.get(guid);
                 if (pc.getStorage().equals(Storage.kTemporary)) {
                     new_pc = pc;
                     break;
@@ -565,7 +478,7 @@ public abstract class PlanOptimizerUtil {
             // Check to make sure that the offset in the tuple value expression
             // matches
             int orig_guid = node.getOutputColumnGUID(i);
-            PlanColumn orig_pc = state.m_context.get(orig_guid);
+            PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
 
             // Fix all of the offsets in the ExpressionTree
@@ -585,13 +498,13 @@ public abstract class PlanOptimizerUtil {
                     if (exp_element instanceof TupleValueExpression) {
                         TupleValueExpression tv_exp = (TupleValueExpression) exp_element;
                         int orig_idx = tv_exp.getColumnIndex();
-                        PlanColumn orig_child_pc = state.m_context.get(orig_child_guids.get(orig_idx));
+                        PlanColumn orig_child_pc = state.plannerContext.get(orig_child_guids.get(orig_idx));
                         assert (orig_child_pc != null);
 
                         PlanColumn new_child_pc = null;
                         int new_idx = 0;
                         for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
-                            new_child_pc = state.m_context.get(orig_child_guid);
+                            new_child_pc = state.plannerContext.get(orig_child_guid);
                             if (orig_child_pc.equals(new_child_pc, true, true)) {
                                 break;
                             }
@@ -607,7 +520,7 @@ public abstract class PlanOptimizerUtil {
             // Always try make a new PlanColumn and update the
             // TupleValueExpresion index
             // This ensures that we always get the ordering correct
-            PlanColumn new_col = state.m_context.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+            PlanColumn new_col = state.plannerContext.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
             assert (new_col != null);
             node.getOutputColumnGUIDs().set(i, new_col.guid());
         } // FOR
@@ -627,7 +540,7 @@ public abstract class PlanOptimizerUtil {
             // Check to make sure that the offset in the tuple value expression
             // matches
             int orig_guid = node.getOutputColumnGUID(i);
-            PlanColumn orig_pc = state.m_context.get(orig_guid);
+            PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
 
             AbstractExpression orig_pc_exp = orig_pc.getExpression();
@@ -636,7 +549,7 @@ public abstract class PlanOptimizerUtil {
                 new_exp.setColumnIndex(i);
                 new_exp.setColumnAlias(orig_pc.getDisplayName());
                 new_exp.setValueType(VoltType.STRING);
-                PlanColumn new_col = state.m_context.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                PlanColumn new_col = state.plannerContext.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                 assert (new_col != null);
                 node.getOutputColumnGUIDs().set(i, new_col.guid());
             } else  {
@@ -655,7 +568,7 @@ public abstract class PlanOptimizerUtil {
                         System.exit(1);
                     }
                     clone_exp.setColumnIndex(i);
-                    PlanColumn new_col = state.m_context.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                    PlanColumn new_col = state.plannerContext.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
                     // DWU: set this to the orig plan column guid
                     node.getOutputColumnGUIDs().set(i, orig_pc.guid());
@@ -673,7 +586,7 @@ public abstract class PlanOptimizerUtil {
      * @param node
      * @return
      */
-    public static boolean updateJoinsColumns(final PlanOptimizerState state, AbstractJoinPlanNode node) throws Exception {
+    public static boolean updateJoinsColumns(final PlanOptimizerState state, AbstractJoinPlanNode node) {
 
         // There's always going to be two input tables. One is always going to come
         // from a child node, while the second may come from a child node *or* directly from
@@ -697,7 +610,7 @@ public abstract class PlanOptimizerUtil {
         StringBuilder sb = new StringBuilder();
         for (int orig_idx = 0, cnt = outer_orig_input_guids.size(); orig_idx < cnt; orig_idx++) {
             int orig_col_guid = outer_orig_input_guids.get(orig_idx);
-            PlanColumn orig_pc = state.m_context.get(orig_col_guid);
+            PlanColumn orig_pc = state.plannerContext.get(orig_col_guid);
 
             // Figure out what the new PlanColumn GUID is for this column
             // It may be the case that we need to make a new one because the
@@ -708,7 +621,7 @@ public abstract class PlanOptimizerUtil {
             // Find the new index of this same PlanColumn guid
             new_idx = outer_new_input_guids.indexOf(orig_col_guid);
             if (new_idx != -1) {
-                new_pc = state.m_context.get(orig_col_guid);
+                new_pc = state.plannerContext.get(orig_col_guid);
                 //new_output_guids.add(orig_col_guid);
                 sorted_new_output_guids.put(new_idx, orig_col_guid);
                 if (debug.get())
@@ -719,7 +632,7 @@ public abstract class PlanOptimizerUtil {
             } else {
                 new_idx = 0;
                 for (Integer guid : outer_new_input_guids) {
-                    PlanColumn pc = state.m_context.get(guid);
+                    PlanColumn pc = state.plannerContext.get(guid);
                     assert (pc != null);
                     if (pc.equals(orig_pc, true, true)) {
                         if (trace.get())
@@ -735,9 +648,14 @@ public abstract class PlanOptimizerUtil {
                 // Make sure that we replace update outer_new_input_guids
                 if (new_pc != null) {
                     assert (new_idx != -1);
-                    TupleValueExpression clone_exp = (TupleValueExpression) orig_pc.getExpression().clone();
+                    TupleValueExpression clone_exp = null;
+                    try {
+                        clone_exp = (TupleValueExpression) orig_pc.getExpression().clone();
+                    } catch (CloneNotSupportedException ex) {
+                        throw new RuntimeException(ex);
+                    }
                     clone_exp.setColumnIndex(new_idx);
-                    PlanColumn new_col = state.m_context.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
+                    PlanColumn new_col = state.plannerContext.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
                     outer_new_input_guids.set(new_idx, new_col.guid());
                     //new_output_guids.add(new_col.guid());
@@ -768,7 +686,7 @@ public abstract class PlanOptimizerUtil {
 
             String temp = "";
             for (int i = 0; i < outer_orig_input_guids.size(); i++) {
-                PlanColumn pc = state.m_context.get(outer_orig_input_guids.get(i));
+                PlanColumn pc = state.plannerContext.get(outer_orig_input_guids.get(i));
                 temp += String.format("[%02d] %s\n", i, pc);
                 temp += ExpressionUtil.debug(pc.getExpression()) + "\n--------\n";
             }
@@ -777,7 +695,7 @@ public abstract class PlanOptimizerUtil {
 
             temp = "";
             for (int i = 0; i < outer_new_input_guids.size(); i++) {
-                PlanColumn pc = state.m_context.get(outer_new_input_guids.get(i));
+                PlanColumn pc = state.plannerContext.get(outer_new_input_guids.get(i));
                 temp += String.format("[%02d] %s\n", i, pc);
                 temp += ExpressionUtil.debug(pc.getExpression()) + "\n--------\n";
             }
@@ -834,7 +752,7 @@ public abstract class PlanOptimizerUtil {
                   new_output_guids.add(col_guid);
 //                  sorted_new_output_guids.put(new_idx, col_guid);
                 } else {
-                    PlanColumn pc = state.m_context.get(col_guid);
+                    PlanColumn pc = state.plannerContext.get(col_guid);
                     LOG.warn("Failed to find new offset for INNER " + pc);
                 }
             } // FOR
@@ -857,7 +775,7 @@ public abstract class PlanOptimizerUtil {
 
             Table catalog_tbl = null;
             try {
-                catalog_tbl = CollectionUtil.first(CatalogUtil.getReferencedTablesForPlanNode(state.m_catalogDb, idx_node));
+                catalog_tbl = CollectionUtil.first(CatalogUtil.getReferencedTablesForPlanNode(state.catalog_db, idx_node));
             } catch (Exception ex) {
                 LOG.fatal(ex);
                 System.exit(1);
@@ -884,7 +802,7 @@ public abstract class PlanOptimizerUtil {
                 //int orig_guid = idx_node.getOutputColumnGUID(offset_orig_idx);
                 int orig_guid = CollectionUtil.first(state.column_guid_xref.get(catalog_col));
                 assert (orig_guid != -1);
-                PlanColumn orig_pc = state.m_context.get(orig_guid);
+                PlanColumn orig_pc = state.plannerContext.get(orig_guid);
                 assert (orig_pc != null);
 
 //                PlanColumn new_pc = null;
@@ -943,7 +861,7 @@ public abstract class PlanOptimizerUtil {
 
                         Integer new_idx = offset_xref.get(orig_idx);
                         if (new_idx == null)
-                            LOG.debug(state.m_context.debug());
+                            LOG.debug(state.plannerContext.debug());
                         assert (new_idx != null) : "Missing Offset: " + ExpressionUtil.debug(tv_exp);
                         if (debug.get())
                             LOG.debug(String.format("Changing %s.%s [%d ==> %d]", tv_exp.getTableName(), tv_exp.getColumnName(), orig_idx, new_idx));
@@ -960,7 +878,7 @@ public abstract class PlanOptimizerUtil {
         node.setOutputColumns(new_output_guids);
         for (int new_idx = 0, cnt = node.getOutputColumnGUIDs().size(); new_idx < cnt; new_idx++) {
             Integer col_guid = node.getOutputColumnGUIDs().get(new_idx);
-            PlanColumn pc = state.m_context.get(col_guid);
+            PlanColumn pc = state.plannerContext.get(col_guid);
 
             // Look at what our offset used versus what it is needs to be
             // If it's different, then we need to make a new PlanColumn.
@@ -993,12 +911,12 @@ public abstract class PlanOptimizerUtil {
                 } else {
                     clone_exp.setColumnIndex(new_idx);                    
                 }
-                PlanColumn new_pc = state.m_context.getPlanColumn(clone_exp, pc.getDisplayName(), pc.getSortOrder(), pc.getStorage());
+                PlanColumn new_pc = state.plannerContext.getPlanColumn(clone_exp, pc.getDisplayName(), pc.getSortOrder(), pc.getStorage());
                 assert (new_pc != null);
                 node.getOutputColumnGUIDs().set(new_idx, new_pc.guid());
             }
             if (trace.get())
-                LOG.trace(String.format("OUTPUT[%d] => %s", new_idx, state.m_context.get(node.getOutputColumnGUIDs().get(new_idx))));
+                LOG.trace(String.format("OUTPUT[%d] => %s", new_idx, state.plannerContext.get(node.getOutputColumnGUIDs().get(new_idx))));
         } // FOR
 
         // IMPORTANT: If the inner_node is inline (meaning it was a
@@ -1036,7 +954,7 @@ public abstract class PlanOptimizerUtil {
                     // If it doesn't match, then we'll have to make a new PlanColumn
                     for (int i = 0, cnt = element.getOutputColumnGUIDCount(); i < cnt; i++) {
                         Integer col_guid = element.getOutputColumnGUID(i);
-                        PlanColumn pc_col = state.m_context.get(col_guid);
+                        PlanColumn pc_col = state.plannerContext.get(col_guid);
                         assert(pc_col != null) : "Missing output column " + i + " for " + element;
                         AbstractExpression exp = pc_col.getExpression();
                         
@@ -1054,7 +972,7 @@ public abstract class PlanOptimizerUtil {
                             assert(clone_exp != null);
                             clone_exp.setColumnIndex(i);
                             
-                            PlanColumn new_col = state.m_context.getPlanColumn(clone_exp,
+                            PlanColumn new_col = state.plannerContext.getPlanColumn(clone_exp,
                                                                          pc_col.getDisplayName(),
                                                                          pc_col.getSortOrder(),
                                                                          pc_col.getStorage());

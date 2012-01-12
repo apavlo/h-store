@@ -1493,9 +1493,13 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      * @throws Exception
      */
-    public static Collection<Table> getReferencedTablesForPlanNode(final Database catalog_db, final AbstractPlanNode node) throws Exception {
+    public static Collection<Table> getReferencedTablesForPlanNode(final Database catalog_db, final AbstractPlanNode node) {
         final Set<Table> ret = new ListOrderedSet<Table>();
-        CatalogUtil.getReferencedTablesForPlanNode(catalog_db, node, ret);
+        try {
+            CatalogUtil.getReferencedTablesForPlanNode(catalog_db, node, ret);
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to get referenced tables for " + node, ex);
+        }
         return (ret);
     }
     
