@@ -888,6 +888,22 @@ public abstract class PlanNodeUtil {
         cache.put(cache_key, ret);
         return (ret);
     }
+    
+    /**
+     * Return all the leaf nodes in the query plan tree
+     * @param root
+     * @return
+     */
+    public static Collection<AbstractPlanNode> getLeafPlanNodes(AbstractPlanNode root) {
+        final Set<AbstractPlanNode> leaves = new HashSet<AbstractPlanNode>();
+        new PlanNodeTreeWalker(false) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                if (element.getChildPlanNodeCount() == 0) leaves.add(element);
+            }
+        }.traverse(root);
+        return (leaves);
+    }
 
     /**
      * Returns the PlanNode for the given PlanFragment

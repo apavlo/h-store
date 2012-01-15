@@ -31,38 +31,38 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt3") {
         {
-            this.addStmtProcedure("DistinctAggregate",
-                                  "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER " +
-                                  "FROM TABLEA, TABLEB " +
-                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
-            
-            this.addStmtProcedure("DistinctCount",
-                                  "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
-            
-            this.addStmtProcedure("MaxGroup",
-                                  "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
-            
-            this.addStmtProcedure("Max",
-                                  "SELECT MAX(TABLEB.B_A_ID) FROM TABLEB");
-            
-            this.addStmtProcedure("Min",
-                                  "SELECT MIN(TABLEB.B_A_ID) FROM TABLEB");
-            
-            this.addStmtProcedure("Aggregate",
-                                  "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
-            
-            this.addStmtProcedure("Limit",
-                                  "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
-            
-            this.addStmtProcedure("LimitJoin",
-                                  "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
-            
-//            this.addStmtProcedure("ThreeWayJoin",
-//                                  "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah " +
-//                                  "FROM TABLEA, TABLEB, TABLEC " +
-//                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_B_A_ID AND TABLEA.A_VALUE3 = ? " +
-//                                  "  AND TABLEC.C_B_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
+//            this.addStmtProcedure("DistinctAggregate",
+//                                  "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER " +
+//                                  "FROM TABLEA, TABLEB " +
+//                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
 //            
+//            this.addStmtProcedure("DistinctCount",
+//                                  "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
+//            
+//            this.addStmtProcedure("MaxGroup",
+//                                  "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
+//            
+//            this.addStmtProcedure("Max",
+//                                  "SELECT MAX(TABLEB.B_A_ID) FROM TABLEB");
+//            
+//            this.addStmtProcedure("Min",
+//                                  "SELECT MIN(TABLEB.B_A_ID) FROM TABLEB");
+//            
+//            this.addStmtProcedure("Aggregate",
+//                                  "SELECT COUNT(TABLEB.B_A_ID) AS cnt FROM TABLEB");
+//            
+//            this.addStmtProcedure("Limit",
+//                                  "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
+//            
+//            this.addStmtProcedure("LimitJoin",
+//                                  "SELECT TABLEA.A_ID,TABLEB.B_ID FROM TABLEA, TABLEB WHERE TABLEA.A_ID > ? AND TABLEA.A_ID = TABLEB.B_A_ID LIMIT 15");
+            
+            this.addStmtProcedure("ThreeWayJoin",
+                                  "SELECT TABLEA.A_VALUE0, TABLEB.B_VALUE0, ((TABLEC.C_VALUE0 + TABLEC.C_VALUE1) / TABLEB.B_A_ID) AS blah " +
+                                  "FROM TABLEA, TABLEB, TABLEC " +
+                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = TABLEC.C_B_A_ID AND TABLEA.A_VALUE3 = ? " +
+                                  "  AND TABLEC.C_B_A_ID = ? AND TABLEC.C_VALUE0 != ? AND TABLEC.C_VALUE1 != ?");
+            
 //            this.addStmtProcedure("SingleProjection",
 //                                  "SELECT TABLEA.A_VALUE0 FROM TABLEA WHERE TABLEA.A_ID = ?");
 //            
@@ -229,58 +229,58 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 //
 //        // System.err.println(PlanNodeUtil.debug(root));
 //    }
-
-    /**
-     * testLimitJoin
-     */
-    @Test
-    public void testLimitJoin() throws Exception {
-        Procedure catalog_proc = this.getProcedure("LimitJoin");
-        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
-        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-        //validateNodeColumnOffsets(root);
-        assertNotNull(root);
-
-        // First check that our single scan node has an limit node
-        Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
-        assertEquals(1, limit_nodes.size());
-
-        // Get the Limit nodes output columns and make sure their valid
-        LimitPlanNode limit_node = CollectionUtil.first(limit_nodes);
-        assertNotNull(limit_node);
-        for (int column_guid : limit_node.getOutputColumnGUIDs()) {
-            PlanColumn column = PlannerContext.singleton().get(column_guid);
-            // System.err.println(String.format("[%02d] %s", column_guid,
-            // column));
-            // System.err.println("==================");
-            // System.err.println(PlannerContext.singleton().debug());
-            assertNotNull("Invalid PlanColumn [guid=" + column_guid + "]", column);
-            assertEquals(column_guid, column.guid());
-        } // FOR
-
-        // System.err.println(PlanNodeUtil.debug(root));
-    }
 //
 //    /**
-//     * testThreeWayJoin
+//     * testLimitJoin
 //     */
 //    @Test
-//    public void testThreeWayJoin() throws Exception {
-//        Procedure catalog_proc = this.getProcedure("ThreeWayJoin");
+//    public void testLimitJoin() throws Exception {
+//        Procedure catalog_proc = this.getProcedure("LimitJoin");
 //        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
 //
 //        // Grab the root node of the multi-partition query plan tree for this
 //        // Statement
 //        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-//
-//        // System.err.println(PlanNodeUtil.debug(root));
 //        //validateNodeColumnOffsets(root);
 //        assertNotNull(root);
-//    }
 //
+//        // First check that our single scan node has an limit node
+//        Collection<LimitPlanNode> limit_nodes = PlanNodeUtil.getPlanNodes(root, LimitPlanNode.class);
+//        assertEquals(1, limit_nodes.size());
+//
+//        // Get the Limit nodes output columns and make sure their valid
+//        LimitPlanNode limit_node = CollectionUtil.first(limit_nodes);
+//        assertNotNull(limit_node);
+//        for (int column_guid : limit_node.getOutputColumnGUIDs()) {
+//            PlanColumn column = PlannerContext.singleton().get(column_guid);
+//            // System.err.println(String.format("[%02d] %s", column_guid,
+//            // column));
+//            // System.err.println("==================");
+//            // System.err.println(PlannerContext.singleton().debug());
+//            assertNotNull("Invalid PlanColumn [guid=" + column_guid + "]", column);
+//            assertEquals(column_guid, column.guid());
+//        } // FOR
+//
+//        // System.err.println(PlanNodeUtil.debug(root));
+//    }
+
+    /**
+     * testThreeWayJoin
+     */
+    @Test
+    public void testThreeWayJoin() throws Exception {
+        Procedure catalog_proc = this.getProcedure("ThreeWayJoin");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+
+        // System.err.println(PlanNodeUtil.debug(root));
+        //validateNodeColumnOffsets(root);
+        assertNotNull(root);
+    }
+
 //    /**
 //     * testSingleProjectionPushdown
 //     */

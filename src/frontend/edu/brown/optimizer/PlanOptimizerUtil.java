@@ -66,53 +66,50 @@ public abstract class PlanOptimizerUtil {
 
         // Traverse from the bottom up and figure out what tables are referenced
         // in each AbstractJoinPlanNode
-//        for (AbstractPlanNode leaf : PlanNodeUtil.getLeafPlanNodes(rootNode)) {
-//            
-//        }
-        new PlanNodeTreeWalker(false, true) {
-            @Override
-            protected void callback(AbstractPlanNode element) {
-                LOG.info("XXXX " + element);
-                
-                // ---------------------------------------------------
-                // AbstractScanPlanNode
-                // ---------------------------------------------------
-                if (element instanceof AbstractScanPlanNode) {
-                    join_tbls.add(((AbstractScanPlanNode) element).getTargetTableName());
+        for (AbstractPlanNode leaf : PlanNodeUtil.getLeafPlanNodes(rootNode)) {
+            new PlanNodeTreeWalker(false, true) {
+                @Override
+                protected void callback(AbstractPlanNode element) {
+                    // ---------------------------------------------------
+                    // AbstractScanPlanNode
+                    // ---------------------------------------------------
+                    if (element instanceof AbstractScanPlanNode) {
+                        join_tbls.add(((AbstractScanPlanNode) element).getTargetTableName());
+                    }
+                    // ---------------------------------------------------
+                    // AbstractJoinPlanNode
+                    // ---------------------------------------------------
+                    else if (element instanceof AbstractJoinPlanNode) {
+                        if (debug.get())
+                            LOG.debug("Updating the list of tables joined at " + element);
+                        
+                        // We don't NestLoopPlanNode for now
+                        assert((element instanceof NestLoopPlanNode) == false);
+                        
+                        // Get target table of inline scan
+                        Collection<AbstractScanPlanNode> inline_nodes = element.getInlinePlanNodes(AbstractScanPlanNode.class);
+                        assert(inline_nodes.isEmpty() == false);
+                        AbstractScanPlanNode inline_scan_node = CollectionUtil.first(inline_nodes);
+                        assert(inline_scan_node != null);
+                        join_tbls.add(inline_scan_node.getTargetTableName());
+                        
+                        // Add all of the tables that we've seen at this point in the tree
+                        state.join_tbl_mapping.put(element, new HashSet<String>(join_tbls));
+    
+                        // Add to join index map which depth is the index
+                        state.join_node_index.put(this.getDepth(), (AbstractJoinPlanNode)element);
+                        Map<String, Integer> single_join_node_output = new HashMap<String, Integer>();
+                        for (int i = 0; i < element.getOutputColumnGUIDCount(); i++) {
+                            int guid = element.getOutputColumnGUID(i);
+                            PlanColumn pc = state.plannerContext.get(guid);
+                            single_join_node_output.put(pc.getDisplayName(), i);
+                        } // FOR
+                        state.join_outputs.put((AbstractJoinPlanNode)element, single_join_node_output);
+                    }
+                    
                 }
-                // ---------------------------------------------------
-                // AbstractJoinPlanNode
-                // ---------------------------------------------------
-                else if (element instanceof AbstractJoinPlanNode) {
-                    if (debug.get())
-                        LOG.debug("Updating the list of tables joined at " + element);
-                    
-                    // We don't NestLoopPlanNode for now
-                    assert((element instanceof NestLoopPlanNode) == false);
-                    
-                    // Get target table of inline scan
-                    Collection<AbstractScanPlanNode> inline_nodes = element.getInlinePlanNodes(AbstractScanPlanNode.class);
-                    assert(inline_nodes.isEmpty() == false);
-                    AbstractScanPlanNode inline_scan_node = CollectionUtil.first(inline_nodes);
-                    assert(inline_scan_node != null);
-                    join_tbls.add(inline_scan_node.getTargetTableName());
-                    
-                    // Add all of the tables that we've seen at this point in the tree
-                    state.join_tbl_mapping.put(element, new HashSet<String>(join_tbls));
-
-                    // Add to join index map which depth is the index
-                    state.join_node_index.put(this.getDepth(), (AbstractJoinPlanNode)element);
-                    Map<String, Integer> single_join_node_output = new HashMap<String, Integer>();
-                    for (int i = 0; i < element.getOutputColumnGUIDCount(); i++) {
-                        int guid = element.getOutputColumnGUID(i);
-                        PlanColumn pc = state.plannerContext.get(guid);
-                        single_join_node_output.put(pc.getDisplayName(), i);
-                    } // FOR
-                    state.join_outputs.put((AbstractJoinPlanNode)element, single_join_node_output);
-                }
-                
-            }
-        }.traverse(rootNode);
+            }.traverse(leaf);
+        } // FOR
     }
  
     /**
@@ -539,6 +536,7 @@ public abstract class PlanOptimizerUtil {
                             new_child_pc = null;
                             new_idx++;
                         } // FOR
+                        if (new_child_pc == null) LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(node));
                         assert (new_child_pc != null) : String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
                         tv_exp.setColumnIndex(new_idx);
                     }

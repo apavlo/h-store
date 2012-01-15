@@ -109,38 +109,6 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     if (debug.get())
                         LOG.debug("Removed redundant " + element + " from query plan!");
                 }
-                
-//                
-//                ProjectionPlanNode parent = null;
-//                if (element.getParentPlanNodeCount() > 0 && element.getParent(0) instanceof ProjectionPlanNode) {
-//                    parent = (ProjectionPlanNode)element.getParent(0);
-//                }
-//                
-//                // NOTE: we cannot assume that the projection is the top most node because of LIMITs
-//                // Limit nodes will always be the top most node so we need to check for that.
-//                if (parent != null && (PlanNodeUtil.getRoot(element) == parent) && !state.projection_plan_nodes.contains(parent)) {
-//                    assert (parent.getChildPlanNodeCount() == 1) :
-//                        "Projection element expected 1 child but has " + parent.getChildPlanNodeCount() + " children";
-//                    // now currently at the child of the top most projection node
-//                    parent.removeFromGraph();
-//                    new_root = element;
-//                    this.stop();
-//                    if (debug.get())
-//                        LOG.debug("Removed " + parent + " from plan graph");
-//                    
-//                } else if (parent != null && (PlanNodeUtil.getRoot(element) != parent) && !state.projection_plan_nodes.contains(parent)) {
-//                    // this is the case where the top most node is not a projection
-//                    // make sure current projection has parent
-//                    assert (parent.getParentPlanNodeCount() > 0);
-//                    AbstractPlanNode projection_parent = parent.getParent(0);
-//                    element.clearParents();
-//                    projection_parent.clearChildren();
-//                    projection_parent.addAndLinkChild(element);
-//                    new_root = projection_parent;
-//                    this.stop();
-//                    if (debug.get())
-//                        LOG.trace("Swapped out " + parent + " from plan graph");
-//                }
             }
         }.traverse(rootNode);
         
