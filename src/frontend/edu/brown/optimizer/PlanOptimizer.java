@@ -121,8 +121,8 @@ public class PlanOptimizer {
         } // FOR
 
         AbstractPlanNode new_root = root;
-//        if (debug.get())
-            LOG.info("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
+        if (debug.get())
+            LOG.debug("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
             
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
