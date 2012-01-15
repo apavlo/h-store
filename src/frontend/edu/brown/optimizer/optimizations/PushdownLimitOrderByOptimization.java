@@ -55,7 +55,6 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
             return (root);
         }
         
-        
         OrderByPlanNode orderby_node = null;
         LimitPlanNode limit_node = null;
         try {
