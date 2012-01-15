@@ -166,9 +166,6 @@ public abstract class StatementCompiler {
 
             if (plan == null) {
                 String msg = "Failed to plan for stmt: " + catalogStmt.fullName();
-                if (planner.getError() != null) {
-                    throw compiler.new VoltCompilerException(msg, planner.getError());
-                }
                 String plannerMsg = planner.getErrorMessage();
 
                 if (plannerMsg == null) plannerMsg = "PlannerMessage was empty!";
@@ -183,6 +180,8 @@ public abstract class StatementCompiler {
                 } else if (!_singleSited && stmt_type == QueryType.INSERT && plannerMsg.contains("Error unknown")) {
                     if (debug.get()) LOG.warn("Ignoring multi-sited " + stmt_type.name() + " on non-replicated table: " + plannerMsg);
                     continue;
+                } else if (planner.getError() != null) {
+                    throw compiler.new VoltCompilerException(msg, planner.getError());
                 // Otherwise, report the error
                 } else {
                     if (plannerMsg != null)

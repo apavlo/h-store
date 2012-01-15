@@ -67,7 +67,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     // CACHES
     // ------------------------------------------------------------
 
-    public static class Cache {
+    private static class Cache {
         
         /**
          * The set of read-only columns excluding inserts

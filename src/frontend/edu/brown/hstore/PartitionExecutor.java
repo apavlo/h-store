@@ -1517,19 +1517,19 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     /**
      * 
-     * @param ftask
+     * @param wfrag
      * @throws Exception
      */
-    private void processWorkFragment(AbstractTransaction ts, WorkFragment ftask, ParameterSet parameters[]) {
-        assert(this.partitionId == ftask.getPartitionId()) :
+    private void processWorkFragment(AbstractTransaction ts, WorkFragment wfrag, ParameterSet parameters[]) {
+        assert(this.partitionId == wfrag.getPartitionId()) :
             String.format("Tried to execute WorkFragment %s for %s on partition %d but it was suppose to be executed on partition %d",
-                          ftask.getFragmentIdList(), ts, this.partitionId, ftask.getPartitionId());
+                          wfrag.getFragmentIdList(), ts, this.partitionId, wfrag.getPartitionId());
         
         // A txn is "local" if the Java is executing at the same site as we are
         boolean is_local = ts.isExecLocal(this.partitionId);
         boolean is_dtxn = (ts instanceof LocalTransaction == false);
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Executing FragmentTaskMessage %s [basePartition=%d, isLocal=%s, isDtxn=%s, fragments=%s]",
-                                                ts, ts.getBasePartition(), is_local, is_dtxn, ftask.getFragmentIdCount()));
+                                                ts, ts.getBasePartition(), is_local, is_dtxn, wfrag.getFragmentIdCount()));
 
         // If this txn isn't local, then we have to update our undoToken
         if (is_local == false) {
@@ -1542,7 +1542,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         SerializableException error = null;
         
         try {
-            result = this.executeWorkFragment(ts, ftask, parameters);
+            result = this.executeWorkFragment(ts, wfrag, parameters);
         } catch (ConstraintFailureException ex) {
             LOG.fatal("__FILE__:__LINE__ " + "Hit an ConstraintFailureException for " + ts, ex);
             status = Hstore.Status.ABORT_UNEXPECTED;
@@ -1564,7 +1564,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // Success, but without any results???
             if (result == null && status == Hstore.Status.OK) {
                 Exception ex = new Exception(String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
-                                                           ftask.getFragmentIdList(), this.partitionId, ts));
+                                                           wfrag.getFragmentIdList(), this.partitionId, ts));
                 if (d) LOG.warn("__FILE__:__LINE__ " + ex);
                 status = Hstore.Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);
@@ -1575,8 +1575,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // execute the SendPlanNode in order to get back the number of tuples that
         // were modified. So we have to rely on the output dependency ids set in the task
         assert(status != Hstore.Status.OK ||
-              (status == Hstore.Status.OK && result.size() == ftask.getFragmentIdCount())) :
-           "Got back " + result.size() + " results but was expecting " + ftask.getFragmentIdCount();
+              (status == Hstore.Status.OK && result.size() == wfrag.getFragmentIdCount())) :
+           "Got back " + result.size() + " results but was expecting " + wfrag.getFragmentIdCount();
         
         // Make sure that we mark the round as finished before we start sending results
         if (is_local == false) {
@@ -1591,17 +1591,17 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             if (status == Hstore.Status.OK) {
                 if (t) LOG.trace("__FILE__:__LINE__ " + "Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                 LocalTransaction local_ts = (LocalTransaction)ts;
-                assert(result.size() == ftask.getOutputDepIdCount());
+                assert(result.size() == wfrag.getOutputDepIdCount());
                 for (int i = 0, cnt = result.size(); i < cnt; i++) {
-                    int dep_id = ftask.getOutputDepId(i);
+                    int dep_id = wfrag.getOutputDepId(i);
                     // ts.addResult(result.depIds[i], result.dependencies[i]);
                     if (t) LOG.trace("__FILE__:__LINE__ " + "Storing DependencyId #" + dep_id  + " for " + ts);
                     try {
                         local_ts.addResult(this.partitionId, dep_id, result.dependencies[i]);
                     } catch (Throwable ex) {
                         String msg = String.format("Failed to stored Dependency #%d for %s [idx=%d, fragmentId=%d]",
-                                                   dep_id, ts, i, ftask.getFragmentId(i));
-                        LOG.error("__FILE__:__LINE__ " + msg + "\n" + ftask.toString());
+                                                   dep_id, ts, i, wfrag.getFragmentId(i));
+                        LOG.error("__FILE__:__LINE__ " + msg + "\n" + wfrag.toString());
                         throw new RuntimeException(msg, ex);
                     }
                 } // FOR
@@ -1623,7 +1623,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             RpcCallback<WorkResult> callback = ((RemoteTransaction)ts).getFragmentTaskCallback();
             if (callback == null) {
                 LOG.fatal("__FILE__:__LINE__ " + "Unable to send FragmentResponseMessage for " + ts);
-                LOG.fatal("__FILE__:__LINE__ " + "Orignal FragmentTaskMessage:\n" + ftask);
+                LOG.fatal("__FILE__:__LINE__ " + "Orignal FragmentTaskMessage:\n" + wfrag);
                 LOG.fatal("__FILE__:__LINE__ " + ts.toString());
                 throw new RuntimeException("No RPC callback to HStoreSite for " + ts);
             }
@@ -1636,14 +1636,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     
     /**
      * Executes a FragmentTaskMessage on behalf of some remote site and returns the resulting DependencySet
-     * @param ftask
+     * @param wfrag
      * @return
      * @throws Exception
      */
-    private DependencySet executeWorkFragment(AbstractTransaction ts, WorkFragment ftask, ParameterSet parameters[]) throws Exception {
+    private DependencySet executeWorkFragment(AbstractTransaction ts, WorkFragment wfrag, ParameterSet parameters[]) throws Exception {
         DependencySet result = null;
         final long undoToken = ts.getLastUndoToken(this.partitionId);
-        int fragmentCount = ftask.getFragmentIdCount();
+        int fragmentCount = wfrag.getFragmentIdCount();
         long fragmentIds[] = new long[fragmentCount];
         int outputDepIds[] = new int[fragmentCount];
         int inputDepIds[] = new int[fragmentCount]; // Is this ok?
@@ -1655,16 +1655,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         
         // Construct arrays given to the EE
         for (int i = 0; i < fragmentCount; i++) {
-            fragmentIds[i] = ftask.getFragmentId(i);
-            outputDepIds[i] = ftask.getOutputDepId(i);
-            for (int input_depId : ftask.getInputDepId(i).getIdsList()) {
+            fragmentIds[i] = wfrag.getFragmentId(i);
+            outputDepIds[i] = wfrag.getOutputDepId(i);
+            for (int input_depId : wfrag.getInputDepId(i).getIdsList()) {
                 inputDepIds[i] = input_depId; // FIXME!
             } // FOR
         } // FOR
         
         // Input Dependencies
         this.tmp_EEdependencies.clear();
-        this.getFragmentInputs(ts, ftask, this.tmp_EEdependencies);
+        this.getFragmentInputs(ts, wfrag, this.tmp_EEdependencies);
         
         if (d) {
             LOG.debug("__FILE__:__LINE__ " + String.format("Getting ready to kick %d fragments to EE for %s", fragmentCount, ts));
