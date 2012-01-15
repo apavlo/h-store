@@ -162,6 +162,7 @@ begin Statement             "A parameterized SQL statement embedded in a stored 
     bool batched              ""
     bool secondaryindex       ""
     bool prefetch             "Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction"
+    bool asynchronous         "Whether this query does not need to executed immediately in this transaction"
     int paramnum              ""
     StmtParameter* parameters "The set of parameters to this SQL statement"
     Column* output_columns    "The set of columns in the output table"
@@ -191,6 +192,8 @@ begin PlanFragment               "Instructions to the executor to execute part o
     bool readonly                  "Whether this PlanFragment is read only"
     string plannodetree            "A serialized representation of the plan-graph/plan-pipeline"
     bool nontransactional          "True if this fragment doesn't read from or write to any persistent tables"
+    bool fastaggregate             "Whether this PlanFragment is an aggregate that can be executed in Java"
+    bool fastcombine               "Whether this PlanFragment just combines its input tables and therefore can be executed in Java"
 end
 
 begin Index          "A index structure on a database table's columns"

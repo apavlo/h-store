@@ -44,6 +44,8 @@ protected:
     bool m_readonly;
     std::string m_plannodetree;
     bool m_nontransactional;
+    bool m_fastaggregate;
+    bool m_fastcombine;
 
     virtual void update();
 
@@ -64,6 +66,10 @@ public:
     const std::string & plannodetree() const;
     /** GETTER: True if this fragment doesn't read from or write to any persistent tables */
     bool nontransactional() const;
+    /** GETTER: Whether this PlanFragment is an aggregate that can be executed in Java */
+    bool fastaggregate() const;
+    /** GETTER: Whether this PlanFragment just combines its input tables and therefore can be executed in Java */
+    bool fastcombine() const;
 };
 
 } // namespace catalog

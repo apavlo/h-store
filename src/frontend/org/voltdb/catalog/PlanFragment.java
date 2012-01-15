@@ -32,6 +32,8 @@ public class PlanFragment extends CatalogType {
     boolean m_readonly;
     String m_plannodetree = new String();
     boolean m_nontransactional;
+    boolean m_fastaggregate;
+    boolean m_fastcombine;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -41,6 +43,8 @@ public class PlanFragment extends CatalogType {
         this.addField("readonly", m_readonly);
         this.addField("plannodetree", m_plannodetree);
         this.addField("nontransactional", m_nontransactional);
+        this.addField("fastaggregate", m_fastaggregate);
+        this.addField("fastcombine", m_fastcombine);
     }
 
     public void update() {
@@ -50,6 +54,8 @@ public class PlanFragment extends CatalogType {
         m_readonly = (Boolean) m_fields.get("readonly");
         m_plannodetree = (String) m_fields.get("plannodetree");
         m_nontransactional = (Boolean) m_fields.get("nontransactional");
+        m_fastaggregate = (Boolean) m_fields.get("fastaggregate");
+        m_fastcombine = (Boolean) m_fields.get("fastcombine");
     }
 
     /** GETTER: Unique Id for this PlanFragment */
@@ -82,6 +88,16 @@ public class PlanFragment extends CatalogType {
         return m_nontransactional;
     }
 
+    /** GETTER: Whether this PlanFragment is an aggregate that can be executed in Java */
+    public boolean getFastaggregate() {
+        return m_fastaggregate;
+    }
+
+    /** GETTER: Whether this PlanFragment just combines its input tables and therefore can be executed in Java */
+    public boolean getFastcombine() {
+        return m_fastcombine;
+    }
+
     /** SETTER: Unique Id for this PlanFragment */
     public void setId(int value) {
         m_id = value; m_fields.put("id", value);
@@ -110,6 +126,16 @@ public class PlanFragment extends CatalogType {
     /** SETTER: True if this fragment doesn't read from or write to any persistent tables */
     public void setNontransactional(boolean value) {
         m_nontransactional = value; m_fields.put("nontransactional", value);
+    }
+
+    /** SETTER: Whether this PlanFragment is an aggregate that can be executed in Java */
+    public void setFastaggregate(boolean value) {
+        m_fastaggregate = value; m_fields.put("fastaggregate", value);
+    }
+
+    /** SETTER: Whether this PlanFragment just combines its input tables and therefore can be executed in Java */
+    public void setFastcombine(boolean value) {
+        m_fastcombine = value; m_fields.put("fastcombine", value);
     }
 
 }

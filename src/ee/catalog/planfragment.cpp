@@ -36,6 +36,8 @@ PlanFragment::PlanFragment(Catalog *catalog, CatalogType *parent, const string &
     m_fields["readonly"] = value;
     m_fields["plannodetree"] = value;
     m_fields["nontransactional"] = value;
+    m_fields["fastaggregate"] = value;
+    m_fields["fastcombine"] = value;
 }
 
 void PlanFragment::update() {
@@ -45,6 +47,8 @@ void PlanFragment::update() {
     m_readonly = m_fields["readonly"].intValue;
     m_plannodetree = m_fields["plannodetree"].strValue.c_str();
     m_nontransactional = m_fields["nontransactional"].intValue;
+    m_fastaggregate = m_fields["fastaggregate"].intValue;
+    m_fastcombine = m_fields["fastcombine"].intValue;
 }
 
 CatalogType * PlanFragment::addChild(const std::string &collectionName, const std::string &childName) {
@@ -81,5 +85,13 @@ const string & PlanFragment::plannodetree() const {
 
 bool PlanFragment::nontransactional() const {
     return m_nontransactional;
+}
+
+bool PlanFragment::fastaggregate() const {
+    return m_fastaggregate;
+}
+
+bool PlanFragment::fastcombine() const {
+    return m_fastcombine;
 }
 
