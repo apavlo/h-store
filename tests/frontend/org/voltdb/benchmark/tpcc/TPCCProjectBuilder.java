@@ -25,7 +25,6 @@ package org.voltdb.benchmark.tpcc;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 
 import org.voltdb.benchmark.tpcc.procedures.*;
 import org.voltdb.catalog.Catalog;
