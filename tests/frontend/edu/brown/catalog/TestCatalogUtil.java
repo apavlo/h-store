@@ -346,9 +346,9 @@ public class TestCatalogUtil extends BaseTestCase {
     }
     
     /**
-     * testGetProcedures
+     * GetReferencingProcedures
      */
-    public void testGetProcedures() throws Exception {
+    public void testGetReferencingProcedures() throws Exception {
         Procedure expected[] = {
             this.getProcedure(delivery.class),
             this.getProcedure(neworder.class),

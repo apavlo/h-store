@@ -155,8 +155,8 @@ public abstract class PlanNodeUtil {
      * @param node
      * @return
      */
-    public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node) {
-        return PlanNodeUtil.getExpressionsForPlanNode(node, new HashSet<AbstractExpression>()); 
+    public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node, PlanNodeType...exclude) {
+        return PlanNodeUtil.getExpressionsForPlanNode(node, new HashSet<AbstractExpression>(), exclude); 
     }
         
     /**
@@ -165,10 +165,14 @@ public abstract class PlanNodeUtil {
      * @param exps
      * @return
      */
-    public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node, Set<AbstractExpression> exps) {
-        PlannerContext plannerContext = PlannerContext.singleton();
+    public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node, Set<AbstractExpression> exps, PlanNodeType...exclude) {
+        final PlannerContext plannerContext = PlannerContext.singleton();
+        final PlanNodeType node_type = node.getPlanNodeType(); 
+        for (PlanNodeType e : exclude) {
+            if (node_type == e) return (exps);
+        } // FOR
         
-        switch (node.getPlanNodeType()) {
+        switch (node_type) {
             // ---------------------------------------------------
             // SCANS
             // ---------------------------------------------------

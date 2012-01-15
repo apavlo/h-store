@@ -1480,7 +1480,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             // EVERYTHING ELSE
             // ---------------------------------------------------
             default: {
-                Collection<AbstractExpression> node_exps = PlanNodeUtil.getExpressionsForPlanNode(node);
+                Collection<AbstractExpression> node_exps = PlanNodeUtil.getExpressionsForPlanNode(node, PlanNodeType.PROJECTION,
+                                                                                                        PlanNodeType.AGGREGATE,
+                                                                                                        PlanNodeType.HASHAGGREGATE);
                 for (AbstractExpression exp : node_exps) { 
                     updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, exp), true,
                                            allCols, modifiedCols, readOnlyCols);
