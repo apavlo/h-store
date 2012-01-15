@@ -1,7 +1,6 @@
 package edu.brown.optimizer.optimizations;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,9 +25,11 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.PlanOptimizerState;
+import edu.brown.optimizer.PlanOptimizerUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
 
 /**
  * 
@@ -37,7 +38,6 @@ import edu.brown.utils.CollectionUtil;
 public class PushdownProjectionOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(PushdownProjectionOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     
     public PushdownProjectionOptimization(PlanOptimizerState state) {
         super(state);
@@ -56,7 +56,7 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                         if (debug.get())
                             LOG.debug("SKIP - " + element + " already has an inline ProjectionPlanNode");
                     }
-                    else if (addInlineProjection((AbstractScanPlanNode) element) == false) {
+                    else if (addProjection(element, true) == false) {
                         this.stop();
                         return;
                     }
@@ -73,47 +73,118 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                     assert(state.join_tbl_mapping.get(element) != null) :
                         element + " does NOT exist in join map";
                     
-                    // This will contain all the PlanColumns that are needed to perform the join
-                    final Set<PlanColumn> join_columns = extractReferencedColumns(element, state.join_tbl_mapping.get(element));
-                    
-                    ProjectionPlanNode proj_node = new ProjectionPlanNode(state.plannerContext, PlanAssembler.getNextPlanNodeId());
-                    assert(proj_node.getOutputColumnGUIDCount() == 0);
-                    populateProjectionPlanNode(element, proj_node, join_columns);
-                    
-                    // Add a projection above the current NestLoopIndexPlanNode
-                    // Note that we can't make it inline because the NestLoopIndexPlanNode's executor
-                    // doesn't support it
-                    AbstractPlanNode parent = element.getParent(0);
-                    assert(parent != null);
-                    element.clearParents();
-                    parent.clearChildren();
-                    proj_node.addAndLinkChild(element);
-                    parent.addAndLinkChild(proj_node);
-
-                    // Mark the new ProjectionPlanNode as dirty
-                    state.markDirty(proj_node);
+                    if (addProjection(element, false) == false) {
+                        this.stop();
+                        return;
+                    }
                 }
             }
         }.traverse(root);
         return (root);
     }
     
+    private boolean addProjection(final AbstractPlanNode node, boolean inline) {
+        assert((node instanceof ProjectionPlanNode) == false) :
+            String.format("Trying to add a new Projection after " + node);
+        
+        // Look at the output columns of the given AbstractPlanNode and figure out
+        // which of those columns we're going to need up above in the tree
+        Set<PlanColumn> referenced = this.extractReferencedColumns(node);
+        if (debug.get())
+            LOG.debug(String.format("All referenced columns above %s:\n%s",
+                      node, StringUtil.join("\n", referenced)));
+
+        // Look over the PlanColumns that we need above us, and add the ones that
+        // are coming out of the parent. Those are the ones that we want to include
+        Set<PlanColumn> new_output_cols = new ListOrderedSet<PlanColumn>();
+        Set<Table> new_output_tables = new HashSet<Table>();
+        for (Integer col_guid : node.getOutputColumnGUIDs()) {
+            PlanColumn col = state.plannerContext.get(col_guid);
+            assert(col != null) : "Invalid PlanColumn #" + col_guid;
+            for (PlanColumn ref_col : referenced) {
+                if (ref_col.equals(col, true, true)) {
+                    new_output_cols.add(col);
+                    new_output_tables.addAll(ExpressionUtil.getReferencedTables(state.catalog_db, col.getExpression()));
+                    break;
+                }
+            }
+        } // FOR
+        if (new_output_cols.isEmpty())
+            LOG.warn("BUSTED:\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)) + "\n" + state);
+        assert(new_output_cols.isEmpty() == false) :
+            String.format("No output columns for " + node);
+        
+        // Check whether the output PlanColumns all reference the same table,
+        // and we have the same number of PlanColumns as that table has in the catalog
+        // This means that we don't need the projection because they're doing a SELECT *
+        if (new_output_tables.size() == 1) {
+            Table catalog_tbl = CollectionUtil.first(new_output_tables);
+            assert(catalog_tbl != null);
+            // Only create the projection if the number of columns we need to
+            // output is less then the total number of columns for the table
+            if (new_output_cols.size() == catalog_tbl.getColumns().size()) {
+                if (debug.get())
+                    LOG.debug("SKIP - All columns needed in query. No need for inline projection on " + catalog_tbl);
+                return (false);
+            }
+        }
+        
+        // Now create a new ProjectionPlanNode that outputs just those columns
+        ProjectionPlanNode proj_node = new ProjectionPlanNode(state.plannerContext, PlanAssembler.getNextPlanNodeId());
+        this.populateProjectionPlanNode(node, proj_node, new_output_cols);
+        
+        // Add a projection above this node
+        // TODO: Add the ability to automatically check whether we can make something inline
+        if (inline) {
+            // Add projection inline to scan node
+            node.addInlinePlanNode(proj_node);
+            assert (proj_node.isInline());
+
+            // Then make sure that we update it's output columns to match the inline output
+            node.getOutputColumnGUIDs().clear();
+            node.getOutputColumnGUIDs().addAll(proj_node.getOutputColumnGUIDs());
+        }
+        else {
+            AbstractPlanNode parent = node.getParent(0);
+            assert(parent != null);
+            node.clearParents();
+            parent.clearChildren();
+            proj_node.addAndLinkChild(node);
+            parent.addAndLinkChild(proj_node);
+        }
+
+        // Mark the new ProjectionPlanNode as dirty
+        state.markDirty(proj_node);
+        state.markDirty(node);
+        
+        if (debug.get())
+            LOG.debug(String.format("PLANOPT - Added %s%s with %d columns for node %s",
+                                    (inline ? "inline " : ""),
+                                    proj_node, proj_node.getOutputColumnGUIDCount(), node));
+        
+        // Should we be doing this here?
+//        PlanOptimizerUtil.updateAllColumns(state, PlanNodeUtil.getRoot(node));
+        
+        return (true);
+    }
+    
     private void populateProjectionPlanNode(AbstractPlanNode parent, ProjectionPlanNode proj_node, Collection<PlanColumn> output_columns) {
+        if (debug.get())
+            LOG.debug(String.format("Populating %s with %d output PlanColumns", proj_node, output_columns.size()));
+        
         AbstractExpression orig_col_exp = null;
-        int orig_guid = -1;
         for (PlanColumn plan_col : output_columns) {
-            boolean exists = false;
+            int orig_guid = -1;
             for (Integer guid : parent.getOutputColumnGUIDs()) {
                 PlanColumn output_plan_column = state.plannerContext.get(guid);
                 if (plan_col.equals(output_plan_column, true, true)) {
                     orig_col_exp = output_plan_column.getExpression();
                     orig_guid = guid;
-                    exists = true;
                     break;
                 }
             }
-            if (!exists) {
-                    LOG.warn(String.format("Failed to find PlanColumn %s in %s output columns?", plan_col, parent));
+            if (orig_guid == -1) {
+                LOG.warn(String.format("Failed to find PlanColumn %s in %s output columns?", plan_col, parent));
             } else {
                 assert (orig_col_exp != null);
                 AbstractExpression new_col_exp = null;
@@ -130,10 +201,15 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                                                   ((TupleValueExpression)new_col_exp).getColumnName(),
                                                   plan_col.getSortOrder(),
                                                   plan_col.getStorage());                                    
-                    proj_node.appendOutputColumn(new_plan_col);                                
+                    proj_node.appendOutputColumn(new_plan_col);
+                    if (debug.get())
+                        LOG.debug("Added " + new_plan_col + " to " + proj_node);
+                }
+                else if (debug.get()) {
+                    LOG.debug("Skipped adding " + new_plan_col + " to " + proj_node + "?");
                 }
             }
-        }   
+        } // FOR
     }
     
     /**
@@ -143,9 +219,12 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
      * @param tables
      * @return
      */
-    private Set<PlanColumn> extractReferencedColumns(final AbstractPlanNode node, final Collection<String> tables) {
-        final Set<PlanColumn> ref_columns = new HashSet<PlanColumn>();
-        final ListOrderedSet<Integer> col_guids = new ListOrderedSet<Integer>();
+    private Set<PlanColumn> extractReferencedColumns(final AbstractPlanNode node) {
+        if (debug.get())
+            LOG.debug("Extracting referenced column set for " + node);
+        
+        final Set<PlanColumn> ref_columns = new ListOrderedSet<PlanColumn>();
+        final Set<Integer> col_guids = new HashSet<Integer>();
         final boolean top_join = (node instanceof NestLoopIndexPlanNode &&
                                   state.join_node_index.get(state.join_node_index.firstKey()) == node);
         
@@ -160,6 +239,7 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                 if (element == node) return;
                 
                 int ctr = 0;
+                
                 // ---------------------------------------------------
                 // ProjectionPlanNode
                 // AbstractScanPlanNode
@@ -174,7 +254,7 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                     Set<Column> col_set = state.getPlanNodeColumns(element);
                     
                     // Check whether we're the top-most join, or that we don't have any referenced columns
-                    if (top_join || col_set == null) {
+                    if (col_set == null) {
                         ctr += element.getOutputColumnGUIDCount();
                         col_guids.addAll(element.getOutputColumnGUIDs());
                     } else {
@@ -196,119 +276,35 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                 }
                 
                 if (debug.get() && ctr > 0)
-                    LOG.debug(String.format("[%s] Found %d PlanColumns referenced in %s", node, ctr, element));
+                    LOG.debug(String.format("%s -> Found %d PlanColumns referenced in %s", node, ctr, element));
             }
         }.traverse(node);
         
         // Now extract the TupleValueExpression and get the PlanColumn that we really want
         for (Integer col_guid : col_guids) {
-            PlanColumn plan_col = state.plannerContext.get(col_guid);
-            Collection<TupleValueExpression> exps = ExpressionUtil.getExpressions(plan_col.getExpression(), TupleValueExpression.class);
-            assert(exps != null);
-            for (TupleValueExpression tv_exp : exps) {
-                if (tables.contains(tv_exp.getTableName())) {
-                    addProjectionColumn(ref_columns, col_guid);
-                }
-            } // FOR
+            this.addProjectionColumn(ref_columns, col_guid);
         } // FOR
         
         return (ref_columns);
     }
     
-    /**
-     * @param scan_node
-     * @return
-     */
-    private boolean addInlineProjection(final AbstractScanPlanNode scan_node) {
-        Collection<Table> tables = CatalogUtil.getReferencedTablesForPlanNode(state.catalog_db, scan_node);
-        if (tables.size() != 1) LOG.error(PlanNodeUtil.debugNode(scan_node));
-        assert (tables.size() == 1) : scan_node + ": " + tables;
-        Table catalog_tbl = CollectionUtil.first(tables);
-
-        // Figure out what is the bare minimum number set of columns that we're going
-        // to need above us...
-        Set<PlanColumn> output_columns = extractReferencedColumns(scan_node, Collections.singleton(catalog_tbl.getName()));
-
-        // Stop if there is no column information.
-        // XXX: Is this a bad thing?
-        if (output_columns == null) {
-            LOG.warn("No column information for " + catalog_tbl);
-            return (false);
-        }
-        // Only create the projection if the number of columns we need to
-        // output is less then the total number of columns for the table
-        else if (output_columns.size() == catalog_tbl.getColumns().size()) {
-            if (debug.get())
-                LOG.debug("SKIP - All columns needed in query. No need for inline projection on " + catalog_tbl);
-            return (false);
-        }
-
-        // Create new projection and add in all of the columns we will ever need in the PlanNodes above our ScanNode
-        ProjectionPlanNode proj_node = new ProjectionPlanNode(state.plannerContext, PlanAssembler.getNextPlanNodeId());
-        if (debug.get())
-            LOG.debug(String.format("Adding inline Projection for %s with %d columns. Original table has %d columns",
-                                    catalog_tbl.getName(), output_columns.size(), catalog_tbl.getColumns().size()));
-        populateProjectionPlanNode(scan_node, proj_node, output_columns);
-        
-//        for (Column catalog_col : output_columns) {
-//            // Get the old GUID from the original output columns
-//            int orig_idx = catalog_col.getIndex();
-//            int orig_guid = scan_node.getOutputColumnGUID(orig_idx);
-//            PlanColumn orig_col = state.plannerContext.get(orig_guid);
-//            assert (orig_col != null);
-//            proj_node.appendOutputColumn(orig_col);
-//            state.addColumnMapping(catalog_col, orig_col.guid());
-//        } // FOR
-        if (trace.get())
-            LOG.trace("New Projection Output Columns:\n" + PlanNodeUtil.debugNode(proj_node));
-
-        // Add projection inline to scan node
-        scan_node.addInlinePlanNode(proj_node);
-        assert (proj_node.isInline());
-
-        // Then make sure that we update it's output columns to match the inline
-        // output
-        scan_node.getOutputColumnGUIDs().clear();
-        scan_node.getOutputColumnGUIDs().addAll(proj_node.getOutputColumnGUIDs());
-
-        // add element to the "dirty" list
-        state.markDirty(scan_node);
-        if (trace.get())
-            LOG.trace(String.format("Added inline %s with %d columns to leaf node %s", proj_node, proj_node.getOutputColumnGUIDCount(), scan_node));
-        return (true);
-    }
 
     private void addProjectionColumn(Set<PlanColumn> proj_columns, Integer col_id) {
         PlanColumn new_column = state.plannerContext.get(col_id);
         boolean exists = false;
         for (PlanColumn plan_col : proj_columns) {
-            if (new_column.getDisplayName().equals(plan_col.getDisplayName())) {
+            if (new_column.getDisplayName().equals(plan_col.getDisplayName())) { // This seems wrong...
                 exists = true;
                 break;
             }
-        }
+        } // FOR
         if (!exists) {
             proj_columns.add(new_column);
+            if (debug.get())
+                LOG.debug(String.format("Added PlanColumn #%d to list of projection columns. [%s]", col_id, new_column.getDisplayName()));
+        } else {
+            if (debug.get())
+                LOG.debug("Skipped PlanColumn #" + col_id + " because it already exists.");
         }
     }
-    
-//    private void addProjectionColumn(Set<PlanColumn> proj_columns, Integer col_id, int offset) throws CloneNotSupportedException {
-//        PlanColumn orig_pc = state.m_context.get(col_id);
-//        assert (orig_pc.getExpression() instanceof TupleValueExpression);
-//        TupleValueExpression orig_tv_exp = (TupleValueExpression)orig_pc.getExpression();
-//        TupleValueExpression clone_tv_exp = (TupleValueExpression)orig_tv_exp.clone();
-//        clone_tv_exp.setColumnIndex(offset);
-//        PlanColumn new_col = state.m_context.getPlanColumn(clone_tv_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
-//        boolean exists = false;
-//        for (PlanColumn plan_col : proj_columns) {
-//            if (new_col.getDisplayName().equals(plan_col.getDisplayName())) {
-//                exists = true;
-//                break;
-//            }
-//        }
-//        if (!exists) {
-//            proj_columns.add(new_col);
-//        }
-//    }
-    
 }

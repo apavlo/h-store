@@ -921,11 +921,37 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         } // FOR
         return (null);
     }
+    
+    /**
+     * Return a set of all the names of the tables in the catalog
+     * This set will exclude system table names
+     * @param catalog_obj
+     */
+    public static Collection<String> getAllTableNames(CatalogType catalog_obj) {
+        return (CatalogUtil.getAllTableNames(catalog_obj, false));
+    }
+
+    /**
+     * Return a set of all the names of the tables in the catalog
+     * If include_sys is set to true, then the output will include system table names
+     * Otherwise, they we will be excluded
+     * @param catalog_obj
+     * @param include_sys
+     * @return
+     */
+    public static Collection<String> getAllTableNames(CatalogType catalog_obj, boolean include_sys) {
+        Set<String> tableNames = new HashSet<String>();
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            boolean is_systable = catalog_tbl.getSystable(); 
+            if (include_sys || is_systable == false) tableNames.add(catalog_tbl.getName());
+        } // FOR
+        return (tableNames);
+    }
 
     /**
      * Return a mapping from Tables to their vertical partitions
      * @param catalog_obj
-     * @return
      */
     public static Map<Table, MaterializedViewInfo> getVerticallyPartitionedTables(CatalogType catalog_obj) {
         Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
@@ -1391,44 +1417,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      */
     private static void getReferencedColumnsForPlanNode(final Database catalog_db, final AbstractPlanNode node, final Set<Column> allCols, final Set<Column> modifiedCols, final Set<Column> readOnlyCols) throws Exception {
         switch (node.getPlanNodeType()) {
-            // SCANS
-            case INDEXSCAN: {
-                IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
-                if (idx_node.getEndExpression() != null)
-                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, idx_node.getEndExpression()), true,
-                                           allCols, modifiedCols, readOnlyCols);
-                for (AbstractExpression exp : idx_node.getSearchKeyExpressions()) {
-                    if (exp != null) 
-                        updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, exp), true,
-                                               allCols, modifiedCols, readOnlyCols);
-                } // FOR
-
-                // Fall through down into SEQSCAN....
-            }
-            case SEQSCAN: {
-                AbstractScanPlanNode scan_node = (AbstractScanPlanNode) node;
-                if (scan_node.getPredicate() != null)
-                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, scan_node.getPredicate()), true,
-                                           allCols, modifiedCols, readOnlyCols);
-                break;
-            }
-            // JOINS
-            case NESTLOOP:
-            case NESTLOOPINDEX: {
-                AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
-                if (cast_node.getPredicate() != null)
-                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, cast_node.getPredicate()), true,
-                                           allCols, modifiedCols, readOnlyCols);
-
-                // We always need to look at the inline scan nodes for joins 
-                for (AbstractPlanNode inline_node : cast_node.getInlinePlanNodes().values()) {
-                    if (inline_node instanceof AbstractScanPlanNode) {
-                        CatalogUtil.getReferencedColumnsForPlanNode(catalog_db, inline_node, allCols, modifiedCols, readOnlyCols);
-                    }
-                } // FOR
-                break;
-            }
+            // ---------------------------------------------------
             // INSERT
+            // ---------------------------------------------------
             case INSERT: {
                 // All columns are accessed whenever we insert a new record
                 InsertPlanNode ins_node = (InsertPlanNode) node;
@@ -1438,7 +1429,9 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                                        allCols, modifiedCols, readOnlyCols);
                 break;
             }
+            // ---------------------------------------------------
             // UPDATE
+            // ---------------------------------------------------
             case UPDATE: {
                 // Need to make sure we get both the WHERE clause and the fields that are updated
                 // We need to get the list of columns from the ScanPlanNode below us
@@ -1476,12 +1469,23 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 }
                 break;
             }
+            // ---------------------------------------------------
+            // DELETE
+            // ---------------------------------------------------
             case DELETE:
                 // I don't think we need anything here because all the
                 // columns will get get picked up by the scans that feed into the DELETE
                 break;
-            default:
-                // Do nothing...
+            // ---------------------------------------------------
+            // EVERYTHING ELSE
+            // ---------------------------------------------------
+            default: {
+                Collection<AbstractExpression> node_exps = PlanNodeUtil.getExpressionsForPlanNode(node);
+                for (AbstractExpression exp : node_exps) { 
+                    updateReferenceColumns(ExpressionUtil.getReferencedColumns(catalog_db, exp), true,
+                                           allCols, modifiedCols, readOnlyCols);
+                } // FOR
+            }
         } // SWITCH
     }
 

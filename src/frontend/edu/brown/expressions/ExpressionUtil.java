@@ -67,7 +67,6 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         return (exp0.equals(exp1) ? ExpressionUtil.equals(exp0.getLeft(), exp1.getLeft()) &&
                                     ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
     }
-    
 
     /**
      * 
@@ -85,14 +84,10 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         return (exp);
     }
     
-
     /**
-     * Returns all the tables access/modified in the Expression tree
-     * 
+     * Returns all the Column catalog handles that are access/modified in the Expression tree
      * @param catalog_db
      * @param exp
-     * @return
-     * @throws Exception
      */
     public static Collection<Column> getReferencedColumns(final Database catalog_db, AbstractExpression exp) {
         final Set<Column> found_columns = new HashSet<Column>();
@@ -128,7 +123,22 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
     }
     
     /**
-     * Get the set of table names referenced in this expression tree
+     * Returns all the Table catalog handles that are access/modified in the Expression tree
+     * @param catalog_db
+     * @param exp
+     */
+    public static Collection<Table> getReferencedTables(final Database catalog_db, AbstractExpression exp) {
+        Set<Table> found_tables = new HashSet<Table>();
+        for (Column catalog_col : ExpressionUtil.getReferencedColumns(catalog_db, exp)) {
+            Table catalog_tbl = catalog_col.getParent(); 
+            found_tables.add(catalog_tbl);
+        } // FOR
+        return (found_tables);
+    }
+    
+    /**
+     * Get the set of table names referenced in this expression tree. This can be used
+     * without a Database catalog handle
      * @param exp
      * @return
      */
