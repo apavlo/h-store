@@ -85,6 +85,9 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
         // Need to make sure that the LIMIT has the proper output columns
         limit_node.setOutputColumns(orderby_node.getOutputColumnGUIDs());
         
+        if (debug.get())
+            LOG.debug("PLANOPT - Added " + limit_node + "+" + orderby_node + " after " + scan_node);
+        
         return (root);
     }
 

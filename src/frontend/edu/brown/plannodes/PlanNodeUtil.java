@@ -156,65 +156,100 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node) {
-        final Set<AbstractExpression> exps = new HashSet<AbstractExpression>();
-
-        // ---------------------------------------------------
-        // SCAN NODES
-        // ---------------------------------------------------
-        if (node instanceof AbstractScanPlanNode) {
-            AbstractScanPlanNode scan_node = (AbstractScanPlanNode)node;
-            
-            // Main Predicate Expression
-            if (scan_node.getPredicate() != null) exps.add(scan_node.getPredicate());
-            
-            if (scan_node instanceof IndexScanPlanNode) {
-                IndexScanPlanNode idx_node = (IndexScanPlanNode)scan_node;
-                
-                // End Expression
-                if (idx_node.getEndExpression() != null) exps.add(idx_node.getEndExpression());
-                
-                // Search Key Expressions
-                if (idx_node.getSearchKeyExpressions().isEmpty() == false) exps.addAll(idx_node.getSearchKeyExpressions());
+        return PlanNodeUtil.getExpressionsForPlanNode(node, new HashSet<AbstractExpression>()); 
+    }
+        
+    /**
+     * Get all the AbstractExpression roots used in the given AbstractPlanNode. Non-recursive
+     * @param node
+     * @param exps
+     * @return
+     */
+    public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node, Set<AbstractExpression> exps) {
+        PlannerContext plannerContext = PlannerContext.singleton();
+        
+        switch (node.getPlanNodeType()) {
+            // ---------------------------------------------------
+            // SCANS
+            // ---------------------------------------------------
+            case INDEXSCAN: {
+                IndexScanPlanNode idx_node = (IndexScanPlanNode) node;
+                if (idx_node.getEndExpression() != null)
+                    exps.add(idx_node.getEndExpression());
+                for (AbstractExpression exp : idx_node.getSearchKeyExpressions()) {
+                    if (exp != null) exps.add(exp);
+                } // FOR
+    
+                // Fall through down into SEQSCAN....
             }
-
-        // ---------------------------------------------------
-        // JOINS
-        // ---------------------------------------------------
-        } else if (node instanceof AbstractJoinPlanNode) {
-            AbstractJoinPlanNode join_node = (AbstractJoinPlanNode)node;
-            
-            // Get all the AbstractExpressions used in the predicates for this join
-            if (join_node.getPredicate() != null) exps.add(join_node.getPredicate());
-        }
-
-        // ---------------------------------------------------
-        // AGGREGATE
-        // ---------------------------------------------------
-        else if (node instanceof AggregatePlanNode) {
-            AggregatePlanNode agg_node = (AggregatePlanNode)node;
-            for (Integer col_guid: agg_node.getAggregateColumnGuids()) {
-                PlanColumn col = PlannerContext.singleton().get(col_guid);
-                assert(col != null) : "Invalid PlanColumn #" + col_guid;
-                if (col.getExpression() != null) exps.add(col.getExpression());
-            } // FOR
-            for (Integer col_guid : agg_node.getGroupByColumnIds()) {
-                PlanColumn col = PlannerContext.singleton().get(col_guid);
-                assert(col != null) : "Invalid PlanColumn #" + col_guid;
-                if (col.getExpression() != null) exps.add(col.getExpression());
-            } // FOR
-        
-        // ---------------------------------------------------
-        // ORDER BY
-        // ---------------------------------------------------
-        } else if (node instanceof OrderByPlanNode) {
-            OrderByPlanNode orby_node = (OrderByPlanNode)node;
-            for (Integer col_guid : orby_node.getSortColumnGuids()) {
-                PlanColumn col = PlannerContext.singleton().get(col_guid);
-                assert(col != null) : "Invalid PlanColumn #" + col_guid;
-                if (col.getExpression() != null) exps.add(col.getExpression());
-            } // FOR
-        }
-        
+            case SEQSCAN: {
+                AbstractScanPlanNode scan_node = (AbstractScanPlanNode) node;
+                if (scan_node.getPredicate() != null)
+                    exps.add(scan_node.getPredicate());
+                break;
+            }
+            // ---------------------------------------------------
+            // JOINS
+            // ---------------------------------------------------
+            case NESTLOOP:
+            case NESTLOOPINDEX: {
+                AbstractJoinPlanNode cast_node = (AbstractJoinPlanNode) node;
+                if (cast_node.getPredicate() != null)
+                    exps.add(cast_node.getPredicate());
+    
+                // We always need to look at the inline scan nodes for joins 
+                for (AbstractPlanNode inline_node : cast_node.getInlinePlanNodes().values()) {
+                    if (inline_node instanceof AbstractScanPlanNode) {
+                        PlanNodeUtil.getExpressionsForPlanNode(inline_node, exps);
+                    }
+                } // FOR
+                break;
+            }
+            // ---------------------------------------------------
+            // PROJECTION
+            // ---------------------------------------------------
+            case MATERIALIZE:
+            case PROJECTION: {
+                for (Integer col_guid : node.getOutputColumnGUIDs()) {
+                    PlanColumn col = plannerContext.get(col_guid);
+                    assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                    if (col.getExpression() != null) exps.add(col.getExpression());
+                } // FOR
+                break;
+            }
+            // ---------------------------------------------------
+            // AGGREGATE
+            // ---------------------------------------------------
+            case AGGREGATE:
+            case HASHAGGREGATE: {
+                AggregatePlanNode agg_node = (AggregatePlanNode)node;
+                for (Integer col_guid: agg_node.getAggregateColumnGuids()) {
+                    PlanColumn col = plannerContext.get(col_guid);
+                    assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                    if (col.getExpression() != null) exps.add(col.getExpression());
+                } // FOR
+                for (Integer col_guid : agg_node.getGroupByColumnIds()) {
+                    PlanColumn col = plannerContext.get(col_guid);
+                    assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                    if (col.getExpression() != null) exps.add(col.getExpression());
+                } // FOR
+                break;
+            }
+            // ---------------------------------------------------
+            // ORDERBY
+            // ---------------------------------------------------
+            case ORDERBY: {
+                OrderByPlanNode orby_node = (OrderByPlanNode)node;
+                for (Integer col_guid : orby_node.getSortColumnGuids()) {
+                    PlanColumn col = plannerContext.get(col_guid);
+                    assert(col != null) : "Invalid PlanColumn #" + col_guid;
+                    if (col.getExpression() != null) exps.add(col.getExpression());
+                } // FOR
+                break;
+            }
+            default:
+                // Do nothing...
+        } // SWITCH
         return (exps);
     }
     

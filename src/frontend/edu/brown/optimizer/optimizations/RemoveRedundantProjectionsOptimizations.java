@@ -72,7 +72,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     scan_node.removeInlinePlanNode(PlanNodeType.PROJECTION);
                     
                     if (debug.get())
-                        LOG.debug(String.format("Removed redundant %s from %s\n%s", proj_node, scan_node, PlanNodeUtil.debug(rootNode)));
+                        LOG.debug(String.format("PLANOPT - Removed redundant %s from %s\n%s", proj_node, scan_node, PlanNodeUtil.debug(rootNode)));
                 }
                 
                 // CASE #2
@@ -101,13 +101,13 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                           "Projection element expected 1 child but has " + element.getChildPlanNodeCount() + " children";
                         new_root = element.getChild(0);
                         if (debug.get())
-                            LOG.debug("Promoted " + new_root + " as the new query plan root!");
+                            LOG.debug("PLANOPT - Promoted " + new_root + " as the new query plan root!");
                     }
                     
                     // Off with it's head!
                     element.removeFromGraph();
                     if (debug.get())
-                        LOG.debug("Removed redundant " + element + " from query plan!");
+                        LOG.debug("PLANOPT - Removed redundant " + element + " from query plan!");
                 }
             }
         }.traverse(rootNode);

@@ -500,8 +500,7 @@ public abstract class PlanOptimizerUtil {
         final List<Integer> orig_child_guids = state.orig_node_output.get(child_node);
 
         for (int i = 0, cnt = node.getOutputColumnGUIDCount(); i < cnt; i++) {
-            // Check to make sure that the offset in the tuple value expression
-            // matches
+            // Check to make sure that the offset in the tuple value expression matches
             int orig_guid = node.getOutputColumnGUID(i);
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
@@ -513,8 +512,7 @@ public abstract class PlanOptimizerUtil {
             try {
                 new_exp = (AbstractExpression) orig_pc.getExpression().clone();
             } catch (Exception ex) {
-                LOG.fatal("Unable to clone " + orig_pc, ex);
-                System.exit(1);
+                throw new RuntimeException("Unable to clone " + orig_pc, ex);
             }
 
             new ExpressionTreeWalker() {
@@ -536,15 +534,16 @@ public abstract class PlanOptimizerUtil {
                             new_child_pc = null;
                             new_idx++;
                         } // FOR
-                        if (new_child_pc == null) LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(node));
-                        assert (new_child_pc != null) : String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
+                        if (new_child_pc == null)
+                            LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
+                        assert (new_child_pc != null) : 
+                            String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
                         tv_exp.setColumnIndex(new_idx);
                     }
                 }
             }.traverse(new_exp);
 
-            // Always try make a new PlanColumn and update the
-            // TupleValueExpresion index
+            // Always try make a new PlanColumn and update the TupleValueExpresion index
             // This ensures that we always get the ordering correct
             PlanColumn new_col = state.plannerContext.getPlanColumn(new_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
             assert (new_col != null);
@@ -563,8 +562,7 @@ public abstract class PlanOptimizerUtil {
      */
     public static boolean updateOutputOffsets(final PlanOptimizerState state, AbstractPlanNode node) {
         for (int i = 0, cnt = node.getOutputColumnGUIDCount(); i < cnt; i++) {
-            // Check to make sure that the offset in the tuple value expression
-            // matches
+            // Check to make sure that the offset in the tuple value expression matches
             int orig_guid = node.getOutputColumnGUID(i);
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
@@ -579,8 +577,7 @@ public abstract class PlanOptimizerUtil {
                 assert (new_col != null);
                 node.getOutputColumnGUIDs().set(i, new_col.guid());
             } else  {
-                // Always try make a new PlanColumn and update the
-                // TupleValueExpresion index
+                // Always try make a new PlanColumn and update the TupleValueExpresion index
                 // This ensures that we always get the ordering correct
                 TupleValueExpression orig_exp = (TupleValueExpression) orig_pc.getExpression();
                 int orig_idx = orig_exp.getColumnIndex();
@@ -612,7 +609,7 @@ public abstract class PlanOptimizerUtil {
      * @param node
      * @return
      */
-    public static boolean updateJoinsColumns(final PlanOptimizerState state, AbstractJoinPlanNode node) {
+    public static boolean updateJoinsColumns(final PlanOptimizerState state, final AbstractJoinPlanNode node) {
 
         // There's always going to be two input tables. One is always going to come
         // from a child node, while the second may come from a child node *or* directly from
@@ -651,7 +648,7 @@ public abstract class PlanOptimizerUtil {
                 //new_output_guids.add(orig_col_guid);
                 sorted_new_output_guids.put(new_idx, orig_col_guid);
                 if (debug.get())
-                    LOG.debug(String.format("OUTER OFFSET %d => %d", orig_idx, new_idx));
+                    LOG.debug(String.format("[%02d] Remapped PlanColumn to new offset %02d", orig_idx, new_idx));
 
                 // Check whether we even have this column. We'll compare
                 // everything but the Expression
@@ -669,8 +666,7 @@ public abstract class PlanOptimizerUtil {
                     new_idx++;
                 } // FOR
 
-                // If we have this PlanColumn, then we need to clone it and set
-                // the new column index
+                // If we have this PlanColumn, then we need to clone it and set the new column index
                 // Make sure that we replace update outer_new_input_guids
                 if (new_pc != null) {
                     assert (new_idx != -1);
@@ -696,17 +692,21 @@ public abstract class PlanOptimizerUtil {
             if (new_idx != null) {
                 assert (offset_xref.containsKey(orig_idx) == false) : orig_idx + " ==> " + offset_xref;
                 offset_xref.put(orig_idx, new_idx);
-            } else {
+            }
+            // Just because we couldn't find the offset doesn't mean it's a bad thing
+            // It might be because we projected those columns out down below in the tree
+            // and therefore we don't need to worry about them anymore.
+            else {
                 String msg = String.format("[%02d] Failed to find new offset for OUTER %s", orig_idx, orig_pc);
                 sb.append(msg).append("\n");
                 if (debug.get())
                     LOG.warn(msg);
             }
         } // FOR
-        if (trace.get())
+        if (trace.get()) {
             LOG.trace("Original Outer Input GUIDs: " + outer_orig_input_guids);
-        if (trace.get())
             LOG.trace("New Outer Input GUIDs:      " + outer_new_input_guids);
+        }
         if (outer_new_input_guids.size() != offset_xref.size()) {
             LOG.error("Outer Node: " + outer_node);
 
@@ -865,9 +865,9 @@ public abstract class PlanOptimizerUtil {
             expressions_to_fix.addAll(PlanNodeUtil.getExpressionsForPlanNode(idx_node));
             //System.out.println("expressions_to_fix: " + expressions_to_fix);
         }
-        if (trace.get()) {
-            LOG.trace("Output Xref Offsets:      " + offset_xref);
-            LOG.trace("New Output Columns GUIDS: " + sorted_new_output_guids);
+        if (debug.get()) {
+            LOG.debug("Output Xref Offsets:      " + offset_xref);
+            LOG.debug("New Output Columns GUIDS: " + sorted_new_output_guids);
         }
 
         // Get all of the AbstractExpression roots for this node
@@ -886,12 +886,17 @@ public abstract class PlanOptimizerUtil {
                         // column in the original inner input), and s
 
                         Integer new_idx = offset_xref.get(orig_idx);
-                        if (new_idx == null)
+                        if (new_idx == null) {
+                            LOG.debug(PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
                             LOG.debug(state.plannerContext.debug());
-                        assert (new_idx != null) : "Missing Offset: " + ExpressionUtil.debug(tv_exp);
-                        if (debug.get())
-                            LOG.debug(String.format("Changing %s.%s [%d ==> %d]", tv_exp.getTableName(), tv_exp.getColumnName(), orig_idx, new_idx));
+                        }
+                        assert (new_idx != null) :
+                            String.format("Missing New Offset of Original Offset %02d:\n%s",
+                                          orig_idx, ExpressionUtil.debug(tv_exp));
                         if (orig_idx != new_idx) {
+                            if (debug.get())
+                                LOG.debug(String.format("Changing offset for %s.%s [%d ==> %d]",
+                                                        tv_exp.getTableName(), tv_exp.getColumnName(), orig_idx, new_idx));
                             tv_exp.setColumnIndex(new_idx);
                         }
 

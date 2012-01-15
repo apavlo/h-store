@@ -35,7 +35,7 @@ public class PlanOptimizerState {
      * All the columns a plan node references
      */
     protected final Map<AbstractPlanNode, Set<Column>> planNodeColumns = new HashMap<AbstractPlanNode, Set<Column>>();
-
+    
     /**
      * All referenced columns for a given table
      */
@@ -56,6 +56,9 @@ public class PlanOptimizerState {
      */
     public final Map<AbstractPlanNode, List<Integer>> orig_node_output = new HashMap<AbstractPlanNode, List<Integer>>();
 
+    
+    
+    
     /**
      * AbstractPlanNode -> TableNames
      */
