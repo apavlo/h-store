@@ -281,7 +281,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         
         System.err.println("COLUMNS: " + multicolumns);
         for (int i = 0; i < expected.length; i++) {
-            assertEquals(expected[i], mc.get(i));
+            assertEquals(mc.toString(), expected[i], mc.get(i));
         } // FOR
     }
     
