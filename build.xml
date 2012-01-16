@@ -863,6 +863,8 @@ TEST CASES
             <fileset dir='${build.test.dir}'>
             	<include name='edu/brown/hstore/Test*.class'/>
             	<include name='edu/brown/hstore/**/Test*.class'/>
+                <include name='edu/brown/catalog/Test*.class'/>
+                
                 <include name='org/hsqldb/**/Test*.class'/>
                 <include name='org/voltdb/**/Test*.class'/>
             	
