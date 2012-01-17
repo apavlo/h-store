@@ -688,7 +688,7 @@ public class SEATSLoader extends SEATSBaseClient {
         private CustomerId last_id = null;
         
         public CustomerIterable(Table catalog_tbl, long total) {
-            super(catalog_tbl, total, new int[]{ 0, 1, 2 });
+            super(catalog_tbl, total, new int[]{ 0, 1, 2, 3 });
             
             // Use the flights per airport histogram to select where people are located
             Histogram<String> histogram = SEATSLoader.this.getHistogram(SEATSConstants.HISTOGRAM_FLIGHTS_PER_AIRPORT);  
@@ -766,7 +766,7 @@ public class SEATSLoader extends SEATSBaseClient {
         private final Collection<String> all_airlines;
         
         public FrequentFlyerIterable(Table catalog_tbl, long num_customers, int max_per_customer) {
-            super(catalog_tbl, num_customers, new int[]{ 0, 1 });
+            super(catalog_tbl, num_customers, new int[]{ 0, 1, 2 });
             
             this.customer_id_iterator = new CustomerIdIterable(profile.airport_max_customer_id).iterator();
             this.last_customer_id = this.customer_id_iterator.next();
@@ -821,6 +821,11 @@ public class SEATSLoader extends SEATSBaseClient {
                     } while (this.customer_airlines.contains(value));
                     this.customer_airlines.add((String)value);
                     if (trace.get()) LOG.trace(this.last_customer_id + " => " + value);
+                    break;
+                }
+                // CUSTOMER_ID_STR
+                case (2): {
+                    value = Long.toString(this.last_customer_id.encode());
                     break;
                 }
                 // BAD MOJO!

@@ -91,7 +91,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
          * The set of Columns that read-only in each Statement
          * Statement -> Set<Column>
          */
-        public final Map<Statement, Set<Column>> STATEMENT_READONLY_COLUMNS = new HashMap<Statement, Set<Column>>();
+        public final Map<Statement, Collection<Column>> STATEMENT_READONLY_COLUMNS = new HashMap<Statement, Collection<Column>>();
         /**
          * The set of Columns that are used in the ORDER BY clause of the query
          * Statement -> Set<Column>
@@ -1251,8 +1251,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (ret == null) {
             final Database catalog_db = CatalogUtil.getDatabase(catalog_stmt);
             ret = new ListOrderedSet<Column>();
-            Set<Column> modified = new ListOrderedSet<Column>();
-            Set<Column> readOnly = new ListOrderedSet<Column>();
+            
+            CatalogFieldComparator<Column> comparator = new CatalogFieldComparator<Column>("index");
+            Set<Column> modified = new TreeSet<Column>(comparator);
+            Set<Column> readOnly = new TreeSet<Column>(comparator);
 
             // 2010-07-14: Always use the AbstractPlanNodes from the PlanFragments to figure out
             // what columns the query touches. It's more accurate because we will pick apart plan nodes
@@ -1302,7 +1304,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         if (debug.get()) LOG.debug("Extracting read-only columns from statement " + CatalogUtil.getDisplayName(catalog_stmt));
         
         final CatalogUtil.Cache cache = CatalogUtil.getCatalogCache(catalog_stmt);
-        Set<Column> ret = cache.STATEMENT_READONLY_COLUMNS.get(catalog_stmt);
+        Collection<Column> ret = cache.STATEMENT_READONLY_COLUMNS.get(catalog_stmt);
         if (ret == null) {
             CatalogUtil.getReferencedColumns(catalog_stmt);
             ret = cache.STATEMENT_READONLY_COLUMNS.get(catalog_stmt);
