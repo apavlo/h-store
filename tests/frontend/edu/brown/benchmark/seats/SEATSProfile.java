@@ -61,7 +61,7 @@ public class SEATSProfile {
     /**
      * Data Scale Factor
      */
-    public double scale_factor;
+    protected double scale_factor;
     /**
      * For each airport id, store the last id of the customer that uses this airport
      * as their local airport. The customer ids will be stored as follows in the dbms:

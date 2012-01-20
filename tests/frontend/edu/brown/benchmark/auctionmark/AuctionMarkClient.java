@@ -31,6 +31,7 @@
  ***************************************************************************/
 package edu.brown.benchmark.auctionmark;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,18 +51,21 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile.QueueType;
+import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CompositeId;
 import edu.brown.utils.StringUtil;
 
-public class AuctionMarkClient extends AuctionMarkBaseClient {
+public class AuctionMarkClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -69,6 +73,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    protected final AuctionMarkProfile profile;
     
     /**
      * TODO
@@ -160,23 +165,23 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 int rand;
                 
                 // USER_FEEDBACK records
-                rand = client.rng.number(0, 100);
+                rand = client.profile.rng.number(0, 100);
                 long get_feedback = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_FEEDBACK ? 1 : VoltType.NULL_BIGINT); 
 
                 // ITEM_COMMENT records
-                rand = client.rng.number(0, 100);
+                rand = client.profile.rng.number(0, 100);
                 long get_comments = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_COMMENTS ? 1 : VoltType.NULL_BIGINT);
                 
                 // Seller ITEM records
-                rand = 100; // client.rng.number(0, 100);
+                rand = 100; // client.profile.rng.number(0, 100);
                 long get_seller_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_SELLER_ITEMS ? 1 : VoltType.NULL_BIGINT); 
 
                 // Buyer ITEM records
-                rand = 100; // client.rng.number(0, 100);
+                rand = 100; // client.profile.rng.number(0, 100);
                 long get_buyer_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_BUYER_ITEMS ? 1 : VoltType.NULL_BIGINT);
                 
                 // USER_WATCH records
-                rand = 100; // client.rng.number(0, 100);
+                rand = 100; // client.profile.rng.number(0, 100);
                 long get_watched_items = (rand <= AuctionMarkConstants.PROB_GETUSERINFO_INCLUDE_WATCHED_ITEMS ? 1 : VoltType.NULL_BIGINT); 
                 
                 return new Object[] { client.getTimestampParameterArray(),
@@ -210,7 +215,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 // Some NEW_BIDs will be for items that have already ended.
                 // This will simulate somebody trying to bid at the very end but failing
                 if ((has_waiting || has_completed) &&
-                    (client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM || has_available == false)) {
+                    (client.profile.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM || has_available == false)) {
                     if (has_waiting) {
                         itemInfo = client.profile.getRandomWaitForPurchaseItem();
                         assert(itemInfo != null) : "Failed to get WaitForPurchase itemInfo [" + client.profile.getWaitForPurchaseItemsCount() + "]";
@@ -223,7 +228,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     
                     // The bid/maxBid do not matter because they won't be able to actually
                     // update the auction
-                    bid = client.rng.nextDouble();
+                    bid = client.profile.rng.nextDouble();
                     maxBid = bid + 100;
                 }
                 
@@ -231,7 +236,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 else {
                     assert(has_available || has_ending);
                     // 50% of NEW_BIDS will be for items that are ending soon
-                    if ((has_ending && client.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM) || has_available == false) {
+                    if ((has_ending && client.profile.rng.number(1, 100) <= AuctionMarkConstants.PROB_NEWBID_CLOSED_ITEM) || has_available == false) {
                         itemInfo = client.profile.getRandomEndingSoonItem(true);
                     }
                     if (itemInfo == null) {
@@ -245,8 +250,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                     buyerId = client.profile.getRandomBuyerId(sellerId);
                     
                     double currentPrice = itemInfo.getCurrentPrice();
-                    bid = client.rng.fixedPoint(2, currentPrice, currentPrice * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2)));
-                    maxBid = client.rng.fixedPoint(2, bid, (bid * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2))));
+                    bid = client.profile.rng.fixedPoint(2, currentPrice, currentPrice * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2)));
+                    maxBid = client.profile.rng.fixedPoint(2, bid, (bid * (1 + (AuctionMarkConstants.ITEM_BID_PERCENT_STEP / 2))));
                 }
 
                 return new Object[] { client.getTimestampParameterArray(),
@@ -266,7 +271,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 ItemInfo itemInfo = client.profile.getRandomCompleteItem();
                 UserId sellerId = itemInfo.getSellerId();
                 UserId buyerId = client.profile.getRandomBuyerId(sellerId);
-                String question = client.rng.astring(10, 128);
+                String question = client.profile.rng.astring(10, 128);
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, sellerId, buyerId, question };
             }
@@ -281,14 +286,14 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
         NEW_COMMENT_RESPONSE(AuctionMarkConstants.FREQUENCY_NEW_COMMENT_RESPONSE, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-                Collections.shuffle(client.pending_commentResponse, client.rng);
+                Collections.shuffle(client.pending_commentResponse, client.profile.rng);
                 long row[] = client.pending_commentResponse.remove(0);
                 assert(row != null);
                 
                 long commentId = row[0];
                 ItemId itemId = new ItemId(row[1]);
                 UserId sellerId = itemId.getSellerId();
-                String response = client.rng.astring(10, 128);
+                String response = client.profile.rng.astring(10, 128);
 
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemId, sellerId, commentId, response };
@@ -307,8 +312,8 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 ItemInfo itemInfo = client.profile.getRandomCompleteItem();
                 UserId sellerId = itemInfo.getSellerId();
                 UserId buyerId = client.profile.getRandomBuyerId(sellerId);
-                long rating = (long) client.rng.number(-1, 1);
-                String feedback = client.rng.astring(10, 80);
+                long rating = (long) client.profile.rng.number(-1, 1);
+                String feedback = client.profile.rng.astring(10, 80);
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, sellerId, buyerId, rating, feedback };
             }
@@ -326,12 +331,12 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 UserId sellerId = client.profile.getRandomSellerId(client.getClientId());
                 ItemId itemId = client.getNextItemId(sellerId);
 
-                String name = client.rng.astring(6, 32);
-                String description = client.rng.astring(50, 255);
+                String name = client.profile.rng.astring(6, 32);
+                String description = client.profile.rng.astring(50, 255);
                 long categoryId = client.profile.getRandomCategoryId();
 
                 Double initial_price = (double) client.profile.randomInitialPrice.nextInt();
-                String attributes = client.rng.astring(50, 255);
+                String attributes = client.profile.rng.astring(50, 255);
 
                 int numAttributes = client.profile.randomNumAttributes.nextInt();
                 List<Long> gagList = new ArrayList<Long>(numAttributes);
@@ -356,7 +361,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 int numImages = client.profile.randomNumImages.nextInt();
                 String[] images = new String[numImages];
                 for (int i = 0; i < numImages; i++) {
-                    images[i] = client.rng.astring(20, 100);
+                    images[i] = client.profile.rng.astring(20, 100);
                 } // FOR
 
                 long duration = client.profile.randomDuration.nextInt();
@@ -383,7 +388,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 
                 // Whether the buyer will not have enough money
                 if (itemInfo.hasCurrentPrice()) {
-                    if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY) {
+                    if (client.profile.rng.number(1, 100) < AuctionMarkConstants.PROB_NEW_PURCHASE_NOT_ENOUGH_MONEY) {
                         buyer_credit = -1 * itemInfo.getCurrentPrice();
                     } else {
                         buyer_credit = itemInfo.getCurrentPrice();
@@ -406,7 +411,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             public Object[] generateParams(AuctionMarkClient client) {
                 ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
                 UserId sellerId = itemInfo.getSellerId();
-                String description = client.rng.astring(50, 255);
+                String description = client.profile.rng.astring(50, 255);
                 
                 long delete_attribute = VoltType.NULL_BIGINT;
                 long add_attribute[] = {
@@ -415,11 +420,11 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
                 };
                 
                 // Delete ITEM_ATTRIBUTE
-                if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_DELETE_ATTRIBUTE) {
+                if (client.profile.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_DELETE_ATTRIBUTE) {
                     delete_attribute = 1;
                 }
                 // Add ITEM_ATTRIBUTE
-                else if (client.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_ADD_ATTRIBUTE) {
+                else if (client.profile.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_ADD_ATTRIBUTE) {
                     Pair<Long, Long> gag_gav = client.profile.getRandomGAGIdGAVIdPair();
                     assert(gag_gav != null);
                     add_attribute[0] = gag_gav.getFirst();
@@ -530,7 +535,50 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
      * @param args
      */
     public AuctionMarkClient(String[] args) {
-        super(AuctionMarkClient.class, args);
+        super(args);
+        
+        int seed = 0;
+        String randGenClassName = DefaultRandomGenerator.class.getName();
+        String randGenProfilePath = null;
+        Integer temporal_window = null;
+        Integer temporal_total = null;
+        
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
+
+            // Random Generator Seed
+            if (key.equalsIgnoreCase("RANDOMSEED")) {
+                seed = Integer.parseInt(value);
+            }
+            // Random Generator Class
+            else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
+                randGenClassName = value;
+            }
+            // Random Generator Profile File
+            else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
+                randGenProfilePath = value;
+            }
+            // Temporal Skew
+            else if (key.equalsIgnoreCase("TEMPORALWINDOW")) {
+                assert(m_extraParams.containsKey("TEMPORALTOTAL")) : "Missing TEMPORALTOTAL parameter";
+                temporal_window = Integer.valueOf(m_extraParams.get("TEMPORALWINDOW"));
+                temporal_total = Integer.valueOf(m_extraParams.get("TEMPORALTOTAL"));
+            }
+        } // FOR
+        
+        // Random Generator
+        AbstractRandomGenerator rng = null;
+        try {
+            rng = AbstractRandomGenerator.factory(randGenClassName, seed);
+            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
+        
+        // BenchmarkProfile
+        profile = new AuctionMarkProfile(rng, getNumClients());
+        profile.loadProfile(this);
         
         // Initialize Default Weights
         for (Transaction t : Transaction.values()) {
@@ -621,7 +669,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             }
             // Otherwise randomly pick a transaction based on their distribution weights
             else {
-                int idx = this.rng.number(0, this.xacts.length - 1);
+                int idx = profile.rng.number(0, this.xacts.length - 1);
                 if (trace.get()) {
                     LOG.trace("idx = " + idx);
                     LOG.trace("random txn = " + this.xacts[idx].getDisplayName());
@@ -686,7 +734,7 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
     protected abstract class BaseCallback implements ProcedureCallback {
         final Transaction txn;
         final Object params[];
-        final Histogram<QueueType> updated = new Histogram<QueueType>();
+        final Histogram<ItemStatus> updated = new Histogram<ItemStatus>();
         
         public BaseCallback(Transaction txn, Object params[]) {
             this.txn = txn;
@@ -728,21 +776,21 @@ public class AuctionMarkClient extends AuctionMarkBaseClient {
             short numBids = (short)vt.getLong("i_num_bids");
             double currentPrice = vt.getDouble("i_current_price");
             ItemInfo itemInfo = new ItemInfo(itemId, currentPrice, endDate, numBids);
-            if (vt.hasColumn("ip_id")) itemInfo.status = AuctionMarkConstants.ITEM_STATUS_CLOSED;
-            if (vt.hasColumn("i_status")) itemInfo.status = vt.getLong("i_status");
+            if (vt.hasColumn("ip_id")) itemInfo.status = ItemStatus.CLOSED;
+            if (vt.hasColumn("i_status")) itemInfo.status = ItemStatus.get(vt.getLong("i_status"));
             
             UserId sellerId = new UserId(vt.getLong("i_u_id"));
             assert (itemId.getSellerId().equals(sellerId));
             
-            QueueType qtype = profile.addItemToProperQueue(itemInfo, false);
+            ItemStatus qtype = profile.addItemToProperQueue(itemInfo, false);
             this.updated.put(qtype);
 
             return (itemId);
         }
         @Override
         public String toString() {
-            String cnts[] = new String[QueueType.values().length];
-            for (QueueType qtype : QueueType.values()) {
+            String cnts[] = new String[ItemStatus.values().length];
+            for (ItemStatus qtype : ItemStatus.values()) {
                 cnts[qtype.ordinal()] = String.format("%s=+%d", qtype, updated.get(qtype, 0));
             }
             return String.format("%s :: %s", this.txn, StringUtil.join(", ", cnts));

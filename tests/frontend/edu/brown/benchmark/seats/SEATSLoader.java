@@ -1003,13 +1003,14 @@ public class SEATSLoader extends SEATSBaseClient {
                 TimestampType date = new TimestampType(_date);
                 if (first) {
                     this.start_date = date;
-                    SEATSLoader.this.setFlightStartDate(date);
                     first = false;
                 }
                 int num_flights = (int)Math.ceil(gaussian.nextInt() / getScaleFactor());
                 this.flights_per_day.put(date, num_flights);
                 this.total += num_flights;
             } // FOR
+            if (this.start_date == null) this.start_date = this.today;
+            SEATSLoader.this.setFlightStartDate(this.start_date);
             
             // This is for upcoming flights that we want to be able to schedule
             // new reservations for in the benchmark

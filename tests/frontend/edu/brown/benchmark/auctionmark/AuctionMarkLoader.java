@@ -34,7 +34,14 @@ package edu.brown.benchmark.auctionmark;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -45,21 +52,29 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTypeUtil;
 
+import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.benchmark.auctionmark.util.AuctionMarkCategoryParser;
+import edu.brown.benchmark.auctionmark.util.AuctionMarkUtil;
 import edu.brown.benchmark.auctionmark.util.Category;
 import edu.brown.benchmark.auctionmark.util.ItemId;
-import edu.brown.benchmark.auctionmark.util.ItemInfo;
+import edu.brown.benchmark.auctionmark.util.LoaderItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.rand.AbstractRandomGenerator;
+import edu.brown.rand.DefaultRandomGenerator;
 import edu.brown.rand.RandomDistribution.Flat;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
@@ -68,20 +83,28 @@ import edu.brown.utils.CompositeId;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObservableExceptionHandler;
 import edu.brown.utils.EventObserver;
-import edu.brown.utils.StringUtil;
 
 /**
  * 
  * @author pavlo
  * @author visawee
  */
-public class AuctionMarkLoader extends AuctionMarkBaseClient {
+public class AuctionMarkLoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(AuctionMarkLoader.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    protected final AuctionMarkProfile profile;
+    
+    /**
+     * Base catalog objects that we can reference to figure out how to access
+     */
+    protected final Catalog catalog;
+    protected final Database catalog_db;
+
     
     /**
      * Data Generator Classes
@@ -94,108 +117,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
     /** The set of tables that we have finished loading **/
     private final transient Collection<String> finished = new HashSet<String>();
 
-    
-    public static class LoaderItemInfo extends ItemInfo {
-        private final List<Bid> bids = new ArrayList<Bid>();
-        private Histogram<UserId> bidderHistogram = new Histogram<UserId>();
-        
-        public short numImages;
-        public short numAttributes;
-        public short numComments;
-        public short numWatches;
-        public TimestampType startDate;
-        public TimestampType purchaseDate;
-        public float initialPrice;
-        public UserId sellerId;
-        public UserId lastBidderId; // if null, then no bidder
-
-        public LoaderItemInfo(ItemId id, TimestampType endDate, int numBids) {
-            super(id, null, endDate, numBids);
-            this.numImages = 0;
-            this.numAttributes = 0;
-            this.numComments = 0;
-            this.numWatches = 0;
-            this.startDate = null;
-            this.purchaseDate = null;
-            this.initialPrice = 0;
-            this.sellerId = null;
-            this.lastBidderId = null;
-        }
-        
-        public int getBidCount() {
-            return (this.bids.size());
-        }
-        public Bid getNextBid(long id, UserId bidder_id) {
-            assert(bidder_id != null);
-            Bid b = new Bid(id, bidder_id);
-            this.bids.add(b);
-            assert(this.bids.size() <= this.numBids);
-            this.bidderHistogram.put(bidder_id);
-            assert(this.bids.size() == this.bidderHistogram.getSampleCount());
-            return (b);
-        }
-        public Bid getLastBid() {
-            return (CollectionUtil.last(this.bids));
-        }
-        public Histogram<UserId> getBidderHistogram() {
-            return bidderHistogram;
-        }
-        
-        @Override
-        public String toString() {
-            Class<?> hints_class = this.getClass();
-            ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
-            for (Field f : hints_class.getDeclaredFields()) {
-                String key = f.getName().toUpperCase();
-                Object val = null;
-                try {
-                    val = f.get(this);
-                } catch (IllegalAccessException ex) {
-                    val = ex.getMessage();
-                }
-                m.put(key, val);
-            } // FOR
-            return (StringUtil.formatMaps(m));
-        }
-        
-        public class Bid {
-            public final long id;
-            public final UserId bidderId;
-            public float maxBid;
-            public TimestampType createDate;
-            public TimestampType updateDate;
-            public boolean buyer_feedback = false;
-            public boolean seller_feedback = false;
-
-            private Bid(long id, UserId bidderId) {
-                this.id = id;
-                this.bidderId = bidderId;
-                this.maxBid = 0;
-                this.createDate = null;
-                this.updateDate = null;
-            }
-            
-            public LoaderItemInfo getLoaderItemInfo() {
-                return (LoaderItemInfo.this);
-            }
-            @Override
-            public String toString() {
-                Class<?> hints_class = this.getClass();
-                ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
-                for (Field f : hints_class.getDeclaredFields()) {
-                    String key = f.getName().toUpperCase();
-                    Object val = null;
-                    try {
-                        val = f.get(this);
-                    } catch (IllegalAccessException ex) {
-                        val = ex.getMessage();
-                    }
-                    m.put(key, val);
-                } // FOR
-                return (StringUtil.formatMaps(m));
-            }
-        } // END CLASS
-    } // END CLASS
     
     /**
      * 
@@ -212,16 +133,90 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
      * @param args
      */
     public AuctionMarkLoader(String[] args) {
-        super(AuctionMarkLoader.class, args);
+        super(args);
 
-        if (debug.get()) LOG.debug("AuctionMarkLoader::: numClients = " + this.getNumClients());
+        if (debug.get())
+            LOG.debug("AuctionMarkLoader::: numClients = " + this.getNumClients());
+        
+        int seed = 0;
+        String randGenClassName = DefaultRandomGenerator.class.getName();
+        String randGenProfilePath = null;
+        File dataDir = null;
+        Integer temporal_window = null;
+        Integer temporal_total = null;
+        
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
+
+            // Random Generator Seed
+            if (key.equalsIgnoreCase("RANDOMSEED")) {
+                seed = Integer.parseInt(value);
+            }
+            // Random Generator Class
+            else if (key.equalsIgnoreCase("RANDOMGENERATOR")) {
+                randGenClassName = value;
+            }
+            // Random Generator Profile File
+            else if (key.equalsIgnoreCase("RANDOMPROFILE")) {
+                randGenProfilePath = value;
+            }
+            // Data directory
+            else if (key.equalsIgnoreCase("DATADIR")) {
+                dataDir = new File(value);
+            }
+            // Temporal Skew
+            else if (key.equalsIgnoreCase("TEMPORALWINDOW")) {
+                assert(m_extraParams.containsKey("TEMPORALTOTAL")) : "Missing TEMPORALTOTAL parameter";
+                temporal_window = Integer.valueOf(m_extraParams.get("TEMPORALWINDOW"));
+                temporal_total = Integer.valueOf(m_extraParams.get("TEMPORALTOTAL"));
+            }
+        } // FOR
+        
+        // Random Generator
+        AbstractRandomGenerator rng = null;
+        try {
+            rng = AbstractRandomGenerator.factory(randGenClassName, seed);
+            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
+        }
+        
+        HStoreConf hstore_conf = this.getHStoreConf();
+        
+        // Data Directory Path
+        if (dataDir == null) dataDir = AuctionMarkUtil.getDataDirectory();
+        assert(dataDir != null);
+        
+        // BenchmarkProfile
+        profile = new AuctionMarkProfile(rng, getNumClients());
+        profile.setDataDirectory(dataDir);
+        profile.setAndGetBenchmarkStartTime();
+        profile.setScaleFactor(hstore_conf.client.scalefactor);
+        
+        // Temporal Skew
+        if (temporal_window != null && temporal_window > 0) {
+            profile.enableTemporalSkew(temporal_window, temporal_total);
+            LOG.info(String.format("Enabling temporal skew [window=%d, total=%d]", temporal_window, temporal_total));
+        }
+        
+        // Catalog
+        Catalog _catalog = null;
+        try {
+            _catalog = this.getCatalog();
+        } catch (Exception ex) {
+            LOG.error("Failed to retrieve already compiled catalog", ex);
+            System.exit(1);
+        }
+        this.catalog = _catalog;
+        this.catalog_db = CatalogUtil.getDatabase(this.catalog);
         
         // ---------------------------
         // Fixed-Size Table Generators
         // ---------------------------
         
         this.registerGenerator(new RegionGenerator());
-        this.registerGenerator(new CategoryGenerator(new File(this.data_directory, "categories.txt")));
+        this.registerGenerator(new CategoryGenerator(new File(profile.data_directory.getAbsolutePath() + "/categories.txt")));
         this.registerGenerator(new GlobalAttributeGroupGenerator());
         this.registerGenerator(new GlobalAttributeValueGenerator());
 
@@ -303,9 +298,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             }
         }
         
-        this.saveProfile();
+        profile.saveProfile(this);
         LOG.info("Finished generating data for all tables");
-        if (debug.get()) LOG.debug("Table Sizes:\n" + profile.table_sizes);
+        if (debug.get()) LOG.debug("Table Sizes:\n" + this.getTableTupleCounts());
     }
 
     /**
@@ -328,7 +323,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         // Mark as finished
         generator.markAsFinished();
         this.finished.add(tableName);
-        LOG.info(String.format("*** FINISH %s - %d tuples - [%d / %d]", tableName, this.profile.getTableSize(tableName), this.finished.size(), this.generators.size()));
+        LOG.info(String.format("*** FINISH %s - %d tuples - [%d / %d]", tableName, this.getTableTupleCount(tableName), this.finished.size(), this.generators.size()));
         if (debug.get()) {
             LOG.debug("Remaining Tables: " + CollectionUtils.subtract(this.generators.keySet(), this.finished));
         }
@@ -369,7 +364,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
          */
         public AbstractTableGenerator(String tableName, String...dependencies) {
             this.tableName = tableName;
-            this.catalog_tbl = AuctionMarkLoader.this.getTableCatalog(tableName);
+            this.catalog_tbl = catalog_db.getTables().get(tableName);
             assert(catalog_tbl != null) : "Invalid table name '" + tableName + "'";
             
             boolean fixed_size = AuctionMarkConstants.FIXED_TABLES.contains(catalog_tbl.getName());
@@ -471,7 +466,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             if (trace.get())
                 LOG.trace(String.format("%s: Updating %d sub-generators with %s: %s",
                                         this.tableName, this.sub_generators.size(), obj, this.sub_generators));
-            for (SubTableGenerator sub_generator : this.sub_generators) {
+            for (@SuppressWarnings("rawtypes") SubTableGenerator sub_generator : this.sub_generators) {
                 sub_generator.queue(obj);
             } // FOR
         }
@@ -495,13 +490,13 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // STRINGS
             for (Column catalog_col : this.random_str_cols) {
                 int size = catalog_col.getSize();
-                row[catalog_col.getIndex()] = rng.astring(rng.nextInt(size - 1), size);
+                row[catalog_col.getIndex()] = profile.rng.astring(profile.rng.nextInt(size - 1), size);
                 cols++;
             } // FOR
             
             // INTEGER
             for (Column catalog_col : this.random_int_cols) {
-                row[catalog_col.getIndex()] = rng.number(0, 1<<30);
+                row[catalog_col.getIndex()] = profile.rng.number(0, 1<<30);
                 cols++;
             } // FOR
             
@@ -593,8 +588,6 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         }
 
         public void markAsFinished() {
-            profile.addToTableSize(tableName, getTableTupleCount(tableName));
-            
         	this.latch.countDown();
             for (SubTableGenerator<?> sub_generator : this.sub_generators) {
                 sub_generator.stopWhenEmpty();
@@ -715,7 +708,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // R_ID
             this.row[col++] = new Integer((int) this.count);
             // R_NAME
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(6, 32);
+            this.row[col++] = profile.rng.astring(6, 32);
             
             return (col);
         }
@@ -787,7 +780,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         @Override
         public void init() {
             // Grab the number of CATEGORY items that we have inserted
-            this.num_categories = AuctionMarkLoader.this.profile.getTableSize(AuctionMarkConstants.TABLENAME_CATEGORY);
+            this.num_categories = AuctionMarkLoader.this.getTableTupleCount(AuctionMarkConstants.TABLENAME_CATEGORY);
         }
         @Override
         protected int populateRow() {
@@ -796,9 +789,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // GAG_ID
             this.row[col++] = new Integer((int) this.count);
             // GAG_C_ID
-            this.row[col++] = AuctionMarkLoader.this.rng.number(0, (int)this.num_categories);
+            this.row[col++] = profile.rng.number(0, (int)this.num_categories);
             // GAG_NAME
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(6, 32);
+            this.row[col++] = profile.rng.astring(6, 32);
             
             return (col);
         }
@@ -814,7 +807,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         public GlobalAttributeValueGenerator() {
             super(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE,
                   AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
-            this.zipf = new Zipf(AuctionMarkLoader.this.rng, 0, (int) AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_GROUP, 1.001);
+            this.zipf = new Zipf(profile.rng, 0, (int) AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_GROUP, 1.001);
         }
 
         @Override
@@ -835,7 +828,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // GAV_GAG_ID
             this.row[col++] = GAV_GAG_ID;
             // GAV_NAME
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(6, 32);
+            this.row[col++] = profile.rng.astring(6, 32);
             
             return (col);
         }
@@ -853,10 +846,10 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         public UserGenerator() {
             super(AuctionMarkConstants.TABLENAME_USER,
                   AuctionMarkConstants.TABLENAME_REGION);
-            this.randomRegion = new Flat(AuctionMarkLoader.this.rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION);
-            this.randomRating = new Zipf(AuctionMarkLoader.this.rng, AuctionMarkConstants.USER_MIN_RATING,
+            this.randomRegion = new Flat(profile.rng, 0, (int) AuctionMarkConstants.TABLESIZE_REGION);
+            this.randomRating = new Zipf(profile.rng, AuctionMarkConstants.USER_MIN_RATING,
                                                                      AuctionMarkConstants.USER_MAX_RATING, 1.0001);
-            this.randomBalance = new Zipf(AuctionMarkLoader.this.rng, AuctionMarkConstants.USER_MIN_BALANCE,
+            this.randomBalance = new Zipf(profile.rng, AuctionMarkConstants.USER_MIN_BALANCE,
                                                                       AuctionMarkConstants.USER_MAX_BALANCE, 1.001);
         }
 
@@ -865,7 +858,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // Populate the profile's users per item count histogram so that we know how many
             // items that each user should have. This will then be used to calculate the
             // the user ids by placing them into numeric ranges
-            Zipf randomNumItems = new Zipf(rng,
+            Zipf randomNumItems = new Zipf(profile.rng,
                                            AuctionMarkConstants.ITEM_MIN_ITEMS_PER_SELLER,
                                            Math.round(AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER / profile.getScaleFactor()),
                                            1.001);
@@ -918,8 +911,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             super(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES,
                   AuctionMarkConstants.TABLENAME_USER);
             
-            this.randomNumUserAttributes = new Zipf(rng, AuctionMarkConstants.USER_MIN_ATTRIBUTES,
-                                                         AuctionMarkConstants.USER_MAX_ATTRIBUTES, 1.001);
+            this.randomNumUserAttributes = new Zipf(profile.rng,
+                                                    AuctionMarkConstants.USER_MIN_ATTRIBUTES,
+                                                    AuctionMarkConstants.USER_MAX_ATTRIBUTES, 1.001);
         }
         @Override
         protected short getElementCounter(UserId user_id) {
@@ -934,9 +928,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // UA_U_ID
             this.row[col++] = user_id;
             // UA_NAME
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(5, 32);
+            this.row[col++] = profile.rng.astring(5, 32);
             // UA_VALUE
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(5, 32);
+            this.row[col++] = profile.rng.astring(5, 32);
             // U_CREATED
             this.row[col++] = VoltTypeUtil.getRandomValue(VoltType.TIMESTAMP);
             
@@ -988,11 +982,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             //LOG.info("endDate = " + endDate + " : startDate = " + startDate);
             long bidDurationDay = ((endDate.getTime() - startDate.getTime()) / AuctionMarkConstants.MICROSECONDS_IN_A_DAY);
             if (this.item_bid_watch_zipfs.containsKey(bidDurationDay) == false) {
-                Zipf randomNumBids = new Zipf(AuctionMarkLoader.this.rng,
+                Zipf randomNumBids = new Zipf(profile.rng,
                         AuctionMarkConstants.ITEM_MIN_BIDS_PER_DAY * (int)bidDurationDay,
                         AuctionMarkConstants.ITEM_MAX_BIDS_PER_DAY * (int)bidDurationDay,
                         1.001);
-                Zipf randomNumWatches = new Zipf(AuctionMarkLoader.this.rng,
+                Zipf randomNumWatches = new Zipf(profile.rng,
                         AuctionMarkConstants.ITEM_MIN_WATCHES_PER_DAY * (int)bidDurationDay,
                         (int)Math.ceil(AuctionMarkConstants.ITEM_MAX_WATCHES_PER_DAY * (int)bidDurationDay / profile.getScaleFactor()), 1.001);
                 this.item_bid_watch_zipfs.put(bidDurationDay, Pair.of(randomNumBids, randomNumWatches));
@@ -1026,7 +1020,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                     itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.endDate);
                     itemInfo.numComments = (short) profile.randomNumComments.nextInt();
                 }
-                itemInfo.status = AuctionMarkConstants.ITEM_STATUS_CLOSED;
+                itemInfo.status = ItemStatus.CLOSED;
             }
             // Item is still available
             else if (itemInfo.numBids > 0) {
@@ -1041,11 +1035,11 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // I_C_ID
             this.row[col++] = profile.getRandomCategoryId();
             // I_NAME
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(6, 32);
+            this.row[col++] = profile.rng.astring(6, 32);
             // I_DESCRIPTION
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(50, 255);
+            this.row[col++] = profile.rng.astring(50, 255);
             // I_USER_ATTRIBUTES
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(20, 255);
+            this.row[col++] = profile.rng.astring(20, 255);
             // I_INITIAL_PRICE
             this.row[col++] = itemInfo.initialPrice;
 
@@ -1068,7 +1062,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // I_END_DATE
             this.row[col++] = itemInfo.endDate;
             // I_STATUS
-            this.row[col++] = itemInfo.status;
+            this.row[col++] = itemInfo.status.ordinal();
             // I_UPDATED
             this.row[col++] = itemInfo.startDate;
 
@@ -1192,9 +1186,9 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IC_BUYER_ID
             this.row[col++] = itemInfo.lastBidderId;
             // IC_QUESTION
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(10, 128);
+            this.row[col++] = profile.rng.astring(10, 128);
             // IC_RESPONSE
-            this.row[col++] = AuctionMarkLoader.this.rng.astring(10, 128);
+            this.row[col++] = profile.rng.astring(10, 128);
             // IC_CREATED
             this.row[col++] = this.getRandomCommentDate(itemInfo.startDate, itemInfo.endDate);
             // IC_UPDATED
@@ -1205,7 +1199,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         private TimestampType getRandomCommentDate(TimestampType startDate, TimestampType endDate) {
             int start = Math.round(startDate.getTime() / 1000000);
             int end = Math.round(endDate.getTime() / 1000000);
-            return new TimestampType((rng.number(start, end)) * 1000 * 1000);
+            return new TimestampType((profile.rng.number(start, end)) * 1000 * 1000);
         }
     }
 
@@ -1242,7 +1236,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
                 bidderId = (itemInfo.numBids == 1 ? itemInfo.lastBidderId :
                                                     profile.getRandomBuyerId(itemInfo.sellerId));
                 TimestampType endDate;
-                if (itemInfo.status == AuctionMarkConstants.ITEM_STATUS_OPEN) {
+                if (itemInfo.status == ItemStatus.OPEN) {
                     endDate = profile.getBenchmarkStartTime();
                 } else {
                     endDate = itemInfo.endDate;
@@ -1379,10 +1373,10 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
             // IP_DATE
             this.row[col++] = itemInfo.purchaseDate;
 
-            if (rng.number(1, 100) <= AuctionMarkConstants.PROB_PURCHASE_BUYER_LEAVES_FEEDBACK) {
+            if (profile.rng.number(1, 100) <= AuctionMarkConstants.PROB_PURCHASE_BUYER_LEAVES_FEEDBACK) {
                 bid.buyer_feedback = true;
             }
-            if (rng.number(1, 100) <= AuctionMarkConstants.PROB_PURCHASE_SELLER_LEAVES_FEEDBACK) {
+            if (profile.rng.number(1, 100) <= AuctionMarkConstants.PROB_PURCHASE_SELLER_LEAVES_FEEDBACK) {
                 bid.seller_feedback = true;
             }
             
@@ -1519,7 +1513,7 @@ public class AuctionMarkLoader extends AuctionMarkBaseClient {
         private TimestampType getRandomCommentDate(TimestampType startDate, TimestampType endDate) {
             int start = Math.round(startDate.getTime() / 1000000);
             int end = Math.round(endDate.getTime() / 1000000);
-            long offset = AuctionMarkLoader.this.rng.number(start, end);
+            long offset = profile.rng.number(start, end);
             return new TimestampType(offset * 1000000l);
         }
     } // END CLASS

@@ -10,7 +10,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
@@ -145,7 +146,7 @@ public class NewItem extends VoltProcedure {
                          long item_id, long seller_id, long category_id,
                          String name, String description, long duration, double initial_price, String attributes,
                          long gag_ids[], long gav_ids[], String images[]) {
-        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
         
         // Calculate endDate
@@ -204,7 +205,7 @@ public class NewItem extends VoltProcedure {
                                  initial_price, initial_price, 0,
                                  images.length, gav_ids.length,
                                  currentTime, end_date,
-                                 AuctionMarkConstants.ITEM_STATUS_OPEN, currentTime);
+                                 ItemStatus.OPEN.ordinal(), currentTime);
 
         // Insert ITEM_ATTRIBUTE tuples
         for (int i = 0; i < gav_ids.length; i++) {
@@ -238,7 +239,7 @@ public class NewItem extends VoltProcedure {
             // END DATE
             end_date,
             // STATUS
-            AuctionMarkConstants.ITEM_STATUS_OPEN
+            ItemStatus.OPEN
         });
         return ret;
     }

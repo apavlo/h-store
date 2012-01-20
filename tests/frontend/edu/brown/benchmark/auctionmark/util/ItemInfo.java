@@ -8,7 +8,7 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 
@@ -17,7 +17,7 @@ public class ItemInfo implements JSONSerializable, Comparable<ItemInfo> {
     public Float currentPrice;
     public TimestampType endDate;
     public long numBids = 0;
-    public long status = AuctionMarkConstants.ITEM_STATUS_OPEN;
+    public ItemStatus status = ItemStatus.OPEN;
     
     public ItemInfo(ItemId id, Double currentPrice, TimestampType endDate, int numBids) {
         this.itemId = id;
