@@ -1152,6 +1152,16 @@ public abstract class BenchmarkComponent {
     public final long getTableTupleCount(String tableName) {
         return (m_tableTuples.get(tableName, 0l));
     }
+    
+    /**
+     * Get a read-only histogram of the number of tuples loaded in all
+     * of the tables
+     * @return
+     */
+    public final Histogram<String> getTableTupleCounts() {
+        return (new Histogram<String>(m_tableTuples));
+    }
+    
     /**
      * Get the number of bytes loaded into the given table thus far
      * @param tableName

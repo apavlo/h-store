@@ -7,7 +7,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
@@ -31,7 +32,7 @@ public class UpdateItem extends VoltProcedure{
         "   SET i_description = ?, " +
         "       i_updated = ? " +
         " WHERE i_id = ? AND i_u_id = ? " +
-        "   AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
+        "   AND i_status = " + ItemStatus.OPEN.ordinal()
     );
     
     public final SQLStmt deleteItemAttribute = new SQLStmt(
@@ -67,7 +68,7 @@ public class UpdateItem extends VoltProcedure{
     public VoltTable run(TimestampType benchmarkTimes[],
                          long item_id, long seller_id, String description,
                          long delete_attribute, long add_attribute[]) {
-        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         voltQueueSQL(updateItem, description, currentTime, item_id, seller_id);
         final VoltTable results[] = voltExecuteSQL(false);
         assert(results.length == 1);

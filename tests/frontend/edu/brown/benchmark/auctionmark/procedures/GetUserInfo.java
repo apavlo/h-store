@@ -9,6 +9,7 @@ import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 
 /**
  * GetUserInfo
@@ -60,7 +61,7 @@ public class GetUserInfo extends VoltProcedure {
         "       ic_id, ic_i_id, ic_u_id, ic_buyer_id, ic_question, ic_created " +
         "  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " + 
                     AuctionMarkConstants.TABLENAME_ITEM_COMMENT +
-        " WHERE i_u_id = ? AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN + 
+        " WHERE i_u_id = ? AND i_status = " + ItemStatus.OPEN + 
         "   AND i_id = ic_i_id AND i_u_id = ic_u_id AND ic_response = ? " +
         " ORDER BY ic_created DESC LIMIT 25 "
     );

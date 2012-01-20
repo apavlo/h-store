@@ -15,6 +15,7 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.conf.HStoreConf;
@@ -54,6 +55,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
      */
     protected class MockAuctionMarkLoader extends AuctionMarkLoader {
         
+        private final Histogram<String> tableSizes = new Histogram<String>(true);
+        
         public MockAuctionMarkLoader(String args[]) {
             super(args);
         }
@@ -74,8 +77,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
             
             // Make sure that we do this here because AuctionMarkLoader.generateTableData() doesn't do this anymore
             int current_batchSize = table.getRowCount();
-            profile.addToTableSize(tableName, current_batchSize);
-            long current_tableSize = profile.getTableSize(tableName);
+            this.tableSizes.put(tableName, current_batchSize);
+            long current_tableSize = tableSizes.get(tableName);
             
             if (debug) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();

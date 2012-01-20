@@ -8,7 +8,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -48,7 +49,7 @@ public class NewBid extends VoltProcedure {
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
          "WHERE i_id = ? AND i_u_id = ? " //+
 //         "  AND i_end_date > ? " +
-//         "  AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
+//         "  AND i_status = " + ItemStatus.OPEN
     );
     
     public final SQLStmt getMaxBidId = new SQLStmt(
@@ -136,7 +137,7 @@ public class NewBid extends VoltProcedure {
     );
 
     public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, long buyer_id, double newBid, TimestampType estimatedEndDate) {
-        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
         if (debug) LOG.debug(String.format("Attempting to place new bid on Item %d [buyer=%d, bid=%.2f]", item_id, buyer_id, newBid));
 
@@ -156,13 +157,14 @@ public class NewBid extends VoltProcedure {
         double i_current_price = results[0].getDouble(1);
         long i_num_bids = results[0].getLong(2);
         TimestampType i_end_date = results[0].getTimestampAsTimestamp(3);
-        long i_status = results[0].getLong(4);
+        ItemStatus i_status = ItemStatus.get(results[0].getLong(4));
         long newBidId = 0;
         long newBidMaxBuyerId = buyer_id;
         
-        if (i_end_date.compareTo(currentTime) < 0 || i_status != AuctionMarkConstants.ITEM_STATUS_OPEN) {
-            if (debug) LOG.debug(String.format("The auction for item %d has ended [status=%d]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
-                                               item_id, i_status, currentTime, i_end_date, estimatedEndDate));
+        if (i_end_date.compareTo(currentTime) < 0 || i_status != ItemStatus.OPEN) {
+            if (debug)
+                LOG.debug(String.format("The auction for item %d has ended [status=%s]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
+                                        item_id, i_status, currentTime, i_end_date, estimatedEndDate));
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
         

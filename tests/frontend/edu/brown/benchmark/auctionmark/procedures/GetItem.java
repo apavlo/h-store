@@ -7,6 +7,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 
 /**
  * Get Item Information
@@ -26,7 +27,7 @@ public class GetItem extends VoltProcedure {
     public final SQLStmt getItem = new SQLStmt(
         "SELECT i_id, i_u_id, i_initial_price, i_current_price, i_num_bids, i_end_date, i_status " +
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
-         "WHERE i_id = ? AND i_u_id = ? AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
+         "WHERE i_id = ? AND i_u_id = ? AND i_status = " + ItemStatus.OPEN.ordinal()
     );
     
     public final SQLStmt getUser = new SQLStmt(

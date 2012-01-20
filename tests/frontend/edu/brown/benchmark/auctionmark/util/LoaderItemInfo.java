@@ -1,0 +1,117 @@
+package edu.brown.benchmark.auctionmark.util;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.collections15.map.ListOrderedMap;
+import org.voltdb.types.TimestampType;
+
+import edu.brown.benchmark.auctionmark.util.ItemId;
+import edu.brown.benchmark.auctionmark.util.ItemInfo;
+import edu.brown.benchmark.auctionmark.util.UserId;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.StringUtil;
+
+public class LoaderItemInfo extends ItemInfo {
+    private final List<Bid> bids = new ArrayList<Bid>();
+    private Histogram<UserId> bidderHistogram = new Histogram<UserId>();
+    
+    public short numImages;
+    public short numAttributes;
+    public short numComments;
+    public short numWatches;
+    public TimestampType startDate;
+    public TimestampType purchaseDate;
+    public float initialPrice;
+    public UserId sellerId;
+    public UserId lastBidderId; // if null, then no bidder
+
+    public LoaderItemInfo(ItemId id, TimestampType endDate, int numBids) {
+        super(id, null, endDate, numBids);
+        this.numImages = 0;
+        this.numAttributes = 0;
+        this.numComments = 0;
+        this.numWatches = 0;
+        this.startDate = null;
+        this.purchaseDate = null;
+        this.initialPrice = 0;
+        this.sellerId = null;
+        this.lastBidderId = null;
+    }
+    
+    public int getBidCount() {
+        return (this.bids.size());
+    }
+    public Bid getNextBid(long id, UserId bidder_id) {
+        assert(bidder_id != null);
+        Bid b = new Bid(id, bidder_id);
+        this.bids.add(b);
+        assert(this.bids.size() <= this.numBids);
+        this.bidderHistogram.put(bidder_id);
+        assert(this.bids.size() == this.bidderHistogram.getSampleCount());
+        return (b);
+    }
+    public Bid getLastBid() {
+        return (CollectionUtil.last(this.bids));
+    }
+    public Histogram<UserId> getBidderHistogram() {
+        return bidderHistogram;
+    }
+    
+    @Override
+    public String toString() {
+        Class<?> hints_class = this.getClass();
+        ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+        for (Field f : hints_class.getDeclaredFields()) {
+            String key = f.getName().toUpperCase();
+            Object val = null;
+            try {
+                val = f.get(this);
+            } catch (IllegalAccessException ex) {
+                val = ex.getMessage();
+            }
+            m.put(key, val);
+        } // FOR
+        return (StringUtil.formatMaps(m));
+    }
+    
+    public class Bid {
+        public final long id;
+        public final UserId bidderId;
+        public float maxBid;
+        public TimestampType createDate;
+        public TimestampType updateDate;
+        public boolean buyer_feedback = false;
+        public boolean seller_feedback = false;
+
+        private Bid(long id, UserId bidderId) {
+            this.id = id;
+            this.bidderId = bidderId;
+            this.maxBid = 0;
+            this.createDate = null;
+            this.updateDate = null;
+        }
+        
+        public LoaderItemInfo getLoaderItemInfo() {
+            return (LoaderItemInfo.this);
+        }
+        @Override
+        public String toString() {
+            Class<?> hints_class = this.getClass();
+            ListOrderedMap<String, Object> m = new ListOrderedMap<String, Object>();
+            for (Field f : hints_class.getDeclaredFields()) {
+                String key = f.getName().toUpperCase();
+                Object val = null;
+                try {
+                    val = f.get(this);
+                } catch (IllegalAccessException ex) {
+                    val = ex.getMessage();
+                }
+                m.put(key, val);
+            } // FOR
+            return (StringUtil.formatMaps(m));
+        }
+    } // END CLASS
+} // END CLASS
