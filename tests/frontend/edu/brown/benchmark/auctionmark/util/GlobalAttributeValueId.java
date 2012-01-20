@@ -42,7 +42,7 @@ public class GlobalAttributeValueId extends CompositeId {
         return (new long[]{ this.group_attribute_id, this.id });
     }
     
-    public GlobalAttributeGroupId getGroupAttributeId() {
+    public GlobalAttributeGroupId getGlobalAttributeGroup() {
         return new GlobalAttributeGroupId(this.group_attribute_id);
     }
     

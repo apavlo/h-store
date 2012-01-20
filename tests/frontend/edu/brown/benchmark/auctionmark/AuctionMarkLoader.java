@@ -120,11 +120,6 @@ public class AuctionMarkLoader extends BenchmarkComponent {
     private final transient Collection<String> finished = new HashSet<String>();
 
     /**
-     * Temporary list of GlobalAttributeGroupIds
-     */
-    private transient final Set<GlobalAttributeGroupId> gag_ids = new HashSet<GlobalAttributeGroupId>();
-    
-    /**
      * 
      * @param args
      * @throws Exception
@@ -791,7 +786,8 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             int id = this.category_groups.get(category_id).intValue();
             int count = (int)profile.rng.number(1, AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP);
             GlobalAttributeGroupId gag_id = new GlobalAttributeGroupId(category_id, id, count);
-            gag_ids.add(gag_id);
+            assert(profile.gag_ids.contains(gag_id) == false);
+            profile.gag_ids.add(gag_id);
             
             // GAG_ID
             this.row[col++] = gag_id.encode();
@@ -822,11 +818,11 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         @Override
         public void init() {
             this.tableSize = 0l;
-            for (GlobalAttributeGroupId gag_id : gag_ids) {
+            for (GlobalAttributeGroupId gag_id : profile.gag_ids) {
                 this.gag_counters.set(gag_id, 0);
                 this.tableSize += gag_id.getCount();
             } // FOR
-            this.gag_iterator = gag_ids.iterator();
+            this.gag_iterator = profile.gag_ids.iterator();
         }
         @Override
         protected int populateRow() {
@@ -1160,8 +1156,8 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         @Override
         protected int populateRow(LoaderItemInfo itemInfo, short remaining) {
             int col = 0;
-            Pair<Long, Long> gag_gav = profile.getRandomGAGIdGAVIdPair();
-            assert(gag_gav != null);
+            GlobalAttributeValueId gav_id = profile.getRandomGlobalAttributeValue();
+            assert(gav_id != null);
             
             // IA_ID
             this.row[col++] = this.count;
@@ -1170,9 +1166,9 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             // IA_U_ID
             this.row[col++] = itemInfo.sellerId;
             // IA_GAV_ID
-            this.row[col++] = gag_gav.getSecond();
+            this.row[col++] = gav_id.encode();
             // IA_GAG_ID
-            this.row[col++] = gag_gav.getFirst();
+            this.row[col++] = gav_id.getGlobalAttributeGroup().encode();
 
             return (col);
         }

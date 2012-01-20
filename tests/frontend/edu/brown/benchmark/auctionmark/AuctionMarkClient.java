@@ -31,7 +31,6 @@
  ***************************************************************************/
 package edu.brown.benchmark.auctionmark;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,6 +52,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeValueId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -339,23 +339,18 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 String attributes = client.profile.rng.astring(50, 255);
 
                 int numAttributes = client.profile.randomNumAttributes.nextInt();
-                List<Long> gagList = new ArrayList<Long>(numAttributes);
-                List<Long> gavList = new ArrayList<Long>(numAttributes);
+                List<GlobalAttributeValueId> gavList = new ArrayList<GlobalAttributeValueId>(numAttributes);
                 for (int i = 0; i < numAttributes; i++) {
-                    Pair<Long, Long> GAGIdGAVIdPair = client.profile.getRandomGAGIdGAVIdPair();
-                    if (!gavList.contains(GAGIdGAVIdPair.getSecond())) {
-                        gagList.add(GAGIdGAVIdPair.getFirst());
-                        gavList.add(GAGIdGAVIdPair.getSecond());
-                    }
+                    GlobalAttributeValueId gav_id = client.profile.getRandomGlobalAttributeValue();
+                    if (!gavList.contains(gav_id)) gavList.add(gav_id);
                 } // FOR
 
-                long[] gag_ids = new long[gagList.size()];
-                for (int i = 0, cnt = gag_ids.length; i < cnt; i++) {
-                    gag_ids[i] = gagList.get(i);
-                } // FOR
+                long[] gag_ids = new long[gavList.size()];
                 long[] gav_ids = new long[gavList.size()];
-                for (int i = 0, cnt = gav_ids.length; i < cnt; i++) {
-                    gav_ids[i] = gavList.get(i);
+                for (int i = 0, cnt = gag_ids.length; i < cnt; i++) {
+                    GlobalAttributeValueId gav_id = gavList.get(i);
+                    gag_ids[i] = gav_id.getGlobalAttributeGroup().encode();
+                    gav_ids[i] = gav_id.encode();
                 } // FOR
 
                 int numImages = client.profile.randomNumImages.nextInt();
@@ -425,10 +420,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 }
                 // Add ITEM_ATTRIBUTE
                 else if (client.profile.rng.number(1, 100) < AuctionMarkConstants.PROB_UPDATEITEM_ADD_ATTRIBUTE) {
-                    Pair<Long, Long> gag_gav = client.profile.getRandomGAGIdGAVIdPair();
-                    assert(gag_gav != null);
-                    add_attribute[0] = gag_gav.getFirst();
-                    add_attribute[1] = gag_gav.getSecond();
+                    GlobalAttributeValueId gav_id = client.profile.getRandomGlobalAttributeValue();
+                    assert(gav_id != null);
+                    add_attribute[0] = gav_id.getGlobalAttributeGroup().encode();
+                    add_attribute[1] = gav_id.encode();
                 }
                 
                 return new Object[] { client.getTimestampParameterArray(),
