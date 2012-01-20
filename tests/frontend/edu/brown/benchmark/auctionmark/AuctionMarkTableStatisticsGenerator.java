@@ -44,7 +44,8 @@ public class AuctionMarkTableStatisticsGenerator extends AbstractTableStatistics
         this.addTableProfile(p);
 
         // GLOBAL_ATTRIBUTE_VALUE
-        p = new TableProfile(this.catalog_db, AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE, true, AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_VALUE);
+        p = new TableProfile(this.catalog_db, AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE, true);
+        p.addMultiplicativeDependency(catalog_db, AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP);
         this.addTableProfile(p);
         
         // USER

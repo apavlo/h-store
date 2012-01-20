@@ -65,6 +65,8 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.benchmark.auctionmark.util.AuctionMarkCategoryParser;
 import edu.brown.benchmark.auctionmark.util.AuctionMarkUtil;
 import edu.brown.benchmark.auctionmark.util.Category;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeGroupId;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeValueId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.LoaderItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -117,6 +119,10 @@ public class AuctionMarkLoader extends BenchmarkComponent {
     /** The set of tables that we have finished loading **/
     private final transient Collection<String> finished = new HashSet<String>();
 
+    /**
+     * Temporary list of GlobalAttributeGroupIds
+     */
+    private transient final Set<GlobalAttributeGroupId> gag_ids = new HashSet<GlobalAttributeGroupId>();
     
     /**
      * 
@@ -395,7 +401,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                     assert (field_handle != null);
                     this.tableSize = (Long) field_handle.get(null);
                     if (!fixed_size) {
-                        this.tableSize = Math.round(this.tableSize / AuctionMarkLoader.this.profile.getScaleFactor());
+                        this.tableSize = Math.round(this.tableSize / profile.getScaleFactor());
                     }
                 } catch (NoSuchFieldException ex) {
                     if (debug.get()) LOG.warn("No table size field for '" + tableName + "'", ex);
@@ -725,12 +731,12 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         public CategoryGenerator(File data_file) {
             super(AuctionMarkConstants.TABLENAME_CATEGORY);
             this.data_file = data_file;
-
-            assert (this.data_file.exists()) : "The data file for the category generator does not exist: " + this.data_file;
+            assert(this.data_file.exists()) : 
+                "The data file for the category generator does not exist: " + this.data_file;
 
             this.categoryMap = (new AuctionMarkCategoryParser(data_file)).getCategoryMap();
             this.categoryKeyItr = this.categoryMap.keySet().iterator();
-            this.tableSize = new Long(this.categoryMap.size());
+            this.tableSize = (long)this.categoryMap.size();
         }
 
         @Override
@@ -744,23 +750,16 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             String category_key = this.categoryKeyItr.next();
             Category category = this.categoryMap.get(category_key);
 
-            Long category_id = new Long(category.getCategoryID());
-            String category_name = category.getName();
-            Long parent_id = new Long(category.getParentCategoryID());
-            Long item_count = new Long(category.getItemCount());
-            // this.name_id_xref.put(category_name, this.count);
-
-            boolean leaf_node = category.isLeaf();
-            if (leaf_node) {
-                AuctionMarkLoader.this.profile.item_category_histogram.put(category_id, item_count.intValue());
+            if (category.isLeaf()) {
+                profile.item_category_histogram.put((long)category.getCategoryID(), category.getItemCount());
             }
 
             // C_ID
-            this.row[col++] = category_id;
+            this.row[col++] = category.getCategoryID();
             // C_NAME
-            this.row[col++] = category_name;
+            this.row[col++] = category.getName();
             // C_PARENT_ID
-            this.row[col++] = parent_id;
+            this.row[col++] = category.getParentCategoryID();
             
             return (col);
         }
@@ -771,6 +770,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
      **********************************************************************************************/
     protected class GlobalAttributeGroupGenerator extends AbstractTableGenerator {
         private long num_categories = 0l;
+        private final Histogram<Integer> category_groups = new Histogram<Integer>();
 
         public GlobalAttributeGroupGenerator() {
             super(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP,
@@ -780,16 +780,23 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         @Override
         public void init() {
             // Grab the number of CATEGORY items that we have inserted
-            this.num_categories = AuctionMarkLoader.this.getTableTupleCount(AuctionMarkConstants.TABLENAME_CATEGORY);
+            this.num_categories = getTableTupleCount(AuctionMarkConstants.TABLENAME_CATEGORY);
         }
         @Override
         protected int populateRow() {
             int col = 0;
 
+            int category_id = profile.rng.number(0, (int)this.num_categories);
+            this.category_groups.put(category_id);
+            int id = this.category_groups.get(category_id).intValue();
+            int count = (int)profile.rng.number(1, AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP);
+            GlobalAttributeGroupId gag_id = new GlobalAttributeGroupId(category_id, id, count);
+            gag_ids.add(gag_id);
+            
             // GAG_ID
-            this.row[col++] = new Integer((int) this.count);
+            this.row[col++] = gag_id.encode();
             // GAG_C_ID
-            this.row[col++] = profile.rng.number(0, (int)this.num_categories);
+            this.row[col++] = category_id;
             // GAG_NAME
             this.row[col++] = profile.rng.astring(6, 32);
             
@@ -802,31 +809,42 @@ public class AuctionMarkLoader extends BenchmarkComponent {
      **********************************************************************************************/
     protected class GlobalAttributeValueGenerator extends AbstractTableGenerator {
 
-        private Zipf zipf;
+        private Histogram<GlobalAttributeGroupId> gag_counters = new Histogram<GlobalAttributeGroupId>(true);
+        private Iterator<GlobalAttributeGroupId> gag_iterator;
+        private GlobalAttributeGroupId gag_current;
+        private int gav_counter = 0;
 
         public GlobalAttributeValueGenerator() {
             super(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE,
                   AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
-            this.zipf = new Zipf(profile.rng, 0, (int) AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_GROUP, 1.001);
         }
 
         @Override
         public void init() {
-            // Nothing to do
+            this.tableSize = 0l;
+            for (GlobalAttributeGroupId gag_id : gag_ids) {
+                this.gag_counters.set(gag_id, 0);
+                this.tableSize += gag_id.getCount();
+            } // FOR
+            this.gag_iterator = gag_ids.iterator();
         }
         @Override
         protected int populateRow() {
             int col = 0;
-
-            long GAV_ID = new Integer((int) this.count);
-            long GAV_GAG_ID = this.zipf.nextInt(); 
             
-            profile.addGAGIdGAVIdPair(GAV_GAG_ID, GAV_ID);
+            if (this.gav_counter == -1 || ++this.gav_counter == this.gag_current.getCount()) {
+                this.gag_current = this.gag_iterator.next();
+                assert(this.gag_current != null);
+                this.gav_counter = 0;
+            }
+
+            GlobalAttributeValueId gav_id = new GlobalAttributeValueId(this.gag_current.encode(),
+                                                                     this.gav_counter);
             
             // GAV_ID
-            this.row[col++] = GAV_ID;
+            this.row[col++] = gav_id.encode();
             // GAV_GAG_ID
-            this.row[col++] = GAV_GAG_ID;
+            this.row[col++] = this.gag_current.encode();
             // GAV_NAME
             this.row[col++] = profile.rng.astring(6, 32);
             
