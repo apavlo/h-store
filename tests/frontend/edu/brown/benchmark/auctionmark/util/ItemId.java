@@ -10,9 +10,10 @@ import edu.brown.utils.CompositeId;
  */
 public class ItemId extends CompositeId {
 
-    private static final long BASE_VALUE_MASK = 281474976710655l; // (2^48)-1
-    private static final int VALUE_OFFSET = 48;
-    
+    private static final int COMPOSITE_BITS[] = {
+        48, // SELLER_ID
+        16, // ITEM_CTR
+    };
     
     private static final long ITEM_ID_MASK = 0x0FFFFFFFFFFFFFFFl; 
     
@@ -42,11 +43,11 @@ public class ItemId extends CompositeId {
     
     @Override
     public long encode() {
-        return (this.encode(BASE_VALUE_MASK, VALUE_OFFSET));
+        return (this.encode(COMPOSITE_BITS));
     }
     @Override
     public void decode(long composite_id) {
-        long values[] = super.decode(composite_id, new long[3], BASE_VALUE_MASK, VALUE_OFFSET);
+        long values[] = super.decode(composite_id, COMPOSITE_BITS);
         this.seller_id = new UserId(values[0]);
         this.item_ctr = (int)values[1]-1;
     }

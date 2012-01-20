@@ -27,8 +27,8 @@ public class LoadConfig extends VoltProcedure {
         " LIMIT " + AuctionMarkConstants.ITEM_ID_CACHE_SIZE
     );
     
-    public final SQLStmt getGlobalAttributeValues = new SQLStmt(
-        "SELECT gav_gag_id, gav_id FROM " + AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE 
+    public final SQLStmt getGlobalAttributeGroups = new SQLStmt(
+        "SELECT gag_id FROM " + AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP 
     );
     
     public VoltTable[] run() {
@@ -39,7 +39,7 @@ public class LoadConfig extends VoltProcedure {
         voltQueueSQL(getItems, ItemStatus.WAITING_FOR_PURCHASE.ordinal());
         voltQueueSQL(getItems, ItemStatus.CLOSED.ordinal());
 
-        voltQueueSQL(getGlobalAttributeValues);
+        voltQueueSQL(getGlobalAttributeGroups);
         
         return voltExecuteSQL(true);
     }

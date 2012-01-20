@@ -54,6 +54,8 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.benchmark.auctionmark.procedures.LoadConfig;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeGroupId;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeValueId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
@@ -159,15 +161,13 @@ public class AuctionMarkProfile {
     private transient final LinkedList<ItemInfo> items_completed = new LinkedList<ItemInfo>();
     
     /**
-     * Map from global attribute group to list of global attribute value
+     * Internal list of GlobalAttributeGroupIds
      */
-    protected transient final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
-    
-    /**
-     * 
-     */
-    private final Histogram<Long> gag_gav_histogram = new Histogram<Long>();
+    protected transient final List<GlobalAttributeGroupId> gag_ids = new ArrayList<GlobalAttributeGroupId>();
 
+    /**
+     * Internal map of UserIdGenerators
+     */
     private transient final Map<Integer, UserIdGenerator> userIdGenerators = new HashMap<Integer, UserIdGenerator>();
     
     /**
@@ -191,7 +191,6 @@ public class AuctionMarkProfile {
     public transient final Zipf randomNumComments;
     public transient final Zipf randomInitialPrice;
 
-    private transient FlatHistogram<Long> randomGAGId;
     private transient FlatHistogram<Long> randomCategory;
     private transient FlatHistogram<Long> randomItemCount;
     
@@ -866,32 +865,20 @@ public class AuctionMarkProfile {
     // GLOBAL ATTRIBUTE METHODS
     // ----------------------------------------------------------------
 
-    public synchronized void addGAGIdGAVIdPair(long GAGId, long GAVId) {
-        List<Long> GAVIds = this.gag_gav_map.get(GAGId);
-        if (null == GAVIds) {
-            GAVIds = new ArrayList<Long>();
-            this.gag_gav_map.put(GAGId, GAVIds);
-        } else if (GAVIds.contains(GAGId)) {
-            return;
-        }
-        GAVIds.add(GAVId);
-        this.gag_gav_histogram.put(GAGId);
-    }
-
     /**
      * Return a random attribute group/value pair
      * Pair<GLOBAL_ATTRIBUTE_GROUP, GLOBAL_ATTRIBUTE_VALUE>
      * @return
      */
     public synchronized Pair<Long, Long> getRandomGAGIdGAVIdPair() {
-        if (this.randomGAGId == null) {
-            this.randomGAGId = new FlatHistogram<Long>(rng, this.gag_gav_histogram);
-        }
-        Long GAGId = this.randomGAGId.nextLong();
-        List<Long> GAVIds = this.gag_gav_map.get(GAGId);
-        Long GAVId = GAVIds.get(rng.nextInt(GAVIds.size()));
-
-        return Pair.of(GAGId, GAVId);
+        int offset = rng.nextInt(this.gag_ids.size());
+        GlobalAttributeGroupId gag_id = this.gag_ids.get(offset);
+        assert(gag_id != null);
+        int count = rng.nextInt(gag_id.getCount());
+        GlobalAttributeValueId gav_id = new GlobalAttributeValueId(gag_id, count);
+        
+        return null;
+        // TODO return Pair.of(GAGId, GAVId);
     }
     
     public synchronized long getRandomCategoryId() {

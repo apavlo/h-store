@@ -4,14 +4,17 @@ import edu.brown.utils.CompositeId;
 
 public class UserId extends CompositeId {
     
-    private static final long BASE_VALUE_MASK = 16777215l; // (2^24)-1
-    private static final int VALUE_OFFSET = 24;
-
+    private static final int COMPOSITE_BITS[] = {
+        24, // ITEM_COUNT
+        24, // OFFSET
+    };
+    
     /**
      * The size index is the position in the histogram for the number
      * of users per items size
      */
     private int itemCount;
+    
     /**
      * The offset is based on the number of users that exist at a given size index
      */
@@ -42,11 +45,11 @@ public class UserId extends CompositeId {
     
     @Override
     public long encode() {
-        return (this.encode(BASE_VALUE_MASK, VALUE_OFFSET));
+        return (this.encode(COMPOSITE_BITS));
     }
     @Override
     public void decode(long composite_id) {
-        long values[] = super.decode(composite_id, new long[2], BASE_VALUE_MASK, VALUE_OFFSET);
+        long values[] = super.decode(composite_id, COMPOSITE_BITS);
         this.offset = (int)values[0];
         this.itemCount = (int)values[1];
     }
