@@ -34,7 +34,6 @@ package edu.brown.benchmark.auctionmark;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -45,17 +44,18 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.TheHashinator;
 import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.types.TimestampType;
-import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.benchmark.auctionmark.procedures.LoadConfig;
 import edu.brown.benchmark.auctionmark.util.GlobalAttributeGroupId;
 import edu.brown.benchmark.auctionmark.util.GlobalAttributeValueId;
+import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
@@ -70,7 +70,6 @@ import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
 public class AuctionMarkProfile {
@@ -81,15 +80,6 @@ public class AuctionMarkProfile {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private static Comparator<ItemInfo> ENDDATE_COMPARATOR = new Comparator<ItemInfo>() {
-        @Override
-        public int compare(ItemInfo o1, ItemInfo o2) {
-            assert(o1.hasEndDate());
-            assert(o2.hasEndDate());
-            return o1.getEndDate().compareTo(o2.getEndDate());
-        }
-    };
-    
     // ----------------------------------------------------------------
     // REQUIRED REFERENCES
     // ----------------------------------------------------------------
@@ -280,6 +270,15 @@ public class AuctionMarkProfile {
         
         // CONFIG_PROFILE
         this.loadConfigProfile(results[result_idx++]); 
+        
+        // ITEMS
+        for (ItemStatus status : ItemStatus.values()) {
+            if (status.isInternal()) continue;
+            this.loadItems(results[result_idx++], status);
+        } // FOR
+        
+        // GLOBAL_ATTRIBUTE_GROUPS
+        this.loadGlobalAttributeGroups(results[result_idx++]);
     }
     
     private final void loadConfigProfile(VoltTable vt) {
@@ -293,6 +292,38 @@ public class AuctionMarkProfile {
         
         if (debug.get())
             LOG.debug(String.format("Loaded %s data", AuctionMarkConstants.TABLENAME_CONFIG_PROFILE));
+    }
+    
+    private final void loadItems(VoltTable vt, ItemStatus status) {
+        int ctr = 0;
+        while (vt.advanceRow()) {
+            int col = 0;
+            ItemId i_id = new ItemId(vt.getLong(col++));
+            double i_current_price = vt.getDouble(col++);
+            TimestampType i_end_date = vt.getTimestampAsTimestamp(col++);
+            int i_num_bids = (int)vt.getLong(col++);
+            ItemStatus i_status = ItemStatus.get(vt.getLong(col++));
+            assert(i_status == status);
+            
+            ItemInfo itemInfo = new ItemInfo(i_id, i_current_price, i_end_date, i_num_bids);
+            this.addItemToProperQueue(itemInfo, false);
+            ctr++;
+        } // WHILE
+        
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d records from %s",
+                                    ctr, AuctionMarkConstants.TABLENAME_ITEM));
+    }
+    
+    private final void loadGlobalAttributeGroups(VoltTable vt) {
+        while (vt.advanceRow()) {
+            long gag_id = vt.getLong(0);
+            assert(gag_id != VoltType.NULL_BIGINT);
+            this.gag_ids.add(new GlobalAttributeGroupId(gag_id));
+        } // WHILE
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d records from %s",
+                                    this.gag_ids.size(), AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP));
     }
     
     
@@ -630,6 +661,7 @@ public class AuctionMarkProfile {
     public synchronized void updateItemQueues() {
         // HACK
         Set<ItemInfo> all = new HashSet<ItemInfo>();
+        @SuppressWarnings("unchecked")
         LinkedList<ItemInfo> itemSets[] = new LinkedList[]{
             this.items_available,
             this.items_endingSoon,
@@ -866,19 +898,16 @@ public class AuctionMarkProfile {
     // ----------------------------------------------------------------
 
     /**
-     * Return a random attribute group/value pair
-     * Pair<GLOBAL_ATTRIBUTE_GROUP, GLOBAL_ATTRIBUTE_VALUE>
+     * Return a random GlobalAttributeValueId
      * @return
      */
-    public synchronized Pair<Long, Long> getRandomGAGIdGAVIdPair() {
+    public synchronized GlobalAttributeValueId getRandomGlobalAttributeValue() {
         int offset = rng.nextInt(this.gag_ids.size());
         GlobalAttributeGroupId gag_id = this.gag_ids.get(offset);
         assert(gag_id != null);
         int count = rng.nextInt(gag_id.getCount());
         GlobalAttributeValueId gav_id = new GlobalAttributeValueId(gag_id, count);
-        
-        return null;
-        // TODO return Pair.of(GAGId, GAVId);
+        return gav_id;
     }
     
     public synchronized long getRandomCategoryId() {

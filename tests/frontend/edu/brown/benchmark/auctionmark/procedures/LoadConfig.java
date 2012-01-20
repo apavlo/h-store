@@ -35,9 +35,10 @@ public class LoadConfig extends VoltProcedure {
         voltQueueSQL(getConfigProfile);
         voltQueueSQL(getItemCategoryCounts);
         
-        voltQueueSQL(getItems, ItemStatus.OPEN.ordinal());
-        voltQueueSQL(getItems, ItemStatus.WAITING_FOR_PURCHASE.ordinal());
-        voltQueueSQL(getItems, ItemStatus.CLOSED.ordinal());
+        for (ItemStatus status : ItemStatus.values()) {
+            if (status.isInternal()) continue;
+            voltQueueSQL(getItems, status.ordinal());
+        } // FOR
 
         voltQueueSQL(getGlobalAttributeGroups);
         

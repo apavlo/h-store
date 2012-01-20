@@ -92,11 +92,19 @@ public abstract class AuctionMarkConstants {
     // ----------------------------------------------------------------
     
     public enum ItemStatus {
-        OPEN,
-        ENDING_SOON, // Only used internally
-        WAITING_FOR_PURCHASE,
-        CLOSED;
+        OPEN                    (false),
+        ENDING_SOON             (true), // Only used internally
+        WAITING_FOR_PURCHASE    (false),
+        CLOSED                  (false);
         
+        private final boolean internal;
+        
+        private ItemStatus(boolean internal) {
+            this.internal = internal;
+        }
+        public boolean isInternal() {
+            return internal;
+        }
         public static ItemStatus get(long idx) {
             return (values()[(int)idx]);
         }
