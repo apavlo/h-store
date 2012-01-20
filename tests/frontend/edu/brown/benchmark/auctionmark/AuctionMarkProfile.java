@@ -106,21 +106,6 @@ public class AuctionMarkProfile {
     private TimestampType benchmarkStartTime;
     
     /**
-     * When this client started executing
-     */
-    private TimestampType clientStartTime;
-    
-    /**
-     * Current Timestamp
-     */
-    private TimestampType currentTime;
-
-    /**
-     * The last time that we called CHECK_WINNING_BIDS on this client
-     */
-    protected TimestampType lastCloseAuctionsTime;
-
-    /**
      * A histogram for the number of users that have the number of items listed
      * ItemCount -> # of Users
      */
@@ -185,6 +170,19 @@ public class AuctionMarkProfile {
     private transient FlatHistogram<Long> randomItemCount;
     
     /**
+     * The last time that we called CHECK_WINNING_BIDS on this client
+     */
+    private transient TimestampType lastCloseAuctionsTime;
+    /**
+     * When this client started executing
+     */
+    private TimestampType clientStartTime;
+    /**
+     * Current Timestamp
+     */
+    private TimestampType currentTime;
+    
+    /**
      * Keep track of previous waitForPurchase ItemIds so that we don't try to call NewPurchase
      * on them more than once
      */
@@ -240,8 +238,6 @@ public class AuctionMarkProfile {
         vt.addRow(
             this.scale_factor,                  // CFP_SCALE_FACTOR
             this.benchmarkStartTime,            // CFP_BENCHMARK_START
-            this.clientStartTime,               // CFP_CLIENT_START
-            this.currentTime,                   // CFP_CURRENT_TIME
             this.users_per_item_count.toJSONString() // CFP_USER_ITEM_HISTOGRAM
         );
         if (debug.get())
@@ -249,7 +245,7 @@ public class AuctionMarkProfile {
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
     }
     
-    public void loadProfile(AuctionMarkClient baseClient) {
+    protected void loadProfile(AuctionMarkClient baseClient) {
         // TODO: Cache
         
         if (debug.get())
@@ -287,8 +283,6 @@ public class AuctionMarkProfile {
         int col = 0;
         this.scale_factor = vt.getDouble(col++);
         this.benchmarkStartTime = vt.getTimestampAsTimestamp(col++);
-        this.clientStartTime = vt.getTimestampAsTimestamp(col++);
-        this.currentTime = vt.getTimestampAsTimestamp(col++);
         
         if (debug.get())
             LOG.debug(String.format("Loaded %s data", AuctionMarkConstants.TABLENAME_CONFIG_PROFILE));
