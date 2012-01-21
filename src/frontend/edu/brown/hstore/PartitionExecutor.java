@@ -1392,7 +1392,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } catch (Throwable ex) {
             if (this.isShuttingDown() == false) {
                 SQLStmt last[] = volt_proc.voltLastQueriesExecuted();
-                
+                System.err.println("ERROR: " + ex);
                 LOG.fatal("__FILE__:__LINE__ " + "Unexpected error while executing " + ts, ex);
                 if (last.length > 0) {
                     LOG.fatal("__FILE__:__LINE__ " + String.format("Last Queries Executed [%d]: %s", last.length, Arrays.toString(last)));
@@ -1812,24 +1812,26 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("Executing %d fragments for %s [lastTxnId=%d, undoToken=%d]",
                       batchSize, ts, this.lastCommittedTxnId, undoToken));
-            Map<String, Object> m = new ListOrderedMap<String, Object>();
-            m.put("Fragments", Arrays.toString(fragmentIds));
-            
-            Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
-            for (int i = 0; i < parameterSets.length; i++)
-                inner.put(i, parameterSets[i].toString());
-            m.put("Parameters", inner);
-            
-            if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
-                inner = new ListOrderedMap<Integer, Object>();
-                for (int i = 0; i < input_depIds.length; i++) {
-                    List<VoltTable> deps = input_deps.get(input_depIds[i]);
-                    inner.put(input_depIds[i], (deps != null ? StringUtil.join("\n", deps) : "???"));
-                } // FOR
-                m.put("Input Dependencies", inner);
+            if (t) {
+                Map<String, Object> m = new ListOrderedMap<String, Object>();
+                m.put("Fragments", Arrays.toString(fragmentIds));
+                
+                Map<Integer, Object> inner = new ListOrderedMap<Integer, Object>();
+                for (int i = 0; i < parameterSets.length; i++)
+                    inner.put(i, parameterSets[i].toString());
+                m.put("Parameters", inner);
+                
+                if (input_depIds.length > 0 && input_depIds[0] != HStoreConstants.NULL_DEPENDENCY_ID) {
+                    inner = new ListOrderedMap<Integer, Object>();
+                    for (int i = 0; i < input_depIds.length; i++) {
+                        List<VoltTable> deps = input_deps.get(input_depIds[i]);
+                        inner.put(input_depIds[i], (deps != null ? StringUtil.join("\n", deps) : "???"));
+                    } // FOR
+                    m.put("Input Dependencies", inner);
+                }
+                m.put("Output Dependencies", Arrays.toString(output_depIds));
+                sb.append("\n" + StringUtil.formatMaps(m)); 
             }
-            m.put("Output Dependencies", Arrays.toString(output_depIds));
-            sb.append("\n" + StringUtil.formatMaps(m)); 
             LOG.debug("__FILE__:__LINE__ " + sb.toString());
         }
         // *********************************** DEBUG ***********************************

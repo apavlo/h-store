@@ -59,6 +59,12 @@ public class SEATSProfile {
     }
 
     /**
+     * We maintain a cached version of the profile that we will copy from
+     * This prevents the need to have every single client thread load up a separate copy
+     */
+    private static SEATSProfile cachedProfile;
+    
+    /**
      * Data Scale Factor
      */
     protected double scale_factor;
@@ -114,6 +120,10 @@ public class SEATSProfile {
      */    
     protected transient final LinkedList<FlightId> cached_flight_ids = new LinkedList<FlightId>();
     
+    // -----------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // -----------------------------------------------------------------
+    
     /**
      * Save the profile information into the database 
      */
@@ -168,7 +178,7 @@ public class SEATSProfile {
         return;
     }
     
-    private SEATSProfile copy(SEATSProfile other) {
+    private SEATSProfile copyProfile(SEATSProfile other) {
         this.scale_factor = other.scale_factor;
         this.airport_max_customer_id.putHistogram(other.airport_max_customer_id);
         this.flight_start_date = other.flight_start_date;
@@ -190,13 +200,13 @@ public class SEATSProfile {
     
     /**
      * Load the profile information stored in the database
+     * @param 
      */
-    private static SEATSProfile cachedProfile;
     protected synchronized final void loadProfile(SEATSBaseClient baseClient) {
         // Check whether we have a cached Profile we can copy from
         if (cachedProfile != null) {
             if (debug.get()) LOG.debug("Using cached SEATSProfile");
-            this.copy(cachedProfile);
+            this.copyProfile(cachedProfile);
             return;
         }
         
@@ -234,7 +244,7 @@ public class SEATSProfile {
         this.loadCachedFlights(results[result_idx++]);
 
         if (trace.get()) LOG.trace("Airport Max Customer Id:\n" + this.airport_max_customer_id);
-        cachedProfile = new SEATSProfile().copy(this);
+        cachedProfile = this;
     }
     
     private final void loadConfigProfile(VoltTable vt) {

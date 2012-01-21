@@ -584,7 +584,8 @@ public class AuctionMarkClient extends BenchmarkComponent {
         int total = 0;
         for (Transaction t : Transaction.values()) {
             for (int i = 0, cnt = this.weights.get(t); i < cnt; i++) {
-            	LOG.debug("xact " + total + " = " + t + ":" + t.getCallName());
+            	if (trace.get())
+            	    LOG.trace("xact " + total + " = " + t + ":" + t.getCallName());
                 this.xacts[total++] = t;
             } // FOR
         } // FOR

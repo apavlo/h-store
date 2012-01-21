@@ -1,6 +1,31 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.auctionmark.procedures;
-
-import java.util.Arrays;
 
 import org.apache.log4j.Logger;
 import org.voltdb.ProcInfo;
@@ -10,9 +35,9 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
-import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
 /**
@@ -170,16 +195,16 @@ public class NewItem extends VoltProcedure {
         voltQueueSQL(getCategory, category_id);
         voltQueueSQL(getCategoryParent, category_id);
         VoltTable results[] = voltExecuteSQL();
-        assert (results.length == gag_ids.length + 2);
+        assert(results.length == gag_ids.length + 2);
         
         // ATTRIBUTES
-        String names[] = new String[gag_ids.length];
+        description += "\nATTRIBUTES: ";
         for (int i = 0; i < gag_ids.length; i++) {
-            boolean adv = results[i].advanceRow();
-            assert (adv);
-            names[i] = results[i].getString(0) + results[i].getString(0);
-        }
-        description += "\nATTRIBUTES: " + Arrays.toString(names);
+            if (results[i].advanceRow()) {
+                description += String.format(" * %s -> %s\n", results[i].getString(0),
+                                                              results[i].getString(1));
+            }
+        } // FOR
 
         // CATEGORY
         String category_name = "";
@@ -239,7 +264,7 @@ public class NewItem extends VoltProcedure {
             // END DATE
             end_date,
             // STATUS
-            ItemStatus.OPEN
+            ItemStatus.OPEN.ordinal()
         });
         return ret;
     }
