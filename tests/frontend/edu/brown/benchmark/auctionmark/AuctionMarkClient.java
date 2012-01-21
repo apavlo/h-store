@@ -48,7 +48,6 @@ import org.voltdb.client.ClientResponse;
 import org.voltdb.client.NoConnectionsException;
 import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.TimestampType;
-import org.voltdb.utils.Pair;
 
 import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
