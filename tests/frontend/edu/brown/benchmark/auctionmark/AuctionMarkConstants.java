@@ -71,6 +71,7 @@ public abstract class AuctionMarkConstants {
     
     public static final long TABLESIZE_REGION                   = 75;
     public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP   = 100;
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE   = 1; // HACK: IGNORE
     public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP = 10;
     public static final long TABLESIZE_USER                     = 100000;
     

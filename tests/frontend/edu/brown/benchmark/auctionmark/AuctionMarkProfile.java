@@ -34,6 +34,7 @@ package edu.brown.benchmark.auctionmark;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -70,8 +71,13 @@ import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
+/**
+ * AuctionMark Profile Information
+ * @author pavlo
+ */
 public class AuctionMarkProfile {
     private static final Logger LOG = Logger.getLogger(AuctionMarkProfile.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -80,6 +86,12 @@ public class AuctionMarkProfile {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    /**
+     * We maintain a cached version of the profile that we will copy from
+     * This prevents the need to have every single client thread load up a separate copy
+     */
+    private static AuctionMarkProfile cachedProfile;
+    
     // ----------------------------------------------------------------
     // REQUIRED REFERENCES
     // ----------------------------------------------------------------
@@ -109,7 +121,7 @@ public class AuctionMarkProfile {
      * A histogram for the number of users that have the number of items listed
      * ItemCount -> # of Users
      */
-    protected final Histogram<Long> users_per_item_count = new Histogram<Long>();
+    protected Histogram<Long> users_per_item_count = new Histogram<Long>();
     
 
     // ----------------------------------------------------------------
@@ -119,7 +131,7 @@ public class AuctionMarkProfile {
     /**
      * Histogram for number of items per category (stored as category_id)
      */
-    public Histogram<Long> item_category_histogram = new Histogram<Long>();
+    protected Histogram<Long> item_category_histogram = new Histogram<Long>();
 
     /**
      * Three status types for an item:
@@ -138,7 +150,7 @@ public class AuctionMarkProfile {
     /**
      * Internal list of GlobalAttributeGroupIds
      */
-    protected transient final List<GlobalAttributeGroupId> gag_ids = new ArrayList<GlobalAttributeGroupId>();
+    protected transient List<GlobalAttributeGroupId> gag_ids = new ArrayList<GlobalAttributeGroupId>();
 
     /**
      * Internal map of UserIdGenerators
@@ -160,11 +172,11 @@ public class AuctionMarkProfile {
     /** Random duration in days */
     public transient final Gaussian randomDuration;
 
-    public transient final Zipf randomNumImages;
-    public transient final Zipf randomNumAttributes;
-    public transient final Zipf randomPurchaseDuration;
-    public transient final Zipf randomNumComments;
-    public transient final Zipf randomInitialPrice;
+    protected transient final Zipf randomNumImages;
+    protected transient final Zipf randomNumAttributes;
+    protected transient final Zipf randomPurchaseDuration;
+    protected transient final Zipf randomNumComments;
+    protected transient final Zipf randomInitialPrice;
 
     private transient FlatHistogram<Long> randomCategory;
     private transient FlatHistogram<Long> randomItemCount;
@@ -186,7 +198,7 @@ public class AuctionMarkProfile {
      * Keep track of previous waitForPurchase ItemIds so that we don't try to call NewPurchase
      * on them more than once
      */
-    private transient final Set<ItemInfo> previousWaitForPurchase = new HashSet<ItemInfo>();
+    private transient Set<ItemInfo> previousWaitForPurchase = new HashSet<ItemInfo>();
     
     // -----------------------------------------------------------------
     // CONSTRUCTOR
@@ -205,15 +217,11 @@ public class AuctionMarkProfile {
         // Random time difference in a second scale
         this.randomTimeDiff = new Gaussian(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
                                                      AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
-//        this.randomTimeDiff = new Flat(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
-//                                                  AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
         this.randomDuration = new Gaussian(this.rng, 1, AuctionMarkConstants.ITEM_MAX_DURATION_DAYS);
-
         this.randomPurchaseDuration = new Zipf(this.rng, 0, AuctionMarkConstants.ITEM_MAX_PURCHASE_DURATION_DAYS, 1.001);
-
         this.randomNumImages = new Zipf(this.rng,   AuctionMarkConstants.ITEM_MIN_IMAGES,
                                                     AuctionMarkConstants.ITEM_MAX_IMAGES, 1.001);
-        this.randomNumAttributes = new Zipf(this.rng,    AuctionMarkConstants.ITEM_MIN_GLOBAL_ATTRS,
+        this.randomNumAttributes = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_GLOBAL_ATTRS,
                                                     AuctionMarkConstants.ITEM_MAX_GLOBAL_ATTRS, 1.001);
         this.randomNumComments = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_COMMENTS,
                                                     AuctionMarkConstants.ITEM_MAX_COMMENTS, 1.001);
@@ -243,10 +251,44 @@ public class AuctionMarkProfile {
         if (debug.get())
             LOG.debug("Saving profile information into " + catalog_tbl);
         baseClient.loadVoltTable(catalog_tbl.getName(), vt);
+        
+        return;
     }
     
-    protected void loadProfile(AuctionMarkClient baseClient) {
-        // TODO: Cache
+    private AuctionMarkProfile copyProfile(AuctionMarkProfile other) {
+        this.scale_factor = other.scale_factor;
+        this.benchmarkStartTime = other.benchmarkStartTime;
+        this.users_per_item_count = other.users_per_item_count;
+        this.item_category_histogram = other.item_category_histogram;
+        this.gag_ids = other.gag_ids;
+        this.previousWaitForPurchase = other.previousWaitForPurchase;
+        
+        this.items_available.addAll(other.items_available);
+        Collections.shuffle(this.items_available);
+        
+        this.items_endingSoon.addAll(other.items_endingSoon);
+        Collections.shuffle(this.items_endingSoon);
+        
+        this.items_waitingForPurchase.addAll(other.items_waitingForPurchase);
+        Collections.shuffle(this.items_waitingForPurchase);
+        
+        this.items_completed.addAll(other.items_completed);
+        Collections.shuffle(this.items_completed);
+        
+        return (this);
+    }
+    
+    /**
+     * Load the profile information stored in the database
+     * @param 
+     */
+    protected synchronized void loadProfile(AuctionMarkClient baseClient) {
+        // Check whether we have a cached Profile we can copy from
+        if (cachedProfile != null) {
+            if (debug.get()) LOG.debug("Using cached SEATSProfile");
+            this.copyProfile(cachedProfile);
+            return;
+        }
         
         if (debug.get())
             LOG.debug("Loading AuctionMarkProfile for the first time");
@@ -267,6 +309,14 @@ public class AuctionMarkProfile {
         // CONFIG_PROFILE
         this.loadConfigProfile(results[result_idx++]); 
         
+        // IMPORTANT: We need to set these timestamps here. It must be done
+        // after we have loaded benchmarkStartTime
+        this.setAndGetClientStartTime();
+        this.updateAndGetCurrentTime();
+        
+        // ITEM CATEGORY COUNTS
+        this.loadItemCategoryCounts(results[result_idx++]);
+        
         // ITEMS
         for (ItemStatus status : ItemStatus.values()) {
             if (status.isInternal()) continue;
@@ -275,6 +325,8 @@ public class AuctionMarkProfile {
         
         // GLOBAL_ATTRIBUTE_GROUPS
         this.loadGlobalAttributeGroups(results[result_idx++]);
+        
+        cachedProfile = this;
     }
     
     private final void loadConfigProfile(VoltTable vt) {
@@ -283,9 +335,22 @@ public class AuctionMarkProfile {
         int col = 0;
         this.scale_factor = vt.getDouble(col++);
         this.benchmarkStartTime = vt.getTimestampAsTimestamp(col++);
+        JSONUtil.fromJSONString(this.users_per_item_count, vt.getString(col++));
         
         if (debug.get())
             LOG.debug(String.format("Loaded %s data", AuctionMarkConstants.TABLENAME_CONFIG_PROFILE));
+    }
+    
+    private final void loadItemCategoryCounts(VoltTable vt) {
+        while (vt.advanceRow()) {
+            int col = 0;
+            long i_c_id = vt.getLong(col++);
+            long count = vt.getLong(col++);
+            this.item_category_histogram.put(i_c_id, count);
+        } // WHILE
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d item category records from %s",
+                                    this.item_category_histogram.getValueCount(), AuctionMarkConstants.TABLENAME_ITEM));
     }
     
     private final void loadItems(VoltTable vt, ItemStatus status) {
@@ -387,7 +452,7 @@ public class AuctionMarkProfile {
      * @return
      */
     public static TimestampType getScaledTimestamp(TimestampType benchmarkStart, TimestampType clientStart, TimestampType current) {
-        if (benchmarkStart == null || clientStart == null || current == null) return (null);
+//        if (benchmarkStart == null || clientStart == null || current == null) return (null);
         
         // First get the offset between the benchmarkStart and the clientStart
         // We then subtract that value from the current time. This gives us the total elapsed 
@@ -688,17 +753,22 @@ public class AuctionMarkProfile {
     
     public ItemStatus addItemToProperQueue(ItemInfo itemInfo, boolean is_loader) {
         // Calculate how much time is left for this auction
-        TimestampType baseTime = (is_loader ? this.getBenchmarkStartTime() : this.getCurrentTime());
+        TimestampType baseTime = (is_loader ? this.getBenchmarkStartTime() :
+                                              this.getCurrentTime());
+        assert(itemInfo.endDate != null);
+        assert(baseTime != null) : "is_loader=" + is_loader;
         long remaining = itemInfo.endDate.getMSTime() - baseTime.getMSTime();
         ItemStatus ret;
         
         // Already ended
         if (remaining <= 100000) {
             if (itemInfo.numBids > 0 && itemInfo.status != ItemStatus.CLOSED) {
-                if (this.previousWaitForPurchase.contains(itemInfo) == false) {
-                    this.previousWaitForPurchase.add(itemInfo);
-                    this.addItem(this.items_waitingForPurchase, itemInfo);
-                }
+                synchronized (this.previousWaitForPurchase) {
+                    if (this.previousWaitForPurchase.contains(itemInfo) == false) {
+                        this.previousWaitForPurchase.add(itemInfo);
+                        this.addItem(this.items_waitingForPurchase, itemInfo);
+                    }
+                } // SYNCH
                 ret = ItemStatus.WAITING_FOR_PURCHASE;
             } else {
                 this.addItem(this.items_completed, itemInfo);
@@ -742,8 +812,8 @@ public class AuctionMarkProfile {
             Integer partition = null;
             int idx = -1;
             
-            if (debug.get()) 
-                LOG.debug(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
+            if (trace.get()) 
+                LOG.trace(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
                                        num_items, currentTime, needCurrentPrice));
             long tries = 1000;
             while (num_items > 0 && tries-- > 0 && seen.size() < num_items) {

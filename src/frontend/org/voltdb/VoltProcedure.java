@@ -582,10 +582,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //        }
         
         for (int i = 0; i < paramTypesLength; i++) {
-        	String orig = this.procParams[i].getClass().getSimpleName();
+//        	String orig = (this.procParams[i] != null ? this.procParams[i].getClass().getSimpleName() : null);
             try {
                 this.procParams[i] = tryToMakeCompatible(i, this.procParams[i]);
-                if (trace.get()) LOG.trace(String.format("[%02d] ORIG:%s -> NEW:%s", i, orig, this.procParams[i].getClass().getSimpleName()));
+//                if (trace.get()) LOG.trace(String.format("[%02d] ORIG:%s -> NEW:%s", i, orig, this.procParams[i].getClass().getSimpleName()));
             } catch (Exception e) {
                 String msg = "PROCEDURE " + procedure_name + " TYPE ERROR FOR PARAMETER " + i +
                         ": " + e.getMessage();

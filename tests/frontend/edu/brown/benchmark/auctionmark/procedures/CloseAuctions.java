@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.auctionmark.procedures;
 
 import org.apache.log4j.Logger;
@@ -117,7 +144,8 @@ public class CloseAuctions extends VoltProcedure {
                 TimestampType endDate = dueItemsTable[0].getTimestampAsTimestamp(4);
                 ItemStatus itemStatus = ItemStatus.get(dueItemsTable[0].getLong(5));
                 
-                if (debug) LOG.debug(String.format("Getting max bid for itemId=%d / sellerId=%d", itemId, sellerId));
+                if (debug)
+                    LOG.debug(String.format("Getting max bid for itemId=%d / sellerId=%d", itemId, sellerId));
                 assert(itemStatus == ItemStatus.OPEN);
                 
                 output_rows[i] = new Object[] { itemId,         // i_id
@@ -125,7 +153,7 @@ public class CloseAuctions extends VoltProcedure {
                                                 numBids,        // i_num_bids
                                                 currentPrice,   // i_current_price
                                                 endDate,        // i_end_date
-                                                itemStatus,     // i_status
+                                                itemStatus.ordinal(), // i_status
                                                 null,           // imb_ib_id
                                                 null            // ib_buyer_id
                 };
@@ -188,8 +216,8 @@ public class CloseAuctions extends VoltProcedure {
             if (batch_size > 0) voltExecuteSQL();
         } // WHILE
 
-//        if (debug)
-            LOG.info(String.format("Updated Auctions - Closed=%d / Waiting=%d", closed_ctr, waiting_ctr));
+        if (debug)
+            LOG.debug(String.format("Updated Auctions - Closed=%d / Waiting=%d", closed_ctr, waiting_ctr));
         return (ret);
     }
 }

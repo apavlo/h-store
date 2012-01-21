@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -268,10 +269,9 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             Thread t = new Thread(generator);
             t.setUncaughtExceptionHandler(handler);
             threads.add(t);
-            
             // Make sure we call init first before starting any thread
             generator.init();
-        }
+        } // FOR
         assert(threads.size() > 0);
         handler.addObserver(new EventObserver<Pair<Thread,Throwable>>() {
             @Override
@@ -721,7 +721,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
     protected class CategoryGenerator extends AbstractTableGenerator {
         private final File data_file;
         private final Map<String, Category> categoryMap;
-        private Iterator<String> categoryKeyItr;
+        private final LinkedList<Category> categories = new LinkedList<Category>();
 
         public CategoryGenerator(File data_file) {
             super(AuctionMarkConstants.TABLENAME_CATEGORY);
@@ -730,25 +730,25 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                 "The data file for the category generator does not exist: " + this.data_file;
 
             this.categoryMap = (new AuctionMarkCategoryParser(data_file)).getCategoryMap();
-            this.categoryKeyItr = this.categoryMap.keySet().iterator();
             this.tableSize = (long)this.categoryMap.size();
         }
 
         @Override
         public void init() {
-            // Nothing to do
+            for (Category category : this.categoryMap.values()) {
+                if (category.isLeaf()) {
+                    profile.item_category_histogram.put((long)category.getCategoryID(), category.getItemCount());
+                }
+                this.categories.add(category);
+            } // FOR
         }
         @Override
         protected int populateRow() {
             int col = 0;
 
-            String category_key = this.categoryKeyItr.next();
-            Category category = this.categoryMap.get(category_key);
-
-            if (category.isLeaf()) {
-                profile.item_category_histogram.put((long)category.getCategoryID(), category.getItemCount());
-            }
-
+            Category category = this.categories.pop();
+            assert(category != null);
+            
             // C_ID
             this.row[col++] = category.getCategoryID();
             // C_NAME
@@ -766,6 +766,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
     protected class GlobalAttributeGroupGenerator extends AbstractTableGenerator {
         private long num_categories = 0l;
         private final Histogram<Integer> category_groups = new Histogram<Integer>();
+        private final LinkedList<GlobalAttributeGroupId> group_ids = new LinkedList<GlobalAttributeGroupId>();
 
         public GlobalAttributeGroupGenerator() {
             super(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP,
@@ -776,23 +777,28 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         public void init() {
             // Grab the number of CATEGORY items that we have inserted
             this.num_categories = getTableTupleCount(AuctionMarkConstants.TABLENAME_CATEGORY);
+            
+            for (int i = 0; i < this.tableSize; i++) {
+                int category_id = profile.rng.number(0, (int)this.num_categories);
+                this.category_groups.put(category_id);
+                int id = this.category_groups.get(category_id).intValue();
+                int count = (int)profile.rng.number(1, AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP);
+                GlobalAttributeGroupId gag_id = new GlobalAttributeGroupId(category_id, id, count);
+                assert(profile.gag_ids.contains(gag_id) == false);
+                profile.gag_ids.add(gag_id);
+                this.group_ids.add(gag_id);
+            } // FOR
         }
         @Override
         protected int populateRow() {
             int col = 0;
 
-            int category_id = profile.rng.number(0, (int)this.num_categories);
-            this.category_groups.put(category_id);
-            int id = this.category_groups.get(category_id).intValue();
-            int count = (int)profile.rng.number(1, AuctionMarkConstants.TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP);
-            GlobalAttributeGroupId gag_id = new GlobalAttributeGroupId(category_id, id, count);
-            assert(profile.gag_ids.contains(gag_id) == false);
-            profile.gag_ids.add(gag_id);
+            GlobalAttributeGroupId gag_id = this.group_ids.pop();
             
             // GAG_ID
             this.row[col++] = gag_id.encode();
             // GAG_C_ID
-            this.row[col++] = category_id;
+            this.row[col++] = gag_id.getCategoryId();
             // GAG_NAME
             this.row[col++] = profile.rng.astring(6, 32);
             
@@ -808,7 +814,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         private Histogram<GlobalAttributeGroupId> gag_counters = new Histogram<GlobalAttributeGroupId>(true);
         private Iterator<GlobalAttributeGroupId> gag_iterator;
         private GlobalAttributeGroupId gag_current;
-        private int gav_counter = 0;
+        private int gav_counter = -1;
 
         public GlobalAttributeValueGenerator() {
             super(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE,
