@@ -45,6 +45,7 @@ import edu.brown.BaseTestCase;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
+import edu.brown.benchmark.auctionmark.AuctionMarkLoader.AbstractTableGenerator;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -135,17 +136,17 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
         
-        if (loader == null) {
+        if (isFirstSetup()) {
             this.addPartitions(10);
             loader = new MockAuctionMarkLoader(LOADER_ARGS);
-        }
-        
-        if (EXPECTED_BATCHSIZES.isEmpty()) {
             loader.setCatalog(catalog);
+            
             for (String tableName : AuctionMarkConstants.TABLENAMES) {
                 initTable(tableName);
             } // FOR
         }
+        assertNotNull(loader);
+        assertFalse(EXPECTED_BATCHSIZES.isEmpty());
     }
     
     protected static void initTable(String tableName) throws Exception {
@@ -193,21 +194,34 @@ public class TestAuctionMarkLoader extends BaseTestCase {
      * testCategory
      */
     public void testGenerateCategory() throws Exception {
-        loader.generateTableData(AuctionMarkConstants.TABLENAME_CATEGORY);
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_CATEGORY);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_CATEGORY, generator.getTableName());
+        generator.init();
+        loader.generateTableData(generator.getTableName());
     }
     
     /**
      * testGenerateGlobalAttributeGroup
      */
     public void testGenerateGlobalAttributeGroup() throws Exception {
-        loader.generateTableData(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, generator.getTableName());
+        generator.init();
+        loader.generateTableData(generator.getTableName());
     }
 
     /**
      * testGenerateGlobalAttributeValue
      */
     public void testGenerateGlobalAttributeValue() throws Exception {
-        loader.generateTableData(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE, generator.getTableName());
+        generator.init();
+        EXPECTED_TABLESIZES.put(generator.getTableName(), generator.getTableSize()); // HACK
+        loader.generateTableData(generator.getTableName());
     }
 
     

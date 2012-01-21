@@ -251,6 +251,10 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             this.sub_generators.add(sub_generator.getTableName());
         } // FOR
     }
+    
+    protected AbstractTableGenerator getGenerator(String table_name) {
+        return (this.generators.get(table_name));
+    }
 
     @Override
     public String[] getTransactionDisplayNames() {
@@ -746,7 +750,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         protected int populateRow() {
             int col = 0;
 
-            Category category = this.categories.pop();
+            Category category = this.categories.poll();
             assert(category != null);
             
             // C_ID
@@ -793,7 +797,8 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         protected int populateRow() {
             int col = 0;
 
-            GlobalAttributeGroupId gag_id = this.group_ids.pop();
+            GlobalAttributeGroupId gag_id = this.group_ids.poll();
+            assert(gag_id != null);
             
             // GAG_ID
             this.row[col++] = gag_id.encode();
