@@ -81,6 +81,13 @@ public final class HStoreConf {
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/sites";
         
         @ConfigProperty(
+            description="Whether to back-up log files before the benchmark is exceuted",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean log_backup;
+        
+        @ConfigProperty(
             description="The amount of memory to allocate for each site process (in MB)",
             defaultInt=2048,
             experimental=false
@@ -714,6 +721,13 @@ public final class HStoreConf {
             experimental=false
         )
         public String log_dir = HStoreConf.this.global.temp_dir + "/logs/clients";
+        
+        @ConfigProperty(
+            description="Whether to back-up log files before the benchmark is exceuted",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean log_backup;
         
         @ConfigProperty(
             description="The amount of memory to allocate for each client process (in MB)",
