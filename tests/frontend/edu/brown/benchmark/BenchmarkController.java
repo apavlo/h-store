@@ -208,8 +208,14 @@ public class BenchmarkController {
         if (catalog != null) this.initializeCatalog(catalog);
         
         // Setup ProcessSetManagers...
-        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir, 0, this.failure_observer);
-        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir, config.client_initialPollingDelay, this.failure_observer);
+        m_clientPSM = new ProcessSetManager(hstore_conf.client.log_dir,
+                                            hstore_conf.client.log_backup,
+                                            0,
+                                            this.failure_observer);
+        m_sitePSM = new ProcessSetManager(hstore_conf.site.log_dir,
+                                          hstore_conf.site.log_backup,
+                                          config.client_initialPollingDelay,
+                                          this.failure_observer);
 
         Map<String, Field> builderFields = new HashMap<String, Field>();
         builderFields.put("m_clientClass", null);

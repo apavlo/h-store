@@ -29,7 +29,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -64,6 +66,8 @@ public class ProcessSetManager implements Shutdownable {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
+    private static final SimpleDateFormat BACKUP_FORMAT = new SimpleDateFormat("yyyy.MM.dd-HH:mm:ss");
+    
     final int initial_polling_delay; 
     final File output_directory;
     final EventObservable<String> failure_observable = new EventObservable<String>();
@@ -71,6 +75,8 @@ public class ProcessSetManager implements Shutdownable {
     final Map<String, ProcessData> m_processes = new ConcurrentHashMap<String, ProcessData>();
     final ProcessSetPoller setPoller = new ProcessSetPoller();
     boolean shutting_down = false;
+    boolean backup_logs = true;
+    
     
     public static final Pattern OUTPUT_CLEAN[] = {
         Pattern.compile("__(FILE|LINE)__[:]?"),
@@ -164,7 +170,8 @@ public class ProcessSetManager implements Shutdownable {
         }
         @Override
         public void run() {
-            if (debug.get()) LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
+            if (debug.get())
+                LOG.debug("Starting ProcessSetPoller [initialDelay=" + initial_polling_delay + "]");
             while (true) {
                 try {
                     Thread.sleep(2500);
@@ -198,27 +205,13 @@ public class ProcessSetManager implements Shutdownable {
         final AtomicBoolean m_expectDeath = new AtomicBoolean(false);
         final FileWriter m_writer;
 
-        StreamWatcher(BufferedReader reader, String processName, Stream stream) {
+        StreamWatcher(BufferedReader reader, FileWriter writer, String processName, Stream stream) {
             assert(reader != null);
             this.setDaemon(true);
             m_reader = reader;
+            m_writer = writer;
             m_processName = processName;
             m_stream = stream;
-            
-            if (output_directory != null) {
-                FileWriter fw = null;
-                String path = String.format("%s/%s.log", output_directory.getAbsolutePath(), m_processName);
-                try {
-                    fw = new FileWriter(path);
-                } catch (Exception ex) {
-                    LOG.fatal("Failed to create output writer for " + m_processName, ex);
-                    System.exit(1);
-                }
-                if (debug.get()) LOG.debug(String.format("Logging %s output to '%s'", m_processName, path));
-                m_writer = fw;
-            } else {
-                m_writer = null;
-            }
         }
 
         void setExpectDeath(boolean expectDeath) {
@@ -275,8 +268,9 @@ public class ProcessSetManager implements Shutdownable {
         }
     }
     
-    public ProcessSetManager(String log_dir, int initial_polling_delay, EventObserver<String> observer) {
+    public ProcessSetManager(String log_dir, boolean backup_logs, int initial_polling_delay, EventObserver<String> observer) {
         this.output_directory = (log_dir != null && log_dir.isEmpty() == false ? new File(log_dir) : null);
+        this.backup_logs = backup_logs;
         this.initial_polling_delay = initial_polling_delay;
         this.failure_observable.addObserver(observer);
         
@@ -285,7 +279,7 @@ public class ProcessSetManager implements Shutdownable {
     }
     
     public ProcessSetManager() {
-        this(null, 10000, null);
+        this(null, false, 10000, null);
     }
     
     @Override
@@ -313,13 +307,15 @@ public class ProcessSetManager implements Shutdownable {
             });
         } // FOR
         if (runnables.isEmpty() == false) {
-            if (debug.get()) LOG.debug(String.format("Killing %d processes in parallel", runnables.size()));
+            if (debug.get())
+                LOG.debug(String.format("Killing %d processes in parallel", runnables.size()));
             try {
                 ThreadUtil.runNewPool(runnables);
             } catch (Throwable ex) {
                 LOG.error("Unexpected error when shutting down processes", ex);
             }
-            if (debug.get()) LOG.debug("Finished shutting down");
+            if (debug.get())
+                LOG.debug("Finished shutting down");
         }
     }
     
@@ -367,8 +363,38 @@ public class ProcessSetManager implements Shutdownable {
         
         BufferedReader out = new BufferedReader(new InputStreamReader(pd.process.getInputStream()));
         BufferedReader err = new BufferedReader(new InputStreamReader(pd.process.getErrorStream()));
-        pd.out = new StreamWatcher(out, processName, Stream.STDOUT);
-        pd.err = new StreamWatcher(err, processName, Stream.STDERR);
+        
+        // Output File
+        FileWriter fw = null;
+        if (output_directory != null) {
+            File path = new File(String.format("%s/%s.log",
+                                               output_directory.getAbsolutePath(), processName));
+            
+            // 2012-01-24
+            // If the file already exists, we'll move it out of the way automatically 
+            // if they want us to
+            if (path.exists() && backup_logs) {
+                Date log_date = new Date(path.lastModified());
+                File backup_file = new File(String.format("%s/%s-%s.log",
+                                                          output_directory.getAbsolutePath(),
+                                                          processName,
+                                                          BACKUP_FORMAT.format(log_date)));
+                path.renameTo(backup_file);
+                if (debug.get())
+                    LOG.debug(String.format("Moved log file '%s' to '%s'", path.getName(), backup_file.getName())); 
+            }
+            
+            try {
+                fw = new FileWriter(path);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to create output writer for " + processName, ex);
+            }
+            if (debug.get()) 
+                LOG.debug(String.format("Logging %s output to '%s'", processName, path));
+        }
+        
+        pd.out = new StreamWatcher(out, fw, processName, Stream.STDOUT);
+        pd.err = new StreamWatcher(err, fw, processName, Stream.STDERR);
         
         pd.out.start();
         pd.err.start();
