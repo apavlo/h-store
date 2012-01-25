@@ -30,6 +30,15 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 
+-- ================================================================ 
+-- CONFIG_PROFILE
+-- ================================================================
+CREATE TABLE CONFIG_PROFILE (
+    CFP_SCALE_FACTOR            FLOAT NOT NULL,
+    CFP_BENCHMARK_START			TIMESTAMP NOT NULL,
+    CFP_USER_ITEM_HISTOGRAM     VARCHAR(12000) NOT NULL
+);
+
 -- ================================================================
 -- REGION
 -- Represents regions of users

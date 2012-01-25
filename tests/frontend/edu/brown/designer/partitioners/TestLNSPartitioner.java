@@ -276,6 +276,7 @@ public class TestLNSPartitioner extends BasePartitionerTestCase {
         assertEquals(1, multicolumns.size());
         assert(multicolumns.containsKey(catalog_tbl));
         
+        // XXX: What if there are multiple MultiColumns?
         MultiColumn mc = CollectionUtil.first(multicolumns.get(catalog_tbl));
         assertNotNull(mc);
         

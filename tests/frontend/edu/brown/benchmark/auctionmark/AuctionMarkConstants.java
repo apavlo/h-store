@@ -71,7 +71,8 @@ public abstract class AuctionMarkConstants {
     
     public static final long TABLESIZE_REGION                   = 75;
     public static final long TABLESIZE_GLOBAL_ATTRIBUTE_GROUP   = 100;
-    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE   = TABLESIZE_GLOBAL_ATTRIBUTE_GROUP * 10;
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE   = 1; // HACK: IGNORE
+    public static final long TABLESIZE_GLOBAL_ATTRIBUTE_VALUE_PER_GROUP = 10;
     public static final long TABLESIZE_USER                     = 100000;
     
     // ----------------------------------------------------------------
@@ -91,6 +92,25 @@ public abstract class AuctionMarkConstants {
     // ITEM PARAMETERS
     // ----------------------------------------------------------------
     
+    public enum ItemStatus {
+        OPEN                    (false),
+        ENDING_SOON             (true), // Only used internally
+        WAITING_FOR_PURCHASE    (false),
+        CLOSED                  (false);
+        
+        private final boolean internal;
+        
+        private ItemStatus(boolean internal) {
+            this.internal = internal;
+        }
+        public boolean isInternal() {
+            return internal;
+        }
+        public static ItemStatus get(long idx) {
+            return (values()[(int)idx]);
+        }
+    }
+    
     public static final int ITEM_MIN_INITIAL_PRICE = 1;
     public static final int ITEM_MAX_INITIAL_PRICE = 1000;
     public static final int ITEM_MIN_ITEMS_PER_SELLER = 0;
@@ -105,10 +125,6 @@ public abstract class AuctionMarkConstants {
     public static final int ITEM_MAX_COMMENTS = 5;
     public static final int ITEM_MIN_GLOBAL_ATTRS = 1;
     public static final int ITEM_MAX_GLOBAL_ATTRS = 10;
-    
-    public static final int ITEM_STATUS_OPEN                    = 0;
-    public static final int ITEM_STATUS_WAITING_FOR_PURCHASE    = 1;
-    public static final int ITEM_STATUS_CLOSED                  = 2;
     
     /** When an item receives a bid we will increase its price by this amount */
     public static final float ITEM_BID_PERCENT_STEP = 0.025f;
@@ -156,6 +172,7 @@ public abstract class AuctionMarkConstants {
     // ----------------------------------------------------------------
     // TABLE NAMES
     // ----------------------------------------------------------------
+    public static final String TABLENAME_CONFIG_PROFILE         = "CONFIG_PROFILE";
     public static final String TABLENAME_REGION                 = "REGION";
     public static final String TABLENAME_USER                   = "USER";
     public static final String TABLENAME_USER_ATTRIBUTES        = "USER_ATTRIBUTES";

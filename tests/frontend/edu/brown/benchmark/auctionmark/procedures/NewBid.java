@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.auctionmark.procedures;
 
 import org.apache.log4j.Logger;
@@ -8,7 +35,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.UserId;
@@ -48,7 +76,7 @@ public class NewBid extends VoltProcedure {
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
          "WHERE i_id = ? AND i_u_id = ? " //+
 //         "  AND i_end_date > ? " +
-//         "  AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN
+//         "  AND i_status = " + ItemStatus.OPEN
     );
     
     public final SQLStmt getMaxBidId = new SQLStmt(
@@ -136,7 +164,7 @@ public class NewBid extends VoltProcedure {
     );
 
     public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, long buyer_id, double newBid, TimestampType estimatedEndDate) {
-        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
         if (debug) LOG.debug(String.format("Attempting to place new bid on Item %d [buyer=%d, bid=%.2f]", item_id, buyer_id, newBid));
 
@@ -156,13 +184,14 @@ public class NewBid extends VoltProcedure {
         double i_current_price = results[0].getDouble(1);
         long i_num_bids = results[0].getLong(2);
         TimestampType i_end_date = results[0].getTimestampAsTimestamp(3);
-        long i_status = results[0].getLong(4);
+        ItemStatus i_status = ItemStatus.get(results[0].getLong(4));
         long newBidId = 0;
         long newBidMaxBuyerId = buyer_id;
         
-        if (i_end_date.compareTo(currentTime) < 0 || i_status != AuctionMarkConstants.ITEM_STATUS_OPEN) {
-            if (debug) LOG.debug(String.format("The auction for item %d has ended [status=%d]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
-                                               item_id, i_status, currentTime, i_end_date, estimatedEndDate));
+        if (i_end_date.compareTo(currentTime) < 0 || i_status != ItemStatus.OPEN) {
+            if (debug)
+                LOG.debug(String.format("The auction for item %d has ended [status=%s]\nCurrentTime:\t%s\nActualEndDate:\t%s\nEstimatedEndDate:\t%s",
+                                        item_id, i_status, currentTime, i_end_date, estimatedEndDate));
             throw new VoltAbortException("Unable to bid on item: Auction has ended");
         }
         

@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.auctionmark.procedures;
 
 import org.apache.log4j.Logger;
@@ -9,7 +36,8 @@ import org.voltdb.VoltType;
 import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 
 /**
@@ -44,7 +72,7 @@ public class CloseAuctions extends VoltProcedure {
         "SELECT i_id, i_u_id, i_current_price, i_num_bids, i_end_date, i_status " + 
           "FROM " + AuctionMarkConstants.TABLENAME_ITEM + " " + 
          "WHERE (i_start_date BETWEEN ? AND ?) " +
-           "AND i_status = " + AuctionMarkConstants.ITEM_STATUS_OPEN + " " +
+           "AND i_status = " + ItemStatus.OPEN.ordinal() + " " +
          "ORDER BY i_id ASC " +
          "LIMIT 25 "
     );
@@ -84,7 +112,7 @@ public class CloseAuctions extends VoltProcedure {
      * @return
      */
     public VoltTable run(TimestampType benchmarkTimes[], TimestampType startTime, TimestampType endTime) {
-        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         final boolean debug = LOG.isDebugEnabled();
 
         if (debug) {
@@ -114,17 +142,18 @@ public class CloseAuctions extends VoltProcedure {
                 double currentPrice = dueItemsTable[0].getDouble(2);
                 long numBids = dueItemsTable[0].getLong(3);
                 TimestampType endDate = dueItemsTable[0].getTimestampAsTimestamp(4);
-                long itemStatus = dueItemsTable[0].getLong(5);
+                ItemStatus itemStatus = ItemStatus.get(dueItemsTable[0].getLong(5));
                 
-                if (debug) LOG.debug(String.format("Getting max bid for itemId=%d / sellerId=%d", itemId, sellerId));
-                assert(itemStatus == AuctionMarkConstants.ITEM_STATUS_OPEN);
+                if (debug)
+                    LOG.debug(String.format("Getting max bid for itemId=%d / sellerId=%d", itemId, sellerId));
+                assert(itemStatus == ItemStatus.OPEN);
                 
                 output_rows[i] = new Object[] { itemId,         // i_id
                                                 sellerId,       // i_u_id
                                                 numBids,        // i_num_bids
                                                 currentPrice,   // i_current_price
                                                 endDate,        // i_end_date
-                                                itemStatus,     // i_status
+                                                itemStatus.ordinal(), // i_status
                                                 null,           // imb_ib_id
                                                 null            // ib_buyer_id
                 };
@@ -151,11 +180,10 @@ public class CloseAuctions extends VoltProcedure {
             for (i = 0; i < with_bids.length; i++) {
                 long itemId = (Long)output_rows[i][0];
                 long sellerId = (Long)output_rows[i][1];
-                long status = (with_bids[i] ? AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE :
-                                              AuctionMarkConstants.ITEM_STATUS_CLOSED);
-                voltQueueSQL(updateItemStatus, status, currentTime, itemId, sellerId);
-                if (debug) LOG.debug(String.format("Updated Status for Item %d => %s",
-                                     itemId, (status == AuctionMarkConstants.ITEM_STATUS_CLOSED ? "CLOSED" : "WAITING_FOR_PURCHASE")));
+                ItemStatus status = (with_bids[i] ? ItemStatus.WAITING_FOR_PURCHASE : ItemStatus.CLOSED);
+                voltQueueSQL(updateItemStatus, status.ordinal(), currentTime, itemId, sellerId);
+                if (debug)
+                    LOG.debug(String.format("Updated Status for Item %d => %s", itemId, status));
                 
                 if (with_bids[i]) {
                     final VoltTable vt = bidResults[bidResultsCtr++]; 
@@ -188,8 +216,8 @@ public class CloseAuctions extends VoltProcedure {
             if (batch_size > 0) voltExecuteSQL();
         } // WHILE
 
-//        if (debug)
-            LOG.info(String.format("Updated Auctions - Closed=%d / Waiting=%d", closed_ctr, waiting_ctr));
+        if (debug)
+            LOG.debug(String.format("Updated Auctions - Closed=%d / Waiting=%d", closed_ctr, waiting_ctr));
         return (ret);
     }
 }
