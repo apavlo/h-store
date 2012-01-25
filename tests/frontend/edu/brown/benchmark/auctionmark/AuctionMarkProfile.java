@@ -31,11 +31,10 @@
  ***************************************************************************/
 package edu.brown.benchmark.auctionmark;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -44,17 +43,25 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONStringer;
 import org.voltdb.TheHashinator;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 import org.voltdb.types.TimestampType;
-import org.voltdb.utils.Pair;
 
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.procedures.LoadConfig;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeGroupId;
+import edu.brown.benchmark.auctionmark.util.GlobalAttributeValueId;
+import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
+import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
@@ -64,107 +71,100 @@ import edu.brown.rand.RandomDistribution.Gaussian;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.CollectionUtil;
-import edu.brown.utils.JSONSerializable;
 import edu.brown.utils.JSONUtil;
 import edu.brown.utils.StringUtil;
 
-public class AuctionMarkBenchmarkProfile implements JSONSerializable {
-    private static final Logger LOG = Logger.getLogger(AuctionMarkBenchmarkProfile.class);
+/**
+ * AuctionMark Profile Information
+ * @author pavlo
+ */
+public class AuctionMarkProfile {
+    private static final Logger LOG = Logger.getLogger(AuctionMarkProfile.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private static Comparator<ItemInfo> ENDDATE_COMPARATOR = new Comparator<ItemInfo>() {
-        @Override
-        public int compare(ItemInfo o1, ItemInfo o2) {
-            assert(o1.hasEndDate());
-            assert(o2.hasEndDate());
-            return o1.getEndDate().compareTo(o2.getEndDate());
-        }
-    };
-    
-    public enum QueueType {
-        AVAILABLE,
-        ENDING_SOON,
-        WAITING_FOR_PURCHASE,
-        COMPLETED;
-    }
+    /**
+     * We maintain a cached version of the profile that we will copy from
+     * This prevents the need to have every single client thread load up a separate copy
+     */
+    private static AuctionMarkProfile cachedProfile;
     
     // ----------------------------------------------------------------
-    // SERIALIZABLE DATA MEMBERS
-    // ----------------------------------------------------------------
-
-    /** The start time used when creating the data for this benchmark */
-    public TimestampType benchmarkStartTime;
-    
-    /** When this client started executing */
-    public TimestampType clientStartTime;
-    
-    /** Current Timestamp */
-    public TimestampType currentTime;
-
-    /** The last time that we called CHECK_WINNING_BIDS on this client */
-    public TimestampType lastCloseAuctionsTime;
-    
-    /**
-     * Data Scale Factor
-     */
-    public double scale_factor;
-    /**
-     * Map from table names to the number of tuples we inserted during loading
-     */
-    public Histogram<String> table_sizes = new Histogram<String>();
-    /**
-     * Histogram for number of items per category (stored as category_id)
-     */
-    public Histogram<Long> item_category_histogram = new Histogram<Long>();
-
-    /**
-     * A histogram for the number of users that have the number of items listed
-     * ItemCount -> # of Users
-     */
-    public Histogram<Long> users_per_item_count = new Histogram<Long>();
-    
-    /**
-     * Three status types for an item:
-     *  (1) Available (The auction of this item is still open)
-     *  (2) Wait for purchase - The auction of this item is still open. 
-     *      There is a bid winner and the bid winner has not purchased the item.
-     *  (3) Complete (The auction is closed and (There is no bid winner or
-     *      the bid winner has already purchased the item)
-     */
-    public final LinkedList<ItemInfo> items_available = new LinkedList<ItemInfo>();
-    public final LinkedList<ItemInfo> items_endingSoon = new LinkedList<ItemInfo>();
-    public final LinkedList<ItemInfo> items_waitingForPurchase = new LinkedList<ItemInfo>();
-    public final LinkedList<ItemInfo> items_completed = new LinkedList<ItemInfo>();
-
-    /** Map from global attribute group to list of global attribute value */
-    public final Map<Long, List<Long>> gag_gav_map = new HashMap<Long, List<Long>>();
-    public Histogram<Long> gag_gav_histogram = new Histogram<Long>();
-    
-    // ----------------------------------------------------------------
-    // TRANSIENT DATA MEMBERS
+    // REQUIRED REFERENCES
     // ----------------------------------------------------------------
     
     /**
      * Specialized random number generator
      */
-    private final AbstractRandomGenerator rng;
-    
+    protected final AbstractRandomGenerator rng;
     private final int num_clients;
+    protected transient File data_directory;
 
+    // ----------------------------------------------------------------
+    // SERIALIZABLE DATA MEMBERS
+    // ----------------------------------------------------------------
+
+    /**
+     * Database Scale Factor
+     */
+    private double scale_factor;
+    
+    /**
+     * The start time used when creating the data for this benchmark
+     */
+    private TimestampType benchmarkStartTime;
+    
+    /**
+     * A histogram for the number of users that have the number of items listed
+     * ItemCount -> # of Users
+     */
+    protected Histogram<Long> users_per_item_count = new Histogram<Long>();
+    
+
+    // ----------------------------------------------------------------
+    // TRANSIENT DATA MEMBERS
+    // ----------------------------------------------------------------
+    
+    /**
+     * Histogram for number of items per category (stored as category_id)
+     */
+    protected Histogram<Long> item_category_histogram = new Histogram<Long>();
+
+    /**
+     * Three status types for an item:
+     *  (1) Available - The auction of this item is still open
+     *  (2) Ending Soon
+     *  (2) Wait for Purchase - The auction of this item is still open. 
+     *      There is a bid winner and the bid winner has not purchased the item.
+     *  (3) Complete (The auction is closed and (There is no bid winner or
+     *      the bid winner has already purchased the item)
+     */
+    private transient final LinkedList<ItemInfo> items_available = new LinkedList<ItemInfo>();
+    private transient final LinkedList<ItemInfo> items_endingSoon = new LinkedList<ItemInfo>();
+    private transient final LinkedList<ItemInfo> items_waitingForPurchase = new LinkedList<ItemInfo>();
+    private transient final LinkedList<ItemInfo> items_completed = new LinkedList<ItemInfo>();
+    
+    /**
+     * Internal list of GlobalAttributeGroupIds
+     */
+    protected transient List<GlobalAttributeGroupId> gag_ids = new ArrayList<GlobalAttributeGroupId>();
+
+    /**
+     * Internal map of UserIdGenerators
+     */
     private transient final Map<Integer, UserIdGenerator> userIdGenerators = new HashMap<Integer, UserIdGenerator>();
     
     /**
      * Data used for calculating temporally skewed user ids
      */
-    private Integer current_tick = -1;
-    private Integer window_total = null;
-    private Integer window_size = null;
-    private final Histogram<Integer> window_histogram = new Histogram<Integer>();
-    private final List<Integer> window_partitions = new ArrayList<Integer>();
+    private transient Integer current_tick = -1;
+    private transient Integer window_total = null;
+    private transient Integer window_size = null;
+    private transient final Histogram<Integer> window_histogram = new Histogram<Integer>(true);
+    private transient final List<Integer> window_partitions = new ArrayList<Integer>();
     
     /** Random time different in seconds */
     public transient final DiscreteRNG randomTimeDiff;
@@ -172,59 +172,56 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     /** Random duration in days */
     public transient final Gaussian randomDuration;
 
-    public transient final Zipf randomNumImages;
-    public transient final Zipf randomNumAttributes;
-    public transient final Zipf randomPurchaseDuration;
-    public transient final Zipf randomNumComments;
-    public transient final Zipf randomInitialPrice;
+    protected transient final Zipf randomNumImages;
+    protected transient final Zipf randomNumAttributes;
+    protected transient final Zipf randomPurchaseDuration;
+    protected transient final Zipf randomNumComments;
+    protected transient final Zipf randomInitialPrice;
 
-    private transient FlatHistogram<Long> randomGAGId;
     private transient FlatHistogram<Long> randomCategory;
     private transient FlatHistogram<Long> randomItemCount;
+    
+    /**
+     * The last time that we called CHECK_WINNING_BIDS on this client
+     */
+    private transient TimestampType lastCloseAuctionsTime;
+    /**
+     * When this client started executing
+     */
+    private TimestampType clientStartTime;
+    /**
+     * Current Timestamp
+     */
+    private TimestampType currentTime;
     
     /**
      * Keep track of previous waitForPurchase ItemIds so that we don't try to call NewPurchase
      * on them more than once
      */
-    private transient final Set<ItemInfo> previousWaitForPurchase = new HashSet<ItemInfo>();
-
+    private transient Set<ItemInfo> previousWaitForPurchase = new HashSet<ItemInfo>();
     
     // -----------------------------------------------------------------
-    // GENERAL METHODS
+    // CONSTRUCTOR
     // -----------------------------------------------------------------
 
     /**
      * Constructor - Keep your pimp hand strong!
      */
-    public AuctionMarkBenchmarkProfile(AbstractRandomGenerator rng, int num_clients) {
+    public AuctionMarkProfile(AbstractRandomGenerator rng, int num_clients) {
         this.rng = rng;
         this.num_clients = num_clients;
 
-        // Initialize table sizes
-        this.table_sizes.setKeepZeroEntries(true);
-        for (String tableName : AuctionMarkConstants.TABLENAMES) {
-            if (this.table_sizes.contains(tableName) == false) {
-                this.table_sizes.put(tableName, 0l);
-            }
-        } // FOR
-
-        this.window_histogram.setKeepZeroEntries(true);
-        
         this.randomInitialPrice = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_INITIAL_PRICE,
                                                      AuctionMarkConstants.ITEM_MAX_INITIAL_PRICE, 1.001);
         
         // Random time difference in a second scale
         this.randomTimeDiff = new Gaussian(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
                                                      AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
-//        this.randomTimeDiff = new Flat(this.rng, -AuctionMarkConstants.ITEM_PRESERVE_DAYS * 24 * 60 * 60,
-//                                                  AuctionMarkConstants.ITEM_MAX_DURATION_DAYS * 24 * 60 * 60);
         this.randomDuration = new Gaussian(this.rng, 1, AuctionMarkConstants.ITEM_MAX_DURATION_DAYS);
-
         this.randomPurchaseDuration = new Zipf(this.rng, 0, AuctionMarkConstants.ITEM_MAX_PURCHASE_DURATION_DAYS, 1.001);
-
         this.randomNumImages = new Zipf(this.rng,   AuctionMarkConstants.ITEM_MIN_IMAGES,
                                                     AuctionMarkConstants.ITEM_MAX_IMAGES, 1.001);
-        this.randomNumAttributes = new Zipf(this.rng,    AuctionMarkConstants.ITEM_MIN_GLOBAL_ATTRS,
+        this.randomNumAttributes = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_GLOBAL_ATTRS,
                                                     AuctionMarkConstants.ITEM_MAX_GLOBAL_ATTRS, 1.001);
         this.randomNumComments = new Zipf(this.rng, AuctionMarkConstants.ITEM_MIN_COMMENTS,
                                                     AuctionMarkConstants.ITEM_MAX_COMMENTS, 1.001);
@@ -234,7 +231,169 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
 
         LOG.debug("AuctionMarkBenchmarkProfile :: constructor");
     }
+    
+    // -----------------------------------------------------------------
+    // SERIALIZATION METHODS
+    // -----------------------------------------------------------------
 
+    protected final void saveProfile(AuctionMarkLoader baseClient) {
+        Database catalog_db = CatalogUtil.getDatabase(baseClient.getCatalog());
+        
+     // CONFIG_PROFILE
+        Table catalog_tbl = catalog_db.getTables().get(AuctionMarkConstants.TABLENAME_CONFIG_PROFILE);
+        VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
+        assert(vt != null);
+        vt.addRow(
+            this.scale_factor,                  // CFP_SCALE_FACTOR
+            this.benchmarkStartTime,            // CFP_BENCHMARK_START
+            this.users_per_item_count.toJSONString() // CFP_USER_ITEM_HISTOGRAM
+        );
+        if (debug.get())
+            LOG.debug("Saving profile information into " + catalog_tbl);
+        baseClient.loadVoltTable(catalog_tbl.getName(), vt);
+        
+        return;
+    }
+    
+    private AuctionMarkProfile copyProfile(AuctionMarkProfile other) {
+        this.scale_factor = other.scale_factor;
+        this.benchmarkStartTime = other.benchmarkStartTime;
+        this.users_per_item_count = other.users_per_item_count;
+        this.item_category_histogram = other.item_category_histogram;
+        this.gag_ids = other.gag_ids;
+        this.previousWaitForPurchase = other.previousWaitForPurchase;
+        
+        this.items_available.addAll(other.items_available);
+        Collections.shuffle(this.items_available);
+        
+        this.items_endingSoon.addAll(other.items_endingSoon);
+        Collections.shuffle(this.items_endingSoon);
+        
+        this.items_waitingForPurchase.addAll(other.items_waitingForPurchase);
+        Collections.shuffle(this.items_waitingForPurchase);
+        
+        this.items_completed.addAll(other.items_completed);
+        Collections.shuffle(this.items_completed);
+        
+        return (this);
+    }
+    
+    /**
+     * Load the profile information stored in the database
+     * @param 
+     */
+    protected synchronized void loadProfile(AuctionMarkClient baseClient) {
+        // Check whether we have a cached Profile we can copy from
+        if (cachedProfile != null) {
+            if (debug.get()) LOG.debug("Using cached SEATSProfile");
+            this.copyProfile(cachedProfile);
+            return;
+        }
+        
+        if (debug.get())
+            LOG.debug("Loading AuctionMarkProfile for the first time");
+        
+        Client client = baseClient.getClientHandle();
+        ClientResponse response = null;
+        try {
+            response = client.callProcedure(LoadConfig.class.getSimpleName());
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed retrieve data from " + AuctionMarkConstants.TABLENAME_CONFIG_PROFILE, ex);
+        }
+        assert(response != null);
+        assert(response.getStatus() == Hstore.Status.OK) : "Unexpected " + response;
+
+        VoltTable results[] = response.getResults();
+        int result_idx = 0;
+        
+        // CONFIG_PROFILE
+        this.loadConfigProfile(results[result_idx++]); 
+        
+        // IMPORTANT: We need to set these timestamps here. It must be done
+        // after we have loaded benchmarkStartTime
+        this.setAndGetClientStartTime();
+        this.updateAndGetCurrentTime();
+        
+        // ITEM CATEGORY COUNTS
+        this.loadItemCategoryCounts(results[result_idx++]);
+        
+        // ITEMS
+        for (ItemStatus status : ItemStatus.values()) {
+            if (status.isInternal()) continue;
+            this.loadItems(results[result_idx++], status);
+        } // FOR
+        
+        // GLOBAL_ATTRIBUTE_GROUPS
+        this.loadGlobalAttributeGroups(results[result_idx++]);
+        
+        cachedProfile = this;
+    }
+    
+    private final void loadConfigProfile(VoltTable vt) {
+        boolean adv = vt.advanceRow();
+        assert(adv);
+        int col = 0;
+        this.scale_factor = vt.getDouble(col++);
+        this.benchmarkStartTime = vt.getTimestampAsTimestamp(col++);
+        JSONUtil.fromJSONString(this.users_per_item_count, vt.getString(col++));
+        
+        if (debug.get())
+            LOG.debug(String.format("Loaded %s data", AuctionMarkConstants.TABLENAME_CONFIG_PROFILE));
+    }
+    
+    private final void loadItemCategoryCounts(VoltTable vt) {
+        while (vt.advanceRow()) {
+            int col = 0;
+            long i_c_id = vt.getLong(col++);
+            long count = vt.getLong(col++);
+            this.item_category_histogram.put(i_c_id, count);
+        } // WHILE
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d item category records from %s",
+                                    this.item_category_histogram.getValueCount(), AuctionMarkConstants.TABLENAME_ITEM));
+    }
+    
+    private final void loadItems(VoltTable vt, ItemStatus status) {
+        int ctr = 0;
+        while (vt.advanceRow()) {
+            int col = 0;
+            ItemId i_id = new ItemId(vt.getLong(col++));
+            double i_current_price = vt.getDouble(col++);
+            TimestampType i_end_date = vt.getTimestampAsTimestamp(col++);
+            int i_num_bids = (int)vt.getLong(col++);
+            ItemStatus i_status = ItemStatus.get(vt.getLong(col++));
+            assert(i_status == status);
+            
+            ItemInfo itemInfo = new ItemInfo(i_id, i_current_price, i_end_date, i_num_bids);
+            this.addItemToProperQueue(itemInfo, false);
+            ctr++;
+        } // WHILE
+        
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d records from %s",
+                                    ctr, AuctionMarkConstants.TABLENAME_ITEM));
+    }
+    
+    private final void loadGlobalAttributeGroups(VoltTable vt) {
+        while (vt.advanceRow()) {
+            long gag_id = vt.getLong(0);
+            assert(gag_id != VoltType.NULL_BIGINT);
+            this.gag_ids.add(new GlobalAttributeGroupId(gag_id));
+        } // WHILE
+        if (debug.get())
+            LOG.debug(String.format("Loaded %d records from %s",
+                                    this.gag_ids.size(), AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP));
+    }
+    
+    
+    // -----------------------------------------------------------------
+    // UTILITY METHODS
+    // -----------------------------------------------------------------
+    
+    public void setDataDirectory(File dataDir) {
+        this.data_directory = dataDir;
+    }
+    
     /**
      * @param window
      * @param num_ticks
@@ -293,7 +452,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
      * @return
      */
     public static TimestampType getScaledTimestamp(TimestampType benchmarkStart, TimestampType clientStart, TimestampType current) {
-        if (benchmarkStart == null || clientStart == null || current == null) return (null);
+//        if (benchmarkStart == null || clientStart == null || current == null) return (null);
         
         // First get the offset between the benchmarkStart and the clientStart
         // We then subtract that value from the current time. This gives us the total elapsed 
@@ -309,7 +468,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     private TimestampType getScaledCurrentTimestamp() {
         assert(this.clientStartTime != null);
         TimestampType now = new TimestampType();
-        TimestampType time = AuctionMarkBenchmarkProfile.getScaledTimestamp(this.benchmarkStartTime, this.clientStartTime, now);
+        TimestampType time = AuctionMarkProfile.getScaledTimestamp(this.benchmarkStartTime, this.clientStartTime, now);
         if (trace.get())
             LOG.trace(String.format("Scaled:%d / Now:%d / BenchmarkStart:%d / ClientStart:%d",
                                    time.getMSTime(), now.getMSTime(), this.benchmarkStartTime.getMSTime(), this.clientStartTime.getMSTime()));
@@ -377,31 +536,10 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         assert (scale_factor > 0) : "Invalid scale factor " + scale_factor;
         this.scale_factor = scale_factor;
     }
-
-    public long getTableSize(String table_name) {
-        return (this.table_sizes.get(table_name));
-    }
-
-    public void setTableSize(String table_name, long size) {
-        this.table_sizes.set(table_name, size);
-    }
-
-    /**
-     * Add the give tuple to the running to total for the table
-     * @param table_name
-     * @param size
-     */
-    public synchronized void addToTableSize(String table_name, long size) {
-        this.table_sizes.put(table_name, size);
-    }
     
     // ----------------------------------------------------------------
     // USER METHODS
     // ----------------------------------------------------------------
-
-    public long getUserIdCount() {
-        return (this.table_sizes.get(AuctionMarkConstants.TABLENAME_USER));
-    }
 
     /**
      * 
@@ -533,14 +671,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     }
     
     /**
-     * Gets a random seller ID for all clients
-     * @return
-     */
-    public UserId getRandomSellerId() {
-        return (this.getRandomUserId(1, null, true));
-    }
-    /**
-     * Gets a random buyer ID for the given client
+     * Gets a random SellerID for the given client
      * @return
      */
     public UserId getRandomSellerId(int client) {
@@ -589,6 +720,7 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     public synchronized void updateItemQueues() {
         // HACK
         Set<ItemInfo> all = new HashSet<ItemInfo>();
+        @SuppressWarnings("unchecked")
         LinkedList<ItemInfo> itemSets[] = new LinkedList[]{
             this.items_available,
             this.items_endingSoon,
@@ -608,31 +740,39 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             this.addItemToProperQueue(itemInfo, false);
         } // FOR
         
-        Map<QueueType, Integer> m = new HashMap<QueueType, Integer>();
-        m.put(QueueType.AVAILABLE, this.items_available.size());
-        m.put(QueueType.ENDING_SOON, this.items_endingSoon.size());
-        m.put(QueueType.WAITING_FOR_PURCHASE, this.items_waitingForPurchase.size());
-        m.put(QueueType.COMPLETED, this.items_completed.size());
-        if (debug.get()) LOG.debug(String.format("Updated Item Queues [%s]:\n%s", currentTime, StringUtil.formatMaps(m)));
+        if (debug.get()) {
+            Map<ItemStatus, Integer> m = new HashMap<ItemStatus, Integer>();
+            m.put(ItemStatus.OPEN, this.items_available.size());
+            m.put(ItemStatus.ENDING_SOON, this.items_endingSoon.size());
+            m.put(ItemStatus.WAITING_FOR_PURCHASE, this.items_waitingForPurchase.size());
+            m.put(ItemStatus.CLOSED, this.items_completed.size());
+            LOG.debug(String.format("Updated Item Queues [%s]:\n%s",
+                                    currentTime, StringUtil.formatMaps(m)));
+        }
     }
     
-    public QueueType addItemToProperQueue(ItemInfo itemInfo, boolean is_loader) {
+    public ItemStatus addItemToProperQueue(ItemInfo itemInfo, boolean is_loader) {
         // Calculate how much time is left for this auction
-        TimestampType baseTime = (is_loader ? this.getBenchmarkStartTime() : this.getCurrentTime());
+        TimestampType baseTime = (is_loader ? this.getBenchmarkStartTime() :
+                                              this.getCurrentTime());
+        assert(itemInfo.endDate != null);
+        assert(baseTime != null) : "is_loader=" + is_loader;
         long remaining = itemInfo.endDate.getMSTime() - baseTime.getMSTime();
-        QueueType ret;
+        ItemStatus ret;
         
         // Already ended
         if (remaining <= 100000) {
-            if (itemInfo.numBids > 0 && itemInfo.status != AuctionMarkConstants.ITEM_STATUS_CLOSED) {
-                if (this.previousWaitForPurchase.contains(itemInfo) == false) {
-                    this.previousWaitForPurchase.add(itemInfo);
-                    this.addItem(this.items_waitingForPurchase, itemInfo);
-                }
-                ret = QueueType.WAITING_FOR_PURCHASE;
+            if (itemInfo.numBids > 0 && itemInfo.status != ItemStatus.CLOSED) {
+                synchronized (this.previousWaitForPurchase) {
+                    if (this.previousWaitForPurchase.contains(itemInfo) == false) {
+                        this.previousWaitForPurchase.add(itemInfo);
+                        this.addItem(this.items_waitingForPurchase, itemInfo);
+                    }
+                } // SYNCH
+                ret = ItemStatus.WAITING_FOR_PURCHASE;
             } else {
                 this.addItem(this.items_completed, itemInfo);
-                ret = QueueType.COMPLETED;
+                ret = ItemStatus.CLOSED;
             }
             this.removeAvailableItem(itemInfo);
             this.removeEndingSoonItem(itemInfo);
@@ -641,12 +781,12 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
         else if (remaining < AuctionMarkConstants.ENDING_SOON) {
             this.addItem(this.items_endingSoon, itemInfo);
             this.removeAvailableItem(itemInfo);
-            ret = QueueType.ENDING_SOON;
+            ret = ItemStatus.ENDING_SOON;
         }
         // Still available
         else {
             this.addItem(this.items_available, itemInfo);
-            ret = QueueType.AVAILABLE;
+            ret = ItemStatus.OPEN;
         }
         
         if (trace.get())
@@ -672,8 +812,8 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
             Integer partition = null;
             int idx = -1;
             
-            if (debug.get()) 
-                LOG.debug(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
+            if (trace.get()) 
+                LOG.trace(String.format("Getting random ItemInfo [numItems=%d, currentTime=%s, needCurrentPrice=%s]",
                                        num_items, currentTime, needCurrentPrice));
             long tries = 1000;
             while (num_items > 0 && tries-- > 0 && seen.size() < num_items) {
@@ -821,32 +961,17 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // GLOBAL ATTRIBUTE METHODS
     // ----------------------------------------------------------------
 
-    public synchronized void addGAGIdGAVIdPair(long GAGId, long GAVId) {
-        List<Long> GAVIds = this.gag_gav_map.get(GAGId);
-        if (null == GAVIds) {
-            GAVIds = new ArrayList<Long>();
-            this.gag_gav_map.put(GAGId, GAVIds);
-        } else if (GAVIds.contains(GAGId)) {
-            return;
-        }
-        GAVIds.add(GAVId);
-        this.gag_gav_histogram.put(GAGId);
-    }
-
     /**
-     * Return a random attribute group/value pair
-     * Pair<GLOBAL_ATTRIBUTE_GROUP, GLOBAL_ATTRIBUTE_VALUE>
+     * Return a random GlobalAttributeValueId
      * @return
      */
-    public synchronized Pair<Long, Long> getRandomGAGIdGAVIdPair() {
-        if (this.randomGAGId == null) {
-            this.randomGAGId = new FlatHistogram<Long>(rng, this.gag_gav_histogram);
-        }
-        Long GAGId = this.randomGAGId.nextLong();
-        List<Long> GAVIds = this.gag_gav_map.get(GAGId);
-        Long GAVId = GAVIds.get(rng.nextInt(GAVIds.size()));
-
-        return Pair.of(GAGId, GAVId);
+    public synchronized GlobalAttributeValueId getRandomGlobalAttributeValue() {
+        int offset = rng.nextInt(this.gag_ids.size());
+        GlobalAttributeGroupId gag_id = this.gag_ids.get(offset);
+        assert(gag_id != null);
+        int count = rng.nextInt(gag_id.getCount());
+        GlobalAttributeValueId gav_id = new GlobalAttributeValueId(gag_id, count);
+        return gav_id;
     }
     
     public synchronized long getRandomCategoryId() {
@@ -861,28 +986,28 @@ public class AuctionMarkBenchmarkProfile implements JSONSerializable {
     // SERIALIZATION
     // -----------------------------------------------------------------
 
-    @Override
-    public void load(String input_path, Database catalog_db) throws IOException {
-        JSONUtil.load(this, catalog_db, input_path);
-    }
-
-    @Override
-    public void save(String output_path) throws IOException {
-        JSONUtil.save(this, output_path);
-    }
-
-    @Override
-    public String toJSONString() {
-        return (JSONUtil.toJSONString(this));
-    }
-
-    @Override
-    public void toJSON(JSONStringer stringer) throws JSONException {
-        JSONUtil.fieldsToJSON(stringer, this, AuctionMarkBenchmarkProfile.class, JSONUtil.getSerializableFields(this.getClass()));
-    }
-
-    @Override
-    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
-        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AuctionMarkBenchmarkProfile.class, false, JSONUtil.getSerializableFields(this.getClass()));
-    }
+//    @Override
+//    public void load(String input_path, Database catalog_db) throws IOException {
+//        JSONUtil.load(this, catalog_db, input_path);
+//    }
+//
+//    @Override
+//    public void save(String output_path) throws IOException {
+//        JSONUtil.save(this, output_path);
+//    }
+//
+//    @Override
+//    public String toJSONString() {
+//        return (JSONUtil.toJSONString(this));
+//    }
+//
+//    @Override
+//    public void toJSON(JSONStringer stringer) throws JSONException {
+//        JSONUtil.fieldsToJSON(stringer, this, AuctionMarkBenchmarkProfile.class, JSONUtil.getSerializableFields(this.getClass()));
+//    }
+//
+//    @Override
+//    public void fromJSON(JSONObject json_object, Database catalog_db) throws JSONException {
+//        JSONUtil.fieldsFromJSON(json_object, catalog_db, this, AuctionMarkBenchmarkProfile.class, false, JSONUtil.getSerializableFields(this.getClass()));
+//    }
 }

@@ -58,6 +58,8 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         NewItem.class,
         NewPurchase.class,
         UpdateItem.class,
+        
+        LoadConfig.class
     };
     
     // Transaction Frequencies
@@ -87,6 +89,9 @@ public class AuctionMarkProjectBuilder extends AbstractProjectBuilder {
         {AuctionMarkConstants.TABLENAME_ITEM_BID, "IB_U_ID"},
         {AuctionMarkConstants.TABLENAME_ITEM_MAX_BID, "IMB_U_ID"},
         {AuctionMarkConstants.TABLENAME_ITEM_PURCHASE, "IP_IB_U_ID"},
+        
+        // CONFIG TABLE
+        {AuctionMarkConstants.TABLENAME_CONFIG_PROFILE, "CFP_SCALE_FACTOR"},
     };
     
     public AuctionMarkProjectBuilder() {

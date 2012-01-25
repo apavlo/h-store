@@ -27,38 +27,55 @@
  ***************************************************************************/
 package edu.brown.benchmark.auctionmark.util;
 
-public class Category {
-    private int categoryID;
-    private int parentCategoryID;
-    private int itemCount;
-    private String name;
-    private boolean isLeaf;
+import edu.brown.utils.CompositeId;
 
-    public Category(int categoryID, String name, int parentCategoryID, int itemCount, boolean isLeaf) {
-        this.categoryID = categoryID;
-        this.name = name;
-        this.parentCategoryID = parentCategoryID;
-        this.itemCount = itemCount;
-        this.isLeaf = isLeaf;
+public class GlobalAttributeGroupId extends CompositeId {
+
+    private static final int COMPOSITE_BITS[] = {
+        16, // CATEGORY
+        8,  // ID
+        8   // COUNT
+    };
+    
+    private int category_id;
+    private int id;
+    private int count;
+    
+    public GlobalAttributeGroupId(int category_id, int id, int count) {
+        this.category_id = category_id;
+        this.id = id;
+        this.count = count;
+    }
+    
+    public GlobalAttributeGroupId(long composite_id) {
+        this.decode(composite_id);
+    }
+    
+    @Override
+    public long encode() {
+        return (this.encode(COMPOSITE_BITS));
     }
 
-    public String getName() {
-        return this.name;
+    @Override
+    public void decode(long composite_id) {
+        long values[] = super.decode(composite_id, COMPOSITE_BITS);
+        this.category_id = (int)values[0];
+        this.id = (int)values[1];
+        this.count = (int)values[2];
     }
 
-    public int getCategoryID() {
-        return this.categoryID;
+    @Override
+    public long[] toArray() {
+        return (new long[]{ this.category_id, this.id, this.count });
     }
-
-    public int getParentCategoryID() {
-        return this.parentCategoryID;
+    
+    public int getCategoryId() {
+        return (this.category_id);
     }
-
-    public int getItemCount() {
-        return this.itemCount;
+    protected int getId() {
+        return (this.id);
     }
-
-    public boolean isLeaf() {
-        return this.isLeaf;
+    public int getCount() {
+        return (this.count);
     }
 }

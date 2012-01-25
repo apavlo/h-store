@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 /**
  * 
  */
@@ -15,8 +42,10 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.client.ClientResponse;
 
 import edu.brown.BaseTestCase;
+import edu.brown.statistics.Histogram;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
+import edu.brown.benchmark.auctionmark.AuctionMarkLoader.AbstractTableGenerator;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -54,6 +83,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
      */
     protected class MockAuctionMarkLoader extends AuctionMarkLoader {
         
+        private final Histogram<String> tableSizes = new Histogram<String>(true);
+        
         public MockAuctionMarkLoader(String args[]) {
             super(args);
         }
@@ -74,8 +105,8 @@ public class TestAuctionMarkLoader extends BaseTestCase {
             
             // Make sure that we do this here because AuctionMarkLoader.generateTableData() doesn't do this anymore
             int current_batchSize = table.getRowCount();
-            profile.addToTableSize(tableName, current_batchSize);
-            long current_tableSize = profile.getTableSize(tableName);
+            this.tableSizes.put(tableName, current_batchSize);
+            long current_tableSize = tableSizes.get(tableName);
             
             if (debug) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
@@ -105,17 +136,17 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
         
-        if (loader == null) {
+        if (isFirstSetup()) {
             this.addPartitions(10);
             loader = new MockAuctionMarkLoader(LOADER_ARGS);
-        }
-        
-        if (EXPECTED_BATCHSIZES.isEmpty()) {
             loader.setCatalog(catalog);
+            
             for (String tableName : AuctionMarkConstants.TABLENAMES) {
                 initTable(tableName);
             } // FOR
         }
+        assertNotNull(loader);
+        assertFalse(EXPECTED_BATCHSIZES.isEmpty());
     }
     
     protected static void initTable(String tableName) throws Exception {
@@ -163,21 +194,34 @@ public class TestAuctionMarkLoader extends BaseTestCase {
      * testCategory
      */
     public void testGenerateCategory() throws Exception {
-        loader.generateTableData(AuctionMarkConstants.TABLENAME_CATEGORY);
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_CATEGORY);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_CATEGORY, generator.getTableName());
+        generator.init();
+        loader.generateTableData(generator.getTableName());
     }
     
     /**
      * testGenerateGlobalAttributeGroup
      */
     public void testGenerateGlobalAttributeGroup() throws Exception {
-        loader.generateTableData(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, generator.getTableName());
+        generator.init();
+        loader.generateTableData(generator.getTableName());
     }
 
     /**
      * testGenerateGlobalAttributeValue
      */
     public void testGenerateGlobalAttributeValue() throws Exception {
-        loader.generateTableData(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE, generator.getTableName());
+        generator.init();
+        EXPECTED_TABLESIZES.put(generator.getTableName(), generator.getTableSize()); // HACK
+        loader.generateTableData(generator.getTableName());
     }
 
     

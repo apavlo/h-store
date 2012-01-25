@@ -14,7 +14,7 @@ public final class CatalogFieldComparator<T extends CatalogType> implements Comp
         this.field = field;
     }
     
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public int compare(T obj0, T obj1) {
         if (obj0 == null && obj1 == null) return (0);
@@ -27,7 +27,7 @@ public final class CatalogFieldComparator<T extends CatalogType> implements Comp
         if (val0 == null) return (1);
         if (val1 == null) return (1);
         
-        return (val0 instanceof Comparable ? ((Comparable)val0).compareTo(val1) :
-                                             val0.toString().compareTo(val1.toString()));
+        return (val0 instanceof Comparable<?> ? ((Comparable)val0).compareTo(val1) :
+                                                val0.toString().compareTo(val1.toString()));
     };
 }

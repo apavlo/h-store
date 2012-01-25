@@ -1,3 +1,30 @@
+/***************************************************************************
+ *  Copyright (C) 2012 by H-Store Project                                  *
+ *  Brown University                                                       *
+ *  Massachusetts Institute of Technology                                  *
+ *  Yale University                                                        *
+ *                                                                         *
+ *  http://hstore.cs.brown.edu/                                            *
+ *                                                                         *
+ *  Permission is hereby granted, free of charge, to any person obtaining  *
+ *  a copy of this software and associated documentation files (the        *
+ *  "Software"), to deal in the Software without restriction, including    *
+ *  without limitation the rights to use, copy, modify, merge, publish,    *
+ *  distribute, sublicense, and/or sell copies of the Software, and to     *
+ *  permit persons to whom the Software is furnished to do so, subject to  *
+ *  the following conditions:                                              *
+ *                                                                         *
+ *  The above copyright notice and this permission notice shall be         *
+ *  included in all copies or substantial portions of the Software.        *
+ *                                                                         *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        *
+ *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     *
+ *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. *
+ *  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR      *
+ *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,  *
+ *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
+ *  OTHER DEALINGS IN THE SOFTWARE.                                        *
+ ***************************************************************************/
 package edu.brown.benchmark.auctionmark.procedures;
 
 import org.voltdb.ProcInfo;
@@ -7,7 +34,8 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.auctionmark.AuctionMarkBenchmarkProfile;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
+import edu.brown.benchmark.auctionmark.AuctionMarkProfile;
 import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 
@@ -50,7 +78,7 @@ public class NewPurchase extends VoltProcedure{
 		            AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
 		            AuctionMarkConstants.TABLENAME_ITEM_BID + ", " +
 		            AuctionMarkConstants.TABLENAME_USER +
-        " WHERE i_id = ? AND i_u_id = ? AND i_status = " + AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE +
+        " WHERE i_id = ? AND i_u_id = ? AND i_status = " + ItemStatus.WAITING_FOR_PURCHASE.ordinal() +
         "   AND imb_i_id = i_id AND imb_u_id = i_u_id " +
         "   AND imb_ib_id = ib_id AND imb_ib_i_id = ib_i_id AND imb_ib_u_id = ib_u_id " +
         "   AND ib_buyer_id = u_id "
@@ -74,7 +102,7 @@ public class NewPurchase extends VoltProcedure{
     
     public final SQLStmt updateItem = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM + " " +
-        	"SET i_status = " + AuctionMarkConstants.ITEM_STATUS_CLOSED + ", " +
+        	"SET i_status = " + ItemStatus.CLOSED.ordinal() + ", " +
         	"    i_updated = ? " +
         "WHERE i_id = ? AND i_u_id = ? "
     );    
@@ -99,7 +127,7 @@ public class NewPurchase extends VoltProcedure{
     // -----------------------------------------------------------------
     
     public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, double buyer_credit) throws VoltAbortException {
-        final TimestampType currentTime = AuctionMarkBenchmarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
+        final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
         
         // Get the ITEM_MAX_BID record so that we know what we need to process
         voltQueueSQL(getItemInfo, item_id, seller_id);
@@ -115,7 +143,7 @@ public class NewPurchase extends VoltProcedure{
         long i_num_bids = results[0].getLong("i_num_bids");
         double i_current_price = results[0].getDouble("i_current_price");
         TimestampType i_end_date = results[0].getTimestampAsTimestamp("i_end_date");
-        long i_status = AuctionMarkConstants.ITEM_STATUS_WAITING_FOR_PURCHASE;
+        ItemStatus i_status = ItemStatus.WAITING_FOR_PURCHASE;
         long ib_id = results[0].getLong("ib_id");
         long ib_buyer_id = results[0].getLong("ib_buyer_id");
         double u_balance = results[0].getDouble("u_balance");
@@ -162,7 +190,7 @@ public class NewPurchase extends VoltProcedure{
             // END DATE
             i_end_date,
             // STATUS
-            i_status,
+            i_status.ordinal(),
             // PURCHASE ID
             ip_id,
             // BID ID

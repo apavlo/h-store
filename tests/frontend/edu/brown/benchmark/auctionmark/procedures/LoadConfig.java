@@ -25,40 +25,50 @@
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR  *
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
-package edu.brown.benchmark.auctionmark.util;
+package edu.brown.benchmark.auctionmark.procedures;
 
-public class Category {
-    private int categoryID;
-    private int parentCategoryID;
-    private int itemCount;
-    private String name;
-    private boolean isLeaf;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 
-    public Category(int categoryID, String name, int parentCategoryID, int itemCount, boolean isLeaf) {
-        this.categoryID = categoryID;
-        this.name = name;
-        this.parentCategoryID = parentCategoryID;
-        this.itemCount = itemCount;
-        this.isLeaf = isLeaf;
-    }
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
+import edu.brown.benchmark.auctionmark.AuctionMarkConstants.ItemStatus;
 
-    public String getName() {
-        return this.name;
-    }
+public class LoadConfig extends VoltProcedure {
 
-    public int getCategoryID() {
-        return this.categoryID;
-    }
+    public final SQLStmt getConfigProfile = new SQLStmt(
+        "SELECT * FROM " + AuctionMarkConstants.TABLENAME_CONFIG_PROFILE
+    );
+    
+    public final SQLStmt getItemCategoryCounts = new SQLStmt(
+        "SELECT i_c_id, COUNT(i_id) " +
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM +
+        " GROUP BY i_c_id"
+    );
+    
+    public final SQLStmt getItems = new SQLStmt(
+        "SELECT i_id, i_current_price, i_end_date, i_num_bids, i_status " +
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM + 
+        " WHERE i_status = ? " +
+        " ORDER BY i_iattr0 " +
+        " LIMIT " + AuctionMarkConstants.ITEM_ID_CACHE_SIZE
+    );
+    
+    public final SQLStmt getGlobalAttributeGroups = new SQLStmt(
+        "SELECT gag_id FROM " + AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP 
+    );
+    
+    public VoltTable[] run() {
+        voltQueueSQL(getConfigProfile);
+        voltQueueSQL(getItemCategoryCounts);
+        
+        for (ItemStatus status : ItemStatus.values()) {
+            if (status.isInternal()) continue;
+            voltQueueSQL(getItems, status.ordinal());
+        } // FOR
 
-    public int getParentCategoryID() {
-        return this.parentCategoryID;
-    }
-
-    public int getItemCount() {
-        return this.itemCount;
-    }
-
-    public boolean isLeaf() {
-        return this.isLeaf;
+        voltQueueSQL(getGlobalAttributeGroups);
+        
+        return voltExecuteSQL(true);
     }
 }
