@@ -115,7 +115,7 @@ public class BingoClient extends BenchmarkComponent {
         // Load our good old friend Mister HStoreConf
         HStoreConf hstore_conf = this.getHStoreConf();
         
-        final int num_tournaments = (int)Math.round(BingoConstants.maxTournaments / hstore_conf.client.scalefactor);
+        final int num_tournaments = (int)Math.round(BingoConstants.maxTournaments * hstore_conf.client.scalefactor);
         final int num_clients = this.getNumClients();
         final int client_id = this.getClientId();
         for (int i=1; i <= num_tournaments; i++) {

@@ -256,8 +256,8 @@ public class MapReduceClient extends BenchmarkComponent {
         HStoreConf hstore_conf = this.getHStoreConf();
         
         // Number of Records Per Table
-        this.table_sizes.put(MapReduceConstants.TABLENAME_TABLEA, Math.round(MapReduceConstants.TABLESIZE_TABLEA / hstore_conf.client.scalefactor));
-        this.table_sizes.put(MapReduceConstants.TABLENAME_TABLEB, Math.round(MapReduceConstants.TABLESIZE_TABLEB / hstore_conf.client.scalefactor));
+        this.table_sizes.put(MapReduceConstants.TABLENAME_TABLEA, Math.round(MapReduceConstants.TABLESIZE_TABLEA * hstore_conf.client.scalefactor));
+        this.table_sizes.put(MapReduceConstants.TABLENAME_TABLEB, Math.round(MapReduceConstants.TABLESIZE_TABLEB * hstore_conf.client.scalefactor));
         for (String tableName : MapReduceConstants.TABLENAMES) {
             assert(this.table_sizes.containsKey(tableName)) : "Missing table size entry for " + tableName;
         } // FOR

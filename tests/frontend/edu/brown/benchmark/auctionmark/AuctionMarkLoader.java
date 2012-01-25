@@ -400,7 +400,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                     assert (field_handle != null);
                     this.tableSize = (Long) field_handle.get(null);
                     if (!fixed_size) {
-                        this.tableSize = Math.round(this.tableSize / profile.getScaleFactor());
+                        this.tableSize = Math.round(this.tableSize * profile.getScaleFactor());
                     }
                 } catch (NoSuchFieldException ex) {
                     if (debug.get()) LOG.warn("No table size field for '" + tableName + "'", ex);
@@ -885,7 +885,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             // the user ids by placing them into numeric ranges
             Zipf randomNumItems = new Zipf(profile.rng,
                                            AuctionMarkConstants.ITEM_MIN_ITEMS_PER_SELLER,
-                                           Math.round(AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER / profile.getScaleFactor()),
+                                           Math.round(AuctionMarkConstants.ITEM_MAX_ITEMS_PER_SELLER * profile.getScaleFactor()),
                                            1.001);
             for (long i = 0; i < this.tableSize; i++) {
                 long num_items = randomNumItems.nextInt();
@@ -1013,7 +1013,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
                         1.001);
                 Zipf randomNumWatches = new Zipf(profile.rng,
                         AuctionMarkConstants.ITEM_MIN_WATCHES_PER_DAY * (int)bidDurationDay,
-                        (int)Math.ceil(AuctionMarkConstants.ITEM_MAX_WATCHES_PER_DAY * (int)bidDurationDay / profile.getScaleFactor()), 1.001);
+                        (int)Math.ceil(AuctionMarkConstants.ITEM_MAX_WATCHES_PER_DAY * (int)bidDurationDay * profile.getScaleFactor()), 1.001);
                 this.item_bid_watch_zipfs.put(bidDurationDay, Pair.of(randomNumBids, randomNumWatches));
             }
             Pair<Zipf, Zipf> p = this.item_bid_watch_zipfs.get(bidDurationDay);
