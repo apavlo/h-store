@@ -18,7 +18,7 @@ import edu.brown.utils.ProjectType;
 public class TestMapReduceLoader extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestMapReduceLoader.class);
     
-    protected static final int SCALE_FACTOR = 30000;
+    protected static final double SCALE_FACTOR = 0.03;
     
     protected MapReduceLoader loader;
     protected Long current_tablesize;
@@ -28,13 +28,6 @@ public class TestMapReduceLoader extends BaseTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.MAPREDUCE);
-        
-//        Cluster catalog_clus = CatalogUtil.getCluster(catalog);
-//        Host catalog_host = catalog_clus.getHosts().get("XYZ");
-//        List<Site> catalog_sites = CatalogUtil.getSitesForHost(catalog_host);
-//        catalog_sites.get(0).getPartitions();
-//        int a_id = 20;
-//        TheHashinator.hashToPartition(a_id, catalog_clus.getNum_partitions());
         
         String args[] = {
             "client.scalefactor=" + SCALE_FACTOR,
@@ -128,7 +121,7 @@ public class TestMapReduceLoader extends BaseTestCase {
         String field_name = "TABLESIZE_" + tablename;
         Field field_handle = MapReduceConstants.class.getField(field_name);
         assertNotNull(field_handle);
-        this.current_tablesize = (Long)field_handle.get(null) / SCALE_FACTOR;
+        this.current_tablesize = Math.round((Long)field_handle.get(null) * SCALE_FACTOR);
 
         field_name = "BATCHSIZE_" + tablename;
         field_handle = MapReduceConstants.class.getField(field_name);

@@ -18,7 +18,7 @@ import edu.brown.utils.ProjectType;
 public class TestLocalityLoader extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestLocalityLoader.class);
     
-    protected static final int SCALE_FACTOR = 30000;
+    protected static final double SCALE_FACTOR = 0.03;
     
     protected LocalityLoader loader;
     protected Long current_tablesize;
@@ -128,7 +128,7 @@ public class TestLocalityLoader extends BaseTestCase {
         String field_name = "TABLESIZE_" + tablename;
         Field field_handle = LocalityConstants.class.getField(field_name);
         assertNotNull(field_handle);
-        this.current_tablesize = (Long)field_handle.get(null) / SCALE_FACTOR;
+        this.current_tablesize = Math.round((Long)field_handle.get(null) * SCALE_FACTOR);
 
         field_name = "BATCHSIZE_" + tablename;
         field_handle = LocalityConstants.class.getField(field_name);
