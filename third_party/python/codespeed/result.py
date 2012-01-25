@@ -32,6 +32,7 @@ import urllib
 import urllib2
 import json
 import logging
+import time
 from pprint import pprint
 
 LOG = logging.getLogger(__name__)
@@ -41,6 +42,8 @@ LOG_formatter = logging.Formatter(fmt='%(asctime)s [%(funcName)s:%(lineno)03d] %
 LOG_handler.setFormatter(LOG_formatter)
 LOG.addHandler(LOG_handler)
 LOG.setLevel(logging.INFO)
+
+DEFAULT_SLEEP_TIME = 5
 
 ## ==============================================
 ## Codespeed Result
@@ -70,7 +73,7 @@ class Result(object):
         self.result_date = result_date
     ## DEF
 
-    def upload(self, url):
+    def upload(self, url, retry=3):
         assert url
         url = os.path.join(url, 'result/add/')
         
@@ -89,10 +92,22 @@ class Result(object):
         LOG.info("Saving result for executable %s, revision %s, benchmark %s" % (
                  self.executable, self.commitid, self.benchmark))
                 
-        LOG.info("Uploading results to %s" % url)
-        f = urllib2.urlopen(url, params)
-        response = f.read()
-        f.close()
+        for attempt in range(retry):
+            LOG.info("Uploading results to %s [attempt=%d/%d]" % (url, attempt+1, retry))
+            try:
+                f = urllib2.urlopen(url, params)
+                response = f.read()
+                f.close()
+                break
+            except Exception as ex:
+                LOG.warn("Unexpected error: %s" % ex)
+                if attempt < retry:
+                    LOG.warn("Sleeping for %d seconds and then retrying..." % DEFAULT_SLEEP_TIME)
+                    time.sleep(DEFAULT_SLEEP_TIME)
+                else:
+                    raise
+            ## TRY
+        ## FOR
         LOG.info("Server (%s) response: %s\n" % (url, response))
         return 0
     ## DEF

@@ -422,7 +422,7 @@ def setup_env():
     
     # Bash Aliases
     code_dir = os.path.join("$HOME", "hstore", env["hstore.git_branch"])
-    log_dir = env.get("site.log_dir", "/tmp/hstore/logs/sites")
+    log_dir = env.get("site.log_dir", os.path.join(code_dir, "obj/logs"))
     aliases = {
         # H-Store Home
         'hh':  'cd ' + code_dir,
@@ -537,6 +537,7 @@ def deploy_hstore(build=True, update=True):
             
         with cd(env["hstore.git_branch"]):
             if update:
+                run("git checkout -- properties")
                 run("git pull %s" % env["hstore.git_options"])
             
             ## Checkout Extra Files
@@ -637,7 +638,6 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     if updateRepo: 
         LOG.info("Updating H-Store Git checkout")
         deploy_hstore(build=False, update=True)
-
 
     ## Construct dict of command-line H-Store options
     hstore_options = {

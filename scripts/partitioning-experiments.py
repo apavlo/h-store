@@ -100,7 +100,7 @@ OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
-OPT_BASE_SCALE_FACTOR = 50
+OPT_BASE_SCALE_FACTOR = 0.5
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
@@ -514,7 +514,7 @@ if __name__ == '__main__':
                 
             # Increase the client.scalefactor based on the number of partitions
             if OPT_MULTIPLY_SCALEFACTOR:
-                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor / partitions)
+                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor * partitions)
                 
             if OPT_EXP_TYPE == "motivation":
                 # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...
