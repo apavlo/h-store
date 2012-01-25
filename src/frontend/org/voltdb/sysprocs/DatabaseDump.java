@@ -18,7 +18,6 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
-import org.voltdb.VoltSystemProcedure.SynthesizedPlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
@@ -124,18 +123,13 @@ public class DatabaseDump extends VoltSystemProcedure {
      * @throws VoltAbortException
      */
     public VoltTable[] run(String directory) throws VoltAbortException {
-//        final boolean trace = LOG.isTraceEnabled();
         final boolean debug = LOG.isDebugEnabled();
         
-        VoltTable[] results;
-//        SynthesizedPlanFragment pfs[];
-
-        ParameterSet params = new ParameterSet(directory);
+        final ParameterSet params = new ParameterSet(directory);
         
         // Generate a plan fragment for each site using the sub-tables
-//        pfs = new SynthesizedPlanFragment[num_partitions  + 1];
-        List<SynthesizedPlanFragment> pfs = new ArrayList<SynthesizedPlanFragment>();
-        for (int i = 0; i < num_partitions; ++i) {
+        final List<SynthesizedPlanFragment> pfs = new ArrayList<SynthesizedPlanFragment>();
+        for (int i = 0; i < this.num_partitions; i++) {
             int partition = i;
             SynthesizedPlanFragment pf = new SynthesizedPlanFragment();
             pf.fragmentId = SysProcFragmentId.PF_dumpDistribute;
@@ -146,6 +140,7 @@ public class DatabaseDump extends VoltSystemProcedure {
             pf.destPartitionId = partition;
             pf.parameters = params;
             pf.last_task = true;
+            pfs.add(pf);
         } // FOR
 
         // a final plan fragment to aggregate the results
@@ -160,7 +155,7 @@ public class DatabaseDump extends VoltSystemProcedure {
 
         // send these forth in to the world .. and wait
         if (debug) LOG.debug("Passing " + pfs.size() + " sysproc fragments to executeSysProcPlanFragments()");
-        results = executeSysProcPlanFragments(pfs.toArray(new SynthesizedPlanFragment[0]), (int)SysProcFragmentId.PF_dumpDistribute);
+        VoltTable[] results = executeSysProcPlanFragments(pfs.toArray(new SynthesizedPlanFragment[0]), (int)SysProcFragmentId.PF_dumpDistribute);
         return results;
     }
 

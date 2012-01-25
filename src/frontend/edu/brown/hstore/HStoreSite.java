@@ -642,10 +642,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } // FOR
         }
         
-        // TODO(xin): Start the MapReduceHelperThread
-        // TODO(xin): Only do this if there are MapReduce procedures in the catalog!!!!
-        // TODO(xin): Make sure it's a daemon thread
-        // TODO(xin): Make sure you set the UncaughtExceptionHandler
+        // Start the MapReduceHelperThread
         if (this.mr_helper != null) {
             t = new Thread(this.mr_helper);
             t.setDaemon(true);
