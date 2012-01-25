@@ -2,6 +2,7 @@ package org.voltdb.sysprocs;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +17,8 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
+
+import org.voltdb.VoltSystemProcedure.SynthesizedPlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 
@@ -125,38 +128,39 @@ public class DatabaseDump extends VoltSystemProcedure {
         final boolean debug = LOG.isDebugEnabled();
         
         VoltTable[] results;
-        SynthesizedPlanFragment pfs[];
+//        SynthesizedPlanFragment pfs[];
 
+        ParameterSet params = new ParameterSet(directory);
+        
         // Generate a plan fragment for each site using the sub-tables
-        pfs = new SynthesizedPlanFragment[num_partitions  + 1];
-        for (int i = 1; i <= num_partitions; ++i) {
-            int partition = i - 1;
-            ParameterSet params = new ParameterSet();
-            params.setParameters(directory);
-            pfs[i] = new SynthesizedPlanFragment();
-            pfs[i].fragmentId = SysProcFragmentId.PF_dumpDistribute;
-            pfs[i].inputDependencyIds = new int[] { };
-            pfs[i].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
-            pfs[i].multipartition = false;
-            pfs[i].nonExecSites = false;
-            pfs[i].destPartitionId = partition;
-            pfs[i].parameters = params;
-            pfs[i].last_task = true;
+//        pfs = new SynthesizedPlanFragment[num_partitions  + 1];
+        List<SynthesizedPlanFragment> pfs = new ArrayList<SynthesizedPlanFragment>();
+        for (int i = 0; i < num_partitions; ++i) {
+            int partition = i;
+            SynthesizedPlanFragment pf = new SynthesizedPlanFragment();
+            pf.fragmentId = SysProcFragmentId.PF_dumpDistribute;
+            pf.inputDependencyIds = new int[] { };
+            pf.outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
+            pf.multipartition = false;
+            pf.nonExecSites = false;
+            pf.destPartitionId = partition;
+            pf.parameters = params;
+            pf.last_task = true;
         } // FOR
 
         // a final plan fragment to aggregate the results
-        pfs[0] = new SynthesizedPlanFragment();
-        pfs[0].destPartitionId = partitionId;
-        pfs[0].fragmentId = SysProcFragmentId.PF_dumpAggregate;
-        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
-        pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpAggregate };
-        pfs[0].multipartition = false;
-        pfs[0].nonExecSites = false;
-        pfs[0].parameters = new ParameterSet();
+//        pfs[0] = new SynthesizedPlanFragment();
+//        pfs[0].destPartitionId = partitionId;
+//        pfs[0].fragmentId = SysProcFragmentId.PF_dumpAggregate;
+//        pfs[0].inputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpDistribute };
+//        pfs[0].outputDependencyIds = new int[] { (int)SysProcFragmentId.PF_dumpAggregate };
+//        pfs[0].multipartition = false;
+//        pfs[0].nonExecSites = false;
+//        pfs[0].parameters = new ParameterSet();
 
         // send these forth in to the world .. and wait
-        if (debug) LOG.debug("Passing " + pfs.length + " sysproc fragments to executeSysProcPlanFragments()");
-        results = executeSysProcPlanFragments(pfs, (int)SysProcFragmentId.PF_dumpAggregate);
+        if (debug) LOG.debug("Passing " + pfs.size() + " sysproc fragments to executeSysProcPlanFragments()");
+        results = executeSysProcPlanFragments(pfs.toArray(new SynthesizedPlanFragment[0]), (int)SysProcFragmentId.PF_dumpDistribute);
         return results;
     }
 
