@@ -829,9 +829,9 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="The scaling factor determines how large to make the target benchmark's data set. " +
-                        "A scalefactor less than one makes the data set larger, while greater than one " +
+                        "A scalefactor greater than one makes the data set larger, while less than one " +
                         "makes it smaller. Implementation depends on benchmark specification.",
-            defaultDouble=10.0,
+            defaultDouble=0.1,
             experimental=false
         )
         public double scalefactor;

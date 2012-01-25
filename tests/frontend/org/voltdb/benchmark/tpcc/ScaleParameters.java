@@ -83,17 +83,10 @@ public class ScaleParameters {
     }
     
     public static ScaleParameters makeWithScaleFactor(int warehouses, int firstWarehouse, double scaleFactor) {
-        assert scaleFactor >= 1.0;
-
-        int items = (int) (TPCCConstants.NUM_ITEMS/scaleFactor);
-        if (items <= 0) items = 1;
+        int items = (int)Math.max(1, TPCCConstants.NUM_ITEMS * scaleFactor);
         int districts = TPCCConstants.DISTRICTS_PER_WAREHOUSE;
-//        int districts = (int) (Constants.DISTRICTS_PER_WAREHOUSE/scaleFactor);
-        if (districts <= 0) districts = 1;
-        int customers = (int) (TPCCConstants.CUSTOMERS_PER_DISTRICT/scaleFactor);
-        if (customers <= 0) customers = 1;
-        int newOrders = (int) (TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT/scaleFactor);
-        if (newOrders < 0) newOrders = 0;
+        int customers = (int)Math.max(1, TPCCConstants.CUSTOMERS_PER_DISTRICT * scaleFactor);
+        int newOrders = (int)Math.max(1, TPCCConstants.INITIAL_NEW_ORDERS_PER_DISTRICT * scaleFactor);
 
         return new ScaleParameters(items, warehouses, firstWarehouse, districts, customers, newOrders);
     }

@@ -211,7 +211,7 @@ public class LocalityLoader extends BenchmarkComponent {
                 String field_name = "TABLESIZE_" + tableName;
                 Field field_handle = LocalityConstants.class.getField(field_name);
                 assert(field_handle != null);
-                this.tableSize = Math.round((Long)field_handle.get(null) / LocalityLoader.this.m_scalefactor);
+                this.tableSize = Math.round((Long)field_handle.get(null) * LocalityLoader.this.m_scalefactor);
 
                 field_name = "BATCHSIZE_" + tableName;
                 field_handle = LocalityConstants.class.getField(field_name);

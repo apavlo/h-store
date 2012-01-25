@@ -532,16 +532,15 @@ public class SEATSLoader extends SEATSBaseClient {
     protected Iterable<Object[]> getScalingIterable(Table catalog_tbl) {
         String name = catalog_tbl.getName().toUpperCase();
         ScalingDataIterable it = null;
-        double scaleFactor = this.getScaleFactor(); 
-        
+
         // Customers
         if (name.equals(SEATSConstants.TABLENAME_CUSTOMER)) {
-            long total = Math.round(SEATSConstants.NUM_CUSTOMERS / scaleFactor);
+            long total = Math.round(SEATSConstants.NUM_CUSTOMERS * this.getScaleFactor());
             it = new CustomerIterable(catalog_tbl, total);
         // FrequentFlyer
         } else if (name.equals(SEATSConstants.TABLENAME_FREQUENT_FLYER)) {
-            long total = Math.round(SEATSConstants.NUM_CUSTOMERS / scaleFactor);
-            int per_customer = (int)Math.ceil(SEATSConstants.MAX_FREQUENTFLYER_PER_CUSTOMER / scaleFactor);
+            long total = Math.round(SEATSConstants.NUM_CUSTOMERS * this.getScaleFactor());
+            int per_customer = (int)Math.ceil(SEATSConstants.MAX_FREQUENTFLYER_PER_CUSTOMER * this.getScaleFactor());
             it = new FrequentFlyerIterable(catalog_tbl, total, per_customer);
         // Airport Distance
         } else if (name.equals(SEATSConstants.TABLENAME_AIRPORT_DISTANCE)) {
@@ -552,7 +551,7 @@ public class SEATSLoader extends SEATSBaseClient {
             it = new FlightIterable(catalog_tbl, SEATSConstants.DAYS_PAST, SEATSConstants.DAYS_FUTURE);
         // Reservations
         } else if (name.equals(SEATSConstants.TABLENAME_RESERVATION)) {
-            long total = Math.round((SEATSConstants.MIN_FLIGHTS_PER_DAY + SEATSConstants.MAX_FLIGHTS_PER_DAY) / 2d / scaleFactor);
+            long total = Math.round((SEATSConstants.MIN_FLIGHTS_PER_DAY + SEATSConstants.MAX_FLIGHTS_PER_DAY) / 2d * this.getScaleFactor());
             it = new ReservationIterable(catalog_tbl, total);
         } else {
             assert(false) : "Unexpected table '" + name + "' in getScalingIterable()";
@@ -1005,7 +1004,7 @@ public class SEATSLoader extends SEATSBaseClient {
                     this.start_date = date;
                     first = false;
                 }
-                int num_flights = (int)Math.ceil(gaussian.nextInt() / getScaleFactor());
+                int num_flights = (int)Math.ceil(gaussian.nextInt() * getScaleFactor());
                 this.flights_per_day.put(date, num_flights);
                 this.total += num_flights;
             } // FOR
@@ -1018,7 +1017,7 @@ public class SEATSLoader extends SEATSBaseClient {
             for (long _date = this.today.getTime(), last_date = this.today.getTime() + (days_future * SEATSConstants.MICROSECONDS_PER_DAY);
                  _date <= last_date; _date += SEATSConstants.MICROSECONDS_PER_DAY) {
                 TimestampType date = new TimestampType(_date);
-                int num_flights = (int)Math.ceil(gaussian.nextInt()  / getScaleFactor());
+                int num_flights = (int)Math.ceil(gaussian.nextInt() * getScaleFactor());
                 this.flights_per_day.put(date, num_flights);
                 this.total += num_flights;
                 // System.err.println(new Date(date).toString() + " -> " + num_flights);
