@@ -31,7 +31,8 @@
 <!-- <property name='build.common'                location='build-common.xml' /> -->
 
 <!-- <property name='build.dir'                   location='obj/${build}' /> -->
-<property name='build.dir'                   location='obj/release' />
+<property name='output.dir'                  location='obj' />
+<property name='build.dir'                   location='${output.dir}/release' />
 <property name='build.prod.dir'              location='${build.dir}/prod' />
 <property name='build.test.dir'              location='${build.dir}/test' />
 <property name='build.dtxn.dir'              location='${build.dir}/dtxn' />
@@ -1423,41 +1424,6 @@ PROTORPC
     <ProtobufCompile srcdir="${src.protobuf.dir}/java/src/main/java:${src.protorpc.dir}" destdir="${build.prod.dir}">
         <classpath refid="project.classpath"/>
     </ProtobufCompile>
-</target>
-
-<!--
-***************************************
-DTXN BINARIES + LIBRARIES
-***************************************
--->
-
-<target name="dtxn" description="Build Dtxn.Coordinator binaries"
-                    depends="protobuf.compile,getcpus">
-    <condition property="coordinator.log_level" value="300">
-        <not><isset property="coordinator.log_level"/></not>
-    </condition>
-    <exec executable="make" dir="${src.dtxn.dir}" failonerror="true" resolveexecutable="true" >
-        <arg value="-j${numcpus}" />
-        <arg value="PREFIX=${build.dtxn.dir}" />
-        <arg value="PROTOBUF_SRC=${src.protobuf.dir}" />
-        <arg value="PROTOBUF_BIN=${build.protobuf.dir}" />
-        <arg value="PROTORPC_PATH=${src.protorpc.dir}" />
-        <arg value="LOG_LEVEL=${coordinator.log_level}" />
-    </exec>
-</target>
-
-<target name="dtxn-coordinator" description="H-Store Dtxn.Coordinator">
-    <unzip src="${benchmark.jar}" dest="${global.temp_dir}">
-        <patternset>
-            <include name="dtxn.conf"/>
-        </patternset>
-    </unzip>
-    <sleep milliseconds="${coordinator.delay}" />
-    <echo message="Starting Dtxn.Coordinator on port ${coordinator.port}" />
-    <exec executable="${build.dtxn.dir}/protodtxn/protodtxncoordinator">
-        <arg line="${coordinator.port}"/>
-        <arg line="${global.temp_dir}/dtxn.conf"/>
-    </exec>
 </target>
 
 <!--

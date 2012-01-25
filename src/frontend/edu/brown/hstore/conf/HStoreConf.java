@@ -47,10 +47,10 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Temporary directory used to store various artifacts related to H-Store.",
-            defaultString="/tmp/hstore",
+            defaultString="obj",
             experimental=false
         )
-        public String temp_dir = "/tmp/hstore";
+        public String temp_dir = "obj";
 
         @ConfigProperty(
             description="Options used when logging into client/server hosts. " + 
