@@ -5,6 +5,7 @@
 
 <!-- CLIENT -->
 <arg value="client.log_dir=${client.log_dir}" />
+<arg value="client.log_backup=${client.log_backup}" />
 <arg value="client.memory=${client.memory}" />
 <arg value="client.host=${client.host}" />
 <arg value="client.txnrate=${client.txnrate}" />
@@ -41,6 +42,7 @@
 
 <!-- SITE -->
 <arg value="site.log_dir=${site.log_dir}" />
+<arg value="site.log_backup=${site.log_backup}" />
 <arg value="site.memory=${site.memory}" />
 <arg value="site.cpu_affinity=${site.cpu_affinity}" />
 <arg value="site.cpu_affinity_one_partition_per_core=${site.cpu_affinity_one_partition_per_core}" />
