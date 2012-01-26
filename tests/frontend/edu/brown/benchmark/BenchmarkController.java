@@ -406,7 +406,7 @@ public class BenchmarkController {
             
             // HStoreSite
             // IMPORTANT: Don't try to kill things if we're going to profile... for obvious reasons... duh!
-            if (m_config.profileSiteIds.isEmpty()) {
+            if (m_config.profileSiteIds.isEmpty() && m_config.noSites == false) {
                 for (String host : unique_hosts) {
                     KillStragglers ks = new KillStragglers(m_config.remoteUser, host, m_config.remotePath, m_config.sshOptions).enableKillAll();
                     threads.add(new Thread(ks));
@@ -432,7 +432,9 @@ public class BenchmarkController {
             }
             
             // START THE SERVERS
-            this.startSites(catalog);
+            if (m_config.noSites == false) {
+                this.startSites(catalog);
+            }
             
         } else {
             // START A SERVER LOCALLY IN-PROCESS
@@ -1209,6 +1211,7 @@ public class BenchmarkController {
         String applicationName = null;
         String subApplicationName = null;
         
+        boolean noSites = false;
         boolean noLoader = false;
         boolean noUploading = false;
         boolean noExecute = false;
@@ -1400,6 +1403,10 @@ public class BenchmarkController {
                  */
                 useCatalogHosts = Boolean.parseBoolean(parts[1]);
             
+            /* Disable starting the database cluster  */
+            } else if (parts[0].equalsIgnoreCase("NOSITES")) {
+                noSites = Boolean.parseBoolean(parts[1]);
+                
             /* Disable executing the data loader */
             } else if (parts[0].equalsIgnoreCase("NOLOADER")) {
                 noLoader = Boolean.parseBoolean(parts[1]);
@@ -1567,6 +1574,7 @@ public class BenchmarkController {
                 compileBenchmark, 
                 compileOnly, 
                 useCatalogHosts,
+                noSites,
                 noLoader,
                 noUploading,
                 noExecute,

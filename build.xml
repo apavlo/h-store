@@ -1496,7 +1496,7 @@ BENCHMARKS
         <arg value="COMPILE=${compile}" />
         <arg value="COMPILEONLY=${compileonly}" />
         <arg value="CATALOGHOSTS=${cataloghosts}" />
-        <arg value="NOCOORDINATOR=${nocoordinator}" />
+        <arg value="NOSITES=${nosites}" />
         <arg value="NOLOADER=${noloader}" />
         <arg value="NOUPLOADING=${nouploading}" />
         <arg value="NOEXECUTE=${noexecute}" />
