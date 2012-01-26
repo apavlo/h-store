@@ -70,6 +70,7 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         	throw new RuntimeException("Unexpected error when deserializing StoredProcedureInvocation", ex);
         }
         // build parameterSet is important here
+        // This is the new version that should be build here 
         invocation.buildParameterSet();
         if (debug.get())
             LOG.debug("__FILE__:__LINE__ " + String.format("Check invocation: %s, Procedure Name: %s , parameters:%s, Base Partition:%d",
