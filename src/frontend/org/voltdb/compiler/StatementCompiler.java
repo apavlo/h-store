@@ -66,10 +66,14 @@ public abstract class StatementCompiler {
     private static AtomicInteger NEXT_FRAGMENT_ID = null;
     
     public synchronized static int getNextFragmentId(Database catalog_db) {
+        return getNextFragmentId(catalog_db, false);
+    }
+    
+    public synchronized static int getNextFragmentId(Database catalog_db, boolean readonly) {
         // If this is the first time we are being called, figure out
         // where our ids should start at
         if (NEXT_FRAGMENT_ID == null) {
-            int max_id = 10000;
+            int max_id = 100;
             for (Statement catalog_stmt : CatalogUtil.getAllStatements(catalog_db)) {
                 for (PlanFragment catalog_frag : CatalogUtil.getAllPlanFragments(catalog_stmt)) {
                     max_id = Math.max(max_id, catalog_frag.getId());
@@ -78,7 +82,9 @@ public abstract class StatementCompiler {
             NEXT_FRAGMENT_ID = new AtomicInteger(max_id);
             if (trace.get()) LOG.trace("Initialized NEXT_FRAGMENT_ID = " + NEXT_FRAGMENT_ID.get());
         }
-        return (NEXT_FRAGMENT_ID.incrementAndGet()); 
+        // If it's not readonly, then we'll offset it so that we can
+        // easily identify it at runtime
+        return (CatalogUtil.createPlanFragmentId(NEXT_FRAGMENT_ID.incrementAndGet(), readonly));
     }
     
     public static void compile(VoltCompiler compiler, HSQLInterface hsql,
@@ -244,6 +250,9 @@ public abstract class StatementCompiler {
             Collections.sort(plan.fragments);
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
+                
+                boolean readonly = fragmentReadOnly(fragment.planGraph);
+                
                 // Now update our catalog information
                 int id = getNextFragmentId(db);
                 String planFragmentName = Integer.toString(id);
@@ -261,7 +270,7 @@ public abstract class StatementCompiler {
     
                 // mark a fragment as non-transactional if it never touches a persistent table
                 planFragment.setNontransactional(!fragmentReferencesPersistentTable(fragment.planGraph));
-                planFragment.setReadonly(fragmentReadOnly(fragment.planGraph));
+                planFragment.setReadonly(readonly);
                 planFragment.setHasdependencies(fragment.hasDependencies);
                 planFragment.setMultipartition(fragment.multiPartition);
                 planFragment.setId(id);

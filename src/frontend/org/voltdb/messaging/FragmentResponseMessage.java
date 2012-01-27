@@ -82,7 +82,7 @@ public class FragmentResponseMessage extends TransactionInfoBaseMessage {
         m_nullDependencies = true;
     }
 
-    public long getTxnId() {
+    public Long getTxnId() {
         return m_txnId;
     }
 
