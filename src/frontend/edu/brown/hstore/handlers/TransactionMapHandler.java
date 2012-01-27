@@ -40,6 +40,8 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         /* This is for MapReduce Transaction, the local task is still passed to the remoteHandler to be invoked the TransactionStart
          * as the a LocalTransaction. This LocalTransaction in this partition is the base partition for MR transaction.
          * */
+        
+        if (debug.get()) LOG.debug("Send to remoteHandler from sendLocal");
         this.remoteHandler(null, request, callback);
     }
     @Override
@@ -63,17 +65,25 @@ public class TransactionMapHandler extends AbstractTransactionHandler<Transactio
         // Deserialize the StoredProcedureInvocation object
         StoredProcedureInvocation invocation = null;
         try {
-        	invocation = FastDeserializer.deserialize(request.getInvocation().toByteArray(), StoredProcedureInvocation.class);
+        	invocation = FastDeserializer.deserialize(request.getInvocation().asReadOnlyByteBuffer(), StoredProcedureInvocation.class);
         } catch (Exception ex) {
         	throw new RuntimeException("Unexpected error when deserializing StoredProcedureInvocation", ex);
         }
+        // build parameterSet is important here
+        // This is the new version that should be build here 
+        invocation.buildParameterSet();
+        if (debug.get())
+            LOG.debug("__FILE__:__LINE__ " + String.format("Check invocation: %s, Procedure Name: %s , parameters:%s, Base Partition:%d",
+                    invocation,invocation.getProcName(), invocation.getParams(), request.getBasePartition()));
+        assert(invocation != null);
+        assert(invocation.getParams() != null);
         
         MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
-        /*
-         * why there is case that mr_ts can be null
-         * */
+        
+        // The mr_ts handle will be null if this HStoreSite is not where the 
+        // base partition for the original MRTransaction
         if (mr_ts == null) {
-            //assert(false) : "Unexpected!";
+            assert(invocation != null):"invocation== null\n";
             mr_ts = hstore_site.createMapReduceTransaction(txn_id, invocation, request.getBasePartition());
         }
         assert(mr_ts.isMapPhase());
