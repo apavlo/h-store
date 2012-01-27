@@ -275,7 +275,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     /**
      * 
      */
-    private final ParameterSet[][] voltProc_params = new ParameterSet[HStoreConstants.MAX_STMTS_PER_BATCH][]; 
+    private final ParameterSet[][] voltProc_params; 
     
     // ----------------------------------------------------------------------------
     // Execution State
@@ -532,6 +532,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         this.partitionId = 0;
         this.localPartitionIds = null;
         this.execState = null;
+        this.voltProc_params = null;
     }
 
     /**
@@ -644,6 +645,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         } // FOR
         
         // Shared VoltProcedure Cached Objects
+        this.voltProc_params = new ParameterSet[hstore_conf.site.planner_max_batch_size][];
         for (int i = 0; i < this.voltProc_params.length; i++) {
             this.voltProc_params[i] = new ParameterSet[i];
             for (int j = 0; j < i; j++) {

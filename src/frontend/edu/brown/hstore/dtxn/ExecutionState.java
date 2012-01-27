@@ -142,7 +142,8 @@ public class ExecutionState {
     @SuppressWarnings("unchecked")
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
-        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[HStoreConf.singleton().site.planner_max_batch_size];
+        int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
+        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
