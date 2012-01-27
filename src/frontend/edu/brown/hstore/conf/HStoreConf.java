@@ -582,7 +582,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Allow the HStoreSiteStatus thread to kill the cluster if it's local HStoreSite has " +
                         "not executed and completed any new transactions since the last time it took a status snapshot.", 
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean status_kill_if_hung;
