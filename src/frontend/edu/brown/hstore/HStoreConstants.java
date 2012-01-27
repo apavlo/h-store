@@ -22,8 +22,14 @@ public abstract class HStoreConstants {
     
     
     // ----------------------------------------------------------------------------
-    //
+    // EXECUTION STUFF
     // ----------------------------------------------------------------------------
+    
+    /**
+     * The maximum number of Statements that can be queued in a single batch
+     */
+    public static final int MAX_STMTS_PER_BATCH = 256;
+    
     
     /**
      * Just an empty VoltTable array that we can reuse all around the system

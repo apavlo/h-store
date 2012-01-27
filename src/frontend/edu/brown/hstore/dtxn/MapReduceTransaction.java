@@ -119,13 +119,13 @@ public class MapReduceTransaction extends LocalTransaction {
     
     
     @Override
-    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
+    public LocalTransaction init(Long txn_id, long clientHandle, int base_partition,
             Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
             Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         assert (invocation != null) : "invalid StoredProcedureInvocation parameter for MapReduceTransaction.init()";
         assert (catalog_proc != null) : "invalid Procedure parameter for MapReduceTransaction.init()";
         
-        super.init(txnId, clientHandle, base_partition,
+        super.init(txn_id, clientHandle, base_partition,
                    predict_touchedPartitions, predict_readOnly, predict_canAbort,
                    catalog_proc, invocation, client_callback);
         
@@ -164,8 +164,8 @@ public class MapReduceTransaction extends LocalTransaction {
         return (this);
     }
 
-    public MapReduceTransaction init(long txnId, int base_partition, Procedure catalog_proc, StoredProcedureInvocation invocation) {
-        this.init(txnId, invocation.getClientHandle(), base_partition,
+    public MapReduceTransaction init(Long txn_id, int base_partition, Procedure catalog_proc, StoredProcedureInvocation invocation) {
+        this.init(txn_id, invocation.getClientHandle(), base_partition,
                   hstore_site.getAllPartitionIds(), false, true,
                   catalog_proc, invocation, null);
         LOG.info("Invoked MapReduceTransaction.init() -> " + this);

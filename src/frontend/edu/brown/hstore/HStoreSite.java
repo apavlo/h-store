@@ -279,7 +279,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Keep track of which txns that we have in-flight right now
      */
-    private final ConcurrentHashMap<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
+//    private final Map<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
+    private final Map<Long, AbstractTransaction> inflight_txns = new HashMap<Long, AbstractTransaction>();
     
     /**
      * Fixed Markov Estimator
@@ -535,7 +536,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
     
     @SuppressWarnings("unchecked")
-    public <T extends AbstractTransaction> T getTransaction(long txn_id) {
+    public <T extends AbstractTransaction> T getTransaction(Long txn_id) {
         return ((T)this.inflight_txns.get(txn_id));
     }
     /**
@@ -908,7 +909,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         request.buildParameterSet();
         assert(request.getParams() != null) : "The parameters object is null for new txn from client #" + request.getClientHandle();
         final Object args[] = request.getParams().toArray(); 
-        final Procedure catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
+        Procedure catalog_proc = this.catalog_db.getProcedures().get(request.getProcName());
+        if (catalog_proc == null) {
+            catalog_proc = this.catalog_db.getProcedures().getIgnoreCase(request.getProcName());
+        }
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + request.getProcName() + "'");
         final boolean sysproc = request.isSysProc();
         final boolean mapreduce = catalog_proc.getMapreduce();
@@ -996,7 +1000,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // Grab a new LocalTransactionState object from the target base partition's PartitionExecutor object pool
         // This will be the handle that is used all throughout this txn's lifespan to keep track of what it does
-        long txn_id = id_generator.getNextUniqueTransactionId();
+        Long txn_id = new Long(id_generator.getNextUniqueTransactionId());
         LocalTransaction ts = null;
         try {
             if (mapreduce) {
@@ -1029,13 +1033,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // Done(xin): add mapreduce
         if (sysproc || catalog_proc.getMapreduce()) {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("New request is for a %s %s, so it has to be multi-partitioned [clientHandle=%d]",
-                             (catalog_proc.getMapreduce()?"MapReduce":"sysproc"),request.getProcName(), request.getClientHandle()));
+                             (catalog_proc.getMapreduce() ? "MapReduce" : "sysproc"),
+                             request.getProcName(), request.getClientHandle()));
             predict_touchedPartitions = this.all_partitions;
             
         // Force all transactions to be single-partitioned
         } else if (hstore_conf.site.exec_force_singlepartitioned) {
             if (t) LOG.trace("__FILE__:__LINE__ " + String.format("The \"Always Single-Partitioned\" flag is true. Marking new %s transaction as single-partitioned on partition %d [clientHandle=%d]",
-                                           request.getProcName(), base_partition, request.getClientHandle()));
+                             request.getProcName(), base_partition, request.getClientHandle()));
             predict_touchedPartitions = this.single_partition_sets[base_partition];
             
         // Assume we're executing TPC-C neworder. Manually examine the input parameters and figure
@@ -1107,7 +1112,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     MarkovGraph markov = t_state.getMarkovGraph();
                     GraphvizExport<MarkovVertex, MarkovEdge> gv = MarkovUtil.exportGraphviz(markov, true, markov.getPath(t_state.getInitialPath()));
                     gv.highlightPath(markov.getPath(t_state.getActualPath()), "blue");
-                    System.err.println("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
+                    LOG.warn("WROTE MARKOVGRAPH: " + gv.writeToTempFile(catalog_proc));
                 }
                 LOG.error("__FILE__:__LINE__ " + String.format("Failed calculate estimate for %s request", AbstractTransaction.formatTxnName(catalog_proc, txn_id)), ex);
                 predict_touchedPartitions = this.all_partitions;
@@ -1161,7 +1166,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     private void dispatchInvocation(LocalTransaction ts) {
         assert(ts.isInitialized()) : String.format("Unexpected uninitialized LocalTranaction for txn #%d", ts.getTransactionId());
-        long txn_id = ts.getTransactionId();
+        Long txn_id = ts.getTransactionId();
         int base_partition = ts.getBasePartition();
                 
         // For some odd reason we sometimes get duplicate transaction ids from the VoltDB id generator
@@ -1171,7 +1176,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK!
             this.inflight_txns.put(txn_id, dupe);
             // long new_txn_id = this.txnid_managers[base_partition].getNextUniqueTransactionId();
-            long new_txn_id = this.txnid_manager.getNextUniqueTransactionId();
+            Long new_txn_id = new Long(this.txnid_manager.getNextUniqueTransactionId());
             if (new_txn_id == txn_id) {
                 String msg = "Duplicate transaction id #" + txn_id;
                 LOG.fatal("__FILE__:__LINE__ " + "ORIG TRANSACTION:\n" + dupe);
@@ -1250,7 +1255,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      * @param callback
      */
-    public void transactionInit(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
+    public void transactionInit(Long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback) {
         // We should always force a txn from a remote partition into the queue manager
         this.txnQueueManager.insert(txn_id, partitions, callback, true);
     }
@@ -1260,7 +1265,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param ts
      */
     public void transactionStart(LocalTransaction ts, int base_partition) {
-        long txn_id = ts.getTransactionId();
+        Long txn_id = ts.getTransactionId();
         //int base_partition = ts.getBasePartition();
         Procedure catalog_proc = ts.getProcedure();
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("Starting %s %s on partition %d",
@@ -1273,12 +1278,13 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.txn_profiling) ts.profiler.startQueue();
         boolean ret = executor.queueNewTransaction(ts);
         if (hstore_conf.site.status_show_txn_info && ret) {
-            assert(catalog_proc != null) : String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
+            assert(catalog_proc != null) :
+                String.format("Null Procedure for txn #%d [hashCode=%d]", txn_id, ts.hashCode());
             TxnCounter.EXECUTED.inc(catalog_proc);
         }
     }
     
-    public MapReduceTransaction createMapReduceTransaction(long txn_id, StoredProcedureInvocation invocation, int base_partition) {
+    public MapReduceTransaction createMapReduceTransaction(Long txn_id, StoredProcedureInvocation invocation, int base_partition) {
         String proc_name = invocation.getProcName();
         Procedure catalog_proc = catalog_db.getProcedures().getIgnoreCase(proc_name);
         if (catalog_proc == null) throw new RuntimeException("Unknown procedure '" + proc_name + "'");
@@ -1302,7 +1308,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (ts);
     }
     
-    public RemoteTransaction createRemoteTransaction(long txn_id, TransactionWorkRequest request) {
+    public RemoteTransaction createRemoteTransaction(Long txn_id, TransactionWorkRequest request) {
         RemoteTransaction ts = null;
         try {
             // Remote Transaction
@@ -1356,7 +1362,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param partitions
      * @param updated
      */
-    public void transactionPrepare(long txn_id, Collection<Integer> partitions, Collection<Integer> updated) {
+    public void transactionPrepare(Long txn_id, Collection<Integer> partitions, Collection<Integer> updated) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("2PC:PREPARE Txn #%d [partitions=%s]", txn_id, partitions));
         
         // We could have been asked to participate in a distributed transaction but
@@ -1399,7 +1405,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param status
      * @param partitions
      */
-    public void transactionFinish(long txn_id, Hstore.Status status, Collection<Integer> partitions) {
+    public void transactionFinish(Long txn_id, Hstore.Status status, Collection<Integer> partitions) {
         if (d) LOG.debug("__FILE__:__LINE__ " + String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
                                        txn_id, status, partitions));
         boolean commit = (status == Hstore.Status.OK);
@@ -1772,7 +1778,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform final cleanup and book keeping for a completed txn
      * @param txn_id
      */
-    public void completeTransaction(final long txn_id, final Hstore.Status status) {
+    public void completeTransaction(final Long txn_id, final Hstore.Status status) {
         if (d) LOG.debug("__FILE__:__LINE__ " + "Cleaning up internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
@@ -1823,7 +1829,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     if (t_estimator != null) t_estimator.commit(txn_id);
                     // We always need to keep track of how many txns we process 
                     // in order to check whether we are hung or not
-                    if (this.status_monitor != null) TxnCounter.COMPLETED.inc(catalog_proc);
+                    if (hstore_conf.site.status_show_txn_info || hstore_conf.site.status_kill_if_hung) 
+                        TxnCounter.COMPLETED.inc(catalog_proc);
                     break;
                 case ABORT_USER:
                     if (t) LOG.trace("__FILE__:__LINE__ " + "Telling the TransactionEstimator to ABORT " + ts);

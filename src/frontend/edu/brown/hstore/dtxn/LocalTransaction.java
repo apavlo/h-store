@@ -194,7 +194,7 @@ public class LocalTransaction extends AbstractTransaction {
 
     /**
      * Main initialization method for LocalTransaction
-     * @param txnId
+     * @param txn_id
      * @param clientHandle
      * @param base_partition
      * @param predict_singlePartition
@@ -206,7 +206,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param client_callback
      * @return
      */
-    public LocalTransaction init(long txnId, long clientHandle, int base_partition,
+    public LocalTransaction init(Long txn_id, long clientHandle, int base_partition,
                                  Collection<Integer> predict_touchedPartitions, boolean predict_readOnly, boolean predict_canAbort,
                                  Procedure catalog_proc, StoredProcedureInvocation invocation, RpcCallback<byte[]> client_callback) {
         assert(predict_touchedPartitions != null && predict_touchedPartitions.isEmpty() == false);
@@ -217,13 +217,13 @@ public class LocalTransaction extends AbstractTransaction {
         this.invocation = invocation;
         this.client_callback = client_callback;
         
-        super.init(txnId, clientHandle, base_partition, catalog_proc.getSystemproc(),
+        super.init(txn_id, clientHandle, base_partition, catalog_proc.getSystemproc(),
                   (this.predict_touchedPartitions.size() == 1), predict_readOnly, predict_canAbort, true);
         
         // Initialize the InitialTaskMessage
         // We have to wrap the StoredProcedureInvocation object into an
         // InitiateTaskMessage so that it can be put into the ExecutionSite's execution queue
-        this.itask.setTransactionId(txnId);
+        this.itask.setTransactionId(txn_id);
         this.itask.setSrcPartition(base_partition);
         this.itask.setDestPartition(base_partition);
         this.itask.setReadOnly(predict_readOnly);
@@ -251,19 +251,19 @@ public class LocalTransaction extends AbstractTransaction {
 
     /**
      * Testing Constructor
-     * @param txnId
+     * @param txn_id
      * @param base_partition
      * @param predict_touchedPartitions
      * @param catalog_proc
      * @return
      */
-    public LocalTransaction testInit(long txnId, int base_partition, Collection<Integer> predict_touchedPartitions, Procedure catalog_proc) {
+    public LocalTransaction testInit(Long txn_id, int base_partition, Collection<Integer> predict_touchedPartitions, Procedure catalog_proc) {
         this.predict_touchedPartitions = predict_touchedPartitions;
         this.catalog_proc = catalog_proc;
         boolean predict_singlePartition = (this.predict_touchedPartitions.size() == 1);
         
         return (LocalTransaction)super.init(
-                          txnId,                        // TxnId
+                          txn_id,                       // TxnId
                           Integer.MAX_VALUE,            // ClientHandle
                           base_partition,               // BasePartition
                           catalog_proc.getSystemproc(), // SysProc
@@ -336,7 +336,7 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.profiler != null) this.profiler.finish();
     }
     
-    public void setTransactionId(long txn_id) { 
+    public void setTransactionId(Long txn_id) { 
         this.txn_id = txn_id;
     }
     
