@@ -32,7 +32,7 @@ public abstract class MarkovConstants {
     // ----------------------------------------------------------------
     
     public static final String  TABLENAME_TABLEA = "TABLEA";
-    public static final long    TABLESIZE_TABLEA = 1000000l; 
+    public static final long    TABLESIZE_TABLEA = 10000l; 
     public static final long    BATCHSIZE_TABLEA = 50l;
     
     public static final String  TABLENAME_TABLEB = "TABLEB";
@@ -44,7 +44,7 @@ public abstract class MarkovConstants {
     public static final long    BATCHSIZE_TABLEC = 25l;
     
     public static final String  TABLENAME_TABLED = "TABLED";
-    public static final long    TABLESIZE_TABLED = 10000000l;
+    public static final long    TABLESIZE_TABLED = 100000l;
     public static final long    BATCHSIZE_TABLED = 50l;
     
     public static final String[] TABLENAMES = {
