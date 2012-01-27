@@ -11,7 +11,8 @@ import edu.brown.utils.FileUtil;
 public abstract class HStoreConfUtil {
     private static final Logger LOG = Logger.getLogger(HStoreConfUtil.class);
 
-    private static final String groups[] = { "global", "client", "site" };
+    public static final String groups[] = { "global", "client", "site" };
+    public static final String navigationLink = "\n[previous] [next]";
     
     public static void main(String[] vargs) throws Exception {
         ArgumentsParser args = ArgumentsParser.load(vargs);
@@ -29,7 +30,25 @@ public abstract class HStoreConfUtil {
         FileUtil.writeStringToFile(file, sb.toString());
         LOG.info("Updated " + file);
         
+        // Conf Index
+        file = new File("conf-index.html"); 
+        String contents = "";
+        for (String prefix : groups) {
+            contents += hstore_conf.makeIndexHTML(prefix);
+        } // FOR
+        contents += navigationLink;
+        FileUtil.writeStringToFile(file, contents);
+        LOG.info("Updated " + file);
         
+        // Group Conf Listings
+        for (String prefix : groups) {
+            file = new File("conf-" + prefix + ".html");
+            contents = hstore_conf.makeHTML(prefix) + "\n" + navigationLink;
+            FileUtil.writeStringToFile(file, contents);
+            LOG.info("Updated " + file);
+        } // FOR
     }
+
+    
     
 }

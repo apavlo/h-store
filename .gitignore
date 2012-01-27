@@ -21,6 +21,7 @@ typescript
 plannerlog.txt
 keepalive
 obj
+conf-*.html
 
 ## -------------------------------
 ## JNI Compiler Artifacts
