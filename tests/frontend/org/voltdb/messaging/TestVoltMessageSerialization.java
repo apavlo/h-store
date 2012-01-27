@@ -130,7 +130,7 @@ public class TestVoltMessageSerialization extends TestCase {
     public void testFragmentResponse() {
         DBBPool pool = new DBBPool();
         FragmentTaskMessage ft = new FragmentTaskMessage(
-                15, 12, 37, 1l,
+                15, 12, 37l, 1l,
                 false, new long[0], null,
                 new ByteBuffer[0], new int[0], false);
 

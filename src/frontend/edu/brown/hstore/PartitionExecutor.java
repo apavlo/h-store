@@ -354,7 +354,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             Class<? extends TransactionInfoBaseMessage> class0 = msg0.getClass();
             Class<? extends TransactionInfoBaseMessage> class1 = msg1.getClass();
             
-            if (class0.equals(class1)) return (int)(msg0.getTxnId() - msg1.getTxnId());
+            if (class0.equals(class1)) return (msg0.getTxnId().compareTo(msg1.getTxnId()));
 
             boolean isFinish0 = class0.equals(FinishTaskMessage.class);
             boolean isFinish1 = class1.equals(FinishTaskMessage.class);
