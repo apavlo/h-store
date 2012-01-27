@@ -1406,7 +1406,11 @@ public class BenchmarkController {
             /* Disable starting the database cluster  */
             } else if (parts[0].equalsIgnoreCase("NOSITES")) {
                 noSites = Boolean.parseBoolean(parts[1]);
-                
+            /* Disable Sites Starting */ 
+            } else if (parts[0].equalsIgnoreCase("NOSTART")) {
+                for (String s : parts[1].split(",")) {
+                    profileSiteIds.add(Integer.valueOf(s));
+                } // FOR
             /* Disable executing the data loader */
             } else if (parts[0].equalsIgnoreCase("NOLOADER")) {
                 noLoader = Boolean.parseBoolean(parts[1]);
@@ -1428,11 +1432,6 @@ public class BenchmarkController {
             } else if (parts[0].equalsIgnoreCase("TRACE")) {
                 workloadTrace = parts[1];
                 siteParams.put(ArgumentsParser.PARAM_WORKLOAD_OUTPUT, parts[1]);
-            /* Disable Sites Starting */ 
-            } else if (parts[0].equalsIgnoreCase("PROFILESITES")) {
-                for (String s : parts[1].split(",")) {
-                    profileSiteIds.add(Integer.valueOf(s));
-                } // FOR
             /* Markov Model File */
             } else if (parts[0].equalsIgnoreCase(ArgumentsParser.PARAM_MARKOV)) {
                 markov_path = parts[1];

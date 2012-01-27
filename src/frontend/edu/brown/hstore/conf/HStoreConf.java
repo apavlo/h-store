@@ -579,15 +579,17 @@ public final class HStoreConf {
         public boolean status_enable;
         
         @ConfigProperty(
-            description="Enable HStoreSite's StatusThread (# of milliseconds to print update).",
+            description="How often the HStoreSite's StatusThread will print a status update (in milliseconds).",
             defaultInt=20000,
             experimental=false
         )
         public int status_interval;
 
         @ConfigProperty(
-            description="Allow the HStoreSiteStatus thread to kill the cluster if it's local HStoreSite has " +
-                        "not executed and completed any new transactions since the last time it took a status snapshot.", 
+            description="Allow the HStoreSiteStatus thread to kill the cluster if the local HStoreSite appears to be hung. " +
+                        "The site is considered hung if it has executed at least one transaction and has " +
+                        "not completed (either committed or aborted) any new transactions since the last time " +
+                        "it took a status snapshot.",
             defaultBoolean=false,
             experimental=false
         )
