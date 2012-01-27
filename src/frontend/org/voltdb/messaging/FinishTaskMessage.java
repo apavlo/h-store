@@ -41,7 +41,7 @@ public class FinishTaskMessage extends TransactionInfoBaseMessage {
 
     // Use this one asshole!
     public FinishTaskMessage(AbstractTransaction ts, Hstore.Status status) {
-        super(ts.getBasePartition(), -1, ts.getTransactionId(), ts.getClientHandle(), false);
+        super(ts.getBasePartition(), -1, (ts.getTransactionId() != null ? ts.getTransactionId() : -1), ts.getClientHandle(), false);
         this.ts = ts;
         this.status = status;
     }

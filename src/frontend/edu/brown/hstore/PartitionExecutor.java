@@ -57,6 +57,7 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.*;
 import org.voltdb.VoltProcedure.VoltAbortException;
+import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
@@ -269,6 +270,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     protected HStoreConf hstore_conf;
     
     // ----------------------------------------------------------------------------
+    // Shared VoltProcedure Data Members
+    // ----------------------------------------------------------------------------
+    
+    /**
+     * 
+     */
+    private final ParameterSet[][] voltProc_params = new ParameterSet[HStoreConstants.MAX_STMTS_PER_BATCH][]; 
+    
+    // ----------------------------------------------------------------------------
     // Execution State
     // ----------------------------------------------------------------------------
     
@@ -436,7 +446,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private final RpcCallback<Hstore.TransactionWorkResponse> request_work_callback = new RpcCallback<Hstore.TransactionWorkResponse>() {
         @Override
         public void run(Hstore.TransactionWorkResponse msg) {
-            long txn_id = msg.getTransactionId();
+            Long txn_id = msg.getTransactionId();
             AbstractTransaction ts = hstore_site.getTransaction(txn_id);
             assert(ts != null) : "No transaction state exists for txn #" + txn_id;
             
@@ -633,6 +643,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
             tmp_transactionRequestBuilderInputs.put(catalog_site.getId(), new HashSet<Integer>());
         } // FOR
+        
+        // Shared VoltProcedure Cached Objects
+        for (int i = 0; i < this.voltProc_params.length; i++) {
+            this.voltProc_params[i] = new ParameterSet[i];
+            for (int j = 0; j < i; j++) {
+                this.voltProc_params[i][j] = new ParameterSet(true);
+            } // FOR
+        } // FOR
     }
     
     @SuppressWarnings("unchecked")
@@ -723,7 +741,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         AbstractTransaction current_txn = null;
         TransactionInfoBaseMessage work = null;
         boolean stop = false;
-        long txn_id = -1;
+        Long txn_id = null;
         
         try {
             // Setup shutdown lock
@@ -731,7 +749,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
             if (d) LOG.debug("__FILE__:__LINE__ " + "Starting PartitionExecutor run loop...");
             while (stop == false && this.isShuttingDown() == false) {
-                txn_id = -1;
+                txn_id = null;
                 work = null;
                 
                 // -------------------------------
@@ -820,7 +838,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 // -------------------------------
                 } else if (work instanceof FinishTaskMessage) {
 //                    if (hstore_conf.site.exec_profiling) this.work_exec_time.start();
-                    if(d) LOG.debug("<FinishTaskMessage>for txn: " + current_txn);
+                    if(d) LOG.debug("<FinishTaskMessage> for txn: " + current_txn);
 //                    if (current_txn instanceof MapReduceTransaction) {
 //                        MapReduceTransaction orig_ts = (MapReduceTransaction)current_txn; 
 //                        current_txn = orig_ts.getLocalTransaction(this.partitionId);
@@ -863,7 +881,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 txnDebug = "\n" + current_txn.debug();
             }
             LOG.warn("__FILE__:__LINE__ " + String.format("Partition %d PartitionExecutor is stopping.%s%s",
-                                   this.partitionId, (txn_id > 0 ? " In-Flight Txn: #" + txn_id : ""), txnDebug));
+                                   this.partitionId, (txn_id != null ? " In-Flight Txn: #" + txn_id : ""), txnDebug));
             
             // Release the shutdown latch in case anybody waiting for us
             this.shutdown_latch.release();
@@ -946,6 +964,18 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     public Long getLastCommittedTxnId() {
         return (this.lastCommittedTxnId);
+    }
+    
+    /**
+     * Return a cached ParameterSet array. This should only be 
+     * called by the VoltProcedures managed by this PartitionExecutor.
+     * This is just to reduce the number of objects that we need to allocate
+     * @param size
+     * @return
+     */
+    public ParameterSet[] getParameterSet(int size) {
+        assert(size < this.voltProc_params.length);
+        return (this.voltProc_params[size]);
     }
 
     /**
@@ -1805,7 +1835,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      */
     private DependencySet executePlanFragments(AbstractTransaction ts, long undoToken, int batchSize, long fragmentIds[], ParameterSet parameterSets[], int output_depIds[], int input_depIds[], Map<Integer, List<VoltTable>> input_deps) {
         assert(this.ee != null) : "The EE object is null. This is bad!";
-        long txn_id = ts.getTransactionId();
+        Long txn_id = ts.getTransactionId();
         
         // *********************************** DEBUG ***********************************
         if (d) {
@@ -2022,7 +2052,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     private void requestWork(LocalTransaction ts, Collection<WorkFragment> tasks, List<ByteString> parameterSets) {
         assert(!tasks.isEmpty());
         assert(ts != null);
-        long txn_id = ts.getTransactionId();
+        Long txn_id = ts.getTransactionId();
 
         if (t) LOG.trace("__FILE__:__LINE__ " + String.format("Wrapping %d WorkFragments into a Hstore.TransactionWorkRequest for %s", tasks.size(), ts));
         

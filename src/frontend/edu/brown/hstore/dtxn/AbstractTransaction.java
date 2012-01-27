@@ -76,7 +76,7 @@ public abstract class AbstractTransaction implements Poolable {
     
     protected final HStoreSite hstore_site;
     
-    protected long txn_id = -1;
+    protected Long txn_id = null;
     protected long client_handle;
     protected int base_partition;
     protected final Set<Integer> touched_partitions = new HashSet<Integer>();
@@ -181,7 +181,7 @@ public abstract class AbstractTransaction implements Poolable {
      * @param exec_local
      * @return
      */
-    protected final AbstractTransaction init(long txn_id, long client_handle, int base_partition, boolean sysproc,
+    protected final AbstractTransaction init(Long txn_id, long client_handle, int base_partition, boolean sysproc,
                                              boolean predict_singlePartition, boolean predict_readOnly, boolean predict_abortable, boolean exec_local) {
         this.txn_id = txn_id;
         this.client_handle = client_handle;
@@ -197,7 +197,7 @@ public abstract class AbstractTransaction implements Poolable {
 
     @Override
     public boolean isInitialized() {
-        return (this.txn_id != -1);
+        return (this.txn_id != null);
     }
     
     /**
@@ -228,9 +228,9 @@ public abstract class AbstractTransaction implements Poolable {
         } // FOR
 
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                     txn_id, this.hashCode(), Arrays.toString(this.finished)));
-        this.txn_id = -1;
+        this.txn_id = null;
     }
 
     // ----------------------------------------------------------------------------
@@ -268,9 +268,8 @@ public abstract class AbstractTransaction implements Poolable {
             this.exec_noUndoBuffer[this.base_partition] = true;
         }
         this.round_state[offset] = RoundState.INITIALIZED;
-//        this.pending_error = null;
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]", this, partition, undoToken));
+        if (debug.get()) LOG.debug(String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]", this, partition, undoToken));
     }
     
     /**
@@ -284,7 +283,7 @@ public abstract class AbstractTransaction implements Poolable {
                     this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Starting batch ROUND #%d on partition %d for %s",
+        if (debug.get()) LOG.debug(String.format("Starting batch ROUND #%d on partition %d for %s",
                                                           this.round_ctr[offset], partition, this));
     }
     
@@ -297,7 +296,7 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Finishing batch ROUND #%d on partition %d for %s",
+        if (debug.get()) LOG.debug(String.format("Finishing batch ROUND #%d on partition %d for %s",
                                                           this.round_ctr[offset], partition, this));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
@@ -382,7 +381,7 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Get this state's transaction id
      */
-    public long getTransactionId() {
+    public Long getTransactionId() {
         return this.txn_id;
     }
     /**
@@ -455,7 +454,7 @@ public abstract class AbstractTransaction implements Poolable {
     }
     
     public FinishTaskMessage getFinishTaskMessage(Hstore.Status status) {
-        this.finish_task.setTxnId(this.getTransactionId());
+        this.finish_task.setTxnId(this.getTransactionId().longValue());
         this.finish_task.setStatus(status);
         return (this.finish_task);
     }
@@ -473,7 +472,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as having submitted to the EE on partition %d %s",
+        if (debug.get()) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
                                                  this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
@@ -499,7 +498,7 @@ public abstract class AbstractTransaction implements Poolable {
      */
     public void setFinishedEE(int partition) {
         if (debug.get()) 
-            LOG.debug("__FILE__:__LINE__ " + String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
+            LOG.debug(String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
                                    this, partition, Arrays.toString(this.finished),
                                    this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;
@@ -557,8 +556,8 @@ public abstract class AbstractTransaction implements Poolable {
     public boolean equals(Object obj) {
         if (obj instanceof AbstractTransaction) {
             AbstractTransaction other = (AbstractTransaction)obj;
-            if ((other.txn_id == -1) && (this.txn_id == -1)) return (this.hashCode() != other.hashCode());
-            return (this.txn_id == other.txn_id && this.base_partition == other.base_partition);
+            if ((other.txn_id == null) && (this.txn_id == null)) return (this.hashCode() != other.hashCode());
+            return (this.txn_id.equals(other.txn_id) && this.base_partition == other.base_partition);
         }
         return (false);
     }
@@ -587,7 +586,7 @@ public abstract class AbstractTransaction implements Poolable {
         return (m);
     }
     
-    public static String formatTxnName(Procedure catalog_proc, long txn_id) {
+    public static String formatTxnName(Procedure catalog_proc, Long txn_id) {
         if (catalog_proc != null) {
             return (catalog_proc.getName() + " #" + txn_id);
         }

@@ -114,7 +114,7 @@ public class TestMapReduceTransaction extends BaseTestCase{
        MapReduceTransaction ts = new MapReduceTransaction (this.sites[0]);
        StoredProcedureInvocation request = new StoredProcedureInvocation(-1, TARGET_PROCEDURE.getSimpleName()); 
        Procedure catalog_proc = this.getProcedure(TARGET_PROCEDURE);
-       ts.init(123456789, 0, 0, all_partitions, false, true, catalog_proc, request, null);
+       ts.init(123456789l, 0, 0, all_partitions, false, true, catalog_proc, request, null);
        
 
        ts.storeData(1, table);

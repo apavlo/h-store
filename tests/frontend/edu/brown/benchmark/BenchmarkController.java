@@ -355,8 +355,6 @@ public class BenchmarkController {
             if (debug.get()) LOG.debug("Skipping benchmark project compilation");
         }
         
-        LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
-        
         // Load the catalog that we just made
         if (debug.get()) LOG.debug("Loading catalog from '" + m_jarFileName + "'");
         this.initializeCatalog(CatalogUtil.loadCatalogFromJar(m_jarFileName));
@@ -463,6 +461,7 @@ public class BenchmarkController {
     }
     
     public void startSites(final Catalog catalog) {
+        LOG.info(StringUtil.header("BENCHMARK INITIALIZE :: " + this.getProjectName()));
         if (debug.get()) LOG.debug("Number of hosts to start: " + m_launchHosts.size());
         int hosts_started = 0;
         

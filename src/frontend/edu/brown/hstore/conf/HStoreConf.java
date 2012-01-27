@@ -606,7 +606,7 @@ public final class HStoreConf {
             description="When this property is set to true, HStoreSite status will include information about each PartitionExecutor, " +
                         "such as the number of transactions currently queued, blocked for execution, or waiting to have their results " +
                         "returned to the client.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean status_show_executor_info;
@@ -1454,7 +1454,7 @@ public final class HStoreConf {
             }
             sb.append(copy);
         } // FOR
-        sb.append("</ul>\n\n[previous] [next]\n");
+        sb.append("</ul>\n");
         return (sb.toString());
     }
     
