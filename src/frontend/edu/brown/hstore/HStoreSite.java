@@ -622,7 +622,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         t.start();
         
         // Start Status Monitor
-        if (hstore_conf.site.status_interval > 0) {
+        if (hstore_conf.site.status_enable) {
+            assert(hstore_conf.site.status_interval >= 0);
             if (d) LOG.debug("__FILE__:__LINE__ " + "Starting HStoreSiteStatus monitor thread");
             this.status_monitor = new HStoreSiteStatus(this, hstore_conf);
             t = new Thread(this.status_monitor);

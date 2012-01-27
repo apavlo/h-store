@@ -572,8 +572,14 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable HStoreSite's StatusThread (# of milliseconds to print update). " +
-                        "Set this to be -1 if you want to disable the status messages.",
+            description="Enable HStoreSite's Status thread.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean status_enable;
+        
+        @ConfigProperty(
+            description="Enable HStoreSite's StatusThread (# of milliseconds to print update).",
             defaultInt=20000,
             experimental=false
         )
