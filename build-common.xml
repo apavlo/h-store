@@ -93,6 +93,7 @@
 <arg value="site.helper_txn_expire=${site.helper_txn_expire}" />
 <arg value="site.trace_txn_output=${site.trace_txn_output}" />
 <arg value="site.trace_query_output=${site.trace_query_output}" />
+<arg value="site.status_enable=${site.status_enable}" />
 <arg value="site.status_interval=${site.status_interval}" />
 <arg value="site.status_kill_if_hung=${site.status_kill_if_hung}" />
 <arg value="site.status_show_txn_info=${site.status_show_txn_info}" />
