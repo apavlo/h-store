@@ -79,7 +79,7 @@ public abstract class AbstractTransaction implements Poolable {
     protected Long txn_id = null;
     protected long client_handle;
     protected int base_partition;
-    protected final Set<Integer> touched_partitions = new HashSet<Integer>();
+//    private final Set<Integer> touched_partitions = new HashSet<Integer>();
     protected boolean rejected;
     private boolean sysproc;
     protected SerializableException pending_error;
@@ -129,7 +129,7 @@ public abstract class AbstractTransaction implements Poolable {
     // ----------------------------------------------------------------------------
     
     private final boolean finished[];
-    protected final Long last_undo_token[];
+    protected final long last_undo_token[];
     protected final RoundState round_state[];
     protected final int round_ctr[];
     
@@ -155,7 +155,7 @@ public abstract class AbstractTransaction implements Poolable {
         
         int cnt = hstore_site.getLocalPartitionIds().size();
         this.finished = new boolean[cnt];
-        this.last_undo_token = new Long[cnt];
+        this.last_undo_token = new long[cnt];
         this.round_state = new RoundState[cnt];
         this.round_ctr = new int[cnt];
         this.exec_readOnly = new boolean[cnt];
@@ -209,7 +209,7 @@ public abstract class AbstractTransaction implements Poolable {
         this.predict_readOnly = false;
         this.predict_abortable = true;
         this.pending_error = null;
-        this.touched_partitions.clear();
+//        this.touched_partitions.clear();
         this.sysproc = false;
         
         this.exec_readOnlyAll = true;
@@ -221,7 +221,7 @@ public abstract class AbstractTransaction implements Poolable {
             this.finished[i] = false;
             this.round_state[i] = null;
             this.round_ctr[i] = 0;
-            this.last_undo_token[i] = null;
+            this.last_undo_token[i] = -1;
             this.exec_readOnly[i] = true;
             this.exec_eeWork[i] = false;
             this.exec_noUndoBuffer[i] = false;
@@ -261,7 +261,7 @@ public abstract class AbstractTransaction implements Poolable {
             String.format("Invalid state %s for ROUND #%s on partition %d for %s [hashCode=%d]",
                           this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
-        if (this.last_undo_token[offset] == null || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
+        if (this.last_undo_token[offset] == -1 || undoToken != HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
             this.last_undo_token[offset] = undoToken;
         }
         if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
@@ -269,7 +269,9 @@ public abstract class AbstractTransaction implements Poolable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (debug.get()) LOG.debug(String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]", this, partition, undoToken));
+        if (debug.get()) 
+            LOG.debug(String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]",
+                                    this, partition, undoToken));
     }
     
     /**
@@ -413,7 +415,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Returns true if this transaction has done something at this partition
      */
     public boolean hasStarted(int partition) {
-        return (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != null);
+        return (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != -1);
     }
     
     /**

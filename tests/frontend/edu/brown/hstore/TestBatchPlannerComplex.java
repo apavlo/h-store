@@ -120,7 +120,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
             assertFalse(plan.hasMisprediction());
         
             List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-            plan.getWorkFragments(fragments);
+            plan.getWorkFragments(TXN_ID, fragments);
             assertFalse(fragments.isEmpty());
         
             for (WorkFragment pf : fragments) {
@@ -141,7 +141,7 @@ public class TestBatchPlannerComplex extends BaseTestCase {
      */
     public void testBuildWorkFragments() throws Exception {
         List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         assertFalse(fragments.isEmpty());
         
         for (WorkFragment pf : fragments) {

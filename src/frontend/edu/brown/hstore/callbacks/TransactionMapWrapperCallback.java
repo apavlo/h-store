@@ -111,7 +111,7 @@ public class TransactionMapWrapperCallback extends BlockingCallback<Hstore.Trans
         //  Pass the MapReduceTransaction handle to the helper thread to perform the shuffle operation
         //  Move this to be execute after the SHUFFLE phase is finished --> this.getOrigCallback().run(this.builder.build());
         
-        MapReduceHelperThread mr_helper = this.hstore_site.getMr_helper();
+        MapReduceHelperThread mr_helper = this.hstore_site.getMapReduceHelper();
         ts.setShufflePhase();
         
         if (debug.get()) 

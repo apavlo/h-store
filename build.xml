@@ -461,11 +461,11 @@ JAVA COMPILATION
         executable='${src.frontend.dir}/org/voltdb/utils/generate_logkeys.py'
         failonerror='true' />
         
-    <exec dir='.'
+<!--    <exec dir='.'
           executable='${tools.dir}/preprocessor.py'
           failonerror='true' >
         <arg line='${src.frontend.dir} ${build.preprocessor.dir}' />
-    </exec>
+    </exec>-->
         
     <depend
         srcdir="${src.hsqldb.dir}:${src.hsqldb.test.dir}:${src.frontend.dir}:${src.test.dir}:${vendor.src.dir}"
@@ -571,13 +571,13 @@ JAVA COMPILATION
         <classpath refid="project.classpath" />
     </javac>
     
-    <javac includeantruntime="false"
+<!--    <javac includeantruntime="false"
         target="${javac.version}"
         srcdir="${build.preprocessor.dir}"
         destdir='${build.prod.dir}'
         debug='true'>
         <classpath refid="project.classpath" />
-    </javac>
+    </javac>-->
     
     <delete dir="${build.prod.dir}/META-INF/"/>
     

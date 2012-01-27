@@ -190,7 +190,7 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner batchPlan = new BatchPlanner(batch, this.catalog_proc, p_estimator);
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -222,7 +222,7 @@ public class TestBatchPlanner extends BaseTestCase {
             assertEquals(1, this.touched_partitions.getSampleCount());
             assertEquals(LOCAL_PARTITION, CollectionUtil.first(this.touched_partitions.getMaxCountValues()).intValue());
             
-            plan0.getWorkFragments(fragments);
+            plan0.getWorkFragments(TXN_ID, fragments);
             assertEquals(1, getLocalFragmentCount(fragments, LOCAL_PARTITION)); // local_frags
             assertEquals(0, getRemoteFragmentCount(fragments, LOCAL_PARTITION)); // remote_frags
             
@@ -258,7 +258,7 @@ public class TestBatchPlanner extends BaseTestCase {
         assertEquals(1, this.touched_partitions.getSampleCount());
         assertEquals(LOCAL_PARTITION, CollectionUtil.first(this.touched_partitions.getMaxCountValues()).intValue());
         
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -285,7 +285,7 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), true, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -304,7 +304,7 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, Collections.singleton(LOCAL_PARTITION), false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, REMOTE_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, REMOTE_PARTITION);
         
@@ -323,7 +323,7 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, this.all_partitions, false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
         
@@ -342,7 +342,7 @@ public class TestBatchPlanner extends BaseTestCase {
         BatchPlanner.BatchPlan plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, REMOTE_PARTITION, this.all_partitions, false, this.touched_partitions, this.args);
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         int local_frags = getLocalFragmentCount(fragments, LOCAL_PARTITION);
         int remote_frags = getRemoteFragmentCount(fragments, LOCAL_PARTITION);
          
@@ -362,7 +362,7 @@ public class TestBatchPlanner extends BaseTestCase {
         assertNotNull(plan);
         assertFalse(plan.hasMisprediction());
         
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
 //        System.err.println("TASKS:\n" + ftasks);
 //        System.err.println("----------------------------------------");
         Set<Integer> output_dependencies = new HashSet<Integer>();

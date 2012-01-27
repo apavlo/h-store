@@ -360,7 +360,7 @@ public class LocalTransaction extends AbstractTransaction {
         
         if (this.base_partition == partition) {
             // Reset these guys here so that we don't waste time in the last round
-            if (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != null) {
+            if (this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)] != -1) {
                 this.state.clearRound();
             }
         }
@@ -685,6 +685,11 @@ public class LocalTransaction extends AbstractTransaction {
         return (this.exec_speculative);
     }
     
+    @Override
+    public boolean isExecReadOnly(int partition) {
+        if (catalog_proc.getReadonly()) return (true);
+        return super.isExecReadOnly(partition);
+    }
     
     /**
      * Returns true if this Transaction has executed only on a single-partition
