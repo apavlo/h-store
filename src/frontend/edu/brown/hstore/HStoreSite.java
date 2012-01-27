@@ -203,6 +203,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Procedure Listener Stuff
      */
     private VoltProcedureListener voltListener;
+    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     private final NIOEventLoop procEventLoop = new NIOEventLoop();
 
     /**
@@ -894,7 +895,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         // The serializedRequest is a StoredProcedureInvocation object
         StoredProcedureInvocation request = null;
-        FastDeserializer fds = new FastDeserializer(serializedRequest);
+        FastDeserializer fds = this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
         try {
             request = fds.readObject(StoredProcedureInvocation.class);
         } catch (IOException e) {

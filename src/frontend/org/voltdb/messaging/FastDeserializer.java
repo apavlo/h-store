@@ -45,7 +45,7 @@ public class FastDeserializer implements DataInput {
         public void deserializedBytes(int numBytes);
     }
 
-    private final ByteBuffer buffer;
+    private ByteBuffer buffer;
 
     /**
      * Create a <code>FastDeserializer</code> from an array of bytes.
@@ -62,6 +62,16 @@ public class FastDeserializer implements DataInput {
     public FastDeserializer(final ByteBuffer in) {
         buffer = in;
         assert(buffer.order() == ByteOrder.BIG_ENDIAN);
+    }
+    
+    /**
+     * Hackishly set the internal ByteBuffer. This allows us to be able
+     * to re-use a single instance.
+     * @param in
+     */
+    public FastDeserializer setBuffer(ByteBuffer in) {
+        this.buffer = in;
+        return (this);
     }
 
     /** Reset this FastDeserializer and make it ready for more reads. */

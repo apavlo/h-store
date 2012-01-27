@@ -202,7 +202,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         assertNotNull(this.ts.getLastUndoToken(LOCAL_PARTITION));
-        assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken(LOCAL_PARTITION).longValue());
+        assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken(LOCAL_PARTITION));
         //System.err.println(this.ts);
     }
     
