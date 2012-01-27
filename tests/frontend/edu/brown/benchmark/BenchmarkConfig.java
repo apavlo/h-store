@@ -81,6 +81,7 @@ public class BenchmarkConfig {
     public String workloadTrace;
     public Set<Integer> profileSiteIds;
     
+    public boolean noSites;
     public boolean noLoader;
     public boolean noUploading;
     public boolean noExecute;
@@ -197,6 +198,7 @@ public class BenchmarkConfig {
             boolean compileBenchmark,
             boolean compileOnly,
             boolean useCatalogHosts,
+            boolean noSites,
             boolean noLoader,
             boolean noUploading,
             boolean noExecute,
@@ -247,6 +249,8 @@ public class BenchmarkConfig {
         this.compileBenchmark = compileBenchmark;
         this.compileOnly = compileOnly;
         this.useCatalogHosts = useCatalogHosts;
+        
+        this.noSites = noSites;
         this.noLoader = noLoader;
         this.noUploading = noUploading;
         this.noExecute = noExecute;
