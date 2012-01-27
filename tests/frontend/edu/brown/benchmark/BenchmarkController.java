@@ -1655,7 +1655,7 @@ public class BenchmarkController {
             LOG.info("Uploaded benchmarks results to " + hstore_conf.client.codespeed_url);
         }
         
-        if (config.noShutdown) {
+        if (config.noShutdown && config.noSites == false) {
             // Wait indefinitely
             LOG.info("H-Store cluster remaining online until killed");
             while (true) {
