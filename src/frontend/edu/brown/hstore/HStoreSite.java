@@ -1870,10 +1870,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // SANITY CHECK
-        for (int p : this.local_partitions) {
-            assert(ts.equals(this.executors[p].getCurrentDtxn()) == false) :
-                String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
-        } // FOR
+        if (hstore_conf.site.exec_validate_work) {
+            for (int p : this.local_partitions) {
+                assert(ts.equals(this.executors[p].getCurrentDtxn()) == false) :
+                    String.format("About to finish %s but it is still the current DTXN at partition %d", ts, p);
+            } // FOR
+        }
         
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
         if (d) LOG.debug(String.format("Returning %s to ObjectPool [hashCode=%d]", ts, ts.hashCode()));

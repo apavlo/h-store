@@ -176,10 +176,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private boolean predict_singlepartition;
     private AbstractTransaction m_currentTxnState;  // assigned in call()
     protected LocalTransaction m_localTxnState;  // assigned in call()
-    private final SQLStmt batchQueryStmts[] = new SQLStmt[HStoreConstants.MAX_STMTS_PER_BATCH];
+    private final SQLStmt batchQueryStmts[];
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
-    private final Object[] batchQueryArgs[] = new Object[HStoreConstants.MAX_STMTS_PER_BATCH][];
+    private final Object[] batchQueryArgs[];
     private int batchQueryArgsIndex = 0;
     private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
     private Hstore.Status status = Hstore.Status.OK;
@@ -203,7 +203,11 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * Constructor does nothing. All actual initialization is done in the
      * {@link VoltProcedure init} method.
      */
-    public VoltProcedure() {}
+    public VoltProcedure() {
+        int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
+        this.batchQueryArgs = new Object[max_batch][];
+        this.batchQueryStmts = new SQLStmt[max_batch];
+    }
 
     /**
      * Allow VoltProcedures access to their transaction id.
@@ -489,12 +493,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param numBatchStmts
      * @return
      */
-    public static int getBatchHashCode(SQLStmt[] batchStmts, int numBatchStmts) {
+    public static Integer getBatchHashCode(SQLStmt[] batchStmts, int numBatchStmts) {
         int hashCode = 1;
         for (int i = 0; i < numBatchStmts; i++) {
             hashCode = 31*hashCode + (batchStmts[i] == null ? 0 : batchStmts[i].hashCode());
         } // FOR
-        return hashCode;
+        return new Integer(hashCode);
     }
 
     protected synchronized void registerCallback(EventObserver<ClientResponse> observer) {
