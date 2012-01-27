@@ -243,7 +243,6 @@ public class BatchPlanner {
         // ----------------------------------------------------------------------------
         private boolean cached = false;
         
-        private long txn_id;
         private Integer base_partition = -1;
         private PlanGraph graph;
         private MispredictionException mispredict;
@@ -320,9 +319,8 @@ public class BatchPlanner {
          * @param base_partition
          * @param batchSize
          */
-        private BatchPlan init(long txn_id, long client_handle, int base_partition) {
+        private BatchPlan init(long client_handle, int base_partition) {
             assert(this.cached == false);
-            this.txn_id = txn_id;
             this.base_partition = base_partition;
             this.mispredict = null;
             
@@ -361,8 +359,8 @@ public class BatchPlanner {
             return (this.mispredict);
         }
         
-        public void getWorkFragments(List<WorkFragment> tasks) {
-            BatchPlanner.this.buildWorkFragments(this, graph, tasks);
+        public void getWorkFragments(Long txn_id, List<WorkFragment> tasks) {
+            BatchPlanner.this.buildWorkFragments(txn_id, this, graph, tasks);
         }
 
         public int getBatchSize() {
@@ -547,7 +545,7 @@ public class BatchPlanner {
      * @param batchArgs
      * @return
      */
-    public BatchPlan plan(long txn_id, long client_handle, int base_partition,
+    public BatchPlan plan(Long txn_id, long client_handle, int base_partition,
                           Collection<Integer> predict_partitions, boolean predict_singlepartitioned,
                           Histogram<Integer> touched_partitions,
                           ParameterSet[] batchArgs) {
@@ -608,7 +606,7 @@ public class BatchPlanner {
         }
         
         // Otherwise we have to construct a new BatchPlan
-        plan.init(txn_id, client_handle, base_partition);
+        plan.init(client_handle, base_partition);
 
         // ----------------------
         // DEBUG DUMP
@@ -878,9 +876,8 @@ public class BatchPlanner {
      * @param graph
      * @param tasks
      */
-    protected void buildWorkFragments(final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<WorkFragment> tasks) {
+    protected void buildWorkFragments(final Long txn_id, final BatchPlanner.BatchPlan plan, final PlanGraph graph, final List<WorkFragment> tasks) {
         if (this.enable_profiling) time_partitionFragments.start();
-        long txn_id = plan.txn_id;
         if (debug.get())
             LOG.debug("Constructing list of WorkFragments to execute [txn_id=#" + txn_id + ", base_partition=" + plan.base_partition + "]");
 
@@ -908,7 +905,7 @@ public class BatchPlanner {
                     WorkFragment.Builder partitionBuilder = this.round_builders.get(v.input_dependency_id);
                     if (partitionBuilder == null) {
                         partitionBuilder = WorkFragment.newBuilder()
-                                                            .setPartitionId(partition);
+                                                       .setPartitionId(partition);
                         this.round_builders.put(v.input_dependency_id, partitionBuilder);
                     }
                     

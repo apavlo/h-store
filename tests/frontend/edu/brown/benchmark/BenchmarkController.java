@@ -443,16 +443,17 @@ public class BenchmarkController {
             m_localserver.waitForInitialization();
         }
 
-        final ProfileMeasurement load_time = new ProfileMeasurement("load").start();
+        
         if (m_loaderClass != null && m_config.noLoader == false) {
+            ProfileMeasurement load_time = new ProfileMeasurement("load").start();
             this.startLoader();
-        } else if (m_config.noLoader) {
-            LOG.info("Skipping data loading phase");
+            load_time.stop();
+            LOG.info(String.format("Completed %s loading phase in %.2f sec",
+                                   m_projectBuilder.getProjectName().toUpperCase(),
+                                   load_time.getTotalThinkTimeSeconds()));
+        } else if (debug.get() && m_config.noLoader) {
+            LOG.debug("Skipping data loading phase");
         }
-        load_time.stop();
-        LOG.info(String.format("Completed %s loading phase in %.2f sec",
-                               m_projectBuilder.getProjectName().toUpperCase(),
-                               load_time.getTotalThinkTimeSeconds()));
 
         // Start the clients
         if (m_config.noExecute == false) this.startClients();

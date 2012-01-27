@@ -1145,7 +1145,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             
         } else {
             this.partitionFragments.clear();
-            this.plan.getWorkFragments(this.partitionFragments);
+            this.plan.getWorkFragments(m_localTxnState.getTransactionId(), this.partitionFragments);
             if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
 
             // Block until we get all of our responses.

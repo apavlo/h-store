@@ -226,12 +226,13 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
                 if (catalog_stmt.getReadonly()) {
                     for (PlanFragment catalog_frag : stmt_frags) {
                         assert(catalog_frag.getReadonly());
-                        FRAGMENT_READONLY.put((long)catalog_frag.getId(), true);
+                        long id = (long)catalog_frag.getId();
+                        FRAGMENT_READONLY.add(id);
                     } // FOR
                 } else {
                     for (PlanFragment catalog_frag : stmt_frags) {
                         long id = (long)catalog_frag.getId();
-                        FRAGMENT_READONLY.put(id, catalog_frag.getReadonly());
+                        if (catalog_frag.getReadonly()) FRAGMENT_READONLY.add(id);
                     } // FOR
                 }
             } // STATEMENT
@@ -333,7 +334,10 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     }
     
 
-    private static final Map<Long, Boolean> FRAGMENT_READONLY = new HashMap<Long, Boolean>();
+    /**
+     * These are the PlanFragment ids that are read-only
+     */
+    private static final Set<Long> FRAGMENT_READONLY = new HashSet<Long>();
 
     /**
      * Returns true if all of the fragments in the array are read-only
@@ -345,9 +349,7 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
     public static boolean areFragmentsReadOnly(CatalogType catalog_obj, long fragments[], int cnt) {
         if (FRAGMENT_READONLY.isEmpty()) preload(catalog_obj);
         for (int i = 0; i < cnt; i++) {
-            Boolean b = FRAGMENT_READONLY.get(fragments[i]);
-            assert(b != null) : "Unexpected PlanFragment id #" + fragments[i];
-            if (b.booleanValue() == false) return (false);
+            if (FRAGMENT_READONLY.contains(fragments[i]) == false) return (false);
         } // FOR
         return (true);
     }
