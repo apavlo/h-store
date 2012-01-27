@@ -992,7 +992,7 @@ public abstract class BenchmarkComponent {
             }
             if (!atLeastOneConnection) {
                 setState(ControlState.ERROR, "No HOSTS specified on command line.");
-                LOG.warn("NO HOSTS WERE PROVIDED!");
+                throw new RuntimeException("Failed to establish connections to cluster");
             }
         }
         m_checkTransaction = checkTransaction;
