@@ -523,7 +523,7 @@ public abstract class AbstractTransaction implements Poolable {
     /**
      * Get the last undo token used for this transaction
      */
-    public Long getLastUndoToken(int partition) {
+    public long getLastUndoToken(int partition) {
         return this.last_undo_token[hstore_site.getLocalPartitionOffset(partition)];
     }
     
