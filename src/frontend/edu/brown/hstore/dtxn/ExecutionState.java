@@ -205,11 +205,12 @@ public class ExecutionState {
             q.clear();
         } // FOR
         
-//        for (int i = 0; i < this.batch_size; i++) {
+        for (int i = 0; i < this.batch_size; i++) {
+            this.dependencies[i].clear();
 //            for (DependencyInfo dinfo : this.dependencies[i].values()) {
 //                dinfo.finish();
 //            } // FOR
-//        } // FOR
+        } // FOR
         this.batch_size = 0;
         this.dependency_ctr = 0;
         this.received_ctr = 0;

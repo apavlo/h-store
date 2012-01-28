@@ -36,7 +36,7 @@ public class DependencyInfo implements Poolable {
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private LocalTransaction ts;
+    protected LocalTransaction ts;
     private int stmt_index = -1;
     private int dependency_id = -1;
     
@@ -70,6 +70,8 @@ public class DependencyInfo implements Poolable {
     }
     
     public void init(LocalTransaction ts, int stmt_index, int dependency_id) {
+        if (d) LOG.debug(String.format("%s - Intializing DependencyInfo for <Stmt #%d, DependencyId #%d>",
+                                       ts, stmt_index, dependency_id));
         this.ts = ts;
         this.stmt_index = stmt_index;
         this.dependency_id = dependency_id;
@@ -154,7 +156,8 @@ public class DependencyInfo implements Poolable {
      * @return
      */
     public synchronized boolean addResult(int partition, VoltTable result) {
-        if (t) LOG.trace("Storing RESULT for DependencyId #" + this.dependency_id + " from Partition #" + partition + " in txn #" + this.ts.txn_id + " with " + result.getRowCount() + " tuples");
+        if (t) LOG.trace(String.format("%s - Storing RESULT for DependencyId #%d from Partition #%d with %d tuples",
+                                       this.ts, this.dependency_id, partition, result.getRowCount()));
         assert(this.results.contains(partition) == false);
         this.results.add(partition);
         this.results_list.add(result);
@@ -179,8 +182,8 @@ public class DependencyInfo implements Poolable {
             for (int i = 0, cnt = this.results.size(); i < cnt; i++) {
                 Integer partition = this.results.get(i);
                 if (local_partitions.contains(partition)) {
-                    if (d) LOG.debug(String.format("Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
-                                                    this.dependency_id, partition));
+                    if (d) LOG.debug(String.format("%s - Copying VoltTable ByteBuffer for DependencyId %d from Partition %d",
+                                                   this.ts, this.dependency_id, partition));
                     VoltTable vt = this.results_list.get(i);
                     assert(vt != null);
                     ByteBuffer buffer = vt.getTableDataReference();
@@ -247,6 +250,7 @@ public class DependencyInfo implements Poolable {
         }
         
         Map<String, Object> m = new ListOrderedMap<String, Object>();
+        m.put("  Hash Code", this.hashCode());
         m.put("  Partitions", this.partitions);
         
         Map<String, Object> inner = new ListOrderedMap<String, Object>();

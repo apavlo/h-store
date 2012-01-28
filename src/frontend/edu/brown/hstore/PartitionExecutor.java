@@ -1189,25 +1189,25 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         final boolean singlePartitioned = ts.isPredictSinglePartition();
         boolean success = true;
         
-        if (d) LOG.debug(String.format("Queuing new transaction execution request for %s on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
+        if (d) LOG.debug(String.format("%s - Queuing new transaction execution request on partition %d [currentDtxn=%s, mode=%s, taskHash=%d]",
                                        ts, this.partitionId, this.current_dtxn, this.current_execMode, task.hashCode()));
         
         // If we're a single-partition and speculative execution is enabled, then we can always set it up now
         if (hstore_conf.site.exec_speculative_execution && singlePartitioned && this.current_execMode != ExecutionMode.DISABLED) {
-            if (d) LOG.debug(String.format("Adding %s to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
+            if (d) LOG.debug(String.format("%s - Adding to work queue at partition %d [size=%d]", ts, this.partitionId, this.work_queue.size()));
             success = this.work_throttler.offer(task, false);
             
         // Otherwise figure out whether this txn needs to be blocked or not
         } else {
-            if (d) LOG.debug(String.format("Attempting to add %s for %s to partition %d queue [currentTxn=%s]",
-                                           task.getClass().getSimpleName(), ts, this.partitionId, this.currentTxnId));
+            if (d) LOG.debug(String.format("%s - Attempting to add %s to partition %d queue [currentTxn=%s]",
+                                           ts, task.getClass().getSimpleName(), this.partitionId, this.currentTxnId));
             
             exec_lock.lock();
             try {
                 // No outstanding DTXN
                 if (this.current_dtxn == null && this.current_execMode != ExecutionMode.DISABLED) {
-                    if (d) LOG.debug(String.format("Adding %s for %s to work queue [size=%d]",
-                                                   task.getClass().getSimpleName(), ts, this.work_queue.size()));
+                    if (d) LOG.debug(String.format("%s - Adding %s to work queue [size=%d]",
+                                                   ts, task.getClass().getSimpleName(), this.work_queue.size()));
                     // Only use the throttler for single-partition txns
                     if (singlePartitioned) {
                         success = this.work_throttler.offer(task, false);
@@ -1221,7 +1221,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     // TODO: This is where we can check whether this new transaction request is commutative 
                     //       with the current dtxn. If it is, then we know that we don't
                     //       need to block it or worry about whether it will conflict with the current dtxn
-                    if (d) LOG.debug(String.format("Blocking %s until dtxn %s finishes", ts, this.current_dtxn));
+                    if (d) LOG.debug(String.format("%s - Blocking until dtxn %s finishes", ts, this.current_dtxn));
                     this.current_blockedTxns.add(task);
                 }
             } finally {
@@ -1239,7 +1239,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                         Hstore.Status.ABORT_THROTTLED :
                                         Hstore.Status.ABORT_REJECT);
             
-            if (d) LOG.debug(String.format("%s got a %s response from partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
+            if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
                                            ts, status, this.partitionId, this.currentTxnId,
                                            this.work_throttler.isThrottled(), this.work_throttler.size()));
             if (singlePartitioned == false) {
@@ -1269,22 +1269,22 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null) : "Null transaction handle???";
         // assert(this.speculative_execution == SpeculateType.DISABLED) : "Trying to enable spec exec twice because of txn #" + txn_id;
         
-        if (d) LOG.debug(String.format("Checking whether %s is read-only at partition %d [readOnly=%s]",
-                        ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
+        if (d) LOG.debug(String.format("%s - Checking whether txn is read-only at partition %d [readOnly=%s]",
+                                       ts, this.partitionId, ts.isExecReadOnly(this.partitionId)));
         
         // Check whether the txn that we're waiting for is read-only.
         // If it is, then that means all read-only transactions can commit right away
         if (ts.isExecReadOnly(this.partitionId)) {
             ExecutionMode newMode = ExecutionMode.COMMIT_READONLY;
-            if (d) LOG.debug(String.format("Attempting to enable %s speculative execution at partition %d [currentMode=%s, txn=%s]",
-                                           newMode, partitionId, this.current_execMode, ts));
+            if (d) LOG.debug(String.format("%s - Attempting to enable %s speculative execution at partition %d [currentMode=%s]",
+                                           ts, newMode, partitionId, this.current_execMode));
             exec_lock.lock();
             try {
                 if (this.current_dtxn == ts && this.current_execMode != ExecutionMode.DISABLED) {
                     this.setExecutionMode(ts, newMode);
                     this.releaseBlockedTransactions(ts, true);
-                    if (d) LOG.debug(String.format("Enabled %s speculative execution at partition %d [txn=%s]",
-                                                   this.current_execMode, partitionId, ts));
+                    if (d) LOG.debug(String.format("%s - Enabled %s speculative execution at partition %d",
+                                                   ts, this.current_execMode, partitionId));
                     return (true);
                 }
             } finally {
@@ -1841,8 +1841,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // *********************************** DEBUG ***********************************
         if (d) {
             StringBuilder sb = new StringBuilder();
-            sb.append(String.format("Executing %d fragments for %s [lastTxnId=%d, undoToken=%d]",
-                      batchSize, ts, this.lastCommittedTxnId, undoToken));
+            sb.append(String.format("%s - Executing %d fragments [lastTxnId=%d, undoToken=%d]",
+                                    ts, batchSize, this.lastCommittedTxnId, undoToken));
             if (t) {
                 Map<String, Object> m = new ListOrderedMap<String, Object>();
                 m.put("Fragments", Arrays.toString(fragmentIds));
@@ -1869,8 +1869,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 
         // pass attached dependencies to the EE (for non-sysproc work).
         if (input_deps != null && input_deps.isEmpty() == false) {
-            if (d) LOG.debug(String.format("Stashing %d InputDependencies for %s at partition %d",
-                                                    input_deps.size(), ts, this.partitionId));
+            if (d) LOG.debug(String.format("%s - Stashing %d InputDependencies at partition %d",
+                                           ts, input_deps.size(), this.partitionId));
 //            assert(dependencies.size() == input_depIds.length) : "Expected " + input_depIds.length + " dependencies but we have " + dependencies.size();
             ee.stashWorkUnitDependencies(input_deps);
         }
@@ -1892,7 +1892,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         boolean needs_profiling = (hstore_conf.site.txn_profiling && ts.isExecLocal(this.partitionId));
         if (needs_profiling) ((LocalTransaction)ts).profiler.startExecEE();
         try {
-            if (d) LOG.debug(String.format("Executing %d fragments at partition %d for %s", batchSize, this.partitionId, ts));
+            if (d) LOG.debug(String.format("%s - Executing fragments %s at partition %d",
+                                           ts, Arrays.toString(fragmentIds), this.partitionId));
             
             result = this.ee.executeQueryPlanFragmentsAndGetDependencySet(
                             fragmentIds,
@@ -2671,13 +2672,11 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param commit If true, the work performed by this txn will be commited. Otherwise it will be aborted
      */
     public void finishTransaction(AbstractTransaction ts, boolean commit) {
-        if (d) LOG.debug("<finishTransaction> for  multi-partition transactions: "+ ts + "\n this.current_dtxn:"+this.current_dtxn + "  commit="+commit);
-        //if(ts instanceof MapReduceTransaction) this.current_dtxn = ts;
+        if (d) LOG.debug(String.format("%s - Processing finishWork request at partition %d", ts, this.partitionId));
         if (this.current_dtxn != ts) {  
             return;
         }
         assert(this.current_dtxn == ts) : "Expected current DTXN to be " + ts + " but it was " + this.current_dtxn;
-        if (d) LOG.debug(String.format("Processing finishWork request for %s at partition %d", ts, this.partitionId));
         
         this.finishWork(ts, commit);
         

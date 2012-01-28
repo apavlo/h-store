@@ -481,8 +481,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
-        if (d) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
-                                                 this, partition, Arrays.toString(this.exec_eeWork)));
+        if (d) LOG.debug(String.format("%s - Marking as having submitted to the EE on partition %d [exec_eeWork=%s]",
+                                       this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     
@@ -506,10 +506,9 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void setFinishedEE(int partition) {
-        if (d) 
-            LOG.debug(String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
-                                   this, partition, Arrays.toString(this.finished),
-                                   this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
+        if (d) LOG.debug(String.format("%s - Marking as finished on partition %d %s [hashCode=%d, offset=%d]",
+                                       this, partition, Arrays.toString(this.finished),
+                                       this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
         this.finished[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
     /**

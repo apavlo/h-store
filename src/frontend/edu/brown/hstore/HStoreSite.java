@@ -279,7 +279,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Keep track of which txns that we have in-flight right now
      */
     private final Map<Long, AbstractTransaction> inflight_txns = new ConcurrentHashMap<Long, AbstractTransaction>();
-//    private final Map<Long, AbstractTransaction> inflight_txns = new HashMap<Long, AbstractTransaction>();
     
     /**
      * Fixed Markov Estimator
@@ -690,14 +689,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
 //            CatalogUtil.preload(this.catalog_db);
             
         } catch (Exception ex) {
-            LOG.fatal("Failed to prepare HStoreSite", ex);
-            System.exit(1);
+            throw new RuntimeException("Failed to prepare HStoreSite", ex);
         }
         
         // Add in our shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
         
         // And mark ourselves as the current HStoreSite in case somebody wants to take us down!
+        // TODO: Move to HStore.java
         synchronized (HStoreSite.class) {
             if (SHUTDOWN_HANDLE == null) SHUTDOWN_HANDLE = this;
         } // SYNCH
@@ -716,7 +715,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.shutdown_state = ShutdownState.STARTED;
         
         // This message must always be printed in order for the BenchmarkController
-        // to know that we're ready!
+        // to know that we're ready! That's why we have to use System.out instead of LOG
         System.out.println(String.format("%s [site=%s, ports=%s, #partitions=%d]",
                                HStoreConstants.SITE_READY_MSG,
                                this.getSiteName(),
@@ -818,14 +817,12 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             espp.prepareShutdown(false);
         } // FOR
         
-        // TODO(xin) Tell the MapReduceHelperThread to prepare to shutdown too
+        if (this.mr_helper != null)
+            this.mr_helper.prepareShutdown(error);
         
         for (int p : this.local_partitions) {
-            this.executors[p].prepareShutdown(false);
+            this.executors[p].prepareShutdown(error);
         } // FOR
-//        for (AbstractTransaction ts : this.inflight_txns.values()) {
-//            // TODO: Reject all of these
-//        }
     }
     
     /**
@@ -1791,7 +1788,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             return;
         }
         
-        assert(txn_id == abstract_ts.getTransactionId()) :
+        assert(txn_id.equals(abstract_ts.getTransactionId())) :
             String.format("Mismatched %s - Expected[%d] != Actual[%s]", abstract_ts, txn_id, abstract_ts.getTransactionId());
 
         // Nothing else to do for RemoteTransactions other than to just
