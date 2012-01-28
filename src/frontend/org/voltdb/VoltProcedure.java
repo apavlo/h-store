@@ -732,7 +732,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             System.exit(1);
         }
         
-        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, this.status, this.results, this.status_msg, this.error);
+        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId().longValue(),
+                                          this.client_handle,
+                                          this.partitionId,
+                                          this.status,
+                                          this.results,
+                                          this.status_msg,
+                                          this.error);
         if (this.observable != null) this.observable.notifyObservers(response);
         return (response);
     }
