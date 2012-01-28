@@ -2288,9 +2288,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (3) If we know that there are still unblocked messages that we need to process
         //  (4) The latch for this round is still greater than zero
         while (first == true || ts.stillHasWorkFragments() || (latch != null && latch.getCount() > 0)) {
-            if (t) 
-                LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
-                                        ts, first, ts.stillHasWorkFragments(), queue.size(), latch));
+            if (t) LOG.trace(String.format("%s - [first=%s, stillHasWorkFragments=%s, latch=%s]",
+                                           ts, first, ts.stillHasWorkFragments(), queue.size(), latch));
             
             // If this is the not first time through the loop, then poll the queue to get our list of fragments
             if (first == false) {
@@ -2322,8 +2321,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // transaction's current SQLStmt batch. That means we can just wait 
             // until all the results return to us.
             if (fragments.isEmpty()) {
-                if (t)
-                    LOG.trace(String.format("%s - Got an empty list of WorkFragments. Blocking until dependencies arrive", ts)); 
+                if (t) LOG.trace(String.format("%s - Got an empty list of WorkFragments. Blocking until dependencies arrive", ts)); 
                 break;
             }
 

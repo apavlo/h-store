@@ -17,11 +17,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Pair;
 
@@ -188,7 +190,15 @@ public class HStoreCoordinator implements Shutdownable {
     private class TransactionRedirectDispatcher extends Dispatcher<Pair<byte[], TransactionRedirectResponseCallback>> {
         @Override
         public void runImpl(Pair<byte[], TransactionRedirectResponseCallback> p) {
-            HStoreCoordinator.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+            FastDeserializer fds = new FastDeserializer(p.getFirst());
+            StoredProcedureInvocation invocation = null;
+            try {
+                invocation = fds.readObject(StoredProcedureInvocation.class);
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                throw new RuntimeException(ex);
+            }
+            HStoreCoordinator.this.hstore_site.procedureInvocation(invocation, p.getFirst(), p.getSecond());
         }
     }
     
@@ -552,7 +562,15 @@ public class HStoreCoordinator implements Shutdownable {
             if (transactionRedirect_dispatcher != null) {
                 transactionRedirect_dispatcher.queue.add(Pair.of(serializedRequest, callback));
             } else {
-                hstore_site.procedureInvocation(serializedRequest, callback);
+                FastDeserializer fds = new FastDeserializer(serializedRequest);
+                StoredProcedureInvocation invocation = null;
+                try {
+                    invocation = fds.readObject(StoredProcedureInvocation.class);
+                } catch (Exception ex) {
+                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                    throw new RuntimeException(ex);
+                }
+                hstore_site.procedureInvocation(invocation, serializedRequest, callback);
             }
         }
         

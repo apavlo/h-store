@@ -51,7 +51,6 @@ import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
@@ -203,7 +202,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Procedure Listener Stuff
      */
     private VoltProcedureListener voltListener;
-    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     private final NIOEventLoop procEventLoop = new NIOEventLoop();
 
     /**
@@ -887,20 +885,20 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     // ----------------------------------------------------------------------------
     
     @Override
-    public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
+    public void procedureInvocation(StoredProcedureInvocation request, byte[] serializedRequest, RpcCallback<byte[]> done) {
         long timestamp = (hstore_conf.site.txn_profiling ? ProfileMeasurement.getTime() : -1);
         
         // The serializedRequest is a StoredProcedureInvocation object
-        StoredProcedureInvocation request = null;
-        FastDeserializer fds = this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
-        try {
-            request = fds.readObject(StoredProcedureInvocation.class);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to deserialize incoming StoredProcedureInvocation", e);
-        } finally {
-            if (request == null)
-                throw new RuntimeException("Failed to get ProcedureInvocation object from request bytes");
-        }
+//        StoredProcedureInvocation request = null;
+//        FastDeserializer fds = new FastDeserializer(serializedRequest); // this.incomingDeserializer.setBuffer(ByteBuffer.wrap(serializedRequest));
+//        try {
+//            request = fds.readObject(StoredProcedureInvocation.class);
+//        } catch (IOException e) {
+//            throw new RuntimeException("Failed to deserialize incoming StoredProcedureInvocation", e);
+//        } finally {
+//            if (request == null)
+//                throw new RuntimeException("Failed to get ProcedureInvocation object from request bytes");
+//        }
 
         // Extract the stuff we need to figure out whether this guy belongs at our site
         request.buildParameterSet();
@@ -914,7 +912,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         final boolean sysproc = request.isSysProc();
         final boolean mapreduce = catalog_proc.getMapreduce();
         int base_partition = request.getBasePartition();
-        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d, bytes=%d]", catalog_proc.getName(), request.getClientHandle(), serializedRequest.length));
+        if (d) LOG.debug(String.format("Received new stored procedure invocation request for %s [handle=%d]", catalog_proc.getName(), request.getClientHandle()));
 
         // Profiling Updates
         if (hstore_conf.site.status_show_txn_info) TxnCounter.RECEIVED.inc(request.getProcName());
