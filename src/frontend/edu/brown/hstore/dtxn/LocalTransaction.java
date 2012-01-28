@@ -755,23 +755,18 @@ public class LocalTransaction extends AbstractTransaction {
         }
         DependencyInfo dinfo = stmt_dinfos.get(d_id);
         if (dinfo == null) {
-            // First try to get one that we have used before in a previous round for this txn
-            dinfo = this.state.reusable_dependencies.poll();
-            if (dinfo != null) {
-                dinfo.finish();
-            // If there is nothing local, then we have to go get an object from the global pool
-            } else {
-                try {
-                    dinfo = HStoreObjectPools.STATES_DEPENDENCYINFO.borrowObject();
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
+            try {
+                dinfo = HStoreObjectPools.STATES_DEPENDENCYINFO.borrowObject();
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
             }
-            
-            // Always initialize the DependencyInfo regardless of how we got it 
-            dinfo.init(this, stmt_index, d_id.intValue());
             stmt_dinfos.put(d_id, dinfo);
         }
+        
+        if (dinfo.isInitialized() == false) {
+            dinfo.init(this, stmt_index, d_id.intValue());
+        }
+        
         return (dinfo);
     }
     
