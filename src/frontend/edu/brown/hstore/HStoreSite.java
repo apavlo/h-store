@@ -686,7 +686,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.p_estimator.preload();
          
             // Don't forget our CatalogUtil friend!
-//            CatalogUtil.preload(this.catalog_db);
+            CatalogUtil.preload(this.catalog_db);
             
         } catch (Exception ex) {
             throw new RuntimeException("Failed to prepare HStoreSite", ex);

@@ -915,7 +915,7 @@ public class PartitionEstimator {
         // Note that we will use the single-sited fragments (if available) since they will be
         // faster for us to figure out what partitions has the data that this statement needs
         CatalogMap<PlanFragment> fragments = (catalog_stmt.getHas_singlesited() ? catalog_stmt.getFragments() : catalog_stmt.getMs_fragments());
-        this.getAllFragmentPartitions(null, all_partitions, fragments, params, base_partition);
+        this.getAllFragmentPartitions(null, all_partitions, fragments.values(), params, base_partition);
         return (all_partitions);
     }
     
@@ -1022,7 +1022,7 @@ public class PartitionEstimator {
      * @return
      * @throws Exception
      */
-    public Map<PlanFragment, Set<Integer>> getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final Iterable<PlanFragment> fragments, final Object params[], final Integer base_partition) throws Exception {
+    public Map<PlanFragment, Set<Integer>> getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions, final PlanFragment fragments[], final Object params[], final Integer base_partition) throws Exception {
         this.getAllFragmentPartitions(frag_partitions, null, fragments, params, base_partition);
         return (frag_partitions);
     }
@@ -1041,14 +1041,14 @@ public class PartitionEstimator {
      */
     public void getAllFragmentPartitions(final Map<PlanFragment, Set<Integer>> frag_partitions,
                                          final Set<Integer> frag_all_partitions,
-                                         Iterable<PlanFragment> fragments, final Object params[], final Integer base_partition) throws Exception {
+                                         PlanFragment fragments[], final Object params[], final Integer base_partition) throws Exception {
         // Loop through this Statement's plan fragments and get the partitions
         for (PlanFragment catalog_frag : fragments) {
             Set<Integer> partitions = null;
             
             // If we have a FragPartion map, then use an entry from that
             if (frag_partitions != null) {
-                frag_partitions.get(catalog_frag);
+                partitions = frag_partitions.get(catalog_frag);
                 if (partitions == null) {
                     partitions = new HashSet<Integer>();
                     frag_partitions.put(catalog_frag, partitions);
