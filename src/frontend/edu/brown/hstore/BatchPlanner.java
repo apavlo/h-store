@@ -157,7 +157,7 @@ public class BatchPlanner implements Loggable {
             this.output_dependency_id = output_dependency_id;
             this.read_only = catalog_frag.getReadonly();
             
-            this.hash_code = this.frag_id | this.round<<16 | this.stmt_index<<24;  
+            this.hash_code = this.frag_id | this.round<<20 | this.stmt_index<<26;  
         }
         
         @Override
@@ -893,8 +893,8 @@ public class BatchPlanner implements Loggable {
         for (PlanVertex v : graph.getVertices()) {
             int stmt_index = v.stmt_index;
             PlanFragment catalog_frag = v.getCatalogItem();
-            for (int partition : plan.frag_partitions[stmt_index].get(catalog_frag)) {
-                plan.rounds[v.round][partition].add(v);
+            for (Integer partition : plan.frag_partitions[stmt_index].get(catalog_frag)) {
+                plan.rounds[v.round][partition.intValue()].add(v);
             } // FOR
         } // FOR
         
@@ -964,8 +964,7 @@ public class BatchPlanner implements Loggable {
             } // PARTITION
         } // ROUND            
         assert(tasks.size() > 0) : "Failed to generate any WorkFragments in this BatchPlan for txn #" + txn_id;
-        if (d)
-            LOG.debug("Created " + tasks.size() + " WorkFragment(s) for txn #" + txn_id);
+        if (d) LOG.debug("Created " + tasks.size() + " WorkFragment(s) for txn #" + txn_id);
         if (this.enable_profiling) time_partitionFragments.stop();
     }
     

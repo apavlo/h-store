@@ -176,10 +176,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private boolean predict_singlepartition;
     private AbstractTransaction m_currentTxnState;  // assigned in call()
     protected LocalTransaction m_localTxnState;  // assigned in call()
-    private final SQLStmt batchQueryStmts[];
+    private SQLStmt batchQueryStmts[];
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
-    private final Object[] batchQueryArgs[];
+    private Object[] batchQueryArgs[];
     private int batchQueryArgsIndex = 0;
     private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
     private Hstore.Status status = Hstore.Status.OK;
@@ -204,9 +204,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * {@link VoltProcedure init} method.
      */
     public VoltProcedure() {
-        int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
-        this.batchQueryArgs = new Object[max_batch][];
-        this.batchQueryStmts = new SQLStmt[max_batch];
     }
 
     /**
@@ -256,6 +253,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.hsql = hsql;
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != -1);
+        
+        this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
+        this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
         
         this.enable_tracing = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
                               (ProcedureProfiler.workloadTrace != null);

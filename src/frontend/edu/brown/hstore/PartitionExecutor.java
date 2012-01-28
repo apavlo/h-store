@@ -2408,7 +2408,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                             if (ps == null) tmp_serializedParams.add(ByteString.EMPTY);
                             fs.clear();
                             try {
-                                fs.writeObject(ps);
+                                ps.writeExternal(fs);
                                 ByteString bs = ByteString.copyFrom(fs.getBuffer());
                                 tmp_serializedParams.add(bs);
                             } catch (Exception ex) {
