@@ -146,6 +146,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
+    protected Integer partitionIdObj = null;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
     private EventObservable<ClientResponse> observable = null;
@@ -253,6 +254,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.hsql = hsql;
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != -1);
+        this.partitionIdObj = new Integer(this.partitionId);
         
         this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
         this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
@@ -1102,7 +1104,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             String.format("%s != %s\n%s", this.predict_singlepartition, this.m_currentTxnState.isPredictSinglePartition(), this.m_currentTxnState.debug());
         this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(),
                                       this.client_handle,
-                                      this.partitionId, 
+                                      this.partitionIdObj, 
                                       this.m_localTxnState.getPredictTouchedPartitions(),
                                       this.predict_singlepartition,
                                       this.m_localTxnState.getTouchedPartitions(),

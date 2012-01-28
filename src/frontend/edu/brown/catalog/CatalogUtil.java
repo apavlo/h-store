@@ -212,32 +212,19 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         return (ret);
     }
     
-//    public static void preload(CatalogType catalog_obj) {
-//        assert(catalog_obj != null);
-//        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
-//        List<PlanFragment> stmt_frags = new ArrayList<PlanFragment>();
-//        for (Procedure catalog_proc : catalog_db.getProcedures()) {
-//            
-//            for (Statement catalog_stmt : catalog_proc.getStatements()) {
-//                stmt_frags.clear();
-//                CollectionUtil.addAll(stmt_frags, catalog_stmt.getFragments());
-//                CollectionUtil.addAll(stmt_frags, catalog_stmt.getMs_fragments());
-//                
-//                if (catalog_stmt.getReadonly()) {
-//                    for (PlanFragment catalog_frag : stmt_frags) {
-//                        assert(catalog_frag.getReadonly());
-//                        long id = (long)catalog_frag.getId();
-//                        FRAGMENT_READONLY.add(id);
-//                    } // FOR
-//                } else {
-//                    for (PlanFragment catalog_frag : stmt_frags) {
-//                        long id = (long)catalog_frag.getId();
-//                        if (catalog_frag.getReadonly()) FRAGMENT_READONLY.add(id);
-//                    } // FOR
-//                }
-//            } // STATEMENT
-//        } // PROCEDURE 
-//    }
+    public static void preload(CatalogType catalog_obj) {
+        assert(catalog_obj != null);
+        Database catalog_db = CatalogUtil.getDatabase(catalog_obj);
+
+        // Pre-load all the arrays for the CatalogMaps that we will access frequently
+        for (Procedure catalog_proc : catalog_db.getProcedures()) {
+            catalog_proc.getStatements().values();
+            for (Statement catalog_stmt : catalog_proc.getStatements()) {
+                catalog_stmt.getFragments().values();
+                catalog_stmt.getMs_fragments().values();
+            } // STATEMENT
+        } // PROCEDURE 
+    }
     
     public static void clearCache(CatalogType catalog_obj) {
         assert(catalog_obj != null);
@@ -347,13 +334,18 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @return
      */
     public static boolean areFragmentsReadOnly(CatalogType catalog_obj, long fragments[], int cnt) {
-//        if (FRAGMENT_READONLY.isEmpty()) preload(catalog_obj);
         for (int i = 0; i < cnt; i++) {
             if (fragments[i]>>16 != 1) return (false);
         } // FOR
         return (true);
     }
     
+    /**
+     * 
+     * @param next_id
+     * @param readonly
+     * @return
+     */
     public static int createPlanFragmentId(int next_id, boolean readonly) {
         return (next_id | 1<<16);
     }
