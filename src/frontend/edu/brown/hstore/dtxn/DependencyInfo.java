@@ -278,6 +278,7 @@ public class DependencyInfo implements Poolable {
         
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         m.put("  Hash Code", this.hashCode());
+        m.put("  Internal", this.internal);
         m.put("  Partitions", this.partitions);
         
         Map<String, Object> inner = new ListOrderedMap<String, Object>();

@@ -463,9 +463,8 @@ public class LocalTransaction extends AbstractTransaction {
         if (this.base_partition != partition) return;
         
         if (this.predict_singlePartition == false) {
-            int base_partition_offset = hstore_site.getLocalPartitionOffset(partition);
             for (int i = 0; i < this.state.batch_size; i++) {
-                this.state.dinfo_lastRound[i] = this.round_ctr[base_partition_offset];
+                this.state.dinfo_lastRound[i]++;
             } // FOR
         }
         
@@ -777,8 +776,7 @@ public class LocalTransaction extends AbstractTransaction {
                                            "Checking whether it needs to be reset [currentRound=%d / lastRound=%d, sameTxn=%s]",
                                            this, dinfo.hashCode(), debugStmtDep(stmt_index, dep_id),
                                            currentRound, lastRoundUsed, sameTxn));
-            if ((lastRoundUsed == -1 && sameTxn == false) ||
-                (lastRoundUsed != -1 && lastRoundUsed != currentRound && sameTxn)) {
+            if (sameTxn == false || (lastRoundUsed != -1 && lastRoundUsed != currentRound)) {
                 if (d) LOG.debug(String.format("%s - Clearing out DependencyInfo[%d].",
                                                this, dinfo.hashCode()));
                 dinfo.finish();
@@ -833,9 +831,8 @@ public class LocalTransaction extends AbstractTransaction {
      * @param ftask
      */
     public boolean addWorkFragment(WorkFragment ftask) {
-        int offset = hstore_site.getLocalPartitionOffset(this.base_partition);
-        assert(this.round_state[offset] == RoundState.INITIALIZED) :
-            String.format("Invalid round state %s for %s at partition %d", this.round_state[offset], this, this.base_partition);
+        assert(this.round_state[hstore_site.getLocalPartitionOffset(this.base_partition)] == RoundState.INITIALIZED) :
+            String.format("Invalid round state %s for %s at partition %d", this.round_state[hstore_site.getLocalPartitionOffset(this.base_partition)], this, this.base_partition);
         
         // The partition that this task is being sent to for execution
         boolean blocked = false;
@@ -980,7 +977,7 @@ public class LocalTransaction extends AbstractTransaction {
                     return;
                 }
                 if (d) {
-                    LOG.debug("Storing new result for key " + key + " in txn #" + this.txn_id);
+                    LOG.debug(String.format("%s - Storing new result for key %d", this, key));
                     if (t) LOG.trace("Result stmt_ctr(key=" + key + "): " + this.state.results_dependency_stmt_ctr.get(key));
                 }
             } finally {

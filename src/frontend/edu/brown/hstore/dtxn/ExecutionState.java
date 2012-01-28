@@ -160,6 +160,7 @@ public class ExecutionState {
      */
     protected int createPartitionDependencyKey(int partition_id, int dependency_id) {
         Integer key = new Integer(partition_id | dependency_id<<16);
+//        int key = partition_id | dependency_id<<16;
         this.partition_dependency_keys.add(key);
         int idx = this.partition_dependency_keys.indexOf(key);
         return (idx);
