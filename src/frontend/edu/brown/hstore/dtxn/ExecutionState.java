@@ -52,7 +52,7 @@ public class ExecutionState {
 
     
     protected final ReentrantLock lock = new ReentrantLock();
-    
+
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -126,6 +126,13 @@ public class ExecutionState {
      */
     protected final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
+    /**
+     * This is a special flag that tells us the last round that we used the cached DependencyInfos
+     * If the last round doesn't equal the current round, then we will have to call finish()
+     * to clean it out before we can use it.
+     */
+    protected final int dinfo_lastRound[];
+    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -140,6 +147,11 @@ public class ExecutionState {
         this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
+        } // FOR
+        
+        this.dinfo_lastRound = new int[max_batch];
+        for (int i = 0; i < this.dinfo_lastRound.length; i++) {
+            this.dinfo_lastRound[i] = 0;
         } // FOR
     }
     
@@ -193,13 +205,11 @@ public class ExecutionState {
             q.clear();
         } // FOR
         
-        for (int i = 0; i < this.batch_size; i++) {
-            for (DependencyInfo dinfo : this.dependencies[i].values()) {
-                dinfo.finish();
-            } // FOR
-//            this.reusable_dependencies.addAll(this.dependencies[i].values());
-//            this.dependencies[i].clear();
-        } // FOR
+//        for (int i = 0; i < this.batch_size; i++) {
+//            for (DependencyInfo dinfo : this.dependencies[i].values()) {
+//                dinfo.finish();
+//            } // FOR
+//        } // FOR
         this.batch_size = 0;
         this.dependency_ctr = 0;
         this.received_ctr = 0;
