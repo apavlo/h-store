@@ -28,39 +28,40 @@ package edu.brown.hstore.dtxn;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.VoltTable;
 import org.voltdb.ParameterSet;
+import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstore;
 import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
 
 /**
  * @author pavlo
  */
-public abstract class AbstractTransaction implements Poolable {
+public abstract class AbstractTransaction implements Poolable, Loggable {
     private static final Logger LOG = Logger.getLogger(AbstractTransaction.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-
+    private static boolean d = debug.get();
+//    private static boolean t = trace.get();
+    
     /**
      * Internal state for the transaction
      */
@@ -227,17 +228,23 @@ public abstract class AbstractTransaction implements Poolable {
             this.exec_noUndoBuffer[i] = false;
         } // FOR
 
-        if (debug.get())
+        if (d)
             LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
                                     txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = null;
+    }
+    
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+//        t = trace.get();
     }
 
     // ----------------------------------------------------------------------------
     // DATA STORAGE
     // ----------------------------------------------------------------------------
     
-    /*
+    /**
      * Store data from mapOutput tables to reduceInput table
      * reduceInput table should merge all incoming data from the mapOutput tables.
      */
@@ -269,7 +276,7 @@ public abstract class AbstractTransaction implements Poolable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (debug.get()) 
+        if (d) 
             LOG.debug(String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]",
                                     this, partition, undoToken));
     }
@@ -285,7 +292,7 @@ public abstract class AbstractTransaction implements Poolable {
                     this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
-        if (debug.get()) LOG.debug(String.format("Starting batch ROUND #%d on partition %d for %s",
+        if (d) LOG.debug(String.format("Starting batch ROUND #%d on partition %d for %s",
                                                           this.round_ctr[offset], partition, this));
     }
     
@@ -298,7 +305,7 @@ public abstract class AbstractTransaction implements Poolable {
         assert(this.round_state[offset] == RoundState.STARTED) :
             String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
         
-        if (debug.get()) LOG.debug(String.format("Finishing batch ROUND #%d on partition %d for %s",
+        if (d) LOG.debug(String.format("Finishing batch ROUND #%d on partition %d for %s",
                                                           this.round_ctr[offset], partition, this));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
@@ -450,7 +457,7 @@ public abstract class AbstractTransaction implements Poolable {
     public synchronized void setPendingError(SerializableException error) {
         assert(error != null) : "Trying to set a null error for txn #" + this.txn_id;
         if (this.pending_error == null) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " +"Got error for txn #" + this.txn_id + " - " + error.getMessage());
+            if (d) LOG.debug("__FILE__:__LINE__ " +"Got error for txn #" + this.txn_id + " - " + error.getMessage());
             this.pending_error = error;
         }
     }
@@ -474,7 +481,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Should be called whenever the txn submits work to the EE 
      */
     public void setSubmittedEE(int partition) {
-        if (debug.get()) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
+        if (d) LOG.debug(String.format("Marking %s as having submitted to the EE on partition %d %s",
                                                  this, partition, Arrays.toString(this.exec_eeWork)));
         this.exec_eeWork[hstore_site.getLocalPartitionOffset(partition)] = true;
     }
@@ -499,7 +506,7 @@ public abstract class AbstractTransaction implements Poolable {
      * Mark this txn as finished (and thus ready for clean-up)
      */
     public void setFinishedEE(int partition) {
-        if (debug.get()) 
+        if (d) 
             LOG.debug(String.format("Marking %s as finished on partition %d %s [hashCode=%d, offset=%d]",
                                    this, partition, Arrays.toString(this.finished),
                                    this.hashCode(), hstore_site.getLocalPartitionOffset(partition)));
