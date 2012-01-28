@@ -210,7 +210,6 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.predict_readOnly = false;
         this.predict_abortable = true;
         this.pending_error = null;
-//        this.touched_partitions.clear();
         this.sysproc = false;
         
         this.exec_readOnlyAll = true;
@@ -230,7 +229,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
 
         if (d)
             LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
-                                    txn_id, this.hashCode(), Arrays.toString(this.finished)));
+                                    this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = null;
     }
     
@@ -276,9 +275,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
         this.round_state[offset] = RoundState.INITIALIZED;
         
-        if (d) 
-            LOG.debug(String.format("Initializing new ROUND information for %s at partition %d [undoToken=%d]",
-                                    this, partition, undoToken));
+        if (d) LOG.debug(String.format("%s - Initializing ROUND %d at partition %d [undoToken=%d]",
+                                       this, this.round_ctr[offset], partition, undoToken));
     }
     
     /**
@@ -292,8 +290,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
                     this.round_state[offset], this.round_ctr[offset], partition, this, this.hashCode());
         
         this.round_state[offset] = RoundState.STARTED;
-        if (d) LOG.debug(String.format("Starting batch ROUND #%d on partition %d for %s",
-                                                          this.round_ctr[offset], partition, this));
+        if (d) LOG.debug(String.format("%s - Starting batch ROUND #%d on partition %d",
+                                       this, this.round_ctr[offset], partition));
     }
     
     /**
@@ -303,10 +301,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     public void finishRound(int partition) {
         int offset = hstore_site.getLocalPartitionOffset(partition);
         assert(this.round_state[offset] == RoundState.STARTED) :
-            String.format("Invalid batch round state %s for %s at partition %d", this.round_state[offset], this, partition);
+            String.format("Invalid batch round state %s for %s at partition %d",
+                          this.round_state[offset], this, partition);
         
-        if (d) LOG.debug(String.format("Finishing batch ROUND #%d on partition %d for %s",
-                                                          this.round_ctr[offset], partition, this));
+        if (d) LOG.debug(String.format("%s - Finishing batch ROUND #%d on partition %d",
+                                       this, this.round_ctr[offset], partition));
         this.round_state[offset] = RoundState.FINISHED;
         this.round_ctr[offset]++;
     }

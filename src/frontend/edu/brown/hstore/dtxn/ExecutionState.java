@@ -102,11 +102,6 @@ public class ExecutionState {
     protected boolean still_has_tasks = true;
     
     /**
-     * These are the DependencyIds that we don't bother returning to the ExecutionSite
-     */
-    protected final Set<Integer> internal_dependencies = new HashSet<Integer>();
-
-    /**
      * Number of SQLStmts in the current batch
      */
     protected int batch_size = 0;
@@ -148,11 +143,7 @@ public class ExecutionState {
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
-        
         this.dinfo_lastRound = new int[max_batch];
-        for (int i = 0; i < this.dinfo_lastRound.length; i++) {
-            this.dinfo_lastRound[i] = 0;
-        } // FOR
     }
     
     public void clear() {
@@ -198,19 +189,12 @@ public class ExecutionState {
         this.blocked_tasks.clear();
         this.unblocked_tasks.clear();
         this.still_has_tasks = true;
-        this.internal_dependencies.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
             q.clear();
         } // FOR
         
-        for (int i = 0; i < this.batch_size; i++) {
-            this.dependencies[i].clear();
-//            for (DependencyInfo dinfo : this.dependencies[i].values()) {
-//                dinfo.finish();
-//            } // FOR
-        } // FOR
         this.batch_size = 0;
         this.dependency_ctr = 0;
         this.received_ctr = 0;
