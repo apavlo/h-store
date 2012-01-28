@@ -85,7 +85,7 @@ public class BatchPlanner implements Loggable {
     // STATIC DATA MEMBERS
     // ----------------------------------------------------------------------------
     
-    private static final int FIRST_DEPENDENCY_ID = 9000;
+    private static final int FIRST_DEPENDENCY_ID = 1;
     
     /**
      * If the unique dependency ids option is enabled, all input/output DependencyIds for

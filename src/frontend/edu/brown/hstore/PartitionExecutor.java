@@ -2621,7 +2621,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             String.format("Trying to commit %s twice at partition %d", ts, this.partitionId);
         
         // This can be null if they haven't submitted anything
-        Long undoToken = ts.getLastUndoToken(this.partitionId);
+        long undoToken = ts.getLastUndoToken(this.partitionId);
         
         // Only commit/abort this transaction if:
         //  (1) We have an ExecutionEngine handle
@@ -2629,7 +2629,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         //  (3) The transaction was executed with undo buffers
         //  (4) The transaction actually submitted work to the EE
         //  (5) The transaction modified data at this partition
-        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != null) {
+        if (this.ee != null && ts.hasSubmittedEE(this.partitionId) && ts.isExecReadOnly(this.partitionId) == false && undoToken != -1) {
             if (undoToken == HStoreConstants.DISABLE_UNDO_LOGGING_TOKEN) {
                 if (commit == false) {
                     LOG.fatal(ts.debug());

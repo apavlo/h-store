@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -127,11 +126,6 @@ public class ExecutionState {
      */
     protected final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
-    /**
-     * 
-     */
-    protected final Queue<DependencyInfo> reusable_dependencies = new LinkedList<DependencyInfo>(); 
-    
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -200,8 +194,11 @@ public class ExecutionState {
         } // FOR
         
         for (int i = 0; i < this.batch_size; i++) {
-            this.reusable_dependencies.addAll(this.dependencies[i].values());
-            this.dependencies[i].clear();
+            for (DependencyInfo dinfo : this.dependencies[i].values()) {
+                dinfo.finish();
+            } // FOR
+//            this.reusable_dependencies.addAll(this.dependencies[i].values());
+//            this.dependencies[i].clear();
         } // FOR
         this.batch_size = 0;
         this.dependency_ctr = 0;
