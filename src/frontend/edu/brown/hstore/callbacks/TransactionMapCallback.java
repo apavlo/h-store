@@ -71,7 +71,10 @@ public class TransactionMapCallback extends BlockingCallback<Hstore.TransactionM
             ts.setReducePhase();
             assert(ts.isReducePhase());
             
-            hstore_site.transactionStart(ts, ts.getBasePartition());
+            //if("blocking reduce way"){
+                hstore_site.transactionStart(ts, ts.getBasePartition());
+            //} else if ("helperThread way for reduce") {}
+            
         } else {
             assert(this.finish_callback != null);
             this.finish_callback.allowTransactionCleanup();
