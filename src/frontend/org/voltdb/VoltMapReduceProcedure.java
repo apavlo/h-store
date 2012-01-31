@@ -31,6 +31,8 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     }
 
     private SQLStmt mapInputQuery;
+    // This reduceInputQuery is prepared to executed REDUCE by internal system instead of Java code
+    
     private SQLStmt reduceInputQuery;
 
     // Thread-local data

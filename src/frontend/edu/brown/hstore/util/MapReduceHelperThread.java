@@ -6,8 +6,14 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
+import org.voltdb.ClientResponseImpl;
+import org.voltdb.VoltMapReduceProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
+import org.voltdb.types.SortDirectionType;
+import org.voltdb.utils.Pair;
+import org.voltdb.utils.ReduceInputIterator;
+import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.RpcCallback;
 
@@ -16,7 +22,10 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstore.Status;
 import edu.brown.hstore.callbacks.SendDataCallback;
+import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -73,6 +82,10 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             if (ts.isShufflePhase()) {
                 this.shuffle(ts);
             }
+//            if (ts.isReducePhase()) {
+//                this.reduce(ts);
+//            }
+            
         } // WHILE
 
     }
@@ -142,7 +155,57 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
     
-
+    public <K> void reduce (final MapReduceTransaction ts) {
+        Map<Integer, VoltTable> partitionedTables = new HashMap<Integer, VoltTable>();
+        for (int partition : hstore_site.getAllPartitionIds()) {
+            partitionedTables.put(partition, CatalogUtil.getVoltTable(ts.getMapEmit()));
+        }
+        VoltTable reduceInput = null;
+        VoltTable reduceOutput = null;
+        
+        //get a handler 
+        //VoltMapReduceProcedure<K> mr_proc = ts.get;
+        
+        // Execute the reduce job for each part serially
+        for (int partition : hstore_site.getAllPartitionIds()) {
+            reduceInput = ts.getReduceInputByPartition(partition);
+            assert (reduceInput != null);
+            VoltTable sorted = VoltTableUtil.sort(reduceInput, Pair.of(0, SortDirectionType.ASC));
+            
+            reduceOutput = ts.getReduceOutputByPartition(partition);
+            assert(reduceOutput != null);
+            // Make a Hstore.PartitionResult
+            ReduceInputIterator<K> rows = new ReduceInputIterator<K>(sorted);
+            
+            
+            while (rows.hasNext()) {
+                K key = rows.getKey();
+                
+                // how to get a handler to run reduce function defined by users
+                //this.reduce(key, rows); 
+            }
+            
+            
+        } // End of for
+        
+        // finalResults to be sent to client
+        VoltTable finalResults[];
+        finalResults = new VoltTable[hstore_site.getAllPartitionIds().size()];
+        
+        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
+                ts.getClientHandle(), 
+                ts.getBasePartition(), 
+                Status.OK, 
+                finalResults, 
+                "");
+        
+        hstore_site.sendClientResponse(ts, cresponse);
+        
+        TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Hstore.Status.OK);
+        hstore_site.getCoordinator().transactionFinish(ts, Hstore.Status.OK, finish_callback);
+        
+        
+    }
     // public void resultBackToClient(MapReduceTransaction ts) {
 //        Map<Integer, VoltTable> partitionedTables = new HashMap<Integer, VoltTable>();
 //        for (int partition : hstore_site.getAllPartitionIds()) {
