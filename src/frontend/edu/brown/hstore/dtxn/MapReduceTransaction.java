@@ -39,7 +39,7 @@ public class MapReduceTransaction extends LocalTransaction {
     }
     
     private final LocalTransaction local_txns[];
-    public int size;
+    public int partitions_size;
     
     private VoltTable mapOutput[];
     private VoltTable reduceInput[];
@@ -73,12 +73,9 @@ public class MapReduceTransaction extends LocalTransaction {
     
     private final SendDataCallback sendData_callback;
     
-    //private final SendDataWrapperCallback sendDataWrapper_callback;
-    
     private final TransactionReduceCallback reduce_callback;
     
     private final TransactionReduceWrapperCallback reduceWrapper_callback;
-    
     
     /**
      * Constructor 
@@ -87,9 +84,9 @@ public class MapReduceTransaction extends LocalTransaction {
     public MapReduceTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         // new local_txns
-        this.size = this.hstore_site.getAllPartitionIds().size();
-        this.local_txns = new LocalTransaction[this.size];
-        for (int i = 0; i < this.size; i++) {
+        this.partitions_size = this.hstore_site.getAllPartitionIds().size();
+        this.local_txns = new LocalTransaction[this.partitions_size];
+        for (int i = 0; i < this.partitions_size; i++) {
             this.local_txns[i] = new LocalTransaction(hstore_site) {
                 @Override
                 public String toString() {
@@ -103,9 +100,9 @@ public class MapReduceTransaction extends LocalTransaction {
         } // FOR
         
         // new mapout and reduce output talbes for each partition it wants to touch
-        this.mapOutput = new VoltTable[this.size];
-        this.reduceInput = new VoltTable[this.size];
-        this.reduceOutput = new VoltTable[this.size];
+        this.mapOutput = new VoltTable[this.partitions_size];
+        this.reduceInput = new VoltTable[this.partitions_size];
+        this.reduceOutput = new VoltTable[this.partitions_size];
                 
         this.map_callback = new TransactionMapCallback(hstore_site);
         this.mapWrapper_callback = new TransactionMapWrapperCallback(hstore_site);
@@ -128,7 +125,6 @@ public class MapReduceTransaction extends LocalTransaction {
         super.init(txn_id, clientHandle, base_partition,
                    predict_touchedPartitions, predict_readOnly, predict_canAbort,
                    catalog_proc, invocation, client_callback);
-        
         Database catalog_db = CatalogUtil.getDatabase(this.catalog_proc);
         this.mapEmit = catalog_db.getTables().get(this.catalog_proc.getMapemittable());
         this.reduceEmit = catalog_db.getTables().get(this.catalog_proc.getReduceemittable());
@@ -177,7 +173,7 @@ public class MapReduceTransaction extends LocalTransaction {
     @Override
     public void finish() {
         //super.finish();
-        for (int i = 0; i < this.size; i++) {
+        for (int i = 0; i < this.partitions_size; i++) {
             this.local_txns[i].finish();
         } // FOR
         this.mr_state = null;
@@ -268,7 +264,7 @@ public class MapReduceTransaction extends LocalTransaction {
     public void setReducePhase() {
         assert(this.isShufflePhase());
         
-        for (int i = 0; i < this.size; i++) {
+        for (int i = 0; i < this.partitions_size; i++) {
             this.local_txns[i].resetExecutionState();
         }
         
@@ -283,7 +279,7 @@ public class MapReduceTransaction extends LocalTransaction {
      * return the size of partitions that MapReduce Transaction will touch 
      */
     public int getSize() {
-        return size;
+        return partitions_size;
     }    
     public Table getMapEmit() {
         return mapEmit;
