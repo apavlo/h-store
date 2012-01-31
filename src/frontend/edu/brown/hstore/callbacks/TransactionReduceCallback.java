@@ -74,7 +74,6 @@ public class TransactionReduceCallback extends BlockingCallback<Hstore.Transacti
                 LOG.debug(ts + " is ready to execute. Passing to HStoreSite");
             
             // Client gets the final result, and  txn  is about to finish
-            // assert(ts.isFinishPhase());
             
             // STEP 1
             // Send the final result from all the partitions for this MR job
