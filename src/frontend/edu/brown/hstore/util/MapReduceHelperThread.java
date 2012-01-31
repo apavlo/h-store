@@ -6,14 +6,10 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.log4j.Logger;
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.VoltMapReduceProcedure;
+import org.voltdb.BackendTarget;
+import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltTableRow;
-import org.voltdb.types.SortDirectionType;
-import org.voltdb.utils.Pair;
-import org.voltdb.utils.ReduceInputIterator;
-import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.RpcCallback;
 
@@ -22,10 +18,8 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
-import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
@@ -43,6 +37,8 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     private final PartitionEstimator p_estimator;
     private Thread self = null;
     private boolean stop = false;
+    
+    private PartitionExecutor executor;
     
     public MapReduceHelperThread(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
@@ -63,6 +59,14 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         if (hstore_site.getHStoreConf().site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
+        // Initialization
+        this.executor = new PartitionExecutor(0,
+                                             this.hstore_site.getDatabase().getCatalog(),
+                                             BackendTarget.NATIVE_EE_JNI,
+                                             this.p_estimator,
+                                             null);
+        this.executor.initHStoreSite(this.hstore_site);
+        
         if (debug.get())
             LOG.debug("Starting transaction post-processing thread");
 
@@ -82,9 +86,9 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             if (ts.isShufflePhase()) {
                 this.shuffle(ts);
             }
-//            if (ts.isReducePhase()) {
-//                this.reduce(ts);
-//            }
+            if (ts.isReducePhase()) {
+                this.reduce(ts);
+            }
             
         } // WHILE
 
@@ -92,7 +96,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
     protected void shuffle(final MapReduceTransaction ts) {
         /**
-         * TODO(xin): Loop through all of the MAP output tables from the txn handle For each of those, iterate through
+         * Loop through all of the MAP output tables from the txn handle For each of those, iterate through
          * the table row-by-row and use the PartitionEstimator to determine what partition you need to send the row to.
          * 
          * @see LoadMultipartitionTable.createNonReplicatedPlan()
@@ -139,9 +143,9 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             
         } // FOR
         
-        // TODO(xin): The SendDataCallback should invoke the TransactionMapCallback to tell it that 
-        //            the SHUFFLE phase is complete and that we need to send a message back to the
-        //            transaction's base partition to let it know that the MAP phase is complete
+        // The SendDataCallback should invoke the TransactionMapCallback to tell it that 
+        // the SHUFFLE phase is complete and that we need to send a message back to the
+        // transaction's base partition to let it know that the MAP phase is complete
         SendDataCallback sendData_callback = ts.getSendDataCallback();
         sendData_callback.init(ts, new RpcCallback<AbstractTransaction>() {
             @Override
@@ -155,82 +159,13 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
     
-    public <K> void reduce (final MapReduceTransaction ts) {
-        Map<Integer, VoltTable> partitionedTables = new HashMap<Integer, VoltTable>();
-        for (int partition : hstore_site.getAllPartitionIds()) {
-            partitionedTables.put(partition, CatalogUtil.getVoltTable(ts.getMapEmit()));
-        }
-        VoltTable reduceInput = null;
-        VoltTable reduceOutput = null;
-        
-        //get a handler 
-        //VoltMapReduceProcedure<K> mr_proc = ts.get;
-        
-        // Execute the reduce job for each part serially
-        for (int partition : hstore_site.getAllPartitionIds()) {
-            reduceInput = ts.getReduceInputByPartition(partition);
-            assert (reduceInput != null);
-            VoltTable sorted = VoltTableUtil.sort(reduceInput, Pair.of(0, SortDirectionType.ASC));
-            
-            reduceOutput = ts.getReduceOutputByPartition(partition);
-            assert(reduceOutput != null);
-            // Make a Hstore.PartitionResult
-            ReduceInputIterator<K> rows = new ReduceInputIterator<K>(sorted);
-            
-            
-            while (rows.hasNext()) {
-                K key = rows.getKey();
-                
-                // how to get a handler to run reduce function defined by users
-                //this.reduce(key, rows); 
-            }
-            
-            
-        } // End of for
-        
-        // finalResults to be sent to client
-        VoltTable finalResults[];
-        finalResults = new VoltTable[hstore_site.getAllPartitionIds().size()];
-        
-        ClientResponseImpl cresponse = new ClientResponseImpl(ts.getTransactionId(),
-                ts.getClientHandle(), 
-                ts.getBasePartition(), 
-                Status.OK, 
-                finalResults, 
-                "");
-        
-        hstore_site.sendClientResponse(ts, cresponse);
-        
-        TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Hstore.Status.OK);
-        hstore_site.getCoordinator().transactionFinish(ts, Hstore.Status.OK, finish_callback);
-        
+    public void reduce (final MapReduceTransaction ts) {
+        // Runtime
+        VoltProcedure volt_proc = this.executor.getVoltProcedure(ts.getInvocation().getProcName());
+        volt_proc.call(ts, ts.getInvocation().getParams());
         
     }
-    // public void resultBackToClient(MapReduceTransaction ts) {
-//        Map<Integer, VoltTable> partitionedTables = new HashMap<Integer, VoltTable>();
-//        for (int partition : hstore_site.getAllPartitionIds()) {
-//            partitionedTables.put(partition, CatalogUtil.getVoltTable(ts.getMapEmit()));
-//        } // FOR
-//        if (debug.get()) LOG.debug(String.format("Created %d VoltTables for SHUFFLE phase of %s", partitionedTables.size(), ts));
-//        
-//        int destPartition = ts.getBasePartition();
-//        VoltTable table = null;
-//        
-//        for (int partition : this.hstore_site.getLocalPartitionIds()) {
-//            table = ts.getReduceOutputByPartition(partition);
-//            assert(table != null);
-//            
-//            while(table.advanceRow()) {
-//                VoltTableRow row = table.fetchRow(table.getActiveRowIndex());
-//                partitionedTables.get(destPartition).add(row);
-//            }
-//        }
-//        
-//        SendDataCallback sendData_callback = ts.getSendDataCallback();
-//        ts.getTransactionReduceWrapperCallback().runOrigCallback();
-//                
-//        this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
-//    }
+
 
     @Override
     public boolean isShuttingDown() {
