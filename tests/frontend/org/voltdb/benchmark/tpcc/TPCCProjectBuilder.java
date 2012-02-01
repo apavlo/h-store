@@ -70,6 +70,7 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
         LoadWarehouse.class,
         LoadWarehouseReplicated.class,
         GetTableCounts.class,
+        MRquery1.class,
     };
     
     // Transaction Frequencies
