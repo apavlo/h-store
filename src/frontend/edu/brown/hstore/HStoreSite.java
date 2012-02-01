@@ -1256,8 +1256,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     }
 
     /**
-     * 
-     * @param ts
+     * This function can really block transaction executing on that parition
+     * @param ts, base_partition
      */
     public void transactionStart(LocalTransaction ts, int base_partition) {
         Long txn_id = ts.getTransactionId();

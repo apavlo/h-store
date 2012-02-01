@@ -71,9 +71,17 @@ public class TransactionMapCallback extends BlockingCallback<Hstore.TransactionM
             ts.setReducePhase();
             assert(ts.isReducePhase());
             
-            //if("blocking reduce way"){
+            if(hstore_site.getHStoreConf().site.mapreduce_reduce_blocking){
+                if (debug.get())
+                    LOG.debug(ts + ": $$$ normal reduce blocking execution way");
+                // calling this hstore_site.transactionStart function will block the executing engine on each partition
                 hstore_site.transactionStart(ts, ts.getBasePartition());
-            //} else if ("helperThread way for reduce") {}
+            } else {
+                // throw reduce job to MapReduceHelperThread to do
+                if (debug.get())
+                    LOG.debug(ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
+                hstore_site.getMapReduceHelper().queue(ts);
+            }
             
         } else {
             assert(this.finish_callback != null);

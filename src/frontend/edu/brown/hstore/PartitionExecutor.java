@@ -1417,7 +1417,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
         ClientResponseImpl cresponse = null;
         try {
-            cresponse = (ClientResponseImpl)volt_proc.call(ts, itask.getParameters()); // Blocking...
+            //cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getBasePartition(), false,itask.getParameters()); // Blocking...
+            cresponse = (ClientResponseImpl)volt_proc.call(ts,itask.getParameters()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
         } catch (Throwable ex) {
