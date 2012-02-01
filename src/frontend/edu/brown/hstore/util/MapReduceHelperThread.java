@@ -169,8 +169,23 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             LOG.debug(mr_ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
         
         VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
-        //volt_proc.call(mr_ts, mr_ts.getBasePartition(), true, mr_ts.getInitiateTaskMessage().getParameters());
-        volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+         
+        for (int partition : hstore_site.getAllPartitionIds())  {
+            if (partition == mr_ts.getBasePartition()) { 
+                volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+            }
+        }
+        
+//        for (int partition : hstore_site.getLocalPartitionIds())  {
+//            if (partition != mr_ts.getBasePartition()) { 
+//                LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+//                volt_proc.setPartitionId(partition);
+//                volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
+//            }
+//        }
+        
+       //VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
+        
         
     }
 
