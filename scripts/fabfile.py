@@ -113,16 +113,16 @@ ENV_DEFAULT = {
     "ec2.running_instances":       [ ],
 
     ## Site Options
-    "site.partitions":             16,
+    "site.partitions":             6,
     "site.sites_per_host":         1,
-    "site.partitions_per_site":    4,
+    "site.partitions_per_site":    6,
     
     ## Client Options
     "client.count":                1,
-    "client.processesperclient":   2,
-    "client.txnrate":              -1,
-    "client.scalefactor":          10,
-    "client.blocking":             False,
+    "client.processesperclient":   500,
+    "client.txnrate":              1000,
+    "client.scalefactor":          0.1,
+    "client.blocking":             True,
     
     ## H-Store Options
     "hstore.git":                   "git://github.com/apavlo/h-store.git",
