@@ -19,7 +19,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
 //    private static final Logger LOG = Logger.getLogger(AbstractGraphElement.class.getName());
     public static final String DEBUG_SPACER = "  ";
     
-    private final Map<IGraph<?, ?>, Map<String, Object>> attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();
+    private Map<IGraph<?, ?>, Map<String, Object>> attributes;
     private Long element_id;
     private transient boolean enable_verbose = false;
     private static final AtomicLong NEXT_ELEMENT_ID = new AtomicLong(1000); 
@@ -44,6 +44,15 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
                 } // FOR
             } // FOR
         }
+    }
+    
+    private Map<IGraph<?, ?>, Map<String, Object>> lazyAttributeAllocation() {
+        if (this.attributes == null) {
+            synchronized (this.attributes) {
+                if (this.attributes == null) this.attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();            
+            } // SYNCH
+        }
+        return (this.attributes);
     }
     
     @Override
@@ -71,6 +80,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     
 
     public Set<String> getAttributes(IGraph<?, ?> graph) {
+        this.lazyAttributeAllocation();
         Set<String> ret = null;
         if (this.attributes.containsKey(graph)) {
             ret = this.attributes.get(graph).keySet();
@@ -79,19 +89,23 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     public Map<IGraph<?, ?>, Map<String, Object>> getAllAttributeValues() {
+        this.lazyAttributeAllocation();
         return (this.attributes);
     }
     
     public Map<String, Object> getAttributeValues(IGraph<?, ?> graph) {
+        this.lazyAttributeAllocation();
         return (this.attributes.get(graph));
     }
     
     public boolean hasAttribute(IGraph<?, ?> graph, String key) {
+        this.lazyAttributeAllocation();
         return (this.attributes.containsKey(graph) && this.attributes.get(graph).containsKey(key));
     }
     
     @SuppressWarnings("unchecked")
     public <T> T getAttribute(IGraph<?, ?> graph, String key) {
+        this.lazyAttributeAllocation();
         return (this.attributes.containsKey(graph) ? (T)this.attributes.get(graph).get(key) : null);
     }
     
@@ -101,6 +115,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     public <T> void setAttribute(IGraph<?, ?> graph, String key, T value) {
+        this.lazyAttributeAllocation();
         if (!this.attributes.containsKey(graph)) {
             this.attributes.put(graph, new HashMap<String, Object>());
         }
@@ -112,6 +127,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     public void copyAttributes(IGraph<?, ?> graph0, IGraph<?, ?> graph1) {
+        this.lazyAttributeAllocation();
         for (String key : this.getAttributes(graph0)) {
             this.setAttribute(graph1, key, this.getAttribute(graph0, key));
         } // FOR
@@ -130,6 +146,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     public String debug() {
+        this.lazyAttributeAllocation();
         String ret = this.getClass().getSimpleName() + "{" + this.toString() + "}\n";
         for (IGraph<?, ?> graph : this.attributes.keySet()) {
             ret += this.debug(graph);
@@ -138,6 +155,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     }
     
     public String debug(IGraph<?, ?> graph) {
+        this.lazyAttributeAllocation();
         String ret = DEBUG_SPACER + graph + "\n";
         for (String key : this.attributes.get(graph).keySet()) {
             ret += DEBUG_SPACER + DEBUG_SPACER + key + ": " + this.attributes.get(graph).get(key) + "\n";
