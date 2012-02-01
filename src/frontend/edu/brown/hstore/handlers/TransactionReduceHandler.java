@@ -100,14 +100,16 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
                 }
             } // FOR
         } else {
-            MapReduceHelperThread mr_helperThread = hstore_site.getMapReduceHelper();
-            VoltProcedure volt_proc = mr_helperThread.getExecutor().getVoltProcedure(mr_ts.getInvocation().getProcName());
+            VoltProcedure volt_proc = hstore_site.getMapReduceHelper().getExecutor().getVoltProcedure(mr_ts.getInvocation().getProcName());
+            int tmpId = volt_proc.getPartitionId();
             for (int partition : hstore_site.getLocalPartitionIds())  {
                 if (partition != mr_ts.getBasePartition()) { 
                     LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-                    //volt_proc.call(ts, partition, true, ts.getInitiateTaskMessage().getParameters());
+                    volt_proc.setPartitionId(partition);
+                    volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
                 }
-            }
+            } // FOR
+            volt_proc.setPartitionId(tmpId);
         }
         
     }
