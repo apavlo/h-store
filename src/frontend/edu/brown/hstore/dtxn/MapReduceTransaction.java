@@ -84,7 +84,7 @@ public class MapReduceTransaction extends LocalTransaction {
     public MapReduceTransaction(HStoreSite hstore_site) {
         super(hstore_site);
         // new local_txns
-        this.partitions_size = this.hstore_site.getAllPartitionIds().size();
+        this.partitions_size = this.hstore_site.getLocalPartitionIds().size();
         this.local_txns = new LocalTransaction[this.partitions_size];
         for (int i = 0; i < this.partitions_size; i++) {
             this.local_txns[i] = new LocalTransaction(hstore_site) {
@@ -133,8 +133,8 @@ public class MapReduceTransaction extends LocalTransaction {
         // Get the Table catalog object for the map/reduce outputs
         // For each partition there should be a map/reduce output voltTable
         for (int partition : this.hstore_site.getAllPartitionIds()) {
-            //int offset = hstore_site.getLocalPartitionOffset(partition);
-            int offset = partition;
+            int offset = hstore_site.getLocalPartitionOffset(partition);
+            //int offset = partition;
             if (trace.get()) LOG.trace(String.format("Partition[%d] -> Offset[%d]", partition, offset));
             this.local_txns[offset].init(this.txn_id, this.client_handle, partition,
                                          Collections.singleton(partition),
@@ -223,8 +223,8 @@ public class MapReduceTransaction extends LocalTransaction {
      * @return
      */
     public LocalTransaction getLocalTransaction(int partition) {
-        //int offset = hstore_site.getLocalPartitionOffset(partition);
-        int offset = partition;
+        int offset = hstore_site.getLocalPartitionOffset(partition);
+        //int offset = partition;
         return (this.local_txns[offset]);
     }
     
@@ -382,19 +382,19 @@ public class MapReduceTransaction extends LocalTransaction {
     
     public VoltTable getMapOutputByPartition( int partition ) {
         if (debug.get()) LOG.debug("Trying to getMapOutputByPartition: [ " + partition + " ]");
-        //return this.mapOutput[hstore_site.getLocalPartitionOffset(partition)];
-        return this.mapOutput[partition];
+        return this.mapOutput[hstore_site.getLocalPartitionOffset(partition)];
+        //return this.mapOutput[partition];
     }
     
     public VoltTable getReduceInputByPartition ( int partition ) {
         if (debug.get()) LOG.debug("Trying to getReduceInputByPartition: [ " + partition + " ]");
-        //return this.reduceInput[hstore_site.getLocalPartitionOffset(partition)];
-        return this.reduceInput[partition];
+        return this.reduceInput[hstore_site.getLocalPartitionOffset(partition)];
+        //return this.reduceInput[partition];
     }
     
     public VoltTable getReduceOutputByPartition ( int partition ) {
-        //return this.reduceOutput[hstore_site.getLocalPartitionOffset(partition)];
-        return this.reduceOutput[partition];
+        return this.reduceOutput[hstore_site.getLocalPartitionOffset(partition)];
+        //return this.reduceOutput[partition];
     }
     
 }

@@ -93,7 +93,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
         // 2010-11-12: call() no longer immediately updates the internal state of the VoltProcedure
         //             so there is no way for us to check whether things look legit until we get
         //             back the results
-        volt_proc.call(ts, TARGET_PARAMS);
+        volt_proc.call(ts, ts.getBasePartition(), TARGET_PARAMS);
         
         // Now check whether we got the ClientResponse
         ClientResponse response = null;

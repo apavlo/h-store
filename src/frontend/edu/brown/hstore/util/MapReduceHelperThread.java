@@ -21,6 +21,7 @@ import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
 import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.interfaces.Shutdownable;
 
@@ -40,6 +41,10 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     
     private PartitionExecutor executor;
     
+    public PartitionExecutor getExecutor() {
+        return executor;
+    }
+
     public MapReduceHelperThread(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
         this.p_estimator = hstore_site.getPartitionEstimator();
@@ -73,8 +78,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         MapReduceTransaction ts = null;
         while (this.self.isInterrupted() == false) {
             // Grab a MapReduceTransaction from the queue
-            // Figure out what you need to do with it
-            // (1) Take all of the Map output tables and perform the shuffle operation
+            // Take all of the Map output tables and perform the shuffle operation
             try {
                 ts = this.queue.take();
             } catch (InterruptedException ex) {
@@ -86,7 +90,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             if (ts.isShufflePhase()) {
                 this.shuffle(ts);
             }
-            if (ts.isReducePhase()) {
+            if (ts.isReducePhase() && !hstore_site.getHStoreConf().site.mapreduce_reduce_blocking) {
                 this.reduce(ts);
             }
             
@@ -159,10 +163,14 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
     
-    public void reduce (final MapReduceTransaction ts) {
+    public void reduce (final MapReduceTransaction mr_ts) {
         // Runtime
-        VoltProcedure volt_proc = this.executor.getVoltProcedure(ts.getInvocation().getProcName());
-        volt_proc.call(ts, ts.getInvocation().getParams());
+        if (debug.get())
+            LOG.debug(mr_ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
+        
+        VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
+        //volt_proc.call(mr_ts, mr_ts.getBasePartition(), true, mr_ts.getInitiateTaskMessage().getParameters());
+        volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
         
     }
 
