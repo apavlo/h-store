@@ -48,7 +48,7 @@ public abstract class AbstractGraphElement implements JSONSerializable, Comparab
     
     private Map<IGraph<?, ?>, Map<String, Object>> lazyAttributeAllocation() {
         if (this.attributes == null) {
-            synchronized (this.attributes) {
+            synchronized (this) {
                 if (this.attributes == null) this.attributes = new HashMap<IGraph<?, ?>, Map<String,Object>>();            
             } // SYNCH
         }
