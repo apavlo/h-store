@@ -159,11 +159,6 @@ public class ExecutionState {
      * @return
      */
     protected int createPartitionDependencyKey(int partition_id, int dependency_id) {
-//        Integer key = new Integer(partition_id | dependency_id<<16);
-//        this.partition_dependency_keys.add(key);
-//        int idx = this.partition_dependency_keys.indexOf(key);
-//        return (idx);
-        
         int key = partition_id | dependency_id<<16;
         return (key);
     }
@@ -174,10 +169,8 @@ public class ExecutionState {
      * @param key
      * @param values
      */
-    protected void getPartitionDependencyFromKey(int idx, int values[]) {
+    protected void getPartitionDependencyFromKey(int key, int values[]) {
         assert(values.length == 2);
-        // int key = this.partition_dependency_keys.get(idx).intValue();
-        int key = idx;
         values[0] = key>>0 & KEY_MAX_VALUE;     // PartitionId
         values[1] = key>>16 & KEY_MAX_VALUE;    // DependencyId
     }
@@ -187,7 +180,6 @@ public class ExecutionState {
     // ----------------------------------------------------------------------------
     
     public void clearRound() {
-        // this.partition_dependency_keys.clear();
         this.output_order.clear();
         this.queued_results.clear();
         this.blocked_tasks.clear();
