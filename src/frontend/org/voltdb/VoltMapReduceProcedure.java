@@ -82,10 +82,6 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
         this.reduceInputQuery = this.getSQLStmt(catalogProc.getReduceinputquery());
     }
     
-    public void setPartitionId (int id) {
-        this.partitionId = id;
-    }
-    
     /**
      * 
      * @return

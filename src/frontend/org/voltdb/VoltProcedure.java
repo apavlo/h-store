@@ -146,6 +146,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
+    public int getPartitionId() {
+        return partitionId;
+    }
+    public void setPartitionId(int partitionId) {
+        this.partitionId = partitionId;
+    }
+
     protected Integer partitionIdObj = null;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
