@@ -100,7 +100,7 @@ OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
-OPT_BASE_SCALE_FACTOR = float(2)
+OPT_BASE_SCALE_FACTOR = float(0.1)
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
@@ -139,6 +139,7 @@ BASE_SETTINGS = {
     "client.blocking_loader":           False,
     "client.output_basepartitions":     False,
     
+    "site.log_backup":                                  False,
     "site.exec_profiling":                              False,
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              False,

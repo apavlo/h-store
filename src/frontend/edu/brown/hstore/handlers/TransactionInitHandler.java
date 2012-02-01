@@ -60,7 +60,7 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
     public void remoteHandler(RpcController controller, TransactionInitRequest request,
             RpcCallback<TransactionInitResponse> callback) {
         assert(request.hasTransactionId()) : "Got Hstore." + request.getClass().getSimpleName() + " without a txn id!";
-        long txn_id = request.getTransactionId();
+        Long txn_id = request.getTransactionId();
         if (debug.get())
             LOG.debug(String.format("Got %s for txn #%d", request.getClass().getSimpleName(), txn_id));
         

@@ -25,16 +25,7 @@
  ***************************************************************************/
 package edu.brown.hstore;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -43,17 +34,12 @@ import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.CatalogMap;
-import org.voltdb.catalog.Database;
 import org.voltdb.catalog.PlanFragment;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
 import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.graphs.AbstractDirectedGraph;
-import edu.brown.graphs.AbstractEdge;
-import edu.brown.graphs.AbstractVertex;
-import edu.brown.graphs.IGraph;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.hstore.Hstore.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
@@ -66,7 +52,7 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreConstants;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 
 /**
  * @author pavlo
@@ -120,6 +106,10 @@ public class BatchPlanner implements Loggable {
     private final boolean enable_caching;
     private final boolean force_singlePartition;
     
+    
+    private final Map<Integer, Set<PlanVertex>> output_dependency_xref = new HashMap<Integer, Set<PlanVertex>>();
+    private final List<PlanVertex> sorted_vertices = new ArrayList<PlanVertex>();
+    
     // FAST SINGLE-PARTITION LOOKUP CACHE
     private final int cache_fastLookups[][];
     private final BatchPlan cache_singlePartitionPlans[];
@@ -134,7 +124,8 @@ public class BatchPlanner implements Loggable {
     // INTERNAL PLAN GRAPH ELEMENTS
     // ----------------------------------------------------------------------------
 
-    protected static class PlanVertex extends AbstractVertex {
+    protected static class PlanVertex { // extends AbstractVertex {
+        final PlanFragment catalog_frag;
         final int frag_id;
         final int stmt_index;
         final int round;
@@ -149,7 +140,8 @@ public class BatchPlanner implements Loggable {
                           int input_dependency_id,
                           int output_dependency_id,
                           boolean is_local) {
-            super(catalog_frag);
+//            super(catalog_frag);
+            this.catalog_frag = catalog_frag;
             this.frag_id = catalog_frag.getId();
             this.stmt_index = stmt_index;
             this.round = round;
@@ -176,12 +168,12 @@ public class BatchPlanner implements Loggable {
             return String.format("<FragId=%02d, StmtIndex=%02d, Round=%02d, Input=%02d, Output=%02d>",
                                  this.frag_id, this.stmt_index, this.round, this.input_dependency_id, this.output_dependency_id);
         }
-    }
+    } // END CLASS
     
-    protected static class PlanEdge extends AbstractEdge {
+    protected static class PlanEdge {
         final int dep_id;
-        public PlanEdge(IGraph<PlanVertex, PlanEdge> graph, int dep_id) {
-            super(graph);
+        public PlanEdge(int dep_id) {
+//            super(graph);
             this.dep_id = dep_id;
         }
         
@@ -189,20 +181,15 @@ public class BatchPlanner implements Loggable {
         public String toString() {
             return (Integer.toString(this.dep_id));
         }
-    }
+    }  // END CLASS
     
-    protected static class PlanGraph extends AbstractDirectedGraph<PlanVertex, PlanEdge> {
+    protected static class PlanGraph extends DirectedSparseMultigraph<PlanVertex, PlanEdge> {
         private static final long serialVersionUID = 1L;
 
         /**
-         * 
+         * The number of dispatch rounds that we have in this plan
          */
-        private final Map<Integer, Set<PlanVertex>> output_dependency_xref = new HashMap<Integer, Set<PlanVertex>>();
-        
-        /**
-         * 
-         */
-        private int max_rounds;
+        private int num_rounds;
         
         /**
          * Single-Partition
@@ -211,27 +198,10 @@ public class BatchPlanner implements Loggable {
         private int input_ids[];
         private int output_ids[];
         
-        public PlanGraph(Database catalog_db) {
-            super(catalog_db);
+        public PlanGraph() {
+//            super(catalog_db);
         }
-        
-        @Override
-        public boolean addVertex(PlanVertex v) {
-            Integer output_id = v.output_dependency_id;
-            assert(output_id != null) : "Unexpected: " + v;
-            
-            if (!this.output_dependency_xref.containsKey(output_id)) {
-                this.output_dependency_xref.put(output_id, new HashSet<PlanVertex>());
-            }
-            this.output_dependency_xref.get(output_id).add(v);
-            return super.addVertex(v);
-        }
-        
-        public Set<PlanVertex> getOutputDependencies(Integer output_id) {
-            return (this.output_dependency_xref.get(output_id));
-        }
-        
-    }
+    } // END CLASS
 
     // ----------------------------------------------------------------------------
     // BATCH PLAN
@@ -856,7 +826,7 @@ public class BatchPlanner implements Loggable {
             this.plan_graphs.put(bitmap_hash, graph);
         }
         plan.graph = graph;
-        plan.rounds_length = graph.max_rounds;
+        plan.rounds_length = graph.num_rounds;
 
         if (this.enable_profiling) time_plan.stop();
         
@@ -892,8 +862,7 @@ public class BatchPlanner implements Loggable {
 
         for (PlanVertex v : graph.getVertices()) {
             int stmt_index = v.stmt_index;
-            PlanFragment catalog_frag = v.getCatalogItem();
-            for (Integer partition : plan.frag_partitions[stmt_index].get(catalog_frag)) {
+            for (Integer partition : plan.frag_partitions[stmt_index].get(v.catalog_frag)) {
                 plan.rounds[v.round][partition.intValue()].add(v);
             } // FOR
         } // FOR
@@ -975,10 +944,11 @@ public class BatchPlanner implements Loggable {
      */
     protected PlanGraph buildPlanGraph(BatchPlanner.BatchPlan plan) {
         if (this.enable_profiling) ProfileMeasurement.swap(this.time_plan, this.time_planGraph);
-        PlanGraph graph = new PlanGraph(CatalogUtil.getDatabase(this.catalog_proc));
+        PlanGraph graph = new PlanGraph(); // CatalogUtil.getDatabase(this.catalog_proc));
 
-        graph.max_rounds = 0;
-        List<PlanVertex> sorted_vertices = new ArrayList<PlanVertex>();
+        graph.num_rounds = 0;
+        this.sorted_vertices.clear();
+        this.output_dependency_xref.clear(); // This sucks
         
         Integer base_partition = new Integer(plan.base_partition);
         for (int stmt_index = 0; stmt_index < this.batchSize; stmt_index++) {
@@ -987,7 +957,7 @@ public class BatchPlanner implements Loggable {
             List<PlanFragment> fragments = plan.frag_list[stmt_index]; 
             assert(fragments != null);
             int num_fragments = fragments.size();
-            graph.max_rounds = Math.max(num_fragments, graph.max_rounds);
+            graph.num_rounds = Math.max(num_fragments, graph.num_rounds);
             
             // Generate the synthetic DependencyIds for the query
             int last_output_id = HStoreConstants.NULL_DEPENDENCY_ID;
@@ -996,16 +966,24 @@ public class BatchPlanner implements Loggable {
                 Set<Integer> f_partitions = frag_partitions.get(catalog_frag);
                 assert(f_partitions != null) : String.format("No PartitionIds for [%02d] %s in Statement #%d", round, catalog_frag.fullName(), stmt_index);
                 boolean f_local = (f_partitions.size() == 1 && f_partitions.contains(base_partition));
-                int output_id = (this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : this.last_id++);
+                Integer output_id = new Integer(this.enable_unique_ids ? BatchPlanner.NEXT_DEPENDENCY_ID.getAndIncrement() : this.last_id++);
     
                 PlanVertex v = new PlanVertex(catalog_frag,
                                               stmt_index,
                                               round,
                                               last_output_id,
-                                              output_id,
+                                              output_id.intValue(),
                                               f_local);
+                
+                Set<PlanVertex> dependencies = output_dependency_xref.get(output_id);
+                if (dependencies == null) {
+                    dependencies = new HashSet<PlanVertex>();
+                    output_dependency_xref.put(output_id, dependencies);
+                }
+                dependencies.add(v);
+                
                 graph.addVertex(v);
-                sorted_vertices.add(v);
+                this.sorted_vertices.add(v);
                 last_output_id = output_id;
             }
         } // FOR
@@ -1013,23 +991,22 @@ public class BatchPlanner implements Loggable {
         // Setup Edges
         for (PlanVertex v0 : graph.getVertices()) {
             if (v0.input_dependency_id == HStoreConstants.NULL_DEPENDENCY_ID) continue;
-            for (PlanVertex v1 : graph.getOutputDependencies(v0.input_dependency_id)) {
+            for (PlanVertex v1 : output_dependency_xref.get(v0.input_dependency_id)) {
                 assert(!v0.equals(v1)) : v0;
                 if (!graph.findEdgeSet(v0, v1).isEmpty()) continue;
-                PlanEdge e = new PlanEdge(graph, v0.input_dependency_id);
+                PlanEdge e = new PlanEdge(v0.input_dependency_id);
                 graph.addEdge(e, v0, v1);
             } // FOR
         } // FOR
 
         // Single-Partition Cache
+        Collections.sort(this.sorted_vertices, PLANVERTEX_COMPARATOR);
         final int num_vertices = sorted_vertices.size();
         graph.fragmentIds = new long[num_vertices];
         graph.input_ids = new int[num_vertices];
         graph.output_ids = new int[num_vertices];
-
-        Collections.sort(sorted_vertices, PLANVERTEX_COMPARATOR);
         int i = 0;
-        for (PlanVertex v : sorted_vertices) {
+        for (PlanVertex v : this.sorted_vertices) {
             graph.fragmentIds[i] = v.frag_id;
             graph.output_ids[i] = v.output_dependency_id;
             graph.input_ids[i] = v.input_dependency_id;

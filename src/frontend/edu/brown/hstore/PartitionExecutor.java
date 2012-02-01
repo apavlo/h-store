@@ -1411,7 +1411,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(volt_proc != null) : "No VoltProcedure for " + ts;
         
         if (d) {
-            LOG.debug(String.format("Starting execution of %s [txnMode=%s, mode=%s]", ts, before_mode, this.current_execMode));
+            LOG.debug(String.format("%s - Starting execution of txn [txnMode=%s, mode=%s]",
+                                    ts, before_mode, this.current_execMode));
             if (t) LOG.trace("Current Transaction at partition #" + this.partitionId + "\n" + ts.debug());
         }
             
@@ -1450,10 +1451,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Therefore we don't want to grab the exec_mode lock here.
         if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, before_mode)) {
             if (hstore_conf.site.exec_postprocessing_thread) {
-                if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
+                if (t) LOG.trace(String.format("%s - Passing ClientResponse to post-processing thread [status=%s]",
+                                               ts, cresponse.getStatus()));
                 hstore_site.queueClientResponse(this, ts, cresponse);
             } else {
-                if (d) LOG.debug(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
+                if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
+                                               ts, cresponse.getStatus()));
                 this.processClientResponse(ts, cresponse);
             }
         } else {
@@ -1461,10 +1464,12 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             try {
                 if (this.canProcessClientResponseNow(ts, status, before_mode)) {
                     if (hstore_conf.site.exec_postprocessing_thread) {
-                        if (t) LOG.trace(String.format("Passing ClientResponse for %s to post-processing thread [status=%s]", ts, cresponse.getStatus()));
+                        if (t) LOG.trace(String.format("%s - Passing ClientResponse to post-processing thread [status=%s]",
+                                                       ts, cresponse.getStatus()));
                         hstore_site.queueClientResponse(this, ts, cresponse);
                     } else {
-                        if (d) LOG.debug(String.format("Sending ClientResponse for %s back directly [status=%s]", ts, cresponse.getStatus()));
+                        if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
+                                                       ts, cresponse.getStatus()));
                         this.processClientResponse(ts, cresponse);
                     }
                 // Otherwise always queue our response, since we know that whatever thread is out there
@@ -1483,7 +1488,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                                                     blocked, this.partitionId, this.current_execMode));
                         if (d) LOG.debug(String.format("Disabling execution on partition %d because speculative %s aborted", this.partitionId, ts));
                     }
-                    if (t) LOG.trace(String.format("Queuing ClientResponse for %s [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
+                    if (t) LOG.trace(String.format("%s - Queuing ClientResponse [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
                                                    ts, cresponse.getStatus(), before_mode, this.current_execMode, this.current_dtxn));
                     this.queueClientResponse(ts, cresponse);
                 }
@@ -1507,7 +1512,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @return
      */
     private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode before_mode) {
-        if (d) LOG.debug(String.format("Checking whether to process response for %s now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
+        if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.current_execMode));
         // Commit All
         if (this.current_execMode == ExecutionMode.COMMIT_ALL) {
