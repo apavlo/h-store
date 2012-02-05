@@ -629,15 +629,15 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     assert len(clients) > 0, "There are no %s client instances available" % env["ec2.client_type"]
     LOG.debug("Client Hosts: %s" % clients)
 
-    ## Update H-Store Conf file
-    ## Do this first so that we always revert any changes
-    if updateConf:
-        LOG.info("Updating H-Store configuration files")
-        write_conf(project, removals, revertFirst=True)
     ## Make sure the the checkout is up to date
     if updateRepo: 
         LOG.info("Updating H-Store Git checkout")
         deploy_hstore(build=False, update=True)
+    ## Update H-Store Conf file
+    ## Do this after we update the repository so that we can put in our updates
+    if updateConf:
+        LOG.info("Updating H-Store configuration files")
+        write_conf(project, removals, revertFirst=True)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {
