@@ -29,7 +29,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     private double queue_release_factor;
     private final int queue_increase;
     private final ProfileMeasurement throttle_time;
-    private boolean allow_increase = false;
+    private boolean allow_increase;
          
 //    public static class ThrottleException extends RuntimeException {
 //        private static final long serialVersionUID = 1L;
@@ -51,6 +51,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
         this.queue_increase = queue_increase;
         this.queue_release_factor = queue_release;
         this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+        this.allow_increase = (this.queue_increase > 0);
         this.throttle_time = new ProfileMeasurement("throttling");
 //        if (hstore_site.getHStoreConf().site.status_show_executor_info) {
 //            this.throttle_time.resetOnEvent(hstore_site.getStartWorkloadObservable());
