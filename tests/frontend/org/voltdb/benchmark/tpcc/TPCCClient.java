@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.benchmark.BlockingClient;
 import org.voltdb.benchmark.Clock;
 import org.voltdb.benchmark.Verification;
 import org.voltdb.benchmark.Verification.Expression;
@@ -849,7 +850,12 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void callResetWarehouse(long w_id, long districtsPerWarehouse,
             long customersPerDistrict, long newOrdersPerDistrict)
     throws IOException {
-        m_queuedMessage = this.getClientHandle().callProcedure(new ResetWarehouseCallback(),
+        Client client = this.getClientHandle();
+        // HACK
+        if (client instanceof BlockingClient) {
+            client = ((BlockingClient)client).getClient();
+        }
+        m_queuedMessage = client.callProcedure(new ResetWarehouseCallback(),
               TPCCConstants.RESET_WAREHOUSE, w_id, districtsPerWarehouse,
               customersPerDistrict, newOrdersPerDistrict);
     }

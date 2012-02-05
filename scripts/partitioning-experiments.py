@@ -186,6 +186,7 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
             "benchmark.warehouse_debug":         False,
+            "benchmark.reset_on_clear":          True,
             "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
@@ -307,8 +308,8 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
 
     ## CUSTOM BENCHMARK TYPE
     if benchmark.startswith("tpcc"):
-        env["benchmark.one_warehouse_per_partition"] = True
-        env["benchmark.one_loadthread_per_warehouse"] = True
+        env["benchmark.warehouse_per_partition"] = True
+        env["benchmark.loadthread_per_warehouse"] = True
         if benchmark.endswith("-skewed"):
             env["benchmark.temporal_skew"] = True
             env["benchmark.temporal_skew_rotate"] = False
