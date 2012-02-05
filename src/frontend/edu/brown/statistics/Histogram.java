@@ -60,9 +60,9 @@ public class Histogram<X> implements JSONSerializable {
      * occurences in the histogram
      */
     protected long min_count = 0;
-    protected Set<X> min_count_values;
+    protected List<X> min_count_values;
     protected long max_count = 0;
-    protected Set<X> max_count_values;
+    protected List<X> max_count_values;
     
     /**
      * A switchable flag that determines whether non-zero entries are kept or removed
@@ -202,8 +202,8 @@ public class Histogram<X> implements JSONSerializable {
         this.min_value = null;
         this.max_value = null;
         
-        if (this.min_count_values == null) this.min_count_values = new HashSet<X>();
-        if (this.max_count_values == null) this.max_count_values = new HashSet<X>();
+        if (this.min_count_values == null) this.min_count_values = new ArrayList<X>();
+        if (this.max_count_values == null) this.max_count_values = new ArrayList<X>();
         
         for (Entry<X, Long> e : this.histogram.entrySet()) {
             X value = e.getKey();
@@ -218,12 +218,12 @@ public class Histogram<X> implements JSONSerializable {
             
             if (cnt <= this.min_count) {
                 if (cnt < this.min_count) this.min_count_values.clear();
-                this.min_count_values.add(e.getKey());
+                this.min_count_values.add(value);
                 this.min_count = cnt;
             }
             if (cnt >= this.max_count) {
                 if (cnt > this.max_count) this.max_count_values.clear();
-                this.max_count_values.add(e.getKey());
+                this.max_count_values.add(value);
                 this.max_count = cnt;
             }
         } // FOR
@@ -289,7 +289,7 @@ public class Histogram<X> implements JSONSerializable {
      * Return the set values with the smallest number of samples
      * @return
      */
-    public Set<X> getMinCountValues() {
+    public Collection<X> getMinCountValues() {
         this.calculateInternalValues();
         return (this.min_count_values);
     }
@@ -316,7 +316,7 @@ public class Histogram<X> implements JSONSerializable {
      * Return the set values with the greatest number of samples
      * @return
      */
-    public Set<X> getMaxCountValues() {
+    public Collection<X> getMaxCountValues() {
         this.calculateInternalValues();
         return (this.max_count_values);
     }
