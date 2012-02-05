@@ -628,8 +628,8 @@ public class AuctionMarkClient extends BenchmarkComponent {
     }
     
     @Override
-    public void tick(int counter) {
-        super.tick(counter);
+    public void tickCallback(int counter) {
+        super.tickCallback(counter);
         profile.tick();
     }
     

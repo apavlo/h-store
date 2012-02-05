@@ -855,11 +855,14 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     }
 
     @Override
-    public void tick(int counter) {
+    public void tickCallback(int counter) {
         m_tpccSim.tick(counter);
         LOG.debug("TICK: " + counter);
-        
-        if (m_tpccConfig.reset_on_tick && this.getClientId() == 0) {
+    }
+    
+    @Override
+    public void clearCallback() {
+        if (m_tpccConfig.reset_on_clear && this.getClientId() == 0) {
             LOG.info("Reseting WAREHOUSE data");
             for (int w_id = m_tpccConfig.first_warehouse; w_id < m_tpccConfig.num_warehouses; w_id++) {
                 try {
@@ -875,7 +878,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     }
     
     @Override
-    public void callbackStop() {
+    public void stopCallback() {
         if (m_tpccConfig.neworder_skew_warehouse) {
             LOG.info("WAREHOUSE DISTRIBUTION:\n" + m_tpccSim.getWarehouseZipf().getHistory());
         }
