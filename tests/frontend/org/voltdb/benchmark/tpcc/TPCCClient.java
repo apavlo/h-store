@@ -48,9 +48,7 @@ import edu.brown.hstore.conf.HStoreConf;
 public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.ProcCaller {
     private static final Logger LOG = Logger.getLogger(TPCCClient.class);
     
-    
     final TPCCSimulation m_tpccSim;
-//    final TPCCSimulation m_tpccSim2;
     final ScaleParameters m_scaleParams;
     final TPCCConfig m_tpccConfig;
 
@@ -247,7 +245,7 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
         rng.setC(base_runC2);
 
         HStoreConf hstore_conf = this.getHStoreConf();
-        m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, m_tpccConfig.firstWarehouse, hstore_conf.client.scalefactor);
+        m_scaleParams = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, m_tpccConfig.first_warehouse, hstore_conf.client.scalefactor);
         m_tpccSim = new TPCCSimulation(this, rng, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 //        m_tpccSim2 = new TPCCSimulation(this, rng2, new Clock.RealTime(), m_scaleParams, m_tpccConfig, hstore_conf.client.skewfactor);
 
@@ -860,6 +858,20 @@ public class TPCCClient extends BenchmarkComponent implements TPCCSimulation.Pro
     public void tick(int counter) {
         m_tpccSim.tick(counter);
         LOG.debug("TICK: " + counter);
+        
+        if (m_tpccConfig.reset_on_tick && this.getClientId() == 0) {
+            LOG.info("Reseting WAREHOUSE data");
+            for (int w_id = m_tpccConfig.first_warehouse; w_id < m_tpccConfig.num_warehouses; w_id++) {
+                try {
+                    this.callResetWarehouse(w_id,
+                                            m_tpccSim.parameters.districtsPerWarehouse,
+                                            m_tpccSim.parameters.customersPerDistrict,
+                                            m_tpccSim.parameters.newOrdersPerDistrict);
+                } catch (IOException ex) {
+                    throw new RuntimeException("Failed to reset warehouse #" + w_id, ex);
+                }
+            } // FOR
+        }
     }
     
     @Override

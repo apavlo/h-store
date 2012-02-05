@@ -92,7 +92,7 @@ public class MultiLoader extends BenchmarkComponent {
 
         initTableNames();
         m_tpccConfig = TPCCConfig.createConfig(this.getCatalog(), m_extraParams);
-        m_loadThreads = new LoadThread[m_tpccConfig.loadthreads];
+        m_loadThreads = new LoadThread[m_tpccConfig.num_loadthreads];
         
         if (LOG.isDebugEnabled())
             LOG.debug("Loader Configuration:\n" + m_tpccConfig);
@@ -101,7 +101,7 @@ public class MultiLoader extends BenchmarkComponent {
         MAX_BATCH_SIZE *= Math.max(100, (10 / m_tpccConfig.num_warehouses));
 
         HStoreConf hstore_conf = this.getHStoreConf();
-        for (int ii = 0; ii < m_tpccConfig.loadthreads; ii++) {
+        for (int ii = 0; ii < m_tpccConfig.num_loadthreads; ii++) {
             ScaleParameters parameters = ScaleParameters.makeWithScaleFactor(m_tpccConfig.num_warehouses, hstore_conf.client.scalefactor);
             assert parameters != null;
 
@@ -856,8 +856,8 @@ public class MultiLoader extends BenchmarkComponent {
         });
         
         ArrayList<Integer> warehouseIds = new ArrayList<Integer>();
-        int count = (m_tpccConfig.num_warehouses + m_tpccConfig.firstWarehouse - 1);
-        for (int ii = m_tpccConfig.firstWarehouse; ii <= count; ii++) {
+        int count = (m_tpccConfig.num_warehouses + m_tpccConfig.first_warehouse - 1);
+        for (int ii = m_tpccConfig.first_warehouse; ii <= count; ii++) {
             warehouseIds.add(ii);
         }
         // Shuffling spreads the loading out across physical hosts better
