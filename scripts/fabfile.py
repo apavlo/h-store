@@ -422,7 +422,7 @@ def setup_env():
     
     # Bash Aliases
     code_dir = os.path.join("$HOME", "hstore", env["hstore.git_branch"])
-    log_dir = env.get("site.log_dir", os.path.join(code_dir, "obj/logs"))
+    log_dir = env.get("site.log_dir", os.path.join(code_dir, "obj/logs/sites"))
     aliases = {
         # H-Store Home
         'hh':  'cd ' + code_dir,
