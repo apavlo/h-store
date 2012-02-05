@@ -710,8 +710,13 @@ public abstract class BenchmarkComponent {
      * @param txn_idx
      */
     protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
-        m_txnStats.basePartitions.put(cresponse.getBasePartition());
-        m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
+        // Only include it if it wasn't rejected
+        // This is actually handled in the Distributer, but it doesn't hurt to have this here
+        Hstore.Status status = cresponse.getStatus();
+        if (status == Hstore.Status.OK || status == Hstore.Status.ABORT_USER) {
+            m_txnStats.basePartitions.put(cresponse.getBasePartition());
+            m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
+        }
     }
 
     public BenchmarkComponent(final Client client) {
