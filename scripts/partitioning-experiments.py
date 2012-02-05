@@ -109,7 +109,7 @@ DEBUG_OPTIONS = [
     #"site.pool_profiling",
     #"site.planner_profiling",
     "site.status_show_txn_info",
-    "site.status_show_exec_info",
+    "site.status_show_executor_info",
     #"client.output_basepartitions",
 ]
 
@@ -161,9 +161,9 @@ BASE_SETTINGS = {
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
     "site.memory":                                      6002,
-    "site.queue_incoming_max_per_partition":            500,
+    "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
-    "site.queue_incoming_increase":                     0,
+    "site.queue_incoming_increase":                     10,
     "site.queue_incoming_throttle":                     False,
     "site.queue_dtxn_max_per_partition":                1000,
     "site.queue_dtxn_release_factor":                   0.90,
@@ -186,7 +186,7 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
             "benchmark.warehouse_debug":         False,
-            "benchmark.reset_on_clear":          True,
+            "benchmark.noop":                    False,
             "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids

@@ -35,7 +35,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -1582,7 +1581,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // If this txn has been restarted too many times, then we'll just give up
         // and reject it outright
         int restart_limit = (orig_ts.isSysProc() ? hstore_conf.site.txn_restart_limit_sysproc :
-                                               hstore_conf.site.txn_restart_limit);
+                                                   hstore_conf.site.txn_restart_limit);
         if (orig_ts.getRestartCounter() > restart_limit) {
             if (orig_ts.isSysProc()) {
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
@@ -1597,13 +1596,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // tried to touch before it was aborted 
         if (status != Hstore.Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
-            Set<Integer> most_touched = touched.getMaxCountValues();
+            Collection<Integer> most_touched = touched.getMaxCountValues();
+            assert(most_touched != null);
             
             // HACK: We should probably decrement the base partition by one 
             // so that we only consider where they actually executed queries
             
-            if (d)
-                LOG.debug(String.format("Touched partitions for mispredicted %s\n%s", orig_ts, touched));
+            if (d) LOG.debug(String.format("Touched partitions for mispredicted %s\n%s",
+                                           orig_ts, touched));
             Integer redirect_partition = null;
             if (most_touched.size() == 1) {
                 redirect_partition = CollectionUtil.first(most_touched);
@@ -1612,6 +1612,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else {
                 redirect_partition = CollectionUtil.random(this.all_partitions);
             }
+            assert(redirect_partition != null) : "Redirect partition is null!\n" + orig_ts.debug();
             if (t) {
                 LOG.trace("Redirect Partition: " + redirect_partition + " -> " + (this.local_partitions.contains(redirect_partition) == false));
                 LOG.trace("Local Partitions: " + this.local_partitions);
@@ -1622,7 +1623,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // execute on the same partition, but this time as a multi-partition txn that locks all partitions.
             // That's what you get for messing up!!
             if (this.local_partitions.contains(redirect_partition) == false && spi.hasBasePartition() == false) {
-                if (d) LOG.debug(String.format("Redirecting mispredicted %s to partition %d", orig_ts, redirect_partition));
+                if (d) LOG.debug(String.format("%s - Redirecting to partition %d because of misprediction",
+                                               orig_ts, redirect_partition));
                 
                 spi.setBasePartition(redirect_partition.intValue());
                 
@@ -1766,7 +1768,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(hstore_conf.site.exec_postprocessing_thread);
         if (d) LOG.debug(String.format("Adding ClientResponse for %s from partition %d to processing queue [status=%s, size=%d]",
                                        ts, es.getPartitionId(), cr.getStatus(), this.ready_responses.size()));
-        this.ready_responses.add(new Object[]{es, ts, cr});
+        this.ready_responses.add(new Object[]{ts, cr});
     }
 
     /**
