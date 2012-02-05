@@ -12,15 +12,16 @@ import edu.brown.utils.StringUtil;
 
 public final class TPCCConfig {
 
-    public int firstWarehouse = TPCCConstants.STARTING_WAREHOUSE;
+    public int first_warehouse = TPCCConstants.STARTING_WAREHOUSE;
     
     public int num_warehouses = 1;
-    public boolean one_warehouse_per_partition = false;
+    public boolean warehouse_per_partition = false;
     public boolean warehouse_affinity = false;
     public boolean warehouse_debug = false;
+    public boolean reset_on_tick = false;
     
-    public int loadthreads = 1;
-    public boolean one_loadthread_per_warehouse = false;
+    public int num_loadthreads = 1;
+    public boolean loadthread_per_warehouse = false;
     
     public boolean noop = false;
     public boolean neworder_only = false;
@@ -47,15 +48,15 @@ public final class TPCCConfig {
             
             // FIRST WAREHOUSE ID
             if (key.equalsIgnoreCase("first_warehouse") && !val.isEmpty()) {
-                firstWarehouse = Integer.parseInt(val);
+                first_warehouse = Integer.parseInt(val);
             }
             // NUMBER OF WAREHOUSES
             else if (key.equalsIgnoreCase("warehouses") && !val.isEmpty()) {
                 num_warehouses = Integer.parseInt(val);
             }
             // ONE WAREHOUSE PER PARTITION
-            else if (key.equalsIgnoreCase("one_warehouse_per_partition") && !val.isEmpty()) {
-                one_warehouse_per_partition = Boolean.parseBoolean(val);
+            else if (key.equalsIgnoreCase("warehouse_per_partition") && !val.isEmpty()) {
+                warehouse_per_partition = Boolean.parseBoolean(val);
             }
             // WAREHOUSE AFFINITY
             else if (key.equalsIgnoreCase("warehouse_affinity") && !val.isEmpty()) {
@@ -65,14 +66,17 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("warehouse_debug") && !val.isEmpty()) {
                 warehouse_debug = Boolean.parseBoolean(val);
             }
-
+            // RESET ON EACH TICK INTERVAL
+            else if (key.equalsIgnoreCase("reset_on_tick") && !val.isEmpty()) {
+                reset_on_tick = Boolean.parseBoolean(val);
+            }
             // LOAD THREADS
             else if (key.equalsIgnoreCase("loadthreads") && !val.isEmpty()) {
-                loadthreads = Integer.parseInt(val);
+                num_loadthreads = Integer.parseInt(val);
             }
             // ONE LOADTHREAD PER WAREHOUSE
-            else if (key.equalsIgnoreCase("one_loadthread_per_warehouse") && !val.isEmpty()) {
-                one_loadthread_per_warehouse = Boolean.parseBoolean(val);
+            else if (key.equalsIgnoreCase("loadthread_per_warehouse") && !val.isEmpty()) {
+                loadthread_per_warehouse = Boolean.parseBoolean(val);
             }
             
             // NOOPs
@@ -113,11 +117,11 @@ public final class TPCCConfig {
             }
         } // FOR
         
-        if (one_warehouse_per_partition) num_warehouses = CatalogUtil.getNumberOfPartitions(catalog);
-        if (one_loadthread_per_warehouse) {
-            loadthreads = num_warehouses;
+        if (warehouse_per_partition) num_warehouses = CatalogUtil.getNumberOfPartitions(catalog);
+        if (loadthread_per_warehouse) {
+            num_loadthreads = num_warehouses;
         } else {
-            loadthreads = Math.min(num_warehouses, loadthreads);
+            num_loadthreads = Math.min(num_warehouses, num_loadthreads);
         }
     }
     

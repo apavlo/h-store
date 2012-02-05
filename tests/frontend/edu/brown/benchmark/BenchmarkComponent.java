@@ -1277,6 +1277,11 @@ public abstract class BenchmarkComponent {
     }
     
     
+    /**
+     * Internal callback for each POLL tick that we get from the BenchmarkController
+     * This will invoke the tick() method that can be implemented benchmark clients 
+     * @param counter
+     */
     private final void invokeTick(int counter) {
         if (debug.get()) LOG.debug("New Tick Update: " + counter);
         this.tick(counter);

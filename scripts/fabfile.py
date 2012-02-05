@@ -443,7 +443,7 @@ def setup_env():
         if run("test -d %s" % hstore_dir).failed:
             run("mkdir " + hstore_dir)
     ## WITH
-    sudo("chown -R %s %s" % (env.user, hstore_dir))
+    # sudo("chown -R %s %s" % (env.user, hstore_dir))
     
     return (first_setup)
 ## DEF
