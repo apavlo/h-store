@@ -1009,7 +1009,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         return voltExecuteSQL(isFinalSQL, false);
     }
     
-    protected VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
+    private VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
         if (!isNative) {
             VoltTable[] batch_results = queryResults.toArray(new VoltTable[queryResults.size()]);
             queryResults.clear();
