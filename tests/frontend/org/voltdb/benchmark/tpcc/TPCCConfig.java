@@ -18,7 +18,7 @@ public final class TPCCConfig {
     public boolean warehouse_per_partition = false;
     public boolean warehouse_affinity = false;
     public boolean warehouse_debug = false;
-    public boolean reset_on_tick = false;
+    public boolean reset_on_clear = false;
     
     public int num_loadthreads = 1;
     public boolean loadthread_per_warehouse = false;
@@ -66,9 +66,9 @@ public final class TPCCConfig {
             else if (key.equalsIgnoreCase("warehouse_debug") && !val.isEmpty()) {
                 warehouse_debug = Boolean.parseBoolean(val);
             }
-            // RESET ON EACH TICK INTERVAL
-            else if (key.equalsIgnoreCase("reset_on_tick") && !val.isEmpty()) {
-                reset_on_tick = Boolean.parseBoolean(val);
+            // RESET WHEN CLEAR IS CALLED FROM BENCHMARKCONTROLLER
+            else if (key.equalsIgnoreCase("reset_on_clear") && !val.isEmpty()) {
+                reset_on_clear = Boolean.parseBoolean(val);
             }
             // LOAD THREADS
             else if (key.equalsIgnoreCase("loadthreads") && !val.isEmpty()) {

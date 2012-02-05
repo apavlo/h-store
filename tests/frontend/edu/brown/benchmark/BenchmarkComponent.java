@@ -491,7 +491,7 @@ public abstract class BenchmarkComponent {
                         // Call tick on the client if we're not polling ourselves
                         if (BenchmarkComponent.this.m_tickInterval < 0) {
                             if (debug.get()) LOG.debug("Got poll message! Calling tick()!");
-                            BenchmarkComponent.this.invokeTick(m_tickCounter++);
+                            invokeTickCallback(m_tickCounter++);
                         }
                         if (debug.get())
                             LOG.debug(String.format("CLIENT QUEUE TIME: %.2fms / %.2fms avg",
@@ -501,6 +501,7 @@ public abstract class BenchmarkComponent {
                     }
                     case CLEAR: {
                         m_txnStats.clear();
+                        invokeClearCallback();
                         answerOk();
                         break;
                     }
@@ -521,7 +522,7 @@ public abstract class BenchmarkComponent {
                     }
                     case SHUTDOWN: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
-                            invokeCallbackStop();
+                            invokeStopCallback();
                             try {
                                 m_voltClient.drain();
                                 m_voltClient.callProcedure("@Shutdown");
@@ -535,7 +536,7 @@ public abstract class BenchmarkComponent {
                     }
                     case STOP: {
                         if (m_controlState == ControlState.RUNNING || m_controlState == ControlState.PAUSED) {
-                            invokeCallbackStop();
+                            invokeStopCallback();
                             try {
                                 if (m_sampler != null) {
                                     m_sampler.setShouldStop();
@@ -1016,7 +1017,7 @@ public abstract class BenchmarkComponent {
                 public void run() {
                     try {
                         while (true) {
-                            BenchmarkComponent.this.invokeTick(m_tickCounter++);
+                            BenchmarkComponent.this.invokeTickCallback(m_tickCounter++);
                             Thread.sleep(m_tickInterval);
                         } // WHILE
                     } catch (InterruptedException ex) {
@@ -1059,7 +1060,7 @@ public abstract class BenchmarkComponent {
                 // Wait for the worker to finish
                 if (debug.get()) LOG.debug(String.format("Started ControlWorker for client #%02d. Waiting until finished...", clientMain.getClientId()));
                 worker.join();
-                clientMain.invokeCallbackStop();
+                clientMain.invokeStopCallback();
             }
             else {
                 // if (debug.get()) LOG.debug(String.format("Deploying ControlWorker for client #%02d. Waiting for control signal...", clientMain.getClientId()));
@@ -1247,7 +1248,11 @@ public abstract class BenchmarkComponent {
         this.uploader = uploader;
     }
     
-    private final void invokeCallbackStop() {
+    // ----------------------------------------------------------------------------
+    // CALLBACKS
+    // ----------------------------------------------------------------------------
+    
+    private final void invokeStopCallback() {
         // If we were generating stats, then get the final WorkloadStatistics object
         // and write it out to a file for them to use
         if (m_tableStats) {
@@ -1265,26 +1270,21 @@ public abstract class BenchmarkComponent {
             }
         }
         
-        this.callbackStop();
+        this.stopCallback();
     }
     
-    /**
-     * Optional callback for when this BenchmarkComponent has been told to stop
-     * This is not a reliable callback and should only be used for testing
-     */
-    public void callbackStop() {
-        // Default is to do nothing
+    private final void invokeClearCallback() {
+        this.clearCallback();
     }
-    
     
     /**
      * Internal callback for each POLL tick that we get from the BenchmarkController
      * This will invoke the tick() method that can be implemented benchmark clients 
      * @param counter
      */
-    private final void invokeTick(int counter) {
+    private final void invokeTickCallback(int counter) {
         if (debug.get()) LOG.debug("New Tick Update: " + counter);
-        this.tick(counter);
+        this.tickCallback(counter);
         
         if (debug.get()) {
             if (this.computeTime.isEmpty() == false) {
@@ -1300,6 +1300,34 @@ public abstract class BenchmarkComponent {
             this.m_voltClient.getQueueTime().reset();
         }
     }
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been told to stop
+     * This is not a reliable callback and should only be used for testing
+     */
+    public void stopCallback() {
+        // Default is to do nothing
+    }
+    
+    /**
+     * Optional callback for when this BenchmarkComponent has been told to clear its 
+     * internal counters.
+     */
+    public void clearCallback() {
+        // Default is to do nothing
+    }
+    
+    /**
+     * Internal callback for each POLL tick that we get from the BenchmarkController
+     * @param counter The number of times we have called this callback in the past
+     */
+    public void tickCallback(int counter) {
+        // Default is to do nothing!
+    }
+    
+    // ----------------------------------------------------------------------------
+    // PROFILING METHODS
+    // ----------------------------------------------------------------------------
     
     protected synchronized void startComputeTime(String txnName) {
         ProfileMeasurement pm = this.computeTime.get(txnName);
@@ -1320,16 +1348,6 @@ public abstract class BenchmarkComponent {
         return (this.computeTime.get(txnName));
     }
     
-    
-    /**
-     * Is called every time the interval time is reached
-     * @param counter TODO
-     */
-    public void tick(int counter) {
-        // Default is to do nothing!
-    }
-    
-
     protected boolean useHeavyweightClient() {
         return false;
     }
