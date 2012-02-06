@@ -551,7 +551,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 this.work_queue,
                 hstore_conf.site.queue_incoming_max_per_partition,
                 hstore_conf.site.queue_incoming_release_factor,
-                hstore_conf.site.queue_incoming_increase
+                hstore_conf.site.queue_incoming_increase,
+                hstore_conf.site.queue_incoming_increase_max
         );
         
         this.catalog = catalog;
