@@ -36,6 +36,7 @@ public class Statement extends CatalogType {
     boolean m_batched;
     boolean m_secondaryindex;
     boolean m_prefetch;
+    boolean m_asynchronous;
     int m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
     CatalogMap<Column> m_output_columns;
@@ -61,6 +62,7 @@ public class Statement extends CatalogType {
         this.addField("batched", m_batched);
         this.addField("secondaryindex", m_secondaryindex);
         this.addField("prefetch", m_prefetch);
+        this.addField("asynchronous", m_asynchronous);
         this.addField("paramnum", m_paramnum);
         m_parameters = new CatalogMap<StmtParameter>(catalog, this, path + "/" + "parameters", StmtParameter.class);
         m_childCollections.put("parameters", m_parameters);
@@ -90,6 +92,7 @@ public class Statement extends CatalogType {
         m_batched = (Boolean) m_fields.get("batched");
         m_secondaryindex = (Boolean) m_fields.get("secondaryindex");
         m_prefetch = (Boolean) m_fields.get("prefetch");
+        m_asynchronous = (Boolean) m_fields.get("asynchronous");
         m_paramnum = (Integer) m_fields.get("paramnum");
         m_has_singlesited = (Boolean) m_fields.get("has_singlesited");
         m_exptree = (String) m_fields.get("exptree");
@@ -145,6 +148,11 @@ public class Statement extends CatalogType {
     /** GETTER: Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction */
     public boolean getPrefetch() {
         return m_prefetch;
+    }
+
+    /** GETTER: Whether this query does not need to executed immediately in this transaction */
+    public boolean getAsynchronous() {
+        return m_asynchronous;
     }
 
     public int getParamnum() {
@@ -251,6 +259,11 @@ public class Statement extends CatalogType {
     /** SETTER: Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction */
     public void setPrefetch(boolean value) {
         m_prefetch = value; m_fields.put("prefetch", value);
+    }
+
+    /** SETTER: Whether this query does not need to executed immediately in this transaction */
+    public void setAsynchronous(boolean value) {
+        m_asynchronous = value; m_fields.put("asynchronous", value);
     }
 
     public void setParamnum(int value) {

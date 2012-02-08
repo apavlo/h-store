@@ -637,8 +637,20 @@ public class HStoreCoordinator implements Shutdownable {
      * @param ts
      * @param callback
      */
-    public void transactionInit(LocalTransaction ts, RpcCallback<Hstore.TransactionInitResponse> callback) {
-        Hstore.TransactionInitRequest request = Hstore.TransactionInitRequest.newBuilder()
+    public void transactionInit(LocalTransaction ts, RpcCallback<TransactionInitResponse> callback) {
+        // TODO(cjl6): Look at the Procedure to see whether it has prefetchable queries. If it does, then
+        // embed them in the TransactionInitRequest
+        // TODO(cjl6): If there are pre-fetchable queries, then generate the WorkFragments and embed
+        //             them in the InitRequest.
+        // TODO(cjl6): In the later version, use a BatchPlanner to identify which WorkFragments need to
+        //             go to which partitions and then generate unique InitRequest objects per partition
+        
+        // TODO(pavlo): Add boolean flag to Procedure catalog object that says whether 
+        // it has pre-fetchable queries or not. Create a quick lookup mechanism to get those queries
+        
+        // TODO(pavlo): Add the ability to allow a partition that rejects a InitRequest to send notifications
+        //              about the rejection to the other partitions that are included in the InitRequest.
+        TransactionInitRequest request = TransactionInitRequest.newBuilder()
                                                          .setTransactionId(ts.getTransactionId())
                                                          .setProcedureId(ts.getProcedure().getId())
                                                          .addAllPartitions(ts.getPredictTouchedPartitions())
@@ -653,12 +665,12 @@ public class HStoreCoordinator implements Shutdownable {
      * @param builders
      * @param callback
      */
-    public void transactionWork(LocalTransaction ts, Map<Integer, Hstore.TransactionWorkRequest.Builder> builders, RpcCallback<Hstore.TransactionWorkResponse> callback) {
-        for (Entry<Integer, Hstore.TransactionWorkRequest.Builder> e : builders.entrySet()) {
+    public void transactionWork(LocalTransaction ts, Map<Integer, TransactionWorkRequest.Builder> builders, RpcCallback<TransactionWorkResponse> callback) {
+        for (Entry<Integer, TransactionWorkRequest.Builder> e : builders.entrySet()) {
             int site_id = e.getKey().intValue();
             assert(e.getValue().getFragmentsCount() > 0) :
                 String.format("No WorkFragments for Site %d in %s", site_id, ts);
-            Hstore.TransactionWorkRequest request = e.getValue().build();
+            TransactionWorkRequest request = e.getValue().build();
             
             // We should never get work for our local partitions
             assert(site_id != this.local_site_id);
@@ -682,7 +694,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
         
-        Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
+        TransactionPrepareRequest request = TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .addAllPartitions(partitions)
                                                         .build();
@@ -703,7 +715,7 @@ public class HStoreCoordinator implements Shutdownable {
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
         
-        Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()
+        TransactionFinishRequest request = TransactionFinishRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
                                                         .setStatus(status)
                                                         .addAllPartitions(partitions)
@@ -729,11 +741,11 @@ public class HStoreCoordinator implements Shutdownable {
      * @param callback
      * @param partition
      */
-    public void transactionRedirect(byte[] serializedRequest, RpcCallback<Hstore.TransactionRedirectResponse> callback, int partition) {
+    public void transactionRedirect(byte[] serializedRequest, RpcCallback<TransactionRedirectResponse> callback, int partition) {
         int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
         if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreSite.formatSiteName(dest_site_id));
         ByteString bs = ByteString.copyFrom(serializedRequest);
-        Hstore.TransactionRedirectRequest mr = Hstore.TransactionRedirectRequest.newBuilder()
+        TransactionRedirectRequest mr = TransactionRedirectRequest.newBuilder()
                                         .setSenderId(this.local_site_id)
                                         .setWork(bs)
                                         .build();
@@ -748,7 +760,7 @@ public class HStoreCoordinator implements Shutdownable {
      * Tell all remote partitions to start the map phase for this txn
      * @param ts
      */
-    public void transactionMap(LocalTransaction ts, RpcCallback<Hstore.TransactionMapResponse> callback) {
+    public void transactionMap(LocalTransaction ts, RpcCallback<TransactionMapResponse> callback) {
     	ByteString invocation = null;
     	try {
     		ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
@@ -757,7 +769,7 @@ public class HStoreCoordinator implements Shutdownable {
     		throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
     	}
     	
-    	Hstore.TransactionMapRequest request = Hstore.TransactionMapRequest.newBuilder()
+    	TransactionMapRequest request = TransactionMapRequest.newBuilder()
     												 .setTransactionId(ts.getTransactionId())
     												 .setBasePartition(ts.getBasePartition())
     												 .setInvocation(invocation)
@@ -776,7 +788,7 @@ public class HStoreCoordinator implements Shutdownable {
      * Tell all remote partitions to start the reduce phase for this txn
      * @param ts
      */
-    public void transactionReduce(LocalTransaction ts, RpcCallback<Hstore.TransactionReduceResponse> callback) {
+    public void transactionReduce(LocalTransaction ts, RpcCallback<TransactionReduceResponse> callback) {
         ByteString invocation = null;
         try {
             ByteBuffer b = ByteBuffer.wrap(FastSerializer.serialize(ts.getInvocation()));
@@ -785,7 +797,7 @@ public class HStoreCoordinator implements Shutdownable {
             throw new RuntimeException("Unexpected error when serializing StoredProcedureInvocation", ex);
         }
         
-        TransactionReduceRequest request = Hstore.TransactionReduceRequest.newBuilder()
+        TransactionReduceRequest request = TransactionReduceRequest.newBuilder()
                                                      .setTransactionId(ts.getTransactionId())
                                                      .setBasePartition(ts.getBasePartition())
                                                      .setInvocation(invocation)

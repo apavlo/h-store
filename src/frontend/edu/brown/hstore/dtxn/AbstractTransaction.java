@@ -129,6 +129,8 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     // PER PARTITION EXECUTION FLAGS
     // ----------------------------------------------------------------------------
     
+    // TODO(pavlo): Document what these arrays are and how the offsets are calculated
+    
     private final boolean finished[];
     protected final long last_undo_token[];
     protected final RoundState round_state[];
@@ -142,6 +144,12 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
     
     /** This is set to true if the transaction did some work without an undo buffer **/
     private final boolean exec_noUndoBuffer[];
+    
+    // TODO(cjl6): Internal cache about what queries still need to be pre-fetched at each partition
+    //             and the results of finished pre-fetched queries.
+    //             Need a way easily identify the same queries+parameters per partition.
+    // TODO(cjl6): Boolean flag as to whether the transaction has queries it wants to pre-fetch
+    //             at each partition
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -227,9 +235,11 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
             this.exec_noUndoBuffer[i] = false;
         } // FOR
 
-        if (d)
-            LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
-                                    this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
+        // TODO(cjl6): If this transaction handle was keeping track of pre-fetched queries,
+        //             then go ahead and reset those state variables.
+        
+        if (d) LOG.debug(String.format("Finished txn #%d and cleaned up internal state [hashCode=%d, finished=%s]",
+                                       this.txn_id, this.hashCode(), Arrays.toString(this.finished)));
         this.txn_id = null;
     }
     

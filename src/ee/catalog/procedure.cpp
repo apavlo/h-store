@@ -47,6 +47,7 @@ Procedure::Procedure(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["everysite"] = value;
     m_fields["systemproc"] = value;
     m_fields["mapreduce"] = value;
+    m_fields["prefetch"] = value;
     m_fields["mapInputQuery"] = value;
     m_fields["mapEmitTable"] = value;
     m_fields["reduceInputQuery"] = value;
@@ -68,6 +69,7 @@ void Procedure::update() {
     m_everysite = m_fields["everysite"].intValue;
     m_systemproc = m_fields["systemproc"].intValue;
     m_mapreduce = m_fields["mapreduce"].intValue;
+    m_prefetch = m_fields["prefetch"].intValue;
     m_mapInputQuery = m_fields["mapInputQuery"].strValue.c_str();
     m_mapEmitTable = m_fields["mapEmitTable"].strValue.c_str();
     m_reduceInputQuery = m_fields["reduceInputQuery"].strValue.c_str();
@@ -174,6 +176,10 @@ bool Procedure::systemproc() const {
 
 bool Procedure::mapreduce() const {
     return m_mapreduce;
+}
+
+bool Procedure::prefetch() const {
+    return m_prefetch;
 }
 
 const string & Procedure::mapInputQuery() const {
