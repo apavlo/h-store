@@ -4,6 +4,7 @@ import java.util.Collection;
 
 import org.apache.log4j.Logger;
 import org.voltdb.StoredProcedureInvocation;
+import org.voltdb.VoltProcedure;
 import org.voltdb.messaging.FastDeserializer;
 
 import edu.brown.protorpc.ProtoRpcController;
@@ -20,6 +21,7 @@ import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.hstore.util.MapReduceHelperThread;
 
 public class TransactionReduceHandler extends AbstractTransactionHandler<TransactionReduceRequest, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceHandler.class);
@@ -65,19 +67,15 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
                       request.getClass().getSimpleName(), txn_id));
         
         // Deserialize the StoredProcedureInvocation object
-        StoredProcedureInvocation invocation = null;
-        try {
-            invocation = FastDeserializer.deserialize(request.getInvocation().toByteArray(), StoredProcedureInvocation.class);
-        } catch (Exception ex) {
-            throw new RuntimeException("Unexpected error when deserializing StoredProcedureInvocation", ex);
-        }
+//        StoredProcedureInvocation invocation = null;
+//        try {
+//            invocation = FastDeserializer.deserialize(request.getInvocation().toByteArray(), StoredProcedureInvocation.class);
+//        } catch (Exception ex) {
+//            throw new RuntimeException("Unexpected error when deserializing StoredProcedureInvocation", ex);
+//        }
         
         MapReduceTransaction mr_ts = hstore_site.getTransaction(txn_id);
         
-//        if (mr_ts == null) {
-//            assert(false) : "Unexpected!";
-//            mr_ts = hstore_site.createMapReduceTransaction(txn_id, invocation, request.getBasePartition());
-//        }
         assert(mr_ts != null);
         if(debug.get()) 
             LOG.debug("__FILE__:__LINE__ " + String.format("TXN: %s, [Stage] ",mr_ts)); 
@@ -94,12 +92,26 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
          * Here we would like to start MapReduce Transaction on the remote partition except the base partition of it.
          * This is to avoid the double invoke for remote task. 
          * */
-        for (int partition : hstore_site.getLocalPartitionIds()) {
-            if (partition != mr_ts.getBasePartition()) { 
-                LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-                hstore_site.transactionStart(ts, partition);
-            }
-        } // FOR
+        if(hstore_site.getHStoreConf().site.mapreduce_reduce_blocking) {
+            for (int partition : hstore_site.getLocalPartitionIds()) {
+                if (partition != mr_ts.getBasePartition()) { 
+                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+                    hstore_site.transactionStart(ts, partition);
+                }
+            } // FOR
+        } else {
+            VoltProcedure volt_proc = hstore_site.getMapReduceHelper().getExecutor().getVoltProcedure(mr_ts.getInvocation().getProcName());
+            int tmpId = volt_proc.getPartitionId();
+            for (int partition : hstore_site.getLocalPartitionIds())  {
+                if (partition != mr_ts.getBasePartition()) { 
+                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+                    volt_proc.setPartitionId(partition);
+                    volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
+                }
+            } // FOR
+            volt_proc.setPartitionId(tmpId);
+        }
+        
     }
 
     @Override

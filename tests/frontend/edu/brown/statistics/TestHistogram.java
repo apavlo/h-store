@@ -96,7 +96,7 @@ public class TestHistogram extends BaseTestCase {
         for (int i = 0; i < 1000; i++) {
             h.put((long)99999);
         } // FOR
-        Set<Long> min_values = h.getMinCountValues();
+        Collection<Long> min_values = h.getMinCountValues();
         assertNotNull(min_values);
         assertEquals(1, min_values.size());
         
@@ -124,7 +124,7 @@ public class TestHistogram extends BaseTestCase {
         for (int i = 0; i < count; i++) {
             h.put(expected);
         } // FOR
-        Set<Long> max_values = h.getMaxCountValues();
+        Collection<Long> max_values = h.getMaxCountValues();
         assertNotNull(max_values);
         assertEquals(1, max_values.size());
         
@@ -321,7 +321,7 @@ public class TestHistogram extends BaseTestCase {
                     assertNotNull(value);
                     assertEquals(h.get(value), copy.get(value));
                 } // FOR
-            } else {
+            } else if (orig_value != null) {
                 assertEquals(orig_value.toString(), copy_value.toString());
             }
         } // FOR

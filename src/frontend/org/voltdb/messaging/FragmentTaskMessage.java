@@ -73,7 +73,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
     /** PAVLO **/
     public FragmentTaskMessage(int srcPartition,
             int destPartition,
-            long txnId,
+            Long txnId,
             long clientHandle,
             boolean isReadOnly,
             long[] fragmentIds,
@@ -104,7 +104,7 @@ public class FragmentTaskMessage extends TransactionInfoBaseMessage
      */
     public FragmentTaskMessage(int srcPartition,
                         int destPartition,
-                        long txnId,
+                        Long txnId,
                         long clientHandle,
                         boolean isReadOnly,
                         long[] fragmentIds,

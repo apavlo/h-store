@@ -30,7 +30,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
 
     int m_srcPartition;
     int m_destPartition;
-    long m_txnId;
+    Long m_txnId;
     long m_clientHandle;
     boolean m_isReadOnly;
 
@@ -41,7 +41,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
 
     TransactionInfoBaseMessage(int srcPartition,
                                       int destPartition,
-                                      long txnId,
+                                      Long txnId,
                                       long clientHandle,
                                       boolean isReadOnly) {
         m_srcPartition = srcPartition;
@@ -52,7 +52,7 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         m_subject = Subject.DEFAULT.getId();
     }
     
-    public void setTransactionId(long m_txnId) {
+    public void setTransactionId(Long m_txnId) {
         this.m_txnId = m_txnId;
     }
     public void setClientHandle(long m_clientHandle) {
@@ -77,10 +77,10 @@ public abstract class TransactionInfoBaseMessage extends VoltMessage {
         return m_srcPartition;
     }
 
-    public long getTxnId() {
+    public Long getTxnId() {
         return m_txnId;
     }
-    public void setTxnId(long txnId) {
+    public void setTxnId(Long txnId) {
         m_txnId = txnId;
     }
     

@@ -19,7 +19,6 @@ package org.voltdb.jni;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.apache.log4j.Logger;
@@ -37,8 +36,6 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.messaging.FastSerializer.BufferGrowCallback;
 import org.voltdb.utils.DBBPool.BBContainer;
-
-import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
@@ -66,10 +63,6 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     private static boolean d = debug.get();
 
 
-    private final ArrayList<VoltTable> temp_tables = new ArrayList<VoltTable>();
-    private final ArrayList<Integer> temp_depids = new ArrayList<Integer>(); 
-
-    
     /** The HStoreEngine pointer. */
     private long pointer;
 
@@ -402,8 +395,13 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             
             // At this point we don't know how many dependencies we expect to get back from our fragments (although
             // we clearly should be able to know). So we'll just chuck everything into an ArrayList first.
-            this.temp_depids.clear();
-            this.temp_tables.clear();
+            int total_deps = 0;
+            for (int i = 0; i < numFragmentIds; ++i) {
+                total_deps += fullBacking.getInt(fullBacking.position());
+            } // FOR
+            
+            VoltTable results[] = new VoltTable[total_deps];
+            int dependencies[] = new int[total_deps];
             int dep_ctr = 0;
             for (int i = 0; i < numFragmentIds; ++i) {
                 int numDependencies = fullBacking.getInt(); // number of dependencies for this frag
@@ -415,7 +413,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 for (int ii = 0; ii < numDependencies; ++ii) {
                     assert(dep_ctr < output_depIds.length) : "Trying to get depId #" + dep_ctr + ": " + Arrays.toString(output_depIds);
                     fullBacking.getInt(); // IGNORE 
-                    int depid = output_depIds[dep_ctr++];
+                    int depid = output_depIds[dep_ctr];
                     assert(depid >= 0);
                     
                     int tableSize = fullBacking.getInt();
@@ -424,18 +422,10 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                     fullBacking.position(fullBacking.position() + tableSize);
                     tableBacking.limit(tableSize);
                     
-                    VoltTable result = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
-                    temp_depids.add(depid);
-                    temp_tables.add(result);
+                    results[dep_ctr] = PrivateVoltTableFactory.createVoltTableFromBuffer(tableBacking, true);
+                    dependencies[dep_ctr] = depid;
+                    dep_ctr++;
                 } // FOR
-            } // FOR
-            
-            VoltTable results[] = new VoltTable[temp_tables.size()];
-            temp_tables.toArray(results);
-            
-            int dependencies[] = new int[temp_depids.size()];
-            for (int i = 0; i < dependencies.length; i++) {
-                dependencies[i] = temp_depids.get(i);
             } // FOR
             
             return (new DependencySet(dependencies, results));

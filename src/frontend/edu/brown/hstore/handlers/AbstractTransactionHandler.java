@@ -66,7 +66,7 @@ public abstract class AbstractTransactionHandler<T extends GeneratedMessage, U e
         boolean site_sent[] = new boolean[this.num_sites];
         int ctr = 0;
         for (Integer p : partitions) {
-            int dest_site_id = hstore_site.getSiteIdForPartitionId(p).intValue();
+            int dest_site_id = hstore_site.getSiteIdForPartitionId(p);
 
             // Skip this HStoreSite if we're already sent it a message 
             if (site_sent[dest_site_id]) continue;

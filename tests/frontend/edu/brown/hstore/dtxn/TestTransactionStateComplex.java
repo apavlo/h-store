@@ -114,7 +114,7 @@ public class TestTransactionStateComplex extends BaseTestCase {
             BatchPlanner batchPlan = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = batchPlan.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            plan.getWorkFragments(ftasks);
+            plan.getWorkFragments(TXN_ID, ftasks);
             assertFalse(ftasks.isEmpty());
         }
         assertNotNull(executor);

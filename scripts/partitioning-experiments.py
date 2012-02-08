@@ -100,7 +100,7 @@ OPT_BASE_TXNRATE_PER_PARTITION = 100000
 OPT_BASE_TXNRATE = 10000
 OPT_BASE_CLIENT_COUNT = 1
 OPT_BASE_CLIENT_PROCESSESPERCLIENT = 500
-OPT_BASE_SCALE_FACTOR = 0.5
+OPT_BASE_SCALE_FACTOR = float(0.1)
 OPT_BASE_PARTITIONS_PER_SITE = 7
 
 DEBUG_OPTIONS = [
@@ -109,7 +109,7 @@ DEBUG_OPTIONS = [
     #"site.pool_profiling",
     #"site.planner_profiling",
     "site.status_show_txn_info",
-    "site.status_show_exec_info",
+    "site.status_show_executor_info",
     #"client.output_basepartitions",
 ]
 
@@ -139,6 +139,7 @@ BASE_SETTINGS = {
     "client.blocking_loader":           False,
     "client.output_basepartitions":     False,
     
+    "site.log_backup":                                  False,
     "site.exec_profiling":                              False,
     "site.txn_profiling":                               False,
     "site.pool_profiling":                              False,
@@ -160,9 +161,9 @@ BASE_SETTINGS = {
     "site.sites_per_host":                              1,
     "site.partitions_per_site":                         OPT_BASE_PARTITIONS_PER_SITE,
     "site.memory":                                      6002,
-    "site.queue_incoming_max_per_partition":            500,
+    "site.queue_incoming_max_per_partition":            150,
     "site.queue_incoming_release_factor":               0.90,
-    "site.queue_incoming_increase":                     0,
+    "site.queue_incoming_increase":                     10,
     "site.queue_incoming_throttle":                     False,
     "site.queue_dtxn_max_per_partition":                1000,
     "site.queue_dtxn_release_factor":                   0.90,
@@ -185,6 +186,7 @@ EXPERIMENT_SETTINGS = {
             "benchmark.neworder_skew_warehouse": False,
             "benchmark.neworder_multip":         True,
             "benchmark.warehouse_debug":         False,
+            "benchmark.noop":                    False,
             "site.exec_neworder_cheat":          True,
         },
         ## Settings #1 - Vary the amount of skew of warehouse ids
@@ -306,8 +308,8 @@ def updateEnv(env, benchmark, exp_type, exp_setting, exp_factor):
 
     ## CUSTOM BENCHMARK TYPE
     if benchmark.startswith("tpcc"):
-        env["benchmark.one_warehouse_per_partition"] = True
-        env["benchmark.one_loadthread_per_warehouse"] = True
+        env["benchmark.warehouse_per_partition"] = True
+        env["benchmark.loadthread_per_warehouse"] = True
         if benchmark.endswith("-skewed"):
             env["benchmark.temporal_skew"] = True
             env["benchmark.temporal_skew_rotate"] = False
@@ -514,7 +516,7 @@ if __name__ == '__main__':
                 
             # Increase the client.scalefactor based on the number of partitions
             if OPT_MULTIPLY_SCALEFACTOR:
-                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor * partitions)
+                BASE_SETTINGS['client.scalefactor'] = int(origScaleFactor * partitions/2)
                 
             if OPT_EXP_TYPE == "motivation":
                 # We have to go by 18 because that will get us the right mix percentage at runtime for some reason...

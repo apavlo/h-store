@@ -17,11 +17,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
+import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.Pair;
 
@@ -145,7 +147,7 @@ public class HStoreCoordinator implements Shutdownable {
                     HStoreCoordinator.this.shutdownCluster(error);
                 }
             }
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
+            if (trace.get()) LOG.trace("Messenger Thread for Site #" + catalog_site.getId() + " has stopped!");
         }
     }
     
@@ -188,7 +190,15 @@ public class HStoreCoordinator implements Shutdownable {
     private class TransactionRedirectDispatcher extends Dispatcher<Pair<byte[], TransactionRedirectResponseCallback>> {
         @Override
         public void runImpl(Pair<byte[], TransactionRedirectResponseCallback> p) {
-            HStoreCoordinator.this.hstore_site.procedureInvocation(p.getFirst(), p.getSecond());
+            FastDeserializer fds = new FastDeserializer(p.getFirst());
+            StoredProcedureInvocation invocation = null;
+            try {
+                invocation = fds.readObject(StoredProcedureInvocation.class);
+            } catch (Exception ex) {
+                LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                throw new RuntimeException(ex);
+            }
+            HStoreCoordinator.this.hstore_site.procedureInvocation(invocation, p.getFirst(), p.getSecond());
         }
     }
     
@@ -229,7 +239,7 @@ public class HStoreCoordinator implements Shutdownable {
         this.catalog_site = hstore_site.getSite();
         this.local_site_id = this.catalog_site.getId();
         this.local_partitions = hstore_site.getLocalPartitionIds();
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Local Partitions for Site #" + hstore_site.getSiteId() + ": " + this.local_partitions);
+        if (debug.get()) LOG.debug("Local Partitions for Site #" + hstore_site.getSiteId() + ": " + this.local_partitions);
 
         // Incoming RPC Handler
         this.remoteService = this.initHStoreService();
@@ -269,29 +279,29 @@ public class HStoreCoordinator implements Shutdownable {
         
         this.state = ShutdownState.STARTED;
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Initializing connections");
+        if (debug.get()) LOG.debug("Initializing connections");
         this.initConnections();
 
         if (this.transactionInit_dispatcher != null) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Starting InitTransaction dispatcher thread");
+            if (debug.get()) LOG.debug("Starting InitTransaction dispatcher thread");
             Thread t = new Thread(transactionInit_dispatcher, HStoreSite.getThreadName(this.hstore_site, "init"));
             t.setDaemon(true);
             t.start();
         }
         if (this.transactionFinish_dispatcher != null) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Starting FinishTransaction dispatcher thread");
+            if (debug.get()) LOG.debug("Starting FinishTransaction dispatcher thread");
             Thread t = new Thread(transactionFinish_dispatcher, HStoreSite.getThreadName(this.hstore_site, "finish"));
             t.setDaemon(true);
             t.start();
         }
         if (this.transactionRedirect_dispatcher != null) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Starting ForwardTxn dispatcher thread");
+            if (debug.get()) LOG.debug("Starting ForwardTxn dispatcher thread");
             Thread t = new Thread(transactionRedirect_dispatcher, HStoreSite.getThreadName(this.hstore_site, "frwd"));
             t.setDaemon(true);
             t.start();
         }
         
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Starting listener thread");
+        if (debug.get()) LOG.debug("Starting listener thread");
         this.listener_thread.start();
         
         if (this.hstore_conf.site.coordinator_sync_time) {
@@ -330,20 +340,20 @@ public class HStoreCoordinator implements Shutdownable {
         this.state = ShutdownState.SHUTDOWN;
         
         try {
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Stopping eventLoop for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Stopping eventLoop for Site #" + this.getLocalSiteId());
             this.eventLoop.exitLoop();
 
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Stopping listener thread for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Stopping listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.interrupt();
             
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Joining on listener thread for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Joining on listener thread for Site #" + this.getLocalSiteId());
             this.listener_thread.join();
         } catch (InterruptedException ex) {
             // IGNORE
         } catch (Throwable ex) {
             LOG.error("Unexpected error when trying to stop messenger for Site #" + this.getLocalSiteId(), ex);
         } finally {
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Closing listener socket for Site #" + this.getLocalSiteId());
+            if (trace.get()) LOG.trace("Closing listener socket for Site #" + this.getLocalSiteId());
             this.listener.close();
         }
     }
@@ -417,12 +427,12 @@ public class HStoreCoordinator implements Shutdownable {
      *  
      */
     private void initConnections() {
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Configuring outbound network connections for Site #" + this.catalog_site.getId());
+        if (debug.get()) LOG.debug("Configuring outbound network connections for Site #" + this.catalog_site.getId());
         
         // Initialize inbound channel
         Integer local_port = this.catalog_site.getMessenger_port();
         assert(local_port != null);
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
+        if (debug.get()) LOG.debug("Binding listener to port " + local_port + " for Site #" + this.catalog_site.getId());
         this.listener.register(this.remoteService);
         this.listener.bind(local_port);
 
@@ -431,10 +441,10 @@ public class HStoreCoordinator implements Shutdownable {
         List<Pair<Integer, InetSocketAddress>> destinations = HStoreCoordinator.getRemoteCoordinators(this.catalog_site);
         
         if (destinations.isEmpty()) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "There are no remote sites so we are skipping creating connections");
+            if (debug.get()) LOG.debug("There are no remote sites so we are skipping creating connections");
         }
         else {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Connecting to " + destinations.size() + " remote site messengers");
+            if (debug.get()) LOG.debug("Connecting to " + destinations.size() + " remote site messengers");
             ProtoRpcChannel[] channels = null;
             InetSocketAddress arr[] = new InetSocketAddress[destinations.size()];
             for (int i = 0; i < arr.length; i++) {
@@ -460,7 +470,7 @@ public class HStoreCoordinator implements Shutdownable {
                 this.channels.put(p.getFirst(), HStoreService.newStub(channels[i]));
             } // FOR
             
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Site #" + this.getLocalSiteId() + " is fully connected to all sites");
+            if (debug.get()) LOG.debug("Site #" + this.getLocalSiteId() + " is fully connected to all sites");
         }
     }
     
@@ -539,7 +549,7 @@ public class HStoreCoordinator implements Shutdownable {
             // HStoreSite wants to send to the client and forward 
             // it back to whomever told us about this txn
             if (debug.get()) 
-                LOG.debug("__FILE__:__LINE__ " + String.format("Recieved redirected transaction request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
+                LOG.debug(String.format("Recieved redirected transaction request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
             byte serializedRequest[] = request.getWork().toByteArray(); // XXX Copy!
             TransactionRedirectResponseCallback callback = null;
             try {
@@ -552,7 +562,15 @@ public class HStoreCoordinator implements Shutdownable {
             if (transactionRedirect_dispatcher != null) {
                 transactionRedirect_dispatcher.queue.add(Pair.of(serializedRequest, callback));
             } else {
-                hstore_site.procedureInvocation(serializedRequest, callback);
+                FastDeserializer fds = new FastDeserializer(serializedRequest);
+                StoredProcedureInvocation invocation = null;
+                try {
+                    invocation = fds.readObject(StoredProcedureInvocation.class);
+                } catch (Exception ex) {
+                    LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
+                    throw new RuntimeException(ex);
+                }
+                hstore_site.procedureInvocation(invocation, serializedRequest, callback);
             }
         }
         
@@ -569,7 +587,7 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request,
                 RpcCallback<ShutdownResponse> done) {
-            LOG.info("__FILE__:__LINE__ " + String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
+            LOG.info(String.format("Got shutdown request from HStoreSite %s", HStoreSite.formatSiteName(request.getSenderId())));
             
             HStoreCoordinator.this.prepareShutdown(false);
             
@@ -582,9 +600,9 @@ public class HStoreCoordinator implements Shutdownable {
                                                    .build();
             // Send this now!
             done.run(response);
-            LOG.info("__FILE__:__LINE__ " + String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
+            LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
             if (debug.get())
-                LOG.debug("__FILE__:__LINE__ " + String.format("ForwardDispatcher Queue Idle Time: %.2fms",
+                LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
                                        transactionRedirect_dispatcher.idleTime.getTotalThinkTimeMS()));
             ThreadUtil.sleep(1000); // HACK
             LogManager.shutdown();
@@ -595,7 +613,7 @@ public class HStoreCoordinator implements Shutdownable {
         @Override
         public void timeSync(RpcController controller, TimeSyncRequest request, RpcCallback<TimeSyncResponse> done) {
             if (debug.get()) 
-                LOG.debug("__FILE__:__LINE__ " + String.format("Recieved %s from HStoreSite %s",
+                LOG.debug(String.format("Recieved %s from HStoreSite %s",
                                                  request.getClass().getSimpleName(),
                                                  HStoreSite.formatSiteName(request.getSenderId())));
             
@@ -662,7 +680,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionPrepare(LocalTransaction ts, TransactionPrepareCallback callback, Collection<Integer> partitions) {
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
+            LOG.debug(String.format("Notifying partitions %s that %s is preparing to commit", partitions, ts));
         
         Hstore.TransactionPrepareRequest request = Hstore.TransactionPrepareRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
@@ -683,7 +701,7 @@ public class HStoreCoordinator implements Shutdownable {
     public void transactionFinish(LocalTransaction ts, Hstore.Status status, TransactionFinishCallback callback) {
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
+            LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
         
         Hstore.TransactionFinishRequest request = Hstore.TransactionFinishRequest.newBuilder()
                                                         .setTransactionId(ts.getTransactionId())
@@ -698,7 +716,7 @@ public class HStoreCoordinator implements Shutdownable {
 //        for (Integer p : partitions) {
 //            if (this.local_partitions.contains(p)) {
 //                if (trace.get())
-//                    LOG.trace("__FILE__:__LINE__ " + String.format("Notifying %s that %s is finished at partition %d",
+//                    LOG.trace(String.format("Notifying %s that %s is finished at partition %d",
 //                                            callback.getClass().getSimpleName(), ts, p));
 //                callback.decrementCounter(1);
 //            }
@@ -713,7 +731,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void transactionRedirect(byte[] serializedRequest, RpcCallback<Hstore.TransactionRedirectResponse> callback, int partition) {
         int dest_site_id = hstore_site.getSiteIdForPartitionId(partition);
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Redirecting transaction request to partition #" + partition + " on " + HStoreSite.formatSiteName(dest_site_id));
+        if (debug.get()) LOG.debug("Redirecting transaction request to partition #" + partition + " on " + HStoreSite.formatSiteName(dest_site_id));
         ByteString bs = ByteString.copyFrom(serializedRequest);
         Hstore.TransactionRedirectRequest mr = Hstore.TransactionRedirectRequest.newBuilder()
                                         .setSenderId(this.local_site_id)
@@ -747,7 +765,7 @@ public class HStoreCoordinator implements Shutdownable {
     	
     	Collection<Integer> partitions = ts.getPredictTouchedPartitions();
     	if (debug.get())
-             LOG.debug("__FILE__:__LINE__ " + String.format("Notifying partitions %s that %s is in Map Phase", partitions, ts));
+             LOG.debug(String.format("Notifying partitions %s that %s is in Map Phase", partitions, ts));
     	//assert(ts.mapreduce == true) : "MapReduce Transaction flag is not set, " + hstore_site.getSiteName();
     	
     	LOG.info("<HStoreCoordinator.TransactionMap> is executing to sendMessages to all partitions\n");
@@ -775,7 +793,7 @@ public class HStoreCoordinator implements Shutdownable {
         
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
-             LOG.debug("__FILE__:__LINE__ " + String.format("Notifying partitions %s that %s is in Reduce Phase", partitions, ts));
+             LOG.debug(String.format("Notifying partitions %s that %s is in Reduce Phase", partitions, ts));
                
         LOG.info("<HStoreCoordinator.TransactionReduce> is executing to sendMessages to all partitions\n");
         this.transactionReduce_handler.sendMessages(ts, request, callback, partitions);
@@ -829,7 +847,7 @@ public class HStoreCoordinator implements Shutdownable {
 
             // Loop through and get all the data for this site
             if (debug.get())
-                LOG.debug("__FILE__:__LINE__ " + String.format("CatalogUtil.getAllSites : " + CatalogUtil.getAllSites(this.catalog_site).size() +
+                LOG.debug(String.format("CatalogUtil.getAllSites : " + CatalogUtil.getAllSites(this.catalog_site).size() +
                 		"     Remote_site partitions: " + remote_site.getPartitions().size()));
             for (Partition catalog_part : remote_site.getPartitions()) {
                 VoltTable vt = data.get(catalog_part.getId());
@@ -859,7 +877,7 @@ public class HStoreCoordinator implements Shutdownable {
             
             if (builder.getFragmentsCount() > 0) {
                 if (debug.get())
-                    LOG.debug("__FILE__:__LINE__ " + String.format("Sending data to %d partitions at %s for %s",
+                    LOG.debug(String.format("Sending data to %d partitions at %s for %s",
                                                      builder.getFragmentsCount(), remote_site, ts));
                 this.channels.get(dest_site_id).sendData(new ProtoRpcController(), builder.build(), callback);
             }
@@ -871,12 +889,12 @@ public class HStoreCoordinator implements Shutdownable {
                 LOG.warn("No data in " + ts + " for partition " + partition);
                 continue;
             }
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Storing VoltTable directly at local partition %d for %s", partition, ts));
+            if (debug.get()) LOG.debug(String.format("Storing VoltTable directly at local partition %d for %s", partition, ts));
             ts.storeData(partition, vt);
         } // FOR
         
         if (fake_responses != null) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Sending fake responses for %s for partitions %s", ts, fake_responses));
+            if (debug.get()) LOG.debug(String.format("Sending fake responses for %s for partitions %s", ts, fake_responses));
             for (int dest_site_id : fake_responses) {
                 Hstore.SendDataResponse.Builder builder = Hstore.SendDataResponse.newBuilder()
                                                                                  .setTransactionId(txn_id)
@@ -920,22 +938,22 @@ public class HStoreCoordinator implements Shutdownable {
                                             .setT0S(System.currentTimeMillis())
                                             .build();
             e.getValue().timeSync(new ProtoRpcController(), request, callback);
-            if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent TIMESYNC to " + HStoreSite.formatSiteName(e.getKey()));
+            if (trace.get()) LOG.trace("Sent TIMESYNC to " + HStoreSite.formatSiteName(e.getKey()));
         } // FOR
         
-        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent out all TIMESYNC requests!");
+        if (trace.get()) LOG.trace("Sent out all TIMESYNC requests!");
         try {
             latch.await();
         } catch (InterruptedException ex) {
             // nothing
         }
-        if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Received all TIMESYNC responses!");
+        if (trace.get()) LOG.trace("Received all TIMESYNC responses!");
         
         // Then do the time calculation
         long max_dt = 0L;
         int culprit = this.local_site_id;
         for (Entry<Integer, Integer> e : time_deltas.entrySet()) {
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
+            if (debug.get()) LOG.debug(String.format("Time delta to HStoreSite %d is %d ms", e.getKey(), e.getValue()));
             if (e.getValue() > max_dt) {
                 max_dt = e.getValue();
                 culprit = e.getKey();
@@ -943,8 +961,8 @@ public class HStoreCoordinator implements Shutdownable {
         }
         this.getHStoreSite().getTransactionIdManager().setTimeDelta(max_dt);
         if (debug.get()) {
-            LOG.debug("__FILE__:__LINE__ " + "Setting time delta to " + max_dt + "ms");
-            LOG.debug("__FILE__:__LINE__ " + "I think the killer is site " + culprit + "!");
+            LOG.debug("Setting time delta to " + max_dt + "ms");
+            LOG.debug("I think the killer is site " + culprit + "!");
         }
     }
     
@@ -959,7 +977,7 @@ public class HStoreCoordinator implements Shutdownable {
      */
     public void shutdownCluster(final Throwable ex, final boolean blocking) {
         if (debug.get())
-            LOG.debug("__FILE__:__LINE__ " + String.format("Invoking shutdown protocol [blocking=%s, ex=%s]", blocking, ex));
+            LOG.debug(String.format("Invoking shutdown protocol [blocking=%s, ex=%s]", blocking, ex));
         if (blocking) {
             this.shutdownCluster(null);
         } else {
@@ -993,7 +1011,7 @@ public class HStoreCoordinator implements Shutdownable {
         final int num_sites = this.channels.size();
         if (this.state == ShutdownState.SHUTDOWN) return;
         this.hstore_site.prepareShutdown(ex != null);
-        LOG.info("__FILE__:__LINE__ " + "Shutting down cluster", ex);
+        LOG.info("Shutting down cluster", ex);
 
         final int exit_status = (ex == null ? 0 : 1);
         final CountDownLatch latch = new CountDownLatch(num_sites);
@@ -1007,36 +1025,36 @@ public class HStoreCoordinator implements Shutdownable {
                     int siteid = parameter.getSenderId();
                     assert(this.siteids.contains(siteid) == false) : "Duplicate response from " + hstore_site.getSiteName();
                     this.siteids.add(siteid);
-                    if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
+                    if (trace.get()) LOG.trace("Received " + this.siteids.size() + "/" + num_sites + " shutdown acknowledgements");
                     latch.countDown();
                 }
             };
             
-            if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Sending shutdown request to " + num_sites + " remote sites");
+            if (debug.get()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
             for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
                 Hstore.ShutdownRequest sm = Hstore.ShutdownRequest.newBuilder()
                                                 .setSenderId(catalog_site.getId())
                                                 .setExitStatus(exit_status)
                                                 .build();
                 e.getValue().shutdown(new ProtoRpcController(), sm, callback);
-                if (trace.get()) LOG.trace("__FILE__:__LINE__ " + "Sent SHUTDOWN to " + HStoreSite.formatSiteName(e.getKey()));
+                if (trace.get()) LOG.trace("Sent SHUTDOWN to " + HStoreSite.formatSiteName(e.getKey()));
             } // FOR
         }
         
         // Tell ourselves to shutdown while we wait
-        if (debug.get()) LOG.debug("__FILE__:__LINE__ " + "Telling local site to shutdown");
+        if (debug.get()) LOG.debug("Telling local site to shutdown");
         this.hstore_site.shutdown();
         
         // Block until the latch releases us
         if (num_sites > 0) {
-            LOG.info("__FILE__:__LINE__ " + String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
+            LOG.info(String.format("Waiting for %d sites to finish shutting down", latch.getCount()));
             try {
                 latch.await(5, TimeUnit.SECONDS);
             } catch (Exception ex2) {
                 // IGNORE!
             }
         }
-        LOG.info("__FILE__:__LINE__ " + String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
+        LOG.info(String.format("Shutting down [site=%d, status=%d]", catalog_site.getId(), exit_status));
         LogManager.shutdown();
         System.exit(exit_status);
     }
