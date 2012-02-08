@@ -85,6 +85,10 @@ public class BlockingClient extends Semaphore implements Client {
         if (LOG.isDebugEnabled()) LOG.debug("Created new BlockingClient [max_concurrent=" + max_concurrent + "]");
     }
 
+    public Client getClient() {
+        return (this.inner);
+    }
+    
     /* (non-Javadoc)
      * @see org.voltdb.client.Client#addClientStatusListener(org.voltdb.client.ClientStatusListener)
      */

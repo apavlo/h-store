@@ -551,7 +551,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                 this.work_queue,
                 hstore_conf.site.queue_incoming_max_per_partition,
                 hstore_conf.site.queue_incoming_release_factor,
-                hstore_conf.site.queue_incoming_increase
+                hstore_conf.site.queue_incoming_increase,
+                hstore_conf.site.queue_incoming_increase_max
         );
         
         this.catalog = catalog;
@@ -1418,7 +1419,6 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             
         ClientResponseImpl cresponse = null;
         try {
-            //cresponse = (ClientResponseImpl)volt_proc.call(ts, ts.getBasePartition(), false,itask.getParameters()); // Blocking...
             cresponse = (ClientResponseImpl)volt_proc.call(ts,itask.getParameters()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news
@@ -1450,28 +1450,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // We assume that most transactions are not speculatively executed and are successful
         // Therefore we don't want to grab the exec_mode lock here.
         if (predict_singlePartition == false || this.canProcessClientResponseNow(ts, status, before_mode)) {
-            if (hstore_conf.site.exec_postprocessing_thread) {
-                if (t) LOG.trace(String.format("%s - Passing ClientResponse to post-processing thread [status=%s]",
-                                               ts, cresponse.getStatus()));
-                hstore_site.queueClientResponse(this, ts, cresponse);
-            } else {
-                if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
-                                               ts, cresponse.getStatus()));
-                this.processClientResponse(ts, cresponse);
-            }
+            if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
+                                           ts, cresponse.getStatus()));
+            this.processClientResponse(ts, cresponse);
         } else {
             exec_lock.lock();
             try {
                 if (this.canProcessClientResponseNow(ts, status, before_mode)) {
-                    if (hstore_conf.site.exec_postprocessing_thread) {
-                        if (t) LOG.trace(String.format("%s - Passing ClientResponse to post-processing thread [status=%s]",
-                                                       ts, cresponse.getStatus()));
-                        hstore_site.queueClientResponse(this, ts, cresponse);
-                    } else {
-                        if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
-                                                       ts, cresponse.getStatus()));
-                        this.processClientResponse(ts, cresponse);
-                    }
+                    if (d) LOG.debug(String.format("%s - Sending ClientResponse back directly [status=%s]",
+                                                   ts, cresponse.getStatus()));
+                    this.processClientResponse(ts, cresponse);
                 // Otherwise always queue our response, since we know that whatever thread is out there
                 // is waiting for us to finish before it drains the queued responses
                 } else {
@@ -2572,8 +2560,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             this.finishWork(ts, (status == Hstore.Status.OK));
             
             // Then send the result back to the client!
-            this.hstore_site.sendClientResponse(ts, cresponse);
-            this.hstore_site.completeTransaction(ts.getTransactionId(), status);
+            if (hstore_conf.site.exec_postprocessing_thread) {
+                if (t) LOG.trace(String.format("%s - Sending ClientResponse to post-processing thread [status=%s]",
+                                               ts, cresponse.getStatus()));
+                hstore_site.queueClientResponse(this, ts, cresponse);
+            } else {
+                hstore_site.sendClientResponse(ts, cresponse);
+                hstore_site.completeTransaction(ts.getTransactionId(), status);
+            }
         } 
         // COMMIT: Distributed Transaction
         else if (status == Hstore.Status.OK) {

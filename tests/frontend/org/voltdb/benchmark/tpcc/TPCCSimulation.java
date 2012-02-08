@@ -230,7 +230,7 @@ public class TPCCSimulation {
                 if (config.temporal_skew_rotate) {
                     w_id = (short)((this.tick_counter % parameters.warehouses) + parameters.starting_warehouse);
                 } else {
-                    w_id = (short)config.firstWarehouse;
+                    w_id = (short)config.first_warehouse;
                 }
                 this.temporal_counter++;
             } else {

@@ -28,8 +28,9 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
     private int queue_release;
     private double queue_release_factor;
     private final int queue_increase;
+    private final int queue_increase_max;
     private final ProfileMeasurement throttle_time;
-    private boolean allow_increase = false;
+    private boolean allow_increase;
          
 //    public static class ThrottleException extends RuntimeException {
 //        private static final long serialVersionUID = 1L;
@@ -44,13 +45,15 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
 //        }
 //    }
     
-    public ThrottlingQueue(Queue<E> queue, int queue_max, double queue_release, int queue_increase) {
+    public ThrottlingQueue(Queue<E> queue, int queue_max, double queue_release, int queue_increase, int queue_increase_max) {
         this.queue = queue;
         this.throttled = false;
         this.queue_max = queue_max;
         this.queue_increase = queue_increase;
+        this.queue_increase_max = queue_increase_max;
         this.queue_release_factor = queue_release;
         this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
+        this.allow_increase = (this.queue_increase > 0);
         this.throttle_time = new ProfileMeasurement("throttling");
 //        if (hstore_site.getHStoreConf().site.status_show_executor_info) {
 //            this.throttle_time.resetOnEvent(hstore_site.getStartWorkloadObservable());
@@ -89,7 +92,7 @@ public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> imple
         if (this.throttled == false) {
             if (size > this.queue_max) this.throttled = true;
             else if (increase && size == 0) {
-                this.queue_max += this.queue_increase;
+                this.queue_max = Math.min(this.queue_increase_max, (this.queue_max + this.queue_increase));
                 this.queue_release = Math.max((int)(this.queue_max * this.queue_release_factor), 1);
             }
         }

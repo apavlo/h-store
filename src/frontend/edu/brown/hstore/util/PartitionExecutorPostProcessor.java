@@ -64,27 +64,28 @@ public final class PartitionExecutorPostProcessor implements Runnable, Shutdowna
             LOG.debug("Starting transaction post-processing thread");
         
         HStoreConf hstore_conf = hstore_site.getHStoreConf();
-        Object triplet[] = null;
+        Object pair[] = null;
         while (this.stop == false) {
             try {
                 if (hstore_conf.site.status_show_executor_info) idleTime.start();
-                triplet = this.queue.takeFirst();
+                pair = this.queue.takeFirst();
                 if (hstore_conf.site.status_show_executor_info) idleTime.stop();
-                assert(triplet != null);
-                assert(triplet.length == 3) : "Unexpected response: " + Arrays.toString(triplet);
+                assert(pair != null);
+                assert(pair.length == 2) : "Unexpected response: " + Arrays.toString(pair);
             } catch (InterruptedException ex) {
                 this.stop = true;
                 break;
             }
             if (hstore_conf.site.status_show_executor_info) execTime.start();
-            PartitionExecutor es = (PartitionExecutor)triplet[0];
-            LocalTransaction ts = (LocalTransaction)triplet[1];
-            ClientResponseImpl cr = (ClientResponseImpl)triplet[2];
+            LocalTransaction ts = (LocalTransaction)pair[0];
+            ClientResponseImpl cr = (ClientResponseImpl)pair[1];
             if (debug.get()) LOG.debug(String.format("Processing ClientResponse for %s at partition %d [status=%s]",
-                                           ts, es.getPartitionId(), cr.getStatus()));
+                                                     ts, ts.getBasePartition(), cr.getStatus()));
             try {
-                es.processClientResponse(ts, cr);
+                hstore_site.sendClientResponse(ts, cr);
+                hstore_site.completeTransaction(ts.getTransactionId(), cr.getStatus());
             } catch (Throwable ex) {
+                LOG.error(String.format("Failed to process %s properly\n%s", ts, cr));
                 if (this.isShuttingDown() == false) throw new RuntimeException(ex);
                 break;
             }
