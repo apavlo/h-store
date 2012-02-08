@@ -758,7 +758,7 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
     assert(node);
     assert(tempTableMemoryInBytes);
 
-    VOLT_DEBUG("Initializing AggregatePlanNode:\n%s", node->debug().c_str());
+    VOLT_DEBUG("Initializing AggregatePlanNode: %s", node->debug().c_str());
     
     //
     // Construct the output table

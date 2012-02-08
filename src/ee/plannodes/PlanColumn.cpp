@@ -117,3 +117,14 @@ PlanColumn::getExpression()
     assert(expression != NULL);
     return expression;
 }
+
+string
+PlanColumn::debug() {
+    std::ostringstream buffer;
+    buffer << "PlanColumn(";
+    buffer << "guid=" << m_guid << ", ";
+    buffer << "name=" << m_name << ", ";
+    buffer << "type=" << valueToString(m_type).c_str() << ", ";
+    buffer << "size=" << m_size << ")";
+    return (buffer.str());
+}
