@@ -1,8 +1,34 @@
+/***************************************************************************
+ *   Copyright (C) 2012 by H-Store Project                                 *
+ *   Brown University                                                      *
+ *   Massachusetts Institute of Technology                                 *
+ *   Yale University                                                       *
+ *                                                                         *
+ *   Permission is hereby granted, free of charge, to any person obtaining *
+ *   a copy of this software and associated documentation files (the       *
+ *   "Software"), to deal in the Software without restriction, including   *
+ *   without limitation the rights to use, copy, modify, merge, publish,   *
+ *   distribute, sublicense, and/or sell copies of the Software, and to    *
+ *   permit persons to whom the Software is furnished to do so, subject to *
+ *   the following conditions:                                             *
+ *                                                                         *
+ *   The above copyright notice and this permission notice shall be        *
+ *   included in all copies or substantial portions of the Software.       *
+ *                                                                         *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+ *   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+ *   IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR     *
+ *   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, *
+ *   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR *
+ *   OTHER DEALINGS IN THE SOFTWARE.                                       *
+ ***************************************************************************/
 package edu.brown.rand;
 
 import java.util.Random;
 
 import edu.brown.statistics.Histogram;
+import edu.brown.utils.CollectionUtil;
 
 import junit.framework.TestCase;
 
@@ -60,14 +86,14 @@ public class TestRandomDistribution extends TestCase {
         int round = num_rounds;
         while (round-- > 0) {
             RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(this.rand, min, max);
-            Histogram hist = new Histogram();
+            Histogram<Integer> hist = new Histogram<Integer>();
             for (int i = 0; i < num_records; i++) {
                 int value = gaussian.nextInt();
                 // double value = rand.nextGaussian();
                 hist.put(value);
             } // FOR
             // System.out.println(hist);
-            int max_count_value = (Integer)hist.getMaxCountValue(); 
+            int max_count_value = CollectionUtil.first(hist.getMaxCountValues());
             // System.out.println("expected=" + expected + ", max_count_value=" + max_count_value);
             assertTrue((expected - 1) <= max_count_value);
             assertTrue((expected + 1) >= max_count_value);
@@ -83,14 +109,14 @@ public class TestRandomDistribution extends TestCase {
         int round = num_rounds;
         while (round-- > 0) {
             RandomDistribution.Gaussian gaussian = new RandomDistribution.Gaussian(this.rand, min, max);
-            Histogram hist = new Histogram();
+            Histogram<Long> hist = new Histogram<Long>();
             for (int i = 0; i < num_records; i++) {
                 long value = gaussian.nextLong();
                 // double value = rand.nextGaussian();
                 hist.put(value);
             } // FOR
             // System.out.println(hist);
-            long max_count_value = (Long)hist.getMaxCountValue(); 
+            Long max_count_value = CollectionUtil.first(hist.getMaxCountValues());
             // System.out.println("expected=" + expected + ", max_count_value=" + max_count_value);
             assertTrue((expected - 1) <= max_count_value);
             assertTrue((expected + 1) >= max_count_value);
@@ -106,14 +132,14 @@ public class TestRandomDistribution extends TestCase {
         int round = num_rounds;
         while (round-- > 0) {
             RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, sigma);
-            Histogram hist = new Histogram();
+            Histogram<Integer> hist = new Histogram<Integer>();
             // System.out.println("Round #" + Math.abs(num_rounds - 10) + " [sigma=" + sigma + "]");
             for (int i = 0; i < num_records; i++) {
                 int value = zipf.nextInt();
                 hist.put(value);
             } // FOR
             Long last = null;
-            for (Object value : hist.values()) {
+            for (Integer value : hist.values()) {
                 long current = hist.get(value);
                 if (last != null) {
                     // assertTrue(last >= current);
@@ -130,35 +156,35 @@ public class TestRandomDistribution extends TestCase {
      * testFlatHistogramInt
      */
     public void testFlatHistogramInt() throws Exception {
-        Histogram hist = new Histogram();
+        Histogram<Integer> hist = new Histogram<Integer>();
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, 1.0000001d);
         for (int i = 0; i < num_records; i++) {
             hist.put(zipf.nextInt());
         } // FOR
         
-        RandomDistribution.FlatHistogram flat = new RandomDistribution.FlatHistogram(this.rand, hist);
-        Histogram hist2 = new Histogram();
+        RandomDistribution.FlatHistogram<Integer> flat = new RandomDistribution.FlatHistogram<Integer>(this.rand, hist);
+        Histogram<Integer> hist2 = new Histogram<Integer>();
         for (int i = 0; i < num_records; i++) {
             hist2.put(flat.nextInt());
         } // FOR
-        assertEquals(hist.getMaxCountValue(), hist2.getMaxCountValue());
+        assertEquals(hist.getMaxCountValues(), hist2.getMaxCountValues());
     }
     
     /**
      * testFlatHistogramLong
      */
     public void testFlatHistogramLong() throws Exception {
-        Histogram hist = new Histogram();
+        Histogram<Long> hist = new Histogram<Long>();
         RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(this.rand, min, max, 1.0000001d);
         for (int i = 0; i < num_records; i++) {
             hist.put(zipf.nextLong());
         } // FOR
         
-        RandomDistribution.FlatHistogram flat = new RandomDistribution.FlatHistogram(this.rand, hist);
-        Histogram hist2 = new Histogram();
+        RandomDistribution.FlatHistogram<Long> flat = new RandomDistribution.FlatHistogram<Long>(this.rand, hist);
+        Histogram<Long> hist2 = new Histogram<Long>();
         for (int i = 0; i < num_records; i++) {
             hist2.put(flat.nextLong());
         } // FOR
-        assertEquals(hist.getMaxCountValue(), hist2.getMaxCountValue());
+        assertEquals(hist.getMaxCountValues(), hist2.getMaxCountValues());
     }
 }
