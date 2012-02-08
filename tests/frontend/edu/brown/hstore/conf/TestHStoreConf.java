@@ -22,7 +22,6 @@ public class TestHStoreConf extends BaseTestCase {
         properties.put("site.helper_initial_delay", 19999);              // Long
     }
     
-    private String navigationLink = "\n[previous] [next]";
     private HStoreConf hstore_conf;
     private final String groups[] = { "global", "client", "site" };
     
@@ -41,7 +40,7 @@ public class TestHStoreConf extends BaseTestCase {
             assertNotNull(contents);
             System.err.println(contents);
         } // FOR
-        System.err.println(navigationLink);
+        System.err.println(HStoreConfUtil.navigationLink);
         
         System.err.println(StringUtil.DOUBLE_LINE);
     }
@@ -57,7 +56,7 @@ public class TestHStoreConf extends BaseTestCase {
             System.err.println(contents);
             System.err.println(StringUtil.DOUBLE_LINE);
         }
-        System.err.println(navigationLink);
+        System.err.println(HStoreConfUtil.navigationLink);
     }
     
     /**

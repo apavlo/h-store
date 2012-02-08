@@ -113,16 +113,16 @@ ENV_DEFAULT = {
     "ec2.running_instances":       [ ],
 
     ## Site Options
-    "site.partitions":             16,
+    "site.partitions":             6,
     "site.sites_per_host":         1,
-    "site.partitions_per_site":    4,
+    "site.partitions_per_site":    6,
     
     ## Client Options
     "client.count":                1,
-    "client.processesperclient":   2,
-    "client.txnrate":              -1,
-    "client.scalefactor":          10,
-    "client.blocking":             False,
+    "client.processesperclient":   500,
+    "client.txnrate":              1000,
+    "client.scalefactor":          0.1,
+    "client.blocking":             True,
     
     ## H-Store Options
     "hstore.git":                   "git://github.com/apavlo/h-store.git",
@@ -422,7 +422,7 @@ def setup_env():
     
     # Bash Aliases
     code_dir = os.path.join("$HOME", "hstore", env["hstore.git_branch"])
-    log_dir = env.get("site.log_dir", os.path.join(code_dir, "obj/logs"))
+    log_dir = env.get("site.log_dir", os.path.join(code_dir, "obj/logs/sites"))
     aliases = {
         # H-Store Home
         'hh':  'cd ' + code_dir,
@@ -443,7 +443,7 @@ def setup_env():
         if run("test -d %s" % hstore_dir).failed:
             run("mkdir " + hstore_dir)
     ## WITH
-    sudo("chown -R %s %s" % (env.user, hstore_dir))
+    # sudo("chown -R %s %s" % (env.user, hstore_dir))
     
     return (first_setup)
 ## DEF
@@ -629,15 +629,15 @@ def exec_benchmark(project="tpcc", removals=[ ], json=False, trace=False, update
     assert len(clients) > 0, "There are no %s client instances available" % env["ec2.client_type"]
     LOG.debug("Client Hosts: %s" % clients)
 
-    ## Update H-Store Conf file
-    ## Do this first so that we always revert any changes
-    if updateConf:
-        LOG.info("Updating H-Store configuration files")
-        write_conf(project, removals, revertFirst=True)
     ## Make sure the the checkout is up to date
     if updateRepo: 
         LOG.info("Updating H-Store Git checkout")
         deploy_hstore(build=False, update=True)
+    ## Update H-Store Conf file
+    ## Do this after we update the repository so that we can put in our updates
+    if updateConf:
+        LOG.info("Updating H-Store configuration files")
+        write_conf(project, removals, revertFirst=True)
 
     ## Construct dict of command-line H-Store options
     hstore_options = {

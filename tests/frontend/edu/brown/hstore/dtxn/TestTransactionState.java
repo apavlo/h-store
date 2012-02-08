@@ -112,7 +112,7 @@ public class TestTransactionState extends BaseTestCase {
             BatchPlanner planner = new BatchPlanner(batch, catalog_proc, p_estimator);
             plan = planner.plan(TXN_ID, CLIENT_HANDLE, LOCAL_PARTITION, Collections.singleton(LOCAL_PARTITION), SINGLE_PARTITIONED, this.touched_partitions, args);
             assertNotNull(plan);
-            plan.getWorkFragments(ftasks);
+            plan.getWorkFragments(TXN_ID, ftasks);
 //            System.err.println("FTASKS: " + ftasks);
             assertFalse(ftasks.isEmpty());
         }
@@ -202,7 +202,7 @@ public class TestTransactionState extends BaseTestCase {
         this.ts.initRound(LOCAL_PARTITION, UNDO_TOKEN);
         assertEquals(AbstractTransaction.RoundState.INITIALIZED, this.ts.getCurrentRoundState(LOCAL_PARTITION));
         assertNotNull(this.ts.getLastUndoToken(LOCAL_PARTITION));
-        assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken(LOCAL_PARTITION).longValue());
+        assertEquals(UNDO_TOKEN, this.ts.getLastUndoToken(LOCAL_PARTITION));
         //System.err.println(this.ts);
     }
     

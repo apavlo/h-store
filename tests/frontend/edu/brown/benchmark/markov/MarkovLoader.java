@@ -26,39 +26,45 @@
 package edu.brown.benchmark.markov;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
-import org.voltdb.*;
-import org.voltdb.benchmark.*;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.BenchmarkComponent;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
 import edu.brown.rand.RandomDistribution;
 import edu.brown.rand.WrappingRandomDistribution;
 import edu.brown.statistics.Histogram;
-import edu.brown.utils.StringUtil;
 
 public class MarkovLoader extends BenchmarkComponent {
-    private static final Logger LOG = Logger.getLogger(MarkovLoader.class.getSimpleName());
+    private static final Logger LOG = Logger.getLogger(MarkovLoader.class);
+    private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     // Composite Id
     private static final long COMPOSITE_ID_MASK = 4294967295l; // (2^32)-1
     private static final int COMPOSITE_ID_OFFSET = 32;
     
     // scale all table cardinalities by this factor
-    private int m_scalefactor = 1;
+    private double m_scalefactor = 1;
     
     // used internally
     private final AbstractRandomGenerator m_rng;
     
-    // When set to true, all operations will run single-threaded
-    private boolean debug = true;
-    
     // Histograms
     // TableName -> Histogram for A_ID
-    private final Map<String, Histogram> histograms = new HashMap<String, Histogram>();
+    private final Map<String, Histogram<Long>> histograms = new HashMap<String, Histogram<Long>>();
     
     // Data Generator Classes
     // TableName -> AbstactTableGenerator
@@ -82,26 +88,16 @@ public class MarkovLoader extends BenchmarkComponent {
         String randGenClassName = RandomGenerator.class.getName();
         String randGenProfilePath = null;
         
-        for (String arg : args) {
-            String[] parts = arg.split("=",2);
-            if (parts.length == 1)
-                continue;
-            
-            if (parts[1].startsWith("${"))
-                continue;
-            
-            if (parts[0].equals("scalefactor")) {
-                m_scalefactor = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("randomseed")) {
-                seed = Integer.parseInt(parts[1]);
-            } else if (parts[0].equals("randomgenerator")) {
-                randGenClassName = parts[1];
-            } else if (parts[0].equals("randomprofile")) {
-                randGenProfilePath = parts[1];
-            } else if (parts[0].equals("debug")) {
-                this.debug = Boolean.getBoolean(parts[1]);
-            }
+        double scaleFactor = HStoreConf.singleton().client.scalefactor; 
+        for (String key : m_extraParams.keySet()) {
+            String value = m_extraParams.get(key);
+
+            // Scale Factor
+            if (key.equalsIgnoreCase("CLIENT.SCALEFACTOR")) { // FIXME
+                scaleFactor = Double.parseDouble(value);
+            } 
         } // FOR
+        m_scalefactor = scaleFactor;
         
         AbstractRandomGenerator rng = null;
         try {
@@ -115,7 +111,7 @@ public class MarkovLoader extends BenchmarkComponent {
         
         // Histograms + Table Sizes + Generators
         for (String tableName : MarkovConstants.TABLENAMES) {
-            this.histograms.put(tableName, new Histogram());
+            this.histograms.put(tableName, new Histogram<Long>());
             this.table_sizes.put(tableName, new AtomicLong(0l));
             
             if (tableName.equals(MarkovConstants.TABLENAME_TABLEA)) {
@@ -153,17 +149,15 @@ public class MarkovLoader extends BenchmarkComponent {
         try {
             for (Thread thread : load_threads) {
                 thread.start();
-                if (this.debug) thread.join();
+                thread.join();
             }
-            if (!this.debug) {
-                for (Thread thread : load_threads) thread.join();
-            }
+            for (Thread thread : load_threads) thread.join();
         } catch (InterruptedException e) {
             e.printStackTrace();
             System.exit(-1);
         }
 
-        System.err.println("Finished generating data for all tables");
+        LOG.info("Finished generating data for all tables");
     }
     
     /**
@@ -171,37 +165,31 @@ public class MarkovLoader extends BenchmarkComponent {
      * @param tableName
      */
     protected void generateTableData(String tableName) {
-        System.out.println("Starting data generator for '" + tableName + "'");
+        LOG.info("Starting data generator for '" + tableName + "'");
         final AbstractTableGenerator generator = this.generators.get(tableName);
         assert(generator != null);
         long tableSize = generator.getTableSize();
         long batchSize = generator.getBatchSize();
         VoltTable table = generator.getVoltTable();
         
-        System.out.println("Loading " + tableSize + " tuples for table '" + tableName + "'");
+        LOG.info("Loading " + tableSize + " tuples for table '" + tableName + "'");
         while (generator.hasMore()) {
             generator.addRow();
             if (table.getRowCount() >= batchSize) {
-                System.err.println(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
+                if (debug.get())
+                    LOG.debug(String.format(tableName + ": loading %d rows (id %d of %d)", table.getRowCount(), generator.getCount(), tableSize));
                 loadTable(tableName, table);
                 table.clearRowData();
             }
             this.table_sizes.get(tableName).incrementAndGet();
         } // WHILE
         if (table.getRowCount() > 0) {
-            System.err.println(tableName + ": loading final " + table.getRowCount() + " rows.");
+            if (debug.get())
+                LOG.debug(tableName + ": loading final " + table.getRowCount() + " rows.");
             loadTable(tableName, table);
             table.clearRowData();
         }
-        System.out.println(tableName + ": Inserted " + this.table_sizes.get(tableName) + " tuples");
-    }
-    
-    /**
-     * 
-     * @param debug
-     */
-    protected void setDebug(boolean debug) {
-        this.debug = debug;
+        LOG.info(tableName + ": Inserted " + this.table_sizes.get(tableName) + " tuples");
     }
     
     protected static Long encodeCompositeId(long a_id, long id) {
@@ -228,7 +216,7 @@ public class MarkovLoader extends BenchmarkComponent {
     protected abstract class AbstractTableGenerator {
         protected final String tableName;
         protected final VoltTable table;
-        protected final Histogram hist;
+        protected final Histogram<Long> hist;
         protected Long tableSize;
         protected Long batchSize;
         
@@ -248,7 +236,7 @@ public class MarkovLoader extends BenchmarkComponent {
                 String field_name = "TABLESIZE_" + tableName;
                 Field field_handle = MarkovConstants.class.getField(field_name);
                 assert(field_handle != null);
-                this.tableSize = (Long)field_handle.get(null) / MarkovLoader.this.m_scalefactor;
+                this.tableSize = Math.round((Long)field_handle.get(null) * MarkovLoader.this.m_scalefactor);
 
                 field_name = "BATCHSIZE_" + tableName;
                 field_handle = MarkovConstants.class.getField(field_name);
@@ -258,7 +246,7 @@ public class MarkovLoader extends BenchmarkComponent {
                 LOG.error(ex);
                 System.exit(1);
             }
-            System.out.println("Preparing to load " + this.tableSize + " tuples for '" + this.tableName + "' [batchSize=" + this.batchSize + "]");
+            LOG.info("Preparing to load " + this.tableSize + " tuples for '" + this.tableName + "' [batchSize=" + this.batchSize + "]");
         }
         
         public boolean hasMore() {
@@ -319,7 +307,7 @@ public class MarkovLoader extends BenchmarkComponent {
                 row[col++] = m_rng.number(0, 1<<30);
             }
             assert (col == this.table.getColumnCount());
-            //System.err.println(this.tableName + "[" + this.count + "]: " + Arrays.toString(row));
+            //LOG.info(this.tableName + "[" + this.count + "]: " + Arrays.toString(row));
         }
     } // END CLASS
 
@@ -335,7 +323,7 @@ public class MarkovLoader extends BenchmarkComponent {
             // TABLEB has a Zipfian distribution on B_A_ID
             // We alternate between a curve starting at zero and a curve starting at the middle of A_ID
             // It's kind of lame but it's something for now
-            long num_a_records = MarkovConstants.TABLESIZE_TABLEA / m_scalefactor;
+            long num_a_records = Math.round(MarkovConstants.TABLESIZE_TABLEA * m_scalefactor);
             RandomDistribution.Zipf zipf = new RandomDistribution.Zipf(m_rng, 0, (int)num_a_records, 1.001d);
 
             this.rands = new WrappingRandomDistribution[] {
@@ -367,11 +355,11 @@ public class MarkovLoader extends BenchmarkComponent {
                 row[col++] = m_rng.number(0, 1<<30);
             }
             assert (col == this.table.getColumnCount());
-//            System.err.println(this.tableName + "[" + this.count + "]: " + Arrays.toString(row));
+//            LOG.info(this.tableName + "[" + this.count + "]: " + Arrays.toString(row));
 //            for (int i = 0; i < col; i++) {
-//                System.err.println(" [" + i + "]: " + row[i].toString() + " (len=" + row[i].toString().length() + ")");
+//                LOG.info(" [" + i + "]: " + row[i].toString() + " (len=" + row[i].toString().length() + ")");
 //            }
-//            System.err.println(StringUtil.SINGLE_LINE);
+//            LOG.info(StringUtil.SINGLE_LINE);
             
         }
     } // END CLASS
@@ -386,7 +374,7 @@ public class MarkovLoader extends BenchmarkComponent {
             super(MarkovConstants.TABLENAME_TABLEC, MarkovTables.initializeTableC());
             
             // TABLEC has a uniform distribution on C_A_ID
-            long num_a_records = MarkovConstants.TABLESIZE_TABLEA / m_scalefactor;
+            long num_a_records = Math.round(MarkovConstants.TABLESIZE_TABLEA * m_scalefactor);
             this.rand = new RandomDistribution.Flat(m_rng, 0, (int)num_a_records);
         }
         
@@ -412,7 +400,7 @@ public class MarkovLoader extends BenchmarkComponent {
                 row[col++] = m_rng.number(0, 1<<30);
             }
             assert (col == this.table.getColumnCount());
-//            System.err.println(this.tableName + "[" + this.count + "]: " + Arrays.toString(row));
+//            LOG.info(this.tableName + "[" + this.count + "]: " + Arrays.toString(row));
         }
     } // END CLASS
 
@@ -463,7 +451,7 @@ public class MarkovLoader extends BenchmarkComponent {
                     assert(col < row.length) : "Record got too big (" + col + " <=> " + row.length + ")";
                     row[col++] = m_rng.number(0, 1<<30);
                 } catch (ArrayIndexOutOfBoundsException ex) {
-                    System.out.println(col + " ==> " + row.length);
+                    LOG.info(col + " ==> " + row.length);
                     ex.printStackTrace();
                     System.exit(1);
                 }
@@ -478,7 +466,7 @@ public class MarkovLoader extends BenchmarkComponent {
      * @param table
      */
     protected void loadTable(String tablename, VoltTable table) {
-        // System.out.println("Loading " + table.getRowCount() + " tuples for table " + tablename + " [bytes=" + table.getUnderlyingBufferSize() + "]");
+        // LOG.info("Loading " + table.getRowCount() + " tuples for table " + tablename + " [bytes=" + table.getUnderlyingBufferSize() + "]");
     
         // Load up this dirty mess...
         try {

@@ -13,19 +13,16 @@ import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltTable;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 
+import com.google.protobuf.RpcCallback;
+
+import edu.brown.net.MessageConnection;
+import edu.brown.net.NIOMessageConnection;
 import edu.brown.protorpc.AbstractEventHandler;
 import edu.brown.protorpc.EventLoop;
 import edu.brown.protorpc.NIOEventLoop;
-
-import com.google.protobuf.RpcCallback;
-
-import edu.brown.hstore.Hstore;
-import edu.brown.net.MessageConnection;
-import edu.brown.net.NIOMessageConnection;
 
 /** Listens and responds to Volt client stored procedure requests. */
 public class VoltProcedureListener extends AbstractEventHandler {
@@ -35,6 +32,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
     private final Handler handler;
     private ServerSocketChannel serverSocket;
 //    private AtomicBoolean throttle = new AtomicBoolean(false);
+    private final FastDeserializer incomingDeserializer = new FastDeserializer(new byte[0]);
     
 //    private final HStoreSite hstore_site;
 
@@ -175,7 +173,9 @@ public class VoltProcedureListener extends AbstractEventHandler {
 //            if (d) LOG.debug(String.format("Got request [sysproc=%s, bytes=%d]", is_sysproc, request.length));
             try {
                 // RpcCallback<byte[]> callback = RpcUtil.newOneTimeCallback(eventLoopCallback);
-                handler.procedureInvocation(request, eventLoopCallback);
+                this.incomingDeserializer.setBuffer(ByteBuffer.wrap(request));
+                StoredProcedureInvocation invocation = this.incomingDeserializer.readObject(StoredProcedureInvocation.class);
+                handler.procedureInvocation(invocation, request, eventLoopCallback);
             } catch (Exception ex) {
                 LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
                 throw new RuntimeException(ex);
@@ -245,17 +245,16 @@ public class VoltProcedureListener extends AbstractEventHandler {
     }
 
     public static interface Handler {
-        public void procedureInvocation(byte[] serializedRequest,
-                RpcCallback<byte[]> done);
+        public void procedureInvocation(StoredProcedureInvocation request,
+                                        byte[] serializedRequest,
+                                        RpcCallback<byte[]> done);
     }
 
     public static void main(String[] vargs) throws Exception {
         // Example of using VoltProcedureListener: prints procedure name, returns empty array
         NIOEventLoop eventLoop = new NIOEventLoop();
         class PrintHandler implements Handler {
-            public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-                StoredProcedureInvocation invocation = decodeRequest(serializedRequest);
-
+            public void procedureInvocation(StoredProcedureInvocation invocation, byte[] serializedRequest, RpcCallback<byte[]> done) {
                 LOG.debug("request: " + invocation.getProcName() + " " +
                         invocation.getParams().toArray().length);
                 done.run(serializeResponse(new VoltTable[0], invocation.getClientHandle()));

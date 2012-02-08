@@ -66,7 +66,9 @@ public class TransactionInitPriorityQueue extends ThrottlingQueue<Long> {
         super(new PriorityBlockingQueue<Long>(),
               hstore_site.getHStoreConf().site.queue_dtxn_max_per_partition,
               hstore_site.getHStoreConf().site.queue_dtxn_release_factor,
-              hstore_site.getHStoreConf().site.queue_dtxn_increase);
+              hstore_site.getHStoreConf().site.queue_dtxn_increase,
+              hstore_site.getHStoreConf().site.queue_dtxn_increase_max
+        );
         m_siteId = hstore_site.getSiteId();
         m_partitionId = partitionId;
         m_waitTime = wait;

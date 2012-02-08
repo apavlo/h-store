@@ -367,18 +367,15 @@ public class ProcessSetManager implements Shutdownable {
         // Output File
         FileWriter fw = null;
         if (output_directory != null) {
-            File path = new File(String.format("%s/%s.log",
-                                               output_directory.getAbsolutePath(), processName));
+            String baseName = String.format("%s/%s.log", output_directory.getAbsolutePath(), processName);
+            File path = new File(baseName);
             
             // 2012-01-24
             // If the file already exists, we'll move it out of the way automatically 
             // if they want us to
             if (path.exists() && backup_logs) {
                 Date log_date = new Date(path.lastModified());
-                File backup_file = new File(String.format("%s/%s-%s.log",
-                                                          output_directory.getAbsolutePath(),
-                                                          processName,
-                                                          BACKUP_FORMAT.format(log_date)));
+                File backup_file = new File(baseName + "-" + BACKUP_FORMAT.format(log_date));
                 path.renameTo(backup_file);
                 if (debug.get())
                     LOG.debug(String.format("Moved log file '%s' to '%s'", path.getName(), backup_file.getName())); 

@@ -259,6 +259,13 @@ public final class HStoreConf {
         )
         public boolean exec_validate_work;
         
+        @ConfigProperty(
+                description="the way to execute reduce job, blocking or non-blocking by MapReduceHelperThread",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean mapreduce_reduce_blocking;
+        
         // ----------------------------------------------------------------------------
         // Incoming Transaction Queue Options
         // ----------------------------------------------------------------------------
@@ -299,7 +306,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=1000,
+            defaultInt=150,
             experimental=false
         )
         public int queue_incoming_max_per_partition;
@@ -311,7 +318,7 @@ public final class HStoreConf {
                         "executing, and those that have already executed and are waiting for their results " +
                         "to be sent back to the client. The incoming queue release is calculated as " +
                         "${site.txn_incoming_queue_max} * ${site.txn_incoming_queue_release_factor}",
-            defaultDouble=0.25,
+            defaultDouble=0.75,
             experimental=false
         )
         public double queue_incoming_release_factor;
@@ -323,10 +330,18 @@ public final class HStoreConf {
                         "value by this amount. The release limit will also be recalculated using the new value " +
                         "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
                         "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=100,
+            defaultInt=10,
             experimental=false
         )
         public int queue_incoming_increase;
+        
+        @ConfigProperty(
+            description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
+            		    "can be increased by per partition.",
+            defaultInt=300,
+            experimental=false
+        )
+        public int queue_incoming_increase_max;
         
         @ConfigProperty(
             description="If a transaction is rejected by an PartitionExecutor because its queue is full, then " +
@@ -343,7 +358,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Max size of queued transactions before an HStoreSite will stop accepting new requests " +
                         "from clients and will send back a ClientResponse with the throttle flag enabled.",
-            defaultInt=5000,
+            defaultInt=100,
             experimental=false
         )
         public int queue_dtxn_max_per_partition;
@@ -367,10 +382,18 @@ public final class HStoreConf {
                         "value by this amount. The release limit will also be recalculated using the new value " +
                         "for ${site.txn_incoming_queue_max_per_partition}. Note that this will only occur after " +
                         "the first non-data loading transaction has been issued from the clients.",
-            defaultInt=100,
+            defaultInt=10,
             experimental=false
         )
         public int queue_dtxn_increase;
+        
+        @ConfigProperty(
+            description="The maximum amount that the ${site.queue_dtxn_max_per_partition} parameter " +
+                        "can be increased by per partition.",
+            defaultInt=300,
+            experimental=false
+        )
+        public int queue_dtxn_increase_max;
         
         @ConfigProperty(
             description="If a transaction is rejected by the HStoreSite's distributed txn queue manager, then " +
@@ -572,16 +595,24 @@ public final class HStoreConf {
         // ----------------------------------------------------------------------------
         
         @ConfigProperty(
-            description="Enable HStoreSite's StatusThread (# of milliseconds to print update). " +
-                        "Set this to be -1 if you want to disable the status messages.",
+            description="Enable HStoreSite's Status thread.",
+            defaultBoolean=true,
+            experimental=false
+        )
+        public boolean status_enable;
+        
+        @ConfigProperty(
+            description="How often the HStoreSite's StatusThread will print a status update (in milliseconds).",
             defaultInt=20000,
             experimental=false
         )
         public int status_interval;
 
         @ConfigProperty(
-            description="Allow the HStoreSiteStatus thread to kill the cluster if it's local HStoreSite has " +
-                        "not executed and completed any new transactions since the last time it took a status snapshot.", 
+            description="Allow the HStoreSiteStatus thread to kill the cluster if the local HStoreSite appears to be hung. " +
+                        "The site is considered hung if it has executed at least one transaction and has " +
+                        "not completed (either committed or aborted) any new transactions since the last time " +
+                        "it took a status snapshot.",
             defaultBoolean=false,
             experimental=false
         )
@@ -598,7 +629,7 @@ public final class HStoreConf {
             description="When this property is set to true, HStoreSite status will include information about each PartitionExecutor, " +
                         "such as the number of transactions currently queued, blocked for execution, or waiting to have their results " +
                         "returned to the client.",
-            defaultBoolean=true,
+            defaultBoolean=false,
             experimental=false
         )
         public boolean status_show_executor_info;
@@ -1446,7 +1477,7 @@ public final class HStoreConf {
             }
             sb.append(copy);
         } // FOR
-        sb.append("</ul>\n\n[previous] [next]\n");
+        sb.append("</ul>\n");
         return (sb.toString());
     }
     

@@ -146,6 +146,14 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     
     /** The local partition id where this VoltProcedure is running */
     protected int partitionId = -1;
+    public int getPartitionId() {
+        return partitionId;
+    }
+    public void setPartitionId(int partitionId) {
+        this.partitionId = partitionId;
+    }
+
+    protected Integer partitionIdObj = null;
 
     /** Callback for when the VoltProcedure finishes and we need to send a ClientResponse somewhere **/
     private EventObservable<ClientResponse> observable = null;
@@ -176,10 +184,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
     private boolean predict_singlepartition;
     private AbstractTransaction m_currentTxnState;  // assigned in call()
     protected LocalTransaction m_localTxnState;  // assigned in call()
-    private final SQLStmt batchQueryStmts[] = new SQLStmt[1000];
+    private SQLStmt batchQueryStmts[];
     private int batchQueryStmtIndex = 0;
     private int last_batchQueryStmtIndex = 0;
-    private final Object[] batchQueryArgs[] = new Object[1000][];
+    private Object[] batchQueryArgs[];
     private int batchQueryArgsIndex = 0;
     private VoltTable[] results = HStoreConstants.EMPTY_RESULT;
     private Hstore.Status status = Hstore.Status.OK;
@@ -203,7 +211,8 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * Constructor does nothing. All actual initialization is done in the
      * {@link VoltProcedure init} method.
      */
-    public VoltProcedure() {}
+    public VoltProcedure() {
+    }
 
     /**
      * Allow VoltProcedures access to their transaction id.
@@ -252,6 +261,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         this.hsql = hsql;
         this.partitionId = this.executor.getPartitionId();
         assert(this.partitionId != -1);
+        this.partitionIdObj = new Integer(this.partitionId);
+        
+        this.batchQueryArgs = new Object[hstore_conf.site.planner_max_batch_size][];
+        this.batchQueryStmts = new SQLStmt[hstore_conf.site.planner_max_batch_size];
         
         this.enable_tracing = (ProcedureProfiler.profilingLevel == ProcedureProfiler.Level.INTRUSIVE) &&
                               (ProcedureProfiler.workloadTrace != null);
@@ -489,12 +502,12 @@ public abstract class VoltProcedure implements Poolable, Loggable {
      * @param numBatchStmts
      * @return
      */
-    public static int getBatchHashCode(SQLStmt[] batchStmts, int numBatchStmts) {
+    public static Integer getBatchHashCode(SQLStmt[] batchStmts, int numBatchStmts) {
         int hashCode = 1;
         for (int i = 0; i < numBatchStmts; i++) {
             hashCode = 31*hashCode + (batchStmts[i] == null ? 0 : batchStmts[i].hashCode());
         } // FOR
-        return hashCode;
+        return new Integer(hashCode);
     }
 
     protected synchronized void registerCallback(EventObserver<ClientResponse> observer) {
@@ -728,7 +741,13 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             System.exit(1);
         }
         
-        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId(), this.client_handle, this.partitionId, this.status, this.results, this.status_msg, this.error);
+        response = new ClientResponseImpl(this.m_currentTxnState.getTransactionId().longValue(),
+                                          this.client_handle,
+                                          this.partitionId,
+                                          this.status,
+                                          this.results,
+                                          this.status_msg,
+                                          this.error);
         if (this.observable != null) this.observable.notifyObservers(response);
         return (response);
     }
@@ -990,7 +1009,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         return voltExecuteSQL(isFinalSQL, false);
     }
     
-    protected VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
+    private VoltTable[] voltExecuteSQL(boolean isFinalSQL, boolean forceSinglePartition) {
         if (!isNative) {
             VoltTable[] batch_results = queryResults.toArray(new VoltTable[queryResults.size()]);
             queryResults.clear();
@@ -1071,9 +1090,9 @@ public abstract class VoltProcedure implements Poolable, Loggable {
         }
 
         // Create a list of clean parameters
-        final ParameterSet params[] = new ParameterSet[batchSize];
+        final ParameterSet params[] = this.executor.getParameterSet(batchSize);
         for (int i = 0; i < batchSize; i++) {
-            params[i] = getCleanParams(batchStmts[i], batchArgs[i]);
+            params[i] = getCleanParams(batchStmts[i], batchArgs[i], params[i]);
         } // FOR
         
         // Calculate the hash code for this batch to see whether we already have a planner
@@ -1092,7 +1111,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             String.format("%s != %s\n%s", this.predict_singlepartition, this.m_currentTxnState.isPredictSinglePartition(), this.m_currentTxnState.debug());
         this.plan = this.planner.plan(this.m_currentTxnState.getTransactionId(),
                                       this.client_handle,
-                                      this.partitionId, 
+                                      this.partitionIdObj, 
                                       this.m_localTxnState.getPredictTouchedPartitions(),
                                       this.predict_singlepartition,
                                       this.m_localTxnState.getTouchedPartitions(),
@@ -1145,7 +1164,7 @@ public abstract class VoltProcedure implements Poolable, Loggable {
             
         } else {
             this.partitionFragments.clear();
-            this.plan.getWorkFragments(this.partitionFragments);
+            this.plan.getWorkFragments(m_localTxnState.getTransactionId(), this.partitionFragments);
             if (t) LOG.trace("Got back a set of tasks for " + this.partitionFragments.size() + " partitions for " + this.m_currentTxnState);
 
             // Block until we get all of our responses.
@@ -1194,6 +1213,10 @@ public abstract class VoltProcedure implements Poolable, Loggable {
 //    }
 
     public static ParameterSet getCleanParams(SQLStmt stmt, Object[] args) {
+        return getCleanParams(stmt, args, new ParameterSet(true));
+    }
+    
+    public static ParameterSet getCleanParams(SQLStmt stmt, Object[] args, ParameterSet params) {
         final int numParamTypes = stmt.numStatementParamJavaTypes;
         final byte stmtParamTypes[] = stmt.statementParamJavaTypes;
         if (args.length != numParamTypes) {
@@ -1226,7 +1249,6 @@ public abstract class VoltProcedure implements Poolable, Loggable {
                  " can not be converted to NULL representation for arg " + ii + " for SQL stmt " + stmt.getText());
         }
 
-        final ParameterSet params = new ParameterSet(true);
         params.setParameters(args);
         return params;
     }

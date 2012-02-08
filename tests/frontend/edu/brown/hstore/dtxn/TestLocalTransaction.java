@@ -114,7 +114,7 @@ public class TestLocalTransaction extends BaseTestCase {
         assertFalse(plan.hasMisprediction());
         
         List<WorkFragment> fragments = new ArrayList<WorkFragment>();
-        plan.getWorkFragments(fragments);
+        plan.getWorkFragments(TXN_ID, fragments);
         assertFalse(fragments.isEmpty());
         
         List<WorkFragment> ready = new ArrayList<WorkFragment>();

@@ -144,7 +144,7 @@ public class TestPartitionEstimatorMultiSite extends BaseTestCase {
 
         Map<PlanFragment, Set<Integer>> all_partitions = new HashMap<PlanFragment, Set<Integer>>();
         CatalogMap<PlanFragment> fragments = catalog_stmt.getMs_fragments();
-        p_estimator.getAllFragmentPartitions(all_partitions, fragments, params, base_partition);
+        p_estimator.getAllFragmentPartitions(all_partitions, fragments.values(), params, base_partition);
         
         // We should see one PlanFragment with that only has our local partition and then all others need something
         boolean internal_flag = false;

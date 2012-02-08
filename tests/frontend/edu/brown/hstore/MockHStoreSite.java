@@ -101,7 +101,7 @@ public class MockHStoreSite extends HStoreSite {
         
         HStoreConf hstore_conf = HStoreConf.initArgumentsParser(args, catalog_site);
         hstore_conf.site.cpu_affinity = false;
-        hstore_conf.site.status_interval = -1;
+        hstore_conf.site.status_enable = false;
         
         final MockHStoreSite hstore_site = new MockHStoreSite(catalog_site, hstore_conf);
         hstore_site.init().start(); // Blocks until all connections are established

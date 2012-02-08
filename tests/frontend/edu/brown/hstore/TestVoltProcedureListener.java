@@ -53,8 +53,8 @@ public class TestVoltProcedureListener extends TestCase {
     public class MockHandler implements VoltProcedureListener.Handler {
         private Long parameter = null;
         
-        public void procedureInvocation(byte[] serializedRequest, RpcCallback<byte[]> done) {
-            StoredProcedureInvocation invocation = VoltProcedureListener.decodeRequest(serializedRequest);
+        public void procedureInvocation(StoredProcedureInvocation invocation, byte[] serializedRequest, RpcCallback<byte[]> done) {
+//            StoredProcedureInvocation invocation = VoltProcedureListener.decodeRequest(serializedRequest);
             invocation.buildParameterSet();
             assertEquals(PROC_NAME, invocation.getProcName());
             assertNotNull(invocation.getParams());

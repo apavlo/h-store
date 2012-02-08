@@ -16,15 +16,18 @@ import edu.brown.statistics.Histogram;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.util.TxnCounter;
 
-public class TransactionQueueManager implements Runnable {
+public class TransactionQueueManager implements Runnable, Loggable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    private static boolean d = debug.get();
+    private static boolean t = trace.get();
     
     /**
      * the site that will send init requests to this coordinator
@@ -108,8 +111,14 @@ public class TransactionQueueManager implements Runnable {
             }
         } // FOR
         
-        if (debug.get())
+        if (d)
             LOG.debug(String.format("Created %d TransactionInitQueues for %s", num_ids, hstore_site.getSiteName()));
+    }
+    
+    @Override
+    public void updateLogging() {
+        d = debug.get();
+        t = trace.get();
     }
     
     public Histogram<Integer> getBlockedDtxnHistogram() {
@@ -132,8 +141,7 @@ public class TransactionQueueManager implements Runnable {
             hstore_site.getThreadManager().registerProcessingThread();
         }
         
-        if (debug.get())
-            LOG.debug("Starting distributed transaction queue manager thread");
+        if (d) LOG.debug("Starting distributed transaction queue manager thread");
         
         TransactionIdManager idManager = hstore_site.getTransactionIdManager();
         long txn_id = -1;
@@ -147,7 +155,7 @@ public class TransactionQueueManager implements Runnable {
                     // Nothing...
                 }
             } // SYNCH
-            if (trace.get()) LOG.trace("Checking partition queues for dtxns to release!");
+            if (t) LOG.trace("Checking partition queues for dtxns to release!");
             while (checkQueues()) {
                 // Keep checking the queue as long as they have more stuff in there
                 // for us to process
@@ -166,7 +174,7 @@ public class TransactionQueueManager implements Runnable {
      * @return
      */
     protected boolean checkQueues() {
-        if (trace.get())
+        if (t)
             LOG.trace("Checking queues");
         
         boolean txn_released = false;
@@ -178,8 +186,7 @@ public class TransactionQueueManager implements Runnable {
             
 //            synchronized (this.txn_queues[partition]) {
                 if (working_partitions[partition]) {
-                    if (trace.get())
-                        LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
+                    if (t) LOG.trace(String.format("Partition #%d is already executing a transaction. Skipping...", partition));
                     continue;
                 }
                 TransactionInitPriorityQueue queue = txn_queues[partition];
@@ -187,7 +194,7 @@ public class TransactionQueueManager implements Runnable {
                 // If null, then there is nothing that is ready to run at this partition,
                 // so we'll just skip to the next one
                 if (next_id == null) {
-                    if (trace.get())
+                    if (t)
                         LOG.trace(String.format("Partition #%d does not have a transaction ready to run. Skipping... [queueSize=%d]",
                                                 partition, txn_queues[partition].size()));
                     continue;
@@ -197,16 +204,14 @@ public class TransactionQueueManager implements Runnable {
                 assert(callback != null) : "Unexpected null callback for txn #" + next_id;
                 
                 if (next_id < last_txns[partition]) {
-                    if (trace.get()) 
-                        LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
+                    if (t) LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
                                                 partition, next_id, last_txns[partition], txn_queues[partition].size()));
                     this.rejectTransaction(next_id, callback, Hstore.Status.ABORT_RESTART, partition, last_txns[partition]);
                     continue;
                 }
     
                 // otherwise send the init request to the specified partition
-                if (trace.get())
-                    LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
+                if (t) LOG.trace(String.format("Good news! Partition #%d is ready to execute txn #%d! Invoking callback!", partition, next_id));
                 last_txns[partition] = next_id;
                 working_partitions[partition] = true;
                 callback.run(partition);
@@ -216,8 +221,7 @@ public class TransactionQueueManager implements Runnable {
                 
             // remove the callback when this partition is the last one to start the job
             if (counter == 0) {
-                if (debug.get())
-                    LOG.debug(String.format("All local partitions needed by txn #%d are ready. Removing callback", next_id));
+                if (d) LOG.debug(String.format("All local partitions needed by txn #%d are ready. Removing callback", next_id));
                 this.cleanupTransaction(next_id);
             }
         } // FOR
@@ -237,7 +241,7 @@ public class TransactionQueueManager implements Runnable {
             for (int partition : callback.getPartitions()) {
                 if (this.localPartitions.contains(partition) == false &&
                     this.last_txns[partition] < txn_id) {
-                    if (debug.get())
+                    if (d)
                         LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
                     this.last_txns[partition] = txn_id;
                 }
@@ -287,7 +291,7 @@ public class TransactionQueueManager implements Runnable {
      * @return
      */
     public boolean insert(long txn_id, Collection<Integer> partitions, TransactionInitWrapperCallback callback, boolean force) {
-        if (debug.get())
+        if (d)
             LOG.debug(String.format("Adding new distributed txn #%d into queue [force=%s, partitions=%s]", txn_id, force, partitions));
         
         txn_callbacks.put(txn_id, callback);
@@ -299,8 +303,7 @@ public class TransactionQueueManager implements Runnable {
                 // the largest one that we know about at a remote partition
                 if (this.localPartitions.contains(partition) == false) {
                     if (this.last_txns[partition] > txn_id) {
-                        if (trace.get()) 
-                            LOG.trace(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
+                        if (t) LOG.trace(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                                     partition, this.last_txns[partition], txn_id));
                         this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART, partition, this.last_txns[partition]);
                         ret = false;
@@ -311,15 +314,13 @@ public class TransactionQueueManager implements Runnable {
                 
                 long next_safe = txn_queues[partition].noteTransactionRecievedAndReturnLastSeen(txn_id);
                 if (next_safe > txn_id) {
-                    if (trace.get()) 
-                        LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
+                    if (t) LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
                                                 partition, next_safe, txn_id));
                     this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART, partition, next_safe);
                     ret = false;
                     break;
                 } else if (txn_queues[partition].offer(txn_id, false) == false) {
-                    if (trace.get()) 
-                        LOG.trace(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
+                    if (t) LOG.trace(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
                                                 partition, next_safe, txn_id));
                     this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_THROTTLED, partition, next_safe);
                     ret = false;
@@ -329,8 +330,7 @@ public class TransactionQueueManager implements Runnable {
                 }
 //            } // SYNCH
             
-            if (trace.get()) 
-                LOG.trace(String.format("Added txn #%d to queue for partition %d [working=%s, queueSize=%d]",
+            if (t) LOG.trace(String.format("Added txn #%d to queue for partition %d [working=%s, queueSize=%d]",
                                         txn_id, partition, this.working_partitions[partition], this.txn_queues[partition].size()));
         } // FOR
         if (should_notify) {
@@ -347,8 +347,7 @@ public class TransactionQueueManager implements Runnable {
      * @param partition
      */
     public void finished(long txn_id, Hstore.Status status, int partition) {
-        if (debug.get())
-            LOG.debug(String.format("Marking txn #%d as finished on partition %d [status=%s, basePartition=%d]",
+        if (d) LOG.debug(String.format("Marking txn #%d as finished on partition %d [status=%s, basePartition=%d]",
                                     txn_id, partition, status,
                                     TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
         
@@ -400,8 +399,7 @@ public class TransactionQueueManager implements Runnable {
      */
     public synchronized void markAsLastTxnId(int partition, long txn_id) {
         if (last_txns[partition] < txn_id) {
-            if (debug.get())
-                LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
+            if (d) LOG.debug(String.format("Marking txn #%d as last txn id for remote partition %d", txn_id, partition));
             last_txns[partition] = txn_id;
         }
     }
@@ -414,8 +412,7 @@ public class TransactionQueueManager implements Runnable {
      * @param txn_id
      */
     public void queueBlockedDTXN(LocalTransaction ts, int partition, long txn_id) {
-        if (debug.get()) 
-            LOG.debug(String.format("Blocking %s until after a txn greater than #%d is created for partition %d",
+        if (d) LOG.debug(String.format("Blocking %s until after a txn greater than #%d is created for partition %d",
                                                  ts, txn_id, partition));
         if (this.blocked_dtxn_release.putIfAbsent(ts, txn_id) != null) {
             Long other_txn_id = this.blocked_dtxn_release.get(ts);
@@ -442,20 +439,19 @@ public class TransactionQueueManager implements Runnable {
      * @param last_txn_id
      */
     private void checkBlockedDTXNs(long last_txn_id) {
-        if (debug.get() && this.blocked_dtxns.isEmpty() == false)
+        if (d && this.blocked_dtxns.isEmpty() == false)
             LOG.debug(String.format("Checking whether we can release %d blocked dtxns [lastTxnId=%d]", this.blocked_dtxns.size(), last_txn_id));
         
         while (this.blocked_dtxns.isEmpty() == false) {
             LocalTransaction ts = this.blocked_dtxns.peek();
             Long releaseTxnId = this.blocked_dtxn_release.get(ts);
             if (releaseTxnId == null) {
-                if (debug.get()) LOG.warn("Missing release TxnId for " + ts);
+                if (d) LOG.warn("Missing release TxnId for " + ts);
                 this.blocked_dtxns.remove();
                 continue;
             }
             if (releaseTxnId < last_txn_id) {
-                if (debug.get())
-                    LOG.debug(String.format("Releasing blocked %s because the lastest txn was #%d [release=%d]",
+                if (d) LOG.debug(String.format("Releasing blocked %s because the lastest txn was #%d [release=%d]",
                                             ts, last_txn_id, releaseTxnId));
                 this.blocked_dtxns.remove();
                 this.blocked_dtxn_release.remove(ts);

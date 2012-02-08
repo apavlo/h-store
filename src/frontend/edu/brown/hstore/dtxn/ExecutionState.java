@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -53,7 +52,7 @@ public class ExecutionState {
 
     
     protected final ReentrantLock lock = new ReentrantLock();
-    
+
     // ----------------------------------------------------------------------------
     // ROUND DATA MEMBERS
     // ----------------------------------------------------------------------------
@@ -103,11 +102,6 @@ public class ExecutionState {
     protected boolean still_has_tasks = true;
     
     /**
-     * These are the DependencyIds that we don't bother returning to the ExecutionSite
-     */
-    protected final Set<Integer> internal_dependencies = new HashSet<Integer>();
-
-    /**
      * Number of SQLStmts in the current batch
      */
     protected int batch_size = 0;
@@ -128,9 +122,11 @@ public class ExecutionState {
     protected final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
     
     /**
-     * 
+     * This is a special flag that tells us the last round that we used the cached DependencyInfos
+     * If the last round doesn't equal the current round, then we will have to call finish()
+     * to clean it out before we can use it.
      */
-    protected final Queue<DependencyInfo> reusable_dependencies = new LinkedList<DependencyInfo>(); 
+    protected final int dinfo_lastRound[];
     
     // ----------------------------------------------------------------------------
     // INITIALIZATION
@@ -142,10 +138,12 @@ public class ExecutionState {
     @SuppressWarnings("unchecked")
     public ExecutionState(PartitionExecutor executor) {
         this.executor = executor;
-        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[HStoreConf.singleton().site.planner_max_batch_size];
+        int max_batch = HStoreConf.singleton().site.planner_max_batch_size;
+        this.dependencies = (Map<Integer, DependencyInfo>[])new Map<?, ?>[max_batch];
         for (int i = 0; i < this.dependencies.length; i++) {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
+        this.dinfo_lastRound = new int[max_batch];
     }
     
     public void clear() {
@@ -161,10 +159,8 @@ public class ExecutionState {
      * @return
      */
     protected int createPartitionDependencyKey(int partition_id, int dependency_id) {
-        Integer key = new Integer(partition_id | dependency_id<<16);
-        this.partition_dependency_keys.add(key);
-        int idx = this.partition_dependency_keys.indexOf(key);
-        return (idx);
+        int key = partition_id | dependency_id<<16;
+        return (key);
     }
     
     /**
@@ -173,9 +169,8 @@ public class ExecutionState {
      * @param key
      * @param values
      */
-    protected void getPartitionDependencyFromKey(int idx, int values[]) {
+    protected void getPartitionDependencyFromKey(int key, int values[]) {
         assert(values.length == 2);
-        int key = this.partition_dependency_keys.get(idx).intValue();
         values[0] = key>>0 & KEY_MAX_VALUE;     // PartitionId
         values[1] = key>>16 & KEY_MAX_VALUE;    // DependencyId
     }
@@ -185,23 +180,17 @@ public class ExecutionState {
     // ----------------------------------------------------------------------------
     
     public void clearRound() {
-        this.partition_dependency_keys.clear();
         this.output_order.clear();
         this.queued_results.clear();
         this.blocked_tasks.clear();
         this.unblocked_tasks.clear();
         this.still_has_tasks = true;
-        this.internal_dependencies.clear();
 
         // Note that we only want to clear the queues and not the whole maps
         for (Queue<Integer> q : this.results_dependency_stmt_ctr.values()) {
             q.clear();
         } // FOR
         
-        for (int i = 0; i < this.batch_size; i++) {
-            this.reusable_dependencies.addAll(this.dependencies[i].values());
-            this.dependencies[i].clear();
-        } // FOR
         this.batch_size = 0;
         this.dependency_ctr = 0;
         this.received_ctr = 0;

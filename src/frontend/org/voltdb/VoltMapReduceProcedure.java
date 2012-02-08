@@ -31,6 +31,8 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     }
 
     private SQLStmt mapInputQuery;
+    
+    // This reduceInputQuery is prepared to executed REDUCE by internal system instead of Java code
     private SQLStmt reduceInputQuery;
 
     // Thread-local data
@@ -161,7 +163,7 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                     LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
                 // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
                 this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
-            } 
+            }
             
             // Sort the the MAP_OUTPUT table
             // Build an "smart" iterator that loops through the MAP_OUTPUT table key-by-key

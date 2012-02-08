@@ -41,6 +41,7 @@ import edu.brown.catalog.CatalogUtil;
 public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Collection<T> {
 
     TreeMap<String, T> m_items = new TreeMap<String, T>();
+    T m_fastArray[];
     Class<T> m_cls;
     Catalog m_catalog;
     CatalogType m_parent;
@@ -145,13 +146,14 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
     
     @SuppressWarnings("unchecked")
     public T[] values() {
+        if (m_fastArray != null) return (m_fastArray);
         int capacity = this.size();
-        final T a[] =(T[])Array.newInstance(this.m_cls, capacity);
+        m_fastArray =(T[])Array.newInstance(this.m_cls, capacity);
         int i = 0;
         for (T t : m_items.values()) {
-            a[i++] = t;
+            m_fastArray[i++] = t;
         }
-        return a;
+        return m_fastArray;
     }
 
     public int getSubTreeVersion() {
@@ -188,6 +190,7 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
                 e.getValue().m_relativeIndex = index++;
             }
 
+            m_fastArray = null;
             return x;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -226,6 +229,8 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
         for (Entry<String, T> e : m_items.entrySet()) {
             e.getValue().m_relativeIndex = index++;
         }
+        
+        m_fastArray = null;
         return (true);
     }
 
@@ -252,6 +257,8 @@ public final class CatalogMap<T extends CatalogType> implements Iterable<T>, Col
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+        
+        m_fastArray = null;
         return (true);
     }
 
