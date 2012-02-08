@@ -31,6 +31,17 @@ public class TestPlanOptimizerTPCC extends BasePlanOptimizerTestCase {
         super.setUp(ProjectType.TPCC);
     }
     
+//    public void testJoinAggregate() throws Exception {
+//        Procedure catalog_proc = this.getProcedure("JoinAgg");
+//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+//        
+//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+//        assertNotNull(root);
+//        
+//        System.err.println(PlanNodeUtil.debug(root));
+//        PlanOptimizer.validate(root);
+//    }
+    
     /**
      * testProjectionPushdown
      */
