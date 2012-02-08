@@ -510,8 +510,8 @@ public class SEATSClient extends SEATSBaseClient {
     }
     
     @Override
-    public void tick(int counter) {
-        super.tick(counter);
+    public void tickCallback(int counter) {
+        super.tickCallback(counter);
         for (CacheType ctype : CACHE_RESERVATIONS.keySet()) {
             ctype.lock.lock();
             try {

@@ -333,10 +333,11 @@ class Distributer {
             }
 
             if (cb != null) {
-                if (status != Hstore.Status.ABORT_THROTTLED) {
+                // We always need to call this so that we unblock the blocking client
+                // if (status != Hstore.Status.ABORT_THROTTLED && status != Hstore.Status.ABORT_REJECT) {
                     response.setClientRoundtrip(delta);
                     cb.clientCallback(response);
-                }
+                //}
             } else if (m_isConnected) {
                 // TODO: what's the right error path here?
 //                LOG.warn("No callback available for clientHandle " + clientHandle);
