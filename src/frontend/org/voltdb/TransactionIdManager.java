@@ -55,7 +55,7 @@ public class TransactionIdManager {
     public static long getEpoch() {
         Calendar c = Calendar.getInstance();
         c.setTimeInMillis(0);
-        c.set(2008, 0, 1, 0, 0, 0);
+        c.set(2010, 0, 1, 0, 0, 0);
         c.set(Calendar.MILLISECOND, 0);
         c.set(Calendar.ZONE_OFFSET, 0);
         c.set(Calendar.DST_OFFSET, 0);
