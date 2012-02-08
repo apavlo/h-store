@@ -631,7 +631,7 @@ public abstract class PlanNodeUtil {
         // AggregatePlanNode
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
-            sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes() + "]\n");
+            sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes().size() + "]: " + cast_node.getAggregateTypes() + "\n");
 //            sb.append(inner_spacer).append("AggregateColumns" + cast_node.getAggregateOutputColumns() + "\n");
             sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("AggregateColumns", cast_node.getAggregateColumnGuids(), line_spacer));
 //            sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
