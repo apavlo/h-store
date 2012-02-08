@@ -51,6 +51,7 @@ protected:
     bool m_batched;
     bool m_secondaryindex;
     bool m_prefetch;
+    bool m_asynchronous;
     int32_t m_paramnum;
     CatalogMap<StmtParameter> m_parameters;
     CatalogMap<Column> m_output_columns;
@@ -88,6 +89,8 @@ public:
     bool secondaryindex() const;
     /** GETTER: Whether this query should be examined for pre-fetching if Procedure is being executed as a distributed transaction */
     bool prefetch() const;
+    /** GETTER: Whether this query does not need to executed immediately in this transaction */
+    bool asynchronous() const;
     int32_t paramnum() const;
     /** GETTER: The set of parameters to this SQL statement */
     const CatalogMap<StmtParameter> & parameters() const;
