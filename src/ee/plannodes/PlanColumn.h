@@ -51,6 +51,9 @@ public:
     // unhappy, so we only actually do this from places where we know it will
     // succeed.
     AbstractExpression* getExpression();
+    
+    // produce a string describing pnf's content
+    std::string debug();
 
 private:
     const json_spirit::Object& m_colObject;
