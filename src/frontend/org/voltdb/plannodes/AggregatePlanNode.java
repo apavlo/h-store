@@ -200,7 +200,7 @@ public class AggregatePlanNode extends AbstractPlanNode {
         stringer.endArray();
 
         if (!m_groupByColumnGuids.isEmpty())
-        {
+        {   
             stringer.key(Members.GROUPBY_COLUMNS.name()).array();
             for (int i = 0; i < m_groupByColumnGuids.size(); i++) {
                 PlanColumn column = m_context.get(m_groupByColumnGuids.get(i));

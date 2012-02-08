@@ -8,6 +8,7 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
+import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.SeqScanPlanNode;
@@ -119,6 +120,9 @@ public class PlanOptimizer {
                 return (null);
             }
         } // FOR
+        
+        // Skip single partition query plans
+//        if (types.contains(PlanNodeType.RECEIVE) == false) return (null);
 
         AbstractPlanNode new_root = root;
         if (debug.get())
@@ -187,6 +191,31 @@ public class PlanOptimizer {
         LOG.info("Validating: " + root + " / " + root.getPlanNodeType());
         
         switch (root.getPlanNodeType()) {
+            // Make sure that the output columns from this node match the output
+            // columns of the scan node below us that is feeding into it 
+            case NESTLOOPINDEX: {
+                assert(root.getChildPlanNodeCount() == 1);
+                AbstractPlanNode child = root.getChild(0);
+                assert(child != null);
+                if ((child instanceof SeqScanPlanNode) == false) break;
+                
+                PlannerContext plannerContext = PlannerContext.singleton();
+                for (int i = 0, cnt = child.getOutputColumnGUIDCount(); i < cnt; i++) {
+                    int child_guid  = child.getOutputColumnGUID(i);
+                    PlanColumn child_col = plannerContext.get(child_guid);
+                    assert(child_col != null);
+                    
+                    int root_guid = root.getOutputColumnGUID(i);
+                    PlanColumn root_col = plannerContext.get(root_guid);
+                    assert(root_col != null);
+                    
+                    if (child_guid != root_guid) {
+                        throw new Exception(String.format("Output Column mismatch at position %d : %s != %s",
+                                                          i, child_col, root_col));
+                    }
+                } // FOR
+                break;
+            }
             case HASHAGGREGATE:
             case AGGREGATE: {
                 // Every PlanColumn referenced in this node must appear in its children's output
