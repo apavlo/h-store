@@ -758,6 +758,8 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
     assert(node);
     assert(tempTableMemoryInBytes);
 
+    VOLT_DEBUG("Initializing AggregatePlanNode:\n%s", node->debug().c_str());
+    
     //
     // Construct the output table
     // Note that we do not need to do this if we're an inline node
@@ -773,8 +775,8 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
         assert(node->getChildren()[0] != NULL);
         AbstractPlanNode *child_node = node->getChildren()[0];
         for (int i = 0; i < node->getAggregateColumnNames().size(); i++) {
-            VOLT_DEBUG("\nAGG COLUMN NAME: %s\n",
-                       node->getAggregateColumnNames()[i].c_str());
+            VOLT_DEBUG("[%02d] AGG COLUMN NAME: %s",
+                       i, node->getAggregateColumnNames()[i].c_str());
         }
 
         int aggregateCount = (int) node->getAggregateColumnNames().size();

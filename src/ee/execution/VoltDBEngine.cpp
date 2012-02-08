@@ -637,7 +637,7 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
              stmt_iterator++) {
             // PlanFragment
             const catalog::Statement *catalogStmt = stmt_iterator->second;
-            VOLT_DEBUG("  Initialize Statement: %s : %s", catalogStmt->name().c_str(),
+            VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
                        catalogStmt->sqltext().c_str());
 
             std::map<std::string, catalog::PlanFragment*>::const_iterator pf_iterator;

@@ -232,37 +232,36 @@ string AggregatePlanNode::debugInfo(const string &spacer) const {
     for (int ctr = 0, cnt = (int) m_aggregateColumns.size();
          ctr < cnt; ctr++)
     {
-        buffer << spacer << m_aggregateColumns[ctr];
+        buffer << spacer << (ctr > 0 ? ", " : "") << m_aggregateColumns[ctr];
     }
-    buffer << spacer << "}";
-    buffer << spacer << "\nAggregateTypes["
+    buffer << spacer << "}\n";
+    
+    buffer << spacer << "AggregateTypes["
            << (int) m_aggregateColumns.size() << "]: {";
     for (int ctr = 0, cnt = (int) m_aggregateColumns.size();
          ctr < cnt; ctr++)
     {
-        buffer << spacer << expressionutil::getTypeName(m_aggregates[ctr]);
+        buffer << spacer << (ctr > 0 ? ", " : "") << expressionutil::getTypeName(m_aggregates[ctr]);
     }
-    buffer << spacer << "}";
+    buffer << spacer << "}\n";
 
-    buffer << spacer << "}";
-    buffer << spacer << "\nAggregateColumnNames["
+    buffer << spacer << "AggregateColumnNames["
            << (int) m_aggregateColumnNames.size() << "]: {";
     for (int ctr = 0, cnt = (int) m_aggregateColumnNames.size();
          ctr < cnt; ctr++)
     {
-        buffer << spacer << m_aggregateColumnNames[ctr];
+        buffer << spacer << (ctr > 0 ? ", " : "") << m_aggregateColumnNames[ctr];
     }
-    buffer << spacer << "}";
+    buffer << spacer << "}\n";
 
-    buffer << spacer << "\nGroupByColumns[";
-    string add = "";
+    buffer << spacer << "GroupByColumns["
+           << (int) m_groupByColumns.size() << "]: {";
     for (int ctr = 0, cnt = (int) m_groupByColumns.size();
          ctr < cnt; ctr++)
     {
-        buffer << add << m_groupByColumns[ctr];
-        add = ", ";
+        buffer << spacer << (ctr > 0 ? ", " : "") << m_groupByColumns[ctr];
     }
-    buffer << "]\n";
+    buffer << spacer << "}\n";
 
     buffer << spacer << "OutputColumns[" << m_outputColumnGuids.size()
            << "]:\n";
