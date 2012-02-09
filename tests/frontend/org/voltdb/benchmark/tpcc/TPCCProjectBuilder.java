@@ -111,11 +111,8 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
      */
     public void addDefaultProcedures() {
         addProcedures(PROCEDURES);
-        //addStmtProcedure("Query1", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount),COUNT(*) FROM order_line GROUP BY ol_number order by ol_number");
-        addStmtProcedure("Query1", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount),COUNT(*) " +
-        		"FROM order_line " +
-        		"GROUP BY ol_number " +
-        		"order by ol_number");
+        addStmtProcedure("Query1", "SELECT ol_number, SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity),AVG(ol_amount),COUNT(*) FROM order_line GROUP BY ol_number order by ol_number");
+        
         addStmtProcedure("Query19","select ol_number, sum(ol_amount) from order_line " +
                                    "where ( ol_o_id >= 20 and ol_o_id <= 100  )" +
                                    " or (ol_o_id >= 105 and ol_o_id <= 200 )" +
