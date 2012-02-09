@@ -124,12 +124,6 @@ public class TPCCProjectBuilder extends AbstractProjectBuilder {
                                     "group by ol_number order by ol_number"
                                     );
         
-        addStmtProcedure("JoinAgg", "SELECT OL_NUMBER, SUM(OL_AMOUNT), AVG(OL_QUANTITY) " + 
-                                    "FROM ORDER_LINE, ITEM " + 
-                                    "WHERE ORDER_LINE.OL_I_ID = ITEM.I_ID " +
-                                    "GROUP BY OL_NUMBER " +
-                                    "ORDER BY OL_NUMBER");
-        
         addStmtProcedure("GetWarehouse", "SELECT * FROM WAREHOUSE WHERE W_ID = ?");
         
     }

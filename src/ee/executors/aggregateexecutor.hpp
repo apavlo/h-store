@@ -774,17 +774,15 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
 
         assert(node->getChildren()[0] != NULL);
         AbstractPlanNode *child_node = node->getChildren()[0];
-        for (int i = 0; i < node->getAggregateColumnNames().size(); i++) {
-            VOLT_DEBUG("[%02d] AGG COLUMN NAME: %s",
-                       i, node->getAggregateColumnNames()[i].c_str());
-        }
-
         int aggregateCount = (int) node->getAggregateColumnNames().size();
         assert(aggregateCount == node->getAggregates().size());
 
         std::vector<int> aggregateColumns;
         for (int ctr = 0; ctr < aggregateCount; ctr++)
         {
+            VOLT_DEBUG("[%02d] AGG COLUMN NAME: %s [guid=%d]",
+                       ctr, node->getAggregateColumnNames()[ctr].c_str(), node->getAggregateColumnGuids()[ctr]);
+            
             int index =
                 child_node->
                 getColumnIndexFromGuid(node->getAggregateColumnGuids()[ctr],

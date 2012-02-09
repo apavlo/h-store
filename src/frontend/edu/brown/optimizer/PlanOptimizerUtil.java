@@ -215,9 +215,10 @@ public abstract class PlanOptimizerUtil {
      * 
      * @param state
      * @param rootNode
+     * @param force TODO
      * @return
      */
-    public static boolean updateAllColumns(final PlanOptimizerState state, final AbstractPlanNode rootNode) {
+    public static boolean updateAllColumns(final PlanOptimizerState state, final AbstractPlanNode rootNode, final boolean force) {
         new PlanNodeTreeWalker(false) {
             @Override
             protected void callback(AbstractPlanNode element) {
@@ -225,7 +226,7 @@ public abstract class PlanOptimizerUtil {
                 // JOIN
                 // ---------------------------------------------------
                 if (element instanceof AbstractJoinPlanNode) {
-                    if (state.areChildrenDirty(element) &&
+                    if ((state.areChildrenDirty(element) || force) &&
                         PlanOptimizerUtil.updateJoinsColumns(state, (AbstractJoinPlanNode) element) == false) {
                         this.stop();
                         return;
@@ -234,7 +235,7 @@ public abstract class PlanOptimizerUtil {
                 // ORDER BY
                 // ---------------------------------------------------
                 } else if (element instanceof OrderByPlanNode) {
-                    if (state.areChildrenDirty(element) &&
+                    if ((state.areChildrenDirty(element) || force) &&
                         PlanOptimizerUtil.updateOrderByColumns(state, (OrderByPlanNode) element) == false) {
                         this.stop();
                         return;
@@ -244,7 +245,7 @@ public abstract class PlanOptimizerUtil {
                 // AGGREGATE
                 // ---------------------------------------------------
                 else if (element instanceof AggregatePlanNode) {
-                    if (state.areChildrenDirty(element) &&
+                    if ((state.areChildrenDirty(element) || force) &&
                         PlanOptimizerUtil.updateAggregateColumns(state, (AggregatePlanNode) element) == false) {
                         this.stop();
                         return;
@@ -254,7 +255,7 @@ public abstract class PlanOptimizerUtil {
                 // DISTINCT
                 // ---------------------------------------------------
                 else if (element instanceof DistinctPlanNode) {
-                    if (state.areChildrenDirty(element) &&
+                    if ((state.areChildrenDirty(element) || force) &&
                         PlanOptimizerUtil.updateDistinctColumns(state, (DistinctPlanNode) element) == false) {
                         this.stop();
                         return;
@@ -264,7 +265,7 @@ public abstract class PlanOptimizerUtil {
                 // PROJECTION
                 // ---------------------------------------------------
                 else if (element instanceof ProjectionPlanNode) {
-                    if (state.areChildrenDirty(element) &&
+                    if ((state.areChildrenDirty(element) || force) &&
                         PlanOptimizerUtil.updateProjectionColumns(state, (ProjectionPlanNode) element) == false) {
                         this.stop();
                         return;
@@ -346,6 +347,9 @@ public abstract class PlanOptimizerUtil {
      * @return
      */
     public static boolean updateOrderByColumns(final PlanOptimizerState state, OrderByPlanNode node) {
+        if (debug.get())
+            LOG.debug("Updating Sort Columns for " + node);
+        
         // We really have one child here
         assert (node.getChildPlanNodeCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
@@ -358,7 +362,8 @@ public abstract class PlanOptimizerUtil {
             int orig_guid = node.getSortColumnGuids().get(i);
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
-            if (trace.get()) LOG.trace("Looking for matching PlanColumn: " + orig_pc);
+            if (trace.get())
+                LOG.trace("Looking for matching PlanColumn: " + orig_pc);
             
             PlanColumn new_pc = null;
             int new_idx = 0;
@@ -370,8 +375,6 @@ public abstract class PlanOptimizerUtil {
                         LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
                     new_pc = pc;
                     break;
-                } else if (trace.get()) {
-                    LOG.trace("XXX " + pc);
                 }
                 new_idx++;
             } // FOR
@@ -388,6 +391,7 @@ public abstract class PlanOptimizerUtil {
                 if (trace.get()) LOG.error("PlannerContext Dump:\n" + state.plannerContext.debug());
             }
             assert (new_pc != null);
+            if (trace.get()) LOG.trace(String.format("[%02d] %s", i, new_pc));
             node.getSortColumnGuids().set(i, new_pc.guid());
         } // FOR
 
@@ -597,8 +601,8 @@ public abstract class PlanOptimizerUtil {
                     node.getOutputColumnGUIDs().set(i, orig_pc.guid());
                     //node.getOutputColumnGUIDs().set(i, new_col.guid());
                 }
-            } // FOR                
-            }
+            }                
+        } // FOR
         state.markDirty(node);
         if (debug.get())
             LOG.debug(String.format("Updated %s with %d output columns offsets", node, node.getOutputColumnGUIDCount()));
@@ -617,18 +621,19 @@ public abstract class PlanOptimizerUtil {
         // of the first input table and then use that to adjust the offsets of the new tables
         AbstractPlanNode outer_node = node.getChild(0);
         assert (outer_node != null);
-        List<Integer> outer_new_input_guids = outer_node.getOutputColumnGUIDs();
+        final List<Integer> outer_output_guids = outer_node.getOutputColumnGUIDs();
         if (debug.get())
             LOG.debug("Calculating OUTER offsets from child node: " + outer_node);
 
-        // List of PlanColumn GUIDs for the new output list
-        List<Integer> new_output_guids = new ArrayList<Integer>();
-        SortedMap<Integer, Integer> sorted_new_output_guids = new TreeMap<Integer, Integer>();
+        // Mapping from the index in the new output list to the original PlanColumn guid
+        final SortedMap<Integer, Integer> new_sorted_output_guids = new TreeMap<Integer, Integer>();
 
-        // Go and build a map from original offsets to the new offsets that need to be stored
-        // for the TupleValueExpressions (and possible TupleAddressExpression)
+        // Mapping from original index to the new index
         final Map<Integer, Integer> offset_xref = new HashMap<Integer, Integer>();
-        List<Integer> outer_orig_input_guids = state.orig_node_output.get(outer_node);
+        
+        // Build a map from original offsets to the new offsets that need to be stored
+        // for the TupleValueExpressions (and possible TupleAddressExpression)
+        final List<Integer> outer_orig_input_guids = state.orig_node_output.get(outer_node);
         assert (outer_orig_input_guids != null);
         StringBuilder sb = new StringBuilder();
         for (int orig_idx = 0, cnt = outer_orig_input_guids.size(); orig_idx < cnt; orig_idx++) {
@@ -637,24 +642,24 @@ public abstract class PlanOptimizerUtil {
 
             // Figure out what the new PlanColumn GUID is for this column
             // It may be the case that we need to make a new one because the
-            // underlying expession has the wrong offsets
+            // underlying expression has the wrong offsets
             PlanColumn new_pc = null;
-            Integer new_idx = null;
 
-            // Find the new index of this same PlanColumn guid
-            new_idx = outer_new_input_guids.indexOf(orig_col_guid);
+            // Find the new index of this same PlanColumn guid in the outer table's output columns
+            Integer new_idx = outer_output_guids.indexOf(orig_col_guid);
+            
+            // If this column is not in the outer table's output columns 
             if (new_idx != -1) {
                 new_pc = state.plannerContext.get(orig_col_guid);
                 //new_output_guids.add(orig_col_guid);
-                sorted_new_output_guids.put(new_idx, orig_col_guid);
+                new_sorted_output_guids.put(new_idx, orig_col_guid);
                 if (debug.get())
                     LOG.debug(String.format("[%02d] Remapped PlanColumn to new offset %02d", orig_idx, new_idx));
-
-                // Check whether we even have this column. We'll compare
-                // everything but the Expression
-            } else {
+            }
+            // Check whether we even have this column. We'll compare everything but the Expression
+            else {
                 new_idx = 0;
-                for (Integer guid : outer_new_input_guids) {
+                for (Integer guid : outer_output_guids) {
                     PlanColumn pc = state.plannerContext.get(guid);
                     assert (pc != null);
                     if (pc.equals(orig_pc, true, true)) {
@@ -679,12 +684,15 @@ public abstract class PlanOptimizerUtil {
                     clone_exp.setColumnIndex(new_idx);
                     PlanColumn new_col = state.plannerContext.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
-                    outer_new_input_guids.set(new_idx, new_col.guid());
+                    outer_output_guids.set(new_idx, new_col.guid());
                     //new_output_guids.add(new_col.guid());
-                    sorted_new_output_guids.put(new_idx, new_col.guid());
+                    new_sorted_output_guids.put(new_idx, new_col.guid());
                     if (debug.get())
                         LOG.debug(String.format("OUTER OFFSET %d => %d [new_guid=%d]", orig_idx, new_idx, new_col.guid()));
-                } else {
+                }
+                // If we don't have this PlanColumn, that means that it isn't being passed up from the 
+                // outer table and therefore don't want it anymore in our output
+                else {
                     new_idx = null;
                 }
             }
@@ -705,9 +713,9 @@ public abstract class PlanOptimizerUtil {
         } // FOR
         if (trace.get()) {
             LOG.trace("Original Outer Input GUIDs: " + outer_orig_input_guids);
-            LOG.trace("New Outer Input GUIDs:      " + outer_new_input_guids);
+            LOG.trace("New Outer Input GUIDs:      " + outer_output_guids);
         }
-        if (outer_new_input_guids.size() != offset_xref.size()) {
+        if (outer_output_guids.size() != offset_xref.size()) {
             LOG.error("Outer Node: " + outer_node);
 
             String temp = "";
@@ -720,29 +728,26 @@ public abstract class PlanOptimizerUtil {
             LOG.error("Original Outer Input GUIDs: " + outer_orig_input_guids + "\n" + temp);
 
             temp = "";
-            for (int i = 0; i < outer_new_input_guids.size(); i++) {
-                PlanColumn pc = state.plannerContext.get(outer_new_input_guids.get(i));
+            for (int i = 0; i < outer_output_guids.size(); i++) {
+                PlanColumn pc = state.plannerContext.get(outer_output_guids.get(i));
                 temp += String.format("[%02d] %s\n", i, pc);
                 temp += ExpressionUtil.debug(pc.getExpression()) + "\n--------\n";
             }
-            LOG.error("New Outer Input GUIDs:      " + outer_new_input_guids + "\n" + temp);
+            LOG.error("New Outer Input GUIDs:      " + outer_output_guids + "\n" + temp);
 
             LOG.error("Output Xref Offsets:      " + offset_xref);
             // LOG.info("Trace Information:\n" + sb);
             LOG.error("Unexpected Query Plan\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
         }
-        assert (outer_new_input_guids.size() == offset_xref.size()) :
-            "outer_new_input_guids size: " + outer_new_input_guids.size() + " offset_xref size: " + offset_xref.size();
+        assert (outer_output_guids.size() == offset_xref.size()) :
+            "outer_new_input_guids size: " + outer_output_guids.size() + " offset_xref size: " + offset_xref.size();
 
         // add the sorted columns into new_columns list
-        for (Integer i : sorted_new_output_guids.values()) {
-            new_output_guids.add(i);
-        }        
+        final List<Integer> new_output_guids = new ArrayList<Integer>(new_sorted_output_guids.values());
         
         // For the inner table, we always have to offset ourselves based on the
-        // size
-        // of the new outer table
-        int offset = outer_new_input_guids.size();
+        // size of the new outer table
+        int offset = outer_output_guids.size();
         
         AbstractPlanNode inner_node = null;
 
@@ -867,7 +872,7 @@ public abstract class PlanOptimizerUtil {
         }
         if (debug.get()) {
             LOG.debug("Output Xref Offsets:      " + offset_xref);
-            LOG.debug("New Output Columns GUIDS: " + sorted_new_output_guids);
+            LOG.debug("New Output Columns GUIDS: " + new_sorted_output_guids);
         }
 
         // Get all of the AbstractExpression roots for this node
