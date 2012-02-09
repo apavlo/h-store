@@ -66,6 +66,7 @@ public class PlanOptimizer {
         PushdownProjectionOptimization.class,
         PushdownLimitOrderByOptimization.class,
         RemoveRedundantProjectionsOptimizations.class,
+        RemoveDistributedReplicatedTableJoinOptimization.class,
     };
     
     // ----------------------------------------------------------------------------
@@ -128,7 +129,7 @@ public class PlanOptimizer {
         if (debug.get())
             LOG.debug("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
 
-        if (sql.contains("FROM USER_WATCH, ITEM")) {
+        if (sql.contains("SUM(OL_AMOUNT), AVG(OL_QUANTITY)")) {
             LOG.debug("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
         }
         
