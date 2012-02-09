@@ -1543,8 +1543,16 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
             table_name = cast_node.getTargetTableName();
             assert (table_name != null);
             assert (!table_name.isEmpty());
+        }
+        // NestLoopIndexNode
+        else if (node instanceof NestLoopIndexPlanNode) {
+            NestLoopIndexPlanNode cast_node = (NestLoopIndexPlanNode)node;
+            assert(cast_node.getInlinePlanNodeCount() == 1);
+            IndexScanPlanNode idx_node = cast_node.getInlinePlanNode(PlanNodeType.INDEXSCAN);
+            table_name = idx_node.getTargetTableName();
+        }
         // AbstractOperationPlanNode
-        } else if (node instanceof AbstractOperationPlanNode) {
+        else if (node instanceof AbstractOperationPlanNode) {
             AbstractOperationPlanNode cast_node = (AbstractOperationPlanNode) node;
             table_name = cast_node.getTargetTableName();
             assert (table_name != null);
