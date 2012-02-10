@@ -172,6 +172,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
          
         for (int partition : hstore_site.getAllPartitionIds())  {
             if (partition == mr_ts.getBasePartition()) { 
+                volt_proc.setPartitionId(partition);
                 volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
             }
         }
