@@ -8,6 +8,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
 import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.types.PlanNodeType;
@@ -76,13 +77,36 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
                     assert(parent != null);
                     parent.clearChildren();
                     parent.addAndLinkChild(recv_node);
+                    state.markDirty(parent);
+                    state.markDirty(recv_node);
                     
                     join_node.clearParents();
                     join_node.clearChildren();
                     leaf_node.clearParents();
                     
                     join_node.addAndLinkChild(leaf_node);
-                    send_node.addAndLinkChild(join_node);
+                    state.markDirty(join_node);
+                    state.markDirty(leaf_node);
+                    
+                    // HACK: If the parent is a ProjectionPlanNode, then we'll 
+                    // want to duplicate it so that we make sure that our original Send/Recieve
+                    // nodes have the right offset
+                    if (parent instanceof ProjectionPlanNode) {
+                        AbstractPlanNode parent_clone = null;
+                        try {
+                            parent_clone = (AbstractPlanNode)parent.clone(false, false);
+                        } catch (CloneNotSupportedException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        assert(parent_clone != null);
+                        assert(parent != parent_clone);
+                        parent_clone.addAndLinkChild(join_node);
+                        send_node.clearChildren();
+                        send_node.addAndLinkChild(parent_clone);
+                    } else {
+                        send_node.addAndLinkChild(join_node);
+                    }
+                    state.markDirty(send_node);
                 }
             }
         } // FOR
