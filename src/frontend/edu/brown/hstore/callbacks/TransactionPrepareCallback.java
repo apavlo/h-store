@@ -3,8 +3,9 @@ package edu.brown.hstore.callbacks;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -14,7 +15,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  * 
  * @author pavlo
  */
-public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.TransactionPrepareResponse> {
+public class TransactionPrepareCallback extends BlockingCallback<byte[], TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -94,7 +95,7 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionPrepareResponse response) {
+    protected int runImpl(TransactionPrepareResponse response) {
         if (debug.get())
             LOG.debug(String.format("Got %s with %d partitions for %s",
                                     response.getClass().getSimpleName(),
@@ -103,11 +104,11 @@ public class TransactionPrepareCallback extends BlockingCallback<byte[], Hstore.
         assert(this.ts.getTransactionId() == response.getTransactionId()) :
             String.format("Unexpected %s for a different transaction %s != #%d",
                           response.getClass().getSimpleName(), this.ts, response.getTransactionId());
-        final Hstore.Status status = response.getStatus();
+        final Hstoreservice.Status status = response.getStatus();
         
         // If any TransactionPrepareResponse comes back with anything but an OK,
         // then the we need to abort the transaction immediately
-        if (status != Hstore.Status.OK) {
+        if (status != Hstoreservice.Status.OK) {
             this.abort(status);
         }
 

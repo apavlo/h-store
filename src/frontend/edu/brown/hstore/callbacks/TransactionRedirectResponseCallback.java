@@ -5,8 +5,8 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionRedirectResponse;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
 import edu.brown.utils.Poolable;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
@@ -56,7 +56,7 @@ public class TransactionRedirectResponseCallback implements RpcCallback<byte[]>,
         if (trace) LOG.trace(String.format("Got ClientResponse callback! Sending back to %s [bytes=%d]",
                                            HStoreSite.formatSiteName(this.dest_id), parameter.length));
         ByteString bs = ByteString.copyFrom(parameter);
-        TransactionRedirectResponse response = Hstore.TransactionRedirectResponse.newBuilder()
+        TransactionRedirectResponse response = TransactionRedirectResponse.newBuilder()
                                                                               .setSenderId(this.source_id)
                                                                               .setOutput(bs)
                                                                               .build();

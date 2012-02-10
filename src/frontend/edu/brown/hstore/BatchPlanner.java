@@ -41,7 +41,7 @@ import org.voltdb.exceptions.MispredictionException;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;

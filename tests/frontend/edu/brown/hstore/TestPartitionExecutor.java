@@ -23,9 +23,9 @@ import com.google.protobuf.ByteString;
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.tm1.TM1Constants;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.DataFragment;
-import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
+import edu.brown.hstore.Hstoreservice.DataFragment;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
@@ -291,7 +291,7 @@ public class TestPartitionExecutor extends BaseTestCase {
         DependencySet result = new DependencySet(new int[]{ dep_id }, new VoltTable[]{ vt });
         
         RemoteTransaction ts = new RemoteTransaction(site.getHStoreSite());
-        WorkResult partitionResult = site.buildWorkResult(ts, result, Hstore.Status.OK, null);
+        WorkResult partitionResult = site.buildWorkResult(ts, result, Status.OK, null);
         assertNotNull(partitionResult);
         assertEquals(result.size(), partitionResult.getOutputCount());
         

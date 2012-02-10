@@ -4,9 +4,10 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -15,7 +16,7 @@ import edu.brown.hstore.HStoreSite;
  * 
  * @author pavlo
  */
-public class TransactionWorkCallback extends BlockingCallback<Hstore.TransactionWorkResponse, WorkResult> {
+public class TransactionWorkCallback extends BlockingCallback<TransactionWorkResponse, WorkResult> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkCallback.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -23,7 +24,7 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    protected Hstore.TransactionWorkResponse.Builder builder = null;
+    protected TransactionWorkResponse.Builder builder = null;
 
     /**
      * Default Constructor
@@ -32,11 +33,11 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
         super(hstore_site, false);
     }
     
-    public void init(long txn_id, int num_partitions, RpcCallback<Hstore.TransactionWorkResponse> orig_callback) {
+    public void init(long txn_id, int num_partitions, RpcCallback<TransactionWorkResponse> orig_callback) {
         super.init(txn_id, num_partitions, orig_callback);
-        this.builder = Hstore.TransactionWorkResponse.newBuilder()
+        this.builder = TransactionWorkResponse.newBuilder()
                                             .setTransactionId(txn_id)
-                                            .setStatus(Hstore.Status.OK);
+                                            .setStatus(Hstoreservice.Status.OK);
     }
     
     @Override
@@ -70,7 +71,7 @@ public class TransactionWorkCallback extends BlockingCallback<Hstore.Transaction
         if (parameter.hasError()) {
             if (debug.get()) LOG.debug(String.format("Marking response for txn #%d with an error from partition %d",
                                                      this.getTransactionId(), parameter.getPartitionId()));    
-            this.builder.setStatus(Hstore.Status.ABORT_UNEXPECTED);
+            this.builder.setStatus(Hstoreservice.Status.ABORT_UNEXPECTED);
         }
         return (1);
     }

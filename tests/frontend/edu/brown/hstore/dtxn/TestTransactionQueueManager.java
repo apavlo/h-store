@@ -12,13 +12,13 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.MockExecutionSite;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -31,7 +31,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
     HStoreSite hstore_site;
     TransactionQueueManager queue;
     
-    class MockCallback implements RpcCallback<Hstore.TransactionInitResponse> {
+    class MockCallback implements RpcCallback<TransactionInitResponse> {
         Semaphore lock = new Semaphore(0);
         boolean invoked = false;
         
@@ -118,13 +118,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id0, Hstore.Status.OK, partition);
+                        queue.finished(txn_id0, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id1, Hstore.Status.OK, partition);
+                        queue.finished(txn_id1, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
@@ -180,19 +180,19 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id0, Hstore.Status.OK, partition);
+                        queue.finished(txn_id0, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id1, Hstore.Status.OK, partition);
+                        queue.finished(txn_id1, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback2.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id2, Hstore.Status.OK, partition);
+                        queue.finished(txn_id2, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }
@@ -252,13 +252,13 @@ public class TestTransactionQueueManager extends BaseTestCase {
                 try {
                     inner_callback0.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id0, Hstore.Status.OK, partition);
+                        queue.finished(txn_id0, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
                 try {
                     inner_callback1.lock.acquire();
                     for (int partition = 0; partition < NUM_PARTITONS; ++partition) {
-                        queue.finished(txn_id1, Hstore.Status.OK, partition);
+                        queue.finished(txn_id1, Status.OK, partition);
                     }
                 } catch (InterruptedException e) {}
             }

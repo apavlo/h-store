@@ -12,9 +12,9 @@ import edu.brown.protorpc.ProtoRpcController;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.TransactionReduceRequest;
-import edu.brown.hstore.Hstore.TransactionReduceResponse;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
+import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;
