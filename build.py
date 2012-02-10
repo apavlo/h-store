@@ -138,7 +138,13 @@ CTX.JNIBINFLAGS += " " + libpaths
 CTX.JNIBINFLAGS += " -ljava -ljvm -lverify"
 
 if CTX.PLATFORM == "Darwin":
-    CTX.CPPFLAGS += " -DMACOSX -arch x86_64"
+    CTX.CPPFLAGS += " -DMACOSX "
+    
+    # 2012-02-10
+    # Don't include the 'arch' flag for newer versions of OSX
+    if int(CTX.PLATFORM_VERSION.split(".")) < 11:
+        CTX.CPPFLAGS += " -arch x86_64"
+    
     CTX.JNIEXT = "jnilib"
     CTX.JNILIBFLAGS = " -bundle"
     CTX.JNIBINFLAGS = " -framework JavaVM,1.6"
