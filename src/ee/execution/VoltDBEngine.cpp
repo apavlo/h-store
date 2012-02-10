@@ -630,6 +630,7 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
          proc_iterator != m_database->procedures().end(); proc_iterator++) {
         // Procedure
         const catalog::Procedure *catalog_proc = proc_iterator->second;
+        VOLT_DEBUG("********************************************************************");
         VOLT_DEBUG("Initialize Procedure: %s", catalog_proc->name().c_str());
         std::map<std::string, catalog::Statement*>::const_iterator stmt_iterator;
         for (stmt_iterator = catalog_proc->statements().begin();
@@ -637,7 +638,7 @@ bool VoltDBEngine::clearAndLoadAllPlanFragments() {
              stmt_iterator++) {
             // PlanFragment
             const catalog::Statement *catalogStmt = stmt_iterator->second;
-            VOLT_DEBUG("  Initialize Statement: %s : %s", catalogStmt->name().c_str(),
+            VOLT_DEBUG("Initialize Statement: %s : %s", catalogStmt->name().c_str(),
                        catalogStmt->sqltext().c_str());
 
             std::map<std::string, catalog::PlanFragment*>::const_iterator pf_iterator;

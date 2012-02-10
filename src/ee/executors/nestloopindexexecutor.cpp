@@ -85,9 +85,9 @@ bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
     Table* target_table = inline_node->getTargetTable();
     assert(target_table);
 
-    //
+    VOLT_DEBUG("Initializing Output PlanColumns for %s", node->debug().c_str());
+    
     // Our output table will have all the columns from outer and inner table
-    //
     std::vector<boost::shared_ptr<const TableColumn> > columns;
 
     // For passing to plan node counterpart
@@ -101,29 +101,39 @@ bool NestLoopIndexExecutor::p_init(AbstractPlanNode* abstract_node,
 
     std::vector<int> outputColumnGuids;
     int cur_index = 0;
+    
+    // 2012-02-08
+    // The NestLoopIndexPlanNode will have proper output column information, so
+    // we can rely on that instead of trying to mash together the PlanColumn guids
+    // from the child node and the target table. Without this, then doing an aggregate
+    // right after this won't work properly.
+    
     // copy from outer table (input table)
     for (int col_ctr = 0, col_cnt = input_table->columnCount();
          col_ctr < col_cnt;
-         col_ctr++, cur_index++)
-    {
+         col_ctr++, cur_index++) {
         columnNames[cur_index] = input_table->columnName(col_ctr);
-        outputColumnGuids.
-            push_back(node->getChildren()[0]->getOutputColumnGuids()[col_ctr]);
-//         fprintf(stderr, "[%d] %s [guid=%d]\n", cur_index, columnNames[cur_index].c_str(), outputColumnGuids[cur_index]);
-    }
+        outputColumnGuids.push_back(node->getOutputColumnGuids()[cur_index]);
+        VOLT_TRACE("[%d] %s [guid=%d]\n",
+                   cur_index, columnNames[cur_index].c_str(), outputColumnGuids[cur_index]);
+//         outputColumnGuids.
+//             push_back(node->getChildren()[0]->getOutputColumnGuids()[col_ctr]);
+    } // FOR
 
     // copy from inner table (target table)
     for (int col_ctr = 0, col_cnt = target_table->columnCount();
          col_ctr < col_cnt;
-         col_ctr++, cur_index++)
-    {
+         col_ctr++, cur_index++) {
         columnNames[cur_index] = target_table->columnName(col_ctr);
+        outputColumnGuids.push_back(node->getOutputColumnGuids()[cur_index]);
+    
         // HACK: Since our output columns for the inline IndexScan now include the outer table, 
         //       we need to use the cur_index as the proper offset to get the right guid
-        outputColumnGuids.push_back(inline_node->getOutputColumnGuids()[cur_index]);
-//         fprintf(stderr, "[%d] %s [guid=%d]\n", cur_index, columnNames[cur_index].c_str(), outputColumnGuids[cur_index]);
-    }
-//     fprintf(stderr, "=========================\n");
+        // outputColumnGuids.push_back(inline_node->getOutputColumnGuids()[cur_index]);
+        
+        VOLT_TRACE("[%d] %s [guid=%d]\n",
+                   cur_index, columnNames[cur_index].c_str(), outputColumnGuids[cur_index]);
+    } // FOR
 
     // create the output table
     node->setOutputTable(TableFactory::getTempTable(node->getInputTables()[0]->databaseId(),

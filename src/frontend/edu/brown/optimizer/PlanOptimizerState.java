@@ -56,9 +56,6 @@ public class PlanOptimizerState {
      */
     public final Map<AbstractPlanNode, List<Integer>> orig_node_output = new HashMap<AbstractPlanNode, List<Integer>>();
 
-    
-    
-    
     /**
      * AbstractPlanNode -> TableNames
      */

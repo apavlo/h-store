@@ -227,42 +227,41 @@ AggregatePlanNode::getColumnIndexFromGuid(
 
 string AggregatePlanNode::debugInfo(const string &spacer) const {
     ostringstream buffer;
-    buffer << spacer << "\nAggregateColumns["
+    buffer << spacer << "AggregateColumns["
            << (int) m_aggregateColumns.size() << "]: {";
     for (int ctr = 0, cnt = (int) m_aggregateColumns.size();
          ctr < cnt; ctr++)
     {
-        buffer << spacer << m_aggregateColumns[ctr];
+        buffer << spacer << (ctr > 0 ? ", " : "") << m_aggregateColumns[ctr];
     }
-    buffer << spacer << "}";
-    buffer << spacer << "\nAggregateTypes["
-           << (int) m_aggregateColumns.size() << "]: {";
-    for (int ctr = 0, cnt = (int) m_aggregateColumns.size();
+    buffer << "}\n";
+    
+    buffer << spacer << "AggregateTypes["
+           << (int) m_aggregates.size() << "]: {";
+    for (int ctr = 0, cnt = (int) m_aggregates.size();
          ctr < cnt; ctr++)
     {
-        buffer << spacer << expressionutil::getTypeName(m_aggregates[ctr]);
+        buffer << (ctr > 0 ? ", " : "") << expressionutil::getTypeName(m_aggregates[ctr]);
     }
-    buffer << spacer << "}";
+    buffer << "}\n";
 
-    buffer << spacer << "}";
-    buffer << spacer << "\nAggregateColumnNames["
+    buffer << spacer << "AggregateColumnNames["
            << (int) m_aggregateColumnNames.size() << "]: {";
     for (int ctr = 0, cnt = (int) m_aggregateColumnNames.size();
          ctr < cnt; ctr++)
     {
-        buffer << spacer << m_aggregateColumnNames[ctr];
+        buffer << (ctr > 0 ? ", " : "") << m_aggregateColumnNames[ctr];
     }
-    buffer << spacer << "}";
+    buffer << "}\n";
 
-    buffer << spacer << "\nGroupByColumns[";
-    string add = "";
-    for (int ctr = 0, cnt = (int) m_groupByColumns.size();
+    buffer << spacer << "GroupByColumns["
+           << (int) m_groupByColumnNames.size() << "]: {";
+    for (int ctr = 0, cnt = (int) m_groupByColumnNames.size();
          ctr < cnt; ctr++)
     {
-        buffer << add << m_groupByColumns[ctr];
-        add = ", ";
+        buffer << (ctr > 0 ? ", " : "") << m_groupByColumnNames[ctr];
     }
-    buffer << "]\n";
+    buffer << "}\n";
 
     buffer << spacer << "OutputColumns[" << m_outputColumnGuids.size()
            << "]:\n";
@@ -291,6 +290,7 @@ AggregatePlanNode::loadFromJSONObject(Object &obj,
     }
     Array outputColumnsArray = outputColumnsValue.get_array();
 
+    VOLT_DEBUG("Initializing output columns for %s", this->debug().c_str());
     for (int ii = 0; ii < outputColumnsArray.size(); ii++)
     {
         Value outputColumnValue = outputColumnsArray[ii];
@@ -299,6 +299,7 @@ AggregatePlanNode::loadFromJSONObject(Object &obj,
         m_outputColumnNames.push_back(outputColumn.getName());
         m_outputColumnTypes.push_back(outputColumn.getType());
         m_outputColumnSizes.push_back(outputColumn.getSize());
+        VOLT_TRACE("[%02d] %s", ii, outputColumn.debug().c_str());
     }
 
     Value aggregateColumnsValue = find_value(obj, "AGGREGATE_COLUMNS");
@@ -308,6 +309,7 @@ AggregatePlanNode::loadFromJSONObject(Object &obj,
                                       "AggregatePlanNode::loadFromJSONObject:"
                                       " Can't find AGGREGATE_COLUMNS value");
     }
+    VOLT_DEBUG("Initializing aggregate column information for %s", this->debug().c_str());
     Array aggregateColumnsArray = aggregateColumnsValue.get_array();
     for (int ii = 0; ii < aggregateColumnsArray.size(); ii++)
     {
@@ -326,29 +328,34 @@ AggregatePlanNode::loadFromJSONObject(Object &obj,
                     aggregateColumn[zz].value_.get_str();
                 m_aggregates.
                     push_back(stringToExpression(aggregateColumnTypeString));
+                VOLT_TRACE("Added new AGGREGATE_TYPE record");
             }
             else if (aggregateColumn[zz].name_ == "AGGREGATE_NAME")
             {
                 containsName = true;
                 m_aggregateColumnNames.
                     push_back(aggregateColumn[zz].value_.get_str());
+                VOLT_TRACE("Added new AGGREGATE_NAME record");
             }
             else if (aggregateColumn[zz].name_ == "AGGREGATE_GUID")
             {
                 containsGuid = true;
                 m_aggregateColumnGuids.
                     push_back(aggregateColumn[zz].value_.get_int());
+                VOLT_TRACE("Added new AGGREGATE_GUID record");
             }
             else if (aggregateColumn[zz].name_ == "AGGREGATE_OUTPUT_COLUMN")
             {
                 containsOutputColumn = true;
                 m_aggregateOutputColumns.
                     push_back(aggregateColumn[zz].value_.get_int());
+                VOLT_TRACE("Added new AGGREGATE_OUTPUT_COLUMN record");
             }
         }
         assert(containsName && containsType && containsOutputColumn);
     }
 
+    VOLT_DEBUG("Initializing GROUP BY column information for %s", this->debug().c_str());
     Value groupByColumnsValue = find_value(obj, "GROUPBY_COLUMNS");
     if (!(groupByColumnsValue == Value::null))
     {
@@ -359,6 +366,7 @@ AggregatePlanNode::loadFromJSONObject(Object &obj,
             PlanColumn groupByColumn = PlanColumn(groupByColumnValue.get_obj());
             m_groupByColumnGuids.push_back(groupByColumn.getGuid());
             m_groupByColumnNames.push_back(groupByColumn.getName());
+            VOLT_TRACE("[%02d] %s", ii, groupByColumn.debug().c_str());
         }
     }
 }

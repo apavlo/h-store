@@ -648,21 +648,16 @@ public class Histogram<X> implements JSONSerializable {
     // ----------------------------------------------------------------------------
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
-    
+
     /**
-     * @return Uses the following template for the visualization of a histogram:
-     * 4 *
-     * 5 **
-     * 6 ****
-     * 7 *******
-     * 
-    */
+     * Histogram Pretty Print
+     */
     public String toString() {
         return (this.toString(MAX_CHARS, MAX_VALUE_LENGTH));
     }
     
     /**
-     * 
+     * Histogram Pretty Print
      * @param max_chars size of the bars
      * @return
      */
@@ -670,6 +665,12 @@ public class Histogram<X> implements JSONSerializable {
         return (this.toString(max_chars, MAX_VALUE_LENGTH));
     }
         
+    /**
+     * Histogram Pretty Print
+     * @param max_chars
+     * @param max_length
+     * @return
+     */
     public synchronized String toString(Integer max_chars, Integer max_length) {
         StringBuilder s = new StringBuilder();
         if (max_length == null) max_length = MAX_VALUE_LENGTH;

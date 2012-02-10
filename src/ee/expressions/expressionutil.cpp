@@ -477,7 +477,7 @@ expressionFactory(json_spirit::Object &obj,
     }
 
     // written thusly to ease testing/inspecting return content.
-    VOLT_TRACE("Created expression %p", ret);
+    VOLT_TRACE("Created '%s' expression %p", expressionutil::getTypeName(et).c_str(), ret);
     return ret;
 }
 
