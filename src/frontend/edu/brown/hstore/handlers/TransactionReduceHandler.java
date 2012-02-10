@@ -106,7 +106,7 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
                 if (partition != mr_ts.getBasePartition()) { 
                     LocalTransaction ts = mr_ts.getLocalTransaction(partition);
                     volt_proc.setPartitionId(partition);
-                    volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
+                    volt_proc.call(ts, ts.getInitiateTaskMessage().getParameters());
                 }
             } // FOR
             volt_proc.setPartitionId(tmpId);
