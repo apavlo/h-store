@@ -9,6 +9,7 @@ import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
+import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -44,7 +45,9 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
             AbstractPlanNode child = join_node.getChild(0);
             if (debug.get()) LOG.debug(join_node + " -> " + child);
             if (child instanceof ReceivePlanNode) {
-                List<AbstractPlanNode> children = child.getChild(0).getChildren();
+                ReceivePlanNode recv_node = (ReceivePlanNode)child;
+                SendPlanNode send_node = (SendPlanNode)child.getChild(0);
+                List<AbstractPlanNode> children = send_node.getChildren();
                 assert(children != null);
                 if (children.size() > 1) continue;
                 if (children.get(0).getChildPlanNodeCount() > 0) continue;
@@ -69,9 +72,17 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
                 // If either table is replicated, then the leaf scan should be linked
                 // directly with the Join PlanNode
                 if (join_tbl.getIsreplicated() || leaf_tbl.getIsreplicated()) {
+                    AbstractPlanNode parent = join_node.getParent(0);
+                    assert(parent != null);
+                    parent.clearChildren();
+                    parent.addAndLinkChild(recv_node);
+                    
+                    join_node.clearParents();
                     join_node.clearChildren();
                     leaf_node.clearParents();
+                    
                     join_node.addAndLinkChild(leaf_node);
+                    send_node.addAndLinkChild(join_node);
                 }
             }
         } // FOR
