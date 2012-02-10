@@ -254,6 +254,7 @@ AbstractPlanNode::fromJSONObject(Object &obj, const catalog::Database *catalog_d
                                       " ID value is null");
     }
     node->m_planNodeId = (int32_t) idValue.get_int();
+    VOLT_TRACE("Initializing PlanNode %s", node->debug().c_str());
 
     Value inlineNodesValue = find_value(obj,"INLINE_NODES");
     if (inlineNodesValue == Value::null)
@@ -281,6 +282,7 @@ AbstractPlanNode::fromJSONObject(Object &obj, const catalog::Database *catalog_d
         // todo: if this throws, new Node can be leaked.
         // As long as newNode is not NULL, this will not throw.
         node->addInlinePlanNode(newNode);
+        VOLT_TRACE("Adding inline PlanNode %s for %s", newNode->debug().c_str(), node->debug().c_str());
     }
 
     Value parentNodeIdsValue = find_value(obj, "PARENT_IDS");

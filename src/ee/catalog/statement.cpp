@@ -44,6 +44,7 @@ Statement::Statement(Catalog *catalog, CatalogType *parent, const string &path, 
     m_fields["batched"] = value;
     m_fields["secondaryindex"] = value;
     m_fields["prefetch"] = value;
+    m_fields["asynchronous"] = value;
     m_fields["paramnum"] = value;
     m_childCollections["parameters"] = &m_parameters;
     m_childCollections["output_columns"] = &m_output_columns;
@@ -69,6 +70,7 @@ void Statement::update() {
     m_batched = m_fields["batched"].intValue;
     m_secondaryindex = m_fields["secondaryindex"].intValue;
     m_prefetch = m_fields["prefetch"].intValue;
+    m_asynchronous = m_fields["asynchronous"].intValue;
     m_paramnum = m_fields["paramnum"].intValue;
     m_has_singlesited = m_fields["has_singlesited"].intValue;
     m_exptree = m_fields["exptree"].strValue.c_str();
@@ -169,6 +171,10 @@ bool Statement::secondaryindex() const {
 
 bool Statement::prefetch() const {
     return m_prefetch;
+}
+
+bool Statement::asynchronous() const {
+    return m_asynchronous;
 }
 
 int32_t Statement::paramnum() const {

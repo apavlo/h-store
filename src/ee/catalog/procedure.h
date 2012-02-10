@@ -54,6 +54,7 @@ protected:
     bool m_everysite;
     bool m_systemproc;
     bool m_mapreduce;
+    bool m_prefetch;
     std::string m_mapInputQuery;
     std::string m_mapEmitTable;
     std::string m_reduceInputQuery;
@@ -91,6 +92,8 @@ public:
     bool systemproc() const;
     /** GETTER: Is this procedure a Map/Reduce procedure? */
     bool mapreduce() const;
+    /** GETTER: Does this Procedure have Statements can be pre-fetched for distributed transactions? */
+    bool prefetch() const;
     /** GETTER: The name of the query that gets executed and fed into the Map function */
     const std::string & mapInputQuery() const;
     /** GETTER: The name of the table that the Map function will store data in */

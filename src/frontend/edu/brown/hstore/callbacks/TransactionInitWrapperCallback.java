@@ -85,6 +85,12 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
         assert(this.getOrigCallback() != null) :
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         this.getOrigCallback().run(this.builder.build());
+        
+        // TODO(cjl6): At this point all of the partitions at this HStoreSite are allocated
+        //             for executing this txn. We can now check whether it has any embedded
+        //             queries that need to be queued up for pre-fetching. If so, blast them
+        //             off to the HStoreSite so that they can be executed in the PartitionExecutor
+        //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
     }
     
     public void abort(Hstore.Status status, int partition, long txn_id) {

@@ -758,6 +758,8 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
     assert(node);
     assert(tempTableMemoryInBytes);
 
+    VOLT_DEBUG("Initializing AggregatePlanNode: %s", node->debug().c_str());
+    
     //
     // Construct the output table
     // Note that we do not need to do this if we're an inline node
@@ -772,28 +774,26 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
 
         assert(node->getChildren()[0] != NULL);
         AbstractPlanNode *child_node = node->getChildren()[0];
-        for (int i = 0; i < node->getAggregateColumnNames().size(); i++) {
-            VOLT_DEBUG("\nAGG COLUMN NAME: %s\n",
-                       node->getAggregateColumnNames()[i].c_str());
-        }
-
         int aggregateCount = (int) node->getAggregateColumnNames().size();
         assert(aggregateCount == node->getAggregates().size());
 
         std::vector<int> aggregateColumns;
         for (int ctr = 0; ctr < aggregateCount; ctr++)
         {
+            VOLT_DEBUG("[%02d] AGG COLUMN NAME: %s [guid=%d]",
+                       ctr, node->getAggregateColumnNames()[ctr].c_str(), node->getAggregateColumnGuids()[ctr]);
+            
             int index =
                 child_node->
                 getColumnIndexFromGuid(node->getAggregateColumnGuids()[ctr],
                                        catalog_db);
-            if (index == -1) {
-                fprintf(stderr, "[%02d] GUID = %d\n", ctr, node->getAggregateColumnGuids()[ctr]);
-                fprintf(stderr, "CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
-            }
             assert(index != -1);
             if (index == -1)
             {
+                VOLT_ERROR("Failed to find index of AGGREGATE PlanColumn %s [guid=%d]",
+                           node->getAggregateColumnNames()[ctr].c_str(), node->getAggregateColumnGuids()[ctr]);
+                VOLT_ERROR("[%02d] GUID = %d\n", ctr, node->getAggregateColumnGuids()[ctr]);
+                VOLT_ERROR("CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
                 return false;
             }
             aggregateColumns.push_back(index);
@@ -905,6 +905,8 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
                 assert(index != -1);
                 if (index == -1)
                 {
+                    VOLT_ERROR("Failed to find index of GROUP BY PlanColumn %s [guid=%d]",
+                               node->getGroupByColumnNames()[ii].c_str(), node->getGroupByColumnGuids()[ii]);
                     return false;
                 }
                 groupByColumns.push_back(index);

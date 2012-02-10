@@ -69,6 +69,10 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
             String.format("Got init request for remote txn #%d but we already have one [%s]",
                           txn_id, ts);
         
+        // TODO(cjl6): If (request.getPrefetchFragmentsCount() > 0), then we need to
+        // make a RemoteTransaction handle for ourselves so that we can keep track of 
+        // our state when pre-fetching queries.
+        
         // Wrap the callback around a TransactionInitWrapperCallback that will wait until
         // our HStoreSite gets an acknowledgment from all the
         // TODO: Figure out how we're going to return this callback to its ObjectPool
