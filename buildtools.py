@@ -22,6 +22,7 @@ class BuildContext:
         self.THIRD_PARTY_INPUT = {}
         self.TESTS = {}
         self.PLATFORM = os.uname()[0]
+        self.PLATFORM_VERSION = os.uname()[2] 
         self.LEVEL = "DEBUG"
         self.TARGET = "BUILD"
         self.NM = "/usr/bin/nm"
