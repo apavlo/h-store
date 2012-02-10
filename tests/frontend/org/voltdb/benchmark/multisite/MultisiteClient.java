@@ -34,7 +34,7 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class MultisiteClient extends BenchmarkComponent {
 
@@ -139,11 +139,11 @@ public class MultisiteClient extends BenchmarkComponent {
     class RunChangeSeatCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
+            if (clientResponse.getStatus() == Status.ABORT_CONNECTION_LOST){
                 return;
             }
             incrementTransactionCounter(clientResponse, Transaction.kChangeSeat.ordinal());
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == Status.OK) {
                 assert(clientResponse.getResults().length == 1);
                 assert(clientResponse.getResults()[0].getRowCount() == 1);
                 assert(clientResponse.getResults()[0].asScalarLong() == 1 ||
@@ -181,7 +181,7 @@ public class MultisiteClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
+            if (clientResponse.getStatus() == Status.ABORT_CONNECTION_LOST){
                 return;
             }
             incrementTransactionCounter(clientResponse, Transaction.kUpdateReservation.ordinal());
@@ -210,7 +210,7 @@ public class MultisiteClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
+            if (clientResponse.getStatus() == Status.ABORT_CONNECTION_LOST){
                 return;
             }
             incrementTransactionCounter(clientResponse, Transaction.kFindOpenSeats.ordinal());

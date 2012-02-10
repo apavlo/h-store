@@ -26,7 +26,7 @@ import org.voltdb.exceptions.SerializableException;
 import org.voltdb.VoltTable;
 import org.voltdb.client.ClientResponse;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.StringUtil;
 
 /**
@@ -36,7 +36,7 @@ import edu.brown.utils.StringUtil;
  */
 public class ClientResponseImpl implements FastSerializable, ClientResponse {
     private boolean setProperly = false;
-    private Hstore.Status status;
+    private Status status;
     private String statusString = null;
     private byte appStatus = Byte.MIN_VALUE;
     private String appStatusString = null;
@@ -65,7 +65,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param results
      * @param extra
      */
-    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString) {
         this(txn_id, client_handle, basePartition, status, appStatus, appStatusString, results, statusString, null);
     }
 
@@ -76,7 +76,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param results
      * @param extra
      */
-    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, VoltTable[] results, String statusString) {
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString) {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, null);
     }
 
@@ -87,7 +87,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param extra
      * @param e
      */
-    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, VoltTable[] results, String statusString, SerializableException e) {
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, VoltTable[] results, String statusString, SerializableException e) {
         this(txn_id, client_handle, basePartition, status, Byte.MIN_VALUE, null, results, statusString, e);
     }
 
@@ -98,11 +98,11 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param extra
      * @param e
      */
-    public ClientResponseImpl(long txn_id, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
+    public ClientResponseImpl(long txn_id, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable results[], String extra, SerializableException e) {
         this(txn_id, -1, basePartition, status, appStatus, appStatusString, results, extra, e);
     }
 
-    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Hstore.Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
+    public ClientResponseImpl(long txn_id, long client_handle, int basePartition, Status status, byte appStatus, String appStatusString, VoltTable[] results, String statusString, SerializableException e) {
         this.txn_id = txn_id;
         this.clientHandle = client_handle;
         this.basePartition = basePartition;
@@ -156,13 +156,13 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
      * @param arr
      * @param flag
      */
-    public static void setStatus(ByteBuffer b, Hstore.Status status) {
+    public static void setStatus(ByteBuffer b, Status status) {
         b.put(23, (byte)status.ordinal()); // 1 + 4 + 8 + 8 + 1 + 1 + 4 = 27 
     }
     
     // ----------------------------------------------------------------------------
     
-    private void setResults(Hstore.Status status, VoltTable[] results, String statusString) {
+    private void setResults(Status status, VoltTable[] results, String statusString) {
         assert results != null;
         for (VoltTable result : results) {
             // null values are not permitted in results. If there is one, it will cause an
@@ -176,12 +176,12 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.setProperly = true;
     }
 
-    private void setResults(Hstore.Status status, VoltTable[] results, String extra, SerializableException e) {
+    private void setResults(Status status, VoltTable[] results, String extra, SerializableException e) {
         m_exception = e;
         setResults(status, results, extra);
     }
     
-    public void setStatus(Hstore.Status status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
     
@@ -211,7 +211,8 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         this.singlepartition = val;
     }
     
-    public Hstore.Status getStatus() {
+    @Override
+    public Status getStatus() {
         return status;
     }
 
@@ -260,7 +261,7 @@ public class ClientResponseImpl implements FastSerializable, ClientResponse {
         basePartition = in.readInt();
         
         byte presentFields = in.readByte();
-        status = Hstore.Status.valueOf(in.readByte());
+        status = Status.valueOf(in.readByte());
         if ((presentFields & (1 << 5)) != 0) {
             statusString = in.readString();
         } else {

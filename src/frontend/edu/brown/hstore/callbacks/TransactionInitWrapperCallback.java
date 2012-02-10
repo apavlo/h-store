@@ -6,8 +6,8 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -19,7 +19,7 @@ import edu.brown.hstore.HStoreSite;
  * partitions at this HStoreSite will we invoke the original callback.
  * @author pavlo
  */
-public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.TransactionInitResponse, Integer> {
+public class TransactionInitWrapperCallback extends BlockingCallback<TransactionInitResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionInitWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -27,14 +27,14 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
             
-    private Hstore.TransactionInitResponse.Builder builder = null;
+    private TransactionInitResponse.Builder builder = null;
     private Collection<Integer> partitions = null;
     
     public TransactionInitWrapperCallback(HStoreSite hstore_site) {
         super(hstore_site, false);
     }
     
-    public void init(long txn_id, Collection<Integer> partitions, RpcCallback<Hstore.TransactionInitResponse> orig_callback) {
+    public void init(long txn_id, Collection<Integer> partitions, RpcCallback<TransactionInitResponse> orig_callback) {
         if (debug.get())
             LOG.debug(String.format("Starting new %s for txn #%d", this.getClass().getSimpleName(), txn_id));
         assert(orig_callback != null) :
@@ -50,9 +50,9 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
         } // FOR
         assert(counter > 0);
         this.partitions = partitions;
-        this.builder = Hstore.TransactionInitResponse.newBuilder()
+        this.builder = TransactionInitResponse.newBuilder()
                              .setTransactionId(txn_id)
-                             .setStatus(Hstore.Status.OK);
+                             .setStatus(Hstoreservice.Status.OK);
         super.init(txn_id, counter, orig_callback);
     }
     
@@ -93,14 +93,14 @@ public class TransactionInitWrapperCallback extends BlockingCallback<Hstore.Tran
         //             Use txn_id to get the AbstractTransaction handle from the HStoreSite 
     }
     
-    public void abort(Hstore.Status status, int partition, long txn_id) {
+    public void abort(Hstoreservice.Status status, int partition, long txn_id) {
         this.builder.setRejectPartition(partition);
         this.builder.setRejectTransactionId(txn_id);
         this.abort(status);
     }
     
     @Override
-    protected void abortCallback(Hstore.Status status) {
+    protected void abortCallback(Hstoreservice.Status status) {
         if (debug.get())
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));

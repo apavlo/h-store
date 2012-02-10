@@ -8,7 +8,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestClientResponseImpl extends TestCase {
 
@@ -17,7 +17,7 @@ public class TestClientResponseImpl extends TestCase {
     ClientResponseImpl cr = null;
     long txn_id = 10001;
     long client_handle = Integer.MAX_VALUE;
-    Hstore.Status status = Hstore.Status.OK;
+    Status status = Status.OK;
     VoltTable results[] = new VoltTable[0];
     String statusString = "Squirrels!";
     

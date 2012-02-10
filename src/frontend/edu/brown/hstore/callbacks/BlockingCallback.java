@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.Poolable;
@@ -161,7 +161,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     /**
      * 
      */
-    public final void abort(Hstore.Status status) {
+    public final void abort(Hstoreservice.Status status) {
         // If this is the first response that told us to abort, then we'll
         // send the abort message out 
         if (this.aborted.compareAndSet(false, true)) {
@@ -176,7 +176,7 @@ public abstract class BlockingCallback<T, U> implements RpcCallback<U>, Poolable
     /**
      * 
      */
-    protected abstract void abortCallback(Hstore.Status status);
+    protected abstract void abortCallback(Hstoreservice.Status status);
 
     // ----------------------------------------------------------------------------
     // FINISH

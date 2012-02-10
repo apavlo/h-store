@@ -9,7 +9,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -206,7 +206,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
                 if (next_id < last_txns[partition]) {
                     if (t) LOG.trace(String.format("The next id for partition #%d is txn #%d but this is less than the previous txn #%d. Rejecting... [queueSize=%d]",
                                                 partition, next_id, last_txns[partition], txn_queues[partition].size()));
-                    this.rejectTransaction(next_id, callback, Hstore.Status.ABORT_RESTART, partition, last_txns[partition]);
+                    this.rejectTransaction(next_id, callback, Hstoreservice.Status.ABORT_RESTART, partition, last_txns[partition]);
                     continue;
                 }
     
@@ -250,7 +250,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
         }
     }
     
-    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstore.Status status, int reject_partition, long reject_txnId) {
+    private void rejectTransaction(long txn_id, TransactionInitWrapperCallback callback, Hstoreservice.Status status, int reject_partition, long reject_txnId) {
         // First send back an ABORT message to the initiating HStoreSite
         try {
             callback.abort(status, reject_partition, reject_txnId);
@@ -305,7 +305,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
                     if (this.last_txns[partition] > txn_id) {
                         if (t) LOG.trace(String.format("The last txn for remote partition is #%d but this is greater than our txn #%d. Rejecting...",
                                                     partition, this.last_txns[partition], txn_id));
-                        this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART, partition, this.last_txns[partition]);
+                        this.rejectTransaction(txn_id, callback, Hstoreservice.Status.ABORT_RESTART, partition, this.last_txns[partition]);
                         ret = false;
                         break;
                     }
@@ -316,13 +316,13 @@ public class TransactionQueueManager implements Runnable, Loggable {
                 if (next_safe > txn_id) {
                     if (t) LOG.trace(String.format("The next safe id for partition #%d is txn #%d but this is less than our new txn #%d. Rejecting...",
                                                 partition, next_safe, txn_id));
-                    this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_RESTART, partition, next_safe);
+                    this.rejectTransaction(txn_id, callback, Hstoreservice.Status.ABORT_RESTART, partition, next_safe);
                     ret = false;
                     break;
                 } else if (txn_queues[partition].offer(txn_id, false) == false) {
                     if (t) LOG.trace(String.format("The DTXN queue partition #%d is overloaded. Throttling txn #%d",
                                                 partition, next_safe, txn_id));
-                    this.rejectTransaction(txn_id, callback, Hstore.Status.ABORT_THROTTLED, partition, next_safe);
+                    this.rejectTransaction(txn_id, callback, Hstoreservice.Status.ABORT_THROTTLED, partition, next_safe);
                     ret = false;
                     break;
                 } else if (!working_partitions[partition]) {
@@ -346,7 +346,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
      * @param txn_id
      * @param partition
      */
-    public void finished(long txn_id, Hstore.Status status, int partition) {
+    public void finished(long txn_id, Hstoreservice.Status status, int partition) {
         if (d) LOG.debug(String.format("Marking txn #%d as finished on partition %d [status=%s, basePartition=%d]",
                                     txn_id, partition, status,
                                     TransactionIdManager.getInitiatorIdFromTransactionId(txn_id)));
@@ -455,7 +455,7 @@ public class TransactionQueueManager implements Runnable, Loggable {
                                             ts, last_txn_id, releaseTxnId));
                 this.blocked_dtxns.remove();
                 this.blocked_dtxn_release.remove(ts);
-                hstore_site.transactionRestart(ts, Hstore.Status.ABORT_RESTART);
+                hstore_site.transactionRestart(ts, Hstoreservice.Status.ABORT_RESTART);
 //                hstore_site.transactionRequeue(p.getSecond());
             } else break;
         } // WHILE

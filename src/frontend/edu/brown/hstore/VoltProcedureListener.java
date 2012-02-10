@@ -205,7 +205,7 @@ public class VoltProcedureListener extends AbstractEventHandler {
 
     public static byte[] serializeResponse(VoltTable[] results, long clientHandle) {
         // Serialize the results
-        Hstore.Status status = Hstore.Status.OK;
+        Hstoreservice.Status status = Hstoreservice.Status.OK;
         String extra = null;
         ClientResponseImpl response = new ClientResponseImpl(-1, clientHandle, -1, status, results, extra);
         response.setClientHandle(clientHandle);

@@ -16,8 +16,8 @@ import edu.brown.benchmark.seats.SEATSClient.NewReservationCallback;
 import edu.brown.benchmark.seats.SEATSClient.Reservation;
 import edu.brown.benchmark.seats.util.CustomerId;
 import edu.brown.benchmark.seats.util.FlightId;
-import edu.brown.hstore.Hstore;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestSEATSClient extends SEATSBaseTestCase {
     
@@ -136,7 +136,7 @@ public class TestSEATSClient extends SEATSBaseTestCase {
         };
         results[0].addRow(new Long(1));
         ClientResponseImpl cresponse = new ClientResponseImpl(TXN_ID, CLIENT_HANDLE,
-                                                              0, Hstore.Status.OK,
+                                                              0, Status.OK,
                                                               results, "");
         
         Reservation r = new Reservation(RESERVATION_ID, this.flight_id, customer_id, seatnum);

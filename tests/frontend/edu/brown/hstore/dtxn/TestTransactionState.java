@@ -27,7 +27,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.BaseTestCase;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hashing.DefaultHasher;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.PartitionEstimator;
