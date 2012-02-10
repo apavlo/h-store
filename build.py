@@ -142,7 +142,7 @@ if CTX.PLATFORM == "Darwin":
     
     # 2012-02-10
     # Don't include the 'arch' flag for newer versions of OSX
-    if int(CTX.PLATFORM_VERSION.split(".")) < 11:
+    if int(CTX.PLATFORM_VERSION.split(".")[0]) < 11:
         CTX.CPPFLAGS += " -arch x86_64"
     
     CTX.JNIEXT = "jnilib"
