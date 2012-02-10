@@ -63,10 +63,10 @@ public class PlanOptimizer {
      */
     @SuppressWarnings("unchecked")
     protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = (Class<? extends AbstractOptimization>[])new Class<?>[]{
+        RemoveDistributedReplicatedTableJoinOptimization.class,
         PushdownProjectionOptimization.class,
         PushdownLimitOrderByOptimization.class,
         RemoveRedundantProjectionsOptimizations.class,
-        RemoveDistributedReplicatedTableJoinOptimization.class,
     };
     
     // ----------------------------------------------------------------------------
