@@ -43,7 +43,7 @@ CTX = BuildContext(sys.argv)
 #  specific targets
 CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
             -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
-            -Winit-self -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable
+            -Winit-self -Wno-sign-compare -Wno-unused-parameter
             -pthread
             -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
             -fno-omit-frame-pointer
@@ -147,7 +147,7 @@ if CTX.PLATFORM == "Darwin":
     CTX.JNIFLAGS = "-framework JavaVM,1.6"
 
 if CTX.PLATFORM == "Linux":
-    CTX.CPPFLAGS += " -Wno-attributes -DLINUX -fPIC"
+    CTX.CPPFLAGS += " -Wno-attributes -DLINUX -fPIC -Wno-unused-but-set-variable"
     CTX.NMFLAGS += " --demangle"
 
 ###############################################################################
