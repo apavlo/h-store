@@ -44,7 +44,7 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
     }
     
     @Override
-    public AbstractPlanNode optimize(AbstractPlanNode root) {
+    public AbstractPlanNode optimize(final AbstractPlanNode root) {
         new PlanNodeTreeWalker(false) {
             @Override
             protected void callback(AbstractPlanNode element) {

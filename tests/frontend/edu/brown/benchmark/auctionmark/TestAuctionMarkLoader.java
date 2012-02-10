@@ -193,51 +193,51 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     /**
      * testCategory
      */
-//    public void testGenerateCategory() throws Exception {
-//        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_CATEGORY);
-//        assertNotNull(generator);
-//        assertEquals(AuctionMarkConstants.TABLENAME_CATEGORY, generator.getTableName());
-//        generator.init();
-//        loader.generateTableData(generator.getTableName());
-//    }
-//    
-//    /**
-//     * testGenerateGlobalAttributeGroup
-//     */
-//    public void testGenerateGlobalAttributeGroup() throws Exception {
-//        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
-//        assertNotNull(generator);
-//        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, generator.getTableName());
-//        generator.init();
-//        loader.generateTableData(generator.getTableName());
-//    }
-//
-//    /**
-//     * testGenerateGlobalAttributeValue
-//     */
-//    public void testGenerateGlobalAttributeValue() throws Exception {
-//        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
-//        assertNotNull(generator);
-//        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE, generator.getTableName());
-//        generator.init();
-//        EXPECTED_TABLESIZES.put(generator.getTableName(), generator.getTableSize()); // HACK
-//        loader.generateTableData(generator.getTableName());
-//    }
-//
-//    
-//    /**
-//     * testGenerateUser
-//     */
-//    public void testGenerateUser() throws Exception {
-//        // FIXME loader.generateTableData(AuctionMarkConstants.TABLENAME_USER);
-//    }    
-//
-//    /**
-//     * testGenerateUserAttributes
-//     */
-//    public void testGenerateUserAttributes() throws Exception {
-//        // FIXME loader.generateTableData(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
-//    }        
+    public void testGenerateCategory() throws Exception {
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_CATEGORY);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_CATEGORY, generator.getTableName());
+        generator.init();
+        loader.generateTableData(generator.getTableName());
+    }
+    
+    /**
+     * testGenerateGlobalAttributeGroup
+     */
+    public void testGenerateGlobalAttributeGroup() throws Exception {
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_GROUP, generator.getTableName());
+        generator.init();
+        loader.generateTableData(generator.getTableName());
+    }
+
+    /**
+     * testGenerateGlobalAttributeValue
+     */
+    public void testGenerateGlobalAttributeValue() throws Exception {
+        AbstractTableGenerator generator = loader.getGenerator(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE);
+        assertNotNull(generator);
+        assertEquals(AuctionMarkConstants.TABLENAME_GLOBAL_ATTRIBUTE_VALUE, generator.getTableName());
+        generator.init();
+        EXPECTED_TABLESIZES.put(generator.getTableName(), generator.getTableSize()); // HACK
+        loader.generateTableData(generator.getTableName());
+    }
+
+    
+    /**
+     * testGenerateUser
+     */
+    public void testGenerateUser() throws Exception {
+        // FIXME loader.generateTableData(AuctionMarkConstants.TABLENAME_USER);
+    }    
+
+    /**
+     * testGenerateUserAttributes
+     */
+    public void testGenerateUserAttributes() throws Exception {
+        // FIXME loader.generateTableData(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
+    }        
     
     /**
      * testGenerateItem
