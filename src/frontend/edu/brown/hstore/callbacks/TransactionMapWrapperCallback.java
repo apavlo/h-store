@@ -6,11 +6,11 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
-import edu.brown.hstore.Hstore.TransactionMapResponse;
-import edu.brown.hstore.Hstore.TransactionMapResponse.Builder;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.TransactionMapResponse.Builder;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -23,7 +23,7 @@ import edu.brown.hstore.util.MapReduceHelperThread;
  * at this HStoreSite is finished with the Map phase. 
  * @author pavlo
  */
-public class TransactionMapWrapperCallback extends BlockingCallback<Hstore.TransactionMapResponse, Integer> {
+public class TransactionMapWrapperCallback extends BlockingCallback<TransactionMapResponse, Integer> {
 	private static final Logger LOG = Logger.getLogger(TransactionMapWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -31,10 +31,10 @@ public class TransactionMapWrapperCallback extends BlockingCallback<Hstore.Trans
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 	
-	private Hstore.TransactionMapResponse.Builder builder = null;
+	private TransactionMapResponse.Builder builder = null;
 	private MapReduceTransaction ts;
 	
-	public Hstore.TransactionMapResponse.Builder getBuilder() {
+	public TransactionMapResponse.Builder getBuilder() {
         return builder;
     }
 
@@ -42,16 +42,16 @@ public class TransactionMapWrapperCallback extends BlockingCallback<Hstore.Trans
 		super(hstore_site, false);
 	}
 	
-	public void init(MapReduceTransaction ts, RpcCallback<Hstore.TransactionMapResponse> orig_callback) {
+	public void init(MapReduceTransaction ts, RpcCallback<TransactionMapResponse> orig_callback) {
 	    assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
-		this.builder = Hstore.TransactionMapResponse.newBuilder()
+		this.builder = TransactionMapResponse.newBuilder()
         					 .setTransactionId(ts.getTransactionId())
-        					 .setStatus(Hstore.Status.OK);
+        					 .setStatus(Hstoreservice.Status.OK);
 		super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
 	}
 	

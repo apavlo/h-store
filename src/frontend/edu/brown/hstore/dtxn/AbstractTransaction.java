@@ -42,8 +42,8 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -171,7 +171,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.exec_eeWork = new boolean[cnt];
         this.exec_noUndoBuffer = new boolean[cnt];
         
-        this.finish_task = new FinishTaskMessage(this, Hstore.Status.OK);
+        this.finish_task = new FinishTaskMessage(this, Hstoreservice.Status.OK);
         this.work_task = new FragmentTaskMessage[cnt];
         for (int i = 0; i < this.work_task.length; i++) {
             this.work_task[i] = new FragmentTaskMessage();
@@ -257,10 +257,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Store data from mapOutput tables to reduceInput table
      * reduceInput table should merge all incoming data from the mapOutput tables.
      */
-    public Hstore.Status storeData(int partition, VoltTable vt) {
+    public Hstoreservice.Status storeData(int partition, VoltTable vt) {
         assert(false) : "Unimplemented!";
         
-        return (Hstore.Status.OK);
+        return (Hstoreservice.Status.OK);
     }
     
     // ----------------------------------------------------------------------------
@@ -471,7 +471,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
     }
     
-    public FinishTaskMessage getFinishTaskMessage(Hstore.Status status) {
+    public FinishTaskMessage getFinishTaskMessage(Hstoreservice.Status status) {
         this.finish_task.setTxnId(this.getTransactionId().longValue());
         this.finish_task.setStatus(status);
         return (this.finish_task);

@@ -2,13 +2,13 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.util.MapReduceHelperThread;
 
 /**
  * This callback waits until all of the TransactionMapResponses have come
@@ -17,7 +17,7 @@ import edu.brown.hstore.util.MapReduceHelperThread;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class TransactionMapCallback extends BlockingCallback<Hstore.TransactionMapResponse, Hstore.TransactionMapResponse> {
+public class TransactionMapCallback extends BlockingCallback<TransactionMapResponse, TransactionMapResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionMapCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -104,7 +104,7 @@ public class TransactionMapCallback extends BlockingCallback<Hstore.TransactionM
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionMapResponse response) {
+    protected int runImpl(TransactionMapResponse response) {
         if (debug.get())
             LOG.debug(String.format("Got %s with status %s for %s [partitions=%s]",
                                     response.getClass().getSimpleName(),
@@ -132,7 +132,7 @@ public class TransactionMapCallback extends BlockingCallback<Hstore.TransactionM
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
                           response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
         
-        if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
+        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
             this.abort(response.getStatus());
             return (0);
         }

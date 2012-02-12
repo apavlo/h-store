@@ -32,7 +32,7 @@ import org.voltdb.client.ProcCallException;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 
 /** TPC-C client load generator. */
 public class BlobTortureClient extends BenchmarkComponent {
@@ -121,7 +121,7 @@ public class BlobTortureClient extends BenchmarkComponent {
 
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() != Hstore.Status.OK){
+            if (clientResponse.getStatus() != Status.OK){
                 System.out.println(clientResponse.getStatusString());
                 System.out.println(clientResponse.getException());
                 System.exit(-1);

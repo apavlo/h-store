@@ -14,7 +14,9 @@ import org.voltdb.catalog.Table;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
@@ -197,7 +199,7 @@ public class MapReduceTransaction extends LocalTransaction {
      * @see edu.brown.hstore.dtxn.AbstractTransaction#storeData(int, org.voltdb.VoltTable)
      */
     @Override
-    public synchronized Hstore.Status storeData(int partition, VoltTable vt) {
+    public synchronized Hstoreservice.Status storeData(int partition, VoltTable vt) {
         VoltTable input = this.getReduceInputByPartition(partition);
         
         assert(input != null);
@@ -214,7 +216,7 @@ public class MapReduceTransaction extends LocalTransaction {
         }
         vt.resetRowPosition();
         
-        return Hstore.Status.OK;
+        return Hstoreservice.Status.OK;
     }
     
     /**
@@ -336,13 +338,13 @@ public class MapReduceTransaction extends LocalTransaction {
         return (this.reduceWrapper_callback);
     }
     
-    public void initTransactionMapWrapperCallback(RpcCallback<Hstore.TransactionMapResponse> orig_callback) {
+    public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
         if (debug.get()) LOG.debug("Trying to intialize TransactionMapWrapperCallback for " + this);
         assert (this.mapWrapper_callback.isInitialized() == false);
         this.mapWrapper_callback.init(this, orig_callback);
     }
     
-    public void initTransactionReduceWrapperCallback(RpcCallback<Hstore.TransactionReduceResponse> orig_callback) {
+    public void initTransactionReduceWrapperCallback(RpcCallback<TransactionReduceResponse> orig_callback) {
         if (debug.get()) LOG.debug("Trying to initialize TransactionReduceWrapperCallback for " + this);
         //assert (this.reduceWrapper_callback.isInitialized() == false);
         this.reduceWrapper_callback.init(this, orig_callback);

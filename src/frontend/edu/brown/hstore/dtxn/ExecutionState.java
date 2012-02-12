@@ -18,7 +18,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;

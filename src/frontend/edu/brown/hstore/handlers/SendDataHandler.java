@@ -13,11 +13,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.DataFragment;
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.SendDataRequest;
-import edu.brown.hstore.Hstore.SendDataResponse;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.DataFragment;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.SendDataRequest;
+import edu.brown.hstore.Hstoreservice.SendDataResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
@@ -68,9 +68,9 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
         AbstractTransaction ts = hstore_site.getTransaction(txn_id);
         assert(ts != null) : "Unexpected transaction #" + txn_id;
 
-        Hstore.SendDataResponse.Builder builder = Hstore.SendDataResponse.newBuilder()
+        SendDataResponse.Builder builder = SendDataResponse.newBuilder()
                                                              .setTransactionId(txn_id)
-                                                             .setStatus(Hstore.Status.OK)
+                                                             .setStatus(Hstoreservice.Status.OK)
                                                              .setSenderId(hstore_site.getSiteId());
         
         for (DataFragment frag : request.getFragmentsList()) {
@@ -98,8 +98,8 @@ public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest,
                 
                 if (debug.get())
                     LOG.debug(String.format("<StoreTable from Partition %d to Partition:%d>\n %s",hstore_site.getSiteId() ,partition,vt));
-                Hstore.Status status = ts.storeData(partition, vt);
-                if (status != Hstore.Status.OK) builder.setStatus(status);
+                Hstoreservice.Status status = ts.storeData(partition, vt);
+                if (status != Hstoreservice.Status.OK) builder.setStatus(status);
                 builder.addPartitions(partition);
             } // FOR
         } // FOR

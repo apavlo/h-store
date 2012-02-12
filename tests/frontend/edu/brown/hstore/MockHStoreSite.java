@@ -11,9 +11,8 @@ import org.voltdb.catalog.Site;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ArgumentsParser;
@@ -80,7 +79,7 @@ public class MockHStoreSite extends HStoreSite {
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                            orig_ts, orig_ts.getRestartCounter()));
             } else {
-                this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
+                this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return;
             }
         }
@@ -116,7 +115,7 @@ public class MockHStoreSite extends HStoreSite {
             ThreadUtil.sleep(2500);
             
             final LocalTransaction ts = makeLocalTransaction(hstore_site);
-            RpcCallback<Hstore.TransactionInitResponse> callback = new RpcCallback<Hstore.TransactionInitResponse>() {
+            RpcCallback<TransactionInitResponse> callback = new RpcCallback<TransactionInitResponse>() {
                 @Override
                 public void run(TransactionInitResponse parameter) {
                     LOG.info("GOT CALLBACK FOR " + ts);

@@ -47,7 +47,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Pair;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -202,7 +202,7 @@ class Distributer {
         public void createWork(long now, long handle, String name, BBContainer c, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
-                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_CONNECTION_LOST,
+                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstoreservice.Status.ABORT_CONNECTION_LOST,
                             new VoltTable[0], "Connection to database host (" + m_hostname +
                             ") was lost before a response was received");
                     callback.clientCallback(r);
@@ -217,7 +217,7 @@ class Distributer {
         public void createWork(long now, long handle, String name, FastSerializable f, ProcedureCallback callback) {
             synchronized (this) {
                 if (!m_isConnected) {
-                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_CONNECTION_LOST,
+                    final ClientResponse r = new ClientResponseImpl(-1, -1, -1, Hstoreservice.Status.ABORT_CONNECTION_LOST,
                             new VoltTable[0], "Connection to database host (" + m_hostname +
                             ") was lost before a response was received");
                     callback.clientCallback(r);
@@ -262,7 +262,7 @@ class Distributer {
             
             final long clientHandle = response.getClientHandle();
             final boolean should_throttle = response.getThrottleFlag();
-            final Hstore.Status status = response.getStatus();
+            final Hstoreservice.Status status = response.getStatus();
             final int timestamp = response.getServerTimestamp();
             
             boolean abort = false;
@@ -322,10 +322,10 @@ class Distributer {
             } // SYNCH
 
             if (stuff != null) {
-                if (status == Hstore.Status.ABORT_USER || status == Hstore.Status.ABORT_GRACEFUL) {
+                if (status == Hstoreservice.Status.ABORT_USER || status == Hstoreservice.Status.ABORT_GRACEFUL) {
                     m_invocationAborts++;
                     abort = true;
-                } else if (status != Hstore.Status.OK) {
+                } else if (status != Hstoreservice.Status.OK) {
                     m_invocationErrors++;
                     error = true;
                 }
@@ -334,7 +334,7 @@ class Distributer {
 
             if (cb != null) {
                 // We always need to call this so that we unblock the blocking client
-                // if (status != Hstore.Status.ABORT_THROTTLED && status != Hstore.Status.ABORT_REJECT) {
+                // if (status != Hstoreservice.Status.ABORT_THROTTLED && status != Hstoreservice.Status.ABORT_REJECT) {
                     response.setClientRoundtrip(delta);
                     cb.clientCallback(response);
                 //}
@@ -395,7 +395,7 @@ class Distributer {
 
                 //Invoke callbacks for all queued invocations with a failure response
                 final ClientResponse r =
-                    new ClientResponseImpl(-1, -1, -1, Hstore.Status.ABORT_CONNECTION_LOST,
+                    new ClientResponseImpl(-1, -1, -1, Hstoreservice.Status.ABORT_CONNECTION_LOST,
                         new VoltTable[0], "Connection to database host (" + m_hostname +
                         ") was lost before a response was received");
                 for (final CallbackValues cbv : m_callbacks.values()) {
