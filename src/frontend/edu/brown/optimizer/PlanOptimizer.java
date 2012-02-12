@@ -12,6 +12,7 @@ import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.SeqScanPlanNode;
 import org.voltdb.types.PlanNodeType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.optimizations.*;
@@ -125,8 +126,11 @@ public class PlanOptimizer {
 //        if (types.contains(PlanNodeType.RECEIVE) == false) return (null);
 
         AbstractPlanNode new_root = root;
-        if (debug.get())
-            LOG.debug("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
+        if (trace.get())
+            LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
+        if (PlanNodeUtil.isDistributedQuery(root) && sql.contains("SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity)")) {
+            LOG.debug("LET 'ER RIP!");
+        }
 
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
@@ -155,7 +159,12 @@ public class PlanOptimizer {
                                                                  new Object[] { state },
                                                                  new Class<?>[] { PlanOptimizerState.class });
                 assert(opt != null);
-                new_root = opt.optimize(new_root);
+                Pair<Boolean, AbstractPlanNode> p = opt.optimize(new_root);
+                if (p.getFirst()) {
+                    if (debug.get())
+                        LOG.debug(String.format("%s modified query plan", optClass.getSimpleName()));
+                    new_root = p.getSecond();
+                }
             } catch (Throwable ex) {
                 if (debug.get())
                     LOG.debug("Last Query Plan:\n" + PlanNodeUtil.debug(new_root));
@@ -173,8 +182,8 @@ public class PlanOptimizer {
         } // FOR
         PlanOptimizerUtil.updateAllColumns(state, new_root, true);
         
-        if (debug.get())
-            LOG.debug("AFTER: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(new_root)));
+        if (trace.get())
+            LOG.trace("AFTER: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(new_root)));
         
         return (new_root);
     }

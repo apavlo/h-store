@@ -3,6 +3,7 @@ package edu.brown.optimizer.optimizations;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
@@ -20,12 +21,11 @@ import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.types.PlanNodeType;
+import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.PlanOptimizerState;
-import edu.brown.optimizer.PlanOptimizerUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
@@ -44,7 +44,8 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
     }
     
     @Override
-    public AbstractPlanNode optimize(final AbstractPlanNode root) {
+    public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
+        final AtomicBoolean modified = new AtomicBoolean(false);
         new PlanNodeTreeWalker(false) {
             @Override
             protected void callback(AbstractPlanNode element) {
@@ -56,9 +57,12 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                         if (debug.get())
                             LOG.debug("SKIP - " + element + " already has an inline ProjectionPlanNode");
                     }
-                    else if (addProjection(element, true) == false) {
-                        this.stop();
-                        return;
+                    else {
+                        if (addProjection(element, true) == false) {
+                            this.stop();
+                            return;
+                        }
+                        modified.set(true);
                     }
                 }
                 // ---------------------------------------------------
@@ -77,10 +81,11 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                         this.stop();
                         return;
                     }
+                    modified.set(true);
                 }
             }
         }.traverse(root);
-        return (root);
+        return (Pair.of(modified.get(), root));
     }
     
     private boolean addProjection(final AbstractPlanNode node, boolean inline) {
@@ -225,8 +230,8 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
         
         final Set<PlanColumn> ref_columns = new ListOrderedSet<PlanColumn>();
         final Set<Integer> col_guids = new HashSet<Integer>();
-        final boolean top_join = (node instanceof NestLoopIndexPlanNode &&
-                                  state.join_node_index.get(state.join_node_index.firstKey()) == node);
+//        final boolean top_join = (node instanceof NestLoopIndexPlanNode &&
+//                                  state.join_node_index.get(state.join_node_index.firstKey()) == node);
         
         // Walk up the tree from the current node and figure out what columns that we need from it are
         // referenced. This will tell us how many we can actually project out at this point
