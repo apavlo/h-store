@@ -128,9 +128,9 @@ public class PlanOptimizer {
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-        if (PlanNodeUtil.isDistributedQuery(root) && sql.contains("SUM(ol_quantity), SUM(ol_amount),AVG(ol_quantity)")) {
-            LOG.debug("LET 'ER RIP!");
-        }
+//        if (PlanNodeUtil.isDistributedQuery(root) && sql.contains("SELECT f_id FROM FLIGHT ORDER BY F_DEPART_TIME DESC  LIMIT 10000")) {
+//            LOG.debug("LET 'ER RIP!");
+//        }
 
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
@@ -178,7 +178,8 @@ public class PlanOptimizer {
             // STEP #3
             // If any nodes were modified by this optimization, go through the tree
             // and make sure our output columns and other information is all in sync
-            if (state.hasDirtyNodes()) PlanOptimizerUtil.updateAllColumns(state, new_root, false);
+            if (state.hasDirtyNodes()) 
+                PlanOptimizerUtil.updateAllColumns(state, new_root, false);
         } // FOR
         PlanOptimizerUtil.updateAllColumns(state, new_root, true);
         

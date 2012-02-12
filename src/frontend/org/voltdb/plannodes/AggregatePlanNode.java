@@ -44,21 +44,36 @@ public class AggregatePlanNode extends AbstractPlanNode {
 
     // NOTE: I'm not really keen on how this is all laid out, but it's just
     //     good enough for what we need in TPC-C for now...
-    protected List<ExpressionType> m_aggregateTypes = new ArrayList<ExpressionType>();
+    private List<ExpressionType> m_aggregateTypes = new ArrayList<ExpressionType>();
 
     // a list of column offsets/indexes not plan column guids.
-    protected List<Integer> m_aggregateOutputColumns = new ArrayList<Integer>();
+    private List<Integer> m_aggregateOutputColumns = new ArrayList<Integer>();
     // a list of the names of the columns that are being aggregated
-    protected List<String> m_aggregateColumnNames = new ArrayList<String>();
+    private List<String> m_aggregateColumnNames = new ArrayList<String>();
     // a list of the GUIDs for the columns that are being aggregated
-    protected List<Integer> m_aggregateColumnGuids = new ArrayList<Integer>();
+    private List<Integer> m_aggregateColumnGuids = new ArrayList<Integer>();
 
-    protected List<Integer> m_groupByColumns = new ArrayList<Integer>();
-    protected List<Integer> m_groupByColumnGuids = new ArrayList<Integer>();
-    protected List<String> m_groupByColumnNames = new ArrayList<String>();
+    private List<Integer> m_groupByColumns = new ArrayList<Integer>();
+    private List<Integer> m_groupByColumnGuids = new ArrayList<Integer>();
+    private List<String> m_groupByColumnNames = new ArrayList<String>();
 
     public AggregatePlanNode(PlannerContext context, Integer id) {
         super(context, id);
+    }
+    
+    @Override
+    public Object clone(boolean clone_children, boolean clone_inline) throws CloneNotSupportedException {
+        AggregatePlanNode clone = (AggregatePlanNode)super.clone(clone_children, clone_inline);
+        
+        clone.m_aggregateTypes = new ArrayList<ExpressionType>(this.m_aggregateTypes);
+        clone.m_aggregateOutputColumns = new ArrayList<Integer>(this.m_aggregateOutputColumns);
+        clone.m_aggregateColumnNames = new ArrayList<String>(this.m_aggregateColumnNames);
+        clone.m_aggregateColumnGuids = new ArrayList<Integer>(this.m_aggregateColumnGuids);
+        clone.m_groupByColumns = new ArrayList<Integer>(this.m_groupByColumns);
+        clone.m_groupByColumnGuids = new ArrayList<Integer>(this.m_groupByColumnGuids);
+        clone.m_groupByColumnNames = new ArrayList<String>(this.m_groupByColumnNames);
+        
+        return (clone);
     }
 
     @Override

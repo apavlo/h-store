@@ -2,6 +2,7 @@ package edu.brown.plannodes;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
@@ -87,7 +88,12 @@ public class TestPlanNodeUtil extends BaseTestCase {
                 assertNotNull(exp1);
 //                assertFalse(exp0 == exp1);
                 assertEquals(exp0, exp1);
+                
             } // FOR (exps)
+            
+            // Make sure that they don't have the same reference!
+            node0.setOutputColumns(Collections.singleton(Integer.MIN_VALUE));
+            assertFalse(node0.getOutputColumnGUIDs().equals(node1.getOutputColumnGUIDs()));
         } // FOR (nodes)
     }
     

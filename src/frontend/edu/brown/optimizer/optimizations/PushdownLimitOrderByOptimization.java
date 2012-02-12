@@ -30,7 +30,7 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
     }
     
     @Override
-    public Pair<Boolean, AbstractPlanNode> optimize(AbstractPlanNode root) {
+    public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
         // Check whether this PlanTree contains an OrderByPlanNode and a LimitPlanNode
         // If it does and there are no joins, then we should be able to push duplicates 
         // down into the ScanPlanNode so that we can prune out as much as we can before
@@ -85,6 +85,8 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
         
         // Need to make sure that the LIMIT has the proper output columns
         limit_node.setOutputColumns(orderby_node.getOutputColumnGUIDs());
+        state.markDirty(orderby_node);
+        state.markDirty(limit_node);
         
         if (debug.get())
             LOG.debug("PLANOPT - Added " + limit_node + "+" + orderby_node + " after " + scan_node);

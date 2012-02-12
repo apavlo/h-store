@@ -25,6 +25,7 @@ import org.voltdb.types.PlanNodeType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
 import edu.brown.expressions.ExpressionUtil;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -34,6 +35,9 @@ public abstract class PlanOptimizerUtil {
     private static final Logger LOG = Logger.getLogger(PlanOptimizerUtil.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     /**
      * Populates the two data structures with information on the planNodes and
@@ -369,8 +373,10 @@ public abstract class PlanOptimizerUtil {
         assert (child_node != null);
 
         node.setOutputColumns(child_node.getOutputColumnGUIDs());
-        updateOutputOffsets(state, node);
+//        updateOutputOffsets(state, node);
 
+        // Look at each of the SortColumns and make sure that it references a PlanColumn
+        // that is in our child node's output PlanColumns
         for (int i = 0, cnt = node.getSortColumnGuids().size(); i < cnt; i++) {
             int orig_guid = node.getSortColumnGuids().get(i);
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
@@ -378,34 +384,42 @@ public abstract class PlanOptimizerUtil {
             if (trace.get())
                 LOG.trace("Looking for matching PlanColumn: " + orig_pc);
             
+            // We can't use the offset of original sort PlanColumn because the number of output
+            // columns in our child may have changed. So we need to loop through and find the one
+            // that references the same value. This will probably not work if they are trying to do
+            // a sort on an aggregate output value...
             PlanColumn new_pc = null;
             int new_idx = 0;
-            for (Integer guid : node.getOutputColumnGUIDs()) {
-                PlanColumn pc = state.plannerContext.get(guid);
-                assert (pc != null);
-                if (pc.equals(orig_pc, true, true)) {
+            for (Integer new_guid : node.getOutputColumnGUIDs()) {
+                new_pc = state.plannerContext.get(new_guid);
+                assert(new_pc != null) : "Unexpected PlanColumn #" + new_guid;
+                
+                if (new_pc.equals(orig_pc, true, true)) {
                     if (trace.get())
-                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
-                    new_pc = pc;
+                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s",
+                                                new_idx, orig_pc, new_pc));
                     break;
                 }
+                new_pc = null;
                 new_idx++;
             } // FOR
-            // XXX: Can we just loop through all our PlanColumns and find the one we want?
-            if (new_pc == null) {
-                for (PlanColumn pc : state.plannerContext.getAllPlanColumns()) {
-                    if (pc.equals(orig_pc, true, true)) {
-                        new_pc = pc;
-                    }
-                } // FOR
-            }
-            if (new_pc == null) {    
-                LOG.error(String.format("[%02d] Failed to find %s", i, orig_pc));
-                if (trace.get()) LOG.error("PlannerContext Dump:\n" + state.plannerContext.debug());
-            }
-            assert (new_pc != null);
-            if (trace.get()) LOG.trace(String.format("[%02d] %s", i, new_pc));
+            assert(new_pc != null);
             node.getSortColumnGuids().set(i, new_pc.guid());
+//            // XXX: Can we just loop through all our PlanColumns and find the one we want?
+//            if (new_pc == null) {
+//                for (PlanColumn pc : state.plannerContext.getAllPlanColumns()) {
+//                    if (pc.equals(orig_pc, true, true)) {
+//                        new_pc = pc;
+//                    }
+//                } // FOR
+//            }
+//            if (new_pc == null) {    
+//                LOG.error(String.format("[%02d] Failed to find %s", i, orig_pc));
+//                if (trace.get()) LOG.error("PlannerContext Dump:\n" + state.plannerContext.debug());
+//            }
+//            assert (new_pc != null);
+//            if (trace.get()) LOG.trace(String.format("[%02d] %s", i, new_pc));
+//            node.getSortColumnGuids().set(i, new_pc.guid());
         } // FOR
 
         state.markDirty(node);
@@ -543,7 +557,7 @@ public abstract class PlanOptimizerUtil {
                             
                             // If this is referencing a column that we don't have a direct link to
                             // then we will see if we can match one based on its name
-                            if (orig_idx > orig_child_guids.size()) {
+                            if (orig_idx >= orig_child_guids.size()) {
                                 for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
                                     orig_child_pc = state.plannerContext.get(orig_child_guid);
                                     if (orig_child_pc.getExpression() instanceof TupleValueExpression) {

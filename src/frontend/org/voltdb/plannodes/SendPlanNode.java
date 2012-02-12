@@ -36,7 +36,7 @@ public class SendPlanNode extends AbstractPlanNode {
     
     // used for planning
     public boolean isMultiPartition = false;
-    protected boolean m_fake = false;
+    private boolean m_fake = false;
 
     /**
      * @param id

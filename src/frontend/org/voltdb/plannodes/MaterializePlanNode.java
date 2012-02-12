@@ -33,7 +33,7 @@ public class MaterializePlanNode extends ProjectionPlanNode {
         BATCHED;
     }
 
-    protected boolean m_batched = false;
+    private boolean m_batched = false;
 
     /**
      * @param id

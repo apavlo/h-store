@@ -92,7 +92,7 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
     }
     
     @Override
-    public Object clone() throws CloneNotSupportedException {
+    public final Object clone() throws CloneNotSupportedException {
         return (this.clone(true, true));
     }
     
