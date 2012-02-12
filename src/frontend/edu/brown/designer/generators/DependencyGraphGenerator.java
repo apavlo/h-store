@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.*;
 import org.voltdb.types.ConstraintType;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.*;
 import edu.brown.graphs.*;
 import edu.brown.workload.Workload;
@@ -41,7 +42,9 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
     }
     
     public void generate(AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
-        for (Table catalog_table : this.info.catalog_db.getTables()) {
+        Collection<Table> catalog_tables = CatalogUtil.getDataTables(info.catalog_db);
+        for (Table catalog_table : catalog_tables) {
+            assert(catalog_table.getSystable() == false) : "Unexpected " + catalog_table;
             graph.addVertex(new DesignerVertex(catalog_table));
         } // FOR
 
@@ -51,7 +54,7 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
         //
         Map<DesignerVertex, List<Column>> fkey_ref_cols = new HashMap<DesignerVertex, List<Column>>();
         Map<DesignerVertex, List<Constraint>> fkey_ref_consts = new HashMap<DesignerVertex, List<Constraint>>();
-        for (Table catalog_table : this.info.catalog_db.getTables()) {
+        for (Table catalog_table : catalog_tables) {
             DesignerVertex vertex = graph.getVertex(catalog_table);
             fkey_ref_cols.put(vertex, new ArrayList<Column>());
             fkey_ref_consts.put(vertex, new ArrayList<Constraint>());
@@ -87,11 +90,9 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
         //
         // Build the dependency graph's edges
         //
-        for (Table catalog_table : this.info.catalog_db.getTables()) {
-            //
+        for (Table catalog_table : catalog_tables) {
             // For each vertex, get the list of foreign key references to point to it and
             // make a new edge between the parent and child
-            //
             DesignerVertex vertex = graph.getVertex(catalog_table);
             for (int ctr = 0, cnt = fkey_ref_consts.get(vertex).size(); ctr < cnt; ctr++) {
                 Constraint catalog_const = fkey_ref_consts.get(vertex).get(ctr);

@@ -167,6 +167,7 @@ public abstract class ProcedureCompiler {
                 catalog_col.setType(schema[i].getType().getValue());
                 if (i == 0) catalog_tbl.setPartitioncolumn(catalog_col); 
             } // FOR
+            catalog_tbl.setSystable(true);
             catalog_tbl.setIsreplicated(false);
             
             // Initialize the reduceOutput table
@@ -181,6 +182,7 @@ public abstract class ProcedureCompiler {
                 catalog_col.setType(schema_reduceOutput[i].getType().getValue());
                 if (i == 0) catalog_tbl.setPartitioncolumn(catalog_col);
             } // FOR
+            catalog_tbl.setSystable(true);
             catalog_tbl.setIsreplicated(false);
             
             // Initialize the Procedure catalog object
