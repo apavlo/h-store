@@ -52,7 +52,6 @@ package edu.brown.benchmark.seats;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -79,7 +78,7 @@ import edu.brown.benchmark.seats.procedures.UpdateCustomer;
 import edu.brown.benchmark.seats.procedures.UpdateReservation;
 import edu.brown.benchmark.seats.util.CustomerId;
 import edu.brown.benchmark.seats.util.FlightId;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution;
@@ -593,7 +592,7 @@ public class SEATSClient extends SEATSBaseClient {
         }
         @Override
         public void clientCallbackImpl(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == Status.OK) {
                 // We can remove this from our set of full flights because know that there is now a free seat
                 BitSet seats = SEATSClient.getSeatsBitSet(element.flight_id);
                 seats.set(element.seatnum, false);
@@ -867,7 +866,7 @@ public class SEATSClient extends SEATSBaseClient {
             BitSet seats = getSeatsBitSet(element.flight_id);
             
             // Valid NewReservation
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == Status.OK) {
                 assert(results.length > 1);
                 assert(results[0].getRowCount() == 1);
                 assert(results[0].asScalarLong() == 1);
@@ -879,7 +878,7 @@ public class SEATSClient extends SEATSBaseClient {
                 SEATSClient.this.requeueReservation(element);
             }
             // Aborted - Figure out why!
-            else if (clientResponse.getStatus() == Hstore.Status.ABORT_USER) {
+            else if (clientResponse.getStatus() == Status.ABORT_USER) {
                 String msg = clientResponse.getStatusString();
                 ErrorType errorType = ErrorType.getErrorType(msg);
                 
@@ -1010,7 +1009,7 @@ public class SEATSClient extends SEATSBaseClient {
         @Override
         public void clientCallbackImpl(ClientResponse clientResponse) {
             VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == Status.OK) {
                 assert (results.length >= 1);
                 assert (results[0].getRowCount() == 1);
 //                assert (results[0].asScalarLong() == 1);
@@ -1064,7 +1063,7 @@ public class SEATSClient extends SEATSBaseClient {
         }
         @Override
         public void clientCallbackImpl(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == Status.OK) {
                 assert (clientResponse.getResults().length == 1);
                 assert (clientResponse.getResults()[0].getRowCount() == 1);
                 assert (clientResponse.getResults()[0].asScalarLong() == 1 ||

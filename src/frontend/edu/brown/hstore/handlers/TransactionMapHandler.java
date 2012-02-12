@@ -11,9 +11,9 @@ import edu.brown.protorpc.ProtoRpcController;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.TransactionMapRequest;
-import edu.brown.hstore.Hstore.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.TransactionMapRequest;
+import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;

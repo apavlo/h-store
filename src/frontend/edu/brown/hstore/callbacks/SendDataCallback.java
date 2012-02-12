@@ -5,8 +5,9 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.SendDataResponse;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -20,7 +21,7 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
  * it at the local HStoreSite
  * @author pavlo
  */
-public class SendDataCallback extends BlockingCallback<AbstractTransaction, Hstore.SendDataResponse> {
+public class SendDataCallback extends BlockingCallback<AbstractTransaction, SendDataResponse> {
     private static final Logger LOG = Logger.getLogger(SendDataCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -86,7 +87,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Hsto
     }
     
     @Override
-    protected int runImpl(Hstore.SendDataResponse response) {
+    protected int runImpl(SendDataResponse response) {
         if (debug.get())
             LOG.debug(String.format("Got %s with status %s for %s",
                                     response.getClass().getSimpleName(),
@@ -114,7 +115,7 @@ public class SendDataCallback extends BlockingCallback<AbstractTransaction, Hsto
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
                           response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
         
-        if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
+        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
             this.abort(response.getStatus());
             return (0);
         }

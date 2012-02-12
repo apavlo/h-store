@@ -45,7 +45,7 @@ import org.voltdb.network.QueueMonitor;
 import org.voltdb.network.VoltNetwork;
 import org.voltdb.network.VoltProtocolHandler;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestDistributer extends TestCase {
 
@@ -66,7 +66,7 @@ public class TestDistributer extends TestCase {
                 vt[0] = new VoltTable(new VoltTable.ColumnInfo("Foo", VoltType.BIGINT));
                 vt[0].addRow(1);
                 ClientResponseImpl response =
-                    new ClientResponseImpl(-1, spi.getClientHandle(), -1, Hstore.Status.OK, vt, "Extra String");
+                    new ClientResponseImpl(-1, spi.getClientHandle(), -1, Status.OK, vt, "Extra String");
                 c.writeStream().enqueue(response);
                 roundTrips.incrementAndGet();
                 System.err.println("Sending response.");

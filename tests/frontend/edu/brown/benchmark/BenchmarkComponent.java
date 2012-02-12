@@ -90,7 +90,6 @@ import org.voltdb.utils.VoltSampler;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
-import edu.brown.hstore.Hstore;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -104,6 +103,7 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 
 /**
@@ -334,7 +334,7 @@ public abstract class BenchmarkComponent {
     
     private final boolean m_noUploading;
     private final ReentrantLock m_loaderBlock = new ReentrantLock();
-    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, -1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
+    private final ClientResponse m_dummyResponse = new ClientResponseImpl(-1, -1, -1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
     
     /**
      * Keep track of the number of tuples loaded so that we can generate table statistics
@@ -712,8 +712,8 @@ public abstract class BenchmarkComponent {
     protected final void incrementTransactionCounter(ClientResponse cresponse, int txn_idx) {
         // Only include it if it wasn't rejected
         // This is actually handled in the Distributer, but it doesn't hurt to have this here
-        Hstore.Status status = cresponse.getStatus();
-        if (status == Hstore.Status.OK || status == Hstore.Status.ABORT_USER) {
+        Status status = cresponse.getStatus();
+        if (status == Status.OK || status == Status.ABORT_USER) {
             m_txnStats.basePartitions.put(cresponse.getBasePartition());
             m_txnStats.transactions.put(m_countDisplayNames[txn_idx]);
         }
@@ -1117,7 +1117,7 @@ public abstract class BenchmarkComponent {
         } else {
             cr = m_dummyResponse;
         }
-        if (cr.getStatus() != Hstore.Status.OK) {
+        if (cr.getStatus() != Status.OK) {
             LOG.warn(String.format("Failed to load %d rows for '%s': %s", rowCount, tableName, cr.getStatusString()), cr.getException()); 
             return (cr);
         }
@@ -1126,7 +1126,7 @@ public abstract class BenchmarkComponent {
         m_tableBytes.put(tableName, byteCount);
         
         // Keep track of table stats
-        if (m_tableStats && cr.getStatus() == Hstore.Status.OK) {
+        if (m_tableStats && cr.getStatus() == Status.OK) {
             final Catalog catalog = this.getCatalog();
             assert(catalog != null);
             final Database catalog_db = CatalogUtil.getDatabase(catalog);
@@ -1539,15 +1539,15 @@ public abstract class BenchmarkComponent {
                                        ClientResponse clientResponse,
                                        boolean abortExpected,
                                        boolean errorExpected) {
-        final Hstore.Status status = clientResponse.getStatus();
-        if (status != Hstore.Status.OK) {
+        final Status status = clientResponse.getStatus();
+        if (status != Status.OK) {
             if (errorExpected)
                 return true;
 
-            if (abortExpected && status == Hstore.Status.ABORT_USER)
+            if (abortExpected && status == Status.ABORT_USER)
                 return true;
 
-            if (status == Hstore.Status.ABORT_CONNECTION_LOST) {
+            if (status == Status.ABORT_CONNECTION_LOST) {
                 return false;
             }
 

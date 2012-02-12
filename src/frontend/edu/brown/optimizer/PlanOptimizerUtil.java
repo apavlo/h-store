@@ -519,33 +519,38 @@ public abstract class PlanOptimizerUtil {
                 throw new RuntimeException("Unable to clone " + orig_pc, ex);
             }
 
-            new ExpressionTreeWalker() {
-                @Override
-                protected void callback(AbstractExpression exp_element) {
-                    if (exp_element instanceof TupleValueExpression) {
-                        TupleValueExpression tv_exp = (TupleValueExpression) exp_element;
-                        int orig_idx = tv_exp.getColumnIndex();
-                        PlanColumn orig_child_pc = state.plannerContext.get(orig_child_guids.get(orig_idx));
-                        assert (orig_child_pc != null);
-
-                        PlanColumn new_child_pc = null;
-                        int new_idx = 0;
-                        for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
-                            new_child_pc = state.plannerContext.get(orig_child_guid);
-                            if (orig_child_pc.equals(new_child_pc, true, true)) {
-                                break;
-                            }
-                            new_child_pc = null;
-                            new_idx++;
-                        } // FOR
-                        if (new_child_pc == null)
-                            LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
-                        assert (new_child_pc != null) : 
-                            String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
-                        tv_exp.setColumnIndex(new_idx);
+            try {
+                new ExpressionTreeWalker() {
+                    @Override
+                    protected void callback(AbstractExpression exp_element) {
+                        if (exp_element instanceof TupleValueExpression) {
+                            TupleValueExpression tv_exp = (TupleValueExpression) exp_element;
+                            int orig_idx = tv_exp.getColumnIndex();
+                            PlanColumn orig_child_pc = state.plannerContext.get(orig_child_guids.get(orig_idx));
+                            assert (orig_child_pc != null);
+    
+                            PlanColumn new_child_pc = null;
+                            int new_idx = 0;
+                            for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
+                                new_child_pc = state.plannerContext.get(orig_child_guid);
+                                if (orig_child_pc.equals(new_child_pc, true, true)) {
+                                    break;
+                                }
+                                new_child_pc = null;
+                                new_idx++;
+                            } // FOR
+                            if (new_child_pc == null)
+                                LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
+                            assert (new_child_pc != null) : 
+                                String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
+                            tv_exp.setColumnIndex(new_idx);
+                        }
                     }
-                }
-            }.traverse(new_exp);
+                }.traverse(new_exp);
+            } catch (Throwable ex) {
+                System.err.println(PlanNodeUtil.debug(node));
+                throw new RuntimeException(ex);
+            }
 
             // Always try make a new PlanColumn and update the TupleValueExpresion index
             // This ensures that we always get the ordering correct

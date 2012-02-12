@@ -55,7 +55,7 @@ import edu.brown.benchmark.auctionmark.util.GlobalAttributeValueId;
 import edu.brown.benchmark.auctionmark.util.ItemId;
 import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
@@ -743,7 +743,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
             if (trace.get()) LOG.trace("clientCallback(cid = " + getClientId() + "):: txn = " + txn.getDisplayName());
             incrementTransactionCounter(clientResponse, this.txn.ordinal());
             VoltTable[] results = clientResponse.getResults();
-            if (clientResponse.getStatus() == Hstore.Status.OK) {
+            if (clientResponse.getStatus() == Status.OK) {
                 try {
                     this.process(results);
                 } catch (Throwable ex) {

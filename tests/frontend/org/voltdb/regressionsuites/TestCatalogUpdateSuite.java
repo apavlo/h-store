@@ -44,7 +44,7 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.client.SyncCallback;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 
 /**
  * Tests a mix of multi-partition and single partition procedures on a
@@ -87,9 +87,9 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
 
     class CatTestCallback implements ProcedureCallback {
 
-        final Hstore.Status m_expectedStatus;
+        final Status m_expectedStatus;
 
-        CatTestCallback(Hstore.Status expectedStatus) {
+        CatTestCallback(Status expectedStatus) {
             m_expectedStatus = expectedStatus;
             m_outstandingCalls.incrementAndGet();
         }
@@ -128,7 +128,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
 
         // add a procedure "InsertOrderLineBatched"
         newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-expanded.jar");
-        callback = new CatTestCallback(Hstore.Status.OK);
+        callback = new CatTestCallback(Status.OK);
         client.callProcedure(callback, "@UpdateApplicationCatalog", newCatalogURL);
 
         client.drain();
@@ -175,7 +175,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
 
         // remove the procedure we just added async
         newCatalogURL = Configuration.getPathToCatalogForTest("catalogupdate-cluster-base.jar");
-        callback = new CatTestCallback(Hstore.Status.OK);
+        callback = new CatTestCallback(Status.OK);
         client.callProcedure(callback, "@UpdateApplicationCatalog", newCatalogURL);
 
         // don't care if this works now
@@ -200,7 +200,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
                 new long[] {x}, new long[] {x}, new TimestampType[] { new TimestampType() }, new long[] {x},
                 new double[] {x}, new String[] {"a"});
         cb.waitForResponse();
-        assertNotSame(cb.getResponse().getStatus(), Hstore.Status.OK);
+        assertNotSame(cb.getResponse().getStatus(), Status.OK);
 
         loadSomeData(client, 60, 5);
 
@@ -228,7 +228,7 @@ public class TestCatalogUpdateSuite extends RegressionSuite {
 
     public void loadSomeData(Client client, int start, int count) throws IOException, ProcCallException {
         for (int i = start; i < (start + count); i++) {
-            CatTestCallback callback = new CatTestCallback(Hstore.Status.OK);
+            CatTestCallback callback = new CatTestCallback(Status.OK);
             client.callProcedure(callback, InsertNewOrder.class.getSimpleName(), i, i, i);
         }
     }

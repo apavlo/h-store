@@ -13,8 +13,8 @@ import org.voltdb.utils.VoltTableUtil;
 import com.google.protobuf.ByteString;
 
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;

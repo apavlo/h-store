@@ -4,7 +4,7 @@ import java.util.Collection;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -19,7 +19,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
     }
  
     private RemoteTransaction ts;
-    private Hstore.Status status;
+    private Hstoreservice.Status status;
     
     /**
      * Constructor
@@ -29,7 +29,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
         super(hstore_site, false);
     }
 
-    public void init(RemoteTransaction ts, Hstore.Status status, Collection<Integer> partitions) {
+    public void init(RemoteTransaction ts, Hstoreservice.Status status, Collection<Integer> partitions) {
         if (debug.get())
             LOG.debug("Initializing " + this.getClass().getSimpleName() + " for " + ts);
         
@@ -61,7 +61,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
     }
     
     @Override
-    protected void abortCallback(Hstore.Status status) {
+    protected void abortCallback(Hstoreservice.Status status) {
         assert(false) :
             String.format("Unexpected %s abort for %s", this.getClass().getSimpleName(), this.ts); 
     }

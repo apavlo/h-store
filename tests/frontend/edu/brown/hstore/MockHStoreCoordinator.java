@@ -5,28 +5,27 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.SendDataRequest;
-import edu.brown.hstore.Hstore.SendDataResponse;
-import edu.brown.hstore.Hstore.ShutdownRequest;
-import edu.brown.hstore.Hstore.ShutdownResponse;
-import edu.brown.hstore.Hstore.TimeSyncRequest;
-import edu.brown.hstore.Hstore.TimeSyncResponse;
-import edu.brown.hstore.Hstore.TransactionFinishRequest;
-import edu.brown.hstore.Hstore.TransactionFinishResponse;
-import edu.brown.hstore.Hstore.TransactionInitRequest;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
-import edu.brown.hstore.Hstore.TransactionMapRequest;
-import edu.brown.hstore.Hstore.TransactionMapResponse;
-import edu.brown.hstore.Hstore.TransactionPrepareRequest;
-import edu.brown.hstore.Hstore.TransactionPrepareResponse;
-import edu.brown.hstore.Hstore.TransactionRedirectRequest;
-import edu.brown.hstore.Hstore.TransactionRedirectResponse;
-import edu.brown.hstore.Hstore.TransactionReduceRequest;
-import edu.brown.hstore.Hstore.TransactionReduceResponse;
-import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.SendDataRequest;
+import edu.brown.hstore.Hstoreservice.SendDataResponse;
+import edu.brown.hstore.Hstoreservice.ShutdownRequest;
+import edu.brown.hstore.Hstoreservice.ShutdownResponse;
+import edu.brown.hstore.Hstoreservice.TimeSyncRequest;
+import edu.brown.hstore.Hstoreservice.TimeSyncResponse;
+import edu.brown.hstore.Hstoreservice.TransactionFinishRequest;
+import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
+import edu.brown.hstore.Hstoreservice.TransactionInitRequest;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.Hstoreservice.TransactionMapRequest;
+import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
+import edu.brown.hstore.Hstoreservice.TransactionRedirectRequest;
+import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
+import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
+import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
+import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
@@ -128,7 +127,7 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
         @Override
         public void shutdown(RpcController controller, ShutdownRequest request, RpcCallback<ShutdownResponse> done) {
             LOG.info("Incoming " + request.getClass().getSimpleName());
-            Hstore.ShutdownResponse response = Hstore.ShutdownResponse.newBuilder()
+            ShutdownResponse response = ShutdownResponse.newBuilder()
                                                      .setSenderId(hstore_site.site_id)
                                                      .build();
             System.exit(1);

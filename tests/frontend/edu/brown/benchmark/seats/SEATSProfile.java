@@ -44,7 +44,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.seats.procedures.LoadConfig;
 import edu.brown.benchmark.seats.util.FlightId;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.Histogram;
@@ -222,7 +222,7 @@ public class SEATSProfile {
             throw new RuntimeException("Failed retrieve data from " + SEATSConstants.TABLENAME_CONFIG_PROFILE, ex);
         }
         assert(response != null);
-        assert(response.getStatus() == Hstore.Status.OK) : "Unexpected " + response;
+        assert(response.getStatus() == Status.OK) : "Unexpected " + response;
 
         VoltTable results[] = response.getResults();
         int result_idx = 0;

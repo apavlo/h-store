@@ -9,10 +9,10 @@ import edu.brown.protorpc.ProtoRpcController;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.TransactionFinishRequest;
-import edu.brown.hstore.Hstore.TransactionFinishResponse;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.TransactionFinishRequest;
+import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;
@@ -46,7 +46,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
     @Override
     public void remoteQueue(RpcController controller, TransactionFinishRequest request, 
             RpcCallback<TransactionFinishResponse> callback) {
-        if (finishDispatcher != null && request.getStatus() == Hstore.Status.ABORT_RESTART) {
+        if (finishDispatcher != null && request.getStatus() == Hstoreservice.Status.ABORT_RESTART) {
             if (debug.get())
                 LOG.debug("__FILE__:__LINE__ " + String.format("Queuing %s for txn #%d [status=%s]",
                                         request.getClass().getSimpleName(), request.getTransactionId(), request.getStatus()));
@@ -71,7 +71,7 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         hstore_site.transactionFinish(txn_id, request.getStatus(), request.getPartitionsList());
         
         // Send back a FinishResponse to let them know we're cool with everything...
-        Hstore.TransactionFinishResponse.Builder builder = Hstore.TransactionFinishResponse.newBuilder()
+        TransactionFinishResponse.Builder builder = TransactionFinishResponse.newBuilder()
                                                           .setTransactionId(txn_id);
         Collection<Integer> local_partitions = hstore_site.getLocalPartitionIds();
         for (Integer p : request.getPartitionsList()) {
