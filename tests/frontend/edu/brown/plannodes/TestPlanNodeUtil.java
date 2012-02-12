@@ -26,8 +26,10 @@ import edu.brown.benchmark.tm1.procedures.GetNewDestination;
 import edu.brown.benchmark.tm1.procedures.GetTableCounts;
 import edu.brown.benchmark.tm1.procedures.UpdateLocation;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.expressions.ExpressionUtil;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 public class TestPlanNodeUtil extends BaseTestCase {
 
@@ -80,6 +82,7 @@ public class TestPlanNodeUtil extends BaseTestCase {
             
             List<AbstractExpression> exps0 = new ArrayList<AbstractExpression>(PlanNodeUtil.getExpressionsForPlanNode(node0));
             List<AbstractExpression> exps1 = new ArrayList<AbstractExpression>(PlanNodeUtil.getExpressionsForPlanNode(node1));
+            
             assertEquals(exps0.size(), exps1.size());
             for (int j = 0; j < exps0.size(); j++) {
                 AbstractExpression exp0 = exps0.get(j);
@@ -87,6 +90,17 @@ public class TestPlanNodeUtil extends BaseTestCase {
                 AbstractExpression exp1 = exps1.get(j);
                 assertNotNull(exp1);
 //                assertFalse(exp0 == exp1);
+                if (exp0.equals(exp1) == false) {
+                    System.err.println("Failed to clone " + node0);
+                    String col0 = "";
+                    for (AbstractExpression exp : exps0)
+                        col0 += "\n" + ExpressionUtil.debug(exp);
+                    String col1 = "";
+                    for (AbstractExpression exp : exps1) 
+                        col1 += "\n" + ExpressionUtil.debug(exp);
+                    
+                    System.err.println(StringUtil.columns(col0, col1));
+                }
                 assertEquals(exp0, exp1);
                 
             } // FOR (exps)
