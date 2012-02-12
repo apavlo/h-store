@@ -43,7 +43,7 @@ CTX = BuildContext(sys.argv)
 #  specific targets
 CTX.CPPFLAGS = """-Wall -Wextra -Werror -Woverloaded-virtual -Wconversion
             -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
-            -Winit-self -Wno-sign-compare -Wno-unused-parameter -Wno-unused-but-set-variable
+            -Winit-self -Wno-sign-compare -Wno-unused-parameter
             -pthread
             -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNOCLOCK
             -fno-omit-frame-pointer
@@ -138,7 +138,13 @@ CTX.JNIBINFLAGS += " " + libpaths
 CTX.JNIBINFLAGS += " -ljava -ljvm -lverify"
 
 if CTX.PLATFORM == "Darwin":
-    CTX.CPPFLAGS += " -DMACOSX -arch x86_64"
+    CTX.CPPFLAGS += " -DMACOSX "
+    
+    # 2012-02-10
+    # Don't include the 'arch' flag for newer versions of OSX
+    if int(CTX.PLATFORM_VERSION.split(".")[0]) < 11:
+        CTX.CPPFLAGS += " -arch x86_64"
+    
     CTX.JNIEXT = "jnilib"
     CTX.JNILIBFLAGS = " -bundle"
     CTX.JNIBINFLAGS = " -framework JavaVM,1.6"
@@ -147,7 +153,7 @@ if CTX.PLATFORM == "Darwin":
     CTX.JNIFLAGS = "-framework JavaVM,1.6"
 
 if CTX.PLATFORM == "Linux":
-    CTX.CPPFLAGS += " -Wno-attributes -DLINUX -fPIC"
+    CTX.CPPFLAGS += " -Wno-attributes -DLINUX -fPIC -Wno-unused-but-set-variable"
     CTX.NMFLAGS += " --demangle"
 
 ###############################################################################

@@ -10,10 +10,10 @@ import edu.brown.protorpc.ProtoRpcController;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.TransactionPrepareRequest;
-import edu.brown.hstore.Hstore.TransactionPrepareResponse;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
+import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;
@@ -64,10 +64,10 @@ public class TransactionPrepareHandler extends AbstractTransactionHandler<Transa
         
         if (debug.get())
             LOG.debug("__FILE__:__LINE__ " + String.format("Finished PREPARE phase for txn #%d [updatedPartitions=%s]", txn_id, updated));
-        Hstore.TransactionPrepareResponse response = Hstore.TransactionPrepareResponse.newBuilder()
+        TransactionPrepareResponse response = TransactionPrepareResponse.newBuilder()
                                                                .setTransactionId(txn_id)
                                                                .addAllPartitions(updated)
-                                                               .setStatus(Hstore.Status.OK)
+                                                               .setStatus(Hstoreservice.Status.OK)
                                                                .build();
         callback.run(response);
     }

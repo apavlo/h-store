@@ -19,7 +19,7 @@ package org.voltdb.messaging;
 
 import org.voltdb.utils.DBBPool;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 
 /**
@@ -32,7 +32,7 @@ public class FinishTaskMessage extends TransactionInfoBaseMessage {
 
 
     AbstractTransaction ts;
-    Hstore.Status status;
+    Hstoreservice.Status status;
 
     /** Empty constructor for de-serialization */
     FinishTaskMessage() {
@@ -40,16 +40,16 @@ public class FinishTaskMessage extends TransactionInfoBaseMessage {
     }
 
     // Use this one asshole!
-    public FinishTaskMessage(AbstractTransaction ts, Hstore.Status status) {
+    public FinishTaskMessage(AbstractTransaction ts, Hstoreservice.Status status) {
         super(ts.getBasePartition(), -1, (ts.getTransactionId() != null ? ts.getTransactionId() : -1), ts.getClientHandle(), false);
         this.ts = ts;
         this.status = status;
     }
     
-    public Hstore.Status getStatus() {
+    public Hstoreservice.Status getStatus() {
         return status;
     }
-    public void setStatus(Hstore.Status status) {
+    public void setStatus(Hstoreservice.Status status) {
         this.status = status;
     }
 

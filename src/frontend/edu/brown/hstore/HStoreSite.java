@@ -60,9 +60,9 @@ import com.google.protobuf.RpcCallback;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectCallback;
@@ -925,7 +925,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // HACK: Check if we should shutdown. This allows us to kill things even if the
             // DTXN coordinator is stuck.
             if (catalog_proc.getName().equalsIgnoreCase("@Shutdown")) {
-                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Hstore.Status.OK, HStoreConstants.EMPTY_RESULT, "");
+                ClientResponseImpl cresponse = new ClientResponseImpl(1, 1, 1, Status.OK, HStoreConstants.EMPTY_RESULT, "");
                 FastSerializer out = new FastSerializer();
                 try {
                     out.writeObject(cresponse);
@@ -1371,7 +1371,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             
             // Always tell the queue stuff that the transaction is finished at this partition
             if (d) LOG.debug(String.format("Telling queue manager that txn #%d is finished at partition %d", txn_id, p));
-            this.txnQueueManager.finished(txn_id, Hstore.Status.OK, p.intValue());
+            this.txnQueueManager.finished(txn_id, Status.OK, p.intValue());
             
             // If speculative execution is enabled, then we'll turn it on at the PartitionExecutor
             // for this partition
@@ -1399,10 +1399,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param status
      * @param partitions
      */
-    public void transactionFinish(Long txn_id, Hstore.Status status, Collection<Integer> partitions) {
+    public void transactionFinish(Long txn_id, Status status, Collection<Integer> partitions) {
         if (d) LOG.debug(String.format("2PC:FINISH Txn #%d [commitStatus=%s, partitions=%s]",
                                        txn_id, status, partitions));
-        boolean commit = (status == Hstore.Status.OK);
+        boolean commit = (status == Status.OK);
         
         // If we don't have a AbstractTransaction handle, then we know that we never did anything
         // for this transaction and we can just ignore this finish request. We do have to tell
@@ -1464,7 +1464,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         }
         
         // Check whether we should disable throttling
-        boolean throttle = (cresponse.getStatus() == Hstore.Status.ABORT_THROTTLED);
+        boolean throttle = (cresponse.getStatus() == Status.ABORT_THROTTLED);
         int timestamp = this.getNextRequestCounter();
         
         ByteBuffer buffer = ByteBuffer.wrap(out.getBytes());
@@ -1485,14 +1485,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      */
     public void sendClientResponse(LocalTransaction ts, ClientResponseImpl cresponse) {
         assert(cresponse != null) : "Missing ClientResponse for " + ts;
-        Hstore.Status status = cresponse.getStatus();
+        Status status = cresponse.getStatus();
         assert(cresponse.getClientHandle() != -1) : "The client handle for " + ts + " was not set properly";
         
         // Don't send anything back if it's a mispredict because it's as waste of time...
         // If the txn committed/aborted, then we can send the response directly back to the
         // client here. Note that we don't even need to call HStoreSite.finishTransaction()
         // since that doesn't do anything that we haven't already done!
-        if (status != Hstore.Status.ABORT_MISPREDICT) {
+        if (status != Status.ABORT_MISPREDICT) {
             if (d) LOG.debug(String.format("Sending back ClientResponse for " + ts));
 
             // Send result back to client!
@@ -1532,7 +1532,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * The transaction will not be re-queued
      * @param ts
      */
-    public void transactionReject(LocalTransaction ts, Hstore.Status status) {
+    public void transactionReject(LocalTransaction ts, Status status) {
         assert(ts.isInitialized());
         int request_ctr = this.getNextRequestCounter();
         long clientHandle = ts.getClientHandle();
@@ -1569,7 +1569,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * @param txn_id
      * @param orig_callback - the original callback to the client
      */
-    public void transactionRestart(LocalTransaction orig_ts, Hstore.Status status) {
+    public void transactionRestart(LocalTransaction orig_ts, Status status) {
         assert(orig_ts != null) : "Null LocalTransaction handle [status=" + status + "]";
         assert(orig_ts.isInitialized()) : "Uninitialized transaction??";
         if (d) LOG.debug(String.format("%s got hit with a %s! Going to clean-up our mess and re-execute [restarts=%d]",
@@ -1587,14 +1587,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 throw new RuntimeException(String.format("%s has been restarted %d times! Rejecting...",
                                                          orig_ts, orig_ts.getRestartCounter()));
             } else {
-                this.transactionReject(orig_ts, Hstore.Status.ABORT_REJECT);
+                this.transactionReject(orig_ts, Status.ABORT_REJECT);
                 return;
             }
         }
         
         // Figure out whether this transaction should be redirected based on what partitions it
         // tried to touch before it was aborted 
-        if (status != Hstore.Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
+        if (status != Status.ABORT_RESTART && hstore_conf.site.exec_db2_redirects) {
             Histogram<Integer> touched = orig_ts.getTouchedPartitions();
             Collection<Integer> most_touched = touched.getMaxCountValues();
             assert(most_touched != null);
@@ -1684,7 +1684,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         boolean malloc = false;
         Collection<Integer> predict_touchedPartitions = null;
-        if (status == Hstore.Status.ABORT_RESTART) {
+        if (status == Status.ABORT_RESTART) {
             predict_touchedPartitions = orig_ts.getPredictTouchedPartitions();
         } else if (orig_ts.getOriginalTransactionId() == null && orig_ts.hasTouchedPartitions()) {
             // HACK: Ignore ConcurrentModificationException
@@ -1703,7 +1703,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             predict_touchedPartitions = this.all_partitions;
         }
         
-        if (status == Hstore.Status.ABORT_MISPREDICT && orig_ts.getPendingError() instanceof MispredictionException) {
+        if (status == Status.ABORT_MISPREDICT && orig_ts.getPendingError() instanceof MispredictionException) {
             MispredictionException ex = (MispredictionException)orig_ts.getPendingError();
             Collection<Integer> partitions = ex.getPartitions().values();
             if (predict_touchedPartitions.containsAll(partitions) == false) {
@@ -1746,7 +1746,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                                     new_ts,
                                     base_partition,
                                     predict_touchedPartitions));
-            if (t && status == Hstore.Status.ABORT_MISPREDICT)
+            if (t && status == Status.ABORT_MISPREDICT)
                 LOG.trace(String.format("%s Mispredicted partitions\n%s", new_ts, orig_ts.getTouchedPartitions().values()));
         }
         
@@ -1775,7 +1775,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Perform final cleanup and book keeping for a completed txn
      * @param txn_id
      */
-    public void completeTransaction(final Long txn_id, final Hstore.Status status) {
+    public void completeTransaction(final Long txn_id, final Status status) {
         if (d) LOG.debug("Cleaning up internal info for txn #" + txn_id);
         AbstractTransaction abstract_ts = this.inflight_txns.remove(txn_id);
         
@@ -1808,7 +1808,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // We have to calculate the profile information *before* we call PartitionExecutor.cleanup!
         // XXX: Should we include totals for mispredicted txns?
         if (hstore_conf.site.txn_profiling && this.status_monitor != null &&
-            ts.profiler.isDisabled() == false && status != Hstore.Status.ABORT_MISPREDICT) {
+            ts.profiler.isDisabled() == false && status != Status.ABORT_MISPREDICT) {
             ts.profiler.stopTransaction();
             this.status_monitor.addTxnProfile(catalog_proc, ts.profiler);
         }
@@ -1861,7 +1861,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isExecNoUndoBuffer(base_partition)) TxnCounter.NO_UNDO.inc(catalog_proc);
             if (ts.isSysProc()) {
                 TxnCounter.SYSPROCS.inc(catalog_proc);
-            } else if (status != Hstore.Status.ABORT_MISPREDICT && ts.isRejected() == false) {
+            } else if (status != Status.ABORT_MISPREDICT && ts.isRejected() == false) {
                 (singlePartitioned ? TxnCounter.SINGLE_PARTITION : TxnCounter.MULTI_PARTITION).inc(catalog_proc);
             }
         }

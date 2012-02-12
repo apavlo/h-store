@@ -8,7 +8,6 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
-import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.SeqScanPlanNode;
@@ -129,10 +128,6 @@ public class PlanOptimizer {
         if (debug.get())
             LOG.debug("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
 
-        if (sql.contains("SUM(OL_AMOUNT), AVG(OL_QUANTITY)")) {
-            LOG.debug("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-        }
-        
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
         // need to figure out our various optimizations

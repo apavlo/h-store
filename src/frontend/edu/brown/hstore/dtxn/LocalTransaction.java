@@ -48,8 +48,8 @@ import edu.brown.protorpc.ProtoRpcController;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.TransactionEstimator;
@@ -539,7 +539,7 @@ public class LocalTransaction extends AbstractTransaction {
      * @param status
      * @return
      */
-    public TransactionFinishCallback initTransactionFinishCallback(Hstore.Status status) {
+    public TransactionFinishCallback initTransactionFinishCallback(Hstoreservice.Status status) {
         assert(this.finish_callback.isInitialized() == false);
         this.finish_callback.init(this, status);
         return (this.finish_callback);
