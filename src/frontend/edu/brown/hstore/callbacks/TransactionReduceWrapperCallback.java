@@ -58,11 +58,11 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Hstore.Tr
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
         Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
-        for (Integer p : this.hstore_site.getLocalPartitionIds()) {
+//        for (Integer p : this.hstore_site.getLocalPartitionIds()) {
 //            if (localPartitions.contains(p) && this.builder.getPartitionsList().contains(p) == false) {
 //                this.builder.addPartitions(p.intValue());
 //            }
-        } // FOR
+//        } // FOR
         this.unblockCallback();
 	}
 
@@ -87,8 +87,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Hstore.Tr
 		assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
 		
-//		this.builder = Hstore.TransactionReduceResponse.newBuilder()
-//		                        .setResults(this., result);
+		//this.builder = Hstore.TransactionReduceResponse.newBuilder().setResults(result.getPartitionId(), result);
 		
 		return 1;
 	}

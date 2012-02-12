@@ -172,7 +172,7 @@ public class MapReduceTransaction extends LocalTransaction {
     
     @Override
     public void finish() {
-        //super.finish();
+        super.finish();
         for (int i = 0; i < this.partitions_size; i++) {
             this.local_txns[i].finish();
         } // FOR
@@ -182,8 +182,9 @@ public class MapReduceTransaction extends LocalTransaction {
         this.mapWrapper_callback.finish();
         this.sendData_callback.finish();
         this.reduce_callback.finish();
-        this.reduceWrapper_callback.finish();
         
+        this.reduceWrapper_callback.finish();
+        if(debug.get()) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
         this.mapEmit = null;
         this.reduceEmit = null;
         this.mapOutput = null;
@@ -343,7 +344,7 @@ public class MapReduceTransaction extends LocalTransaction {
     
     public void initTransactionReduceWrapperCallback(RpcCallback<Hstore.TransactionReduceResponse> orig_callback) {
         if (debug.get()) LOG.debug("Trying to initialize TransactionReduceWrapperCallback for " + this);
-        assert (this.reduceWrapper_callback.isInitialized() == false);
+        //assert (this.reduceWrapper_callback.isInitialized() == false);
         this.reduceWrapper_callback.init(this, orig_callback);
     }
     

@@ -158,36 +158,29 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             }
         });
         
-        
-        
         this.hstore_site.getCoordinator().sendData(ts, partitionedTables, sendData_callback);
     }
     
     public void reduce (final MapReduceTransaction mr_ts) {
         // Runtime
-        if (debug.get())
-            LOG.debug(mr_ts + ": $$$ non-blocking reduce execution by MapReduceHelperThread");
         
         VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
-         
-        for (int partition : hstore_site.getAllPartitionIds())  {
-            if (partition == mr_ts.getBasePartition()) { 
-                volt_proc.setPartitionId(partition);
-                volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
-            }
-        }
         
-//        for (int partition : hstore_site.getLocalPartitionIds())  {
-//            if (partition != mr_ts.getBasePartition()) { 
-//                LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-//                volt_proc.setPartitionId(partition);
-//                volt_proc.call(ts, mr_ts.getInitiateTaskMessage().getParameters());
+        if (debug.get())
+            LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
+        volt_proc.setPartitionId(mr_ts.getBasePartition());
+        if (debug.get())
+            LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
+        volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+        
+//        int sideId = -1;
+//        int tmp = sideId;
+//        for (int p : hstore_site.getAllPartitionIds()) {
+//            sideId = hstore_site.getSiteIdForPartitionId(p);
+//            if(sideId != tmp){
+//                // initialize reduceWrapper
 //            }
 //        }
-        
-       //VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
-        
-        
     }
 
 
