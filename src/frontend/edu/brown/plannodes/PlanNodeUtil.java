@@ -166,7 +166,7 @@ public abstract class PlanNodeUtil {
      * @return
      */
     public static Collection<AbstractExpression> getExpressionsForPlanNode(AbstractPlanNode node, PlanNodeType...exclude) {
-        return PlanNodeUtil.getExpressionsForPlanNode(node, new HashSet<AbstractExpression>(), exclude); 
+        return PlanNodeUtil.getExpressionsForPlanNode(node, new ListOrderedSet<AbstractExpression>(), exclude); 
     }
         
     /**
