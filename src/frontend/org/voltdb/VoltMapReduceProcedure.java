@@ -157,17 +157,11 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
             if (debug.get())
                 LOG.debug(String.format("<ReduceInputTable> Partition:%d\n %s", this.partitionId,this.reduce_input));
             
-            // If this is the local/base partition, send out the start REDUCE message 
-            if (is_local) {
-                if (debug.get())
-                    LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
-                // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
-                this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
-            }
             
             // Sort the the MAP_OUTPUT table
             // Build an "smart" iterator that loops through the MAP_OUTPUT table key-by-key
             VoltTable sorted = VoltTableUtil.sort(this.reduce_input, Pair.of(0, SortDirectionType.ASC));
+            //VoltTable sorted = VoltTableUtil.sort(mr_ts.getReduceInputByPartition(this.partitionId), Pair.of(0, SortDirectionType.ASC));
             assert(sorted != null);
             if (debug.get())
                 LOG.debug(String.format("<Sorted_ReduceInputTable> Partition:%d\n %s", this.partitionId,sorted));
@@ -207,6 +201,14 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                                                        .setData(reduceOutData)
                                                        .setPartitionId(this.partitionId)
                                                        .setStatus(Status.OK);
+            
+            // If this is the local/base partition, send out the start REDUCE message 
+            if (is_local) {
+                if (debug.get())
+                    LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
+                // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
+                this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
+            }
            
             TransactionReduceWrapperCallback callback = mr_ts.getTransactionReduceWrapperCallback();
             assert (callback != null) : "Unexpected null TransactionReduceWrapperCallback for " + mr_ts;
@@ -236,9 +238,9 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     
     @Override
     public void finish() {
-        for (int i = 0; i < this.mr_ts.getSize(); i++) {
-            this.mr_ts.getLocalTransaction(i).finish();
-        } // FOR
+//        for (int i = 0; i < this.mr_ts.getSize(); i++) {
+//            this.mr_ts.getLocalTransaction(i).finish();
+//        } // FOR
         
     }
     
