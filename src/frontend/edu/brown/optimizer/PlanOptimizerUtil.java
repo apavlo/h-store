@@ -284,6 +284,9 @@ public abstract class PlanOptimizerUtil {
                         // This might be because we don't call whatever that bastardized
                         // AbstractPlanNode.updateOutputColumns() that messes everything up for us
                         if (element instanceof LimitPlanNode || state.areChildrenDirty(element)) {
+                            if (element.getChildPlanNodeCount() != 1) {
+                                LOG.warn("Invalid PlanNode Tree:\n" + PlanNodeUtil.debug(rootNode));
+                            }
                             assert (element.getChildPlanNodeCount() == 1) :
                                 String.format("%s has %d children when it should have one: %s",
                                               element, element.getChildPlanNodeCount(), element.getChildren());  

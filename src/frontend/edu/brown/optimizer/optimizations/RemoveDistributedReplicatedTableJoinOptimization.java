@@ -11,9 +11,10 @@ import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
 import org.voltdb.plannodes.SendPlanNode;
-import org.voltdb.types.PlanNodeType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.PlanOptimizerState;
 import edu.brown.plannodes.PlanNodeUtil;
@@ -22,21 +23,27 @@ import edu.brown.utils.CollectionUtil;
 public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(RemoveDistributedReplicatedTableJoinOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
     
     public RemoveDistributedReplicatedTableJoinOptimization(PlanOptimizerState state) {
         super(state);
     }
 
     @Override
-    public AbstractPlanNode optimize(final AbstractPlanNode rootNode) {
+    public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode rootNode) {
         // Skip single-partition query plans
-        if (PlanNodeUtil.getPlanNodeTypes(rootNode).contains(PlanNodeType.RECEIVE) == false) {
+        if (PlanNodeUtil.isDistributedQuery(rootNode) == false) {
             if (debug.get()) LOG.debug("SKIP - Not a distributed query plan");
+            return (Pair.of(false, rootNode));
         }
         
         // Walk through the query plan tree and see if there is a join
         // where the outer table is replicated but it is being
         // scanned in a separate PlanFragment
+        boolean modified = false;
         for (AbstractJoinPlanNode join_node : PlanNodeUtil.getPlanNodes(rootNode, AbstractJoinPlanNode.class)) {
             if (debug.get()) LOG.debug("Examining " + join_node);
             
@@ -104,14 +111,16 @@ public class RemoveDistributedReplicatedTableJoinOptimization extends AbstractOp
                         send_node.clearChildren();
                         send_node.addAndLinkChild(parent_clone);
                     } else {
+                        send_node.clearChildren();
                         send_node.addAndLinkChild(join_node);
                     }
                     state.markDirty(send_node);
+                    modified = true;
                 }
             }
         } // FOR
         
-        return (rootNode);
+        return (Pair.of(modified, rootNode));
     }
 
 }

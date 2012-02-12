@@ -10,6 +10,7 @@ import org.voltdb.plannodes.LimitPlanNode;
 import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ReceivePlanNode;
 import org.voltdb.plannodes.SendPlanNode;
+import org.voltdb.utils.Pair;
 
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.PlanOptimizerState;
@@ -29,7 +30,7 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
     }
     
     @Override
-    public AbstractPlanNode optimize(AbstractPlanNode root) {
+    public Pair<Boolean, AbstractPlanNode> optimize(AbstractPlanNode root) {
         // Check whether this PlanTree contains an OrderByPlanNode and a LimitPlanNode
         // If it does and there are no joins, then we should be able to push duplicates 
         // down into the ScanPlanNode so that we can prune out as much as we can before
@@ -40,19 +41,19 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
         Collection<ReceivePlanNode> recv_nodes = PlanNodeUtil.getPlanNodes(root, ReceivePlanNode.class);
         if (orderby_nodes.size() != 1) {
             if (debug.get()) LOG.debug("SKIP - Number of OrderByPlanNodes is " + orderby_nodes.size());
-            return (root);
+            return (Pair.of(false, root));
         }
         else if (limit_nodes.size() != 1) {
             if (debug.get()) LOG.debug("SKIP - Number of LimitPlanNodes is " + limit_nodes.size());
-            return (root);
+            return (Pair.of(false, root));
         }
         else if (join_nodes.isEmpty() == false) {
             if (debug.get()) LOG.debug("SKIP - Contains a JoinPlanNode " + join_nodes);
-            return (root);
+            return (Pair.of(false, root));
         }
         else if (recv_nodes.isEmpty()) {
             if (debug.get()) LOG.debug("SKIP - Does not contain any ReceivePlanNodes");
-            return (root);
+            return (Pair.of(false, root));
         }
         
         OrderByPlanNode orderby_node = null;
@@ -88,7 +89,7 @@ public class PushdownLimitOrderByOptimization extends AbstractOptimization {
         if (debug.get())
             LOG.debug("PLANOPT - Added " + limit_node + "+" + orderby_node + " after " + scan_node);
         
-        return (root);
+        return (Pair.of(true, root));
     }
 
 }

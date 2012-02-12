@@ -151,6 +151,16 @@ public abstract class PlanNodeUtil {
     }
     
     /**
+     * Returns true if the tree at the given root node is for a distributed query plan
+     * @param rootNode
+     * @return
+     */
+    public static boolean isDistributedQuery(AbstractPlanNode rootNode) {
+        return (PlanNodeUtil.getPlanNodeTypes(rootNode).contains(PlanNodeType.RECEIVE));
+    }
+    
+    
+    /**
      * Get all the AbstractExpression roots used in the given AbstractPlanNode. Non-recursive
      * @param node
      * @return

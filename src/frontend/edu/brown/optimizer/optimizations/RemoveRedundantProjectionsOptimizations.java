@@ -1,6 +1,7 @@
 package edu.brown.optimizer.optimizations;
 
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
@@ -12,6 +13,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.types.PlanNodeType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -31,8 +33,9 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
     }
     
     @Override
-    public AbstractPlanNode optimize(final AbstractPlanNode rootNode) {
+    public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode rootNode) {
         this.new_root = rootNode;
+        final AtomicBoolean modified = new AtomicBoolean(false);
         
         new PlanNodeTreeWalker(false) {
             protected void callback(AbstractPlanNode element) {
@@ -70,6 +73,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     
                     // If we're here, the new know that we can remove the projection
                     scan_node.removeInlinePlanNode(PlanNodeType.PROJECTION);
+                    modified.set(true);
                     
                     if (debug.get())
                         LOG.debug(String.format("PLANOPT - Removed redundant %s from %s\n%s", proj_node, scan_node, PlanNodeUtil.debug(rootNode)));
@@ -106,6 +110,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
                     
                     // Off with it's head!
                     element.removeFromGraph();
+                    modified.set(true);
                     if (debug.get())
                         LOG.debug("PLANOPT - Removed redundant " + element + " from query plan!");
                 }
@@ -113,7 +118,7 @@ public class RemoveRedundantProjectionsOptimizations extends AbstractOptimizatio
         }.traverse(rootNode);
         
         assert(this.new_root != null);
-        return (this.new_root);
+        return (Pair.of(modified.get(), this.new_root));
     }
     
     private ProjectionPlanNode getFirstProjection(final AbstractPlanNode root) {
