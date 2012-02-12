@@ -8,6 +8,7 @@ import org.voltdb.catalog.*;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
+import edu.brown.utils.StringUtil;
 
 public class TestProcedureStatistics extends BaseTestCase {
     
@@ -39,7 +40,6 @@ public class TestProcedureStatistics extends BaseTestCase {
     /**
      * testFromJSONString
      */
-    @SuppressWarnings("unchecked")
     public void testFromJSONString() throws Exception {
         String json = stats.toJSONString();
         assertNotNull(json);
@@ -56,10 +56,10 @@ public class TestProcedureStatistics extends BaseTestCase {
             Object copy_value = field.get(copy);
             
             if (orig_value instanceof SortedMap) {
-                SortedMap orig_map = (SortedMap)orig_value;
-                SortedMap copy_map = (SortedMap)copy_value;
+                SortedMap<?, ?> orig_map = (SortedMap<?, ?>)orig_value;
+                SortedMap<?, ?> copy_map = (SortedMap<?, ?>)copy_value;
                 for (Object key : orig_map.keySet()) {
-                    assertTrue(copy_map.containsKey(key));
+                    assertTrue("Missing Key: " + key + "\n" + StringUtil.formatMaps(copy_map), copy_map.containsKey(key));
                     System.out.println("\t" + key);
                     System.out.flush();
                     assertEquals(orig_map.get(key), copy_map.get(key));

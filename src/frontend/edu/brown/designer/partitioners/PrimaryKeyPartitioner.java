@@ -9,9 +9,9 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Table;
 import org.voltdb.types.PartitionMethodType;
-import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.catalog.CatalogKey;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.MultiColumn;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.designer.Designer;
@@ -44,7 +44,7 @@ public class PrimaryKeyPartitioner extends AbstractPartitioner {
         if (debug.get()) LOG.debug("Selecting partitioning Column for " + this.info.catalog_db.getTables().size() + " Tables");
         double total_memory_used = 0.0;
         boolean calculate_memory = (hints.force_replication_size_limit != null && hints.max_memory_per_partition != 0);
-        for (Table catalog_tbl : info.catalog_db.getTables()) {
+        for (Table catalog_tbl : CatalogUtil.getDataTables(info.catalog_db)) {
             String table_key = CatalogKey.createKey(catalog_tbl);
             TableEntry pentry = null;
             Column col = null;

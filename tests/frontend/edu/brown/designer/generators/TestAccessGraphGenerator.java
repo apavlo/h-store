@@ -123,6 +123,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
     public void testInitialize() throws Exception {
         this.generator.initialize(agraph);
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             assertNotNull("Missing " + catalog_tbl, this.agraph.getVertex(catalog_tbl));
         } // FOR
     }
