@@ -44,19 +44,28 @@ public class OrderByPlanNode extends AbstractPlanNode {
      * Sort Columns Indexes
      * The column index in the table that we should sort on
      */
-    protected final List<Integer> m_sortColumns = new ArrayList<Integer>();
-    protected final List<Integer> m_sortColumnGuids = new ArrayList<Integer>();
-    protected final List<String> m_sortColumnNames = new ArrayList<String>();
-    /**
-     * Sort Directions
-     */
-    protected final List<SortDirectionType> m_sortDirections = new Vector<SortDirectionType>();
+    private List<Integer> m_sortColumns = new ArrayList<Integer>();
+    private List<Integer> m_sortColumnGuids = new ArrayList<Integer>();
+    private List<String> m_sortColumnNames = new ArrayList<String>();
+    private List<SortDirectionType> m_sortDirections = new Vector<SortDirectionType>();
 
     /**
      * @param id
      */
     public OrderByPlanNode(PlannerContext context, Integer id) {
         super(context, id);
+    }
+    
+    @Override
+    public Object clone(boolean clone_children, boolean clone_inline) throws CloneNotSupportedException {
+        OrderByPlanNode clone = (OrderByPlanNode)super.clone(clone_children, clone_inline);
+        
+        clone.m_sortColumns = new ArrayList<Integer>(this.m_sortColumns);
+        clone.m_sortColumnGuids = new ArrayList<Integer>(this.m_sortColumnGuids);
+        clone.m_sortColumnNames = new ArrayList<String>(this.m_sortColumnNames);
+        clone.m_sortDirections = new ArrayList<SortDirectionType>(this.m_sortDirections);
+        
+        return (clone);
     }
 
     @Override

@@ -36,8 +36,8 @@ public class LimitPlanNode extends AbstractPlanNode {
         LIMIT_PARAM_IDX;
     }
 
-    protected int m_offset = 0;
-    protected int m_limit = -1;
+    private int m_offset = 0;
+    private int m_limit = -1;
 
     // -1 also interpreted by EE as uninitialized
     private long m_limitParameterId = -1;

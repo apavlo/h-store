@@ -39,8 +39,8 @@ public class DistinctPlanNode extends AbstractPlanNode {
     // TODO: This should really be an Expression that outputs some value?
     //       But how would that work for multi-column Distincts?
     //
-    protected int m_distinctColumnGuid;
-    protected String m_distinctColumnName;
+    private int m_distinctColumnGuid;
+    private String m_distinctColumnName;
 
     public DistinctPlanNode(PlannerContext context, Integer id) {
         super(context, id);

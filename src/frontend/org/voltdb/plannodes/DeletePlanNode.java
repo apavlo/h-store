@@ -34,7 +34,7 @@ public class DeletePlanNode extends AbstractOperationPlanNode {
     }
 
     /** true if all tuples are deleted. */
-    boolean m_truncate = false;
+    private boolean m_truncate = false;
 
     /**
      * @param id

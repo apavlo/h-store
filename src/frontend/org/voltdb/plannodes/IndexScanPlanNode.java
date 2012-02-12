@@ -18,6 +18,7 @@
 package org.voltdb.plannodes;
 
 import java.util.*;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -58,23 +59,23 @@ public class IndexScanPlanNode extends AbstractScanPlanNode {
      */
 
     // The index to use in the scan operation
-    protected String m_targetIndexName;
+    private String m_targetIndexName;
 
     // When this expression evaluates to true, we will stop scanning
-    protected AbstractExpression m_endExpression;
+    private AbstractExpression m_endExpression;
 
     // This list of expressions corresponds to the values that we will use
     // at runtime in the lookup on the index
-    protected final List<AbstractExpression> m_searchkeyExpressions = new ArrayList<AbstractExpression>();
+    private List<AbstractExpression> m_searchkeyExpressions = new ArrayList<AbstractExpression>();
 
     // ???
-    protected Boolean m_keyIterate = false;
+    private Boolean m_keyIterate = false;
 
     // The overall index lookup operation type
-    protected IndexLookupType m_lookupType = IndexLookupType.EQ;
+    private IndexLookupType m_lookupType = IndexLookupType.EQ;
 
     // The sorting direction
-    protected SortDirectionType m_sortDirection = SortDirectionType.INVALID;
+    private SortDirectionType m_sortDirection = SortDirectionType.INVALID;
 
     /**
      * @param id
@@ -82,12 +83,13 @@ public class IndexScanPlanNode extends AbstractScanPlanNode {
     public IndexScanPlanNode(PlannerContext context, Integer id) {
         super(context, id);
     }
-
+    
     @Override
-    public Object clone() throws CloneNotSupportedException {
-        IndexScanPlanNode clone = (IndexScanPlanNode)super.clone();
+    public Object clone(boolean clone_children, boolean clone_inline) throws CloneNotSupportedException {
+        IndexScanPlanNode clone = (IndexScanPlanNode)super.clone(clone_children, clone_inline);
+        
+        clone.m_searchkeyExpressions = new ArrayList<AbstractExpression>();
         clone.m_endExpression = (AbstractExpression)this.m_endExpression.clone();
-        clone.m_searchkeyExpressions.clear();
         for (AbstractExpression exp : this.m_searchkeyExpressions) {
             AbstractExpression clone_exp = (AbstractExpression)exp.clone();
             clone.m_searchkeyExpressions.add(clone_exp);

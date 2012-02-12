@@ -33,7 +33,7 @@ public class InsertPlanNode extends AbstractOperationPlanNode {
         MULTI_PARTITION;
     }
 
-    protected boolean m_multiPartition = false;
+    private boolean m_multiPartition = false;
 
     /**
      * @param id

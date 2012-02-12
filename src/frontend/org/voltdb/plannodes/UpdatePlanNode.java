@@ -33,7 +33,7 @@ public class UpdatePlanNode extends AbstractOperationPlanNode {
         UPDATES_INDEXES;
     }
 
-    boolean m_updatesIndexes = false;
+    private boolean m_updatesIndexes = false;
 
     /**
      * @param id
