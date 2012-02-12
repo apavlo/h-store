@@ -108,7 +108,6 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
      */
     public abstract String debug(Database catalog_db);
     
-    @SuppressWarnings("unchecked")
     protected String debug(Database catalog_db, Enum<?> elements[]) {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         try {
@@ -118,7 +117,7 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
                 Object value = field.get(this);
                 
                 if (field.getClass().isAssignableFrom(SortedMap.class)) {
-                    SortedMap orig_value = (SortedMap)value;
+                    SortedMap<?, ?> orig_value = (SortedMap<?, ?>)value;
                     Map<String, Object> inner_m = new ListOrderedMap<String, Object>();
                     for (Object inner_key : orig_value.keySet()) {
                         Object inner_val = orig_value.get(inner_key);

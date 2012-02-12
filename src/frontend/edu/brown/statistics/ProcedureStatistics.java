@@ -118,6 +118,7 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
         final Procedure catalog_proc = CatalogKey.getFromKey(catalog_db, this.catalog_key, Procedure.class);
         
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             String table_key = CatalogKey.createKey(catalog_tbl);
             this.table_tuple_counts.put(table_key, 0);
             this.table_avg_tuple_sizes.put(table_key, 0);

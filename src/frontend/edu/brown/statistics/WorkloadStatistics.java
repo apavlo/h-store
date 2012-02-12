@@ -295,6 +295,7 @@ public class WorkloadStatistics implements JSONSerializable {
             if (catalog_tbl == null) {
                 throw new JSONException("Invalid table catalog key '" + table_key + "'");
             }
+            if (catalog_tbl.getSystable()) continue;
             TableStatistics table_stat = new TableStatistics(catalog_tbl);
             table_stat.fromJSONObject(jsonTableStats.getJSONObject(table_key), catalog_db);
             this.table_stats.put(CatalogKey.createKey(catalog_tbl), table_stat);
