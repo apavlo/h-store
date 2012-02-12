@@ -29,6 +29,7 @@ public class TestGraphvizExport extends BaseTestCase {
         GraphvizExport<DesignerVertex, DesignerEdge> graphviz = new GraphvizExport<DesignerVertex, DesignerEdge>(dgraph);
         String output = graphviz.export("tpcc");
         for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getSystable()) continue;
             assert(output.contains(catalog_tbl.getName()));
         } // FOR
     }
