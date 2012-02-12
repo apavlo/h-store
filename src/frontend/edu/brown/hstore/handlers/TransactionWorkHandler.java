@@ -13,11 +13,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
-import edu.brown.hstore.Hstore.DataFragment;
-import edu.brown.hstore.Hstore.HStoreService;
-import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.WorkFragment;
-import edu.brown.hstore.Hstore.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.DataFragment;
+import edu.brown.hstore.Hstoreservice.HStoreService;
+import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;

@@ -61,7 +61,7 @@ import edu.brown.benchmark.auctionmark.util.ItemInfo;
 import edu.brown.benchmark.auctionmark.util.UserId;
 import edu.brown.benchmark.auctionmark.util.UserIdGenerator;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.AbstractRandomGenerator;
@@ -301,7 +301,7 @@ public class AuctionMarkProfile {
             throw new RuntimeException("Failed retrieve data from " + AuctionMarkConstants.TABLENAME_CONFIG_PROFILE, ex);
         }
         assert(response != null);
-        assert(response.getStatus() == Hstore.Status.OK) : "Unexpected " + response;
+        assert(response.getStatus() == Status.OK) : "Unexpected " + response;
 
         VoltTable results[] = response.getResults();
         int result_idx = 0;

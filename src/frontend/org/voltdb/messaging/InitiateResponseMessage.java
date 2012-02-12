@@ -24,7 +24,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.debugstate.MailboxHistory.MessageState;
 import org.voltdb.utils.DBBPool;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice;
 
 /**
  * Message from an initiator to an execution site, informing the
@@ -97,7 +97,7 @@ public class InitiateResponseMessage extends VoltMessage {
     }
 
     public void setResults(ClientResponseImpl r, InitiateTaskMessage task) {
-        m_commit = (r.getStatus() == Hstore.Status.OK);
+        m_commit = (r.getStatus() == Hstoreservice.Status.OK);
         m_response = r;
     }
 
@@ -148,7 +148,7 @@ public class InitiateResponseMessage extends VoltMessage {
         FastDeserializer fds = new FastDeserializer(m_buffer);
         try {
             m_response = fds.readObject(ClientResponseImpl.class);
-            m_commit = (m_response.getStatus() == Hstore.Status.OK);
+            m_commit = (m_response.getStatus() == Hstoreservice.Status.OK);
         } catch (IOException e) {
             e.printStackTrace();
             assert(false);

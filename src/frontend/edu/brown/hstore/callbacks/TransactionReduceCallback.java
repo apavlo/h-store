@@ -8,9 +8,10 @@ import org.voltdb.messaging.FastDeserializer;
 import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionReduceResponse.ReduceResult;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
+import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
@@ -22,7 +23,7 @@ import edu.brown.hstore.dtxn.MapReduceTransaction;
  * back from all other partitions in the cluster.
  * @author pavlo
  */
-public class TransactionReduceCallback extends BlockingCallback<Hstore.TransactionReduceResponse, Hstore.TransactionReduceResponse> {
+public class TransactionReduceCallback extends BlockingCallback<TransactionReduceResponse, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -89,8 +90,8 @@ public class TransactionReduceCallback extends BlockingCallback<Hstore.Transacti
            // STEP 2
            // Initialize the FinishCallback and tell every partition in the cluster
            // to clean up this transaction because we're done with it!
-           this.finish_callback = this.ts.initTransactionFinishCallback(Hstore.Status.OK);
-           hstore_site.getCoordinator().transactionFinish(ts, Hstore.Status.OK, this.finish_callback);
+           this.finish_callback = this.ts.initTransactionFinishCallback(Hstoreservice.Status.OK);
+           hstore_site.getCoordinator().transactionFinish(ts, Hstoreservice.Status.OK, this.finish_callback);
             
         } else {
             assert(this.finish_callback != null);
@@ -113,7 +114,7 @@ public class TransactionReduceCallback extends BlockingCallback<Hstore.Transacti
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionReduceResponse response) {
+    protected int runImpl(TransactionReduceResponse response) {
         if (debug.get())
             LOG.debug(String.format("Got %s with status %s for %s [partitions=%s]",
                                     response.getClass().getSimpleName(),
@@ -141,7 +142,7 @@ public class TransactionReduceCallback extends BlockingCallback<Hstore.Transacti
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
                           response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
         
-        if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
+        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
             this.abort(response.getStatus());
             return (0);
         }

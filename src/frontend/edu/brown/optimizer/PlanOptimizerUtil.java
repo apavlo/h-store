@@ -219,75 +219,85 @@ public abstract class PlanOptimizerUtil {
      * @return
      */
     public static boolean updateAllColumns(final PlanOptimizerState state, final AbstractPlanNode rootNode, final boolean force) {
-        new PlanNodeTreeWalker(false) {
-            @Override
-            protected void callback(AbstractPlanNode element) {
-                // ---------------------------------------------------
-                // JOIN
-                // ---------------------------------------------------
-                if (element instanceof AbstractJoinPlanNode) {
-                    if ((state.areChildrenDirty(element) || force) &&
-                        PlanOptimizerUtil.updateJoinsColumns(state, (AbstractJoinPlanNode) element) == false) {
-                        this.stop();
-                        return;
+        // Walk up the tree in reverse so that we get all the Column offsets right
+        for (AbstractPlanNode leafNode : PlanNodeUtil.getLeafPlanNodes(rootNode)) {
+            new PlanNodeTreeWalker(false, true) {
+                @Override
+                protected void callback(AbstractPlanNode element) {
+                    if (trace.get())
+                        LOG.trace("CURRENT:\n" + PlanNodeUtil.debugNode(element));
+                    
+                    // ---------------------------------------------------
+                    // JOIN
+                    // ---------------------------------------------------
+                    if (element instanceof AbstractJoinPlanNode) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateJoinsColumns(state, (AbstractJoinPlanNode) element) == false) {
+                            this.stop();
+                            return;
+                        }
+                    // ---------------------------------------------------
+                    // ORDER BY
+                    // ---------------------------------------------------
+                    } else if (element instanceof OrderByPlanNode) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateOrderByColumns(state, (OrderByPlanNode) element) == false) {
+                            this.stop();
+                            return;
+                        }
+                    } 
+                    // ---------------------------------------------------
+                    // AGGREGATE
+                    // ---------------------------------------------------
+                    else if (element instanceof AggregatePlanNode) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateAggregateColumns(state, (AggregatePlanNode) element) == false) {
+                            this.stop();
+                            return;
+                        }
+                    } 
+                    // ---------------------------------------------------
+                    // DISTINCT
+                    // ---------------------------------------------------
+                    else if (element instanceof DistinctPlanNode) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateDistinctColumns(state, (DistinctPlanNode) element) == false) {
+                            this.stop();
+                            return;
+                        }
                     }
-                // ---------------------------------------------------
-                // ORDER BY
-                // ---------------------------------------------------
-                } else if (element instanceof OrderByPlanNode) {
-                    if ((state.areChildrenDirty(element) || force) &&
-                        PlanOptimizerUtil.updateOrderByColumns(state, (OrderByPlanNode) element) == false) {
-                        this.stop();
-                        return;
+                    // ---------------------------------------------------
+                    // PROJECTION
+                    // ---------------------------------------------------
+                    else if (element instanceof ProjectionPlanNode) {
+                        if ((state.areChildrenDirty(element) || force) &&
+                            PlanOptimizerUtil.updateProjectionColumns(state, (ProjectionPlanNode) element) == false) {
+                            this.stop();
+                            return;
+                        }
                     }
-                } 
-                // ---------------------------------------------------
-                // AGGREGATE
-                // ---------------------------------------------------
-                else if (element instanceof AggregatePlanNode) {
-                    if ((state.areChildrenDirty(element) || force) &&
-                        PlanOptimizerUtil.updateAggregateColumns(state, (AggregatePlanNode) element) == false) {
-                        this.stop();
-                        return;
-                    }
-                } 
-                // ---------------------------------------------------
-                // DISTINCT
-                // ---------------------------------------------------
-                else if (element instanceof DistinctPlanNode) {
-                    if ((state.areChildrenDirty(element) || force) &&
-                        PlanOptimizerUtil.updateDistinctColumns(state, (DistinctPlanNode) element) == false) {
-                        this.stop();
-                        return;
+                    // ---------------------------------------------------
+                    // SEND + RECIEVE + LIMIT
+                    // ---------------------------------------------------
+                    else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode || element instanceof LimitPlanNode) {
+                        // I think we should always call this to ensure that our offsets are ok
+                        // This might be because we don't call whatever that bastardized
+                        // AbstractPlanNode.updateOutputColumns() that messes everything up for us
+                        if (element instanceof LimitPlanNode || state.areChildrenDirty(element)) {
+                            assert (element.getChildPlanNodeCount() == 1) :
+                                String.format("%s has %d children when it should have one: %s",
+                                              element, element.getChildPlanNodeCount(), element.getChildren());  
+                            AbstractPlanNode child_node = element.getChild(0);
+                            assert (child_node != null);
+                            element.setOutputColumns(child_node.getOutputColumnGUIDs());
+                            PlanOptimizerUtil.updateOutputOffsets(state, element);
+                            if (trace.get())
+                                LOG.trace("Set Output Columns for " + element + "\n" + PlanNodeUtil.debugNode(element));
+                        }
                     }
                 }
-                // ---------------------------------------------------
-                // PROJECTION
-                // ---------------------------------------------------
-                else if (element instanceof ProjectionPlanNode) {
-                    if ((state.areChildrenDirty(element) || force) &&
-                        PlanOptimizerUtil.updateProjectionColumns(state, (ProjectionPlanNode) element) == false) {
-                        this.stop();
-                        return;
-                    }
-                }
-                // ---------------------------------------------------
-                // SEND + RECIEVE + LIMIT
-                // ---------------------------------------------------
-                else if (element instanceof SendPlanNode || element instanceof ReceivePlanNode || element instanceof LimitPlanNode) {
-                    // I think we should always call this to ensure that our offsets are ok
-                    // This might be because we don't call whatever that bastardized
-                    // AbstractPlanNode.updateOutputColumns() that messes everything up for us
-                    if (element instanceof LimitPlanNode || state.areChildrenDirty(element)) {
-                        assert (element.getChildPlanNodeCount() == 1) : element;
-                        AbstractPlanNode child_node = element.getChild(0);
-                        assert (child_node != null);
-                        element.setOutputColumns(child_node.getOutputColumnGUIDs());
-                        PlanOptimizerUtil.updateOutputOffsets(state, element);
-                    }
-                }
-            }
-        }.traverse(rootNode);
+            }.traverse(leafNode);
+        }
         return (true);
     }
     
@@ -519,33 +529,56 @@ public abstract class PlanOptimizerUtil {
                 throw new RuntimeException("Unable to clone " + orig_pc, ex);
             }
 
-            new ExpressionTreeWalker() {
-                @Override
-                protected void callback(AbstractExpression exp_element) {
-                    if (exp_element instanceof TupleValueExpression) {
-                        TupleValueExpression tv_exp = (TupleValueExpression) exp_element;
-                        int orig_idx = tv_exp.getColumnIndex();
-                        PlanColumn orig_child_pc = state.plannerContext.get(orig_child_guids.get(orig_idx));
-                        assert (orig_child_pc != null);
-
-                        PlanColumn new_child_pc = null;
-                        int new_idx = 0;
-                        for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
-                            new_child_pc = state.plannerContext.get(orig_child_guid);
-                            if (orig_child_pc.equals(new_child_pc, true, true)) {
-                                break;
+            try {
+                new ExpressionTreeWalker() {
+                    @Override
+                    protected void callback(AbstractExpression exp_element) {
+                        if (exp_element instanceof TupleValueExpression) {
+                            TupleValueExpression tv_exp = (TupleValueExpression) exp_element;
+                            int orig_idx = tv_exp.getColumnIndex();
+                            PlanColumn orig_child_pc = null;
+                            
+                            // If this is referencing a column that we don't have a direct link to
+                            // then we will see if we can match one based on its name
+                            if (orig_idx > orig_child_guids.size()) {
+                                for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
+                                    orig_child_pc = state.plannerContext.get(orig_child_guid);
+                                    if (orig_child_pc.getExpression() instanceof TupleValueExpression) {
+                                        TupleValueExpression orig_child_tve = (TupleValueExpression)orig_child_pc.getExpression();
+                                        if (tv_exp.getTableName().equals(orig_child_tve.getTableName()) &&
+                                            tv_exp.getColumnAlias().equals(orig_child_tve.getColumnAlias())) {
+                                            break;
+                                        }
+                                        orig_child_pc = null;            
+                                    }
+                                } // FOR
+                            } else {
+                                orig_child_pc = state.plannerContext.get(orig_child_guids.get(orig_idx));
                             }
-                            new_child_pc = null;
-                            new_idx++;
-                        } // FOR
-                        if (new_child_pc == null)
-                            LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
-                        assert (new_child_pc != null) : 
-                            String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
-                        tv_exp.setColumnIndex(new_idx);
+                            assert (orig_child_pc != null);
+    
+                            PlanColumn new_child_pc = null;
+                            int new_idx = 0;
+                            for (Integer orig_child_guid : child_node.getOutputColumnGUIDs()) {
+                                new_child_pc = state.plannerContext.get(orig_child_guid);
+                                if (orig_child_pc.equals(new_child_pc, true, true)) {
+                                    break;
+                                }
+                                new_child_pc = null;
+                                new_idx++;
+                            } // FOR
+                            if (new_child_pc == null)
+                                LOG.warn("Problems up ahead:\n" + state + "\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
+                            assert (new_child_pc != null) : 
+                                String.format("Failed to find matching output column %s in %s", orig_child_pc, node);
+                            tv_exp.setColumnIndex(new_idx);
+                        }
                     }
-                }
-            }.traverse(new_exp);
+                }.traverse(new_exp);
+            } catch (Throwable ex) {
+                System.err.println(PlanNodeUtil.debug(node));
+                throw new RuntimeException(ex);
+            }
 
             // Always try make a new PlanColumn and update the TupleValueExpresion index
             // This ensures that we always get the ordering correct
@@ -597,9 +630,7 @@ public abstract class PlanOptimizerUtil {
                     clone_exp.setColumnIndex(i);
                     PlanColumn new_col = state.plannerContext.getPlanColumn(clone_exp, orig_pc.getDisplayName(), orig_pc.getSortOrder(), orig_pc.getStorage());
                     assert (new_col != null);
-                    // DWU: set this to the orig plan column guid
-                    node.getOutputColumnGUIDs().set(i, orig_pc.guid());
-                    //node.getOutputColumnGUIDs().set(i, new_col.guid());
+                    node.getOutputColumnGUIDs().set(i, new_col.guid());
                 }
             }                
         } // FOR

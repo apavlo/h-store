@@ -37,8 +37,8 @@ import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.*;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.*;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
@@ -595,7 +595,7 @@ public class HStoreCoordinator implements Shutdownable {
             hstore_site.shutdown();
             
             // Then send back the acknowledgment
-            Hstore.ShutdownResponse response = Hstore.ShutdownResponse.newBuilder()
+            ShutdownResponse response = ShutdownResponse.newBuilder()
                                                    .setSenderId(local_site_id)
                                                    .build();
             // Send this now!
@@ -617,7 +617,7 @@ public class HStoreCoordinator implements Shutdownable {
                                                  request.getClass().getSimpleName(),
                                                  HStoreSite.formatSiteName(request.getSenderId())));
             
-            Hstore.TimeSyncResponse response = Hstore.TimeSyncResponse.newBuilder()
+            TimeSyncResponse response = TimeSyncResponse.newBuilder()
                                                     .setT0R(System.currentTimeMillis())
                                                     .setSenderId(local_site_id)
                                                     .setT0S(request.getT0S())
@@ -710,7 +710,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param status
      * @param callback
      */
-    public void transactionFinish(LocalTransaction ts, Hstore.Status status, TransactionFinishCallback callback) {
+    public void transactionFinish(LocalTransaction ts, Status status, TransactionFinishCallback callback) {
         Collection<Integer> partitions = ts.getPredictTouchedPartitions();
         if (debug.get())
             LOG.debug(String.format("Notifying partitions %s that %s is finished [status=%s]", partitions, ts, status));
@@ -824,10 +824,10 @@ public class HStoreCoordinator implements Shutdownable {
      * waste time serializing + deserializing the data when didn't have to.
      * @param ts
      */
-    public void sendData(LocalTransaction ts, Map<Integer, VoltTable> data, RpcCallback<Hstore.SendDataResponse> callback) {
+    public void sendData(LocalTransaction ts, Map<Integer, VoltTable> data, RpcCallback<SendDataResponse> callback) {
         
         // TODO(xin): Loop through all of the remote HStoreSites and grab their partition data
-        //            out of the map given as input. Create a single Hstore.SendDataRequest for that
+        //            out of the map given as input. Create a single SendDataRequest for that
         //            HStoreSite and then use the direct channel to send the data. Be sure to skip
         //            the partitions at the local site
         //
@@ -853,7 +853,7 @@ public class HStoreCoordinator implements Shutdownable {
                 continue;
             }
 
-            Hstore.SendDataRequest.Builder builder = Hstore.SendDataRequest.newBuilder()
+            SendDataRequest.Builder builder = SendDataRequest.newBuilder()
                     .setTransactionId(txn_id)
                     .setSenderId(local_site_id);
 
@@ -881,7 +881,7 @@ public class HStoreCoordinator implements Shutdownable {
                 }
                 if (debug.get()) 
                     LOG.debug("Constructing Dependency for " + catalog_part);
-                builder.addFragments(Hstore.DataFragment.newBuilder()
+                builder.addFragments(DataFragment.newBuilder()
                              .setId(catalog_part.getId())
                              .addData(bs)
                              .build());
@@ -908,9 +908,9 @@ public class HStoreCoordinator implements Shutdownable {
         if (fake_responses != null) {
             if (debug.get()) LOG.debug(String.format("Sending fake responses for %s for partitions %s", ts, fake_responses));
             for (int dest_site_id : fake_responses) {
-                Hstore.SendDataResponse.Builder builder = Hstore.SendDataResponse.newBuilder()
+                SendDataResponse.Builder builder = SendDataResponse.newBuilder()
                                                                                  .setTransactionId(txn_id)
-                                                                                 .setStatus(Hstore.Status.OK)
+                                                                                 .setStatus(Hstoreservice.Status.OK)
                                                                                  .setSenderId(dest_site_id);
                 callback.run(builder.build());
             } // FOR
@@ -945,7 +945,7 @@ public class HStoreCoordinator implements Shutdownable {
         // Send out TimeSync request 
         for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
             if (e.getKey() == this. local_site_id) continue;
-            Hstore.TimeSyncRequest request = Hstore.TimeSyncRequest.newBuilder()
+            TimeSyncRequest request = TimeSyncRequest.newBuilder()
                                             .setSenderId(local_site_id)
                                             .setT0S(System.currentTimeMillis())
                                             .build();
@@ -1029,11 +1029,11 @@ public class HStoreCoordinator implements Shutdownable {
         final CountDownLatch latch = new CountDownLatch(num_sites);
         
         if (num_sites > 0) {
-            RpcCallback<Hstore.ShutdownResponse> callback = new RpcCallback<Hstore.ShutdownResponse>() {
+            RpcCallback<ShutdownResponse> callback = new RpcCallback<ShutdownResponse>() {
                 private final Set<Integer> siteids = new HashSet<Integer>(); 
                 
                 @Override
-                public void run(Hstore.ShutdownResponse parameter) {
+                public void run(ShutdownResponse parameter) {
                     int siteid = parameter.getSenderId();
                     assert(this.siteids.contains(siteid) == false) : "Duplicate response from " + hstore_site.getSiteName();
                     this.siteids.add(siteid);
@@ -1044,7 +1044,7 @@ public class HStoreCoordinator implements Shutdownable {
             
             if (debug.get()) LOG.debug("Sending shutdown request to " + num_sites + " remote sites");
             for (Entry<Integer, HStoreService> e: this.channels.entrySet()) {
-                Hstore.ShutdownRequest sm = Hstore.ShutdownRequest.newBuilder()
+                ShutdownRequest sm = ShutdownRequest.newBuilder()
                                                 .setSenderId(catalog_site.getId())
                                                 .setExitStatus(exit_status)
                                                 .build();

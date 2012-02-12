@@ -90,10 +90,11 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstore.DataFragment;
-import edu.brown.hstore.Hstore.TransactionWorkRequest;
-import edu.brown.hstore.Hstore.TransactionWorkResponse.WorkResult;
-import edu.brown.hstore.Hstore.WorkFragment;
+import edu.brown.hstore.Hstoreservice.DataFragment;
+import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
+import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
@@ -442,14 +443,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * a transaction has gotten back all of the responses that it expected. That logic is down
      * below in waitForResponses()
      */
-    private final RpcCallback<Hstore.TransactionWorkResponse> request_work_callback = new RpcCallback<Hstore.TransactionWorkResponse>() {
+    private final RpcCallback<TransactionWorkResponse> request_work_callback = new RpcCallback<TransactionWorkResponse>() {
         @Override
-        public void run(Hstore.TransactionWorkResponse msg) {
+        public void run(TransactionWorkResponse msg) {
             Long txn_id = msg.getTransactionId();
             AbstractTransaction ts = hstore_site.getTransaction(txn_id);
             assert(ts != null) : "No transaction state exists for txn #" + txn_id;
             
-            if (d) LOG.debug(String.format("Processing Hstore.TransactionWorkResponse for %s with %d results",
+            if (d) LOG.debug(String.format("Processing TransactionWorkResponse for %s with %d results",
                                         ts, msg.getResultsCount()));
             for (int i = 0, cnt = msg.getResultsCount(); i < cnt; i++) {
                 WorkResult result = msg.getResults(i); 
@@ -850,7 +851,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
 //                    }
                     
                     FinishTaskMessage ftask = (FinishTaskMessage)work;
-                    this.finishTransaction(current_txn, (ftask.getStatus() == Hstore.Status.OK));
+                    this.finishTransaction(current_txn, (ftask.getStatus() == Hstoreservice.Status.OK));
 //                    if (hstore_conf.site.exec_profiling) this.work_exec_time.stop();
                     
                 // -------------------------------
@@ -1236,15 +1237,15 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // An ABORT_THROTTLED means that the client will back-off of a bit
             // before sending another txn request, where as an ABORT_REJECT means
             // that it will just try immediately
-            Hstore.Status status = ((singlePartitioned ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ? 
-                                        Hstore.Status.ABORT_THROTTLED :
-                                        Hstore.Status.ABORT_REJECT);
+            Hstoreservice.Status status = ((singlePartitioned ? hstore_conf.site.queue_incoming_throttle : hstore_conf.site.queue_dtxn_throttle) ? 
+                                        Hstoreservice.Status.ABORT_THROTTLED :
+                                        Hstoreservice.Status.ABORT_REJECT);
             
             if (d) LOG.debug(String.format("%s - Hit with a %s response from partition %d [currentTxn=%s, throttled=%s, queueSize=%d]",
                                            ts, status, this.partitionId, this.currentTxnId,
                                            this.work_throttler.isThrottled(), this.work_throttler.size()));
             if (singlePartitioned == false) {
-                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Hstore.Status.ABORT_THROTTLED);
+                TransactionFinishCallback finish_callback = ts.initTransactionFinishCallback(Hstoreservice.Status.ABORT_THROTTLED);
                 hstore_coordinator.transactionFinish(ts, status, finish_callback);
             }
             hstore_site.transactionReject(ts, status);
@@ -1308,7 +1309,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // Note that we have to do this before we add the responses to the TransactionState so that
         // we can be sure that the VoltProcedure knows about the problem when it wakes the stored 
         // procedure back up
-        if (fresponse.getStatus() != Hstore.Status.OK) {
+        if (fresponse.getStatus() != Hstoreservice.Status.OK) {
             if (t) LOG.trace(String.format("Received non-success response %s from partition %d for %s",
                                                     fresponse.getStatus(), fresponse.getPartitionId(), ts));
 
@@ -1443,7 +1444,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             return;
         }
         
-        Hstore.Status status = cresponse.getStatus();
+        Hstoreservice.Status status = cresponse.getStatus();
         if (d) LOG.debug(String.format("Finished execution of %s [status=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, before_mode, this.current_execMode));
 
@@ -1468,7 +1469,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     // disable executing all transactions until the multi-partition transaction commits
                     // NOTE: We don't need acquire the 'exec_mode' lock here, because we know that we either executed in non-spec mode, or 
                     // that there already was a multi-partition transaction hanging around.
-                    if (status != Hstore.Status.OK && ts.isExecReadOnlyAllPartitions() == false) {
+                    if (status != Hstoreservice.Status.OK && ts.isExecReadOnlyAllPartitions() == false) {
                         this.setExecutionMode(ts, ExecutionMode.DISABLED);
                         int blocked = this.work_queue.drainTo(this.current_blockedTxns);
                         if (t && blocked > 0)
@@ -1499,7 +1500,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * @param before_mode
      * @return
      */
-    private boolean canProcessClientResponseNow(LocalTransaction ts, Hstore.Status status, ExecutionMode before_mode) {
+    private boolean canProcessClientResponseNow(LocalTransaction ts, Hstoreservice.Status status, ExecutionMode before_mode) {
         if (d) LOG.debug(String.format("%s - Checking whether to process response now [status=%s, singlePartition=%s, readOnly=%s, beforeMode=%s, currentMode=%s]",
                                        ts, status, ts.isExecSinglePartition(), ts.isExecReadOnly(this.partitionId), before_mode, this.current_execMode));
         // Commit All
@@ -1507,7 +1508,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             return (true);
             
         // Process successful txns based on the mode that it was executed under
-        } else if (status == Hstore.Status.OK) {
+        } else if (status == Hstoreservice.Status.OK) {
             switch (before_mode) {
                 case COMMIT_ALL:
                     return (true);
@@ -1521,16 +1522,16 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             } // SWITCH
         }
         // Anything mispredicted should be processed right away
-        else if (status == Hstore.Status.ABORT_MISPREDICT) {
+        else if (status == Hstoreservice.Status.ABORT_MISPREDICT) {
             return (true);
         }    
         // If the transaction aborted and it was read-only thus far, then we want to process it immediately
-        else if (status != Hstore.Status.OK && ts.isExecReadOnly(this.partitionId)) {
+        else if (status != Hstoreservice.Status.OK && ts.isExecReadOnly(this.partitionId)) {
             return (true);
         }
         // If this txn threw a user abort, and the current outstanding dtxn is read-only
         // then it's safe for us to rollback
-        else if (status == Hstore.Status.ABORT_USER && (this.current_dtxn != null && this.current_dtxn.isExecReadOnly(this.partitionId))) {
+        else if (status == Hstoreservice.Status.ABORT_USER && (this.current_dtxn != null && this.current_dtxn.isExecReadOnly(this.partitionId))) {
             return (true);
         }
         
@@ -1563,35 +1564,35 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         DependencySet result = null;
-        Hstore.Status status = Hstore.Status.OK;
+        Hstoreservice.Status status = Hstoreservice.Status.OK;
         SerializableException error = null;
         
         try {
             result = this.executeWorkFragment(ts, wfrag, parameters);
         } catch (ConstraintFailureException ex) {
             LOG.fatal("Hit an ConstraintFailureException for " + ts, ex);
-            status = Hstore.Status.ABORT_UNEXPECTED;
+            status = Hstoreservice.Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (EEException ex) {
             LOG.fatal("Hit an EE Error for " + ts, ex);
             this.crash(ex);
-            status = Hstore.Status.ABORT_UNEXPECTED;
+            status = Hstoreservice.Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (SQLException ex) {
             LOG.warn("Hit a SQL Error for " + ts, ex);
-            status = Hstore.Status.ABORT_UNEXPECTED;
+            status = Hstoreservice.Status.ABORT_UNEXPECTED;
             error = ex;
         } catch (Throwable ex) {
             LOG.error("Something unexpected and bad happended for " + ts, ex);
-            status = Hstore.Status.ABORT_UNEXPECTED;
+            status = Hstoreservice.Status.ABORT_UNEXPECTED;
             error = new SerializableException(ex);
         } finally {
             // Success, but without any results???
-            if (result == null && status == Hstore.Status.OK) {
+            if (result == null && status == Hstoreservice.Status.OK) {
                 Exception ex = new Exception(String.format("The WorkFragment %s executed successfully on Partition %d but result is null for %s",
                                                            wfrag.getFragmentIdList(), this.partitionId, ts));
                 if (d) LOG.warn(ex);
-                status = Hstore.Status.ABORT_UNEXPECTED;
+                status = Hstoreservice.Status.ABORT_UNEXPECTED;
                 error = new SerializableException(ex);
             }
         }
@@ -1599,8 +1600,8 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // For single-partition INSERT/UPDATE/DELETE queries, we don't directly
         // execute the SendPlanNode in order to get back the number of tuples that
         // were modified. So we have to rely on the output dependency ids set in the task
-        assert(status != Hstore.Status.OK ||
-              (status == Hstore.Status.OK && result.size() == wfrag.getFragmentIdCount())) :
+        assert(status != Hstoreservice.Status.OK ||
+              (status == Hstoreservice.Status.OK && result.size() == wfrag.getFragmentIdCount())) :
            "Got back " + result.size() + " results but was expecting " + wfrag.getFragmentIdCount();
         
         // Make sure that we mark the round as finished before we start sending results
@@ -1613,7 +1614,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // -------------------------------
         if (is_dtxn == false) {
             // If the transaction is local, store the result directly in the local TransactionState
-            if (status == Hstore.Status.OK) {
+            if (status == Hstoreservice.Status.OK) {
                 if (t) LOG.trace("Storing " + result.size() + " dependency results locally for successful FragmentTaskMessage");
                 LocalTransaction local_ts = (LocalTransaction)ts;
                 assert(result.size() == wfrag.getOutputDepIdCount());
@@ -1956,13 +1957,13 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
      * 
      * @param fresponse
      */
-    protected WorkResult buildWorkResult(AbstractTransaction ts, DependencySet result, Hstore.Status status, SerializableException error) {
+    protected WorkResult buildWorkResult(AbstractTransaction ts, DependencySet result, Hstoreservice.Status status, SerializableException error) {
         WorkResult.Builder builder = WorkResult.newBuilder();
         
         // Partition Id
         builder.setPartitionId(this.partitionId);
         
-        // Hstore.Status
+        // Hstoreservice.Status
         builder.setStatus(status);
         
         // SerializableException 
@@ -1975,7 +1976,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         }
         
         // Push dependencies back to the remote partition that needs it
-        if (status == Hstore.Status.OK) {
+        if (status == Hstoreservice.Status.OK) {
 //            FastSerializer fs = new FastSerializer(); // buffer_pool);
             for (int i = 0, cnt = result.size(); i < cnt; i++) {
                 DataFragment.Builder outputBuilder = DataFragment.newBuilder();
@@ -2050,7 +2051,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts != null);
         Long txn_id = ts.getTransactionId();
 
-        if (t) LOG.trace(String.format("Wrapping %d WorkFragments into a Hstore.TransactionWorkRequest for %s", tasks.size(), ts));
+        if (t) LOG.trace(String.format("Wrapping %d WorkFragments into a TransactionWorkRequest for %s", tasks.size(), ts));
         
         // If our transaction was originally designated as a single-partitioned, then we need to make
         // sure that we don't touch any partition other than our local one. If we do, then we need abort
@@ -2100,7 +2101,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // We will use this store our serialized input dependencies
             TransactionWorkRequest.Builder request = tmp_transactionRequestBuildersMap.get(target_site);
             if (request == null) {
-                request = Hstore.TransactionWorkRequest.newBuilder()
+                request = TransactionWorkRequest.newBuilder()
                                         .setTransactionId(txn_id)
                                         .setSourcePartition(this.partitionId)
                                         .setSysproc(ts.isSysProc())
@@ -2518,7 +2519,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         assert(ts.isSpeculative() == true) :
             String.format("Queuing ClientResponse for non-specutative %s [mode=%s, status=%s]",
                           ts, this.current_execMode, cresponse.getStatus());
-        assert(cresponse.getStatus() != Hstore.Status.ABORT_MISPREDICT) : 
+        assert(cresponse.getStatus() != Hstoreservice.Status.ABORT_MISPREDICT) : 
             String.format("Trying to queue ClientResponse for mispredicted %s [mode=%s, status=%s]",
                           ts, this.current_execMode, cresponse.getStatus());
         assert(this.current_execMode != ExecutionMode.COMMIT_ALL) :
@@ -2542,7 +2543,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // 2010-11-14: The reason why we can do this is because we will just ignore the commit
         // message when it shows from the Dtxn.Coordinator. We should probably double check with Evan on this...
         boolean is_singlepartitioned = ts.isPredictSinglePartition();
-        Hstore.Status status = cresponse.getStatus();
+        Hstoreservice.Status status = cresponse.getStatus();
 
         if (d) {
             LOG.debug(String.format("Processing ClientResponse for %s at partition %d [handle=%d, status=%s, singlePartition=%s, local=%s]",
@@ -2557,7 +2558,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
         // ALL: Single-Partition Transactions
         if (is_singlepartitioned) {
             // Commit or abort the transaction
-            this.finishWork(ts, (status == Hstore.Status.OK));
+            this.finishWork(ts, (status == Hstoreservice.Status.OK));
             
             // Then send the result back to the client!
             if (hstore_conf.site.exec_postprocessing_thread) {
@@ -2570,7 +2571,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             }
         } 
         // COMMIT: Distributed Transaction
-        else if (status == Hstore.Status.OK) {
+        else if (status == Hstoreservice.Status.OK) {
             // Store the ClientResponse in the TransactionPrepareCallback so that
             // when we get all of our 
             TransactionPrepareCallback callback = ts.getTransactionPrepareCallback();
@@ -2777,7 +2778,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
             // If the multi-p txn aborted, then we need to abort everything in our queue
             // Change the status to be a MISPREDICT so that they get executed again
             if (commit == false) {
-                cr.setStatus(Hstore.Status.ABORT_MISPREDICT);
+                cr.setStatus(Hstoreservice.Status.ABORT_MISPREDICT);
                 ts.setPendingError(new MispredictionException(ts.getTransactionId(), ts.getTouchedPartitions()), false);
                 aborted++;
                 
@@ -2790,7 +2791,7 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
                     ts.unsetSubmittedEE(this.partitionId);
                     skip_commit++;
                     
-                } else if (ee_commit && cr.getStatus() == Hstore.Status.OK) {
+                } else if (ee_commit && cr.getStatus() == Hstoreservice.Status.OK) {
                     if (t) LOG.trace(String.format("Committing %s but will bypass all other successful transactions [undoToken=%d]", ts, ts.getLastUndoToken(this.partitionId)));
                     ee_commit = false;
                 }

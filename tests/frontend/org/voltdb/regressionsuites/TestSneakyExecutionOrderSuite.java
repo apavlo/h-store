@@ -34,7 +34,7 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.compiler.VoltProjectBuilder;
 import org.voltdb.regressionsuites.sneakyprocs.*;
 
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 
 public class TestSneakyExecutionOrderSuite extends RegressionSuite {
 
@@ -56,20 +56,20 @@ public class TestSneakyExecutionOrderSuite extends RegressionSuite {
     class MPCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
+            if (clientResponse.getStatus() == Status.ABORT_CONNECTION_LOST){
                 return;
             }
-            assertTrue(clientResponse.getStatus() == Hstore.Status.OK);
+            assertTrue(clientResponse.getStatus() == Status.OK);
             answersReceived.decrementAndGet();
         }
     }
     class SPCallback implements ProcedureCallback {
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            if (clientResponse.getStatus() == Hstore.Status.ABORT_CONNECTION_LOST){
+            if (clientResponse.getStatus() == Status.ABORT_CONNECTION_LOST){
                 return;
             }
-            assertTrue(clientResponse.getStatus() == Hstore.Status.OK);
+            assertTrue(clientResponse.getStatus() == Status.OK);
             answersReceived.decrementAndGet();
         }
     }

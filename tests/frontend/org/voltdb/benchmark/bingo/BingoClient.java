@@ -35,7 +35,7 @@ import org.voltdb.client.ProcedureCallback;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.hstore.Hstore;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.conf.HStoreConf;
 
 public class BingoClient extends BenchmarkComponent {
@@ -72,9 +72,9 @@ public class BingoClient extends BenchmarkComponent {
 
             @Override
             public void clientCallback(ClientResponse clientResponse) {
-                final Hstore.Status status = clientResponse.getStatus();
-                if (status != Hstore.Status.OK) {
-                    if (status == Hstore.Status.ABORT_CONNECTION_LOST){
+                final Status status = clientResponse.getStatus();
+                if (status != Status.OK) {
+                    if (status == Status.ABORT_CONNECTION_LOST){
                         /*
                          * Status of the last transaction involving the tournament
                          * is unknown it could have committed. Recovery code would
@@ -248,7 +248,7 @@ public class BingoClient extends BenchmarkComponent {
             Tourney.Callback callback = t.new Callback(proc) {
                 @Override
                 public void clientCallback(ClientResponse clientResponse) {
-                    if (clientResponse.getStatus() == Hstore.Status.OK) {
+                    if (clientResponse.getStatus() == Status.OK) {
                         tourney.initialized = true;
                     }
                     super.clientCallback(clientResponse);
@@ -270,7 +270,7 @@ public class BingoClient extends BenchmarkComponent {
             Tourney.Callback callback = t.new Callback(proc) {
                 @Override
                 public void clientCallback(ClientResponse clientResponse) {
-                    if (clientResponse.getStatus() == Hstore.Status.OK) {
+                    if (clientResponse.getStatus() == Status.OK) {
                         tourney.initialized = false;
                         tourney.round = 0;
                     }
@@ -342,7 +342,7 @@ public class BingoClient extends BenchmarkComponent {
                 Tourney.Callback callback = t.new Callback(proc) {
                     @Override
                     public void clientCallback(ClientResponse clientResponse) {
-                        if (clientResponse.getStatus() == Hstore.Status.OK) {
+                        if (clientResponse.getStatus() == Status.OK) {
                             tourney.round++;
                         }
                         if (checkTransaction("PlayRound", clientResponse, false, false)) {

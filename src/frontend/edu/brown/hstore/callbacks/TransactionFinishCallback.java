@@ -2,14 +2,14 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstoreservice.TransactionFinishResponse;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
-public class TransactionFinishCallback extends BlockingCallback<Hstore.TransactionFinishResponse, Hstore.TransactionFinishResponse> {
+public class TransactionFinishCallback extends BlockingCallback<TransactionFinishResponse, TransactionFinishResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionFinishCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -18,7 +18,7 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     }
  
     private LocalTransaction ts;
-    private Hstore.Status status;
+    private Status status;
     
     /**
      * This is important so bare with me here...
@@ -41,7 +41,7 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
         this.txn_profiling = hstore_site.getHStoreConf().site.txn_profiling;
     }
 
-    public void init(LocalTransaction ts, Hstore.Status status) {
+    public void init(LocalTransaction ts, Status status) {
         if (debug.get())
             LOG.debug("Initializing " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
@@ -76,7 +76,7 @@ public class TransactionFinishCallback extends BlockingCallback<Hstore.Transacti
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionFinishResponse response) {
+    protected int runImpl(TransactionFinishResponse response) {
         if (debug.get())
             LOG.debug(String.format("%s - Got %s with %s [partitions=%s, counter=%d]",
                                     this.ts, response.getClass().getSimpleName(),

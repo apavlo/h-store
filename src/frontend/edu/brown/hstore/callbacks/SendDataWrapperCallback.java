@@ -1,21 +1,17 @@
 package edu.brown.hstore.callbacks;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.SendDataResponse;
-import edu.brown.hstore.Hstore.Status;
-import edu.brown.hstore.Hstore.TransactionInitResponse;
-import edu.brown.hstore.Hstore.SendDataResponse.Builder;
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.SendDataResponse;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
+import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.util.MapReduceHelperThread;
 
 /**
  * This is callback is used on the remote side of a TransactionMapRequest
@@ -23,7 +19,7 @@ import edu.brown.hstore.util.MapReduceHelperThread;
  * at this HStoreSite is finished with the Map phase. 
  * @author pavlo
  */
-public class SendDataWrapperCallback extends BlockingCallback<Hstore.SendDataResponse, Integer> {
+public class SendDataWrapperCallback extends BlockingCallback<SendDataResponse, Integer> {
     private static final Logger LOG = Logger.getLogger(SendDataWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -31,10 +27,10 @@ public class SendDataWrapperCallback extends BlockingCallback<Hstore.SendDataRes
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private Hstore.SendDataResponse.Builder builder = null;
+    private SendDataResponse.Builder builder = null;
     private MapReduceTransaction ts = null;
     
-    public Hstore.SendDataResponse.Builder getBuilder() {
+    public SendDataResponse.Builder getBuilder() {
         return builder;
     }
 
@@ -42,16 +38,16 @@ public class SendDataWrapperCallback extends BlockingCallback<Hstore.SendDataRes
         super(hstore_site, false);
     }
     
-    public void init(MapReduceTransaction ts, RpcCallback<Hstore.SendDataResponse> orig_callback) {
+    public void init(MapReduceTransaction ts, RpcCallback<SendDataResponse> orig_callback) {
         assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
-        this.builder = Hstore.SendDataResponse.newBuilder()
+        this.builder = SendDataResponse.newBuilder()
                              .setTransactionId(ts.getTransactionId())
-                             .setStatus(Hstore.Status.OK);
+                             .setStatus(Hstoreservice.Status.OK);
         super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
     }
     

@@ -2,8 +2,9 @@ package edu.brown.hstore.callbacks;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.hstore.Hstore;
-import edu.brown.hstore.Hstore.Status;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
+import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
@@ -14,7 +15,7 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  * partitions that it needs come back and say they're ready to execute it
  * @author pavlo
  */
-public class TransactionInitCallback extends BlockingCallback<Hstore.TransactionInitResponse, Hstore.TransactionInitResponse> {
+public class TransactionInitCallback extends BlockingCallback<TransactionInitResponse, TransactionInitResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionInitCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
@@ -115,7 +116,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
     }
     
     @Override
-    protected int runImpl(Hstore.TransactionInitResponse response) {
+    protected int runImpl(TransactionInitResponse response) {
         if (debug.get())
             LOG.debug(String.format("Got %s with status %s for %s [partitions=%s, rejectPartition=%s, rejectTxn=%s]",
                                     response.getClass().getSimpleName(),
@@ -145,7 +146,7 @@ public class TransactionInitCallback extends BlockingCallback<Hstore.Transaction
             String.format("Unexpected %s for a different transaction %s != #%d [expected=#%d]",
                           response.getClass().getSimpleName(), this.ts, resp_txn_id, ts_txn_id);
         
-        if (response.getStatus() != Hstore.Status.OK || this.isAborted()) {
+        if (response.getStatus() != Hstoreservice.Status.OK || this.isAborted()) {
             if (response.hasRejectTransactionId()) {
                 assert(response.hasRejectPartition()) :
                     String.format("%s has a reject txn #%d but is missing reject partition [txn=#%d]",
