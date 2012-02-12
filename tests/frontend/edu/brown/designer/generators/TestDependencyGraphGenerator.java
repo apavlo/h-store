@@ -48,6 +48,10 @@ public class TestDependencyGraphGenerator extends BaseTestCase {
         expected.add(CatalogKey.createKey(warehouse_table));
         
         for (DesignerVertex v : dgraph.getRoots()) {
+            // Skip any internal system tables
+            Table catalog_tbl = v.getCatalogItem();
+            if (catalog_tbl.getSystable()) continue;
+            
             //System.out.println(v.getCatalogItem());
             assertTrue(expected.contains(v.getCatalogKey()));
         } // FOR
