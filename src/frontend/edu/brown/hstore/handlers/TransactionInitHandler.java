@@ -17,8 +17,8 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreCoordinator.Dispatcher;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
@@ -30,9 +30,9 @@ public class TransactionInitHandler extends AbstractTransactionHandler<Transacti
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    private final Dispatcher<Object[]> initDispatcher;
+    private final AbstractDispatcher<Object[]> initDispatcher;
     
-    public TransactionInitHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, Dispatcher<Object[]> initDispatcher) {
+    public TransactionInitHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> initDispatcher) {
         super(hstore_site, hstore_coord);
         this.initDispatcher = initDispatcher;
     }
