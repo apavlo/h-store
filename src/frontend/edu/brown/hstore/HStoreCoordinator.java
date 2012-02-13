@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
@@ -42,13 +41,13 @@ import edu.brown.hstore.Hstoreservice.*;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
-import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.dispatchers.*;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.handlers.SendDataHandler;
 import edu.brown.hstore.handlers.TransactionFinishHandler;
@@ -64,7 +63,7 @@ import edu.brown.hstore.interfaces.Shutdownable;
  * @author pavlo
  */
 public class HStoreCoordinator implements Shutdownable {
-    public static final Logger LOG = Logger.getLogger(HStoreCoordinator.class);
+    private static final Logger LOG = Logger.getLogger(HStoreCoordinator.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -95,10 +94,9 @@ public class HStoreCoordinator implements Shutdownable {
     private final TransactionPrepareHandler transactionPrepare_handler;
     private final TransactionFinishHandler transactionFinish_handler;
     private final SendDataHandler sendData_handler;
-  
     
-    private final InitDispatcher transactionInit_dispatcher;
-    private final FinishDispatcher transactionFinish_dispatcher;
+    private final TransactionInitDispatcher transactionInit_dispatcher;
+    private final TransactionFinishDispatcher transactionFinish_dispatcher;
     private final TransactionRedirectDispatcher transactionRedirect_dispatcher;    
     
     private Shutdownable.ShutdownState state = ShutdownState.INITIALIZED;
@@ -151,84 +149,6 @@ public class HStoreCoordinator implements Shutdownable {
         }
     }
     
-    public abstract class Dispatcher<E> implements Runnable {
-        final ProfileMeasurement idleTime = new ProfileMeasurement("IDLE");
-        final LinkedBlockingDeque<E> queue = new LinkedBlockingDeque<E>();
-        
-        @Override
-        public final void run() {
-            if (hstore_conf.site.cpu_affinity)
-                hstore_site.getThreadManager().registerProcessingThread();
-            E e = null;
-            while (HStoreCoordinator.this.isShutdownOrPrepareShutDown() == false) {
-                try {
-                    idleTime.start();
-                    e = this.queue.take();
-                    idleTime.stop();
-                } catch (InterruptedException ex) {
-                    break;
-                }
-                try {
-                    this.runImpl(e);
-                } catch (Throwable ex) {
-                    LOG.warn("Failed to process queued element " + e, ex);
-                    continue;
-                }
-            } // WHILE
-        }
-        public void queue(E e) {
-            this.queue.offer(e);
-        }
-        public abstract void runImpl(E e);
-        
-        
-    }
-    
-    /**
-     * 
-     */
-    private class TransactionRedirectDispatcher extends Dispatcher<Pair<byte[], TransactionRedirectResponseCallback>> {
-        @Override
-        public void runImpl(Pair<byte[], TransactionRedirectResponseCallback> p) {
-            FastDeserializer fds = new FastDeserializer(p.getFirst());
-            StoredProcedureInvocation invocation = null;
-            try {
-                invocation = fds.readObject(StoredProcedureInvocation.class);
-            } catch (Exception ex) {
-                LOG.fatal("Unexpected error when calling procedureInvocation!", ex);
-                throw new RuntimeException(ex);
-            }
-            HStoreCoordinator.this.hstore_site.procedureInvocation(invocation, p.getFirst(), p.getSecond());
-        }
-    }
-    
-    /**
-     * 
-     */
-    private class InitDispatcher extends Dispatcher<Object[]> {
-        @SuppressWarnings("unchecked")
-        @Override
-        public void runImpl(Object o[]) {
-            RpcController controller = (RpcController)o[0];
-            TransactionInitRequest request = (TransactionInitRequest)o[1];
-            RpcCallback<TransactionInitResponse> callback = (RpcCallback<TransactionInitResponse>)o[2];
-            transactionInit_handler.remoteHandler(controller, request, callback);
-        }
-    }
-    /**
-     * 
-     */
-    private class FinishDispatcher extends Dispatcher<Object[]> {
-        @SuppressWarnings("unchecked")
-        @Override
-        public void runImpl(Object o[]) {
-            RpcController controller = (RpcController)o[0];
-            TransactionFinishRequest request = (TransactionFinishRequest)o[1];
-            RpcCallback<TransactionFinishResponse> callback = (RpcCallback<TransactionFinishResponse>)o[2];
-            transactionFinish_handler.remoteHandler(controller, request, callback);
-        }
-    }
-    
     /**
      * Constructor
      * @param hstore_site
@@ -247,10 +167,11 @@ public class HStoreCoordinator implements Shutdownable {
         // This listener thread will process incoming messages
         this.listener = new ProtoServer(this.eventLoop);
         
-        // Special dispatcher threads to handle forward requests
-        this.transactionInit_dispatcher = (hstore_conf.site.coordinator_init_thread ? new InitDispatcher() : null);
-        this.transactionFinish_dispatcher = (hstore_conf.site.coordinator_finish_thread ? new FinishDispatcher() : null);
-        this.transactionRedirect_dispatcher = (hstore_conf.site.coordinator_redirect_thread ? new TransactionRedirectDispatcher() : null);
+        // Special dispatcher threads to handle incoming requests
+        // These are used so that we can process messages in a different thread than the main HStoreCoordinator thread
+        this.transactionInit_dispatcher = (hstore_conf.site.coordinator_init_thread ? new TransactionInitDispatcher(this) : null);
+        this.transactionFinish_dispatcher = (hstore_conf.site.coordinator_finish_thread ? new TransactionFinishDispatcher(this) : null);
+        this.transactionRedirect_dispatcher = (hstore_conf.site.coordinator_redirect_thread ? new TransactionRedirectDispatcher(this) : null);
 
         this.transactionInit_handler = new TransactionInitHandler(hstore_site, this, transactionInit_dispatcher);
         this.transactionWork_handler = new TransactionWorkHandler(hstore_site, this);
@@ -258,8 +179,8 @@ public class HStoreCoordinator implements Shutdownable {
         this.transactionReduce_handler = new TransactionReduceHandler(hstore_site,this);
         this.transactionPrepare_handler = new TransactionPrepareHandler(hstore_site, this);
         this.transactionFinish_handler = new TransactionFinishHandler(hstore_site, this, transactionFinish_dispatcher);
-        // DONE(xin)
         this.sendData_handler = new SendDataHandler(hstore_site, this);
+        
         // Wrap the listener in a daemon thread
         this.listener_thread = new Thread(new MessengerListener(), HStoreSite.getThreadName(this.hstore_site, "coord"));
         this.listener_thread.setDaemon(true);
@@ -371,10 +292,10 @@ public class HStoreCoordinator implements Shutdownable {
         return (this.state == ShutdownState.PREPARE_SHUTDOWN || this.state == ShutdownState.SHUTDOWN);
     }
     
-    protected HStoreSite getHStoreSite() {
+    public HStoreSite getHStoreSite() {
         return (this.hstore_site);
     }
-    protected HStoreConf getHStoreConf() {
+    public HStoreConf getHStoreConf() {
         return (this.hstore_conf);
     }
     
@@ -396,6 +317,14 @@ public class HStoreCoordinator implements Shutdownable {
     }
     public EventObservable<HStoreCoordinator> getReadyObservable() {
         return (this.ready_observable);
+    }
+    
+    public TransactionInitHandler getTransactionInitHandler() {
+        return (this.transactionInit_handler);
+    }
+    
+    public TransactionFinishHandler getTransactionFinishHandler() {
+        return (this.transactionFinish_handler);
     }
     
 //    private int getNumLocalPartitions(Collection<Integer> partitions) {
@@ -560,7 +489,7 @@ public class HStoreCoordinator implements Shutdownable {
             }
             
             if (transactionRedirect_dispatcher != null) {
-                transactionRedirect_dispatcher.queue.add(Pair.of(serializedRequest, callback));
+                transactionRedirect_dispatcher.queue(Pair.of(serializedRequest, callback));
             } else {
                 FastDeserializer fds = new FastDeserializer(serializedRequest);
                 StoredProcedureInvocation invocation = null;
@@ -603,7 +532,7 @@ public class HStoreCoordinator implements Shutdownable {
             LOG.info(String.format("Shutting down %s [status=%d]", hstore_site.getSiteName(), request.getExitStatus()));
             if (debug.get())
                 LOG.debug(String.format("ForwardDispatcher Queue Idle Time: %.2fms",
-                                       transactionRedirect_dispatcher.idleTime.getTotalThinkTimeMS()));
+                                        transactionRedirect_dispatcher.getIdleTime().getTotalThinkTimeMS()));
             ThreadUtil.sleep(1000); // HACK
             LogManager.shutdown();
             System.exit(request.getExitStatus());

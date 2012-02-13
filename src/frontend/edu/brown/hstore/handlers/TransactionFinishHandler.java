@@ -17,7 +17,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.HStoreCoordinator.Dispatcher;
+import edu.brown.hstore.dispatchers.AbstractDispatcher;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
 public class TransactionFinishHandler extends AbstractTransactionHandler<TransactionFinishRequest, TransactionFinishResponse> {
@@ -28,9 +28,9 @@ public class TransactionFinishHandler extends AbstractTransactionHandler<Transac
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
     
-    final Dispatcher<Object[]> finishDispatcher; 
+    final AbstractDispatcher<Object[]> finishDispatcher; 
     
-    public TransactionFinishHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, Dispatcher<Object[]> finishDispatcher) {
+    public TransactionFinishHandler(HStoreSite hstore_site, HStoreCoordinator hstore_coord, AbstractDispatcher<Object[]> finishDispatcher) {
         super(hstore_site, hstore_coord);
         this.finishDispatcher = finishDispatcher;
     }
