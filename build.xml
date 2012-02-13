@@ -181,6 +181,14 @@ PRIMARY ENTRY POINTS
     depends="default"
     description="Compile Java classes and C++ JNI library."
 />
+<target name="build-java"
+    depends="protorpc, compile"
+    description="Compile Java classes."
+/>
+<target name="build-cpp"
+    depends="ee"
+    description="Compile C++ JNI library."
+/>
 <target name="default"
     depends="protorpc, compile, ee"
     description="Compile Java classes and C++ JNI library."
