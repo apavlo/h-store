@@ -134,6 +134,7 @@ begin Table                   "A table (relation) in the database"
     MaterializedViewInfo* views "Information about materialized views based on this table's content"
     Table? materializer         "If this is a materialized view, this field stores the source table"
     bool systable               "Is this table an internal system table?"
+    bool mapreduce              "Is this table a MapReduce transaction table?"
 end
 
 begin MaterializedViewInfo "Information used to build and update a materialized view"

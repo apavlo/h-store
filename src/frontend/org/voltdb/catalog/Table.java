@@ -33,6 +33,7 @@ public class Table extends CatalogType {
     int m_estimatedtuplecount;
     CatalogMap<MaterializedViewInfo> m_views;
     boolean m_systable;
+    boolean m_mapreduce;
 
     void setBaseValues(Catalog catalog, CatalogType parent, String path, String name) {
         super.setBaseValues(catalog, parent, path, name);
@@ -49,12 +50,14 @@ public class Table extends CatalogType {
         m_childCollections.put("views", m_views);
         this.addField("materializer", null);
         this.addField("systable", m_systable);
+        this.addField("mapreduce", m_mapreduce);
     }
 
     public void update() {
         m_isreplicated = (Boolean) m_fields.get("isreplicated");
         m_estimatedtuplecount = (Integer) m_fields.get("estimatedtuplecount");
         m_systable = (Boolean) m_fields.get("systable");
+        m_mapreduce = (Boolean) m_fields.get("mapreduce");
     }
 
     /** GETTER: The set of columns in the table */
@@ -118,6 +121,11 @@ public class Table extends CatalogType {
         return m_systable;
     }
 
+    /** GETTER: Is this table a MapReduce transaction table? */
+    public boolean getMapreduce() {
+        return m_mapreduce;
+    }
+
     /** SETTER: Is the table replicated? */
     public void setIsreplicated(boolean value) {
         m_isreplicated = value; m_fields.put("isreplicated", value);
@@ -141,6 +149,11 @@ public class Table extends CatalogType {
     /** SETTER: Is this table an internal system table? */
     public void setSystable(boolean value) {
         m_systable = value; m_fields.put("systable", value);
+    }
+
+    /** SETTER: Is this table a MapReduce transaction table? */
+    public void setMapreduce(boolean value) {
+        m_mapreduce = value; m_fields.put("mapreduce", value);
     }
 
 }
