@@ -51,6 +51,7 @@ protected:
     CatalogMap<MaterializedViewInfo> m_views;
     CatalogType* m_materializer;
     bool m_systable;
+    bool m_mapreduce;
 
     virtual void update();
 
@@ -77,6 +78,8 @@ public:
     const Table * materializer() const;
     /** GETTER: Is this table an internal system table? */
     bool systable() const;
+    /** GETTER: Is this table a MapReduce transaction table? */
+    bool mapreduce() const;
 };
 
 } // namespace catalog

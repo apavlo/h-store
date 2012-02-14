@@ -45,6 +45,7 @@ Table::Table(Catalog *catalog, CatalogType *parent, const string &path, const st
     m_childCollections["views"] = &m_views;
     m_fields["materializer"] = value;
     m_fields["systable"] = value;
+    m_fields["mapreduce"] = value;
 }
 
 void Table::update() {
@@ -53,6 +54,7 @@ void Table::update() {
     m_estimatedtuplecount = m_fields["estimatedtuplecount"].intValue;
     m_materializer = m_fields["materializer"].typeValue;
     m_systable = m_fields["systable"].intValue;
+    m_mapreduce = m_fields["mapreduce"].intValue;
 }
 
 CatalogType * Table::addChild(const std::string &collectionName, const std::string &childName) {
@@ -141,5 +143,9 @@ const Table * Table::materializer() const {
 
 bool Table::systable() const {
     return m_systable;
+}
+
+bool Table::mapreduce() const {
+    return m_mapreduce;
 }
 

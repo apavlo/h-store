@@ -873,20 +873,33 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * Return all of the internal system tables for the database 
      */
     public static Collection<Table> getSysTables(Database catalog_db) {
-        Set<Table> systables = new ListOrderedSet<Table>();
+        List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
-            if (catalog_tbl.getSystable()) systables.add(catalog_tbl);
+            if (catalog_tbl.getSystable()) tables.add(catalog_tbl);
         }
-        return (systables);
+        return (tables);
     }
     
     /**
      * Return all of the userland data tables for the database 
      */
     public static Collection<Table> getDataTables(Database catalog_db) {
-        Set<Table> tables = new ListOrderedSet<Table>();
+        List<Table> tables = new ArrayList<Table>();
         for (Table catalog_tbl : catalog_db.getTables()) {
-            if (catalog_tbl.getSystable() == false) tables.add(catalog_tbl);
+            if (catalog_tbl.getSystable() == false &&
+                catalog_tbl.getMapreduce() == false) 
+                tables.add(catalog_tbl);
+        }
+        return (tables);
+    }
+    
+    /**
+     * Return all of the MapReduce input data tables for the database 
+     */
+    public static Collection<Table> getMapReduceTables(Database catalog_db) {
+        List<Table> tables = new ArrayList<Table>();
+        for (Table catalog_tbl : catalog_db.getTables()) {
+            if (catalog_tbl.getMapreduce()) tables.add(catalog_tbl);
         }
         return (tables);
     }
