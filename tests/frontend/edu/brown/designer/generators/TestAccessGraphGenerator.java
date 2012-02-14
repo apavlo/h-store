@@ -17,6 +17,7 @@ import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.AccessGraph;
 import edu.brown.designer.ColumnSet;
 import edu.brown.designer.DesignerInfo;
@@ -122,7 +123,7 @@ public class TestAccessGraphGenerator extends BaseTestCase {
      */
     public void testInitialize() throws Exception {
         this.generator.initialize(agraph);
-        for (Table catalog_tbl : catalog_db.getTables()) {
+        for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
             if (catalog_tbl.getSystable()) continue;
             assertNotNull("Missing " + catalog_tbl, this.agraph.getVertex(catalog_tbl));
         } // FOR

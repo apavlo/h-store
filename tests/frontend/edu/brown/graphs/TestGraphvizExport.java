@@ -2,6 +2,7 @@ package edu.brown.graphs;
 
 import org.voltdb.catalog.Table;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
@@ -28,7 +29,7 @@ public class TestGraphvizExport extends BaseTestCase {
         
         GraphvizExport<DesignerVertex, DesignerEdge> graphviz = new GraphvizExport<DesignerVertex, DesignerEdge>(dgraph);
         String output = graphviz.export("tpcc");
-        for (Table catalog_tbl : catalog_db.getTables()) {
+        for (Table catalog_tbl : CatalogUtil.getDataTables(catalog_db)) {
             if (catalog_tbl.getSystable()) continue;
             assert(output.contains(catalog_tbl.getName()));
         } // FOR
