@@ -51,7 +51,6 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.exceptions.MispredictionException;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.messaging.FinishTaskMessage;
 import org.voltdb.messaging.FragmentTaskMessage;
 import org.voltdb.utils.Pair;
 
@@ -1408,43 +1407,43 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         // for this transaction and we can just ignore this finish request. We do have to tell
         // the TransactionQueue manager that we're done though
         AbstractTransaction ts = this.inflight_txns.get(txn_id);
-        if (ts != null && ts instanceof RemoteTransaction) {
-            if (d) LOG.debug("I am cleaning TransactionCleanupCallback for (RemoteTransaction)");
-            TransactionCleanupCallback cleanup_callback = ((RemoteTransaction)ts).getCleanupCallback();
-            cleanup_callback.init((RemoteTransaction)ts, status, partitions);
+        TransactionCleanupCallback cleanup_callback = null;
+        if (ts != null && (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction)) {
+            if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
+            // TODO(xin): If this is a MR Transaction, get its cleanup callback
+            cleanup_callback = ((RemoteTransaction)ts).getCleanupCallback();
+            cleanup_callback.init(ts, status, partitions);
         }
         
-        FinishTaskMessage ftask = null;
         for (int p : partitions) {
             if (this.local_partitions.contains(p) == false) {
-                if (d) LOG.debug("<transactionFinish in HStoreSite>:local_partitions.contains(partition:" +p +" )==false");
+                if (t) LOG.trace(String.format("#%d - Skipping finish at partition %d", txn_id, p));
                 continue;
             }
+            if (t) LOG.trace(String.format("#%d - Invoking finish at partition %d", txn_id, p));
             
-            if (d) LOG.debug("<transactionFinish in HStoreSite>:local_partitions.contains(partition:" +p +" )==true");
             // We only need to tell the queue stuff that the transaction is finished
-            // if it's not an commit because there won't be a 2PC:PREPARE message
-            if (commit == false || ts instanceof MapReduceTransaction) this.txnQueueManager.finished(txn_id, status, p);
+            // if it's not a commit because there won't be a 2PC:PREPARE message
+            if (commit == false) this.txnQueueManager.finished(txn_id, status, p);
 
             // Then actually commit the transaction in the execution engine
             // We only need to do this for distributed transactions, because all single-partition
             // transactions will commit/abort immediately
-            
-            // FIXME (xin)
-            // MapReduceTransaction should really be treated as distributed transaction and go into this loop
-            // Actually 
-            if (ts != null && ts.isPredictSinglePartition() == false && 
-                    ((ts.hasStarted(p) || ts.getBasePartition() == p)) ) {
-                if (d) LOG.debug(String.format("Calling finishTransaction for %s on partition %d", ts, p));
+            if (ts != null && ts.isPredictSinglePartition() == false && ((ts.hasStarted(p) || ts.getBasePartition() == p)) ) {
+                if (d) LOG.debug(String.format("%s - Calling finishTransaction on partition %d", ts, p));
                 
-                if (ftask == null) ftask = ts.getFinishTaskMessage(status);
                 try {
-                    this.executors[p].queueFinish(ts, ftask);
+                    this.executors[p].queueFinish(ts, status);
                 } catch (Throwable ex) {
                     LOG.error(String.format("Unexpected error when trying to finish %s\nHashCode: %d / Status: %s / Partitions: %s",
                                             ts, ts.hashCode(), status, partitions));
                     throw new RuntimeException(ex);
                 }
+            }
+            // If we didn't queue the transaction to be finished at this partition, then we need to make sure
+            // that we mark the transaction as finished for this callback
+            else if (cleanup_callback != null) {
+            	cleanup_callback.run(p);
             }
         } // FOR            
     }
@@ -1877,6 +1876,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         assert(ts.isInitialized()) : "Trying to return uninititlized txn #" + txn_id;
         if (d) LOG.debug(String.format("Returning %s to ObjectPool [hashCode=%d]", ts, ts.hashCode()));
         if (ts.isMapReduce()) {
+            if(d) LOG.debug("I am mr_style transaction, pull me back to object poll");
             HStoreObjectPools.STATES_TXN_MAPREDUCE.returnObject((MapReduceTransaction)ts);
         } else {
             HStoreObjectPools.STATES_TXN_LOCAL.returnObject(ts);

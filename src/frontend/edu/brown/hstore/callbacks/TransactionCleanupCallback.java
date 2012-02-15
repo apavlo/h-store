@@ -8,8 +8,14 @@ import edu.brown.hstore.Hstoreservice;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.hstore.dtxn.AbstractTransaction;
 
+/**
+ * Special callback that keeps track as to whether we have finished up
+ * with everything that we need for a given transaction at a HStoreSite.
+ * If we have, then we know it is safe to go ahead and call HStoreSite.completeTransaction()
+ * @author pavlo
+ */
 public class TransactionCleanupCallback extends BlockingCallback<Integer, Integer> {
     private static final Logger LOG = Logger.getLogger(TransactionCleanupCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
@@ -18,7 +24,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
  
-    private RemoteTransaction ts;
+    private AbstractTransaction ts;
     private Hstoreservice.Status status;
     
     /**
@@ -29,7 +35,7 @@ public class TransactionCleanupCallback extends BlockingCallback<Integer, Intege
         super(hstore_site, false);
     }
 
-    public void init(RemoteTransaction ts, Hstoreservice.Status status, Collection<Integer> partitions) {
+    public void init(AbstractTransaction ts, Hstoreservice.Status status, Collection<Integer> partitions) {
         if (debug.get())
             LOG.debug("Initializing " + this.getClass().getSimpleName() + " for " + ts);
         

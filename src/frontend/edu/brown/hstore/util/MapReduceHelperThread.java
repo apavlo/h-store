@@ -166,21 +166,29 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         
         VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
         
-        if (debug.get())
-            LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
-        volt_proc.setPartitionId(mr_ts.getBasePartition());
-        if (debug.get())
-            LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
-        volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+        if(hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_Runed()){
+            if (debug.get()) LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
+            volt_proc.setPartitionId(mr_ts.getBasePartition());
+            if (debug.get()) LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
+            volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+            
+        } else {
+            
+            for (int partition : hstore_site.getLocalPartitionIds())  {
+                if (debug.get())
+                    LOG.debug(String.format("TXN: %s $$$3 non-blocking reduce, partition called on:%d", mr_ts,partition));
+                
+                if (partition != mr_ts.getBasePartition()) { 
+                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+                    if (debug.get())
+                        LOG.debug(String.format("TXN: %s $$$4 non-blocking reduce, partition called on:%d", mr_ts,partition));
+                    volt_proc.setPartitionId(partition);
+                    volt_proc.call(ts, ts.getInitiateTaskMessage().getParameters());
+                }
+            }
+
+        }
         
-//        int sideId = -1;
-//        int tmp = sideId;
-//        for (int p : hstore_site.getAllPartitionIds()) {
-//            sideId = hstore_site.getSiteIdForPartitionId(p);
-//            if(sideId != tmp){
-//                // initialize reduceWrapper
-//            }
-//        }
     }
 
 

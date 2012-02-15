@@ -5,7 +5,6 @@ import org.apache.log4j.Logger;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
 import edu.brown.utils.Poolable;
 import edu.brown.hstore.HStoreObjectPools;

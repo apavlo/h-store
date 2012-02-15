@@ -53,7 +53,19 @@ public class MapReduceTransaction extends LocalTransaction {
         REDUCE,
         FINISH;
     }
+    /*
+     * This is for non-blocking reduce executing in MapReduceHelperThread
+     * */
+    public boolean basePartition_Runed = false;
     
+    public boolean isBasePartition_Runed() {
+        return basePartition_Runed;
+    }
+
+    public void setBasePartition_Runed(boolean runed) {
+        basePartition_Runed = runed;
+    }
+
     /**
      * MapReduce Phases
      */
