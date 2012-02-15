@@ -166,23 +166,20 @@ public class AggregatePlanNode extends AbstractPlanNode {
     /**
      * @return the groupby_columns
      */
-    public List<Integer> getGroupByColumns() {
+    public List<Integer> getGroupByColumnOffsets() {
         return m_groupByColumns;
     }
     
-    public List<Integer> getGroupByColumnIds() {
+    /**
+     * GroupBy PlanColumn GUIDs 
+     * @return
+     */
+    public List<Integer> getGroupByColumnGuids() {
         return m_groupByColumnGuids;
     }
 
     public void appendGroupByColumn(PlanColumn colInfo) {
         m_groupByColumnGuids.add(colInfo.guid());
-    }
-
-    /**
-     * @param groupby_columns
-     */
-    public void setGroupByColumn(List<Integer> groupby_columns) {
-        m_groupByColumns = groupby_columns;
     }
 
     /**

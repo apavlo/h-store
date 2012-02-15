@@ -1105,7 +1105,7 @@ public class PlanAssembler {
             aggNode = new HashAggregatePlanNode(m_context, getNextPlanNodeId());
 
             for (ParsedSelectStmt.ParsedColInfo col : m_parsedSelect.groupByColumns) {
-                aggNode.getGroupByColumns().add(col.index);
+                aggNode.getGroupByColumnOffsets().add(col.index);
                 aggNode.getGroupByColumnNames().add(col.alias);
                 PlanColumn groupByColumn =
                     root.findMatchingOutputColumn(col.tableName, col.columnName,

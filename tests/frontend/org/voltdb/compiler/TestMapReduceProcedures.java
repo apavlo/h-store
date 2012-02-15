@@ -7,7 +7,7 @@ import org.voltdb.plannodes.AbstractPlanNode;
 
 import edu.brown.BaseTestCase;
 import edu.brown.benchmark.mapreduce.procedures.MockMapReduce;
-import edu.brown.optimizer.PlanOptimizer;
+import edu.brown.optimizer.BasePlanOptimizerTestCase;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ProjectType;
 
@@ -30,7 +30,7 @@ public class TestMapReduceProcedures extends BaseTestCase {
         assertNotNull(root);
         System.err.println(PlanNodeUtil.debug(root));
         
-        PlanOptimizer.validate(root);
+        BasePlanOptimizerTestCase.validate(root);
         
     }
     

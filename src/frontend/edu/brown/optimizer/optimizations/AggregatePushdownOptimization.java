@@ -1,7 +1,7 @@
 package edu.brown.optimizer.optimizations;
 
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.voltdb.expressions.AbstractExpression;
@@ -113,35 +113,32 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         } catch (CloneNotSupportedException ex) {
             throw new RuntimeException(ex);
         }
+        state.markDirty(aggNode);
 
-//        clone_node.getGroupByColumns().addAll(aggNode.getGroupByColumns());
-//        clone_node.getGroupByColumnNames().addAll(aggNode.getGroupByColumnNames());
-//        clone_node.getGroupByColumnIds().addAll(aggNode.getGroupByColumnIds());
-//        clone_node.getAggregateColumnGuids().addAll(aggNode.getAggregateColumnGuids());
-//        clone_node.getAggregateColumnNames().addAll(aggNode.getAggregateColumnNames());
-//        clone_node.getAggregateTypes().addAll(aggNode.getAggregateTypes());
-//        clone_node.getAggregateOutputColumns().addAll(aggNode.getAggregateOutputColumns());
-//        clone_node.getOutputColumnGUIDs().addAll(aggNode.getOutputColumnGUIDs()); // HACK
-        
-        // set aggregate node to contain sum
+        // Set original AggregateNode to contain sum
         if (clone_node.getAggregateTypes().size() > 0) {
-            aggNode.getAggregateTypes().clear();
-            ArrayList<ExpressionType> exp_types = new ArrayList<ExpressionType>();
-            if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_COUNT) || clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_COUNT_STAR) || clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_SUM)) {
-                exp_types.add(ExpressionType.AGGREGATE_SUM);                
-            } else if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_MAX)) {
-                exp_types.add(ExpressionType.AGGREGATE_MAX);
-            } else if (clone_node.getAggregateTypes().get(0).equals(ExpressionType.AGGREGATE_MIN)) {
-                exp_types.add(ExpressionType.AGGREGATE_MIN);
-            }
-            assert (exp_types != null);
-            aggNode.getAggregateTypes().clear();
-            aggNode.getAggregateTypes().addAll(exp_types);
+            List<ExpressionType> exp_types = aggNode.getAggregateTypes();
+            exp_types.clear();
+            
+            ExpressionType origType = clone_node.getAggregateTypes().get(0);
+            switch (origType) {
+                case AGGREGATE_COUNT:
+                case AGGREGATE_COUNT_STAR:
+                case AGGREGATE_SUM:
+                    exp_types.add(ExpressionType.AGGREGATE_SUM);
+                    break;
+                case AGGREGATE_MAX:
+                case AGGREGATE_MIN:
+                    exp_types.add(origType);
+                    break;
+                default:
+                    throw new RuntimeException("Unexpected ExpressionType " + origType);
+            } // SWITCH
         }
         
-        assert(clone_node.getGroupByColumns().size() == aggNode.getGroupByColumns().size());
+        assert(clone_node.getGroupByColumnOffsets().size() == aggNode.getGroupByColumnOffsets().size());
         assert(clone_node.getGroupByColumnNames().size() == aggNode.getGroupByColumnNames().size());
-        assert(clone_node.getGroupByColumnIds().size() == aggNode.getGroupByColumnIds().size()) : clone_node.getGroupByColumnIds().size() + " not equal " + aggNode.getGroupByColumnIds().size();
+        assert(clone_node.getGroupByColumnGuids().size() == aggNode.getGroupByColumnGuids().size()) : clone_node.getGroupByColumnGuids().size() + " not equal " + aggNode.getGroupByColumnGuids().size();
         assert(clone_node.getAggregateTypes().size() == aggNode.getAggregateTypes().size());
         assert(clone_node.getAggregateColumnGuids().size() == aggNode.getAggregateColumnGuids().size());
         assert(clone_node.getAggregateColumnNames().size() == aggNode.getAggregateColumnNames().size());
@@ -177,11 +174,9 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
             }
         } // FOR
         
-        
         if (debug.get()) {
             LOG.debug("Successfully applied optimization! Eat that John Hugg!");
             LOG.debug(PlanNodeUtil.debug(rootNode));
-            LOG.debug(StringUtil.repeat("=", 100));
         }    
         
         return Pair.of(true, rootNode);

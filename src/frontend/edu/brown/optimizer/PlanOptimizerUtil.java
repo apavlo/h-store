@@ -160,7 +160,7 @@ public abstract class PlanOptimizerUtil {
                 if (col.getExpression() != null)
                     exps.add(col.getExpression());
             } // FOR
-            for (Integer col_guid : agg_node.getGroupByColumnIds()) {
+            for (Integer col_guid : agg_node.getGroupByColumnGuids()) {
                 PlanColumn col = state.plannerContext.get(col_guid);
                 assert (col != null) : "Invalid PlanColumn #" + col_guid;
                 if (col.getExpression() != null)
@@ -472,8 +472,8 @@ public abstract class PlanOptimizerUtil {
         } // FOR
 
         // Need to update output column guids for GROUP BYs...
-        for (int i = 0, cnt = node.getGroupByColumnIds().size(); i < cnt; i++) {
-            Integer orig_guid = node.getGroupByColumnIds().get(i);
+        for (int i = 0, cnt = node.getGroupByColumnGuids().size(); i < cnt; i++) {
+            Integer orig_guid = node.getGroupByColumnGuids().get(i);
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
 
@@ -496,7 +496,7 @@ public abstract class PlanOptimizerUtil {
                 new_idx++;
             } // FOR
             assert (new_pc != null);
-            node.getGroupByColumnIds().set(i, new_pc.guid());
+            node.getGroupByColumnGuids().set(i, new_pc.guid());
         } // FOR
 
         // System.err.println(this.sql);
