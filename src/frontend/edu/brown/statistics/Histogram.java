@@ -41,7 +41,7 @@ public class Histogram<X> implements JSONSerializable {
     
     protected VoltType value_type = VoltType.INVALID;
     protected final SortedMap<X, Long> histogram = new TreeMap<X, Long>();
-    protected long num_samples = 0;
+    protected int num_samples = 0;
     
     /**
      * 
@@ -795,7 +795,7 @@ public class Histogram<X> implements JSONSerializable {
                         field.set(this, VoltTypeUtil.getObjectFromString(this.value_type, value.toString()));
                     }
                 } else {
-                    field.set(this, object.getLong(element.name()));
+                    field.set(this, object.getInt(element.name()));
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();

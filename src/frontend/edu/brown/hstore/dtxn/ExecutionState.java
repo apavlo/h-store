@@ -22,7 +22,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
+import edu.brown.statistics.FastIntHistogram;
 
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
@@ -119,7 +119,7 @@ public class ExecutionState {
      * This needs to be a Histogram so that we can figure out what partitions
      * were touched the most if end up needing to redirect it later on
      */
-    protected final Histogram<Integer> exec_touchedPartitions = new Histogram<Integer>();
+    protected final FastIntHistogram exec_touchedPartitions;
     
     /**
      * This is a special flag that tells us the last round that we used the cached DependencyInfos
@@ -144,6 +144,7 @@ public class ExecutionState {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
         this.dinfo_lastRound = new int[max_batch];
+        this.exec_touchedPartitions = new FastIntHistogram(executor.getHStoreSite().getAllPartitionIds().size());
     }
     
     public void clear() {
