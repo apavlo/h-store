@@ -422,7 +422,8 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
         while (it.hasNext()) {
             AbstractPlanNode child = it.next();
             it.remove();                          // remove this.child from m_children
-            assert child.getParentPlanNodeCount() == 1;
+            assert(child.getParentPlanNodeCount() == 1) :
+                String.format("Expected %s to have only one parent but it has %s", child, child.getParents()); 
             child.clearParents();                 // and reset child's parents list
             node.addAndLinkChild(child);          // set node.child and child.parent
         }

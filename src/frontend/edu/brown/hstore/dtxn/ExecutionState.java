@@ -24,6 +24,7 @@ import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.statistics.FastIntHistogram;
+import edu.brown.statistics.Histogram;
 
 public class ExecutionState {
     private static final Logger LOG = Logger.getLogger(LocalTransaction.class);
@@ -120,7 +121,7 @@ public class ExecutionState {
      * This needs to be a Histogram so that we can figure out what partitions
      * were touched the most if end up needing to redirect it later on
      */
-    protected final FastIntHistogram exec_touchedPartitions;
+    protected final Histogram<Integer> exec_touchedPartitions;
     
     /**
      * This is a special flag that tells us the last round that we used the cached DependencyInfos
@@ -146,8 +147,9 @@ public class ExecutionState {
         } // FOR
         this.dinfo_lastRound = new int[max_batch];
         
-        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
-        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
+//        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
+//        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
+        this.exec_touchedPartitions = new Histogram<Integer>();
     }
     
     public void clear() {
