@@ -441,7 +441,7 @@ helper(AggregatePlanNode* node, Agg** aggs,
          cit < passThroughColumns->end();
          cit++)
     {
-        VOLT_DEBUG("Setting value for passthrough column %d", (*cit).first);
+        VOLT_DEBUG("Setting value for passthrough column %d [sourceOffset=%d]", (*cit).first, (*cit).second);
         tmptup.setNValue((*cit).first, prev.getNValue((*cit).second));
     }
 
@@ -847,17 +847,18 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
         for (int ii = 0; ii < passThroughColumnIndices.size(); ii++)
         {
             int outputColumnIndex = passThroughColumnIndices[ii];
-            int outputColumnInputColumnGuid =
-                node->getOutputColumnInputGuids()[outputColumnIndex];
-            //Planner must provide the GUID of the input column for the mapping.
-            int inputColumnIndex =
-                child_node->getColumnIndexFromGuid(outputColumnInputColumnGuid,
-                                                   catalog_db);
-            outputColumnSizes[outputColumnIndex] =
-                childSchema->columnLength(inputColumnIndex);
-            m_passThroughColumns.
-                push_back(std::pair<int, int>(outputColumnIndex,
-                                              inputColumnIndex));
+            int outputColumnInputColumnGuid = node->getOutputColumnInputGuids()[outputColumnIndex];
+            
+            // Planner must provide the GUID of the input column for the mapping.
+            int inputColumnIndex = child_node->getColumnIndexFromGuid(outputColumnInputColumnGuid, catalog_db);
+            if (inputColumnIndex == -1) {
+                VOLT_ERROR("Can not find index for passthrough col guid %d at offset %d", outputColumnInputColumnGuid, ii);
+                VOLT_ERROR("CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
+                return false;
+            }
+                
+            outputColumnSizes[outputColumnIndex] = childSchema->columnLength(inputColumnIndex);
+            m_passThroughColumns.push_back(std::pair<int, int>(outputColumnIndex, inputColumnIndex));
         }
 
         const std::vector<std::string> outputColumnNames =

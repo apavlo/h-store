@@ -86,15 +86,9 @@ OrderByExecutor::p_init(AbstractPlanNode* abstract_node,
             child_node->getColumnIndexFromGuid(node->getSortColumnGuids()[ii],
                                                catalog_db);
         if (index == -1) {
-            fprintf(stderr, "[%02d] GUID = %d\n", ii, node->getSortColumnGuids()[ii]);
-            fprintf(stderr, "CHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
-        }
-
-        assert(index != -1);
-        if (index == -1)
-        {
             VOLT_ERROR("Can not find index for sort col guid %d",
                        node->getSortColumnGuids()[ii]);
+            VOLT_DEBUG("Invalid Query Plan:\nCHILD:\n%s\n----------------\nNODE:\n%s\n", child_node->debugInfo("").c_str(), node->debugInfo("").c_str());
             return false;
         }
         else if (!(index < input_column_count)) {
