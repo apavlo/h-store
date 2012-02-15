@@ -5,7 +5,6 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
-import com.google.protobuf.ByteString;
 import java.nio.ByteBuffer;
 
 import edu.brown.hstore.Hstoreservice;
@@ -91,7 +90,7 @@ public class TransactionReduceCallback extends BlockingCallback<TransactionReduc
            // Initialize the FinishCallback and tell every partition in the cluster
            // to clean up this transaction because we're done with it!
            this.finish_callback = this.ts.initTransactionFinishCallback(Hstoreservice.Status.OK);
-           hstore_site.getCoordinator().transactionFinish(ts, Hstoreservice.Status.OK, this.finish_callback);
+           hstore_site.getCoordinator().transactionFinish(ts, Status.OK, this.finish_callback);
             
         } else {
             assert(this.finish_callback != null);

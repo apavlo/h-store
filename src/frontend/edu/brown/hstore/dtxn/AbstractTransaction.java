@@ -42,7 +42,7 @@ import org.voltdb.messaging.FragmentTaskMessage;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
@@ -171,7 +171,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         this.exec_eeWork = new boolean[cnt];
         this.exec_noUndoBuffer = new boolean[cnt];
         
-        this.finish_task = new FinishTaskMessage(this, Hstoreservice.Status.OK);
+        this.finish_task = new FinishTaskMessage(this, Status.OK);
         this.work_task = new FragmentTaskMessage[cnt];
         for (int i = 0; i < this.work_task.length; i++) {
             this.work_task[i] = new FragmentTaskMessage();
@@ -257,10 +257,10 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
      * Store data from mapOutput tables to reduceInput table
      * reduceInput table should merge all incoming data from the mapOutput tables.
      */
-    public Hstoreservice.Status storeData(int partition, VoltTable vt) {
+    public Status storeData(int partition, VoltTable vt) {
         assert(false) : "Unimplemented!";
         
-        return (Hstoreservice.Status.OK);
+        return (Status.OK);
     }
     
     // ----------------------------------------------------------------------------
@@ -471,7 +471,7 @@ public abstract class AbstractTransaction implements Poolable, Loggable {
         }
     }
     
-    public FinishTaskMessage getFinishTaskMessage(Hstoreservice.Status status) {
+    public FinishTaskMessage getFinishTaskMessage(Status status) {
         this.finish_task.setTxnId(this.getTransactionId().longValue());
         this.finish_task.setStatus(status);
         return (this.finish_task);
