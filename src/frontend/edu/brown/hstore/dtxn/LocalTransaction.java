@@ -99,7 +99,7 @@ public class LocalTransaction extends AbstractTransaction {
     /**
      * The partitions that we told the Dtxn.Coordinator that we were done with
      */
-    protected final Set<Integer> done_partitions = new HashSet<Integer>();
+    protected final Collection<Integer> done_partitions = new HashSet<Integer>();
     
     /**
      * A handle to the execution state of this transaction
