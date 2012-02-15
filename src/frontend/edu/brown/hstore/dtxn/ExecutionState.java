@@ -17,6 +17,7 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 
+import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
@@ -144,7 +145,9 @@ public class ExecutionState {
             this.dependencies[i] = new HashMap<Integer, DependencyInfo>();
         } // FOR
         this.dinfo_lastRound = new int[max_batch];
-        this.exec_touchedPartitions = new FastIntHistogram(executor.getHStoreSite().getAllPartitionIds().size());
+        
+        int num_partitions = CatalogUtil.getNumberOfPartitions(executor.getCatalogSite());
+        this.exec_touchedPartitions = new FastIntHistogram(num_partitions);
     }
     
     public void clear() {
