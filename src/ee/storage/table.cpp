@@ -225,7 +225,7 @@ int Table::columnIndex(const std::string &name) const {
 // ------------------------------------------------------------------
 
 std::string Table::debug() {
-    VOLT_DEBUG("tabledebug start");
+    VOLT_TRACE("tabledebug start");
     std::ostringstream buffer;
 
     buffer << tableType() << "(" << name() << "):\n";
@@ -266,7 +266,7 @@ std::string Table::debug() {
     buffer << "===========================================================\n";
 
     std::string ret(buffer.str());
-    VOLT_DEBUG("tabledebug end");
+    VOLT_TRACE("tabledebug end");
 
     return ret;
 }

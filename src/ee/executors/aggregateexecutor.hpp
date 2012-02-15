@@ -426,7 +426,7 @@ helper(AggregatePlanNode* node, Agg** aggs,
             return true;
         }
     }
-    VOLT_TRACE("Setting passthrough columns");
+    VOLT_DEBUG("Setting passthrough columns for %s", node->debug().c_str());
     /*
      * Execute a second pass to set the output columns from the input
      * columns that are being passed through.  These are the columns
@@ -436,10 +436,12 @@ helper(AggregatePlanNode* node, Agg** aggs,
      * intentional optimization to allow values that are not in the
      * GROUP BY to be passed through.
      */
+
     for (PassThroughColType::const_iterator cit = passThroughColumns->begin();
          cit < passThroughColumns->end();
          cit++)
     {
+        VOLT_DEBUG("Setting value for passthrough column %d", (*cit).first);
         tmptup.setNValue((*cit).first, prev.getNValue((*cit).second));
     }
 
@@ -807,19 +809,12 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
          * through from the input table. Do this extra work here rather then
          * serialize yet more data.
          */
-        const std::vector<ValueType> outputColumnTypes =
-            node->getOutputColumnTypes();
+        const std::vector<ValueType> outputColumnTypes = node->getOutputColumnTypes();
+        std::vector<bool> outputColumnsResultingFromAggregates(outputColumnTypes.size(), false);
+        std::vector<int> aggregateOutputColumns = node->getAggregateOutputColumns();
 
-        std::vector<bool>
-            outputColumnsResultingFromAggregates(outputColumnTypes.size(),
-                                                 false);
-        std::vector<int> aggregateOutputColumns =
-            node->getAggregateOutputColumns();
-
-        for (int ii = 0; ii < aggregateOutputColumns.size(); ii++)
-        {
-            outputColumnsResultingFromAggregates[aggregateOutputColumns[ii]] =
-                true;
+        for (int ii = 0; ii < aggregateOutputColumns.size(); ii++) {
+            outputColumnsResultingFromAggregates[aggregateOutputColumns[ii]] = true;
         }
 
         /*
@@ -827,11 +822,8 @@ AggregateExecutor<aggregateType>::p_init(AbstractPlanNode *abstract_node,
          * through columns.
          */
         std::vector<int> passThroughColumnIndices;
-        for (int ii = 0; ii < outputColumnsResultingFromAggregates.size();
-             ii++)
-        {
-            if (outputColumnsResultingFromAggregates[ii] == false)
-            {
+        for (int ii = 0; ii < outputColumnsResultingFromAggregates.size(); ii++) {
+            if (outputColumnsResultingFromAggregates[ii] == false) {
                 passThroughColumnIndices.push_back(ii);
             }
         }
@@ -943,14 +935,14 @@ template<PlanNodeType aggregateType>
 bool AggregateExecutor<aggregateType>::p_execute(const NValueArray &params)
 {
     m_memoryPool.purge();
-    VOLT_DEBUG("started AGGREGATE");
     AggregatePlanNode* node = dynamic_cast<AggregatePlanNode*>(abstract_node);
     assert(node);
+    VOLT_DEBUG("Executing %s", node->debug().c_str());
     Table* output_table = node->getOutputTable();
     assert(output_table);
     Table* input_table = node->getInputTables()[0];
     assert(input_table);
-    VOLT_TRACE("input table\n%s", input_table->debug().c_str());
+    VOLT_DEBUG("%s Input Table\n%s", node->debug().c_str(), input_table->debug().c_str());
 
     std::vector<ExpressionType> agg_types = node->getAggregates();
     std::vector<ValueType> col_types(node->getAggregateColumns().size());
