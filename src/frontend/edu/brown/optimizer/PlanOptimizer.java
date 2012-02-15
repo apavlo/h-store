@@ -2,15 +2,12 @@ package edu.brown.optimizer;
 
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Database;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
-import org.voltdb.plannodes.SeqScanPlanNode;
 import org.voltdb.types.PlanNodeType;
 import org.voltdb.utils.Pair;
 
@@ -193,76 +190,6 @@ public class PlanOptimizer {
     public PlanOptimizerState getPlanOptimizerState() {
         return this.state;
     }
-    
-    // ----------------------------------------------------------------------------
-    // UTILITY METHODS
-    // ----------------------------------------------------------------------------
 
-    public static void validate(final AbstractPlanNode root) throws Exception {
-        
-        LOG.info("Validating: " + root + " / " + root.getPlanNodeType());
-        
-        switch (root.getPlanNodeType()) {
-            // Make sure that the output columns from this node match the output
-            // columns of the scan node below us that is feeding into it 
-//            case NESTLOOPINDEX: {
-//                assert(root.getChildPlanNodeCount() == 1);
-//                AbstractPlanNode child = root.getChild(0);
-//                assert(child != null);
-//                if ((child instanceof SeqScanPlanNode) == false) break;
-//                
-//                PlannerContext plannerContext = PlannerContext.singleton();
-//                for (int i = 0, cnt = child.getOutputColumnGUIDCount(); i < cnt; i++) {
-//                    int child_guid  = child.getOutputColumnGUID(i);
-//                    PlanColumn child_col = plannerContext.get(child_guid);
-//                    assert(child_col != null);
-//                    
-//                    int root_guid = root.getOutputColumnGUID(i);
-//                    PlanColumn root_col = plannerContext.get(root_guid);
-//                    assert(root_col != null);
-//                    
-//                    if (child_guid != root_guid) {
-//                        throw new Exception(String.format("Output Column mismatch at position %d : %s != %s",
-//                                                          i, child_col, root_col));
-//                    }
-//                } // FOR
-//                break;
-//            }
-            case HASHAGGREGATE:
-            case AGGREGATE: {
-                // Every PlanColumn referenced in this node must appear in its children's output
-                Collection<Integer> planCols = root.getOutputColumnGUIDs();
-                assert(planCols != null);
-                LOG.info("PLAN COLS: " + planCols);
-                
-                Set<Integer> foundCols = new HashSet<Integer>();
-                for (AbstractPlanNode child : root.getChildren()) {
-                    Collection<Integer> childCols = PlanNodeUtil.getOutputColumnIdsForPlanNode(child);
-                    LOG.info("CHILD " + child + " OUTPUT: " + childCols);
-                    
-                    for (Integer childCol : childCols) {
-                        if (planCols.contains(childCol)) {
-                            foundCols.add(childCol);
-                        }
-                    } // FOR
-                    if (foundCols.size() == planCols.size()) break;
-                } // FOR
-                
-                if (PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class).isEmpty() && // HACK
-                    foundCols.containsAll(planCols) == false) {
-                    throw new Exception(String.format("Failed to find all of the columns referenced by %s in the output columns of %s",
-                                                      root, planCols));
-                }
-                break;
-            }
-            
-            
-        } // SWITCH
-        
-        for (AbstractPlanNode child : root.getChildren()) {
-            PlanOptimizer.validate(child);
-        }
-        return;
-    }
 
 }

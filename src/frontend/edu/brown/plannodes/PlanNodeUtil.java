@@ -242,7 +242,7 @@ public abstract class PlanNodeUtil {
                     assert(col != null) : "Invalid PlanColumn #" + col_guid;
                     if (col.getExpression() != null) exps.add(col.getExpression());
                 } // FOR
-                for (Integer col_guid : agg_node.getGroupByColumnIds()) {
+                for (Integer col_guid : agg_node.getGroupByColumnGuids()) {
                     PlanColumn col = plannerContext.get(col_guid);
                     assert(col != null) : "Invalid PlanColumn #" + col_guid;
                     if (col.getExpression() != null) exps.add(col.getExpression());
@@ -642,10 +642,9 @@ public abstract class PlanNodeUtil {
         if (node instanceof AggregatePlanNode) {
             AggregatePlanNode cast_node = (AggregatePlanNode)node;
             sb.append(inner_spacer).append("AggregateTypes[" + cast_node.getAggregateTypes().size() + "]: " + cast_node.getAggregateTypes() + "\n");
-//            sb.append(inner_spacer).append("AggregateColumns" + cast_node.getAggregateOutputColumns() + "\n");
+            sb.append(inner_spacer).append("AggregateColumnOffsets[" + cast_node.getAggregateOutputColumns().size() + "]: " + cast_node.getAggregateOutputColumns() + "\n");
             sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("AggregateColumns", cast_node.getAggregateColumnGuids(), line_spacer));
-//            sb.append(inner_spacer).append("GroupByColumns" + cast_node.getGroupByColumns() + "\n");
-            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("GroupByColumns", cast_node.getGroupByColumnIds(), line_spacer));
+            sb.append(inner_spacer).append(PlanNodeUtil.debugOutputColumns("GroupByColumns", cast_node.getGroupByColumnGuids(), line_spacer));
 
             
         // DeletePlanNode
