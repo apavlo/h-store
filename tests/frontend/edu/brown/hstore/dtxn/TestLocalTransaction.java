@@ -17,7 +17,7 @@ import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.utils.ProjectType;
 import edu.brown.hstore.BatchPlanner;
-import edu.brown.hstore.MockExecutionSite;
+import edu.brown.hstore.MockPartitionExecutor;
 import edu.brown.hstore.MockHStoreSite;
 
 /**
@@ -44,7 +44,7 @@ public class TestLocalTransaction extends BaseTestCase {
     static final int TARGET_REPEAT = 14;
     
     MockHStoreSite hstore_site;
-    MockExecutionSite executor;
+    MockPartitionExecutor executor;
     Procedure catalog_proc;
     LocalTransaction ts;
     SQLStmt batchStmts[];
@@ -86,7 +86,7 @@ public class TestLocalTransaction extends BaseTestCase {
         
         Site catalog_site = this.getSite(0);
         this.hstore_site = new MockHStoreSite(catalog_site, HStoreConf.singleton());
-        this.executor = (MockExecutionSite)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
+        this.executor = (MockPartitionExecutor)this.hstore_site.getPartitionExecutor(BASE_PARTITION);
         assertNotNull(this.executor);
         this.ts = new LocalTransaction(this.hstore_site);
     }
