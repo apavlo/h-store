@@ -22,6 +22,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.SendDataCallback;
+import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionMapCallback;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceCallback;
@@ -53,7 +54,19 @@ public class MapReduceTransaction extends LocalTransaction {
         REDUCE,
         FINISH;
     }
+    /*
+     * This is for non-blocking reduce executing in MapReduceHelperThread
+     * */
+    public boolean basePartition_Runed = false;
     
+    public boolean isBasePartition_Runed() {
+        return basePartition_Runed;
+    }
+
+    public void setBasePartition_Runed(boolean runed) {
+        basePartition_Runed = runed;
+    }
+
     /**
      * MapReduce Phases
      */
@@ -79,6 +92,8 @@ public class MapReduceTransaction extends LocalTransaction {
     
     private final TransactionReduceWrapperCallback reduceWrapper_callback;
     
+    private final TransactionCleanupCallback cleanup_callback;
+
     /**
      * Constructor 
      * @param hstore_site
@@ -114,6 +129,8 @@ public class MapReduceTransaction extends LocalTransaction {
         
         this.reduce_callback = new TransactionReduceCallback(hstore_site);
         this.reduceWrapper_callback = new TransactionReduceWrapperCallback(hstore_site);
+        
+        this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
     }
     
     
@@ -184,8 +201,9 @@ public class MapReduceTransaction extends LocalTransaction {
         this.mapWrapper_callback.finish();
         this.sendData_callback.finish();
         this.reduce_callback.finish();
-        
         this.reduceWrapper_callback.finish();
+        this.cleanup_callback.finish();
+        
         if(debug.get()) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
         this.mapEmit = null;
         this.reduceEmit = null;
@@ -338,6 +356,10 @@ public class MapReduceTransaction extends LocalTransaction {
         return (this.reduceWrapper_callback);
     }
     
+    public TransactionCleanupCallback getCleanupCallback() {
+        return cleanup_callback;
+    }
+    
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
         if (debug.get()) LOG.debug("Trying to intialize TransactionMapWrapperCallback for " + this);
         assert (this.mapWrapper_callback.isInitialized() == false);
@@ -387,6 +409,11 @@ public class MapReduceTransaction extends LocalTransaction {
         if (debug.get()) LOG.debug("Trying to getMapOutputByPartition: [ " + partition + " ]");
         return this.mapOutput[hstore_site.getLocalPartitionOffset(partition)];
         //return this.mapOutput[partition];
+    }
+    
+    public void setMapOutputByPartition ( VoltTable vt,int partition ) {
+        if (debug.get()) LOG.debug("Trying to setMapOutputByPartition: [ " + partition + " ]");
+        this.mapOutput[hstore_site.getLocalPartitionOffset(partition)] = vt;
     }
     
     public VoltTable getReduceInputByPartition ( int partition ) {

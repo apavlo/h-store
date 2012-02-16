@@ -20,14 +20,14 @@ import edu.brown.hstore.dtxn.LocalTransaction;
  * 
  * @author pavlo
  */
-public class MockExecutionSite extends PartitionExecutor {
+public class MockPartitionExecutor extends PartitionExecutor {
     
     private static final BackendTarget BACKEND_TARGET = BackendTarget.HSQLDB_BACKEND;
     
     private final Map<Long, VoltTable> dependencies = new HashMap<Long, VoltTable>();
     private final Map<Long, CountDownLatch> latches = new HashMap<Long, CountDownLatch>();
     
-    public MockExecutionSite(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
+    public MockPartitionExecutor(int partition_id, Catalog catalog, PartitionEstimator p_estimator) {
         super(partition_id, catalog, BACKEND_TARGET, p_estimator, null);
         this.initializeVoltProcedures();
     }

@@ -70,7 +70,7 @@ public class TestPartitionExecutor extends BaseTestCase {
             PartitionEstimator p_estimator = new PartitionEstimator(catalog_db);
             Site catalog_site = CollectionUtil.first(CatalogUtil.getCluster(catalog).getSites());
             HStoreSite hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
-            site = new MockExecutionSite(PARTITION_ID, catalog, p_estimator);
+            site = new MockPartitionExecutor(PARTITION_ID, catalog, p_estimator);
             hstore_site.addPartitionExecutor(PARTITION_ID, site);
             site.initHStoreSite(hstore_site);
         }

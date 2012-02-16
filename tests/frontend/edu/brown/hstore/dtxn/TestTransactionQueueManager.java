@@ -19,7 +19,7 @@ import edu.brown.utils.ThreadUtil;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.MockExecutionSite;
+import edu.brown.hstore.MockPartitionExecutor;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.TransactionQueueManager;
@@ -52,7 +52,7 @@ public class TestTransactionQueueManager extends BaseTestCase {
         assertNotNull(catalog_site);
         hstore_site = HStore.initialize(catalog_site, HStoreConf.singleton());
         for (int p = 0; p < NUM_PARTITONS; p++) {
-            PartitionExecutor site = new MockExecutionSite(p, catalog, p_estimator);
+            PartitionExecutor site = new MockPartitionExecutor(p, catalog, p_estimator);
             hstore_site.addPartitionExecutor(p, site);
         } // FOR
         

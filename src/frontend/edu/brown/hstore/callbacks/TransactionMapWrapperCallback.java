@@ -6,16 +6,14 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
-import edu.brown.hstore.Hstoreservice.TransactionMapResponse.Builder;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
  * This is callback is used on the remote side of a TransactionMapRequest
