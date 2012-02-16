@@ -1,7 +1,9 @@
 package edu.brown.optimizer;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.Column;
@@ -32,6 +34,11 @@ import edu.brown.utils.CollectionUtil;
  */
 public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 
+    final Set<String> DEBUG = new HashSet<String>();
+    {
+        DEBUG.add("DistinctAggregate");
+    }
+    
     AbstractProjectBuilder pb = new PlanOptimizerTestProjectBuilder("planopt") {
         {
             this.addStmtProcedure("DistinctAggregate",
@@ -81,9 +88,6 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             this.addStmtProcedure("OrderBy",
                                   "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
             
-//            this.addStmtProcedure("GroupBy",
-//                                  "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
-            
             this.addStmtProcedure("LimitOrderBy",
                                   "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
             
@@ -109,47 +113,11 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         for (boolean dtxn : new boolean[]{ true, false }) {
             AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, dtxn);
             assertNotNull(root);
-//            System.err.println(PlanNodeUtil.debug(root));
+            if (DEBUG.contains(catalog_stmt.getName())) 
+                System.err.println(PlanNodeUtil.debug(root));
             BasePlanOptimizerTestCase.validate(root);
         } // FOR
     }
-    
-    /**
-     * testExtractColumnInfo
-     */
-//    @Test
-//    public void testExtractColumnInfo() throws Exception {
-//        Procedure catalog_proc = this.getProcedure("DistinctCount");
-//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-//        
-//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
-//        assertNotNull(root);
-//        PlanOptimizerState state = new PlanOptimizerState(catalog_db, PlannerContext.singleton());
-//        
-//        Collection<SeqScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
-//        SeqScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
-//        assertNotNull(scan_node);
-//        
-//        // Use the PlanOptimizerUtil to compute the referenced columns for this node
-//        PlanOptimizerUtil.populateTableNodeInfo(state, root);
-//        
-//        // Then make sure it has the right references
-//        Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
-//        Set<Column> expected = new HashSet<Column>();
-//        for (Integer guid : scan_node.getOutputColumnGUIDs()) {
-//            PlanColumn pc = state.plannerContext.get(guid);
-//            assertNotNull(pc);
-//            
-//            Column catalog_col = catalog_tbl.getColumns().getIgnoreCase(pc.getDisplayName());
-//            assertNotNull(pc.toString(), catalog_col);
-//            expected.add(catalog_col);
-//        } // FOR
-//        
-//        Collection<Column> actual = state.getPlanNodeColumns(scan_node);
-//        assertNotNull(actual);
-//        assertEquals(expected.size(), actual.size());
-//        assertTrue(expected.containsAll(actual));
-//    }
     
     /**
      * testExtractReferencedColumns

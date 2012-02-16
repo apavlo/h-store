@@ -157,5 +157,43 @@ public class TestPlanOptimizerUtil extends BasePlanOptimizerTestCase {
         System.out.println("guid_column_xref: " + state.guid_column_xref);
         System.out.println("orig_node_output: " + state.orig_node_output);
     }
+    
+    
+    /**
+     * testExtractColumnInfo
+     */
+//    @Test
+//    public void testExtractColumnInfo() throws Exception {
+//        Procedure catalog_proc = this.getProcedure("DistinctCount");
+//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+//        
+//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+//        assertNotNull(root);
+//        PlanOptimizerState state = new PlanOptimizerState(catalog_db, PlannerContext.singleton());
+//        
+//        Collection<SeqScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
+//        SeqScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
+//        assertNotNull(scan_node);
+//        
+//        // Use the PlanOptimizerUtil to compute the referenced columns for this node
+//        PlanOptimizerUtil.populateTableNodeInfo(state, root);
+//        
+//        // Then make sure it has the right references
+//        Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
+//        Set<Column> expected = new HashSet<Column>();
+//        for (Integer guid : scan_node.getOutputColumnGUIDs()) {
+//            PlanColumn pc = state.plannerContext.get(guid);
+//            assertNotNull(pc);
+//            
+//            Column catalog_col = catalog_tbl.getColumns().getIgnoreCase(pc.getDisplayName());
+//            assertNotNull(pc.toString(), catalog_col);
+//            expected.add(catalog_col);
+//        } // FOR
+//        
+//        Collection<Column> actual = state.getPlanNodeColumns(scan_node);
+//        assertNotNull(actual);
+//        assertEquals(expected.size(), actual.size());
+//        assertTrue(expected.containsAll(actual));
+//    }
 
 }
