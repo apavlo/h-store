@@ -42,8 +42,11 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             this.addStmtProcedure("DistinctCount",
                                   "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
             
-            this.addStmtProcedure("MaxGroup",
+            this.addStmtProcedure("MaxGroupPassThrough",
                                   "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
+            
+            this.addStmtProcedure("MaxMultiGroupBy",
+                                  "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
             
             this.addStmtProcedure("Max",
                                   "SELECT MAX(TABLEB.B_A_ID) FROM TABLEB");
@@ -80,9 +83,6 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
             
             this.addStmtProcedure("OrderBy",
                                   "SELECT TABLEC.C_B_A_ID FROM TABLEC ORDER BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
-            
-//            this.addStmtProcedure("GroupBy",
-//                                  "SELECT MAX(TABLEC.C_ID) FROM TABLEC GROUP BY TABLEC.C_B_A_ID, TABLEC.C_VALUE0");
             
             this.addStmtProcedure("LimitOrderBy",
                                   "SELECT C_ID FROM TABLEC ORDER BY C_B_A_ID LIMIT 1000");
@@ -205,15 +205,25 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
-     * testMaxGroup
+     * testMaxGroupPassThrough
      */
     @Test
-    public void testMaxGroup() throws Exception {
-        Procedure catalog_proc = this.getProcedure("MaxGroup");
+    public void testMaxGroupPassThrough() throws Exception {
+        Procedure catalog_proc = this.getProcedure("MaxGroupPassThrough");
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
     }
-
+    
+    /**
+     * testMaxMultiGroupBy
+     */
+    @Test
+    public void testMaxMultiGroupBy() throws Exception {
+        Procedure catalog_proc = this.getProcedure("MaxMultiGroupBy");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        this.check(catalog_stmt);
+    }
+    
     /**
      * testMax
      */
@@ -309,10 +319,8 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
 
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
+        // Grab the root node of the multi-partition query plan tree for this Statement
         AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-        //validateNodeColumnOffsets(root);
         assertNotNull(root);
 
         // First check that our single scan node has an limit node
@@ -519,17 +527,6 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
         this.check(catalog_stmt);
     }
-
-//    /**
-//     * testAggregateGroupBy
-//     */
-//    @Test
-//    public void testAggregateGroupBy() throws Exception {   
-//        Procedure catalog_proc = this.getProcedure("GroupBy");
-//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-//        this.check(catalog_stmt);
-//    }
-    
 
     /**
      * testLimitOrderBy
