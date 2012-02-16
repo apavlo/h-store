@@ -1,7 +1,9 @@
 package edu.brown.optimizer;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 
 import org.junit.Test;
 import org.voltdb.catalog.Column;
@@ -22,6 +24,7 @@ import org.voltdb.types.PlanNodeType;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.expressions.ExpressionUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
@@ -104,6 +107,43 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     }
     
     /**
+     * testExtractColumnInfo
+     */
+//    @Test
+//    public void testExtractColumnInfo() throws Exception {
+//        Procedure catalog_proc = this.getProcedure("DistinctCount");
+//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+//        
+//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+//        assertNotNull(root);
+//        PlanOptimizerState state = new PlanOptimizerState(catalog_db, PlannerContext.singleton());
+//        
+//        Collection<SeqScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
+//        SeqScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
+//        assertNotNull(scan_node);
+//        
+//        // Use the PlanOptimizerUtil to compute the referenced columns for this node
+//        PlanOptimizerUtil.populateTableNodeInfo(state, root);
+//        
+//        // Then make sure it has the right references
+//        Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
+//        Set<Column> expected = new HashSet<Column>();
+//        for (Integer guid : scan_node.getOutputColumnGUIDs()) {
+//            PlanColumn pc = state.plannerContext.get(guid);
+//            assertNotNull(pc);
+//            
+//            Column catalog_col = catalog_tbl.getColumns().getIgnoreCase(pc.getDisplayName());
+//            assertNotNull(pc.toString(), catalog_col);
+//            expected.add(catalog_col);
+//        } // FOR
+//        
+//        Collection<Column> actual = state.getPlanNodeColumns(scan_node);
+//        assertNotNull(actual);
+//        assertEquals(expected.size(), actual.size());
+//        assertTrue(expected.containsAll(actual));
+//    }
+    
+    /**
      * testExtractReferencedColumns
      */
     @Test
@@ -121,7 +161,19 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
         PlanOptimizerState state = new PlanOptimizerState(catalog_db, PlannerContext.singleton());
         Collection<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, scan_node);
         assertNotNull(referenced);
+        
+        // Make sure all of the columns that we get back have a matching column in 
+        // the table scanned in the PlanNode
+        Table catalog_tbl = this.getTable(scan_node.getTargetTableName());
         System.err.println(referenced);
+        for (PlanColumn pc : referenced) {
+            assertNotNull(pc);
+            Collection<Column> columns = ExpressionUtil.getReferencedColumns(catalog_db, pc.getExpression());
+            assertEquals(pc.toString(), 1, columns.size());
+            Column catalog_col = CollectionUtil.first(columns);
+            assertNotNull(pc.toString(), catalog_col);
+            assertEquals(pc.toString(), catalog_tbl, catalog_col.getParent());
+        } // FOR
     }
 
 //    /**
@@ -139,21 +191,21 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 //        //System.err.println(PlanNodeUtil.debug(root));
 //    }    
 
-    /**
-     * testDistinctCount
-     */
-    @Test
-    public void testDistinctCount() throws Exception {
-        Procedure catalog_proc = this.getProcedure("DistinctCount");
-        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-
-        // Grab the root node of the multi-partition query plan tree for this
-        // Statement
-        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
-        assertNotNull(root);
-//        validateNodeColumnOffsets(root);
-        //System.err.println(PlanNodeUtil.debug(root));
-    }
+//    /**
+//     * testDistinctCount
+//     */
+//    @Test
+//    public void testDistinctCount() throws Exception {
+//        Procedure catalog_proc = this.getProcedure("DistinctCount");
+//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+//
+//        // Grab the root node of the multi-partition query plan tree for this
+//        // Statement
+//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+//        assertNotNull(root);
+////        validateNodeColumnOffsets(root);
+//        //System.err.println(PlanNodeUtil.debug(root));
+//    }
 //    
 //    /**
 //     * testMaxGroup
