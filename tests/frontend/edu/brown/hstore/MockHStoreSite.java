@@ -63,7 +63,7 @@ public class MockHStoreSite extends HStoreSite {
         }
     }
     @Override
-    protected HStoreCoordinator initHStoreCoordinator() {
+    public HStoreCoordinator initHStoreCoordinator() {
         return new MockHStoreCoordinator(this);
     }
     

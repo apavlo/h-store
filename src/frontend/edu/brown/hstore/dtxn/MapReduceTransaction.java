@@ -411,6 +411,11 @@ public class MapReduceTransaction extends LocalTransaction {
         //return this.mapOutput[partition];
     }
     
+    public void setMapOutputByPartition ( VoltTable vt,int partition ) {
+        if (debug.get()) LOG.debug("Trying to setMapOutputByPartition: [ " + partition + " ]");
+        this.mapOutput[hstore_site.getLocalPartitionOffset(partition)] = vt;
+    }
+    
     public VoltTable getReduceInputByPartition ( int partition ) {
         if (debug.get()) LOG.debug("Trying to getReduceInputByPartition: [ " + partition + " ]");
         return this.reduceInput[hstore_site.getLocalPartitionOffset(partition)];
