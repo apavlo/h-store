@@ -158,18 +158,20 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         state.markDirty(send_node);
         
         // 2011-12-08: We now need to correct the aggregate columns for the original plan node
-        node.getAggregateColumnGuids().clear();
-        for (Integer aggOutput : clone_node.getOutputColumnGUIDs()) {
-            PlanColumn planCol = state.plannerContext.get(aggOutput);
-            assert(planCol != null);
-            AbstractExpression exp = planCol.getExpression();
-            assert(exp != null);
-            Collection<String> refTables = ExpressionUtil.getReferencedTableNames(exp);
-            assert(refTables != null);
-            if (refTables.size() == 1 && refTables.contains(PlanAssembler.AGGREGATE_TEMP_TABLE)) {
-                node.getAggregateColumnGuids().add(planCol.guid());
-            }
-        } // FOR
+        if ((clone_node instanceof DistinctPlanNode) == false) {
+            node.getAggregateColumnGuids().clear();
+            for (Integer aggOutput : clone_node.getOutputColumnGUIDs()) {
+                PlanColumn planCol = state.plannerContext.get(aggOutput);
+                assert(planCol != null);
+                AbstractExpression exp = planCol.getExpression();
+                assert(exp != null);
+                Collection<String> refTables = ExpressionUtil.getReferencedTableNames(exp);
+                assert(refTables != null);
+                if (refTables.size() == 1 && refTables.contains(PlanAssembler.AGGREGATE_TEMP_TABLE)) {
+                    node.getAggregateColumnGuids().add(planCol.guid());
+                }
+            } // FOR
+        }
         
         if (debug.get()) {
             LOG.debug("Successfully applied optimization! Eat that John Hugg!");

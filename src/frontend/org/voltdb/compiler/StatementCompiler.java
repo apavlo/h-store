@@ -145,22 +145,24 @@ public abstract class StatementCompiler {
         
         QueryPlanner planner = new QueryPlanner(catalog.getClusters().get("cluster"), db, hsql, estimates, true, false);
 
-        Exception first_exception = null;
-        for (boolean _singleSited : new Boolean[] { true, false }) {
+        Throwable first_exception = null;
+        for (boolean _singleSited : new boolean[]{ true, false }) {
             QueryType stmt_type = QueryType.get(catalogStmt.getQuerytype());
-            compiler.addInfo("Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited);
-            // System.err.println("Creating " + stmt_type.name() + " query plan for " + catalogStmt.getName() + ": singleSited=" + _singleSited);
-            catalogStmt.setSinglepartition(_singleSited);
+            String msg = "Creating " + stmt_type.name() + " query plan for " + catalogStmt.fullName() + ": singleSited=" + _singleSited;
+            if (trace.get()) 
+                LOG.trace(msg);
+            compiler.addInfo(msg);
 
+            catalogStmt.setSinglepartition(_singleSited);
             String name = catalogStmt.getParent().getName() + "-" + catalogStmt.getName();
-            //System.out.println("stmt: " + name);
     
             TrivialCostModel costModel = new TrivialCostModel();
             try {
                 plan = planner.compilePlan(costModel, catalogStmt.getSqltext(),
                         catalogStmt.getName(), catalogStmt.getParent().getName(),
                         catalogStmt.getSinglepartition(), null);
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                LOG.error("Failed to plan for stmt: " + catalogStmt.fullName(), e);
                 if (first_exception == null) {
                     if (debug.get()) LOG.warn("Ignoring first error for " + catalogStmt.getName() + " :: " + e.getMessage());
                     first_exception = e;
@@ -171,7 +173,7 @@ public abstract class StatementCompiler {
             }
 
             if (plan == null) {
-                String msg = "Failed to plan for stmt: " + catalogStmt.fullName();
+                msg = "Failed to plan for stmt: " + catalogStmt.fullName();
                 String plannerMsg = planner.getErrorMessage();
 
                 if (plannerMsg == null) plannerMsg = "PlannerMessage was empty!";
@@ -179,22 +181,30 @@ public abstract class StatementCompiler {
                 // HACK: Ignore if they were trying to do a single-sited INSERT/UPDATE/DELETE
                 //       on a replicated table
                 if (plannerMsg.contains("replicated table") && _singleSited) {
-                    if (debug.get()) LOG.warn("Ignoring error: " + plannerMsg);
+                    if (debug.get()) 
+                        LOG.warn(String.format("Ignoring error for %s: %s", catalogStmt.fullName(), plannerMsg));
                     continue;
                 // HACK: If we get an unknown error message on an multi-sited INSERT/UPDATE/DELETE, assume
                 //       that it's because we are trying to insert on a non-replicated table
                 } else if (!_singleSited && stmt_type == QueryType.INSERT && plannerMsg.contains("Error unknown")) {
-                    if (debug.get()) LOG.warn("Ignoring multi-sited " + stmt_type.name() + " on non-replicated table: " + plannerMsg);
+                    if (debug.get()) 
+                        LOG.warn(String.format("Ignoring multi-sited %s %s on non-replicated table: %s",
+                                               stmt_type.name(), catalogStmt.fullName(), plannerMsg));
                     continue;
                 } else if (planner.getError() != null) {
+                    if (debug.get()) LOG.error(msg);
                     throw compiler.new VoltCompilerException(msg, planner.getError());
                 // Otherwise, report the error
                 } else {
                     if (plannerMsg != null)
                         msg += " with error: \"" + plannerMsg + "\"";
+                    if (debug.get()) LOG.error(msg);
                     throw compiler.new VoltCompilerException(msg);
                 }
             }
+            if (trace.get())
+                LOG.trace(String.format("%s Analyzing %s query plan",
+                                        catalogStmt.fullName(), (_singleSited == false ? "DTXN" : "SP")));  
 
             // serialize full where clause to the catalog
             // for the benefit of the designer
@@ -219,17 +229,6 @@ public abstract class StatementCompiler {
             // for the benefit of the designer
             if (plan.fullWinnerPlan != null) {
                 String json = plan.fullplan_json;
-//                try {
-//                    // serialize to pretty printed json
-////                    String jsonCompact = plan.fullWinnerPlan.toJSONString();
-//                    // pretty printing seems to cause issues
-//                    //JSONObject jobj = new JSONObject(jsonCompact);
-//                    //json = jobj.toString(4);
-////                    json = jsonCompact;
-//                } catch (Exception e) {
-//                    // hopefully someone will notice
-//                    e.printStackTrace();
-//                }
                 String hexString = Encoder.hexEncode(json);
                 if (_singleSited) {
                     catalogStmt.setFullplan(hexString);
@@ -248,6 +247,8 @@ public abstract class StatementCompiler {
     
             int i = 0;
             Collections.sort(plan.fragments);
+            if (trace.get())
+                LOG.trace(catalogStmt.fullName() + " Plan Fragments: " + plan.fragments);
             for (CompiledPlan.Fragment fragment : plan.fragments) {
                 node_list = new PlanNodeList(fragment.planGraph);
                 
@@ -261,11 +262,13 @@ public abstract class StatementCompiler {
                 if (_singleSited) {
                     planFragment = catalogStmt.getFragments().add(planFragmentName);
                     catalogStmt.setHas_singlesited(true);
-                    // System.err.println("SS PLAN FRAGMENT: " + planFragment.getGuid());
+                    if (trace.get())
+                        LOG.trace(String.format("%s SP PLAN FRAGMENT: %s", catalogStmt.fullName(), planFragment));
                 } else {
                     planFragment = catalogStmt.getMs_fragments().add(planFragmentName);
                     catalogStmt.setHas_multisited(true);
-                    // System.err.println("MS PLAN FRAGMENT: " + planFragment.getGuid());
+                    if (trace.get())
+                        LOG.trace(String.format("%s DTXN PLAN FRAGMENT: %s", catalogStmt.fullName(), planFragment));
                 }
     
                 // mark a fragment as non-transactional if it never touches a persistent table
@@ -280,8 +283,7 @@ public abstract class StatementCompiler {
                     JSONObject jobj = new JSONObject(node_list.toJSONString());
                     json = jobj.toString(4);
                 } catch (JSONException e2) {
-                    e2.printStackTrace();
-                    System.exit(-1);
+                    throw new RuntimeException(e2);
                 }
     
                 // TODO: can't re-enable this until the EE accepts PlanColumn GUIDs

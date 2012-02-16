@@ -340,7 +340,7 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
 
     public static void validate(final AbstractPlanNode node) throws Exception {
             
-            System.err.println("Validating: " + node + " / " + node.getPlanNodeType());
+//            System.err.println("Validating: " + node + " / " + node.getPlanNodeType());
             
             switch (node.getPlanNodeType()) {
                 // Make sure that the output columns from this node match the output
@@ -372,9 +372,8 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
                     // Make sure the DISTINCT column is in the output columns
                     DistinctPlanNode cast_node = (DistinctPlanNode)node;
                     Integer distinct_col = cast_node.getDistinctColumnGuid();
-                    if (cast_node.getOutputColumnGUIDs().contains(distinct_col) == false) {
-                        throw new Exception(String.format("%s is missing DISTINCT PlanColumn GUID %d in its output columns", cast_node, distinct_col));
-                    }
+                    assertTrue(String.format("%s is missing DISTINCT PlanColumn GUID %d in its output columns", cast_node, distinct_col),
+                              cast_node.getOutputColumnGUIDs().contains(distinct_col));
                     
                     break;
                 }
@@ -384,7 +383,12 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
                     Collection<Integer> planCols = node.getOutputColumnGUIDs();
                     assert(planCols != null);
                     
-                    System.err.println("PLAN COLS: " + planCols);
+//                    System.err.println(PlanNodeUtil.debugNode(node));
+                    AggregatePlanNode cast_node = (AggregatePlanNode)node; 
+                    assertEquals(cast_node.toString(), cast_node.getAggregateTypes().size(), cast_node.getAggregateColumnGuids().size());
+                    assertEquals(cast_node.toString(), cast_node.getAggregateTypes().size(), cast_node.getAggregateColumnNames().size());
+                    assertEquals(cast_node.toString(), cast_node.getAggregateTypes().size(), cast_node.getAggregateOutputColumns().size());
+                    
                     
 //                    Set<Integer> foundCols = new HashSet<Integer>();
 //                    for (AbstractPlanNode child : node.getChildren()) {
