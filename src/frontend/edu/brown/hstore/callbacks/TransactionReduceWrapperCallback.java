@@ -101,7 +101,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         
         // All Reduces are complete, We should merge reduceOuptuts in every partition to get the final output for client
-        LOG.info("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
+        if (debug.get()) LOG.debug("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
         
         this.getOrigCallback().run(this.builder.build());
 	}
