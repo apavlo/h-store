@@ -495,6 +495,14 @@ public abstract class PlanOptimizerUtil {
             assert (orig_pc != null);
 
             Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, child_node.getOutputColumnGUIDs());
+            if (p == null) {
+                LOG.error(String.format("Failed to find %s's output %s from child node %s",
+                              node, orig_pc, child_node));
+                LOG.error(PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)));
+            }
+            assert(p != null) :
+                String.format("Failed to find %s's output %s from child node %s",
+                              node, orig_pc, child_node);
             PlanColumn new_pc = p.getFirst();
             assert(new_pc != null);
             if (debug.get()) 
