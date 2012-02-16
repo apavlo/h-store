@@ -172,7 +172,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         
         if (debug.get()) {
             LOG.debug("Successfully applied optimization! Eat that John Hugg!");
-            LOG.debug(PlanNodeUtil.debug(rootNode));
+            LOG.debug("\n" + PlanNodeUtil.debug(rootNode));
         }    
         
         return Pair.of(true, rootNode);

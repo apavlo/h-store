@@ -64,7 +64,7 @@ public abstract class PlanOptimizerUtil {
             new_pc = null;
             new_idx++;
         } // FOR
-        return (Pair.of(new_pc, new_idx));
+        return (new_pc != null ? Pair.of(new_pc, new_idx) : null);
     }
     
     /**
@@ -496,7 +496,7 @@ public abstract class PlanOptimizerUtil {
 
             Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, child_node.getOutputColumnGUIDs());
             PlanColumn new_pc = p.getFirst();
-            assert (new_pc != null);
+            assert(new_pc != null);
             if (debug.get()) 
                 LOG.debug(String.format("[%02d] Setting %s GroupByColumnGuid to %s", i, node, new_pc));
             node.getGroupByColumnGuids().set(i, new_pc.guid());
@@ -1094,13 +1094,9 @@ public abstract class PlanOptimizerUtil {
         if (debug.get())
             LOG.debug("Extracting referenced column set for " + node);
         
-        final Set<PlanColumn> ref_columns = new ListOrderedSet<PlanColumn>();
-        final Set<Integer> col_guids = new HashSet<Integer>();
-//        final boolean top_join = (node instanceof NestLoopIndexPlanNode &&
-//                                  state.join_node_index.get(state.join_node_index.firstKey()) == node);
-        
         // Walk up the tree from the current node and figure out what columns that we need from it are
         // referenced. This will tell us how many we can actually project out at this point
+        final Collection<Integer> col_guids = new ListOrderedSet<Integer>();
         new PlanNodeTreeWalker(true, true) {
             @Override
             protected void callback(AbstractPlanNode element) {
@@ -1109,6 +1105,8 @@ public abstract class PlanOptimizerUtil {
                 // will incorrectly get included in the projection
                 if (element == node) return;
                 
+                if (trace.get())
+                    LOG.trace("Examining " + element + " :: " + this.getVisitPath());
                 int ctr = 0;
                 
                 // ---------------------------------------------------
@@ -1122,21 +1120,25 @@ public abstract class PlanOptimizerUtil {
                     
                     // This is set can actually be null because we can parallelize certain operations on each node
                     // so that we don't have to send the entire data set back to the base partition
-                    Set<Column> col_set = state.getPlanNodeColumns(element);
+                    Collection<Column> col_set = state.getPlanNodeColumns(element);
                     
                     // Check whether we're the top-most join, or that we don't have any referenced columns
                     if (col_set == null) {
                         ctr += element.getOutputColumnGUIDCount();
                         col_guids.addAll(element.getOutputColumnGUIDs());
                     } else {
-                        assert (col_set != null) : "Null column set for " + element + " [" + element.hashCode() + "]";
-                        if (col_set != null) {
-                            for (Column col : col_set) {
-                                col_guids.add(CollectionUtil.first(state.column_guid_xref.get(col)));
-                                ctr++;
-                            } // FOR
-                        }
+                        for (Column col : col_set) {
+                            col_guids.add(CollectionUtil.first(state.column_guid_xref.get(col)));
+                            ctr++;
+                        } // FOR
                     }
+                }
+                // ---------------------------------------------------
+                // DistinctPlanNode
+                // ---------------------------------------------------
+                else if (element instanceof DistinctPlanNode) {
+                    ctr++;
+                    col_guids.add(((DistinctPlanNode)element).getDistinctColumnGuid());
                 }
                 // ---------------------------------------------------
                 // OrderByPlanNode
@@ -1150,31 +1152,42 @@ public abstract class PlanOptimizerUtil {
                     LOG.debug(String.format("%s -> Found %d PlanColumns referenced in %s", node, ctr, element));
             }
         }.traverse(node);
+        if (debug.get())
+            LOG.debug(String.format("Referenced PlanColumns for %s: %s", node, col_guids));
         
         // Now extract the TupleValueExpression and get the PlanColumn that we really want
+            
+        // For each of the PlanColumn Guids that were referenced up above, check to see whether
+        // it references a column that our PlanNode knows about in its output columns
+        Set<PlanColumn> ref_columns = new ListOrderedSet<PlanColumn>();
         for (Integer col_guid : col_guids) {
-            addProjectionColumn(state, ref_columns, col_guid);
+            PlanColumn above_pc = state.plannerContext.get(col_guid);
+            
+            // Check whether we have anything similar to it in our output
+            // If we do, then we want to... do something... I don't know what...
+            Pair<PlanColumn, Integer> p = findMatchingColumn(state, above_pc, node.getOutputColumnGUIDs());
+            if (p != null) {
+                // Now look to see whether we already have a reference to a similar PlanColumn
+                // in our set of referenced columns
+                boolean exists = false;
+                for (PlanColumn existing : ref_columns) {
+                    if (above_pc.equals(existing, false, true)) {
+                        exists = true;
+                        break;
+                    }
+                } // FOR
+                // We didn't find it in our existing set, so we'll want to add it
+                if (exists == false) {
+                    ref_columns.add(above_pc);
+                    if (debug.get())
+                        LOG.debug(String.format("Added PlanColumn #%d to list of referenced columns. [%s]",
+                                                col_guid, above_pc.getDisplayName()));
+                } else if (debug.get()) {
+                    LOG.debug("Skipped PlanColumn #" + col_guid + " because it already exists.");
+                }
+            }
         } // FOR
         
         return (ref_columns);
-    }
-    
-    private static void addProjectionColumn(final PlanOptimizerState state, Set<PlanColumn> proj_columns, Integer col_id) {
-        PlanColumn new_column = state.plannerContext.get(col_id);
-        boolean exists = false;
-        for (PlanColumn plan_col : proj_columns) {
-            if (new_column.getDisplayName().equals(plan_col.getDisplayName())) { // This seems wrong...
-                exists = true;
-                break;
-            }
-        } // FOR
-        if (!exists) {
-            proj_columns.add(new_column);
-            if (debug.get())
-                LOG.debug(String.format("Added PlanColumn #%d to list of projection columns. [%s]", col_id, new_column.getDisplayName()));
-        } else {
-            if (debug.get())
-                LOG.debug("Skipped PlanColumn #" + col_id + " because it already exists.");
-        }
     }
 }

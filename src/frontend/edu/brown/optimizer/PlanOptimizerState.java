@@ -10,7 +10,6 @@ import org.voltdb.catalog.Table;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractJoinPlanNode;
 import org.voltdb.plannodes.AbstractPlanNode;
-import org.voltdb.plannodes.ProjectionPlanNode;
 
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.CollectionUtil;
@@ -162,7 +161,7 @@ public class PlanOptimizerState {
         this.planNodeColumns.get(node).add(catalog_col);
     }
     
-    public Set<Column> getPlanNodeColumns(AbstractPlanNode node) {
+    public Collection<Column> getPlanNodeColumns(AbstractPlanNode node) {
         return this.planNodeColumns.get(node);
     }
     
