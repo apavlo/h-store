@@ -20,6 +20,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
@@ -35,6 +36,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
     private final LinkedBlockingDeque<MapReduceTransaction> queue = new LinkedBlockingDeque<MapReduceTransaction>();
     private final HStoreSite hstore_site;
+    private final HStoreConf hstore_conf;
     private final PartitionEstimator p_estimator;
     private Thread self = null;
     private boolean stop = false;
@@ -47,7 +49,18 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
     public MapReduceHelperThread(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.p_estimator = hstore_site.getPartitionEstimator();
+    }
+    
+    protected PartitionExecutor initPartitionExecutor() {
+    	PartitionExecutor executor = new PartitionExecutor(0,
+                										 this.hstore_site.getDatabase().getCatalog(),
+                										 BackendTarget.NATIVE_EE_JNI,
+                										 this.p_estimator,
+                										 null);
+    	executor.initHStoreSite(this.hstore_site);
+    	return (executor);
     }
 
     public void queue(MapReduceTransaction ts) {
@@ -61,16 +74,14 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     public void run() {
         this.self = Thread.currentThread();
         this.self.setName(HStoreSite.getThreadName(hstore_site, "MR"));
-        if (hstore_site.getHStoreConf().site.cpu_affinity) {
+        if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
-        // Initialization
-        this.executor = new PartitionExecutor(0,
-                                             this.hstore_site.getDatabase().getCatalog(),
-                                             BackendTarget.NATIVE_EE_JNI,
-                                             this.p_estimator,
-                                             null);
-        this.executor.initHStoreSite(this.hstore_site);
+        if(!hstore_conf.site.mapreduce_reduce_blocking){
+        	// Initialization
+            this.executor = this.initPartitionExecutor();
+        }
+        
         
         if (debug.get())
             LOG.debug("Starting transaction post-processing thread");
@@ -90,7 +101,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             if (ts.isShufflePhase()) {
                 this.shuffle(ts);
             }
-            if (ts.isReducePhase() && !hstore_site.getHStoreConf().site.mapreduce_reduce_blocking) {
+            if (ts.isReducePhase() && !hstore_conf.site.mapreduce_reduce_blocking) {
                 this.reduce(ts);
             }
             
