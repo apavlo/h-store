@@ -231,11 +231,10 @@ public abstract class AbstractPlanNode implements JSONString, Cloneable, Compara
     }
     
     /**
-     * Get an unmodifiable list of the Output PlanColumn GUIDs
+     * Get the list of the Output PlanColumn GUIDs
      * @return
      */
     public List<Integer> getOutputColumnGUIDs() {
-//        return (Collections.unmodifiableList(this.m_outputColumns));
         return (this.m_outputColumns);
     }
     

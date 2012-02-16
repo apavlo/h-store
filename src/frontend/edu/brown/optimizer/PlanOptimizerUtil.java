@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.Column;
@@ -21,6 +22,7 @@ import org.voltdb.planner.PlanColumn.Storage;
 import org.voltdb.plannodes.*;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
+import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.expressions.ExpressionTreeWalker;
@@ -37,6 +39,32 @@ public abstract class PlanOptimizerUtil {
     private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
+    }
+    
+    /**
+     * 
+     * @param state
+     * @param orig_pc
+     * @param output_cols
+     * @return
+     */
+    protected static Pair<PlanColumn, Integer> findMatchingColumn(final PlanOptimizerState state, PlanColumn orig_pc, List<Integer> output_cols) {
+        PlanColumn new_pc = null;
+        int new_idx = 0;
+        for (Integer new_guid : output_cols) {
+            new_pc = state.plannerContext.get(new_guid);
+            assert(new_pc != null) : "Unexpected PlanColumn #" + new_guid;
+            
+            if (new_pc.equals(orig_pc, true, true)) {
+                if (trace.get())
+                    LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s",
+                                            new_idx, orig_pc, new_pc));
+                break;
+            }
+            new_pc = null;
+            new_idx++;
+        } // FOR
+        return (Pair.of(new_pc, new_idx));
     }
     
     /**
@@ -388,21 +416,8 @@ public abstract class PlanOptimizerUtil {
             // columns in our child may have changed. So we need to loop through and find the one
             // that references the same value. This will probably not work if they are trying to do
             // a sort on an aggregate output value...
-            PlanColumn new_pc = null;
-            int new_idx = 0;
-            for (Integer new_guid : node.getOutputColumnGUIDs()) {
-                new_pc = state.plannerContext.get(new_guid);
-                assert(new_pc != null) : "Unexpected PlanColumn #" + new_guid;
-                
-                if (new_pc.equals(orig_pc, true, true)) {
-                    if (trace.get())
-                        LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s",
-                                                new_idx, orig_pc, new_pc));
-                    break;
-                }
-                new_pc = null;
-                new_idx++;
-            } // FOR
+            Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, node.getOutputColumnGUIDs());
+            PlanColumn new_pc = p.getFirst();
             assert(new_pc != null);
             node.getSortColumnGuids().set(i, new_pc.guid());
 //            // XXX: Can we just loop through all our PlanColumns and find the one we want?
@@ -428,6 +443,8 @@ public abstract class PlanOptimizerUtil {
 
         return (true);
     }
+    
+
 
     /**
      * Update AggregatePlanNode columns
@@ -439,7 +456,7 @@ public abstract class PlanOptimizerUtil {
         assert (node.getChildPlanNodeCount() == 1) : node;
         AbstractPlanNode child_node = node.getChild(0);
         assert (child_node != null);
-
+        
         for (int i = 0, cnt = node.getAggregateColumnGuids().size(); i < cnt; i++) {
             Integer orig_guid = node.getAggregateColumnGuids().get(i);
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
@@ -477,26 +494,29 @@ public abstract class PlanOptimizerUtil {
             PlanColumn orig_pc = state.plannerContext.get(orig_guid);
             assert (orig_pc != null);
 
-            PlanColumn new_pc = null;
-            int new_idx = 0;
-            for (Integer guid : child_node.getOutputColumnGUIDs()) {
-                PlanColumn pc = state.plannerContext.get(guid);
-                if (pc.getStorage().equals(Storage.kTemporary)) {
-                    new_pc = pc;
-                    break;
-                } else {
-                    assert (pc != null);
-                    if (pc.equals(orig_pc, true, true)) {
-                        if (trace.get())
-                            LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", new_idx, orig_pc, pc));
-                        new_pc = pc;
-                        break;
-                    }                    
-                }
-                new_idx++;
-            } // FOR
+            Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, child_node.getOutputColumnGUIDs());
+            PlanColumn new_pc = p.getFirst();
             assert (new_pc != null);
+            if (debug.get()) 
+                LOG.debug(String.format("[%02d] Setting %s GroupByColumnGuid to %s", i, node, new_pc));
             node.getGroupByColumnGuids().set(i, new_pc.guid());
+        } // FOR
+        
+        for (int i = 0, cnt = node.getOutputColumnGUIDs().size(); i < cnt; i++) {
+            Integer orig_guid = node.getOutputColumnGUIDs().get(i);
+            PlanColumn orig_pc = state.plannerContext.get(orig_guid);
+            assert (orig_pc != null);
+            
+            // XXX: We might need to do something different if this part of our
+            //      aggregate output
+            if (node.getAggregateOutputColumns().contains(i) == false) {
+                Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, child_node.getOutputColumnGUIDs());
+                PlanColumn new_pc = p.getFirst();
+                assert (new_pc != null);
+                if (debug.get()) 
+                    LOG.debug(String.format("[%02d] Setting %s OutputColumnGUID to %s", i, node, new_pc));
+                node.getOutputColumnGUIDs().set(i, new_pc.guid());
+            }
         } // FOR
 
         // System.err.println(this.sql);
@@ -706,23 +726,13 @@ public abstract class PlanOptimizerUtil {
             }
             // Check whether we even have this column. We'll compare everything but the Expression
             else {
-                new_idx = 0;
-                for (Integer guid : outer_output_guids) {
-                    PlanColumn pc = state.plannerContext.get(guid);
-                    assert (pc != null);
-                    if (pc.equals(orig_pc, true, true)) {
-                        if (trace.get())
-                            LOG.trace(String.format("[%02d] Found non-expression PlanColumn match:\nORIG: %s\nNEW:  %s", orig_idx, orig_pc, pc));
-                        new_pc = pc;
-                        break;
-                    }
-                    new_idx++;
-                } // FOR
+                Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, outer_output_guids);
+                new_pc = p.getFirst();
+                new_idx = p.getSecond();
 
                 // If we have this PlanColumn, then we need to clone it and set the new column index
                 // Make sure that we replace update outer_new_input_guids
                 if (new_pc != null) {
-                    assert (new_idx != -1);
                     TupleValueExpression clone_exp = null;
                     try {
                         clone_exp = (TupleValueExpression) orig_pc.getExpression().clone();
@@ -1072,4 +1082,99 @@ public abstract class PlanOptimizerUtil {
         }.traverse(root);
     }
     
+    
+    /**
+     * Extract all the PlanColumns that we are going to need in the query plan tree above
+     * the given node.
+     * @param node
+     * @param tables
+     * @return
+     */
+    public static Set<PlanColumn> extractReferencedColumns(final PlanOptimizerState state, final AbstractPlanNode node) {
+        if (debug.get())
+            LOG.debug("Extracting referenced column set for " + node);
+        
+        final Set<PlanColumn> ref_columns = new ListOrderedSet<PlanColumn>();
+        final Set<Integer> col_guids = new HashSet<Integer>();
+//        final boolean top_join = (node instanceof NestLoopIndexPlanNode &&
+//                                  state.join_node_index.get(state.join_node_index.firstKey()) == node);
+        
+        // Walk up the tree from the current node and figure out what columns that we need from it are
+        // referenced. This will tell us how many we can actually project out at this point
+        new PlanNodeTreeWalker(true, true) {
+            @Override
+            protected void callback(AbstractPlanNode element) {
+                // If this is the same node that we're examining, then we can skip it
+                // Otherwise, anything that this guy references but nobody else does
+                // will incorrectly get included in the projection
+                if (element == node) return;
+                
+                int ctr = 0;
+                
+                // ---------------------------------------------------
+                // ProjectionPlanNode
+                // AbstractScanPlanNode
+                // AggregatePlanNode
+                // ---------------------------------------------------
+                if (element instanceof ProjectionPlanNode ||
+                    element instanceof AbstractScanPlanNode ||
+                    element instanceof AggregatePlanNode) {
+                    
+                    // This is set can actually be null because we can parallelize certain operations on each node
+                    // so that we don't have to send the entire data set back to the base partition
+                    Set<Column> col_set = state.getPlanNodeColumns(element);
+                    
+                    // Check whether we're the top-most join, or that we don't have any referenced columns
+                    if (col_set == null) {
+                        ctr += element.getOutputColumnGUIDCount();
+                        col_guids.addAll(element.getOutputColumnGUIDs());
+                    } else {
+                        assert (col_set != null) : "Null column set for " + element + " [" + element.hashCode() + "]";
+                        if (col_set != null) {
+                            for (Column col : col_set) {
+                                col_guids.add(CollectionUtil.first(state.column_guid_xref.get(col)));
+                                ctr++;
+                            } // FOR
+                        }
+                    }
+                }
+                // ---------------------------------------------------
+                // OrderByPlanNode
+                // ---------------------------------------------------
+                else if (element instanceof OrderByPlanNode) {
+                    ctr += ((OrderByPlanNode)element).getSortColumnGuids().size();
+                    col_guids.addAll(((OrderByPlanNode)element).getSortColumnGuids());
+                }
+                
+                if (debug.get() && ctr > 0)
+                    LOG.debug(String.format("%s -> Found %d PlanColumns referenced in %s", node, ctr, element));
+            }
+        }.traverse(node);
+        
+        // Now extract the TupleValueExpression and get the PlanColumn that we really want
+        for (Integer col_guid : col_guids) {
+            addProjectionColumn(state, ref_columns, col_guid);
+        } // FOR
+        
+        return (ref_columns);
+    }
+    
+    private static void addProjectionColumn(final PlanOptimizerState state, Set<PlanColumn> proj_columns, Integer col_id) {
+        PlanColumn new_column = state.plannerContext.get(col_id);
+        boolean exists = false;
+        for (PlanColumn plan_col : proj_columns) {
+            if (new_column.getDisplayName().equals(plan_col.getDisplayName())) { // This seems wrong...
+                exists = true;
+                break;
+            }
+        } // FOR
+        if (!exists) {
+            proj_columns.add(new_column);
+            if (debug.get())
+                LOG.debug(String.format("Added PlanColumn #%d to list of projection columns. [%s]", col_id, new_column.getDisplayName()));
+        } else {
+            if (debug.get())
+                LOG.debug("Skipped PlanColumn #" + col_id + " because it already exists.");
+        }
+    }
 }
