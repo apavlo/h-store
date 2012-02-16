@@ -593,14 +593,14 @@ public class AuctionMarkLoader extends BenchmarkComponent {
         }
 
         public void markAsFinished() {
-        	this.latch.countDown();
+            this.latch.countDown();
             for (SubTableGenerator<?> sub_generator : this.sub_generators) {
                 sub_generator.stopWhenEmpty();
             } // FOR
         }
         
         public boolean isFinish(){
-        	return (this.latch.getCount() == 0);
+            return (this.latch.getCount() == 0);
         }
         
         public List<String> getDependencies() {
@@ -1039,7 +1039,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             // The auction for this item has already closed
             if (itemInfo.endDate.getTime() <= profile.getBenchmarkStartTime().getTime()) {
                 if (itemInfo.numBids > 0) {
-                	// Somebody won a bid and bought the item
+                    // Somebody won a bid and bought the item
                     itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
                     //System.out.println("@@@ z last_bidder_id = " + itemInfo.last_bidder_id);
                     itemInfo.purchaseDate = this.getRandomPurchaseTimestamp(itemInfo.endDate);
@@ -1049,7 +1049,7 @@ public class AuctionMarkLoader extends BenchmarkComponent {
             }
             // Item is still available
             else if (itemInfo.numBids > 0) {
-        		itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
+                itemInfo.lastBidderId = profile.getRandomBuyerId(itemInfo.sellerId);
             }
             profile.addItemToProperQueue(itemInfo, true);
 

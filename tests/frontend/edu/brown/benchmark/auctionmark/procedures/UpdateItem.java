@@ -49,7 +49,7 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
     singlePartition = true
 )
 public class UpdateItem extends VoltProcedure{
-	
+    
     // -----------------------------------------------------------------
     // STATEMENTS
     // -----------------------------------------------------------------
@@ -86,12 +86,12 @@ public class UpdateItem extends VoltProcedure{
     // RUN METHOD
     // -----------------------------------------------------------------
 
-	/**
-	 * The buyer modifies an existing auction that is still available.
-	 * The transaction will just update the description of the auction.
-	 * A small percentage of the transactions will be for auctions that are
-	 * uneditable (1.0%?); when this occurs, the transaction will abort.
-	 */
+    /**
+     * The buyer modifies an existing auction that is still available.
+     * The transaction will just update the description of the auction.
+     * A small percentage of the transactions will be for auctions that are
+     * uneditable (1.0%?); when this occurs, the transaction will abort.
+     */
     public VoltTable run(TimestampType benchmarkTimes[],
                          long item_id, long seller_id, String description,
                          long delete_attribute, long add_attribute[]) {
@@ -135,6 +135,6 @@ public class UpdateItem extends VoltProcedure{
         }
         
         return (results[0]);
-    }	
-	
+    }   
+    
 }

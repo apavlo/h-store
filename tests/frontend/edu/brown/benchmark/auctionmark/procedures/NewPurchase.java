@@ -49,7 +49,7 @@ import edu.brown.benchmark.auctionmark.util.ItemId;
     singlePartition = true
 )
 public class NewPurchase extends VoltProcedure{
-	
+    
     // -----------------------------------------------------------------
     // STATIC MEMBERS
     // -----------------------------------------------------------------
@@ -74,10 +74,10 @@ public class NewPurchase extends VoltProcedure{
         "SELECT i_num_bids, i_current_price, i_end_date, " +
         "       ib_id, ib_buyer_id, " +
         "       u_balance " +
-		"  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " +
-		            AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
-		            AuctionMarkConstants.TABLENAME_ITEM_BID + ", " +
-		            AuctionMarkConstants.TABLENAME_USER +
+        "  FROM " + AuctionMarkConstants.TABLENAME_ITEM + ", " +
+                    AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + ", " +
+                    AuctionMarkConstants.TABLENAME_ITEM_BID + ", " +
+                    AuctionMarkConstants.TABLENAME_USER +
         " WHERE i_id = ? AND i_u_id = ? AND i_status = " + ItemStatus.WAITING_FOR_PURCHASE.ordinal() +
         "   AND imb_i_id = i_id AND imb_u_id = i_u_id " +
         "   AND imb_ib_id = ib_id AND imb_ib_i_id = ib_i_id AND imb_ib_u_id = ib_u_id " +
@@ -92,18 +92,18 @@ public class NewPurchase extends VoltProcedure{
     
     public final SQLStmt insertPurchase = new SQLStmt(
         "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_PURCHASE + "(" +
-        	"ip_id," +
-        	"ip_ib_id," +
-        	"ip_ib_i_id," +  
-        	"ip_ib_u_id," +  
-        	"ip_date" +     
+            "ip_id," +
+            "ip_ib_id," +
+            "ip_ib_i_id," +  
+            "ip_ib_u_id," +  
+            "ip_date" +     
         ") VALUES(?,?,?,?,?)"
     );
     
     public final SQLStmt updateItem = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM + " " +
-        	"SET i_status = " + ItemStatus.CLOSED.ordinal() + ", " +
-        	"    i_updated = ? " +
+            "SET i_status = " + ItemStatus.CLOSED.ordinal() + ", " +
+            "    i_updated = ? " +
         "WHERE i_id = ? AND i_u_id = ? "
     );    
     
@@ -199,5 +199,5 @@ public class NewPurchase extends VoltProcedure{
             ib_buyer_id,
         });
         return ret;
-    }	
+    }   
 }

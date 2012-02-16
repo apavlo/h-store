@@ -392,7 +392,7 @@ public abstract class PartitionerUtil {
         DependencyUtil dependencies = DependencyUtil.singleton(CatalogUtil.getDatabase(catalog_tbl));
         if (debug.get()) LOG.debug("Calculating descendants for columns");
         for ( Entry<Column, Double> entry : column_weights.entrySet()) {
-        	Column catalog_col = entry.getKey();
+            Column catalog_col = entry.getKey();
             Double weight = entry.getValue();
             int descendants = dependencies.getDescendants(catalog_col).size();
             column_weights.put(catalog_col, weight * (descendants + 1));

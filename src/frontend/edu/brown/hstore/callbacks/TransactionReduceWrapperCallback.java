@@ -20,7 +20,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * @author yujia
  */
 public class TransactionReduceWrapperCallback extends BlockingCallback<TransactionReduceResponse, ReduceResult> {
-	private static final Logger LOG = Logger.getLogger(TransactionReduceWrapperCallback.class);
+    private static final Logger LOG = Logger.getLogger(TransactionReduceWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
@@ -28,28 +28,28 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
     }
     
     private MapReduceTransaction ts;
-	private TransactionReduceResponse.Builder builder = null;
-	
-	public TransactionReduceWrapperCallback(HStoreSite hstore_site) {
-		super(hstore_site, false);
-	}
-	
-	public void init(MapReduceTransaction ts, RpcCallback<TransactionReduceResponse> orig_callback) {
-	    assert(this.isInitialized() == false) :
+    private TransactionReduceResponse.Builder builder = null;
+    
+    public TransactionReduceWrapperCallback(HStoreSite hstore_site) {
+        super(hstore_site, false);
+    }
+    
+    public void init(MapReduceTransaction ts, RpcCallback<TransactionReduceResponse> orig_callback) {
+        assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
-	    this.builder = TransactionReduceResponse.newBuilder()
-        					 .setTransactionId(ts.getTransactionId())
-        					 .setStatus(Hstoreservice.Status.OK);
-		super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
-	}
-	
-	@Override
-	protected void abortCallback(Status status) {
-		if (debug.get())
+        this.builder = TransactionReduceResponse.newBuilder()
+                             .setTransactionId(ts.getTransactionId())
+                             .setStatus(Hstoreservice.Status.OK);
+        super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
+    }
+    
+    @Override
+    protected void abortCallback(Status status) {
+        if (debug.get())
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
@@ -60,35 +60,35 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
 //            }
 //        } // FOR
         this.unblockCallback();
-	}
+    }
 
-	@Override
-	protected void finishImpl() {
-		this.builder = null;
-		this.ts = null;
-	}
-	
+    @Override
+    protected void finishImpl() {
+        this.builder = null;
+        this.ts = null;
+    }
+    
     @Override
     public boolean isInitialized() {
         return (this.ts != null && this.builder != null && super.isInitialized());
     }
 
-	@Override
-	protected int runImpl(ReduceResult result) {
-		if (this.isAborted() == false) {
+    @Override
+    protected int runImpl(ReduceResult result) {
+        if (this.isAborted() == false) {
             this.builder.addResults(result);
             LOG.debug(String.format("%s - Added %s from partition %d!",
                       this.ts, result.getClass().getSimpleName(), result.getPartitionId()));
-		}
-		assert(this.ts != null) :
+        }
+        assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
 
-		return 1;
-	}
+        return 1;
+    }
 
-	@Override
-	protected void unblockCallback() {
-		if (debug.get()) {
+    @Override
+    protected void unblockCallback() {
+        if (debug.get()) {
             LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
                                     this.getTransactionId(),
                                     TransactionReduceResponse.class.getSimpleName(),
@@ -105,11 +105,11 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
         if (debug.get()) LOG.debug("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
         
         this.getOrigCallback().run(this.builder.build());
-	}
-	
-	public void runOrigCallback() {
-	    this.getOrigCallback().run(this.builder.build());
-	}
+    }
+    
+    public void runOrigCallback() {
+        this.getOrigCallback().run(this.builder.build());
+    }
 }
 
 

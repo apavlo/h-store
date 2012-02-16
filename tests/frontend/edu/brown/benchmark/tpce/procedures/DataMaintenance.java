@@ -91,7 +91,7 @@ public class DataMaintenance extends VoltProcedure {
         "UPDATE daily_market SET dm_vol = dm_vol + ? WHERE dm_s_symb = ? AND dm_date > ? AND dm_date < ?");
 
     public final SQLStmt selectExchange = new SQLStmt(
-		"SELECT ex_id, ex_desc FROM EXCHANGE");
+        "SELECT ex_id, ex_desc FROM EXCHANGE");
 
     public final SQLStmt updateExchange = new SQLStmt(
         "UPDATE EXCHANGE SET EX_DESC = ? WHERE EX_ID = ?");

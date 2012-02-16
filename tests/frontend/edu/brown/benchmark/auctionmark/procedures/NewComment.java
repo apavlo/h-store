@@ -47,7 +47,7 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
     singlePartition = true
 )
 public class NewComment extends VoltProcedure{
-	
+    
     // -----------------------------------------------------------------
     // STATIC MEMBERS
     // -----------------------------------------------------------------
@@ -67,16 +67,16 @@ public class NewComment extends VoltProcedure{
         "  FROM " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + 
         " WHERE ic_i_id = ? AND ic_u_id = ?"
     );
-	
+    
     public final SQLStmt insertItemComment = new SQLStmt(
         "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + "(" +
-        	"ic_id," +
-        	"ic_i_id," +
-        	"ic_u_id," +
-        	"ic_buyer_id," +
-        	"ic_question, " +
-        	"ic_created," +
-        	"ic_updated " +
+            "ic_id," +
+            "ic_i_id," +
+            "ic_u_id," +
+            "ic_buyer_id," +
+            "ic_question, " +
+            "ic_created," +
+            "ic_updated " +
         ") VALUES (?,?,?,?,?,?,?)"
     );
     
@@ -86,15 +86,15 @@ public class NewComment extends VoltProcedure{
            "    u_updated = ? " +
         " WHERE u_id = ?"
     );
-	
+    
     // -----------------------------------------------------------------
     // RUN METHOD
     // -----------------------------------------------------------------
     
     public VoltTable run(TimestampType benchmarkTimes[], long item_id, long seller_id, long buyer_id, String question) {
         final TimestampType currentTime = AuctionMarkProfile.getScaledTimestamp(benchmarkTimes[0], benchmarkTimes[1], new TimestampType());
-    	long ic_id;
-    	
+        long ic_id;
+        
         // Set comment_id
         voltQueueSQL(getMaxItemCommentId, item_id, seller_id);
         VoltTable[] results = voltExecuteSQL();
@@ -115,6 +115,6 @@ public class NewComment extends VoltProcedure{
         VoltTable ret = new VoltTable(RESULT_COLS);
         ret.addRow(ic_id, item_id, seller_id);
         return ret;
-    }	
-	
+    }   
+    
 }

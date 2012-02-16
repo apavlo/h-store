@@ -39,7 +39,7 @@ import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.benchmark.tpce.procedures.*;
 
 public class TPCEProjectBuilder extends AbstractProjectBuilder {
-	
+    
     /**
      * Retrieved via reflection by BenchmarkController
      */
@@ -80,7 +80,7 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(DataMaintenance.class, 0); // TPCEConstants.FREQUENCY_DATA_MAINTENANCE);
         addTransactionFrequency(TradeCleanup.class, 0); // TPCEConstants.FREQUENCY_TRADE_CLEANUP);
     }
-	
+    
     public static String PARTITIONING[][] = new String[][] {
         // TODO(pavlo)
         { TPCEConstants.TABLENAME_TRADE, "T_CA_ID" },
