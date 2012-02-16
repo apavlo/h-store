@@ -1,27 +1,23 @@
 package edu.brown.hstore.callbacks;
 
-import java.util.Collection;
-
 import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
-import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
+import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.util.MapReduceHelperThread;
 
 /**
- * This is callback is used on the remote side of a TransactionMapRequest
+ * This is callback is used on the remote side of a TransactionReduceRequest
  * so that the network-outbound callback is not invoked until all of the partitions
- * at this HStoreSite is finished with the Map phase. 
- * @author pavlo
+ * at this HStoreSite is finished with the Reduce phase. 
+ * @author yujia
  */
 public class TransactionReduceWrapperCallback extends BlockingCallback<TransactionReduceResponse, ReduceResult> {
 	private static final Logger LOG = Logger.getLogger(TransactionReduceWrapperCallback.class);
@@ -57,7 +53,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
-        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
+//        Collection<Integer> localPartitions = hstore_site.getLocalPartitionIds();
 //        for (Integer p : this.hstore_site.getLocalPartitionIds()) {
 //            if (localPartitions.contains(p) && this.builder.getPartitionsList().contains(p) == false) {
 //                this.builder.addPartitions(p.intValue());
@@ -86,14 +82,7 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
 		}
 		assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
-		
 
-		//this.builder = Hstore.TransactionReduceResponse.newBuilder().setResults(result.getPartitionId(), result);
-
-//		this.builder = TransactionReduceResponse.newBuilder()
-//		                        .setResults(this., result);
-
-		
 		return 1;
 	}
 
@@ -113,10 +102,9 @@ public class TransactionReduceWrapperCallback extends BlockingCallback<Transacti
             String.format("The original callback for txn #%d is null!", this.getTransactionId());
         
         // All Reduces are complete, We should merge reduceOuptuts in every partition to get the final output for client
-        LOG.info("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
+        if (debug.get()) LOG.debug("All Reducers are complete, We should merge reduceOuptuts in every partition to get the final output for client");
         
         this.getOrigCallback().run(this.builder.build());
-
 	}
 	
 	public void runOrigCallback() {

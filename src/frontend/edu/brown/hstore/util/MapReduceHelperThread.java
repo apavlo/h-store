@@ -20,6 +20,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.SendDataCallback;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
@@ -35,6 +36,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
     private final LinkedBlockingDeque<MapReduceTransaction> queue = new LinkedBlockingDeque<MapReduceTransaction>();
     private final HStoreSite hstore_site;
+    private final HStoreConf hstore_conf;
     private final PartitionEstimator p_estimator;
     private Thread self = null;
     private boolean stop = false;
@@ -47,7 +49,18 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
 
     public MapReduceHelperThread(HStoreSite hstore_site) {
         this.hstore_site = hstore_site;
+        this.hstore_conf = hstore_site.getHStoreConf();
         this.p_estimator = hstore_site.getPartitionEstimator();
+    }
+    
+    protected PartitionExecutor initPartitionExecutor() {
+    	PartitionExecutor executor = new PartitionExecutor(0,
+                										 this.hstore_site.getDatabase().getCatalog(),
+                										 BackendTarget.NATIVE_EE_JNI,
+                										 this.p_estimator,
+                										 null);
+    	executor.initHStoreSite(this.hstore_site);
+    	return (executor);
     }
 
     public void queue(MapReduceTransaction ts) {
@@ -61,16 +74,14 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
     public void run() {
         this.self = Thread.currentThread();
         this.self.setName(HStoreSite.getThreadName(hstore_site, "MR"));
-        if (hstore_site.getHStoreConf().site.cpu_affinity) {
+        if (hstore_conf.site.cpu_affinity) {
             hstore_site.getThreadManager().registerProcessingThread();
         }
-        // Initialization
-        this.executor = new PartitionExecutor(0,
-                                             this.hstore_site.getDatabase().getCatalog(),
-                                             BackendTarget.NATIVE_EE_JNI,
-                                             this.p_estimator,
-                                             null);
-        this.executor.initHStoreSite(this.hstore_site);
+        if(!hstore_conf.site.mapreduce_reduce_blocking){
+        	// Initialization
+            this.executor = this.initPartitionExecutor();
+        }
+        
         
         if (debug.get())
             LOG.debug("Starting transaction post-processing thread");
@@ -90,7 +101,7 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
             if (ts.isShufflePhase()) {
                 this.shuffle(ts);
             }
-            if (ts.isReducePhase() && !hstore_site.getHStoreConf().site.mapreduce_reduce_blocking) {
+            if (ts.isReducePhase() && !hstore_conf.site.mapreduce_reduce_blocking) {
                 this.reduce(ts);
             }
             
@@ -166,21 +177,29 @@ public class MapReduceHelperThread implements Runnable, Shutdownable {
         
         VoltProcedure volt_proc = this.executor.getVoltProcedure(mr_ts.getInvocation().getProcName());
         
-        if (debug.get())
-            LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
-        volt_proc.setPartitionId(mr_ts.getBasePartition());
-        if (debug.get())
-            LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
-        volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+        if(hstore_site.getLocalPartitionIds().contains(mr_ts.getBasePartition()) && !mr_ts.isBasePartition_Runed()){
+            if (debug.get()) LOG.debug(String.format("TXN: %s $$$1 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
+            volt_proc.setPartitionId(mr_ts.getBasePartition());
+            if (debug.get()) LOG.debug(String.format("TXN: %s $$$2 non-blocking reduce, partition:%d", mr_ts,volt_proc.getPartitionId()));
+            volt_proc.call(mr_ts, mr_ts.getInitiateTaskMessage().getParameters());
+            
+        } else {
+            
+            for (int partition : hstore_site.getLocalPartitionIds())  {
+                if (debug.get())
+                    LOG.debug(String.format("TXN: %s $$$3 non-blocking reduce, partition called on:%d", mr_ts,partition));
+                
+                if (partition != mr_ts.getBasePartition()) { 
+                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
+                    if (debug.get())
+                        LOG.debug(String.format("TXN: %s $$$4 non-blocking reduce, partition called on:%d", mr_ts,partition));
+                    volt_proc.setPartitionId(partition);
+                    volt_proc.call(ts, ts.getInitiateTaskMessage().getParameters());
+                }
+            }
+
+        }
         
-//        int sideId = -1;
-//        int tmp = sideId;
-//        for (int p : hstore_site.getAllPartitionIds()) {
-//            sideId = hstore_site.getSiteIdForPartitionId(p);
-//            if(sideId != tmp){
-//                // initialize reduceWrapper
-//            }
-//        }
     }
 
 

@@ -22,7 +22,7 @@ import edu.brown.hstore.BatchPlanner;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.MockExecutionSite;
+import edu.brown.hstore.MockPartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.dtxn.LocalTransaction;
 
@@ -60,7 +60,7 @@ public class TestNewVoltProcedure extends BaseTestCase {
             // BACKEND_TARGET = (this.hasVoltLib() ? BackendTarget.NATIVE_EE_JNI : BackendTarget.HSQLDB_BACKEND);
             
             p_estimator = new PartitionEstimator(catalog_db);
-            site = new MockExecutionSite(LOCAL_PARTITION, catalog, p_estimator);
+            site = new MockPartitionExecutor(LOCAL_PARTITION, catalog, p_estimator);
             
             Partition catalog_part = CatalogUtil.getPartitionById(catalog_db, LOCAL_PARTITION);
             hstore_site = HStore.initialize((Site)catalog_part.getParent(), HStoreConf.singleton());

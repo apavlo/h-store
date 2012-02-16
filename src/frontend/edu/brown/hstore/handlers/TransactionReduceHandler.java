@@ -102,20 +102,9 @@ public class TransactionReduceHandler extends AbstractTransactionHandler<Transac
                 }
             } // FOR
         } else {
-            VoltProcedure volt_proc = hstore_site.getMapReduceHelper().getExecutor().getVoltProcedure(mr_ts.getInvocation().getProcName());
-            int tmpId = volt_proc.getPartitionId();
-            if (debug.get())
-                LOG.debug(String.format("TXN: %s $$$3 non-blocking reduce, partition:%d",mr_ts,volt_proc.getPartitionId()));
-            for (int partition : hstore_site.getLocalPartitionIds())  {
-                if (partition != mr_ts.getBasePartition()) { 
-                    LocalTransaction ts = mr_ts.getLocalTransaction(partition);
-                    if (debug.get())
-                        LOG.debug(String.format("TXN: %s $$$4 non-blocking reduce, partition called on:%d", mr_ts,partition));
-                    volt_proc.setPartitionId(partition);
-                    volt_proc.call(ts, ts.getInitiateTaskMessage().getParameters());
-                }
-            } // FOR
-            volt_proc.setPartitionId(tmpId);
+            // non-blocking way of execution for Reduce
+            mr_ts.setBasePartition_Runed(true);
+            hstore_site.getMapReduceHelper().queue(mr_ts);
         }
         
     }

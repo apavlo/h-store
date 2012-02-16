@@ -91,6 +91,7 @@ import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.Hstoreservice.DataFragment;
+import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse.WorkResult;
@@ -1167,13 +1168,14 @@ public class PartitionExecutor implements Runnable, Shutdownable, Loggable {
     }
     
     /**
-     * 
+     * Put the finish request for the transaction into the queue
      * @param task
      * @param callback the RPC handle to send the response to
      */
-    public void queueFinish(AbstractTransaction ts, FinishTaskMessage task) {
+    public void queueFinish(AbstractTransaction ts, Status status) {
         assert(ts.isInitialized());
         
+        FinishTaskMessage task = ts.getFinishTaskMessage(status);
         this.work_queue.add(task);
         if (d) LOG.debug(String.format("Added multi-partition %s for %s to front of partition %d work queue [size=%d]",
                                        task.getClass().getSimpleName(), ts, this.partitionId, this.work_queue.size()));
