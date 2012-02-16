@@ -25,6 +25,7 @@ import edu.brown.utils.CollectionUtil;
 public class AggregatePushdownOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(AggregatePushdownOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
+    private static final LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     
     public AggregatePushdownOptimization(PlanOptimizerState state) {
         super(state);
@@ -172,7 +173,7 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
         
         if (debug.get()) {
             LOG.debug("Successfully applied optimization! Eat that John Hugg!");
-            LOG.debug("\n" + PlanNodeUtil.debug(rootNode));
+            if (trace.get()) LOG.trace("\n" + PlanNodeUtil.debug(rootNode));
         }    
         
         return Pair.of(true, rootNode);
