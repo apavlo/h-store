@@ -1410,9 +1410,18 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         TransactionCleanupCallback cleanup_callback = null;
         if (ts != null && (ts instanceof RemoteTransaction || ts instanceof MapReduceTransaction)) {
             if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
-            // TODO(xin): If this is a MR Transaction, get its cleanup callback
-            cleanup_callback = ((RemoteTransaction)ts).getCleanupCallback();
-            cleanup_callback.init(ts, status, partitions);
+            // If this is a MR Transaction, get its cleanup callback
+            if(ts instanceof RemoteTransaction) {
+                if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
+                cleanup_callback = ((RemoteTransaction)ts).getCleanupCallback();
+                cleanup_callback.init(ts, status, partitions);
+                
+            } else if(ts instanceof MapReduceTransaction) {
+                if (d) LOG.debug(ts + " - Initialzing the TransactionCleanupCallback");
+                cleanup_callback = ((MapReduceTransaction)ts).getCleanupCallback();
+                cleanup_callback.init(ts, status, partitions);
+            }
+            
         }
         
         for (int p : partitions) {
@@ -1442,7 +1451,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // If we didn't queue the transaction to be finished at this partition, then we need to make sure
             // that we mark the transaction as finished for this callback
-            else if (cleanup_callback != null) {
+            else if (cleanup_callback != null && ts instanceof MapReduceTransaction) {
             	cleanup_callback.run(p);
             }
         } // FOR            

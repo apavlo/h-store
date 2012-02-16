@@ -22,6 +22,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.SendDataCallback;
+import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionMapCallback;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceCallback;
@@ -91,6 +92,8 @@ public class MapReduceTransaction extends LocalTransaction {
     
     private final TransactionReduceWrapperCallback reduceWrapper_callback;
     
+    private final TransactionCleanupCallback cleanup_callback;
+
     /**
      * Constructor 
      * @param hstore_site
@@ -126,6 +129,8 @@ public class MapReduceTransaction extends LocalTransaction {
         
         this.reduce_callback = new TransactionReduceCallback(hstore_site);
         this.reduceWrapper_callback = new TransactionReduceWrapperCallback(hstore_site);
+        
+        this.cleanup_callback = new TransactionCleanupCallback(hstore_site);
     }
     
     
@@ -196,8 +201,9 @@ public class MapReduceTransaction extends LocalTransaction {
         this.mapWrapper_callback.finish();
         this.sendData_callback.finish();
         this.reduce_callback.finish();
-        
         this.reduceWrapper_callback.finish();
+        this.cleanup_callback.finish();
+        
         if(debug.get()) LOG.debug("<MapReduceTransaction> this.reduceWrapper_callback.finish().......................");
         this.mapEmit = null;
         this.reduceEmit = null;
@@ -348,6 +354,10 @@ public class MapReduceTransaction extends LocalTransaction {
     public TransactionReduceWrapperCallback getTransactionReduceWrapperCallback() {
         assert(this.reduceWrapper_callback.isInitialized());
         return (this.reduceWrapper_callback);
+    }
+    
+    public TransactionCleanupCallback getCleanupCallback() {
+        return cleanup_callback;
     }
     
     public void initTransactionMapWrapperCallback(RpcCallback<TransactionMapResponse> orig_callback) {
