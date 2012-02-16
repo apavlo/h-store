@@ -62,8 +62,8 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
         
         @Override
         public String toString() {
-        	StringBuilder sb = new StringBuilder();
-        	sb.append(catalog_tbl.getName() + " (");
+            StringBuilder sb = new StringBuilder();
+            sb.append(catalog_tbl.getName() + " (");
             String add = "";
             
             //
@@ -98,7 +98,7 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
     public Set<Entry> getIndexes() {
         Set<Entry> ret = new HashSet<Entry>();
         for ( Set<Entry> entries : this.values()){
-        	ret.addAll(entries);
+            ret.addAll(entries);
         } // FOR
         return (ret);
     }

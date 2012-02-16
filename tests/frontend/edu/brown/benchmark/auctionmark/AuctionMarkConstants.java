@@ -224,8 +224,8 @@ public abstract class AuctionMarkConstants {
     
     public static final Collection<String> DYNAMIC_TABLES = new HashSet<String>();
     static {
-    	DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
-    	DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_ATTRIBUTES);
+        DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_IMAGE);
         DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_ATTRIBUTE);
         DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_ITEM_COMMENT);
         DYNAMIC_TABLES.add(AuctionMarkConstants.TABLENAME_USER_FEEDBACK);
@@ -239,7 +239,7 @@ public abstract class AuctionMarkConstants {
     // These tables are loaded from static data files
     public static final Collection<String> DATAFILE_TABLES = new HashSet<String>();
     static {
-    	DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
+        DATAFILE_TABLES.add(AuctionMarkConstants.TABLENAME_CATEGORY);
     }
 
     // ----------------------------------------------------------------

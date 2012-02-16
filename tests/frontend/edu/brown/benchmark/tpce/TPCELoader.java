@@ -53,62 +53,62 @@ public class TPCELoader extends BenchmarkComponent {
      * @param args
      */
     public TPCELoader(String[] args) {
-		super(args);
-		
-		//
-		// We need to also be given the path to where the TPC-E EGenLoader binaries are
-		//
-		// System.out.println("EXTRA PARAMS: " + m_extraParams);
-		if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME.toLowerCase())) {
-		    LOG.error("Unable to start benchmark. Missing '" + TPCEConstants.PARAM_EGENLOADER_HOME + "' parameter");
-		    System.exit(1);
-		}
-		int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
-		int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
-		int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
-	    this.egenloader = new EGenLoader(m_extraParams.get(TPCEConstants.PARAM_EGENLOADER_HOME), total_customers, scale_factor, initial_days);
-	}
+        super(args);
+        
+        //
+        // We need to also be given the path to where the TPC-E EGenLoader binaries are
+        //
+        // System.out.println("EXTRA PARAMS: " + m_extraParams);
+        if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME.toLowerCase())) {
+            LOG.error("Unable to start benchmark. Missing '" + TPCEConstants.PARAM_EGENLOADER_HOME + "' parameter");
+            System.exit(1);
+        }
+        int total_customers = TPCEConstants.DEFAULT_NUM_CUSTOMERS;
+        int scale_factor = TPCEConstants.DEFAULT_SCALE_FACTOR;
+        int initial_days = TPCEConstants.DEFAULT_INITIAL_DAYS;
+        this.egenloader = new EGenLoader(m_extraParams.get(TPCEConstants.PARAM_EGENLOADER_HOME), total_customers, scale_factor, initial_days);
+    }
 
-	public static void main(String[] args) {
-		edu.brown.benchmark.BenchmarkComponent.main(TPCELoader.class, args, true);
-	}
+    public static void main(String[] args) {
+        edu.brown.benchmark.BenchmarkComponent.main(TPCELoader.class, args, true);
+    }
 
-	@Override
-	public String[] getTransactionDisplayNames() {
-		return new String[] {};
-	}
-	
-	@Override
-	public void runLoop() {
-		LOG.info("Begin to load tables...");
-		
-		Catalog catalog = null;
-		try {
-		    catalog = this.getCatalog();
-		} catch (Exception ex) {
-		    LOG.error("Failed to retrieve already compiled catalog", ex);
-		    System.exit(1);
-		}
-		Database catalog_db = catalog.getClusters().get(0).getDatabases().get(0); // NASTY! CatalogUtil.getDatabase(catalog);
-		
-		//
-		// Fixed-sized Tables
-		//
-		LOG.info("Generating and loading fixed-sized TPC-E tables");
+    @Override
+    public String[] getTransactionDisplayNames() {
+        return new String[] {};
+    }
+    
+    @Override
+    public void runLoop() {
+        LOG.info("Begin to load tables...");
+        
+        Catalog catalog = null;
+        try {
+            catalog = this.getCatalog();
+        } catch (Exception ex) {
+            LOG.error("Failed to retrieve already compiled catalog", ex);
+            System.exit(1);
+        }
+        Database catalog_db = catalog.getClusters().get(0).getDatabases().get(0); // NASTY! CatalogUtil.getDatabase(catalog);
+        
+        //
+        // Fixed-sized Tables
+        //
+        LOG.info("Generating and loading fixed-sized TPC-E tables");
         try {
             this.egenloader.generateFixedTables();
-    		for (String table_name : TPCEConstants.FIXED_TABLES) {
-    	        Table catalog_tbl = catalog_db.getTables().get(table_name);
-    	        assert(catalog_tbl != null);
-    	        this.loadTable(catalog_tbl, 1000);
-    		} // FOR
-    		//this.egenloader.clearTables();
+            for (String table_name : TPCEConstants.FIXED_TABLES) {
+                Table catalog_tbl = catalog_db.getTables().get(table_name);
+                assert(catalog_tbl != null);
+                this.loadTable(catalog_tbl, 1000);
+            } // FOR
+            //this.egenloader.clearTables();
         } catch (Exception ex) {
             LOG.error("Failed to generate and load fixed-sized tables", ex);
             System.exit(1);
         }
-		
-		//
+        
+        //
         // Scaling Tables
         // Load them in batches based on the customer ids
         //
@@ -148,15 +148,15 @@ public class TPCELoader extends BenchmarkComponent {
             System.exit(1);
         }
         
-		LOG.info("TPCE loader done.");
-	}
-	
-	/**
-	 * 
-	 * @param catalog_tbl
-	 */
-	public void loadTable(Table catalog_tbl, int batch_size) {
-	    LOG.debug("Loading records for table " + catalog_tbl.getName() + " in batches of " + batch_size);
+        LOG.info("TPCE loader done.");
+    }
+    
+    /**
+     * 
+     * @param catalog_tbl
+     */
+    public void loadTable(Table catalog_tbl, int batch_size) {
+        LOG.debug("Loading records for table " + catalog_tbl.getName() + " in batches of " + batch_size);
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         int row_idx = 0;
         boolean debug = false; //catalog_tbl.getName().equals("NEWS_ITEM");
@@ -184,5 +184,5 @@ public class TPCELoader extends BenchmarkComponent {
         if (vt.getRowCount() > 0) this.loadVoltTable(catalog_tbl.getName(), vt);
         LOG.debug("Finished loading " + row_idx + " tuples for " + catalog_tbl.getName());
         return;
-	}
+    }
 }

@@ -56,7 +56,7 @@ public class TestAuctionMarkLoader extends BaseTestCase {
     protected static final Logger LOG = Logger.getLogger(TestAuctionMarkLoader.class);
     
 //    protected static final int SCALE_FACTOR = 20000;
-	protected static final double SCALE_FACTOR = 1000;
+    protected static final double SCALE_FACTOR = 1000;
     protected static final String LOADER_ARGS[] = {
         "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, 
         "HOST=localhost",
@@ -157,18 +157,18 @@ public class TestAuctionMarkLoader extends BaseTestCase {
         Long batchsize = Long.MAX_VALUE;
         
         // Not all tables will have a table size
-    	if (AuctionMarkConstants.DATAFILE_TABLES.contains(tableName) == false &&
-    	    AuctionMarkConstants.DYNAMIC_TABLES.contains(tableName) == false &&
-    	    tableName.equalsIgnoreCase(AuctionMarkConstants.TABLENAME_ITEM) == false) {
-	        LOG.debug("Retrieving TABLESIZE attribute for table '" + tableName + "'");
-	        field_name = "TABLESIZE_" + tableName;
-	        field_handle = AuctionMarkConstants.class.getField(field_name);
-	        assertNotNull(field_handle);
-	        tablesize = (Long)field_handle.get(null);
-	        if (!AuctionMarkConstants.FIXED_TABLES.contains(tableName)) tablesize = Math.round(tablesize / SCALE_FACTOR);
-    	}
-    	
-    	// But all tables should have a batch size
+        if (AuctionMarkConstants.DATAFILE_TABLES.contains(tableName) == false &&
+            AuctionMarkConstants.DYNAMIC_TABLES.contains(tableName) == false &&
+            tableName.equalsIgnoreCase(AuctionMarkConstants.TABLENAME_ITEM) == false) {
+            LOG.debug("Retrieving TABLESIZE attribute for table '" + tableName + "'");
+            field_name = "TABLESIZE_" + tableName;
+            field_handle = AuctionMarkConstants.class.getField(field_name);
+            assertNotNull(field_handle);
+            tablesize = (Long)field_handle.get(null);
+            if (!AuctionMarkConstants.FIXED_TABLES.contains(tableName)) tablesize = Math.round(tablesize / SCALE_FACTOR);
+        }
+        
+        // But all tables should have a batch size
         field_name = "BATCHSIZE_" + tableName;
         field_handle = AuctionMarkConstants.class.getField(field_name);
         assertNotNull(field_handle);

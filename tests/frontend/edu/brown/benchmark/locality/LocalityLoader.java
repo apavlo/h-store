@@ -288,32 +288,32 @@ public class LocalityLoader extends BenchmarkComponent {
      * TABLEB Generator
      */
     protected class TABLEBGenerator extends AbstractTableGenerator {
-    	private long current_a_id = 0;
-    	private long current_b_id = 0;
-    	
+        private long current_a_id = 0;
+        private long current_b_id = 0;
+        
         public TABLEBGenerator() {
             super(LocalityConstants.TABLENAME_TABLEB, LocalityTables.initializeTableB());
         }
         
         @Override
         protected void populateRow() {
-        	int col = 0;
-        	
+            int col = 0;
+            
             // B_ID
             row[col++] = new Integer((int)this.current_b_id);
-        	
+            
             // B_A_ID
             row[col++] = new Integer((int)this.current_a_id);
 
             // B_VALUE
             row[col++] = "DEF456"; // FIXME
             
-        	assert (col == this.table.getColumnCount());
-        	
-        	if (++this.current_b_id > LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER) {
-        		this.current_b_id = 0;
-        		this.current_a_id++;
-        	}
+            assert (col == this.table.getColumnCount());
+            
+            if (++this.current_b_id > LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER) {
+                this.current_b_id = 0;
+                this.current_a_id++;
+            }
         }
     } // END CLASS
 }

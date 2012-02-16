@@ -556,7 +556,7 @@ public class LocalTransaction extends AbstractTransaction {
     // ----------------------------------------------------------------------------
     
     public boolean isMapReduce() {
-    	return (this.catalog_proc.getMapreduce());
+        return (this.catalog_proc.getMapreduce());
     }
     
     public void setClientResponse(ClientResponseImpl cresponse) {

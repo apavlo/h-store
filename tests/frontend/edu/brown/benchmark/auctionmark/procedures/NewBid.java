@@ -144,15 +144,15 @@ public class NewBid extends VoltProcedure {
     );
 
     public final SQLStmt insertItemMaxBid = new SQLStmt(
-    	"INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + "(" +
-    	"imb_i_id, " +
-    	"imb_u_id, " +
-    	"imb_ib_id, " +
-    	"imb_ib_i_id, " +
-    	"imb_ib_u_id, " +
-    	"imb_created, " +
-    	"imb_updated " +
-    	") VALUES (" +
+        "INSERT INTO " + AuctionMarkConstants.TABLENAME_ITEM_MAX_BID + "(" +
+        "imb_i_id, " +
+        "imb_u_id, " +
+        "imb_ib_id, " +
+        "imb_ib_i_id, " +
+        "imb_ib_u_id, " +
+        "imb_created, " +
+        "imb_updated " +
+        ") VALUES (" +
         "?, " + // imb_i_id
         "?, " + // imb_u_id
         "?, " + // imb_ib_id

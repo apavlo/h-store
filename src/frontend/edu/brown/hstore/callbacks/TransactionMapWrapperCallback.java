@@ -22,40 +22,40 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
  * @author pavlo
  */
 public class TransactionMapWrapperCallback extends BlockingCallback<TransactionMapResponse, Integer> {
-	private static final Logger LOG = Logger.getLogger(TransactionMapWrapperCallback.class);
+    private static final Logger LOG = Logger.getLogger(TransactionMapWrapperCallback.class);
     private final static LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     private final static LoggerBoolean trace = new LoggerBoolean(LOG.isTraceEnabled());
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-	
-	private TransactionMapResponse.Builder builder = null;
-	private MapReduceTransaction ts;
-	
-	public TransactionMapResponse.Builder getBuilder() {
+    
+    private TransactionMapResponse.Builder builder = null;
+    private MapReduceTransaction ts;
+    
+    public TransactionMapResponse.Builder getBuilder() {
         return builder;
     }
 
     public TransactionMapWrapperCallback(HStoreSite hstore_site) {
-		super(hstore_site, false);
-	}
-	
-	public void init(MapReduceTransaction ts, RpcCallback<TransactionMapResponse> orig_callback) {
-	    assert(this.isInitialized() == false) :
+        super(hstore_site, false);
+    }
+    
+    public void init(MapReduceTransaction ts, RpcCallback<TransactionMapResponse> orig_callback) {
+        assert(this.isInitialized() == false) :
             String.format("Trying to initialize %s twice! [origTs=%s, newTs=%s]",
                           this.getClass().getSimpleName(), this.ts, ts);
         if (debug.get())
             LOG.debug("Starting new " + this.getClass().getSimpleName() + " for " + ts);
         this.ts = ts;
-		this.builder = TransactionMapResponse.newBuilder()
-        					 .setTransactionId(ts.getTransactionId())
-        					 .setStatus(Hstoreservice.Status.OK);
-		super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
-	}
-	
-	@Override
-	protected void abortCallback(Status status) {
-		if (debug.get())
+        this.builder = TransactionMapResponse.newBuilder()
+                             .setTransactionId(ts.getTransactionId())
+                             .setStatus(Hstoreservice.Status.OK);
+        super.init(ts.getTransactionId(), hstore_site.getLocalPartitionIds().size(), orig_callback);
+    }
+    
+    @Override
+    protected void abortCallback(Status status) {
+        if (debug.get())
             LOG.debug(String.format("Txn #%d - Aborting %s with status %s",
                                     this.getTransactionId(), this.getClass().getSimpleName(), status));
         this.builder.setStatus(status);
@@ -66,32 +66,32 @@ public class TransactionMapWrapperCallback extends BlockingCallback<TransactionM
             }
         } // FOR
         this.unblockCallback();
-	}
+    }
 
-	@Override
-	protected void finishImpl() {
-		this.builder = null;
-		this.ts = null;
-	}
-	
+    @Override
+    protected void finishImpl() {
+        this.builder = null;
+        this.ts = null;
+    }
+    
     @Override
     public boolean isInitialized() {
         return ( this.ts != null && this.builder != null && super.isInitialized());
     }
 
-	@Override
-	protected int runImpl(Integer partition) {
-		if (this.isAborted() == false)
+    @Override
+    protected int runImpl(Integer partition) {
+        if (this.isAborted() == false)
             this.builder.addPartitions(partition.intValue());
-		assert(this.ts != null) :
+        assert(this.ts != null) :
             String.format("Missing MapReduceTransaction handle for txn #%d", this.ts.getTransactionId());
-		
+        
         return 1;
-	}
+    }
 
-	@Override
-	protected void unblockCallback() {
-		if (debug.get()) {
+    @Override
+    protected void unblockCallback() {
+        if (debug.get()) {
             LOG.debug(String.format("Txn #%d - Sending %s to %s with status %s",
                                     this.getTransactionId(),
                                     TransactionMapResponse.class.getSimpleName(),
@@ -116,11 +116,11 @@ public class TransactionMapWrapperCallback extends BlockingCallback<TransactionM
             LOG.debug(String.format("Txn #%d - I am swithing to SHUFFLE phase, go to MR_helper thread",this.getTransactionId()));
         // enqueue this MapReduceTransaction to do shuffle work
         mr_helper.queue(this.ts);
-	}
-	
-	public void runOrigCallback() {
+    }
+    
+    public void runOrigCallback() {
         this.getOrigCallback().run(this.builder.build());
     }
 
-	
+    
 }

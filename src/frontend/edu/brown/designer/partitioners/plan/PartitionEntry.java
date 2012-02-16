@@ -93,8 +93,8 @@ public abstract class PartitionEntry<T extends CatalogType> implements JSONSeria
     
     @Override
     public boolean equals(Object obj) {
-    	if (this == obj) return true;
-    	
+        if (this == obj) return true;
+        
         if (!(obj instanceof PartitionEntry)) {
             return (false);
         }

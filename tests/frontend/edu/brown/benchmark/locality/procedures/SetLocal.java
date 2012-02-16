@@ -16,10 +16,10 @@ import org.voltdb.VoltTable;
 public class SetLocal extends VoltProcedure {
 
     public final SQLStmt WriteA = new SQLStmt(
-		"UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?");
+        "UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?");
     
     public final SQLStmt WriteB = new SQLStmt(
-	    "UPDATE TABLEB SET B_VALUE = ? WHERE B_ID = ? AND B_A_ID = ?");
+        "UPDATE TABLEB SET B_VALUE = ? WHERE B_ID = ? AND B_A_ID = ?");
 
     /**
      * 

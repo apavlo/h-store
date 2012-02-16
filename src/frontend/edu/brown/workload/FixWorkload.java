@@ -276,7 +276,7 @@ public abstract class FixWorkload {
         buffer = new StringBuilder();
         buffer.append("Partition Histograms:\n");
         for ( Entry<Integer, Histogram> entry : histograms.entrySet()) {
-        	Integer partition_id = entry.getKey();
+            Integer partition_id = entry.getKey();
             buffer.append("Partition: " + partition_id + " [" + distributions.get(partition_id).getMin() + "]\n");
             buffer.append(entry.getValue()).append("\n");
         } // FOR

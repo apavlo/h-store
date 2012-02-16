@@ -43,12 +43,12 @@ public class MockPartitionExecutor extends PartitionExecutor {
     }
     
     public synchronized void storeDependency(long txnId, int senderPartitionId, int dependencyId, VoltTable data) {
-    	System.err.println("STORING TXN #" + txnId);
+        System.err.println("STORING TXN #" + txnId);
         this.dependencies.put(txnId, data);
         CountDownLatch latch = this.latches.get(txnId);
         if (latch != null) {
-        	System.err.println("UNBLOCKING TXN #" + txnId);
-        	latch.countDown();
+            System.err.println("UNBLOCKING TXN #" + txnId);
+            latch.countDown();
         }
     }
     
@@ -57,21 +57,21 @@ public class MockPartitionExecutor extends PartitionExecutor {
     }
     
     public synchronized VoltTable waitForDependency(long txnId) {
-    	VoltTable vt = this.dependencies.get(txnId);
-    	if (vt == null) {
-    		CountDownLatch latch = this.latches.get(txnId);
-    		if (latch == null) {
-    			latch = new CountDownLatch(1);
-    			this.latches.put(txnId, latch);
-    		}
-    		try {
-    			System.err.println("WAITING FOR TXN #" + txnId);
-    			latch.await(100, TimeUnit.MILLISECONDS);
-    		} catch (InterruptedException ex) {
-    			throw new RuntimeException(ex);
-    		}
-    		vt = this.dependencies.get(txnId);
-    	}
-    	return (vt);
+        VoltTable vt = this.dependencies.get(txnId);
+        if (vt == null) {
+            CountDownLatch latch = this.latches.get(txnId);
+            if (latch == null) {
+                latch = new CountDownLatch(1);
+                this.latches.put(txnId, latch);
+            }
+            try {
+                System.err.println("WAITING FOR TXN #" + txnId);
+                latch.await(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+            vt = this.dependencies.get(txnId);
+        }
+        return (vt);
     }
 }

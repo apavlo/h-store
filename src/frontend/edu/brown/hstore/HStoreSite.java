@@ -1452,7 +1452,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             // If we didn't queue the transaction to be finished at this partition, then we need to make sure
             // that we mark the transaction as finished for this callback
             else if (cleanup_callback != null && ts instanceof MapReduceTransaction) {
-            	cleanup_callback.run(p);
+                cleanup_callback.run(p);
             }
         } // FOR            
     }

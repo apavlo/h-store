@@ -246,7 +246,7 @@ public abstract class ForeignKeysUtil {
         
         Map<Table, Constraint> table_const_map = new HashMap<Table, Constraint>();
         for ( Entry<String, String> entry: fkeys.entrySet()) {
-        	String column = entry.getKey();
+            String column = entry.getKey();
             String fkey[] = entry.getValue().split("\\.");
             Column catalog_col = catalog_tbl.getColumns().get(column);
             Table catalog_fkey_tbl = catalog_db.getTables().get(fkey[0]);

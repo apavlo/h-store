@@ -244,7 +244,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The maximum amount of time that the PartitionExecutor will wait for the results of a distributed  " +
-            		    "query to return to the transaction's base partition. Usually if this limit is reached, then there " +
+                        "query to return to the transaction's base partition. Usually if this limit is reached, then there " +
                         "is something very wrong with the distributed transaction protocol.",
             defaultInt=10000,
             experimental=true
@@ -272,7 +272,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Enable transaction profiling. This will measure the amount of time a transaction spends" +
-            		    "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
+                        "in different parts of the system (e.g., waiting in the work queue, planning, executing).",
             defaultBoolean=false,
             experimental=false
         )
@@ -337,7 +337,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="The maximum amount that the ${site.queue_incoming_max_per_partition} parameter " +
-            		    "can be increased by per partition.",
+                        "can be increased by per partition.",
             defaultInt=300,
             experimental=false
         )
@@ -668,11 +668,11 @@ public final class HStoreConf {
         public int pool_localtxnstate_idle;
         
         @ConfigProperty(
-	        description="The max number of MapReduceTransactionStates to keep in the pool",
-	        defaultInt=100,
-	        experimental=false
-	    )
-	    public int pool_mapreducetxnstate_idle;
+            description="The max number of MapReduceTransactionStates to keep in the pool",
+            defaultInt=100,
+            experimental=false
+        )
+        public int pool_mapreducetxnstate_idle;
         
         @ConfigProperty(
             description="The max number of RemoteTransactionStates to keep in the pool",
