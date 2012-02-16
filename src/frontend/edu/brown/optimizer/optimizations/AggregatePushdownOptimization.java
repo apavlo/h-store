@@ -103,14 +103,14 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
                 throw new RuntimeException(ex);
             }
             state.markDirty(clone_node);
-            HashAggregatePlanNode clone_hash = (HashAggregatePlanNode)clone_node;
+            HashAggregatePlanNode clone_agg = (HashAggregatePlanNode)clone_node;
             
             // Set original AggregateNode to contain sum
-            if (clone_hash.getAggregateTypes().size() > 0) {
+            if (clone_agg.getAggregateTypes().size() > 0) {
                 List<ExpressionType> exp_types = node.getAggregateTypes();
                 exp_types.clear();
                 
-                ExpressionType origType = clone_hash.getAggregateTypes().get(0);
+                ExpressionType origType = clone_agg.getAggregateTypes().get(0);
                 switch (origType) {
                     case AGGREGATE_COUNT:
                     case AGGREGATE_COUNT_STAR:
@@ -126,15 +126,26 @@ public class AggregatePushdownOptimization extends AbstractOptimization {
                 } // SWITCH
             }
             
-            assert(clone_hash.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
-            assert(clone_hash.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
-            assert(clone_hash.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) :
-                clone_hash.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
-            assert(clone_hash.getAggregateTypes().size() == node.getAggregateTypes().size());
-            assert(clone_hash.getAggregateColumnGuids().size() == node.getAggregateColumnGuids().size());
-            assert(clone_hash.getAggregateColumnNames().size() == node.getAggregateColumnNames().size());
-            assert(clone_hash.getAggregateOutputColumns().size() == node.getAggregateOutputColumns().size());
-            assert(clone_hash.getOutputColumnGUIDs().size() == node.getOutputColumnGUIDs().size());
+            // IMPORTANT: If we have GROUP BY columns, thn we need to make sure that
+            // those columns are always passed up the query tree at the pushed down
+            // node, even if the final answer doesn't need it
+            if (node.getGroupByColumnGuids().isEmpty() == false) {
+                for (Integer guid : clone_agg.getGroupByColumnGuids()) {
+                    if (clone_agg.getOutputColumnGUIDs().contains(guid) == false) {
+                        clone_agg.getOutputColumnGUIDs().add(guid);
+                    }
+                } // FOR
+            }
+            
+            assert(clone_agg.getGroupByColumnOffsets().size() == node.getGroupByColumnOffsets().size());
+            assert(clone_agg.getGroupByColumnNames().size() == node.getGroupByColumnNames().size());
+            assert(clone_agg.getGroupByColumnGuids().size() == node.getGroupByColumnGuids().size()) :
+                clone_agg.getGroupByColumnGuids().size() + " not equal " + node.getGroupByColumnGuids().size();
+            assert(clone_agg.getAggregateTypes().size() == node.getAggregateTypes().size());
+            assert(clone_agg.getAggregateColumnGuids().size() == node.getAggregateColumnGuids().size());
+            assert(clone_agg.getAggregateColumnNames().size() == node.getAggregateColumnNames().size());
+            assert(clone_agg.getAggregateOutputColumns().size() == node.getAggregateOutputColumns().size());
+//            assert(clone_agg.getOutputColumnGUIDs().size() == node.getOutputColumnGUIDs().size());
         }
         assert(clone_node != null);
         
