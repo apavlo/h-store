@@ -462,7 +462,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.processors);
     }
     
-    protected HStoreCoordinator initHStoreCoordinator() {
+    public HStoreCoordinator initHStoreCoordinator() {
         return new HStoreCoordinator(this);
     }
     public HStoreCoordinator getCoordinator() {
