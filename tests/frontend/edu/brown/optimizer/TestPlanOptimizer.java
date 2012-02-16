@@ -17,6 +17,7 @@ import org.voltdb.plannodes.AggregatePlanNode;
 import org.voltdb.plannodes.LimitPlanNode;
 import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.plannodes.SeqScanPlanNode;
 import org.voltdb.types.PlanNodeType;
 
 import edu.brown.benchmark.AbstractProjectBuilder;
@@ -36,10 +37,10 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 //                                  "SELECT COUNT(DISTINCT(TABLEB.B_ID)) AS DISTINCTNUMBER " +
 //                                  "FROM TABLEA, TABLEB " +
 //                                  "WHERE TABLEA.A_ID = TABLEB.B_A_ID AND TABLEA.A_ID = ? AND TABLEB.B_ID < ?");
-//            
-//            this.addStmtProcedure("DistinctCount",
-//                                  "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
-//            
+            
+            this.addStmtProcedure("DistinctCount",
+                                  "SELECT COUNT(DISTINCT(TABLEB.B_A_ID)) FROM TABLEB");
+            
 //            this.addStmtProcedure("MaxGroup",
 //                                  "SELECT B_ID, Max(TABLEB.B_A_ID) FROM TABLEB GROUP BY B_ID");
 //            
@@ -48,10 +49,10 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 //            
 //            this.addStmtProcedure("Min",
 //                                  "SELECT MIN(TABLEB.B_A_ID) FROM TABLEB");
-            
-            this.addStmtProcedure("AggregateCount",
-                                  "SELECT COUNT(TABLEB.B_A_ID) AS cnt, B_VALUE0 FROM TABLEB GROUP BY B_VALUE0");
-            
+//            
+//            this.addStmtProcedure("AggregateCount",
+//                                  "SELECT COUNT(TABLEB.B_A_ID) AS cnt, B_VALUE0 FROM TABLEB GROUP BY B_VALUE0");
+//            
 //            this.addStmtProcedure("Limit",
 //                                  "SELECT * FROM TABLEA WHERE TABLEA.A_ID > ? AND TABLEA.A_ID <= ? AND TABLEA.A_VALUE0 != ? LIMIT 15");
 //            
@@ -101,6 +102,27 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
     protected void setUp() throws Exception {
         super.setUp(pb);
     }
+    
+    /**
+     * testExtractReferencedColumns
+     */
+    @Test
+    public void testExtractReferencedColumns() throws Exception {
+        Procedure catalog_proc = this.getProcedure("DistinctCount");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+        
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+        
+        Collection<SeqScanPlanNode> scan_nodes = PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class);
+        SeqScanPlanNode scan_node = CollectionUtil.first(scan_nodes);
+        assertNotNull(scan_node);
+        
+        PlanOptimizerState state = new PlanOptimizerState(catalog_db, PlannerContext.singleton());
+        Collection<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, scan_node);
+        assertNotNull(referenced);
+        System.err.println(referenced);
+    }
 
 //    /**
 //     * testDistinctAggregate
@@ -116,22 +138,22 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 //        //validateNodeColumnOffsets(root);
 //        //System.err.println(PlanNodeUtil.debug(root));
 //    }    
-//
-//    /**
-//     * testDistinctCount
-//     */
-//    @Test
-//    public void testDistinctCount() throws Exception {
-//        Procedure catalog_proc = this.getProcedure("DistinctCount");
-//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-//
-//        // Grab the root node of the multi-partition query plan tree for this
-//        // Statement
-//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
-//        assertNotNull(root);
-////        validateNodeColumnOffsets(root);
-//        //System.err.println(PlanNodeUtil.debug(root));
-//    }
+
+    /**
+     * testDistinctCount
+     */
+    @Test
+    public void testDistinctCount() throws Exception {
+        Procedure catalog_proc = this.getProcedure("DistinctCount");
+        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+
+        // Grab the root node of the multi-partition query plan tree for this
+        // Statement
+        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
+        assertNotNull(root);
+//        validateNodeColumnOffsets(root);
+        //System.err.println(PlanNodeUtil.debug(root));
+    }
 //    
 //    /**
 //     * testMaxGroup
@@ -180,40 +202,41 @@ public class TestPlanOptimizer extends BasePlanOptimizerTestCase {
 ////        validateNodeColumnOffsets(root);
 ////        System.err.println(PlanNodeUtil.debug(root));
 //    }
-
-    /**
-     * testAggregateCount
-     */
-    @Test
-    public void testAggregateCount() throws Exception {
-        Procedure catalog_proc = this.getProcedure("AggregateCount");
-        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
-
-        // Grab the root node of the multi-partition query plan tree for this Statement
-        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
-        assertNotNull(root);
-        
-        // We should have two AggregatePlanNodes.
-        // Make sure that they have the same GroupByColumns
-        Collection<AggregatePlanNode> agg_nodes = PlanNodeUtil.getPlanNodes(root, AggregatePlanNode.class);
-        assertEquals(2, agg_nodes.size());
-        
-        AggregatePlanNode agg0 = CollectionUtil.get(agg_nodes, 0);
-        assertNotNull(agg0);
-        AggregatePlanNode agg1 = CollectionUtil.get(agg_nodes, 1);
-        assertNotNull(agg1);
-        assertNotSame(agg0, agg1);
-        
-        System.err.println(PlanNodeUtil.debug(root));
-        
-        assertEquals(agg0.getGroupByColumnNames(), agg1.getGroupByColumnNames());
-        assertEquals(agg0.getGroupByColumnGuids(), agg1.getGroupByColumnGuids());
-        
-        
-        BasePlanOptimizerTestCase.validate(root);
-//        validateNodeColumnOffsets(root);
-    }
-
+//
+//    /**
+//     * testAggregateCount
+//     */
+//    @Test
+//    public void testAggregateCount() throws Exception {
+//        Procedure catalog_proc = this.getProcedure("AggregateCount");
+//        Statement catalog_stmt = this.getStatement(catalog_proc, "sql");
+//
+//        // Grab the root node of the multi-partition query plan tree for this Statement
+//        AbstractPlanNode root = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, false);
+//        assertNotNull(root);
+//        
+//        // We should have two AggregatePlanNodes.
+//        // Make sure that they have the same GroupByColumns
+//        Collection<AggregatePlanNode> agg_nodes = PlanNodeUtil.getPlanNodes(root, AggregatePlanNode.class);
+//        assertEquals(2, agg_nodes.size());
+//        
+//        AggregatePlanNode agg0 = CollectionUtil.get(agg_nodes, 0);
+//        assertNotNull(agg0);
+//        AggregatePlanNode agg1 = CollectionUtil.get(agg_nodes, 1);
+//        assertNotNull(agg1);
+//        assertNotSame(agg0, agg1);
+//        
+//        System.err.println(PlanNodeUtil.debug(root));
+//        
+//        assertEquals(agg0.getAggregateOutputColumns(), agg1.getAggregateOutputColumns());
+//        assertEquals(agg0.getGroupByColumnNames(), agg1.getGroupByColumnNames());
+////        assertEquals(agg0.getGroupByColumnGuids(), agg1.getGroupByColumnGuids());
+//        
+//        
+//        BasePlanOptimizerTestCase.validate(root);
+////        validateNodeColumnOffsets(root);
+//    }
+//
 //    /**
 //     * testLimit
 //     */

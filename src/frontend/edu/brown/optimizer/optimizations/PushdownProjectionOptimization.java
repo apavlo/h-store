@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.Column;
 import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.TupleValueExpression;
@@ -15,9 +14,7 @@ import org.voltdb.planner.PlanAssembler;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
-import org.voltdb.plannodes.AggregatePlanNode;
 import org.voltdb.plannodes.NestLoopIndexPlanNode;
-import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
 import org.voltdb.plannodes.SendPlanNode;
 import org.voltdb.types.PlanNodeType;
@@ -26,6 +23,7 @@ import org.voltdb.utils.Pair;
 import edu.brown.expressions.ExpressionUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.optimizer.PlanOptimizerState;
+import edu.brown.optimizer.PlanOptimizerUtil;
 import edu.brown.plannodes.PlanNodeTreeWalker;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.CollectionUtil;
@@ -58,9 +56,13 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                             LOG.debug("SKIP - " + element + " already has an inline ProjectionPlanNode");
                     }
                     else {
-                        if (addProjection(element, true) == false) {
-                            this.stop();
-                            return;
+                        try {
+                            if (addProjection(element, true) == false) {
+                                this.stop();
+                                return;
+                            }
+                        } catch (Throwable ex) {
+                            throw new RuntimeException("Failed to add projection for " + element, ex);
                         }
                         modified.set(true);
                     }
@@ -77,9 +79,13 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
                     assert(state.join_tbl_mapping.get(element) != null) :
                         element + " does NOT exist in join map";
                     
-                    if (addProjection(element, false) == false) {
-                        this.stop();
-                        return;
+                    try {
+                        if (addProjection(element, false) == false) {
+                            this.stop();
+                            return;
+                        }
+                    } catch (Throwable ex) {
+                        throw new RuntimeException("Failed to add projection for " + element, ex);
                     }
                     modified.set(true);
                 }
@@ -94,10 +100,10 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
         
         // Look at the output columns of the given AbstractPlanNode and figure out
         // which of those columns we're going to need up above in the tree
-        Set<PlanColumn> referenced = this.extractReferencedColumns(node);
+        Set<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, node);
         if (debug.get())
             LOG.debug(String.format("All referenced columns above %s:\n%s",
-                      node, StringUtil.join("\n", referenced)));
+                                    node, StringUtil.join("\n", referenced)));
 
         // Look over the PlanColumns that we need above us, and add the ones that
         // are coming out of the parent. Those are the ones that we want to include
@@ -117,7 +123,7 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
         if (new_output_cols.isEmpty())
             LOG.warn("BUSTED:\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)) + "\n" + state);
         assert(new_output_cols.isEmpty() == false) :
-            String.format("No output columns for " + node);
+            String.format("No new output columns for " + node);
         
         // Check whether the output PlanColumns all reference the same table,
         // and we have the same number of PlanColumns as that table has in the catalog
@@ -216,100 +222,8 @@ public class PushdownProjectionOptimization extends AbstractOptimization {
             }
         } // FOR
     }
-    
-    /**
-     * Extract all the PlanColumns that we are going to need in the query plan tree above
-     * the given node.
-     * @param node
-     * @param tables
-     * @return
-     */
-    private Set<PlanColumn> extractReferencedColumns(final AbstractPlanNode node) {
-        if (debug.get())
-            LOG.debug("Extracting referenced column set for " + node);
-        
-        final Set<PlanColumn> ref_columns = new ListOrderedSet<PlanColumn>();
-        final Set<Integer> col_guids = new HashSet<Integer>();
-//        final boolean top_join = (node instanceof NestLoopIndexPlanNode &&
-//                                  state.join_node_index.get(state.join_node_index.firstKey()) == node);
-        
-        // Walk up the tree from the current node and figure out what columns that we need from it are
-        // referenced. This will tell us how many we can actually project out at this point
-        new PlanNodeTreeWalker(true, true) {
-            @Override
-            protected void callback(AbstractPlanNode element) {
-                // If this is the same node that we're examining, then we can skip it
-                // Otherwise, anything that this guy references but nobody else does
-                // will incorrectly get included in the projection
-                if (element == node) return;
-                
-                int ctr = 0;
-                
-                // ---------------------------------------------------
-                // ProjectionPlanNode
-                // AbstractScanPlanNode
-                // AggregatePlanNode
-                // ---------------------------------------------------
-                if (element instanceof ProjectionPlanNode ||
-                    element instanceof AbstractScanPlanNode ||
-                    element instanceof AggregatePlanNode) {
-                    
-                    // This is set can actually be null because we can parallelize certain operations on each node
-                    // so that we don't have to send the entire data set back to the base partition
-                    Set<Column> col_set = state.getPlanNodeColumns(element);
-                    
-                    // Check whether we're the top-most join, or that we don't have any referenced columns
-                    if (col_set == null) {
-                        ctr += element.getOutputColumnGUIDCount();
-                        col_guids.addAll(element.getOutputColumnGUIDs());
-                    } else {
-                        assert (col_set != null) : "Null column set for " + element + " [" + element.hashCode() + "]";
-                        if (col_set != null) {
-                            for (Column col : col_set) {
-                                col_guids.add(CollectionUtil.first(state.column_guid_xref.get(col)));
-                                ctr++;
-                            } // FOR
-                        }
-                    }
-                }
-                // ---------------------------------------------------
-                // OrderByPlanNode
-                // ---------------------------------------------------
-                else if (element instanceof OrderByPlanNode) {
-                    ctr += ((OrderByPlanNode)element).getSortColumnGuids().size();
-                    col_guids.addAll(((OrderByPlanNode)element).getSortColumnGuids());
-                }
-                
-                if (debug.get() && ctr > 0)
-                    LOG.debug(String.format("%s -> Found %d PlanColumns referenced in %s", node, ctr, element));
-            }
-        }.traverse(node);
-        
-        // Now extract the TupleValueExpression and get the PlanColumn that we really want
-        for (Integer col_guid : col_guids) {
-            this.addProjectionColumn(ref_columns, col_guid);
-        } // FOR
-        
-        return (ref_columns);
-    }
+
     
 
-    private void addProjectionColumn(Set<PlanColumn> proj_columns, Integer col_id) {
-        PlanColumn new_column = state.plannerContext.get(col_id);
-        boolean exists = false;
-        for (PlanColumn plan_col : proj_columns) {
-            if (new_column.getDisplayName().equals(plan_col.getDisplayName())) { // This seems wrong...
-                exists = true;
-                break;
-            }
-        } // FOR
-        if (!exists) {
-            proj_columns.add(new_column);
-            if (debug.get())
-                LOG.debug(String.format("Added PlanColumn #%d to list of projection columns. [%s]", col_id, new_column.getDisplayName()));
-        } else {
-            if (debug.get())
-                LOG.debug("Skipped PlanColumn #" + col_id + " because it already exists.");
-        }
-    }
+    
 }

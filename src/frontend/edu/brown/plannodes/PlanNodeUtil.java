@@ -569,17 +569,17 @@ public abstract class PlanNodeUtil {
         for (int ctr = 0, cnt = guids.size(); ctr < cnt; ctr++) {
             int column_guid = guids.get(ctr);
             String name = "???";
-            String inner = "";
             PlanColumn column = PlannerContext.singleton().get(column_guid);
+            String inner = " : guid=" + column_guid;
             if (column != null) {
                 assert(column_guid == column.guid());
                 name = column.getDisplayName();
-                inner = " : type=" + column.type() +
+                inner += " : type=" + column.type() +
                         " : size=" + column.width() +
                         " : sort=" + column.getSortOrder() +
                         " : storage=" + column.getStorage();
             }
-            inner += " : guid=" + column_guid;
+            
             ret += String.format("%s   [%02d] %s%s\n", spacer, ctr, name, inner);
             
             if (column != null && column.getExpression() != null) { //  && (true || node instanceof ProjectionPlanNode)) {
