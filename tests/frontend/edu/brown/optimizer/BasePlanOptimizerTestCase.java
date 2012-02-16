@@ -17,6 +17,7 @@ import org.voltdb.planner.PlannerContext;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.plannodes.AbstractScanPlanNode;
 import org.voltdb.plannodes.AggregatePlanNode;
+import org.voltdb.plannodes.DistinctPlanNode;
 import org.voltdb.plannodes.NestLoopIndexPlanNode;
 import org.voltdb.plannodes.OrderByPlanNode;
 import org.voltdb.plannodes.ProjectionPlanNode;
@@ -337,11 +338,11 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
         }.traverse(node);
     }
 
-    public static void validate(final AbstractPlanNode root) throws Exception {
+    public static void validate(final AbstractPlanNode node) throws Exception {
             
-            System.err.println("Validating: " + root + " / " + root.getPlanNodeType());
+            System.err.println("Validating: " + node + " / " + node.getPlanNodeType());
             
-            switch (root.getPlanNodeType()) {
+            switch (node.getPlanNodeType()) {
                 // Make sure that the output columns from this node match the output
                 // columns of the scan node below us that is feeding into it 
     //            case NESTLOOPINDEX: {
@@ -367,39 +368,49 @@ public abstract class BasePlanOptimizerTestCase extends BaseTestCase {
     //                } // FOR
     //                break;
     //            }
+                case DISTINCT: {
+                    // Make sure the DISTINCT column is in the output columns
+                    DistinctPlanNode cast_node = (DistinctPlanNode)node;
+                    Integer distinct_col = cast_node.getDistinctColumnGuid();
+                    if (cast_node.getOutputColumnGUIDs().contains(distinct_col) == false) {
+                        throw new Exception(String.format("%s is missing DISTINCT PlanColumn GUID %d in its output columns", cast_node, distinct_col));
+                    }
+                    
+                    break;
+                }
                 case HASHAGGREGATE:
                 case AGGREGATE: {
                     // Every PlanColumn referenced in this node must appear in its children's output
-                    Collection<Integer> planCols = root.getOutputColumnGUIDs();
+                    Collection<Integer> planCols = node.getOutputColumnGUIDs();
                     assert(planCols != null);
                     
                     System.err.println("PLAN COLS: " + planCols);
                     
-                    Set<Integer> foundCols = new HashSet<Integer>();
-                    for (AbstractPlanNode child : root.getChildren()) {
-                        Collection<Integer> childCols = PlanNodeUtil.getOutputColumnIdsForPlanNode(child);
-                        System.err.println("CHILD " + child + " OUTPUT: " + childCols);
-                        
-                        for (Integer childCol : childCols) {
-                            if (planCols.contains(childCol)) {
-                                foundCols.add(childCol);
-                            }
-                        } // FOR
-                        if (foundCols.size() == planCols.size()) break;
-                    } // FOR
-                    
-                    if (PlanNodeUtil.getPlanNodes(root, SeqScanPlanNode.class).isEmpty() && // HACK
-                        foundCols.containsAll(planCols) == false) {
-                        throw new Exception(String.format("Failed to find all of the columns referenced by %s in the output columns of %s",
-                                                          root, planCols));
-                    }
+//                    Set<Integer> foundCols = new HashSet<Integer>();
+//                    for (AbstractPlanNode child : node.getChildren()) {
+//                        Collection<Integer> childCols = PlanNodeUtil.getOutputColumnIdsForPlanNode(child);
+//                        System.err.println("CHILD " + child + " OUTPUT: " + childCols);
+//                        
+//                        for (Integer childCol : childCols) {
+//                            if (planCols.contains(childCol)) {
+//                                foundCols.add(childCol);
+//                            }
+//                        } // FOR
+//                        if (foundCols.size() == planCols.size()) break;
+//                    } // FOR
+//                    
+//                    if (PlanNodeUtil.getPlanNodes(node, SeqScanPlanNode.class).isEmpty() && // HACK
+//                        foundCols.containsAll(planCols) == false) {
+//                        throw new Exception(String.format("Failed to find all of the columns referenced by %s in the output columns of %s",
+//                                                          node, planCols));
+//                    }
                     break;
                 }
                 
                 
             } // SWITCH
             
-            for (AbstractPlanNode child : root.getChildren()) {
+            for (AbstractPlanNode child : node.getChildren()) {
                 BasePlanOptimizerTestCase.validate(child);
             }
             return;

@@ -711,14 +711,12 @@ public abstract class PlanOptimizerUtil {
             // Figure out what the new PlanColumn GUID is for this column
             // It may be the case that we need to make a new one because the
             // underlying expression has the wrong offsets
-            PlanColumn new_pc = null;
-
             // Find the new index of this same PlanColumn guid in the outer table's output columns
             Integer new_idx = outer_output_guids.indexOf(orig_col_guid);
             
             // If this column is not in the outer table's output columns 
             if (new_idx != -1) {
-                new_pc = state.plannerContext.get(orig_col_guid);
+                // PlanColumn new_pc = state.plannerContext.get(orig_col_guid);
                 //new_output_guids.add(orig_col_guid);
                 new_sorted_output_guids.put(new_idx, orig_col_guid);
                 if (debug.get())
@@ -727,12 +725,14 @@ public abstract class PlanOptimizerUtil {
             // Check whether we even have this column. We'll compare everything but the Expression
             else {
                 Pair<PlanColumn, Integer> p = findMatchingColumn(state, orig_pc, outer_output_guids);
-                new_pc = p.getFirst();
-                new_idx = p.getSecond();
 
                 // If we have this PlanColumn, then we need to clone it and set the new column index
                 // Make sure that we replace update outer_new_input_guids
-                if (new_pc != null) {
+                if (p != null) {
+//                    PlanColumn new_pc = p.getFirst();
+                    assert(p.getFirst() != null);
+                    new_idx = p.getSecond();
+                    
                     TupleValueExpression clone_exp = null;
                     try {
                         clone_exp = (TupleValueExpression) orig_pc.getExpression().clone();

@@ -21,11 +21,11 @@ import edu.brown.utils.CollectionUtil;
  * Pushdown a LIMIT and ORDER BY to be before we send data over the network
  * @author pavlo
  */
-public class PushdownLimitOrderByOptimization extends AbstractOptimization {
-    private static final Logger LOG = Logger.getLogger(PushdownLimitOrderByOptimization.class);
+public class LimitOrderByPushdownOptimization extends AbstractOptimization {
+    private static final Logger LOG = Logger.getLogger(LimitOrderByPushdownOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
-    public PushdownLimitOrderByOptimization(PlanOptimizerState state) {
+    public LimitOrderByPushdownOptimization(PlanOptimizerState state) {
         super(state);
     }
     

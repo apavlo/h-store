@@ -33,11 +33,11 @@ import edu.brown.utils.StringUtil;
  * 
  * @author pavlo
  */
-public class PushdownProjectionOptimization extends AbstractOptimization {
-    private static final Logger LOG = Logger.getLogger(PushdownProjectionOptimization.class);
+public class ProjectionPushdownOptimization extends AbstractOptimization {
+    private static final Logger LOG = Logger.getLogger(ProjectionPushdownOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
     
-    public PushdownProjectionOptimization(PlanOptimizerState state) {
+    public ProjectionPushdownOptimization(PlanOptimizerState state) {
         super(state);
     }
     
