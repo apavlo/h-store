@@ -17,7 +17,6 @@
 
 package org.voltdb.compiler;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -51,12 +50,13 @@ import edu.brown.hstore.interfaces.Prefetchable;
 import edu.brown.utils.ClassUtil;
 
 /**
- * Compiles stored procedures into a given catalog, invoking the StatementCompiler as needed.
+ * Compiles stored procedures into a given catalog, invoking the
+ * StatementCompiler as needed.
  */
 public abstract class ProcedureCompiler {
 
-    static void compile(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog,
-            Database db, ProcedureDescriptor procedureDescriptor) throws VoltCompiler.VoltCompilerException {
+    static void compile(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
+            throws VoltCompiler.VoltCompilerException {
 
         assert (compiler != null);
         assert (hsql != null);
@@ -68,8 +68,7 @@ public abstract class ProcedureCompiler {
             compileSingleStmtProcedure(compiler, hsql, estimates, catalog, db, procedureDescriptor);
     }
 
-    static void compileJavaProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates,
-            Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
+    static void compileJavaProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
             throws VoltCompiler.VoltCompilerException {
 
         final String className = procedureDescriptor.m_className;
@@ -93,8 +92,7 @@ public abstract class ProcedureCompiler {
         for (String userName : procedureDescriptor.m_authUsers) {
             final User user = db.getUsers().get(userName);
             if (user == null) {
-                throw compiler.new VoltCompilerException("Procedure " + className + " has a user " + userName
-                        + " that does not exist");
+                throw compiler.new VoltCompilerException("Procedure " + className + " has a user " + userName + " that does not exist");
             }
             final UserRef userRef = procedure.getAuthusers().add(userName);
             userRef.setUser(user);
@@ -102,8 +100,7 @@ public abstract class ProcedureCompiler {
         for (String groupName : procedureDescriptor.m_authGroups) {
             final Group group = db.getGroups().get(groupName);
             if (group == null) {
-                throw compiler.new VoltCompilerException("Procedure " + className + " has a group " + groupName
-                        + " that does not exist");
+                throw compiler.new VoltCompilerException("Procedure " + className + " has a group " + groupName + " that does not exist");
             }
             final GroupRef groupRef = procedure.getAuthgroups().add(groupName);
             groupRef.setGroup(group);
@@ -125,9 +122,9 @@ public abstract class ProcedureCompiler {
                 info.partitionInfo = annotationInfo.partitionInfo();
                 info.singlePartition = annotationInfo.singlePartition();
                 info.mapInputQuery = annotationInfo.mapInputQuery();
-//                info.mapEmitTable = annotationInfo.mapEmitTable();
+                // info.mapEmitTable = annotationInfo.mapEmitTable();
                 info.reduceInputQuery = annotationInfo.reduceInputQuery();
-//                info.reduceEmitTable = annotationInfo.reduceEmitTable();
+                // info.reduceEmitTable = annotationInfo.reduceEmitTable();
             }
         }
         assert (info != null);
@@ -140,11 +137,11 @@ public abstract class ProcedureCompiler {
         } catch (IllegalAccessException e1) {
             e1.printStackTrace();
         }
-        
+
         // MapReduce!
         if (ClassUtil.getSuperClasses(procClass).contains(VoltMapReduceProcedure.class)) {
             procedure.setMapreduce(true);
-            
+
             // The Map input query is required
             // The Reduce input query is optional
             if (info.mapInputQuery == null || info.mapInputQuery.isEmpty()) {
@@ -153,10 +150,11 @@ public abstract class ProcedureCompiler {
             }
 
             Database catalog_db = CatalogUtil.getDatabase(procedure);
-            VoltMapReduceProcedure<?> mrInstance = (VoltMapReduceProcedure<?>)procInstance;
+            VoltMapReduceProcedure<?> mrInstance = (VoltMapReduceProcedure<?>) procInstance;
 
             // Initialize the MapOutput table
-            // Create an invocation of the VoltMapProcedure so that we can grab the
+            // Create an invocation of the VoltMapProcedure so that we can grab
+            // the
             // the MapOutput's schema
             VoltTable.ColumnInfo[] schema = mrInstance.getMapOutputSchema();
             String tableMapOutput = "MAP_" + procedure.getName();
@@ -167,11 +165,12 @@ public abstract class ProcedureCompiler {
                 catalog_col.setIndex(i);
                 catalog_col.setNullable(i > 0);
                 catalog_col.setType(schema[i].getType().getValue());
-                if (i == 0) catalog_tbl.setPartitioncolumn(catalog_col); 
+                if (i == 0)
+                    catalog_tbl.setPartitioncolumn(catalog_col);
             } // FOR
             catalog_tbl.setMapreduce(true);
             catalog_tbl.setIsreplicated(false);
-            
+
             // Initialize the reduceOutput table
             VoltTable.ColumnInfo[] schema_reduceOutput = mrInstance.getReduceOutputSchema();
             String tableReduceOutput = "REDUCE_" + procedure.getName();
@@ -182,11 +181,12 @@ public abstract class ProcedureCompiler {
                 catalog_col.setIndex(i);
                 catalog_col.setNullable(i > 0);
                 catalog_col.setType(schema_reduceOutput[i].getType().getValue());
-                if (i == 0) catalog_tbl.setPartitioncolumn(catalog_col);
+                if (i == 0)
+                    catalog_tbl.setPartitioncolumn(catalog_col);
             } // FOR
             catalog_tbl.setMapreduce(true);
             catalog_tbl.setIsreplicated(false);
-            
+
             // Initialize the Procedure catalog object
             procedure.setMapinputquery(info.mapInputQuery);
             procedure.setMapemittable(tableMapOutput);
@@ -217,22 +217,23 @@ public abstract class ProcedureCompiler {
 
                 // compile the statement
                 try {
-                    StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, stmt.getText(),
-                            info.singlePartition);
+                    StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, stmt.getText(), info.singlePartition);
                 } catch (VoltCompiler.VoltCompilerException e) {
                     e.printStackTrace();
                     String msg = shortName + "." + f.getName() + ": " + e.getMessage();
                     throw compiler.new VoltCompilerException(msg);
                 }
 
-                // TODO(cjl): If this Field has a Prefetchable annotation, then we will want to
+                // TODO(cjl): If this Field has a Prefetchable annotation, then
+                // we will want to
                 // set the "prefetchable" flag in the catalog for the statement
-                if (!f.getAnnotation(Prefetchable.class).equals(null)) {
-                	catalogStmt.setPrefetch(true);
-            		procedure.setPrefetch(true);
+                if (f.getAnnotation(Prefetchable.class) != null) {
+                    catalogStmt.setPrefetch(true);
+                    procedure.setPrefetch(true);
                 }
-                
-                // if a single stmt is not read only, then the proc is not read only
+
+                // if a single stmt is not read only, then the proc is not read
+                // only
                 if (catalogStmt.getReadonly() == false)
                     procHasWriteStmts = true;
             }
@@ -254,8 +255,7 @@ public abstract class ProcedureCompiler {
 
             // check the type of partition parameter meets our high standards
             Class<?> partitionType = paramTypes[procedure.getPartitionparameter()];
-            Class<?>[] validPartitionClzzes = { Long.class, Integer.class, Short.class, Byte.class, long.class,
-                    int.class, short.class, byte.class, String.class };
+            Class<?>[] validPartitionClzzes = { Long.class, Integer.class, Short.class, Byte.class, long.class, int.class, short.class, byte.class, String.class };
             boolean found = false;
             for (Class<?> candidate : validPartitionClzzes) {
                 if (partitionType == candidate)
@@ -263,8 +263,7 @@ public abstract class ProcedureCompiler {
             }
             // assume on of the two tests above passes and one fails
             if (!found) {
-                String msg = "PartitionInfo parameter must be a String or Number for procedure: "
-                        + procedure.getClassname();
+                String msg = "PartitionInfo parameter must be a String or Number for procedure: " + procedure.getClassname();
                 throw compiler.new VoltCompilerException(msg);
             }
         } else {
@@ -275,8 +274,7 @@ public abstract class ProcedureCompiler {
         // VoltCompiler.addClassToJar(procClass, compiler);
     }
 
-    static Class<?>[] populateProcedureParameters(VoltCompiler compiler, Class<?> procClass, Procedure procedure)
-            throws VoltCompiler.VoltCompilerException {
+    static Class<?>[] populateProcedureParameters(VoltCompiler compiler, Class<?> procClass, Procedure procedure) throws VoltCompiler.VoltCompilerException {
 
         final String[] parts = procedure.getClassname().split("\\.");
         final String shortName = parts[parts.length - 1];
@@ -285,11 +283,14 @@ public abstract class ProcedureCompiler {
         Method procMethod = null;
         Method[] methods = procClass.getMethods();
 
-        // DONE(xin): Check to make sure that the queries defined in the the mapInputQuery and the reduceInputQuery
+        // DONE(xin): Check to make sure that the queries defined in the the
+        // mapInputQuery and the reduceInputQuery
         // exist in the procedure
-        // DONE(xin): Check to make sure that the database includes the map/reduce output tables
+        // DONE(xin): Check to make sure that the database includes the
+        // map/reduce output tables
 
-        // Database catalog_db = edu.brown.catalog.CatalogUtil.getDatabase(procedure);
+        // Database catalog_db =
+        // edu.brown.catalog.CatalogUtil.getDatabase(procedure);
         // FIXME catalog_db.getTables().get(procedure.getMapemittable());
 
         boolean isMapReduce = procedure.getMapreduce();
@@ -334,19 +335,17 @@ public abstract class ProcedureCompiler {
             throw compiler.new VoltCompilerException(msg);
         }
 
-        if ((procMethod.getReturnType() != VoltTable[].class) &&
-                (procMethod.getReturnType() != VoltTable.class) &&
-                (procMethod.getReturnType() != long.class) &&
-                (procMethod.getReturnType() != Long.class)) {
+        if ((procMethod.getReturnType() != VoltTable[].class) && (procMethod.getReturnType() != VoltTable.class) && (procMethod.getReturnType() != long.class)
+                && (procMethod.getReturnType() != Long.class)) {
 
-            String msg = "Procedure: " + shortName
-                    + " has run(...) method that doesn't return long, Long, VoltTable or VoltTable[].";
+            String msg = "Procedure: " + shortName + " has run(...) method that doesn't return long, Long, VoltTable or VoltTable[].";
             throw compiler.new VoltCompilerException(msg);
         }
 
-        CatalogMap<ProcParameter> params = procedure.getParameters(); // procedure parameters
+        CatalogMap<ProcParameter> params = procedure.getParameters(); // procedure
+                                                                      // parameters
         Class<?>[] paramTypes = null;
-        
+
         // Set procedure parameter types from its run method parameters
         if (isMapReduce == false) {
             paramTypes = procMethod.getParameterTypes();// run method parameters
@@ -354,14 +353,14 @@ public abstract class ProcedureCompiler {
                 Class<?> cls = paramTypes[i];
                 ProcParameter param = params.add(String.valueOf(i));
                 param.setIndex(i);
-    
+
                 // handle the case where the param is an array
                 if (cls.isArray()) {
                     param.setIsarray(true);
                     cls = cls.getComponentType();
                 } else
                     param.setIsarray(false);
-    
+
                 VoltType type;
                 try {
                     type = VoltType.typeFromClass(cls);
@@ -383,7 +382,7 @@ public abstract class ProcedureCompiler {
                 assert (catalog_stmt_param != null);
                 VoltType vtype = VoltType.get(catalog_stmt_param.getJavatype());
                 paramTypes[i] = vtype.classFromType();
-                
+
                 ProcParameter catalog_proc_param = procedure.getParameters().add(catalog_stmt_param.getName());
                 catalog_proc_param.setIndex(i);
                 catalog_proc_param.setIsarray(false); // One day...
@@ -393,8 +392,7 @@ public abstract class ProcedureCompiler {
         return (paramTypes);
     }
 
-    static void compileSingleStmtProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates,
-            Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
+    static void compileSingleStmtProcedure(VoltCompiler compiler, HSQLInterface hsql, DatabaseEstimates estimates, Catalog catalog, Database db, ProcedureDescriptor procedureDescriptor)
             throws VoltCompiler.VoltCompilerException {
 
         final String className = procedureDescriptor.m_className;
@@ -412,8 +410,7 @@ public abstract class ProcedureCompiler {
         for (String userName : procedureDescriptor.m_authUsers) {
             final User user = db.getUsers().get(userName);
             if (user == null) {
-                throw compiler.new VoltCompilerException("Procedure " + className + " has a user " + userName
-                        + " that does not exist");
+                throw compiler.new VoltCompilerException("Procedure " + className + " has a user " + userName + " that does not exist");
             }
             final UserRef userRef = procedure.getAuthusers().add(userName);
             userRef.setUser(user);
@@ -421,8 +418,7 @@ public abstract class ProcedureCompiler {
         for (String groupName : procedureDescriptor.m_authGroups) {
             final Group group = db.getGroups().get(groupName);
             if (group == null) {
-                throw compiler.new VoltCompilerException("Procedure " + className + " has a group " + groupName
-                        + " that does not exist");
+                throw compiler.new VoltCompilerException("Procedure " + className + " has a group " + groupName + " that does not exist");
             }
             final GroupRef groupRef = procedure.getAuthgroups().add(groupName);
             groupRef.setGroup(group);
@@ -452,8 +448,7 @@ public abstract class ProcedureCompiler {
         Statement catalogStmt = procedure.getStatements().add(VoltProcedure.ANON_STMT_NAME);
 
         // compile the statement
-        StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt,
-                procedureDescriptor.m_singleStmt, info.singlePartition);
+        StatementCompiler.compile(compiler, hsql, catalog, db, estimates, catalogStmt, procedureDescriptor.m_singleStmt, info.singlePartition);
 
         // if the single stmt is not read only, then the proc is not read only
         boolean procHasWriteStmts = (catalogStmt.getReadonly() == false);
@@ -490,8 +485,7 @@ public abstract class ProcedureCompiler {
     /**
      * Determine which parameter is the partition indicator
      */
-    static void parsePartitionInfo(VoltCompiler compiler, Database db, Procedure procedure, String info)
-            throws VoltCompilerException {
+    static void parsePartitionInfo(VoltCompiler compiler, Database db, Procedure procedure, String info) throws VoltCompilerException {
 
         // assert(procedure.getSinglepartition() == true);
 
