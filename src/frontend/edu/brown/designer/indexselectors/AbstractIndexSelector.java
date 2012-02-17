@@ -2,7 +2,9 @@ package edu.brown.designer.indexselectors;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.designer.*;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.IndexPlan;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 /**

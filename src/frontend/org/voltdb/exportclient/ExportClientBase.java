@@ -19,7 +19,9 @@ package org.voltdb.exportclient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
 import org.voltdb.elt.ELTProtoMessage.AdvertisedDataSource;
 

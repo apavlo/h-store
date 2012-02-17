@@ -25,11 +25,11 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import org.voltdb.types.TimestampType;
-import org.voltdb.types.VoltDecimalHelper;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
+import org.voltdb.types.TimestampType;
+import org.voltdb.types.VoltDecimalHelper;
 
 /**
  * <code>DataInputStream</code> subclass to read objects that implement

@@ -28,12 +28,16 @@
 package edu.brown.utils;
 
 import org.hsqldb.HSQLInterface;
-import org.json.*;
-
-import org.voltdb.BackendTarget;
-import org.voltdb.compiler.*;
-import org.voltdb.catalog.*;
-import org.voltdb.plannodes.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.compiler.DDLCompiler;
+import org.voltdb.compiler.DatabaseEstimates;
+import org.voltdb.compiler.StatementCompiler;
+import org.voltdb.compiler.VoltCompiler;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.Encoder;
 
 import edu.brown.catalog.CatalogUtil;

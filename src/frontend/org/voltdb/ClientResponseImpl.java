@@ -21,10 +21,11 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
-import org.voltdb.messaging.*;
-import org.voltdb.exceptions.SerializableException;
-import org.voltdb.VoltTable;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.exceptions.SerializableException;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializable;
+import org.voltdb.messaging.FastSerializer;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.StringUtil;

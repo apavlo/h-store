@@ -20,8 +20,8 @@ package org.voltdb.network;
 import java.nio.ByteBuffer;
 
 import org.voltdb.messaging.FastSerializable;
-import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.DeferredSerialization;
 
 public interface WriteStream {
     /**

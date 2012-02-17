@@ -1,12 +1,23 @@
 package edu.brown.designer.mappers;
 
-import java.util.*;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.HardwareCPU;
+import org.voltdb.catalog.HardwareCore;
+import org.voltdb.catalog.HardwareThread;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
 
 import edu.brown.catalog.HardwareCatalogUtil;
-import edu.brown.graphs.*;
-import edu.brown.hashing.*;
+import edu.brown.graphs.AbstractDirectedTree;
+import edu.brown.graphs.AbstractEdge;
+import edu.brown.graphs.AbstractVertex;
+import edu.brown.hashing.AbstractHasher;
+import edu.brown.hashing.MappedHasher;
 
 public class Solution extends AbstractDirectedTree<Solution.Vertex, Solution.Edge> {
     private static final long serialVersionUID = 1L;

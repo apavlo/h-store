@@ -1,18 +1,31 @@
 package edu.brown.gui;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.io.File;
-import java.util.*;
-import javax.swing.*;
-import javax.swing.event.*;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.voltdb.catalog.*;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
+import org.voltdb.catalog.Catalog;
 import org.voltdb.utils.Pair;
 
-import edu.brown.gui.stats.*;
-import edu.brown.statistics.*;
-import edu.brown.utils.*;
+import edu.brown.gui.stats.TableListPanel;
+import edu.brown.gui.stats.TableStatsPanel;
+import edu.brown.statistics.TableStatistics;
+import edu.brown.statistics.WorkloadStatistics;
+import edu.brown.utils.ArgumentsParser;
 
 /**
  * 

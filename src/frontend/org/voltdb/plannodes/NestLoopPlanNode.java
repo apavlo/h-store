@@ -18,7 +18,7 @@
 package org.voltdb.plannodes;
 
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.types.*;
+import org.voltdb.types.PlanNodeType;
 
 /**
  *

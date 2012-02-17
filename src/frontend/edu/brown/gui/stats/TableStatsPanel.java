@@ -1,17 +1,28 @@
 package edu.brown.gui.stats;
 
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.awt.*;
-import javax.swing.*;
+import java.util.Map;
+import java.util.SortedMap;
+
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.table.AbstractTableModel;
 
-import org.voltdb.catalog.Table;
-import org.voltdb.types.QueryType;
-
 import edu.brown.catalog.CatalogKey;
-import edu.brown.gui.*;
+import edu.brown.gui.AbstractInfoPanel;
+import edu.brown.gui.AbstractViewer;
 import edu.brown.statistics.TableStatistics;
 
 /**

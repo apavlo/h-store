@@ -17,7 +17,8 @@
 
 package org.voltdb.plannodes;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -26,7 +27,8 @@ import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.types.*;
+import org.voltdb.types.ExpressionType;
+import org.voltdb.types.PlanNodeType;
 
 /**
  *

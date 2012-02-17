@@ -1,19 +1,28 @@
 package edu.brown.gui.designer;
 
-import java.util.*;
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
 import org.voltdb.catalog.CatalogType;
-import org.voltdb.catalog.Database;
 
 import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerVertex;
-import edu.brown.graphs.*;
-import edu.brown.gui.*;
-import edu.brown.gui.common.*;
-import edu.brown.utils.*;
+import edu.brown.graphs.IGraph;
+import edu.brown.gui.AbstractInfoPanel;
+import edu.brown.gui.AbstractViewer;
+import edu.brown.gui.DesignerVisualization;
+import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.utils.StringUtil;
 
 public class VertexInfoPanel extends AbstractInfoPanel<DesignerVertex> {
     private static final long serialVersionUID = -7696030449965056519L;

@@ -17,19 +17,20 @@
 
 package org.voltdb;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.ArrayList;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
-import org.voltdb.catalog.*;
-import org.voltdb.utils.Encoder;
-
-import org.apache.log4j.Logger;
 import org.apache.log4j.Level;
-import org.voltdb.utils.VoltLoggerFactory;
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.Connector;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.utils.Encoder;
 import org.voltdb.utils.LogKeys;
+import org.voltdb.utils.VoltLoggerFactory;
 
 
 /**

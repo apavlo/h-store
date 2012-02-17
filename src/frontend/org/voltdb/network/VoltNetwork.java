@@ -62,27 +62,25 @@
 package org.voltdb.network;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.channels.CancelledKeyException;
-import java.nio.channels.SocketChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayDeque;
-import java.lang.ref.WeakReference;
-
-import org.apache.log4j.Logger;
-
+import java.util.Set;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.Set;
 
-import org.voltdb.utils.VoltLoggerFactory;
+import org.apache.log4j.Logger;
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.EstTimeUpdater;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltLoggerFactory;
 
 /** Produces work for registered ports that are selected for read, write */
  public class VoltNetwork implements Runnable

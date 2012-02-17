@@ -9,10 +9,10 @@ import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.ParameterMangler;
-import edu.brown.hstore.HStoreSite;
 
 public abstract class AbstractEstimator {
     private static final Logger LOG = Logger.getLogger(AbstractEstimator.class);

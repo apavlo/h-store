@@ -20,11 +20,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 import org.apache.log4j.Logger;
-import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.util.PartitionExecutorPostProcessor;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.TransactionProfile;
+import edu.brown.hstore.dtxn.TransactionQueueManager;
+import edu.brown.hstore.interfaces.Shutdownable;
+import edu.brown.hstore.util.PartitionExecutorPostProcessor;
+import edu.brown.hstore.util.ThrottlingQueue;
+import edu.brown.hstore.util.TxnCounter;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.logging.RingBufferAppender;
@@ -37,14 +44,6 @@ import edu.brown.utils.ProfileMeasurement;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.TableUtil;
 import edu.brown.utils.TypedPoolableObjectFactory;
-import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.TransactionProfile;
-import edu.brown.hstore.dtxn.TransactionQueueManager;
-import edu.brown.hstore.interfaces.Shutdownable;
-import edu.brown.hstore.util.ThrottlingQueue;
-import edu.brown.hstore.util.TxnCounter;
 
 /**
  * 

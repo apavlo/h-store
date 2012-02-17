@@ -1,11 +1,18 @@
 package edu.brown.designer.partitioners;
 
-import java.util.*;
-import org.apache.log4j.Logger;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
-import edu.brown.graphs.*;
-import edu.brown.designer.*;
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
+
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
+import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerEdge.Members;
 import edu.brown.utils.CollectionUtil;
 

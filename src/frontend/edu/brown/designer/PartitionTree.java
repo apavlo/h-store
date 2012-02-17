@@ -1,11 +1,13 @@
 package edu.brown.designer;
 
-import org.voltdb.catalog.*;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.types.PartitionMethodType;
 
 import edu.brown.graphs.AbstractDirectedTree;
-
-import java.util.*;
 
 /**
  * 

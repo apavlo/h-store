@@ -27,7 +27,8 @@
  ***************************************************************************/
 package edu.brown.utils;
 
-import java.util.*;
+import java.util.Observable;
+import java.util.Observer;
 
 /**
  * EventObservable

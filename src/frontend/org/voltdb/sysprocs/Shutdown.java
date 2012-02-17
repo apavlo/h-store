@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencySet;
-import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.HsqlBackend;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
@@ -33,6 +32,7 @@ import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.dtxn.DtxnConstants;
 
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.PartitionEstimator;
 
 /** A wholly improper shutdown. The only guarantee is that a transaction

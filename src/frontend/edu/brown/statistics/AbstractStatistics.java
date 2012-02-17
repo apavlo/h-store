@@ -32,13 +32,16 @@ import java.util.SortedMap;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-
-import org.json.*;
-import org.voltdb.catalog.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONString;
+import org.json.JSONStringer;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.utils.StringUtil;
-import edu.brown.workload.*;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * 

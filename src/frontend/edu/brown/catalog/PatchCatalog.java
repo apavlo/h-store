@@ -1,10 +1,17 @@
 package edu.brown.catalog;
 
-import java.io.*;
-import java.util.*;
-import org.apache.log4j.Logger;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import org.voltdb.catalog.*;
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.CatalogProxy;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;

@@ -25,7 +25,7 @@ import org.voltdb.compiler.ScalarValueHints;
 import org.voltdb.planner.PlanStatistics;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.planner.StatsField;
-import org.voltdb.types.*;
+import org.voltdb.types.PlanNodeType;
 
 /**
  *

@@ -26,14 +26,20 @@
 package edu.brown.statistics;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
-import org.json.*;
-import org.voltdb.catalog.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.mappings.AbstractMapping;
-import edu.brown.workload.*;
+import edu.brown.workload.QueryTrace;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * 

@@ -1,8 +1,8 @@
 package edu.brown.gui;
 
-import org.apache.log4j.Logger;
+import javax.swing.JPanel;
 
-import javax.swing.*;
+import org.apache.log4j.Logger;
 
 public abstract class AbstractInfoPanel<T> extends JPanel {
     protected static final Logger LOG = Logger.getLogger(AbstractInfoPanel.class.getName());

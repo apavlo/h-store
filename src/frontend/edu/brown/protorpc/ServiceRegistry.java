@@ -3,8 +3,8 @@ package edu.brown.protorpc;
 import java.util.HashMap;
 
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.Service;
 import com.google.protobuf.Descriptors.MethodDescriptor;
+import com.google.protobuf.Service;
 
 
 /** Registers methods and invokes callbacks. */

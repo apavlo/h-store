@@ -4,19 +4,18 @@ import java.util.Collection;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.protorpc.ProtoRpcController;
-
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.HStoreService;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.protorpc.ProtoRpcController;
 
 /**
  * AbstractTransactionHandler is a wrapper around the invocation methods for some action

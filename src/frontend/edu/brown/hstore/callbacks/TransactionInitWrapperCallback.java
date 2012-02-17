@@ -6,11 +6,11 @@ import org.apache.log4j.Logger;
 
 import com.google.protobuf.RpcCallback;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.TransactionInitResponse;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
 
 /**
  * This callback is used to wrap around the network-outbound TransactionInitResponse callback on

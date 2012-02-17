@@ -1,7 +1,9 @@
 package edu.brown.costmodel.samples;
 
-import java.util.*;
-import org.voltdb.plannodes.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.voltdb.plannodes.AbstractPlanNode;
 
 public abstract class DistributedJoin {
     private static Integer node_id = 1;

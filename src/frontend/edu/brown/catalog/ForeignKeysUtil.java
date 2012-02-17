@@ -1,14 +1,18 @@
 package edu.brown.catalog;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
-
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.ConstraintRef;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.ConstraintType;
 
-import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;
 
 public abstract class ForeignKeysUtil {

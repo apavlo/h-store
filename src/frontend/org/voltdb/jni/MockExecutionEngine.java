@@ -17,14 +17,17 @@
 
 package org.voltdb.jni;
 
-import org.voltdb.*;
+import org.voltdb.DependencyPair;
+import org.voltdb.DependencySet;
+import org.voltdb.ParameterSet;
+import org.voltdb.SysProcSelector;
+import org.voltdb.VoltTable;
 import org.voltdb.VoltTable.ColumnInfo;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.utils.DBBPool.BBContainer;
-
-import com.google.protobuf.ByteString;
 
 public class MockExecutionEngine extends ExecutionEngine {
 

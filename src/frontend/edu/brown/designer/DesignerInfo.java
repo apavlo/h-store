@@ -1,24 +1,25 @@
 package edu.brown.designer;
 
 import java.io.File;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.DependencyUtil;
 import edu.brown.costmodel.AbstractCostModel;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.designer.generators.DependencyGraphGenerator;
-import edu.brown.designer.indexselectors.*;
-import edu.brown.designer.mappers.*;
-import edu.brown.designer.partitioners.*;
-import edu.brown.graphs.*;
+import edu.brown.designer.indexselectors.AbstractIndexSelector;
+import edu.brown.designer.mappers.AbstractMapper;
+import edu.brown.designer.partitioners.AbstractPartitioner;
+import edu.brown.graphs.AbstractDirectedGraph;
 import edu.brown.hashing.DefaultHasher;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.statistics.WorkloadStatistics;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.workload.*;
+import edu.brown.workload.Workload;
 
 /**
  * Container object for the various information that a designer will need to use

@@ -1,7 +1,19 @@
 package edu.brown.catalog;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.apache.commons.collections15.CollectionUtils;
 import org.apache.commons.collections15.map.ListOrderedMap;
@@ -10,7 +22,27 @@ import org.apache.log4j.Logger;
 import org.json.JSONObject;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.ConstantValue;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.ConstraintRef;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.MaterializedViewInfo;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.expressions.AbstractValueExpression;
 import org.voltdb.expressions.ComparisonExpression;
@@ -22,7 +54,18 @@ import org.voltdb.expressions.TupleAddressExpression;
 import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.plannodes.*;
+import org.voltdb.plannodes.AbstractJoinPlanNode;
+import org.voltdb.plannodes.AbstractOperationPlanNode;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.InsertPlanNode;
+import org.voltdb.plannodes.MaterializePlanNode;
+import org.voltdb.plannodes.NestLoopIndexPlanNode;
+import org.voltdb.plannodes.OrderByPlanNode;
+import org.voltdb.plannodes.ProjectionPlanNode;
+import org.voltdb.plannodes.SeqScanPlanNode;
+import org.voltdb.plannodes.UpdatePlanNode;
 import org.voltdb.types.ConstraintType;
 import org.voltdb.types.ExpressionType;
 import org.voltdb.types.PlanNodeType;
@@ -72,31 +115,31 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         /**
          * The set of read-only columns excluding inserts
          */
-        public final Map<Table, Set<Column>> READONLY_COLUMNS_NO_INSERTS = new HashMap<Table, Set<Column>>();
+        private final Map<Table, Set<Column>> READONLY_COLUMNS_NO_INSERTS = new HashMap<Table, Set<Column>>();
         /**
          * The set of read-only columns including inserts
          */
-        public final Map<Table, Set<Column>> READONLY_COLUMNS_ALL = new HashMap<Table, Set<Column>>();
+        private final Map<Table, Set<Column>> READONLY_COLUMNS_ALL = new HashMap<Table, Set<Column>>();
         /**
          * The set of Columns referenced for each Statement
          * Statement -> Set<Column>
          */
-        public final Map<Statement, Set<Column>> STATEMENT_ALL_COLUMNS = new HashMap<Statement, Set<Column>>();
+        private final Map<Statement, Set<Column>> STATEMENT_ALL_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
          * The set of Columns referenced modified in each Statement
          * Statement -> Set<Column>
          */
-        public final Map<Statement, Set<Column>> STATEMENT_MODIFIED_COLUMNS = new HashMap<Statement, Set<Column>>();
+        private final Map<Statement, Set<Column>> STATEMENT_MODIFIED_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
          * The set of Columns that read-only in each Statement
          * Statement -> Set<Column>
          */
-        public final Map<Statement, Collection<Column>> STATEMENT_READONLY_COLUMNS = new HashMap<Statement, Collection<Column>>();
+        private final Map<Statement, Collection<Column>> STATEMENT_READONLY_COLUMNS = new HashMap<Statement, Collection<Column>>();
         /**
          * The set of Columns that are used in the ORDER BY clause of the query
          * Statement -> Set<Column>
          */
-        public final Map<Statement, Set<Column>> STATEMENT_ORDERBY_COLUMNS = new HashMap<Statement, Set<Column>>();
+        private final Map<Statement, Set<Column>> STATEMENT_ORDERBY_COLUMNS = new HashMap<Statement, Set<Column>>();
         /**
          * Statement -> Set<Table>
          */
@@ -112,21 +155,21 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
         /**
          * PartitionId -> Partition
          */
-        public final ListOrderedMap<Integer, Partition> PARTITION_XREF = new ListOrderedMap<Integer, Partition>();
+        private final ListOrderedMap<Integer, Partition> PARTITION_XREF = new ListOrderedMap<Integer, Partition>();
         /**
          * Host -> Set<Site>
          */
-        public final Map<Host, Set<Site>> HOST_SITES = new TreeMap<Host, Set<Site>>(new CatalogFieldComparator<Host>("ipaddr"));
+        private final Map<Host, Set<Site>> HOST_SITES = new TreeMap<Host, Set<Site>>(new CatalogFieldComparator<Host>("ipaddr"));
         /**
          * Column -> Foreign Key Parent Column
          */
-        public final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
+        private final Map<Column, Column> FOREIGNKEY_PARENT = new HashMap<Column, Column>();
         /**
          * SiteId -> Set<<Host, Port>>
          */
-        public final Map<Integer, Set<Pair<String, Integer>>> EXECUTION_SITES = new HashMap<Integer, Set<Pair<String, Integer>>>();
+        private final Map<Integer, Set<Pair<String, Integer>>> EXECUTION_SITES = new HashMap<Integer, Set<Pair<String, Integer>>>();
         
-        public final Map<Pair<String, Set<String>>, ColumnSet> EXTRACTED_COLUMNSETS = new HashMap<Pair<String, Set<String>>, ColumnSet>();
+        private final Map<Pair<String, Set<String>>, ColumnSet> EXTRACTED_COLUMNSETS = new HashMap<Pair<String, Set<String>>, ColumnSet>();
         
         /**
          * Construct the internal PARTITION_XREF cache map
@@ -1955,7 +1998,12 @@ public abstract class CatalogUtil extends org.voltdb.utils.CatalogUtil {
      * @param tables
      * @throws Exception
      */
-    public static void extractExpressionColumnSet(final Statement catalog_stmt, final Database catalog_db, final ColumnSet cset, final AbstractExpression root_exp, final boolean convert_params, final Collection<Table> tables) throws Exception {
+    public static void extractExpressionColumnSet(final Statement catalog_stmt,
+                                                  final Database catalog_db,
+                                                  final ColumnSet cset,
+                                                  final AbstractExpression root_exp,
+                                                  final boolean convert_params,
+                                                  final Collection<Table> tables) throws Exception {
         final boolean d = LOG.isDebugEnabled();
         if (d) LOG.debug(catalog_stmt + "\n" + ExpressionUtil.debug(root_exp));
         

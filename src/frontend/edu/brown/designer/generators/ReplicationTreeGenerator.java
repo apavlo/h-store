@@ -3,13 +3,22 @@
  */
 package edu.brown.designer.generators;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Table;
 
-import edu.brown.designer.*;
-import edu.brown.graphs.*;
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.PartitionTree;
+import edu.brown.graphs.AbstractDirectedGraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**

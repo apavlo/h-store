@@ -3,25 +3,20 @@ package edu.brown.hstore.handlers;
 import java.util.Collection;
 
 import org.apache.log4j.Logger;
-import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.VoltProcedure;
-import org.voltdb.messaging.FastDeserializer;
-
-import edu.brown.protorpc.ProtoRpcController;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionReduceRequest;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
-import edu.brown.hstore.util.MapReduceHelperThread;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.protorpc.ProtoRpcController;
 
 public class TransactionReduceHandler extends AbstractTransactionHandler<TransactionReduceRequest, TransactionReduceResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionReduceHandler.class);

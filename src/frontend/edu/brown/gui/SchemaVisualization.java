@@ -3,17 +3,26 @@
  */
 package edu.brown.gui;
 
-import java.awt.event.*;
-import java.util.Observable;
+import java.awt.event.ActionEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.KeyEvent;
 
-import javax.swing.*;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
 
-import edu.brown.designer.*;
+import edu.brown.designer.DependencyGraph;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerVertex;
 import edu.brown.designer.generators.DependencyGraphGenerator;
-import edu.brown.gui.common.*;
-import edu.brown.utils.*;
+import edu.brown.gui.common.GraphVisualizationPanel;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
 
 /**
  * @author pavlo

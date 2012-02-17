@@ -1,30 +1,37 @@
 package edu.brown.gui;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Paint;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.geom.Point2D;
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JPopupMenu;
 
 import org.apache.commons.collections15.Transformer;
-
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Procedure;
 import org.voltdb.utils.Pair;
 
-import edu.brown.catalog.CatalogUtil;
 import edu.brown.gui.common.GraphVisualizationPanel;
-import edu.brown.hashing.*;
-import edu.brown.markov.*;
+import edu.brown.markov.MarkovEdge;
+import edu.brown.markov.MarkovGraph;
+import edu.brown.markov.MarkovVertex;
 import edu.brown.utils.ArgumentsParser;
-import edu.brown.utils.PartitionEstimator;
-import edu.brown.workload.TransactionTrace;
-
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
-import edu.uci.ics.jung.visualization.control.*;
+import edu.uci.ics.jung.visualization.control.PickingGraphMousePlugin;
+import edu.uci.ics.jung.visualization.control.PluggableGraphMouse;
+import edu.uci.ics.jung.visualization.control.TranslatingGraphMousePlugin;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 
 /**

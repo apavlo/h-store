@@ -30,14 +30,12 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.voltdb.BackendTarget;
-import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.conf.HStoreConf;
-
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovUtil;

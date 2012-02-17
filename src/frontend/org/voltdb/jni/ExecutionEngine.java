@@ -36,9 +36,9 @@ import org.voltdb.catalog.Table;
 import org.voltdb.elt.ELTProtoMessage;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.utils.StringUtil;

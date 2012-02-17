@@ -17,11 +17,22 @@
 
 package org.voltdb.planner;
 
-import java.util.*;
-import org.voltdb.catalog.*;
-import org.voltdb.expressions.*;
-import org.voltdb.plannodes.*;
-import org.voltdb.types.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.ExpressionUtil;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.IndexScanPlanNode;
+import org.voltdb.plannodes.NestLoopIndexPlanNode;
+import org.voltdb.plannodes.NestLoopPlanNode;
+import org.voltdb.plannodes.ReceivePlanNode;
+import org.voltdb.types.JoinType;
 
 /**
  * For a select, delete or update plan, this class builds the part of the plan

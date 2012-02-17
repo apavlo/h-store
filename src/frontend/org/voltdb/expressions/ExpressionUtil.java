@@ -17,15 +17,16 @@
 
 package org.voltdb.expressions;
 
-import java.util.*;
+import java.util.List;
+import java.util.Stack;
 
 import org.voltdb.VoltType;
 import org.voltdb.planner.PlanColumn;
 import org.voltdb.planner.PlannerContext;
 import org.voltdb.types.ExpressionType;
-import org.voltdb.utils.VoltTypeUtil;
 import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.Pair;
+import org.voltdb.utils.VoltTypeUtil;
 
 /**
  *

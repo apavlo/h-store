@@ -4,9 +4,13 @@
 package edu.brown.designer.mappers;
 
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Table;
 
-import edu.brown.designer.*;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerHints;
+import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 /**

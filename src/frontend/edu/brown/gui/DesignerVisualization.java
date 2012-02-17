@@ -3,21 +3,50 @@
  */
 package edu.brown.gui;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.util.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
 
-import javax.swing.*;
-import javax.swing.event.*;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JCheckBox;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
 
-import edu.brown.designer.*;
-import edu.brown.graphs.*;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerHints;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.graphs.AbstractDirectedGraph;
+import edu.brown.graphs.IGraph;
 import edu.brown.gui.common.GraphVisualizationPanel;
-import edu.brown.gui.designer.*;
-import edu.brown.utils.*;
-import edu.brown.workload.*;
+import edu.brown.gui.designer.EdgeInfoPanel;
+import edu.brown.gui.designer.PartitionPlanPanel;
+import edu.brown.gui.designer.ProcedureInfoPanel;
+import edu.brown.gui.designer.VertexInfoPanel;
+import edu.brown.utils.ArgumentsParser;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.EventObservable;
+import edu.brown.utils.EventObserver;
+import edu.brown.workload.Workload;
 
 /**
  * @author pavlo

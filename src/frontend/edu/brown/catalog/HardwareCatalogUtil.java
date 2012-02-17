@@ -1,7 +1,11 @@
 package edu.brown.catalog;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.HardwareCPU;
+import org.voltdb.catalog.HardwareCore;
+import org.voltdb.catalog.HardwareThread;
+import org.voltdb.catalog.Host;
 
 public abstract class HardwareCatalogUtil {
     private static final Logger LOG = Logger.getLogger(HardwareCatalogUtil.class.getName());

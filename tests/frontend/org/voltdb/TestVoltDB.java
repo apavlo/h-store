@@ -24,6 +24,8 @@
 package org.voltdb;
 
 import org.voltdb.VoltDB;
+
+import edu.brown.hstore.HStoreConstants;
 import junit.framework.TestCase;
 
 public class TestVoltDB extends TestCase {
@@ -34,7 +36,7 @@ public class TestVoltDB extends TestCase {
         assertEquals(ProcedureProfiler.Level.DISABLED, blankConfig.m_profilingLevel);
         assertEquals("catalog.jar", blankConfig.m_pathToCatalog);
         assertFalse(blankConfig.m_useThreadAffinity);
-        assertEquals(VoltDB.DEFAULT_PORT, blankConfig.m_port);
+        assertEquals(HStoreConstants.DEFAULT_PORT, blankConfig.m_port);
 
         String args1[] = { "noloadlib" };
         assertTrue(new VoltDB.Configuration(args1).m_noLoadLibVOLTDB);

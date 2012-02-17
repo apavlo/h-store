@@ -1,6 +1,6 @@
 package edu.brown.gui.common;
 
-import java.awt.event.*;
+import java.awt.event.MouseEvent;
 
 import edu.uci.ics.jung.visualization.control.GraphMouseListener;
 import edu.uci.ics.jung.visualization.picking.PickedState;

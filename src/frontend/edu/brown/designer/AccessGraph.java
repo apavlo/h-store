@@ -1,8 +1,13 @@
 package edu.brown.designer;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
 
 import edu.brown.graphs.AbstractUndirectedGraph;
 

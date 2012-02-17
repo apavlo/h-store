@@ -30,10 +30,10 @@ import org.voltdb.network.Connection;
 import org.voltdb.network.QueueMonitor;
 import org.voltdb.network.VoltProtocolHandler;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.VoltLoggerFactory;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 public class ForeignHost {
     private static final Logger hostLog =

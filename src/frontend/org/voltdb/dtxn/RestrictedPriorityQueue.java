@@ -19,8 +19,8 @@ package org.voltdb.dtxn;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.PriorityQueue;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 
 import org.voltdb.TransactionIdManager;
 import org.voltdb.VoltDB;

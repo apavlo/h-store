@@ -18,9 +18,11 @@
 package org.voltdb;
 
 import java.io.UnsupportedEncodingException;
-import org.voltdb.catalog.*;
-import org.apache.log4j.Logger;
+
 import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.VoltLoggerFactory;
 

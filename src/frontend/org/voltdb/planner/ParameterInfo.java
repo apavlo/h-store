@@ -18,8 +18,11 @@
 package org.voltdb.planner;
 
 import java.io.IOException;
+
 import org.voltdb.VoltType;
-import org.voltdb.messaging.*;
+import org.voltdb.messaging.FastDeserializer;
+import org.voltdb.messaging.FastSerializable;
+import org.voltdb.messaging.FastSerializer;
 
 /**
  *

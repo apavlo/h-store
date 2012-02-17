@@ -3,9 +3,9 @@ package edu.brown.designer.partitioners;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
-import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.CatalogType;

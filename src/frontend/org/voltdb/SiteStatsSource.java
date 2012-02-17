@@ -17,6 +17,7 @@
 package org.voltdb;
 
 import java.util.ArrayList;
+
 import org.voltdb.VoltTable.ColumnInfo;
 
 /**

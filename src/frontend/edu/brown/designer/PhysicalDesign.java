@@ -1,9 +1,15 @@
 package edu.brown.designer;
 
-import java.util.*;
-import org.apache.log4j.Logger;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.voltdb.catalog.*;
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.ColumnRef;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.IndexType;
 
 import edu.brown.catalog.CatalogKey;

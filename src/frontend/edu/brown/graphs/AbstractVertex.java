@@ -3,7 +3,8 @@ package edu.brown.graphs;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
 
 import edu.brown.catalog.CatalogKey;
 import edu.uci.ics.jung.graph.DelegateForest;

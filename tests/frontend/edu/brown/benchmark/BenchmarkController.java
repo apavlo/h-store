@@ -367,10 +367,10 @@ public class BenchmarkController {
             int site_id = VoltDB.FIRST_SITE_ID;
             for (String host : m_config.hosts) {
                 if (trace.get()) LOG.trace(String.format("Creating host info for %s: %s:%d",
-                                                         HStoreSite.formatSiteName(site_id), host, VoltDB.DEFAULT_PORT));
+                                                         HStoreSite.formatSiteName(site_id), host, HStoreConstants.DEFAULT_PORT));
                 
                 Set<Pair<String, Integer>> s = new HashSet<Pair<String,Integer>>();
-                s.add(Pair.of(host, VoltDB.DEFAULT_PORT));
+                s.add(Pair.of(host, HStoreConstants.DEFAULT_PORT));
                 m_launchHosts.put(site_id, s);
                 unique_hosts.add(host);
                 site_id++;

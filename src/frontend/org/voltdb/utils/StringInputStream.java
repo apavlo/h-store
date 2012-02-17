@@ -17,7 +17,9 @@
 
 package org.voltdb.utils;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
 
 /**
  * Create an <code>InputStream</code> from a Java string so it can

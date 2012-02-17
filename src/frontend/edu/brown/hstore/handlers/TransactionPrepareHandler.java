@@ -5,20 +5,19 @@ import java.util.HashSet;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.protorpc.ProtoRpcController;
-
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareRequest;
 import edu.brown.hstore.Hstoreservice.TransactionPrepareResponse;
+import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.protorpc.ProtoRpcController;
 
 public class TransactionPrepareHandler extends AbstractTransactionHandler<TransactionPrepareRequest, TransactionPrepareResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionPrepareHandler.class);

@@ -12,7 +12,12 @@ import org.voltdb.types.PlanNodeType;
 import org.voltdb.utils.Pair;
 
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.optimizer.optimizations.*;
+import edu.brown.optimizer.optimizations.AbstractOptimization;
+import edu.brown.optimizer.optimizations.AggregatePushdownOptimization;
+import edu.brown.optimizer.optimizations.LimitOrderByPushdownOptimization;
+import edu.brown.optimizer.optimizations.ProjectionPushdownOptimization;
+import edu.brown.optimizer.optimizations.RemoveDistributedReplicatedTableJoinOptimization;
+import edu.brown.optimizer.optimizations.RemoveRedundantProjectionsOptimizations;
 import edu.brown.plannodes.PlanNodeUtil;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.StringUtil;
