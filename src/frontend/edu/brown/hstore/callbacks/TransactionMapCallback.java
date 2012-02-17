@@ -66,7 +66,7 @@ public class TransactionMapCallback extends BlockingCallback<TransactionMapRespo
         if (this.isAborted() == false) {
             if (debug.get())
                 LOG.debug(ts + " is ready to execute. Passing to HStoreSite " +
-                		"<Switching to the 'reduce' phase>.......");
+                        "<Switching to the 'reduce' phase>.......");
                                     
             ts.setReducePhase();
             assert(ts.isReducePhase());

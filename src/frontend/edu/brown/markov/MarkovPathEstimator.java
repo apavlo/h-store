@@ -754,7 +754,7 @@ public class MarkovPathEstimator extends VertexTreeWalker<MarkovVertex, MarkovEd
         
         System.err.println("Procedure\t\tTotal\tSingleP\tPartitions\tPaths");
         for (Entry<Procedure, AtomicInteger> entry : totals.entrySet()) {
-        	Procedure catalog_proc = entry.getKey();
+            Procedure catalog_proc = entry.getKey();
             int total = entry.getValue().get();
             if (total == 0) continue;
             

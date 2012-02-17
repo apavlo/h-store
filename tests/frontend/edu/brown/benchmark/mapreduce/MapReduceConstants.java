@@ -39,21 +39,21 @@ public abstract class MapReduceConstants {
     // TABLE INFORMATION
     // ----------------------------------------------------------------
     
-	public static final String TABLENAME_TABLEA = "TABLEA";
-	public static final long TABLESIZE_TABLEA = 10000l;
-	public static final long BATCHSIZE_TABLEA = 10l;
-	
-	public static final int NUM_UNIQUE_NAMES = 10;
-	public static final String NAME_PREFIX = "Obama";
-	public static final int MAX_AGE = 100;
+    public static final String TABLENAME_TABLEA = "TABLEA";
+    public static final long TABLESIZE_TABLEA = 10000l;
+    public static final long BATCHSIZE_TABLEA = 10l;
+    
+    public static final int NUM_UNIQUE_NAMES = 10;
+    public static final String NAME_PREFIX = "Obama";
+    public static final int MAX_AGE = 100;
 
-	public static final String TABLENAME_TABLEB = "TABLEB";
-	public static final double TABLESIZE_TABLEB_MULTIPLIER = 0.01d;
-	public static final long TABLESIZE_TABLEB = Math.round(MapReduceConstants.TABLESIZE_TABLEA * TABLESIZE_TABLEB_MULTIPLIER);
-	//public static final long TABLESIZE_TABLEB = 1000000l;
-	public static final long BATCHSIZE_TABLEB = 10000l;
-	
-	
+    public static final String TABLENAME_TABLEB = "TABLEB";
+    public static final double TABLESIZE_TABLEB_MULTIPLIER = 0.01d;
+    public static final long TABLESIZE_TABLEB = Math.round(MapReduceConstants.TABLESIZE_TABLEA * TABLESIZE_TABLEB_MULTIPLIER);
+    //public static final long TABLESIZE_TABLEB = 1000000l;
+    public static final long BATCHSIZE_TABLEB = 10000l;
+    
+    
 
     public static final String[] TABLENAMES = {
         TABLENAME_TABLEA,
@@ -64,9 +64,9 @@ public abstract class MapReduceConstants {
     // STORED PROCEDURE INFORMATION
     // ----------------------------------------------------------------
 
-	public static final int FREQUENCY_MOCK_MAPREDUCE = 30;
-	public static final int FREQUENCY_NORMAL_WORDCOUNT = 30; 
-	
+    public static final int FREQUENCY_MOCK_MAPREDUCE = 30;
+    public static final int FREQUENCY_NORMAL_WORDCOUNT = 30; 
+    
     // The number of TABLEB records to return per GetLocal/GetRemote invocation
     public static final int GET_TABLEB_LIMIT        = 10;
 }

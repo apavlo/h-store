@@ -102,24 +102,30 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
         boolean is_local = (this.partitionId == mr_ts.getBasePartition());
 
         if (mr_ts.isMapPhase()) {
-            
-            this.map_output = mr_ts.getMapOutputByPartition(this.partitionId);
-            assert(this.map_output != null);
-            
             // If this is the base partition, then we'll send the out the MAP
             // initialization requests to all of the partitions
             if (is_local) {
                 // Send out network messages to all other partitions to tell them to
                 // execute the MAP phase of this job
+                if (debug.get())
+                    LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Map>...local!!!....\n");
                 this.executor.getHStoreCoordinator().transactionMap(mr_ts, mr_ts.getTransactionMapCallback());
             }
+            
+            this.map_output = mr_ts.getMapOutputByPartition(this.partitionId);
+            assert(this.map_output != null);
 
             if (debug.get())
                 LOG.debug("<VoltMapReduceProcedure.run> is executing ..<MAP>..\n");
-            // XXX: Execute the map
+            // Execute the map
             voltQueueSQL(mapInputQuery, params);
             VoltTable mapResult[] = voltExecuteSQLForceSinglePartition();
             assert (mapResult.length == 1);
+            
+            // Check whether the HStoreConf flag for locking the entire cluster
+            // is true. If it is, then we have to tell the queue manager that we're done.
+            // MapReduceTransaction should finish forever...
+            hstore_site.getTransactionQueueManager().finished(txn_id, Status.OK, this.partitionId);
 
             if (debug.get())
                 LOG.debug(String.format("MAP: About to process %d records for %s on partition %d",
@@ -149,6 +155,13 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
         }
 
         else if (mr_ts.isReducePhase()) {
+            // If this is the local/base partition, send out the start REDUCE message 
+            if (is_local) {
+                if (debug.get())
+                    LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
+                // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
+                this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
+            }
             this.reduce_input = null; // 
             this.reduce_input = mr_ts.getReduceInputByPartition(this.partitionId);
             assert(this.reduce_input != null);
@@ -201,20 +214,13 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
                                                        .setData(reduceOutData)
                                                        .setPartitionId(this.partitionId)
                                                        .setStatus(Status.OK);
-            
-            // If this is the local/base partition, send out the start REDUCE message 
-            if (is_local) {
-                if (debug.get())
-                    LOG.debug("<VoltMapReduceProcedure.run> is executing ..<Reduce>...local!!!....\n");
-                // Send out network messages to all other partitions to tell them to execute the Reduce phase of this job
-                this.executor.getHStoreCoordinator().transactionReduce(mr_ts, mr_ts.getTransactionReduceCallback());
-            }
            
             TransactionReduceWrapperCallback callback = mr_ts.getTransactionReduceWrapperCallback();
             assert (callback != null) : "Unexpected null TransactionReduceWrapperCallback for " + mr_ts;
             assert (callback.isInitialized()) : "Unexpected uninitalized TransactionReduceWrapperCallback for " + mr_ts;
             callback.run(builder.build());
         }
+        
         return (result);
     }
     
@@ -241,7 +247,6 @@ public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
 //        for (int i = 0; i < this.mr_ts.getSize(); i++) {
 //            this.mr_ts.getLocalTransaction(i).finish();
 //        } // FOR
-        
     }
     
 

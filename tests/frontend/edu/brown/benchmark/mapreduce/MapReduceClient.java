@@ -72,10 +72,10 @@ public class MapReduceClient extends BenchmarkComponent {
 
     public enum Transaction {
         MockMapReduce(MapReduceConstants.FREQUENCY_MOCK_MAPREDUCE,
-        	new MapReduceParamGenerator() {
-            	@Override
-            	public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
-            		Object params[] = new Object[0];
+            new MapReduceParamGenerator() {
+                @Override
+                public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
+                    Object params[] = new Object[0];
                     return (params);
                 }
         })
@@ -178,7 +178,7 @@ public class MapReduceClient extends BenchmarkComponent {
                 int new_host = (int)a_id_host_num;
                 if (total_number_of_hosts > 1)
                 {
-                    new_host = rng.numberExcluding(0, total_number_of_hosts -1, (int)a_id_host_num);                	
+                    new_host = rng.numberExcluding(0, total_number_of_hosts -1, (int)a_id_host_num);                    
                 }
                 int new_site = rng.number(0, num_sites_per_host - 1);
                 //determine the partition range for the cluster (with a random host and random sites)
@@ -276,8 +276,8 @@ public class MapReduceClient extends BenchmarkComponent {
     public void runLoop() {
         try {
             while (true) {
-            	runOnce();
-            	this.getClientHandle().backpressureBarrier();
+                runOnce();
+                this.getClientHandle().backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {
             /*
@@ -317,7 +317,7 @@ public class MapReduceClient extends BenchmarkComponent {
         
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-        	System.out.println(Arrays.toString(clientResponse.getResults()));
+            System.out.println(Arrays.toString(clientResponse.getResults()));
             incrementTransactionCounter(clientResponse, this.txn.ordinal());
         }
     } // END CLASS

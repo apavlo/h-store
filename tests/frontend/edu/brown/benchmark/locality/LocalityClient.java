@@ -74,10 +74,10 @@ public class LocalityClient extends BenchmarkComponent {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
-                	int aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
-                	Object params[] = new Object[] {
-                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes)
-                	};
+                    int aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
+                    Object params[] = new Object[] {
+                        getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes)
+                    };
                     return (params);
                 }
         }),
@@ -85,11 +85,11 @@ public class LocalityClient extends BenchmarkComponent {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
-                	Object params[] = new Object[] {
-                    		rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue()),
-                    		rng.astring(5, 50),
-                    		rng.nextInt((int)LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER),                    		
-                       		rng.astring(5, 50)};
+                    Object params[] = new Object[] {
+                            rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue()),
+                            rng.astring(5, 50),
+                            rng.nextInt((int)LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER),                            
+                            rng.astring(5, 50)};
                         return (params);
                     }
         }),
@@ -97,11 +97,11 @@ public class LocalityClient extends BenchmarkComponent {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
-                	// pass the same local aid as the aid
-                	Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
-                	Object params[] = new Object[] {
-                		aid, getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes)
-                	};
+                    // pass the same local aid as the aid
+                    Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
+                    Object params[] = new Object[] {
+                        aid, getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes)
+                    };
                     return (params);
                 }
         }),
@@ -109,17 +109,17 @@ public class LocalityClient extends BenchmarkComponent {
             new LocalityParamGenerator() {
                 @Override
                 public Object[] generate(AbstractRandomGenerator rng, ExecutionType mtype, Catalog catalog, Map<String, Long> table_sizes) {
-                	/**
-                	 * long local_a_id, long a_id, String a_value, long b_id, String b_value
-                	 */
-                	Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
-                	Object params[] = new Object[] {
-                		aid, 
-                		getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes),
-                		rng.astring(5, 50),
-                		rng.nextInt((int)LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER),                    		
-                		rng.astring(5, 50)                		
-                	};
+                    /**
+                     * long local_a_id, long a_id, String a_value, long b_id, String b_value
+                     */
+                    Integer aid = rng.nextInt(table_sizes.get(LocalityConstants.TABLENAME_TABLEA).intValue());
+                    Object params[] = new Object[] {
+                        aid, 
+                        getDataId(Long.valueOf(String.valueOf(aid)), rng, mtype, catalog, table_sizes),
+                        rng.astring(5, 50),
+                        rng.nextInt((int)LocalityConstants.TABLESIZE_TABLEB_MULTIPLIER),                            
+                        rng.astring(5, 50)                      
+                    };
                     return (params);
                 }
         })
@@ -222,7 +222,7 @@ public class LocalityClient extends BenchmarkComponent {
                 int new_host = (int)a_id_host_num;
                 if (total_number_of_hosts > 1)
                 {
-                    new_host = rng.numberExcluding(0, total_number_of_hosts -1, (int)a_id_host_num);                	
+                    new_host = rng.numberExcluding(0, total_number_of_hosts -1, (int)a_id_host_num);                    
                 }
                 int new_site = rng.number(0, num_sites_per_host - 1);
                 //determine the partition range for the cluster (with a random host and random sites)
@@ -322,8 +322,8 @@ public class LocalityClient extends BenchmarkComponent {
     public void runLoop() {
         try {
             while (true) {
-            	runOnce();
-            	this.getClientHandle().backpressureBarrier();
+                runOnce();
+                this.getClientHandle().backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {
             /*

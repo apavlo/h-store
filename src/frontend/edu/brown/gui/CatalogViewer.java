@@ -86,68 +86,68 @@ public class CatalogViewer extends AbstractViewer {
     // ----------------------------------------------
     // CATALOG ELEMENTS
     // ----------------------------------------------
-	protected Catalog catalog;
-	protected File catalog_file_path;
-	protected String catalog_path;
-	
-	protected boolean text_mode = true;
-	
-	// ----------------------------------------------
-	// GUI ELEMENTS
-	// ----------------------------------------------
-	protected CatalogTreeModel catalogTreeModel;
-	protected JTree catalogTree;
-	protected JTextField searchField;
-	protected JTextArea textInfoTextArea;
-	protected JScrollPane textInfoScroller;
-	protected JPanel textInfoPanel;
-	protected JPanel mainPanel;
+    protected Catalog catalog;
+    protected File catalog_file_path;
+    protected String catalog_path;
+    
+    protected boolean text_mode = true;
+    
+    // ----------------------------------------------
+    // GUI ELEMENTS
+    // ----------------------------------------------
+    protected CatalogTreeModel catalogTreeModel;
+    protected JTree catalogTree;
+    protected JTextField searchField;
+    protected JTextArea textInfoTextArea;
+    protected JScrollPane textInfoScroller;
+    protected JPanel textInfoPanel;
+    protected JPanel mainPanel;
 
-	// ----------------------------------------------
+    // ----------------------------------------------
     // MENU OPTIONS
     // ----------------------------------------------
-	public enum MenuOptions {
-	    CATALOG_OPEN_FILE,
-	    CATALOG_OPEN_JAR,
-	    CATALOG_SAVE,
-	    QUIT,
-	};
-	
-	/**
-	 * 
-	 * @param catalog
-	 * @param catalog_path
-	 */
-	public CatalogViewer(ArgumentsParser args) {
-	    super(args,
-	          String.format("%s [%s]", WINDOW_TITLE, args.catalog_path),
-	          1000,
-	          DEFAULT_WINDOW_HEIGHT);
-		this.catalog = args.catalog;
-		this.catalog_file_path = args.catalog_path;
-		this.catalog_path = args.catalog_path.getAbsolutePath();
-		this.menuHandler = new CatalogViewer.MenuHandler();
-		this.init();
-	}
-	
-	/**
-	 * 
-	 * @param catalog
-	 * @param catalog_path
-	 */
-	public CatalogViewer(Catalog catalog, String catalog_path) {
-	    super(new ArgumentsParser(), WINDOW_TITLE);
-	    this.catalog = catalog;
-	    this.catalog_path = catalog_path;
-	    this.menuHandler = new CatalogViewer.MenuHandler();
+    public enum MenuOptions {
+        CATALOG_OPEN_FILE,
+        CATALOG_OPEN_JAR,
+        CATALOG_SAVE,
+        QUIT,
+    };
+    
+    /**
+     * 
+     * @param catalog
+     * @param catalog_path
+     */
+    public CatalogViewer(ArgumentsParser args) {
+        super(args,
+              String.format("%s [%s]", WINDOW_TITLE, args.catalog_path),
+              1000,
+              DEFAULT_WINDOW_HEIGHT);
+        this.catalog = args.catalog;
+        this.catalog_file_path = args.catalog_path;
+        this.catalog_path = args.catalog_path.getAbsolutePath();
+        this.menuHandler = new CatalogViewer.MenuHandler();
         this.init();
-	}
+    }
+    
+    /**
+     * 
+     * @param catalog
+     * @param catalog_path
+     */
+    public CatalogViewer(Catalog catalog, String catalog_path) {
+        super(new ArgumentsParser(), WINDOW_TITLE);
+        this.catalog = catalog;
+        this.catalog_path = catalog_path;
+        this.menuHandler = new CatalogViewer.MenuHandler();
+        this.init();
+    }
 
-	public static void show(final Catalog catalog, final String catalog_path) {
+    public static void show(final Catalog catalog, final String catalog_path) {
         CatalogViewer viewer = new CatalogViewer(catalog, catalog_path);
         viewer.setVisible(true);
-	}
-	
+    }
+    
     /**
      * @param args
      */
@@ -181,11 +181,11 @@ public class CatalogViewer extends AbstractViewer {
         this.catalogTree.expandPath(new TreePath(this.catalogTreeModel.getTablesNode().getPath()));
         this.catalogTree.expandPath(new TreePath(this.catalogTreeModel.getProceduresNode().getPath()));
     }
-	
+    
     /**
      * 
      */
-	protected void viewerInit() {
+    protected void viewerInit() {
         // ----------------------------------------------
         // MENU
         // ----------------------------------------------
@@ -225,31 +225,31 @@ public class CatalogViewer extends AbstractViewer {
         menu.add(menuItem);
         
         // ----------------------------------------------
-		// CATALOG TREE PANEL
+        // CATALOG TREE PANEL
         // ----------------------------------------------
-		this.catalogTree = new JTree();
-		this.catalogTree.setEditable(false);
-		this.catalogTree.setCellRenderer(new CatalogViewer.CatalogTreeRenderer());
-		this.catalogTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
-		this.catalogTree.addTreeSelectionListener(new TreeSelectionListener() {
-			public void valueChanged(TreeSelectionEvent e) {
-				DefaultMutableTreeNode node = (DefaultMutableTreeNode)CatalogViewer.this.catalogTree.getLastSelectedPathComponent();
-				if (node == null) return;
+        this.catalogTree = new JTree();
+        this.catalogTree.setEditable(false);
+        this.catalogTree.setCellRenderer(new CatalogViewer.CatalogTreeRenderer());
+        this.catalogTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        this.catalogTree.addTreeSelectionListener(new TreeSelectionListener() {
+            public void valueChanged(TreeSelectionEvent e) {
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode)CatalogViewer.this.catalogTree.getLastSelectedPathComponent();
+                if (node == null) return;
 
-				Object user_obj = node.getUserObject();
-				String new_text = ""; // <html>";
-				boolean text_mode = true;
-				if (user_obj instanceof WrapperNode) {
-					CatalogType catalog_obj  = ((WrapperNode)user_obj).getCatalogType();
-				    new_text += CatalogViewer.this.getAttributesText(catalog_obj);
+                Object user_obj = node.getUserObject();
+                String new_text = ""; // <html>";
+                boolean text_mode = true;
+                if (user_obj instanceof WrapperNode) {
+                    CatalogType catalog_obj  = ((WrapperNode)user_obj).getCatalogType();
+                    new_text += CatalogViewer.this.getAttributesText(catalog_obj);
                 } else if (user_obj instanceof AttributesNode) {
                     AttributesNode wrapper = (AttributesNode)user_obj;
                     new_text += wrapper.getAttributes();
-					
-				} else if (user_obj instanceof PlanTreeCatalogNode) {
-				    final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
-				    text_mode = false;
-				    
+                    
+                } else if (user_obj instanceof PlanTreeCatalogNode) {
+                    final PlanTreeCatalogNode wrapper = (PlanTreeCatalogNode)user_obj;
+                    text_mode = false;
+                    
                     CatalogViewer.this.mainPanel.remove(0);
                     CatalogViewer.this.mainPanel.add(wrapper.getPanel(), BorderLayout.CENTER);
                     CatalogViewer.this.mainPanel.validate();
@@ -267,35 +267,35 @@ public class CatalogViewer extends AbstractViewer {
                     
                 } else {
                     new_text += CatalogViewer.this.getSummaryText();
-				}
+                }
 
-				// Text Mode
-				if (text_mode) {
-				    if (CatalogViewer.this.text_mode == false) {
-				        CatalogViewer.this.mainPanel.remove(0);
-				        CatalogViewer.this.mainPanel.add(CatalogViewer.this.textInfoPanel);
-				    }
-    				CatalogViewer.this.textInfoTextArea.setText(new_text);
-    				
-    				// Scroll to top
-    				CatalogViewer.this.textInfoTextArea.grabFocus();
-				}
-				
-				CatalogViewer.this.text_mode = text_mode;
-			}
-		});
-		this.generateCatalogTree(this.catalog, this.catalog_file_path.getName());
+                // Text Mode
+                if (text_mode) {
+                    if (CatalogViewer.this.text_mode == false) {
+                        CatalogViewer.this.mainPanel.remove(0);
+                        CatalogViewer.this.mainPanel.add(CatalogViewer.this.textInfoPanel);
+                    }
+                    CatalogViewer.this.textInfoTextArea.setText(new_text);
+                    
+                    // Scroll to top
+                    CatalogViewer.this.textInfoTextArea.grabFocus();
+                }
+                
+                CatalogViewer.this.text_mode = text_mode;
+            }
+        });
+        this.generateCatalogTree(this.catalog, this.catalog_file_path.getName());
 
-		//
-		// Text Information Panel
-		//
-		this.textInfoPanel = new JPanel();
-		this.textInfoPanel.setLayout(new BorderLayout());
-		this.textInfoTextArea = new JTextArea();
-		this.textInfoTextArea.setEditable(false);
-		this.textInfoTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-		this.textInfoTextArea.setText(this.getSummaryText());
-		this.textInfoTextArea.addFocusListener(new FocusListener() {
+        //
+        // Text Information Panel
+        //
+        this.textInfoPanel = new JPanel();
+        this.textInfoPanel.setLayout(new BorderLayout());
+        this.textInfoTextArea = new JTextArea();
+        this.textInfoTextArea.setEditable(false);
+        this.textInfoTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        this.textInfoTextArea.setText(this.getSummaryText());
+        this.textInfoTextArea.addFocusListener(new FocusListener() {
             @Override
             public void focusLost(FocusEvent e) {
                 // TODO Auto-generated method stub
@@ -306,27 +306,27 @@ public class CatalogViewer extends AbstractViewer {
                 CatalogViewer.this.scrollTextInfoToTop();
             }
         });
-		this.textInfoScroller = new JScrollPane(this.textInfoTextArea);
-		this.textInfoPanel.add(this.textInfoScroller, BorderLayout.CENTER);
-		this.mainPanel = new JPanel(new BorderLayout());
-		this.mainPanel.add(textInfoPanel, BorderLayout.CENTER);
-		
-		//
-		// Search Toolbar
-		//
-		JPanel searchPanel = new JPanel();
-		searchPanel.setLayout(new BorderLayout());
-		JPanel innerSearchPanel = new JPanel();
-		innerSearchPanel.setLayout(new BoxLayout(innerSearchPanel, BoxLayout.X_AXIS));
-		innerSearchPanel.add(new JLabel("Search: "));
-		this.searchField = new JTextField(30);
-		innerSearchPanel.add(this.searchField);
-		searchPanel.add(innerSearchPanel, BorderLayout.EAST);
-		
-		this.searchField.addKeyListener(new KeyListener() {
-		    private String last = null; 
-		    
-		    @Override
+        this.textInfoScroller = new JScrollPane(this.textInfoTextArea);
+        this.textInfoPanel.add(this.textInfoScroller, BorderLayout.CENTER);
+        this.mainPanel = new JPanel(new BorderLayout());
+        this.mainPanel.add(textInfoPanel, BorderLayout.CENTER);
+        
+        //
+        // Search Toolbar
+        //
+        JPanel searchPanel = new JPanel();
+        searchPanel.setLayout(new BorderLayout());
+        JPanel innerSearchPanel = new JPanel();
+        innerSearchPanel.setLayout(new BoxLayout(innerSearchPanel, BoxLayout.X_AXIS));
+        innerSearchPanel.add(new JLabel("Search: "));
+        this.searchField = new JTextField(30);
+        innerSearchPanel.add(this.searchField);
+        searchPanel.add(innerSearchPanel, BorderLayout.EAST);
+        
+        this.searchField.addKeyListener(new KeyListener() {
+            private String last = null; 
+            
+            @Override
             public void keyReleased(KeyEvent e) {
                 String value = CatalogViewer.this.searchField.getText().toLowerCase().trim();
                 if (!value.isEmpty() && (this.last == null || !this.last.equals(value))) {
@@ -334,30 +334,30 @@ public class CatalogViewer extends AbstractViewer {
                 }
                 this.last = value;
             }
-		    @Override
-		    public void keyTyped(KeyEvent e) {
-		        // Do nothing...
-		    }
-		    @Override
+            @Override
+            public void keyTyped(KeyEvent e) {
+                // Do nothing...
+            }
+            @Override
             public void keyPressed(KeyEvent e) {
                 // Do nothing...
             }
-		});
-		
-		// Putting it all together
-		JScrollPane scrollPane = new JScrollPane(this.catalogTree);
-		JPanel topPanel = new JPanel();
-		topPanel.setLayout(new BorderLayout());
-		topPanel.add(searchPanel, BorderLayout.NORTH);
-		topPanel.add(scrollPane, BorderLayout.CENTER);
-		
-		JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, topPanel, this.mainPanel);
-		splitPane.setDividerLocation(400);
+        });
+        
+        // Putting it all together
+        JScrollPane scrollPane = new JScrollPane(this.catalogTree);
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BorderLayout());
+        topPanel.add(searchPanel, BorderLayout.NORTH);
+        topPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, topPanel, this.mainPanel);
+        splitPane.setDividerLocation(400);
 
-		this.add(splitPane, BorderLayout.CENTER);
-	}
-	
-	protected void search(String value) {
+        this.add(splitPane, BorderLayout.CENTER);
+    }
+    
+    protected void search(String value) {
         LOG.debug("Searching based on keyword '" + value + "'...");
         
         Set<DefaultMutableTreeNode> found = new HashSet<DefaultMutableTreeNode>();
@@ -390,7 +390,7 @@ public class CatalogViewer extends AbstractViewer {
             } catch (Exception ex) {
                 // Ignore...
             }
-	    }
+        }
         
         // Otherwise search by name...
         if (guid == null && value.length() >= SEARCH_MIN_LENGTH) {
@@ -407,48 +407,48 @@ public class CatalogViewer extends AbstractViewer {
             this.highlight(found);
             this.searchField.requestFocus();
         }
-	}
-	
-	protected void highlight(Collection<DefaultMutableTreeNode> nodes) {
-	    // Collapse everything and then show the paths to each node
-	    for (int ctr = this.catalogTree.getRowCount(); ctr >= 0; ctr--) {
-	        if (this.catalogTree.isExpanded(ctr)) {
-	            this.catalogTree.collapseRow(ctr);	            
-	        }
-	    } // FOR
-	    this.catalogTree.getSelectionModel().clearSelection();
-	    
-	    for (DefaultMutableTreeNode node : nodes) {
-	        TreePath path = new TreePath(node.getPath());
-	        this.catalogTree.setSelectionPath(path);
-	        this.catalogTree.expandPath(path);
-	    } // FOR
-	}
-	
-	/**
-	 * Scroll the attributes pane to the top
-	 */
-	protected void scrollTextInfoToTop() {
+    }
+    
+    protected void highlight(Collection<DefaultMutableTreeNode> nodes) {
+        // Collapse everything and then show the paths to each node
+        for (int ctr = this.catalogTree.getRowCount(); ctr >= 0; ctr--) {
+            if (this.catalogTree.isExpanded(ctr)) {
+                this.catalogTree.collapseRow(ctr);              
+            }
+        } // FOR
+        this.catalogTree.getSelectionModel().clearSelection();
+        
+        for (DefaultMutableTreeNode node : nodes) {
+            TreePath path = new TreePath(node.getPath());
+            this.catalogTree.setSelectionPath(path);
+            this.catalogTree.expandPath(path);
+        } // FOR
+    }
+    
+    /**
+     * Scroll the attributes pane to the top
+     */
+    protected void scrollTextInfoToTop() {
         JScrollBar verticalScrollBar = this.textInfoScroller.getVerticalScrollBar();
         JScrollBar horizontalScrollBar = this.textInfoScroller.getHorizontalScrollBar();
         verticalScrollBar.setValue(verticalScrollBar.getMinimum());
         horizontalScrollBar.setValue(horizontalScrollBar.getMinimum());
         // System.err.println("VERTICAL=" + verticalScrollBar.getValue() + ", HORIZONTAL=" + horizontalScrollBar.getValue());
-	}
-	
-	/**
-	 * Return text to be used on the summary page
-	 * @return
-	 */
-	@SuppressWarnings("unchecked")
+    }
+    
+    /**
+     * Return text to be used on the summary page
+     * @return
+     */
+    @SuppressWarnings("unchecked")
     protected String getSummaryText() {
-	    Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[3];
-	    int idx = -1;
-	    
-	    // ----------------------
-	    // TABLE INFO
-	    // ----------------------
-	    m[++idx] = new ListOrderedMap<String, Integer>();
+        Map<String, Integer> m[] = (Map<String, Integer>[])new Map<?, ?>[3];
+        int idx = -1;
+        
+        // ----------------------
+        // TABLE INFO
+        // ----------------------
+        m[++idx] = new ListOrderedMap<String, Integer>();
         int cols = 0;
         int fkeys = 0;
         int tables = 0;
@@ -511,32 +511,32 @@ public class CatalogViewer extends AbstractViewer {
         StringBuilder buffer = new StringBuilder();
         buffer.append(StringUtil.header("Catalog Summary", "-", 50) + "\n\n")
               .append(StringUtil.formatMaps(m));
-	    return (buffer.toString());
-	}
-	
-	/**
-	 * 
-	 * @param catalog_obj
-	 */
-	protected String getAttributesText(CatalogType catalog_obj) {
-	    final ListOrderedMap<String, Object> map = new ListOrderedMap<String, Object>();
-	    
-//	    StringBuilder buffer = new StringBuilder();
-		// buffer.append("guid: ").append(catalog_obj.getGuid()).append("\n");
-	    map.put("relativeIndex", catalog_obj.getRelativeIndex());
-	    map.put("nodeVersion", catalog_obj.getNodeVersion());
-		
-		// Default Output
-		if ((catalog_obj instanceof Database) == false) {
-		    Collection<String> skip_fields = CollectionUtil.addAll(new HashSet<String>(),
-		            "exptree", "fullplan", "ms_exptree", "ms_fullplan", "plannodetree", "sqltext");
-		    
-		    Collection<String> catalog_fields = CollectionUtil.addAll(new HashSet<String>(),
+        return (buffer.toString());
+    }
+    
+    /**
+     * 
+     * @param catalog_obj
+     */
+    protected String getAttributesText(CatalogType catalog_obj) {
+        final ListOrderedMap<String, Object> map = new ListOrderedMap<String, Object>();
+        
+//      StringBuilder buffer = new StringBuilder();
+        // buffer.append("guid: ").append(catalog_obj.getGuid()).append("\n");
+        map.put("relativeIndex", catalog_obj.getRelativeIndex());
+        map.put("nodeVersion", catalog_obj.getNodeVersion());
+        
+        // Default Output
+        if ((catalog_obj instanceof Database) == false) {
+            Collection<String> skip_fields = CollectionUtil.addAll(new HashSet<String>(),
+                    "exptree", "fullplan", "ms_exptree", "ms_fullplan", "plannodetree", "sqltext");
+            
+            Collection<String> catalog_fields = CollectionUtil.addAll(new HashSet<String>(),
                     "partition_column", "partitioncolumn", "foreignkeytable"); 
             
-		    if (catalog_obj instanceof Constraint) {
-		        catalog_fields.add("index");
-		    } else if (catalog_obj instanceof Site) {
+            if (catalog_obj instanceof Constraint) {
+                catalog_fields.add("index");
+            } else if (catalog_obj instanceof Site) {
                 catalog_fields.add("host");
                 catalog_fields.add("partition");
             }
@@ -546,72 +546,72 @@ public class CatalogViewer extends AbstractViewer {
             show_type.add(Host.class);
             show_type.add(Site.class);
             show_type.add(Partition.class);
-		    
-			for (String field : catalog_obj.getFields()) {
-			    if (skip_fields.contains(field)) continue;
-			    
-			    // Default
-			    Object value = catalog_obj.getField(field);
+            
+            for (String field : catalog_obj.getFields()) {
+                if (skip_fields.contains(field)) continue;
+                
+                // Default
+                Object value = catalog_obj.getField(field);
                 map.put(field, value);
                 
                 // Specialized Output
-			    if (value != null && catalog_fields.contains(field)) {
-			        CatalogType catalog_item = null;
-			        if (value instanceof CatalogType) {
-			            catalog_item = (CatalogType)value;
-			        } else if (value instanceof CatalogType.UnresolvedInfo) {
-			            catalog_item = catalog.getItemForRef(((UnresolvedInfo)value).path);
-			        } else {
-			            assert(false) : "Unexpected value '" + value + "' for field '" + field + "'";
-			        }
-			        
-			        if (catalog_item != null) {
-			            boolean include_class = show_type.contains(catalog_item.getClass()); 
-			            map.put(field, CatalogUtil.getDisplayName(catalog_item, include_class));
-			        } else {
-			            map.put(field, catalog_item);
-			        }
-			    } 
-			    
-			    // Constraint
-			    else if (catalog_obj instanceof Constraint) {
-		            if (field == "type") {
-		                map.put(field, ConstraintType.get((Integer)value));
-		            }
-			    }
-	            // Index
-			    else if (catalog_obj instanceof Index) {
-		            if (field == "type") {
-		                map.put(field, IndexType.get((Integer)value));
-		            }
-			    }
-	            // Column / StmtParameter / ProcParameter
-			    else if (catalog_obj instanceof Column || catalog_obj instanceof StmtParameter || catalog_obj instanceof ProcParameter) {
-		            String keys[] = { "type", "sqltype", "javatype", "defaultvaluetype" };
-		            for (String key : keys) {
-		                if (field == key) {
-		                    map.put(field, VoltType.get(((Integer)value).byteValue()).name());
-		                    break;
-		                }
-		            } // FOR
-		            if (field.equals("procparameter")) {
-		                ProcParameter proc_param = ((StmtParameter)catalog_obj).getProcparameter();
-		                if (proc_param != null) {
-		                    map.put(field, proc_param.fullName()); 
-		                }
-		            }
-			    }
-			} // FOR
-		}
-		
-		// INDEX
-		if (catalog_obj instanceof Index) {
-		    Index catalog_idx = (Index)catalog_obj;
-		    Collection<Column> cols = CatalogUtil.getColumns(CatalogUtil.getSortedCatalogItems(catalog_idx.getColumns(), "index"));
-		    map.put("columns", CatalogUtil.getDisplayNames(cols));
-		}
-	    // CONSTRAINT
-		else if (catalog_obj instanceof Constraint) {
+                if (value != null && catalog_fields.contains(field)) {
+                    CatalogType catalog_item = null;
+                    if (value instanceof CatalogType) {
+                        catalog_item = (CatalogType)value;
+                    } else if (value instanceof CatalogType.UnresolvedInfo) {
+                        catalog_item = catalog.getItemForRef(((UnresolvedInfo)value).path);
+                    } else {
+                        assert(false) : "Unexpected value '" + value + "' for field '" + field + "'";
+                    }
+                    
+                    if (catalog_item != null) {
+                        boolean include_class = show_type.contains(catalog_item.getClass()); 
+                        map.put(field, CatalogUtil.getDisplayName(catalog_item, include_class));
+                    } else {
+                        map.put(field, catalog_item);
+                    }
+                } 
+                
+                // Constraint
+                else if (catalog_obj instanceof Constraint) {
+                    if (field == "type") {
+                        map.put(field, ConstraintType.get((Integer)value));
+                    }
+                }
+                // Index
+                else if (catalog_obj instanceof Index) {
+                    if (field == "type") {
+                        map.put(field, IndexType.get((Integer)value));
+                    }
+                }
+                // Column / StmtParameter / ProcParameter
+                else if (catalog_obj instanceof Column || catalog_obj instanceof StmtParameter || catalog_obj instanceof ProcParameter) {
+                    String keys[] = { "type", "sqltype", "javatype", "defaultvaluetype" };
+                    for (String key : keys) {
+                        if (field == key) {
+                            map.put(field, VoltType.get(((Integer)value).byteValue()).name());
+                            break;
+                        }
+                    } // FOR
+                    if (field.equals("procparameter")) {
+                        ProcParameter proc_param = ((StmtParameter)catalog_obj).getProcparameter();
+                        if (proc_param != null) {
+                            map.put(field, proc_param.fullName()); 
+                        }
+                    }
+                }
+            } // FOR
+        }
+        
+        // INDEX
+        if (catalog_obj instanceof Index) {
+            Index catalog_idx = (Index)catalog_obj;
+            Collection<Column> cols = CatalogUtil.getColumns(CatalogUtil.getSortedCatalogItems(catalog_idx.getColumns(), "index"));
+            map.put("columns", CatalogUtil.getDisplayNames(cols));
+        }
+        // CONSTRAINT
+        else if (catalog_obj instanceof Constraint) {
             Constraint catalog_const = (Constraint)catalog_obj;
             Collection<Column> cols = null;
             if (catalog_const.getType() == ConstraintType.FOREIGN_KEY.getValue()) {
@@ -621,23 +621,23 @@ public class CatalogViewer extends AbstractViewer {
                 cols = CatalogUtil.getColumns(catalog_idx.getColumns());
             }
             map.put("columns", CatalogUtil.getDisplayNames(cols));
-		}
+        }
         // COLUMN
         else if (catalog_obj instanceof Column) {
             Column catalog_col = (Column)catalog_obj;
             Collection<Constraint> consts = CatalogUtil.getConstraints(catalog_col.getConstraints());
             map.put("constraints", CatalogUtil.getDisplayNames(consts));
         }
-		
-		StringBuilder buffer = new StringBuilder(StringUtil.formatMaps(map));
-		
-		// DATABASE
-		if (catalog_obj instanceof Database) {
-		    buffer.append(StringUtil.SINGLE_LINE);
-		    buffer.append(Encoder.hexDecodeToString(((Database)catalog_obj).getSchema()));
-		}
+        
+        StringBuilder buffer = new StringBuilder(StringUtil.formatMaps(map));
+        
+        // DATABASE
+        if (catalog_obj instanceof Database) {
+            buffer.append(StringUtil.SINGLE_LINE);
+            buffer.append(Encoder.hexDecodeToString(((Database)catalog_obj).getSchema()));
+        }
         // PLANFRAGMENT
-		else if (catalog_obj instanceof PlanFragment) {
+        else if (catalog_obj instanceof PlanFragment) {
             PlanFragment catalog_frgmt = (PlanFragment)catalog_obj;
             try {
                 AbstractPlanNode node = PlanNodeUtil.getPlanNodeTreeForPlanFragment(catalog_frgmt);
@@ -652,7 +652,7 @@ public class CatalogViewer extends AbstractViewer {
             buffer.append(StringUtil.SINGLE_LINE);
             buffer.append("\n").append(CatalogUtil.toSchema((Table)catalog_obj)).append("\n");
         }
-		// Statement
+        // Statement
         else if (catalog_obj instanceof Statement) {
             Statement catalog_stmt = (Statement)catalog_obj;
             SQLFormatter f = new SQLFormatter(catalog_stmt.getSqltext());
@@ -660,10 +660,10 @@ public class CatalogViewer extends AbstractViewer {
             buffer.append("\n").append(f.format()).append("\n");
         }
 
-		return (buffer.toString());
-	}
-	
-	public class CatalogTreeRenderer extends DefaultTreeCellRenderer {
+        return (buffer.toString());
+    }
+    
+    public class CatalogTreeRenderer extends DefaultTreeCellRenderer {
         private static final long serialVersionUID = 1L;
 
         /**
@@ -671,47 +671,47 @@ public class CatalogViewer extends AbstractViewer {
          */
         @Override
         public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row, boolean hasFocus) {
-	    	super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
-	    	if (value instanceof DefaultMutableTreeNode) {
-	    		DefaultMutableTreeNode node = (DefaultMutableTreeNode)value;
-	    		if (node.getUserObject() instanceof WrapperNode) {
-	    			CatalogType catalog_obj = ((WrapperNode)node.getUserObject()).getCatalogType();
-		    		this.setFont(this.getFont().deriveFont(Font.BOLD));
-		    		
-		    		//
-		    		// Cluster
-		    		//
-		    		if (catalog_obj instanceof Cluster) {
-		    			this.setIcon(UIManager.getIcon("FileView.computerIcon"));
-		    		//
-		    		// Database
-		    		//
-		    		} else if (catalog_obj instanceof Database) {
-		    			this.setIcon(UIManager.getIcon("FileView.hardDriveIcon"));
-		    		}
-		    	} else {
-		    		this.setFont(this.getFont().deriveFont(Font.PLAIN));
-		    	}
-	    	}
-	    	if (CatalogViewer.this.catalogTreeModel != null) {
-		    	//
-		    	// Root Node
-		    	//
-		    	Object root_node = CatalogViewer.this.catalogTreeModel.getRoot();
-		    	if (root_node != null && root_node == value) {
-		    		this.setIcon(UIManager.getIcon("FileView.floppyDriveIcon"));
-		    		this.setFont(this.getFont().deriveFont(Font.BOLD));
-		    	}
-	    	}
-	    	/*
-	    	if (leaf) {
-	    		this.setIcon(UIManager.getIcon("FileChooser.detailsViewIcon"));
-	    	}
-	    	*/
-	        return (this);
-	    }
-	} // END CLASS
-	
+            super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
+            if (value instanceof DefaultMutableTreeNode) {
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode)value;
+                if (node.getUserObject() instanceof WrapperNode) {
+                    CatalogType catalog_obj = ((WrapperNode)node.getUserObject()).getCatalogType();
+                    this.setFont(this.getFont().deriveFont(Font.BOLD));
+                    
+                    //
+                    // Cluster
+                    //
+                    if (catalog_obj instanceof Cluster) {
+                        this.setIcon(UIManager.getIcon("FileView.computerIcon"));
+                    //
+                    // Database
+                    //
+                    } else if (catalog_obj instanceof Database) {
+                        this.setIcon(UIManager.getIcon("FileView.hardDriveIcon"));
+                    }
+                } else {
+                    this.setFont(this.getFont().deriveFont(Font.PLAIN));
+                }
+            }
+            if (CatalogViewer.this.catalogTreeModel != null) {
+                //
+                // Root Node
+                //
+                Object root_node = CatalogViewer.this.catalogTreeModel.getRoot();
+                if (root_node != null && root_node == value) {
+                    this.setIcon(UIManager.getIcon("FileView.floppyDriveIcon"));
+                    this.setFont(this.getFont().deriveFont(Font.BOLD));
+                }
+            }
+            /*
+            if (leaf) {
+                this.setIcon(UIManager.getIcon("FileChooser.detailsViewIcon"));
+            }
+            */
+            return (this);
+        }
+    } // END CLASS
+    
     protected class MenuHandler extends AbstractMenuHandler {
         /**
          * 

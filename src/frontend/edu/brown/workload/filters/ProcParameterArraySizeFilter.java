@@ -89,8 +89,8 @@ public class ProcParameterArraySizeFilter extends Filter {
     public String debugImpl() {
         return (this.getClass().getSimpleName() + "[" +
                 "param_idx=" + param_idx + ", " +
-        		"size=" + this.param_size + ", " +
-        		"exp=" + this.exp_type + "]");
+                "size=" + this.param_size + ", " +
+                "exp=" + this.exp_type + "]");
     }
 
 }

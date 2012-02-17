@@ -1103,7 +1103,7 @@ public class SingleSitedCostModel extends AbstractCostModel {
         // all hash to the same value. If they don't, then we know we can't sbe single-partition
         } else {
             for (Entry<String, Set<Integer>> entry: temp_stmtPartitions.entrySet()) {
-            	String table_key = entry.getKey();
+                String table_key = entry.getKey();
                 Table catalog_tbl = CatalogKey.getFromKey(catalog_db, table_key, Table.class);
                 if (catalog_tbl.getIsreplicated()) {
                     continue;

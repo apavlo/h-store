@@ -97,15 +97,15 @@ public class AuctionMarkClient extends BenchmarkComponent {
          * @param client
          * @return
          */
-    	public boolean canGenerateParam(AuctionMarkClient client);
-    	/**
-    	 * Generate the parameters array
-    	 * Any elements that are CompositeIds will automatically be encoded before being
-    	 * shipped off to the H-Store cluster
-    	 * @param client
-    	 * @return
-    	 */
-    	public Object[] generateParams(AuctionMarkClient client);
+        public boolean canGenerateParam(AuctionMarkClient client);
+        /**
+         * Generate the parameters array
+         * Any elements that are CompositeIds will automatically be encoded before being
+         * shipped off to the H-Store cluster
+         * @param client
+         * @return
+         */
+        public Object[] generateParams(AuctionMarkClient client);
     }
     
     // --------------------------------------------------------------------
@@ -122,21 +122,21 @@ public class AuctionMarkClient extends BenchmarkComponent {
                                       client.profile.getLastCloseAuctionsTime(),
                                       client.profile.updateAndGetLastCloseAuctionsTime() };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-			    if (AuctionMarkConstants.ENABLE_CLOSE_AUCTIONS && client.getClientId() == 0) {
-			        // If we've never checked before, then we'll want to do that now
-			        if (client.profile.hasLastCloseAuctionsTime() == false) return (true);
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                if (AuctionMarkConstants.ENABLE_CLOSE_AUCTIONS && client.getClientId() == 0) {
+                    // If we've never checked before, then we'll want to do that now
+                    if (client.profile.hasLastCloseAuctionsTime() == false) return (true);
 
-			        // Otherwise check whether enough time has passed since the last time we checked
-			        TimestampType lastCheckWinningBidTime = client.profile.getLastCloseAuctionsTime();
-			        TimestampType currentTime = client.profile.getCurrentTime();
-			        long time_elapsed = Math.round((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0);
-			        if (debug.get()) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.profile.getBenchmarkStartTime(), currentTime, time_elapsed));
-			        if (time_elapsed > AuctionMarkConstants.INTERVAL_CLOSE_AUCTIONS) return (true);
-			    }
-				return (false);
-			}
+                    // Otherwise check whether enough time has passed since the last time we checked
+                    TimestampType lastCheckWinningBidTime = client.profile.getLastCloseAuctionsTime();
+                    TimestampType currentTime = client.profile.getCurrentTime();
+                    long time_elapsed = Math.round((currentTime.getTime() - lastCheckWinningBidTime.getTime()) / 1000.0);
+                    if (debug.get()) LOG.debug(String.format("%s [start=%s, current=%s, elapsed=%d]", Transaction.CLOSE_AUCTIONS, client.profile.getBenchmarkStartTime(), currentTime, time_elapsed));
+                    if (time_elapsed > AuctionMarkConstants.INTERVAL_CLOSE_AUCTIONS) return (true);
+                }
+                return (false);
+            }
         }),
         // ====================================================================
         // GET_ITEM
@@ -144,15 +144,15 @@ public class AuctionMarkClient extends BenchmarkComponent {
         GET_ITEM(AuctionMarkConstants.FREQUENCY_GET_ITEM, new AuctionMarkParamGenerator() {
             @Override
             public Object[] generateParams(AuctionMarkClient client) {
-            	ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
+                ItemInfo itemInfo = client.profile.getRandomAvailableItemId();
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, itemInfo.getSellerId() };
             }
 
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getAvailableItemsCount() > 0);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.profile.getAvailableItemsCount() > 0);
+            }
         }),
         // ====================================================================
         // GET_USER_INFO
@@ -256,10 +256,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, sellerId, buyerId, maxBid, itemInfo.endDate };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-			    return (client.profile.getAllItemsCount() > 0);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.profile.getAllItemsCount() > 0);
+            }
         }),
         // ====================================================================
         // NEW_COMMENT
@@ -274,10 +274,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, sellerId, buyerId, question };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getCompleteItemsCount() > 0);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.profile.getCompleteItemsCount() > 0);
+            }
         }),
         // ====================================================================
         // NEW_COMMENT_RESPONSE
@@ -297,10 +297,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemId, sellerId, commentId, response };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.pending_commentResponse.isEmpty() == false);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.pending_commentResponse.isEmpty() == false);
+            }
         }),
         // ====================================================================
         // NEW_FEEDBACK
@@ -316,10 +316,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, sellerId, buyerId, rating, feedback };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getCompleteItemsCount() > 0);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.profile.getCompleteItemsCount() > 0);
+            }
         }),
         // ====================================================================
         // NEW_ITEM
@@ -365,10 +365,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                                       name, description, duration, initial_price, attributes,
                                       gag_ids, gav_ids, images };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-			    return (true);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (true);
+            }
         }),
         // ====================================================================
         // NEW_PURCHASE
@@ -392,10 +392,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                 return new Object[] { client.getTimestampParameterArray(),
                                       itemInfo.itemId, sellerId, buyer_credit };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getWaitForPurchaseItemsCount() > 0);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.profile.getWaitForPurchaseItemsCount() > 0);
+            }
         }),
         // ====================================================================
         // UPDATE_ITEM
@@ -429,10 +429,10 @@ public class AuctionMarkClient extends BenchmarkComponent {
                                       itemInfo.itemId, sellerId, description,
                                       delete_attribute, add_attribute };
             }
-			@Override
-			public boolean canGenerateParam(AuctionMarkClient client) {
-				return (client.profile.getAvailableItemsCount() > 0);
-			}
+            @Override
+            public boolean canGenerateParam(AuctionMarkClient client) {
+                return (client.profile.getAvailableItemsCount() > 0);
+            }
         }), 
         ;
         
@@ -490,7 +490,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
          */
         public boolean canExecute(AuctionMarkClient client) {
             if (debug.get()) LOG.debug("Checking whether we can execute " + this + " now");
-        	return this.generator.canGenerateParam(client);
+            return this.generator.canGenerateParam(client);
         }
         
         /**
@@ -505,7 +505,7 @@ public class AuctionMarkClient extends BenchmarkComponent {
             for (int i = 0; i < vals.length; i++) {
                 if (vals[i] instanceof CompositeId) vals[i] = ((CompositeId)vals[i]).encode();
             } // FOR
-        	return (vals);
+            return (vals);
         }
     }
 
@@ -583,8 +583,8 @@ public class AuctionMarkClient extends BenchmarkComponent {
         int total = 0;
         for (Transaction t : Transaction.values()) {
             for (int i = 0, cnt = this.weights.get(t); i < cnt; i++) {
-            	if (trace.get())
-            	    LOG.trace("xact " + total + " = " + t + ":" + t.getCallName());
+                if (trace.get())
+                    LOG.trace("xact " + total + " = " + t + ":" + t.getCallName());
                 this.xacts[total++] = t;
             } // FOR
         } // FOR

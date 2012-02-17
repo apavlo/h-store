@@ -12,13 +12,13 @@ import org.voltdb.VoltType;
 import edu.brown.utils.CollectionUtil;
 
 @ProcInfo(
-	mapInputQuery = "mapInputQuery"
+    mapInputQuery = "mapInputQuery"
 )
 public class MockMapReduce extends VoltMapReduceProcedure<String> {
 
     public SQLStmt mapInputQuery = new SQLStmt(
-		"SELECT A_NAME, COUNT(*) FROM TABLEA WHERE A_AGE >= ? GROUP BY A_NAME"
-	);
+        "SELECT A_NAME, COUNT(*) FROM TABLEA WHERE A_AGE >= ? GROUP BY A_NAME"
+    );
 
     @Override
     public VoltTable.ColumnInfo[] getMapOutputSchema() {

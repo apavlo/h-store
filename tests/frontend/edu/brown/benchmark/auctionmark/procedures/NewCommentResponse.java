@@ -46,15 +46,15 @@ import edu.brown.benchmark.auctionmark.AuctionMarkConstants;
     singlePartition = true
 )
 public class NewCommentResponse extends VoltProcedure{
-	
+    
     // -----------------------------------------------------------------
     // STATEMENTS
     // -----------------------------------------------------------------
     
     public final SQLStmt updateComment = new SQLStmt(
         "UPDATE " + AuctionMarkConstants.TABLENAME_ITEM_COMMENT + " " +
-        	"SET ic_response = ?, " +
-        	"    ic_updated = ? " +
+            "SET ic_response = ?, " +
+            "    ic_updated = ? " +
         "WHERE ic_id = ? AND ic_i_id = ? AND ic_u_id = ? "
     );
     
@@ -74,5 +74,5 @@ public class NewCommentResponse extends VoltProcedure{
         voltQueueSQL(updateComment, response, currentTime, comment_id, item_id, seller_id);
         voltQueueSQL(updateUser, currentTime, seller_id);
         return (voltExecuteSQL());
-    }	
+    }   
 }
