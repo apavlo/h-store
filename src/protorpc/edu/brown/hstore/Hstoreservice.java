@@ -1607,12 +1607,17 @@ public final class Hstoreservice {
       return prefetchFragments_.get(index);
     }
     
-    // optional bytes prefetch_parameter_sets = 5;
+    // repeated bytes prefetch_parameter_sets = 5;
     public static final int PREFETCH_PARAMETER_SETS_FIELD_NUMBER = 5;
-    private boolean hasPrefetchParameterSets;
-    private com.google.protobuf.ByteString prefetchParameterSets_ = com.google.protobuf.ByteString.EMPTY;
-    public boolean hasPrefetchParameterSets() { return hasPrefetchParameterSets; }
-    public com.google.protobuf.ByteString getPrefetchParameterSets() { return prefetchParameterSets_; }
+    private java.util.List<com.google.protobuf.ByteString> prefetchParameterSets_ =
+      java.util.Collections.emptyList();
+    public java.util.List<com.google.protobuf.ByteString> getPrefetchParameterSetsList() {
+      return prefetchParameterSets_;
+    }
+    public int getPrefetchParameterSetsCount() { return prefetchParameterSets_.size(); }
+    public com.google.protobuf.ByteString getPrefetchParameterSets(int index) {
+      return prefetchParameterSets_.get(index);
+    }
     
     private void initFields() {
     }
@@ -1644,8 +1649,8 @@ public final class Hstoreservice {
       for (edu.brown.hstore.Hstoreservice.WorkFragment element : getPrefetchFragmentsList()) {
         output.writeMessage(4, element);
       }
-      if (hasPrefetchParameterSets()) {
-        output.writeBytes(5, getPrefetchParameterSets());
+      for (com.google.protobuf.ByteString element : getPrefetchParameterSetsList()) {
+        output.writeBytes(5, element);
       }
       getUnknownFields().writeTo(output);
     }
@@ -1682,9 +1687,14 @@ public final class Hstoreservice {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(4, element);
       }
-      if (hasPrefetchParameterSets()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(5, getPrefetchParameterSets());
+      {
+        int dataSize = 0;
+        for (com.google.protobuf.ByteString element : getPrefetchParameterSetsList()) {
+          dataSize += com.google.protobuf.CodedOutputStream
+            .computeBytesSizeNoTag(element);
+        }
+        size += dataSize;
+        size += 1 * getPrefetchParameterSetsList().size();
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -1836,6 +1846,10 @@ public final class Hstoreservice {
           result.prefetchFragments_ =
             java.util.Collections.unmodifiableList(result.prefetchFragments_);
         }
+        if (result.prefetchParameterSets_ != java.util.Collections.EMPTY_LIST) {
+          result.prefetchParameterSets_ =
+            java.util.Collections.unmodifiableList(result.prefetchParameterSets_);
+        }
         edu.brown.hstore.Hstoreservice.TransactionInitRequest returnMe = result;
         result = null;
         return returnMe;
@@ -1870,8 +1884,11 @@ public final class Hstoreservice {
           }
           result.prefetchFragments_.addAll(other.prefetchFragments_);
         }
-        if (other.hasPrefetchParameterSets()) {
-          setPrefetchParameterSets(other.getPrefetchParameterSets());
+        if (!other.prefetchParameterSets_.isEmpty()) {
+          if (result.prefetchParameterSets_.isEmpty()) {
+            result.prefetchParameterSets_ = new java.util.ArrayList<com.google.protobuf.ByteString>();
+          }
+          result.prefetchParameterSets_.addAll(other.prefetchParameterSets_);
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
@@ -1926,7 +1943,7 @@ public final class Hstoreservice {
               break;
             }
             case 42: {
-              setPrefetchParameterSets(input.readBytes());
+              addPrefetchParameterSets(input.readBytes());
               break;
             }
           }
@@ -2055,24 +2072,43 @@ public final class Hstoreservice {
         return this;
       }
       
-      // optional bytes prefetch_parameter_sets = 5;
-      public boolean hasPrefetchParameterSets() {
-        return result.hasPrefetchParameterSets();
+      // repeated bytes prefetch_parameter_sets = 5;
+      public java.util.List<com.google.protobuf.ByteString> getPrefetchParameterSetsList() {
+        return java.util.Collections.unmodifiableList(result.prefetchParameterSets_);
       }
-      public com.google.protobuf.ByteString getPrefetchParameterSets() {
-        return result.getPrefetchParameterSets();
+      public int getPrefetchParameterSetsCount() {
+        return result.getPrefetchParameterSetsCount();
       }
-      public Builder setPrefetchParameterSets(com.google.protobuf.ByteString value) {
+      public com.google.protobuf.ByteString getPrefetchParameterSets(int index) {
+        return result.getPrefetchParameterSets(index);
+      }
+      public Builder setPrefetchParameterSets(int index, com.google.protobuf.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  result.hasPrefetchParameterSets = true;
-        result.prefetchParameterSets_ = value;
+  result.prefetchParameterSets_.set(index, value);
+        return this;
+      }
+      public Builder addPrefetchParameterSets(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  if (result.prefetchParameterSets_.isEmpty()) {
+          result.prefetchParameterSets_ = new java.util.ArrayList<com.google.protobuf.ByteString>();
+        }
+        result.prefetchParameterSets_.add(value);
+        return this;
+      }
+      public Builder addAllPrefetchParameterSets(
+          java.lang.Iterable<? extends com.google.protobuf.ByteString> values) {
+        if (result.prefetchParameterSets_.isEmpty()) {
+          result.prefetchParameterSets_ = new java.util.ArrayList<com.google.protobuf.ByteString>();
+        }
+        super.addAll(values, result.prefetchParameterSets_);
         return this;
       }
       public Builder clearPrefetchParameterSets() {
-        result.hasPrefetchParameterSets = false;
-        result.prefetchParameterSets_ = getDefaultInstance().getPrefetchParameterSets();
+        result.prefetchParameterSets_ = java.util.Collections.emptyList();
         return this;
       }
       
@@ -11671,7 +11707,7 @@ public final class Hstoreservice {
       "ocedure_id\030\002 \002(\005\022\026\n\npartitions\030\003 \003(\005B\002\020\001" +
       "\022:\n\022prefetch_fragments\030\004 \003(\0132\036.edu.brown" +
       ".hstore.WorkFragment\022\037\n\027prefetch_paramet" +
-      "er_sets\030\005 \001(\014\"\254\001\n\027TransactionInitRespons" +
+      "er_sets\030\005 \003(\014\"\254\001\n\027TransactionInitRespons" +
       "e\022\026\n\016transaction_id\030\001 \002(\003\022\026\n\npartitions\030" +
       "\002 \003(\005B\002\020\001\022(\n\006status\030\003 \002(\0162\030.edu.brown.hs" +
       "tore.Status\022\030\n\020reject_partition\030\004 \001(\005\022\035\n" +

@@ -17,6 +17,7 @@
 
 package org.voltdb.compiler;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -46,6 +47,7 @@ import org.voltdb.compiler.VoltCompiler.VoltCompilerException;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
+import edu.brown.hstore.interfaces.Prefetchable;
 import edu.brown.utils.ClassUtil;
 
 /**
@@ -223,6 +225,13 @@ public abstract class ProcedureCompiler {
                     throw compiler.new VoltCompilerException(msg);
                 }
 
+                // TODO(cjl): If this Field has a Prefetchable annotation, then we will want to
+                // set the "prefetchable" flag in the catalog for the statement
+                if (!f.getAnnotation(Prefetchable.class).equals(null)) {
+                	catalogStmt.setPrefetch(true);
+            		procedure.setPrefetch(true);
+                }
+                
                 // if a single stmt is not read only, then the proc is not read only
                 if (catalogStmt.getReadonly() == false)
                     procHasWriteStmts = true;
