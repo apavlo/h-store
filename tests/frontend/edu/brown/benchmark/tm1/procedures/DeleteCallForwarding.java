@@ -34,44 +34,39 @@ package edu.brown.benchmark.tm1.procedures;
 
 import java.util.Arrays;
 
-import org.voltdb.*;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(
-    singlePartition = false
-)
+@ProcInfo(singlePartition = false)
 public class DeleteCallForwarding extends VoltProcedure {
 
-     public final SQLStmt query = new SQLStmt(
-         "SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?"
-     );
+    public final SQLStmt query = new SQLStmt("SELECT s_id FROM " + TM1Constants.TABLENAME_SUBSCRIBER + " WHERE sub_nbr = ?");
 
-     public final SQLStmt update = new SQLStmt(
-         "DELETE FROM " + TM1Constants.TABLENAME_CALL_FORWARDING + " WHERE s_id = ? AND sf_type = ? AND start_time = ?"
-     );
+    public final SQLStmt update = new SQLStmt("DELETE FROM " + TM1Constants.TABLENAME_CALL_FORWARDING + " WHERE s_id = ? AND sf_type = ? AND start_time = ?");
 
-     public long run(String sub_nbr, long sf_type, long start_time) {
-         voltQueueSQL(query, sub_nbr);
-         VoltTable results[] = voltExecuteSQL();
-         assert(results.length == 1);
-         assert(results[0].getRowCount() == 1) : "Got back " + results[0].getRowCount() + " tuples returned for sub_nbr '" + sub_nbr + "'";
-         boolean adv = results[0].advanceRow();
-         assert(adv);
-         long s_id = results[0].getLong(0);
-         voltQueueSQL(update, s_id, sf_type, start_time);
-         results = voltExecuteSQL();
-         assert(results.length == 1) :
-             "Failed to delete " + TM1Constants.TABLENAME_CALL_FORWARDING + " record " +
-             "[sub_nbr=" + sub_nbr + ",s_id=" + s_id + "]\n" + Arrays.toString(results); 
-         
-         adv = results[0].advanceRow();
-         assert(adv);
-         long rows_updated = results[0].getLong(0);
-         if (rows_updated == 0) {
-             throw new VoltAbortException("Failed to delete a row in " + TM1Constants.TABLENAME_CALL_FORWARDING);
-         }
-         
-         return (rows_updated);
-     }
+    public long run(String sub_nbr, long sf_type, long start_time) {
+        voltQueueSQL(query, sub_nbr);
+        VoltTable results[] = voltExecuteSQL();
+        assert (results.length == 1);
+        assert (results[0].getRowCount() == 1) : "Got back " + results[0].getRowCount() + " tuples returned for sub_nbr '" + sub_nbr + "'";
+        boolean adv = results[0].advanceRow();
+        assert (adv);
+        long s_id = results[0].getLong(0);
+        voltQueueSQL(update, s_id, sf_type, start_time);
+        results = voltExecuteSQL();
+        assert (results.length == 1) : "Failed to delete " + TM1Constants.TABLENAME_CALL_FORWARDING + " record " + "[sub_nbr=" + sub_nbr + ",s_id=" + s_id + "]\n" + Arrays.toString(results);
+
+        adv = results[0].advanceRow();
+        assert (adv);
+        long rows_updated = results[0].getLong(0);
+        if (rows_updated == 0) {
+            throw new VoltAbortException("Failed to delete a row in " + TM1Constants.TABLENAME_CALL_FORWARDING);
+        }
+
+        return (rows_updated);
+    }
 }

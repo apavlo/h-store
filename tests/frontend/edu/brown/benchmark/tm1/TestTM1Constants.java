@@ -15,12 +15,12 @@ public class TestTM1Constants extends TestCase {
         for (Field field_handle : TM1Constants.class.getFields()) {
             String field_name = field_handle.getName();
             if (field_name.startsWith("FREQUENCY_")) {
-                Integer field_val = (Integer)field_handle.get(null);
+                Integer field_val = (Integer) field_handle.get(null);
                 assertNotNull("Null value for " + field_name, field_val);
                 total += field_val;
             }
         } // FOR
         assertEquals(100, total);
     }
-    
+
 }

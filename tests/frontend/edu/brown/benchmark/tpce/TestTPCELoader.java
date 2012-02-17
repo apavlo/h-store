@@ -33,24 +33,24 @@ import junit.framework.TestCase;
 public class TestTPCELoader extends TestCase {
 
     protected static TPCELoader loader;
-    
+
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-//        if (loader == null) {
-//            loader = new Loader(new String[]{ });
-//        }
+        // if (loader == null) {
+        // loader = new Loader(new String[]{ });
+        // }
     }
 
     /**
      * testBuildEGenLoader
      */
     public void testBuildEGenLoader() throws Exception {
-        //loader.buildEGenLoader();
-        //System.out.println(Loader.EGENLOADER_BIN);
-        //assertTrue(Loader.EGENLOADER_BIN.exists());
+        // loader.buildEGenLoader();
+        // System.out.println(Loader.EGENLOADER_BIN);
+        // assertTrue(Loader.EGENLOADER_BIN.exists());
     }
-    
+
     /**
      * testGenerateTables
      */

@@ -13,10 +13,10 @@ import edu.brown.utils.ProjectType;
 public class TM1TableStatisticsGenerator extends AbstractTableStatisticsGenerator {
 
     /**
-     * TM1 
+     * TM1
      */
-    public static final long BASE_SUBSCRIBERS       = 100000;
-    
+    public static final long BASE_SUBSCRIBERS = 100000;
+
     /**
      * @param catalogDb
      * @param projectType
@@ -29,11 +29,11 @@ public class TM1TableStatisticsGenerator extends AbstractTableStatisticsGenerato
     @Override
     public void createProfiles() {
         TableProfile p = null;
-        
+
         // SUBSCRIBER
         p = new TableProfile(this.catalog_db, TM1Constants.TABLENAME_SUBSCRIBER, false, BASE_SUBSCRIBERS);
         this.addTableProfile(p);
-        
+
         // ACCESS_INFO
         p = new TableProfile(this.catalog_db, TM1Constants.TABLENAME_ACCESS_INFO, false);
         p.addAdditionDependency(this.catalog_db, TM1Constants.TABLENAME_SUBSCRIBER, 2.5);

@@ -53,23 +53,23 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
     }
 
     /**
-     * Recursively check whether the trees rooted at the given AbstractExpressions are equal
+     * Recursively check whether the trees rooted at the given
+     * AbstractExpressions are equal
+     * 
      * @param exp0
      * @param exp1
      * @return
      */
     public static boolean equals(AbstractExpression exp0, AbstractExpression exp1) {
         if (exp0 == null) {
-            return (exp1 == null); 
+            return (exp1 == null);
         } else if (exp1 == null) {
             return (false);
         }
-        return (exp0.equals(exp1) ? ExpressionUtil.equals(exp0.getLeft(), exp1.getLeft()) &&
-                                    ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
+        return (exp0.equals(exp1) ? ExpressionUtil.equals(exp0.getLeft(), exp1.getLeft()) && ExpressionUtil.equals(exp0.getRight(), exp1.getRight()) : false);
     }
 
     /**
-     * 
      * @param catalog_db
      * @param exptree
      * @return
@@ -83,9 +83,11 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         }
         return (exp);
     }
-    
+
     /**
-     * Returns all the Column catalog handles that are access/modified in the Expression tree
+     * Returns all the Column catalog handles that are access/modified in the
+     * Expression tree
+     * 
      * @param catalog_db
      * @param exp
      */
@@ -95,10 +97,11 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
             @Override
             protected void callback(AbstractExpression element) {
                 if (element instanceof TupleValueExpression) {
-                    String table_name = ((TupleValueExpression)element).getTableName();
+                    String table_name = ((TupleValueExpression) element).getTableName();
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
                     if (catalog_tbl == null) {
-                        // If it's a temp then we just ignore it. Otherwise throw an error!
+                        // If it's a temp then we just ignore it. Otherwise
+                        // throw an error!
                         if (table_name.contains(PlanAssembler.AGGREGATE_TEMP_TABLE) == false) {
                             this.stop();
                             throw new RuntimeException(String.format("Unknown table '%s' referenced in Expression node %s", table_name, element));
@@ -107,7 +110,7 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
                         }
                         return;
                     }
-    
+
                     String column_name = ((TupleValueExpression) element).getColumnName();
                     Column catalog_col = catalog_tbl.getColumns().get(column_name);
                     if (catalog_col == null) {
@@ -121,24 +124,27 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         }.traverse(exp);
         return (found_columns);
     }
-    
+
     /**
-     * Returns all the Table catalog handles that are access/modified in the Expression tree
+     * Returns all the Table catalog handles that are access/modified in the
+     * Expression tree
+     * 
      * @param catalog_db
      * @param exp
      */
     public static Collection<Table> getReferencedTables(final Database catalog_db, AbstractExpression exp) {
         Set<Table> found_tables = new HashSet<Table>();
         for (Column catalog_col : ExpressionUtil.getReferencedColumns(catalog_db, exp)) {
-            Table catalog_tbl = catalog_col.getParent(); 
+            Table catalog_tbl = catalog_col.getParent();
             found_tables.add(catalog_tbl);
         } // FOR
         return (found_tables);
     }
-    
+
     /**
-     * Get the set of table names referenced in this expression tree. This can be used
-     * without a Database catalog handle
+     * Get the set of table names referenced in this expression tree. This can
+     * be used without a Database catalog handle
+     * 
      * @param exp
      * @return
      */
@@ -148,17 +154,17 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
             @Override
             protected void callback(AbstractExpression element) {
                 if (element instanceof TupleValueExpression) {
-                    tableNames.add(((TupleValueExpression)element).getTableName());
+                    tableNames.add(((TupleValueExpression) element).getTableName());
                 }
                 return;
             }
         }.traverse(exp);
         return (tableNames);
     }
-    
-    
+
     /**
      * Get all of the ExpressionTypes used in the tree below the given root
+     * 
      * @param root
      * @return
      */
@@ -172,9 +178,8 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         }.traverse(root);
         return (found);
     }
-    
+
     /**
-     * 
      * @param <T>
      * @param root
      * @param search_class
@@ -187,7 +192,7 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
             @Override
             protected void callback(AbstractExpression element) {
                 if (element.getClass().equals(search_class)) {
-                    found.add((T)element);
+                    found.add((T) element);
                 }
                 return;
             }
@@ -198,16 +203,17 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
     public static String debug(AbstractExpression exp) {
         return (ExpressionUtil.debug(exp, ""));
     }
+
     public static String debug(AbstractExpression exp, String spacer) {
-        assert(exp != null);
+        assert (exp != null);
         final String orig_spacer = spacer;
         String name = exp.getClass().getSimpleName();
         ExpressionType etype = exp.getExpressionType();
-        
+
         final StringBuilder sb = new StringBuilder();
         spacer += "   ";
         sb.append(spacer).append("ValueType[").append(exp.getValueType()).append("]\n");
-        
+
         if (exp instanceof AggregateExpression) {
             // Nothing
         } else if (exp instanceof ComparisonExpression) {
@@ -215,9 +221,9 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         } else if (exp instanceof ConjunctionExpression) {
             name += "[" + etype.name().replace("CONJUNCTION_", "") + "]";
         } else if (exp instanceof ConstantValueExpression) {
-            sb.append(spacer).append("Value[").append(((ConstantValueExpression)exp).getValue()).append("]\n");
+            sb.append(spacer).append("Value[").append(((ConstantValueExpression) exp).getValue()).append("]\n");
         } else if (exp instanceof InComparisonExpression) {
-            InComparisonExpression in_exp = (InComparisonExpression)exp;
+            InComparisonExpression in_exp = (InComparisonExpression) exp;
             sb.append(spacer).append("Values[").append(in_exp.getValues().size()).append("]:\n");
             for (int ctr = 0, cnt = in_exp.getValues().size(); ctr < cnt; ctr++) {
                 sb.append(ExpressionUtil.debug(in_exp.getValues().get(ctr), spacer));
@@ -227,23 +233,20 @@ public abstract class ExpressionUtil extends org.voltdb.expressions.ExpressionUt
         } else if (exp instanceof OperatorExpression) {
             name += "[" + etype.name().replace("OPERATOR_", "") + "]";
         } else if (exp instanceof ParameterValueExpression) {
-            sb.append(spacer).append("Parameter[").append(((ParameterValueExpression)exp).getParameterId()).append("]\n");
+            sb.append(spacer).append("Parameter[").append(((ParameterValueExpression) exp).getParameterId()).append("]\n");
         } else if (exp instanceof TupleAddressExpression) {
             // Nothing
         } else if (exp instanceof TupleValueExpression) {
-            sb.append(spacer).append("Column Reference: ")
-              .append("[").append(((TupleValueExpression)exp).getColumnIndex()).append("] ")
-              .append(((TupleValueExpression)exp).getTableName()).append(".")
-              .append(((TupleValueExpression)exp).getColumnName()).append(" AS ")
-              .append(((TupleValueExpression)exp).getColumnAlias()).append("\n");
+            sb.append(spacer).append("Column Reference: ").append("[").append(((TupleValueExpression) exp).getColumnIndex()).append("] ").append(((TupleValueExpression) exp).getTableName())
+                    .append(".").append(((TupleValueExpression) exp).getColumnName()).append(" AS ").append(((TupleValueExpression) exp).getColumnAlias()).append("\n");
         }
-        
+
         // Print out all of our children
         if (exp.getLeft() != null || exp.getRight() != null) {
             sb.append(spacer).append("left:  ").append(exp.getLeft() != null ? "\n" + ExpressionUtil.debug(exp.getLeft(), spacer) : null + "\n");
             sb.append(spacer).append("right:  ").append(exp.getRight() != null ? "\n" + ExpressionUtil.debug(exp.getRight(), spacer) : null + "\n");
         }
-        
-        return (orig_spacer + "+ " + name  + "\n" + sb.toString()); 
+
+        return (orig_spacer + "+ " + name + "\n" + sb.toString());
     }
 }

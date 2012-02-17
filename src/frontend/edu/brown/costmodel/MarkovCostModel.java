@@ -57,14 +57,11 @@ public class MarkovCostModel extends AbstractCostModel {
     }
 
     public enum MarkovOptimization {
-        OP1_BASEPARTITION,
-        OP2_PARTITIONS,
-        OP3_ABORTS,
-        OP4_FINISHED;
-        
+        OP1_BASEPARTITION, OP2_PARTITIONS, OP3_ABORTS, OP4_FINISHED;
+
         private final Set<Penalty> penalties = new TreeSet<Penalty>();
     }
-    
+
     /**
      * Cost Model Penalties
      */
@@ -73,128 +70,138 @@ public class MarkovCostModel extends AbstractCostModel {
         // OP1_BASEPARTITION
         // ----------------------------------------------------------------------------
         /**
-         * The most access partition is not the same as the PartitionEstimator's base partition
+         * The most access partition is not the same as the PartitionEstimator's
+         * base partition
          */
-        WRONG_BASE_PARTITION          (MarkovOptimization.OP1_BASEPARTITION, 0.5d),
-        
+        WRONG_BASE_PARTITION(MarkovOptimization.OP1_BASEPARTITION, 0.5d),
+
         // ----------------------------------------------------------------------------
         // OP2_PARTITIONS
         // ----------------------------------------------------------------------------
         /**
-         * The transaction did not declare it would read at a partition 
+         * The transaction did not declare it would read at a partition
          */
-        MISSED_READ_PARTITION          (MarkovOptimization.OP2_PARTITIONS, 0.5d),
+        MISSED_READ_PARTITION(MarkovOptimization.OP2_PARTITIONS, 0.5d),
         /**
-         * The transaction did not declare it would write at a partition 
+         * The transaction did not declare it would write at a partition
          */
-        MISSED_WRITE_PARTITION         (MarkovOptimization.OP2_PARTITIONS, 0.5d),
+        MISSED_WRITE_PARTITION(MarkovOptimization.OP2_PARTITIONS, 0.5d),
         /**
-         * The transaction said it was going to read at a partition but it never did
-         * And it would have executed as single-partitioned if we didn't say it was going to!
+         * The transaction said it was going to read at a partition but it never
+         * did And it would have executed as single-partitioned if we didn't say
+         * it was going to!
          */
-        UNUSED_READ_PARTITION_SINGLE    (MarkovOptimization.OP2_PARTITIONS, 0.5d),
+        UNUSED_READ_PARTITION_SINGLE(MarkovOptimization.OP2_PARTITIONS, 0.5d),
         /**
-         * The transaction said it was going to write at a partition but it never did
-         * And it would have executed as single-partitioned if we didn't say it was going to!
+         * The transaction said it was going to write at a partition but it
+         * never did And it would have executed as single-partitioned if we
+         * didn't say it was going to!
          */
-        UNUSED_WRITE_PARTITION_SINGLE   (MarkovOptimization.OP2_PARTITIONS, 0.5d),
+        UNUSED_WRITE_PARTITION_SINGLE(MarkovOptimization.OP2_PARTITIONS, 0.5d),
         /**
-         * The transaction said it was going to read at a partition but it never did
+         * The transaction said it was going to read at a partition but it never
+         * did
          */
-        UNUSED_READ_PARTITION_MULTI     (MarkovOptimization.OP2_PARTITIONS, 0.1d),
+        UNUSED_READ_PARTITION_MULTI(MarkovOptimization.OP2_PARTITIONS, 0.1d),
         /**
-         * The transaction said it was going to write at a partition but it never did
+         * The transaction said it was going to write at a partition but it
+         * never did
          */
-        UNUSED_WRITE_PARTITION_MULTI    (MarkovOptimization.OP2_PARTITIONS, 0.1d),
-        
+        UNUSED_WRITE_PARTITION_MULTI(MarkovOptimization.OP2_PARTITIONS, 0.1d),
+
         // ----------------------------------------------------------------------------
         // OP3_ABORTS
         // ----------------------------------------------------------------------------
         /**
-         * The transaction is single-partitioned and it aborts when we predicted that it wouldn't.
-         * Evan says that this is the worst!
+         * The transaction is single-partitioned and it aborts when we predicted
+         * that it wouldn't. Evan says that this is the worst!
          */
-        MISSED_ABORT_SINGLE             (MarkovOptimization.OP3_ABORTS, 1.0d),
+        MISSED_ABORT_SINGLE(MarkovOptimization.OP3_ABORTS, 1.0d),
         /**
-         * The transaction is multi-partitioned and it aborts when we predicted that it wouldn't. 
+         * The transaction is multi-partitioned and it aborts when we predicted
+         * that it wouldn't.
          */
-        MISSED_ABORT_MULTI              (MarkovOptimization.OP3_ABORTS, 0.8d),
+        MISSED_ABORT_MULTI(MarkovOptimization.OP3_ABORTS, 0.8d),
         /**
-         * A transaction will never abort after a certain point in its execution, but we failed
-         * to identify that we could have disabled undo buffers 
+         * A transaction will never abort after a certain point in its
+         * execution, but we failed to identify that we could have disabled undo
+         * buffers
          */
-        MISSED_NO_UNDO_BUFFER           (MarkovOptimization.OP3_ABORTS, 0.25d),
-        
-
+        MISSED_NO_UNDO_BUFFER(MarkovOptimization.OP3_ABORTS, 0.25d),
 
         // ----------------------------------------------------------------------------
         // OP4_FINISHED
         // ----------------------------------------------------------------------------
         /**
-         * The transaction goes back to read at a partition after it declared it was done with it
+         * The transaction goes back to read at a partition after it declared it
+         * was done with it
          */
-        RETURN_READ_PARTITION           (MarkovOptimization.OP4_FINISHED, 0.25d),
+        RETURN_READ_PARTITION(MarkovOptimization.OP4_FINISHED, 0.25d),
         /**
-         * The transaction goes back to write at a partition after it declared it was done with it
+         * The transaction goes back to write at a partition after it declared
+         * it was done with it
          */
-        RETURN_WRITE_PARTITION          (MarkovOptimization.OP4_FINISHED, 0.25d),
+        RETURN_WRITE_PARTITION(MarkovOptimization.OP4_FINISHED, 0.25d),
         /**
          * The transaction is done with a partition but we don't identify it
          * until later in the execution path
          */
-        LATE_DONE_PARTITION             (MarkovOptimization.OP4_FINISHED, 0.05d),
-        ;
-        
+        LATE_DONE_PARTITION(MarkovOptimization.OP4_FINISHED, 0.05d), ;
+
         private final double cost;
         private final MarkovOptimization group;
+
         private Penalty(MarkovOptimization group, double cost) {
             this.group = group;
             this.group.penalties.add(this);
             this.cost = cost;
         }
+
         public double getCost() {
             return this.cost;
         }
+
         public MarkovOptimization getGroup() {
             return this.group;
         }
     }
-    
+
     // ----------------------------------------------------------------------------
     // DATA MEMBERS
     // ----------------------------------------------------------------------------
-    
+
     private final EstimationThresholds thresholds;
     private final TransactionEstimator t_estimator;
     private final Collection<Integer> all_partitions;
     private boolean force_full_comparison = false;
     private boolean force_regenerate_markovestimates = false;
-    
+
     private Histogram<Procedure> fast_path_counter = new Histogram<Procedure>();
     private Histogram<Procedure> full_path_counter = new Histogram<Procedure>();
 
     // ----------------------------------------------------------------------------
     // INVOCATION DATA MEMBERS
     // ----------------------------------------------------------------------------
-    
+
     /**
      * The list of penalties accrued for this transaction
      */
     private transient final List<Penalty> penalties = new ArrayList<Penalty>();
-    
+
     private transient final Set<Integer> done_partitions = new HashSet<Integer>();
     private transient final Map<Integer, Integer> idle_partition_ctrs = new HashMap<Integer, Integer>();
-    
+
     private transient final Set<Integer> e_all_partitions = new HashSet<Integer>();
     private transient final Set<Integer> e_read_partitions = new HashSet<Integer>();
     private transient final Set<Integer> e_write_partitions = new HashSet<Integer>();
-    
+
     private transient final Set<Integer> a_all_partitions = new HashSet<Integer>();
     private transient final Set<Integer> a_read_partitions = new HashSet<Integer>();
     private transient final Set<Integer> a_write_partitions = new HashSet<Integer>();
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_db
      * @param p_estimator
      */
@@ -203,40 +210,48 @@ public class MarkovCostModel extends AbstractCostModel {
         this.thresholds = thresholds;
         this.t_estimator = t_estimator;
         this.all_partitions = CatalogUtil.getAllPartitionIds(catalog_db);
-        
-        assert(this.t_estimator != null) : "Missing TransactionEstimator";
+
+        assert (this.t_estimator != null) : "Missing TransactionEstimator";
     }
 
     /**
-     * Get the penalties for the last TransactionTrace processed
-     * Not thread-safe
+     * Get the penalties for the last TransactionTrace processed Not thread-safe
+     * 
      * @return
      */
     protected List<Penalty> getLastPenalties() {
         return this.penalties;
     }
+
     protected Set<Integer> getLastEstimatedAllPartitions() {
         return (this.e_all_partitions);
     }
+
     protected Set<Integer> getLastEstimatedReadPartitions() {
         return (this.e_read_partitions);
     }
+
     protected Set<Integer> getLastEstimatedWritePartitions() {
         return (this.e_write_partitions);
     }
+
     protected Set<Integer> getLastActualAllPartitions() {
         return (this.a_all_partitions);
     }
+
     protected Set<Integer> getLastActualReadPartitions() {
         return (this.a_read_partitions);
     }
+
     protected Set<Integer> getLastActualWritePartitions() {
         return (this.a_write_partitions);
     }
+
     protected MarkovCostModel forceFullPathComparison() {
         this.force_full_comparison = true;
         return (this);
     }
+
     protected MarkovCostModel forceRegenerateMarkovEstimates() {
         this.force_regenerate_markovestimates = true;
         return (this);
@@ -244,15 +259,18 @@ public class MarkovCostModel extends AbstractCostModel {
 
     @Override
     public synchronized double estimateTransactionCost(Database catalog_db, Workload workload, Filter filter, TransactionTrace txn_trace) throws Exception {
-        // Throw the txn at the estimator and let it come up with the initial path estimation.
+        // Throw the txn at the estimator and let it come up with the initial
+        // path estimation.
         // Now execute the queries and see what path the txn actually takes
-        // I don't think it matters whether we do this in batches, but it probably doesn't hurt
+        // I don't think it matters whether we do this in batches, but it
+        // probably doesn't hurt
         // to do it right in case we need it later
-        // At this point we know what the transaction actually would do using the TransactionEstimator's
+        // At this point we know what the transaction actually would do using
+        // the TransactionEstimator's
         // internal Markov models.
         State s = this.t_estimator.processTransactionTrace(txn_trace);
-        assert(s != null);
-        
+        assert (s != null);
+
         if (debug.get()) {
             LOG.debug("Measuring MarkovEstimate Accuracy: " + txn_trace);
             if (trace.get()) {
@@ -260,34 +278,36 @@ public class MarkovCostModel extends AbstractCostModel {
                 LOG.trace("Actual:    " + s.getActualPath());
             }
         }
-        
+
         double cost = 0.0d;
-        
+
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
         MarkovEstimate est = s.getInitialEstimate();
         for (Integer partition : est.getTouchedPartitions(this.thresholds)) {
             if (est.isFinishedPartition(this.thresholds, partition.intValue()) == false) {
                 for (MarkovVertex v : s.getInitialPath()) {
-                    if (v.getPartitions().contains(partition) == false) continue;
-                    if (((Statement)v.getCatalogItem()).getReadonly()) {
-                        this.e_read_partitions.add(partition);    
+                    if (v.getPartitions().contains(partition) == false)
+                        continue;
+                    if (((Statement) v.getCatalogItem()).getReadonly()) {
+                        this.e_read_partitions.add(partition);
                     } else {
                         this.e_write_partitions.add(partition);
                     }
                 } // FOR
             }
         } // FOR
-        
+
         List<MarkovVertex> actual = s.getActualPath();
         this.a_read_partitions.clear();
         this.a_write_partitions.clear();
         MarkovUtil.getReadWritePartitions(actual, this.a_read_partitions, this.a_write_partitions);
-        
+
         // Try fast version
         try {
             if (this.force_full_comparison || !this.comparePathsFast(CollectionUtil.last(s.getInitialPath()), actual)) {
-                // Otherwise we have to do the full path comparison to figure out just how wrong we are
+                // Otherwise we have to do the full path comparison to figure
+                // out just how wrong we are
                 cost = this.comparePathsFull(s);
                 this.full_path_counter.put(s.getProcedure());
             } else {
@@ -302,31 +322,33 @@ public class MarkovCostModel extends AbstractCostModel {
             System.err.println("ACTUAL PARTITIONS: " + this.a_all_partitions);
             System.err.println("MARKOV GRAPH: " + MarkovUtil.exportGraphviz(s.getMarkovGraph(), true, null).writeToTempFile(s.getProcedure()));
             System.err.println();
-            
+
             String e_path = "ESTIMATED PATH:\n" + StringUtil.join("\n", s.getInitialPath());
             String a_path = "ACTUAL PATH:\n" + StringUtil.join("\n", s.getActualPath());
             System.err.println(StringUtil.columns(e_path, a_path));
             System.err.println("MARKOV ESTIMATE:\n" + s.getInitialEstimate());
-            
+
             throw new RuntimeException(ex);
         }
 
-        
         TransactionEstimator.POOL_STATES.returnObject(s);
-        
+
         return (cost);
     }
-       
+
     /**
      * Quickly compare the two paths and return true if they are similar enough
-     * We don't care if they execute different queries just as long as the read/write paritions
-     * match and that the estimated path either commits/aborts as same as actual path 
+     * We don't care if they execute different queries just as long as the
+     * read/write paritions match and that the estimated path either
+     * commits/aborts as same as actual path
+     * 
      * @param estimated
      * @param actual
      * @return
      */
     protected boolean comparePathsFast(List<MarkovVertex> estimated, List<MarkovVertex> actual) {
-        if (trace.get()) LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual [size=%d]", estimated.size(), actual.size()));
+        if (trace.get())
+            LOG.trace(String.format("Fast Path Compare: Estimated [size=%d] vs. Actual [size=%d]", estimated.size(), actual.size()));
         this.e_read_partitions.clear();
         this.e_write_partitions.clear();
         MarkovUtil.getReadWritePartitions(estimated, this.e_read_partitions, this.e_write_partitions);
@@ -337,17 +359,17 @@ public class MarkovCostModel extends AbstractCostModel {
     }
 
     /**
-     * 
      * @param e_last
      * @param actual
      * @return
      */
     private boolean comparePathsFast(MarkovVertex e_last, List<MarkovVertex> actual) {
-        // (1) Check that the MarkovEstimate's last state matches the actual path (commit vs abort) 
-        assert(e_last != null);
+        // (1) Check that the MarkovEstimate's last state matches the actual
+        // path (commit vs abort)
+        assert (e_last != null);
         MarkovVertex a_last = CollectionUtil.last(actual);
-        assert(a_last != null);
-        assert(a_last.isEndingVertex());
+        assert (a_last != null);
+        assert (a_last.isEndingVertex());
         if (trace.get()) {
             LOG.trace("Estimated Last Vertex: " + e_last);
             LOG.trace("Actual Last Vertex: " + a_last);
@@ -355,33 +377,36 @@ public class MarkovCostModel extends AbstractCostModel {
         if (e_last.getType() != a_last.getType()) {
             return (false);
         }
-        
-        // (2) Check that the partitions that we predicted that the txn would read/write are the same
+
+        // (2) Check that the partitions that we predicted that the txn would
+        // read/write are the same
         if (trace.get()) {
             LOG.trace("Estimated Read Partitions:  " + this.e_read_partitions);
             LOG.trace("Estimated Write Partitions: " + this.e_write_partitions);
             LOG.trace("Actual Read Partitions:     " + this.a_read_partitions);
             LOG.trace("Actual Write Partitions:    " + this.a_write_partitions);
         }
-        
-        if (this.e_read_partitions.equals(this.a_read_partitions) == false ||
-            this.e_write_partitions.equals(this.a_write_partitions) == false) {
+
+        if (this.e_read_partitions.equals(this.a_read_partitions) == false || this.e_write_partitions.equals(this.a_write_partitions) == false) {
             return (false);
         }
-        
+
         // All clear!
         return (true);
     }
-    
+
     /**
-     * Calculate relative cost difference the estimated and actual execution paths 
+     * Calculate relative cost difference the estimated and actual execution
+     * paths
+     * 
      * @param estimated
      * @param actual
      * @return
      */
     protected double comparePathsFull(State s) {
-        if (debug.get()) LOG.debug("Performing full comparison of Transaction #" + s.getTransactionId());
-        
+        if (debug.get())
+            LOG.debug("Performing full comparison of Transaction #" + s.getTransactionId());
+
         this.penalties.clear();
 
         List<MarkovVertex> estimated = s.getInitialPath();
@@ -389,45 +414,47 @@ public class MarkovCostModel extends AbstractCostModel {
         this.e_all_partitions.addAll(this.e_read_partitions);
         this.e_all_partitions.addAll(this.e_write_partitions);
         MarkovVertex e_last = CollectionUtil.last(estimated);
-        assert(e_last != null);
-        
+        assert (e_last != null);
+
         List<MarkovVertex> actual = s.getActualPath();
         this.a_all_partitions.clear();
         this.a_all_partitions.addAll(this.a_read_partitions);
         this.a_all_partitions.addAll(this.a_write_partitions);
         MarkovVertex a_last = CollectionUtil.last(actual);
-        assert(a_last != null);
-        assert(a_last.isEndingVertex());
-        
+        assert (a_last != null);
+        assert (a_last.isEndingVertex());
+
         MarkovEstimate initial_est = s.getInitialEstimate();
-        assert(initial_est != null);
+        assert (initial_est != null);
         MarkovEstimate last_est = s.getLastEstimate();
-        assert(last_est != null);
+        assert (last_est != null);
         MarkovGraph markov = s.getMarkovGraph();
-        assert(markov != null);
+        assert (markov != null);
 
         final int base_partition = s.getBasePartition();
         final int num_estimates = s.getEstimateCount();
         List<MarkovEstimate> estimates = null;
-        
-        // This is strictly for the paper so that we can show how slow it would be to have
+
+        // This is strictly for the paper so that we can show how slow it would
+        // be to have
         // calculate probabilities through a traversal for each batch
         if (this.force_regenerate_markovestimates) {
-            if (debug.get()) LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + s.getFormattedName());
+            if (debug.get())
+                LOG.debug("Using " + MarkovProbabilityCalculator.class.getSimpleName() + " to calculate MarkoEstimates for " + s.getFormattedName());
             estimates = new ArrayList<MarkovEstimate>();
             for (MarkovEstimate est : s.getEstimates()) {
                 MarkovVertex v = est.getVertex();
                 MarkovEstimate new_est = MarkovProbabilityCalculator.generate(markov, v);
-                assert(new_est != null);
+                assert (new_est != null);
                 estimates.add(est);
             } // FOR
         } else {
             estimates = s.getEstimates();
         }
 
-        boolean e_singlepartitioned = initial_est.isSinglePartition(this.thresholds); 
+        boolean e_singlepartitioned = initial_est.isSinglePartition(this.thresholds);
         boolean a_singlepartitioned = (this.a_all_partitions.size() == 1);
-        
+
         boolean first_penalty = true;
 
         if (trace.get()) {
@@ -436,12 +463,12 @@ public class MarkovCostModel extends AbstractCostModel {
             LOG.trace("Actual Read Partitions:     " + this.a_read_partitions);
             LOG.trace("Actual Write Partitions:    " + this.a_write_partitions);
         }
-        
+
         // ----------------------------------------------------------------------------
         // BASE PARTITION
         // ----------------------------------------------------------------------------
         Set<Integer> most_touched = initial_est.getMostTouchedPartitions(this.thresholds);
-        Integer e_base_partition = null; 
+        Integer e_base_partition = null;
         if (most_touched.size() > 1) {
             e_base_partition = CollectionUtil.random(most_touched);
         } else {
@@ -449,16 +476,17 @@ public class MarkovCostModel extends AbstractCostModel {
         }
         if (e_base_partition == null || e_base_partition != base_partition) {
             if (trace.get()) {
-                LOG.trace(String.format("Estimated base partition for txn #%d was %d but PartitionEstimator says it should be %d",
-                                        s.getTransactionId(), e_base_partition, base_partition));
+                LOG.trace(String.format("Estimated base partition for txn #%d was %d but PartitionEstimator says it should be %d", s.getTransactionId(), e_base_partition, base_partition));
             }
             this.penalties.add(Penalty.WRONG_BASE_PARTITION);
-//            assert(false) : e_base_partition + " != " + base_partition + "  " + most_touched;
+            // assert(false) : e_base_partition + " != " + base_partition + "  "
+            // + most_touched;
         }
-        
+
         // ----------------------------------------------------------------------------
         // ABORTS
-        // If the transaction was predicted to be single-partitioned and we don't predict that it's going to
+        // If the transaction was predicted to be single-partitioned and we
+        // don't predict that it's going to
         // abort when it actually did, then that's bad! Really bad!
         // ----------------------------------------------------------------------------
         first_penalty = true;
@@ -472,34 +500,38 @@ public class MarkovCostModel extends AbstractCostModel {
             }
             this.penalties.add(a_singlepartitioned ? Penalty.MISSED_ABORT_SINGLE : Penalty.MISSED_ABORT_MULTI);
         }
-        
-        // For each MarkovEstimate, check whether there is a path in the graph for the current vertex
-        // to the abort state. If there isn't, then we need to check whether 
+
+        // For each MarkovEstimate, check whether there is a path in the graph
+        // for the current vertex
+        // to the abort state. If there isn't, then we need to check whether
         // This should match ExecutionSite.executeLocalPlan()
         MarkovVertex abort_v = markov.getAbortVertex();
         boolean last_hadAbortPath = true;
         first_penalty = true;
         for (MarkovEstimate est : estimates) {
             MarkovVertex v = est.getVertex();
-            assert(v != null) : "No vertex?\n" + est;
+            assert (v != null) : "No vertex?\n" + est;
             boolean isAbortable = est.isAbortable(this.thresholds);
             boolean isReadOnly = est.isReadOnlyPartition(this.thresholds, base_partition);
             boolean hasAbortPath;
             synchronized (markov) {
-                hasAbortPath = (markov.getPath(v, abort_v).isEmpty() == false);   
+                hasAbortPath = (markov.getPath(v, abort_v).isEmpty() == false);
             } // SYNCH
-            
-            // Make sure that we didn't have a path for the last MarkovEstimate but
+
+            // Make sure that we didn't have a path for the last MarkovEstimate
+            // but
             // we somehow have one now
             if (hasAbortPath && last_hadAbortPath == false) {
                 LOG.info("MARKOV: " + MarkovUtil.exportGraphviz(markov, false, markov.getPath(v, abort_v)).writeToTempFile());
-                assert(last_hadAbortPath);
+                assert (last_hadAbortPath);
             }
 
             // If the path is not empty, then this txn could still abort
-            if (hasAbortPath) continue;
-            
-            // Otherwise check whether our estimate still says to go with undo buffers when
+            if (hasAbortPath)
+                continue;
+
+            // Otherwise check whether our estimate still says to go with undo
+            // buffers when
             // we're going to be read-only for the rest of the transaction
             // This is would be considered wasted work
             if (isAbortable && isReadOnly) {
@@ -514,11 +546,13 @@ public class MarkovCostModel extends AbstractCostModel {
             }
             last_hadAbortPath = false;
         } // FOR
-        
+
         // ----------------------------------------------------------------------------
         // MISSED PARTITIONS
-        // The transaction actually reads/writes at more partitions than it originally predicted
-        // This is expensive because it means that we have to abort+restart the txn
+        // The transaction actually reads/writes at more partitions than it
+        // originally predicted
+        // This is expensive because it means that we have to abort+restart the
+        // txn
         // ----------------------------------------------------------------------------
         first_penalty = true;
         for (Integer p : this.a_read_partitions) {
@@ -545,34 +579,41 @@ public class MarkovCostModel extends AbstractCostModel {
                 this.penalties.add(Penalty.MISSED_WRITE_PARTITION);
             }
         } // FOR
-//        if (this.penalties.size() > 0) {
-//            LOG.info("Estimated Read Partitions:  " + this.e_read_partitions);
-//            LOG.info("Estimated Write Partitions: " + this.e_write_partitions);
-//            LOG.info("Actual Read Partitions:     " + this.a_read_partitions);
-//            LOG.info("Actual Write Partitions:    " + this.a_write_partitions);
-//            
-//            LOG.info("IS ABORTABLE:    " + initial_est.isAbortable(this.thresholds));
-//            LOG.info("ABORT THRESHOLD: " + this.thresholds.getAbortThreshold());
-//            LOG.info("Current State\n" + actual.get(1).debug());
-//            LOG.info("MarkovEstimate\n" + initial_est.toString());
-////            LOG.info("GRAPH: " + MarkovUtil.exportGraphviz(s.getMarkovGraph(), false, true, false, null).writeToTempFile());
-//            System.exit(1);
-//        }
-        
+        // if (this.penalties.size() > 0) {
+        // LOG.info("Estimated Read Partitions:  " + this.e_read_partitions);
+        // LOG.info("Estimated Write Partitions: " + this.e_write_partitions);
+        // LOG.info("Actual Read Partitions:     " + this.a_read_partitions);
+        // LOG.info("Actual Write Partitions:    " + this.a_write_partitions);
+        //
+        // LOG.info("IS ABORTABLE:    " +
+        // initial_est.isAbortable(this.thresholds));
+        // LOG.info("ABORT THRESHOLD: " + this.thresholds.getAbortThreshold());
+        // LOG.info("Current State\n" + actual.get(1).debug());
+        // LOG.info("MarkovEstimate\n" + initial_est.toString());
+        // // LOG.info("GRAPH: " + MarkovUtil.exportGraphviz(s.getMarkovGraph(),
+        // false, true, false, null).writeToTempFile());
+        // System.exit(1);
+        // }
+
         // ----------------------------------------------------------------------------
         // RETURN TO PARTITIONS
-        // We declared that we were done at a partition but then later we actually needed it
-        // This can happen if there is a path that a has very low probability of us taking it, but then
+        // We declared that we were done at a partition but then later we
+        // actually needed it
+        // This can happen if there is a path that a has very low probability of
+        // us taking it, but then
         // ended up taking it anyway
         //
         // LATE FINISHED PARTITIONS
-        // We keep track of the last batch round that we finished with a partition. We then
-        // count how long it takes before we realize that we are finished. We declare that the MarkovEstimate
-        // was late if we don't mark it as finished immediately in the next batch
+        // We keep track of the last batch round that we finished with a
+        // partition. We then
+        // count how long it takes before we realize that we are finished. We
+        // declare that the MarkovEstimate
+        // was late if we don't mark it as finished immediately in the next
+        // batch
         // ----------------------------------------------------------------------------
         first_penalty = true;
         boolean first_penalty5 = true;
-        
+
         this.done_partitions.clear();
         int last_est_idx = 0;
         Set<Integer> touched_partitions = new HashSet<Integer>();
@@ -582,26 +623,27 @@ public class MarkovCostModel extends AbstractCostModel {
         for (Integer p : this.all_partitions) {
             this.idle_partition_ctrs.put(p, 0);
         }
-        
+
         for (int i = 0; i < num_estimates; i++) {
             MarkovEstimate est = estimates.get(i);
             MarkovVertex est_v = est.getVertex();
-            
+
             // Get the path of vertices
             int start = last_est_idx;
             int stop = actual.indexOf(est_v);
-            assert(stop != -1);
-            
+            assert (stop != -1);
+
             new_touched_partitions.clear();
-            for ( ; start <= stop; start++) {
+            for (; start <= stop; start++) {
                 MarkovVertex v = actual.get(start);
-                assert(v != null);
-                
+                assert (v != null);
+
                 Statement catalog_stmt = v.getCatalogItem();
                 QueryType qtype = QueryType.get(catalog_stmt.getQuerytype());
                 Penalty ptype = (qtype == QueryType.SELECT ? Penalty.RETURN_READ_PARTITION : Penalty.RETURN_WRITE_PARTITION);
                 for (Integer p : v.getPartitions()) {
-                    // Check if we read/write at any partition that was previously declared as done
+                    // Check if we read/write at any partition that was
+                    // previously declared as done
                     if (this.done_partitions.contains(p)) {
                         if (trace.get()) {
                             if (first_penalty) {
@@ -615,11 +657,12 @@ public class MarkovCostModel extends AbstractCostModel {
                     }
                 } // FOR
                 new_touched_partitions.addAll(v.getPartitions());
-                
-                // For each partition that we don't touch here, we want to increase their idle counter
+
+                // For each partition that we don't touch here, we want to
+                // increase their idle counter
                 for (Integer p : this.all_partitions) {
                     if (new_touched_partitions.contains(p) == false) {
-                        this.idle_partition_ctrs.put(p, this.idle_partition_ctrs.get(p)+1);
+                        this.idle_partition_ctrs.put(p, this.idle_partition_ctrs.get(p) + 1);
                     } else {
                         this.idle_partition_ctrs.put(p, 0);
                     }
@@ -627,15 +670,20 @@ public class MarkovCostModel extends AbstractCostModel {
             } // FOR
             last_est_idx = stop;
             touched_partitions.addAll(new_touched_partitions);
-            
-            // This is the key part: We will only add a partition to our set of "done" partitions
-            // if we touched it in the past. Otherwise, we will always mark every partition as done
-            // if there is a conditional clause that causes the partition to get touched. This is because
-            // our initial estimation of what partitions we are done at will be based on the total
+
+            // This is the key part: We will only add a partition to our set of
+            // "done" partitions
+            // if we touched it in the past. Otherwise, we will always mark
+            // every partition as done
+            // if there is a conditional clause that causes the partition to get
+            // touched. This is because
+            // our initial estimation of what partitions we are done at will be
+            // based on the total
             // path estimation and not directly on the finished probabilities
             for (Integer finished_p : est.getFinishedPartitions(this.thresholds)) {
                 if (touched_partitions.contains(finished_p)) {
-                    // We are late with identifying that a partition is finished if it was
+                    // We are late with identifying that a partition is finished
+                    // if it was
                     // idle for more than one batch round
                     if (this.idle_partition_ctrs.get(finished_p) > 0) {
                         if (trace.get()) {
@@ -643,25 +691,30 @@ public class MarkovCostModel extends AbstractCostModel {
                                 LOG.trace("PENALTY: " + MarkovOptimization.OP4_FINISHED);
                                 first_penalty5 = false;
                             }
-                            LOG.trace(String.format("Txn #%d kept partition %d idle for %d batch rounds before declaring it was done", s.getTransactionId(), finished_p, this.idle_partition_ctrs.get(finished_p)));
+                            LOG.trace(String.format("Txn #%d kept partition %d idle for %d batch rounds before declaring it was done", s.getTransactionId(), finished_p,
+                                    this.idle_partition_ctrs.get(finished_p)));
                         }
                         this.penalties.add(Penalty.LATE_DONE_PARTITION);
-                        // Set it to basically negative infinity so that we are nevery penalized more than once for this partition
+                        // Set it to basically negative infinity so that we are
+                        // nevery penalized more than once for this partition
                         this.idle_partition_ctrs.put(finished_p, Integer.MIN_VALUE);
                     }
                     if (this.done_partitions.contains(finished_p) == false) {
-                        if (trace.get()) LOG.trace(String.format("Marking touched partition %d as finished for the first time in MarkovEstimate #%d", finished_p.intValue(), i));
+                        if (trace.get())
+                            LOG.trace(String.format("Marking touched partition %d as finished for the first time in MarkovEstimate #%d", finished_p.intValue(), i));
                         this.done_partitions.add(finished_p);
                     }
                 }
             } // FOR
         } // FOR
-        
+
         // ----------------------------------------------------------------------------
         // UNUSED PARTITIONS
-        // Check whether the transaction has declared that they would read/write at a partition
+        // Check whether the transaction has declared that they would read/write
+        // at a partition
         // but then they never actually did so
-        // The penalty is higher if it was predicted as multi-partitioned but it was actually single-partitioned
+        // The penalty is higher if it was predicted as multi-partitioned but it
+        // was actually single-partitioned
         // ----------------------------------------------------------------------------
         first_penalty = true;
         boolean could_be_singlepartitioned = (e_singlepartitioned == false && a_singlepartitioned == true);
@@ -674,8 +727,7 @@ public class MarkovCostModel extends AbstractCostModel {
                     }
                     LOG.trace(String.format("Txn #%d predicted it would READ at partition %d but it never did", s.getTransactionId(), p));
                 }
-                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_READ_PARTITION_SINGLE :
-                                                                Penalty.UNUSED_READ_PARTITION_MULTI);
+                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_READ_PARTITION_SINGLE : Penalty.UNUSED_READ_PARTITION_MULTI);
             }
         } // FOR
         for (Integer p : this.e_write_partitions) {
@@ -687,19 +739,21 @@ public class MarkovCostModel extends AbstractCostModel {
                     }
                     LOG.trace(String.format("Txn #%d predicted it would WRITE at partition %d but it never did", s.getTransactionId(), p));
                 }
-                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_WRITE_PARTITION_SINGLE :
-                                                                Penalty.UNUSED_WRITE_PARTITION_MULTI);
+                this.penalties.add(could_be_singlepartitioned ? Penalty.UNUSED_WRITE_PARTITION_SINGLE : Penalty.UNUSED_WRITE_PARTITION_MULTI);
             }
         } // FOR
-        
-        if (trace.get()) LOG.info(String.format("Number of Penalties %d: %s", this.penalties.size(), this.penalties));
+
+        if (trace.get())
+            LOG.info(String.format("Number of Penalties %d: %s", this.penalties.size(), this.penalties));
         double cost = 0.0d;
-        for (Penalty p : this.penalties) cost += p.getCost();
-        
-//        if (this.penalties.isEmpty() == false) throw new RuntimeException("Missed optimizations for " + s.getFormattedName());
+        for (Penalty p : this.penalties)
+            cost += p.getCost();
+
+        // if (this.penalties.isEmpty() == false) throw new
+        // RuntimeException("Missed optimizations for " + s.getFormattedName());
         return (cost);
     }
-    
+
     @Override
     public void clear(boolean force) {
         super.clear(force);
@@ -707,32 +761,28 @@ public class MarkovCostModel extends AbstractCostModel {
         this.full_path_counter.clear();
         this.penalties.clear();
     }
-    
+
     @Override
     public void invalidateCache(String catalogKey) {
         // Nothing...
     }
-    
+
     @Override
     public void prepareImpl(Database catalog_db) {
-        // This is the start of a new run through the workload, so we need to re-init
-        // our PartitionEstimator so that we are getting the proper catalog objects back
+        // This is the start of a new run through the workload, so we need to
+        // re-init
+        // our PartitionEstimator so that we are getting the proper catalog
+        // objects back
         this.p_estimator.initCatalog(catalog_db);
     }
-    
+
     /**
      * @param args
      */
     @SuppressWarnings("unchecked")
     public static void main(String vargs[]) throws Exception {
         final ArgumentsParser args = ArgumentsParser.load(vargs);
-        args.require(
-            ArgumentsParser.PARAM_CATALOG, 
-            ArgumentsParser.PARAM_MARKOV,
-            ArgumentsParser.PARAM_WORKLOAD,
-            ArgumentsParser.PARAM_MAPPINGS,
-            ArgumentsParser.PARAM_MARKOV_THRESHOLDS
-        );
+        args.require(ArgumentsParser.PARAM_CATALOG, ArgumentsParser.PARAM_MARKOV, ArgumentsParser.PARAM_WORKLOAD, ArgumentsParser.PARAM_MAPPINGS, ArgumentsParser.PARAM_MARKOV_THRESHOLDS);
         HStoreConf.initArgumentsParser(args, null);
         final int num_partitions = CatalogUtil.getNumberOfPartitions(args.catalog);
         final Integer base_partition = (args.workload_base_partitions.size() == 1 ? CollectionUtil.first(args.workload_base_partitions) : null);
@@ -741,7 +791,7 @@ public class MarkovCostModel extends AbstractCostModel {
         final boolean force_fullpath = true;
         final boolean force_regenerate = true;
         final boolean skip_processing = false;
-        
+
         final Histogram<Procedure> total_h = new Histogram<Procedure>();
         final Histogram<Procedure> missed_h = new Histogram<Procedure>();
         final Histogram<Procedure> accurate_h = new Histogram<Procedure>();
@@ -754,11 +804,11 @@ public class MarkovCostModel extends AbstractCostModel {
         final List<Runnable> runnables = new ArrayList<Runnable>();
         final List<Thread> processing_threads = new ArrayList<Thread>();
         final AtomicInteger thread_finished = new AtomicInteger(0);
-        
+
         // Only load the MarkovGraphs that we actually need
         final int num_transactions = args.workload.getTransactionCount();
-        assert(num_transactions > 0) : "No TransactionTraces";
-        final int marker = Math.max(1, (int)(num_transactions * 0.10));
+        assert (num_transactions > 0) : "No TransactionTraces";
+        final int marker = Math.max(1, (int) (num_transactions * 0.10));
         final Set<Procedure> procedures = args.workload.getProcedures(args.catalog_db);
         Collection<Integer> partitions = null;
         if (base_partition != null) {
@@ -767,17 +817,18 @@ public class MarkovCostModel extends AbstractCostModel {
         } else {
             partitions = CatalogUtil.getAllPartitionIds(args.catalog_db);
         }
-        
+
         final String input_path = args.getParam(ArgumentsParser.PARAM_MARKOV);
         final Map<Integer, MarkovGraphsContainer> m = MarkovGraphContainersUtil.load(args.catalog_db, input_path, procedures, partitions);
-        assert(m != null);
+        assert (m != null);
         final boolean global = m.containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID);
-        final Map<Integer, MarkovGraphsContainer> thread_markovs[] = (Map<Integer, MarkovGraphsContainer>[])new Map<?, ?>[num_threads];
-        
-        // If this is a GLOBAL model, load up a copy for each thread so that there is no thread contention
+        final Map<Integer, MarkovGraphsContainer> thread_markovs[] = (Map<Integer, MarkovGraphsContainer>[]) new Map<?, ?>[num_threads];
+
+        // If this is a GLOBAL model, load up a copy for each thread so that
+        // there is no thread contention
         if (global && num_threads > 2) {
             LOG.info("Loading multiple copies of GLOBAL MarkovGraphsContainer");
-            
+
             for (int i = 0; i < num_threads; i++) {
                 final int thread_id = i;
                 runnables.add(new Runnable() {
@@ -788,7 +839,7 @@ public class MarkovCostModel extends AbstractCostModel {
                         } catch (Throwable ex) {
                             throw new RuntimeException(ex);
                         }
-                        assert(thread_markovs[thread_id].containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID));
+                        assert (thread_markovs[thread_id].containsKey(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID));
                         LOG.info(String.format("Loading Thread Finished %d / %d", thread_finished.incrementAndGet(), num_threads));
                     }
                 });
@@ -801,18 +852,18 @@ public class MarkovCostModel extends AbstractCostModel {
                 thread_markovs[i] = m;
             } // FOR
         }
-        
+
         final PartitionEstimator p_estimator = new PartitionEstimator(args.catalog_db);
         final MarkovCostModel thread_costmodels[][] = new MarkovCostModel[num_threads][num_partitions];
         final ProfileMeasurement profilers[] = new ProfileMeasurement[num_threads];
-        final LinkedBlockingDeque<Pair<Integer, TransactionTrace>> queues[] = (LinkedBlockingDeque<Pair<Integer, TransactionTrace>>[])new LinkedBlockingDeque<?>[num_threads];
+        final LinkedBlockingDeque<Pair<Integer, TransactionTrace>> queues[] = (LinkedBlockingDeque<Pair<Integer, TransactionTrace>>[]) new LinkedBlockingDeque<?>[num_threads];
         for (int i = 0; i < num_threads; i++) {
             profilers[i] = new ProfileMeasurement("ESTIMATION");
             queues[i] = new LinkedBlockingDeque<Pair<Integer, TransactionTrace>>();
         } // FOR
         LOG.info(String.format("Estimating the accuracy of the MarkovGraphs using %d transactions [threads=%d]", args.workload.getTransactionCount(), num_threads));
         LOG.info("THRESHOLDS: " + args.thresholds);
-        
+
         // QUEUING THREAD
         final AtomicBoolean queued_all = new AtomicBoolean(false);
         runnables.add(new Runnable() {
@@ -829,20 +880,23 @@ public class MarkovCostModel extends AbstractCostModel {
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
-                    assert(partition != null) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(args.catalog_db);
-                    if (base_partition != null && base_partition.equals(partition) == false) continue;
-                    
+                    assert (partition != null) : "Failed to get base partition for " + txn_trace + "\n" + txn_trace.debug(args.catalog_db);
+                    if (base_partition != null && base_partition.equals(partition) == false)
+                        continue;
+
                     int queue_idx = (global ? ctr : partition) % num_threads;
                     queues[queue_idx].add(Pair.of(partition, txn_trace));
-                    if (++ctr % marker == 0) LOG.info(String.format("Queued %d/%d transactions", ctr, num_transactions));
+                    if (++ctr % marker == 0)
+                        LOG.info(String.format("Queued %d/%d transactions", ctr, num_transactions));
                 } // FOR
                 queued_all.set(true);
-                
+
                 // Poke all our threads just in case they finished
-                for (Thread t : processing_threads) t.interrupt();
+                for (Thread t : processing_threads)
+                    t.interrupt();
             }
         });
-        
+
         // PROCESSING THREADS
         for (int i = 0; i < num_threads; i++) {
             final int thread_id = i;
@@ -851,24 +905,26 @@ public class MarkovCostModel extends AbstractCostModel {
                 public void run() {
                     Thread self = Thread.currentThread();
                     processing_threads.add(self);
-                    
+
                     Pair<Integer, TransactionTrace> pair = null;
                     final Set<MarkovOptimization> penalty_groups = new HashSet<MarkovOptimization>();
                     final Set<Penalty> penalties = new HashSet<Penalty>();
                     Histogram<MarkovOptimization> proc_h = null;
-                    
+
                     ProfileMeasurement profiler = profilers[thread_id];
-                    assert(profiler != null);
+                    assert (profiler != null);
 
                     MarkovCostModel costmodels[] = thread_costmodels[thread_id];
                     for (int p = 0; p < num_partitions; p++) {
                         MarkovGraphsContainer markovs = (global ? thread_markovs[thread_id].get(MarkovUtil.GLOBAL_MARKOV_CONTAINER_ID) : thread_markovs[thread_id].get(p));
                         TransactionEstimator t_estimator = new TransactionEstimator(p_estimator, args.param_mappings, markovs);
                         costmodels[p] = new MarkovCostModel(args.catalog_db, p_estimator, t_estimator, args.thresholds);
-                        if (force_fullpath) thread_costmodels[thread_id][p].forceFullPathComparison();
-                        if (force_regenerate) thread_costmodels[thread_id][p].forceRegenerateMarkovEstimates();
+                        if (force_fullpath)
+                            thread_costmodels[thread_id][p].forceFullPathComparison();
+                        if (force_regenerate)
+                            thread_costmodels[thread_id][p].forceRegenerateMarkovEstimates();
                     } // FOR
-                        
+
                     int thread_ctr = 0;
                     while (true) {
                         try {
@@ -876,30 +932,34 @@ public class MarkovCostModel extends AbstractCostModel {
                                 pair = queues[thread_id].poll();
                             } else {
                                 pair = queues[thread_id].take();
-                                
+
                                 // Steal work
                                 if (pair == null) {
                                     for (int i = 0; i < num_threads; i++) {
-                                        if (i == thread_id) continue;
+                                        if (i == thread_id)
+                                            continue;
                                         pair = queues[i].take();
-                                        if (pair != null) break;
+                                        if (pair != null)
+                                            break;
                                     } // FOR
                                 }
                             }
                         } catch (InterruptedException ex) {
                             continue;
                         }
-                        if (pair == null) break;
-                        
+                        if (pair == null)
+                            break;
+
                         int partition = pair.getFirst();
                         TransactionTrace txn_trace = pair.getSecond();
-                        Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db); 
+                        Procedure catalog_proc = txn_trace.getCatalogItem(args.catalog_db);
                         total_h.put(catalog_proc);
-                        if (debug.get()) LOG.debug(String.format("Processing %s [%d / %d]", txn_trace, thread_ctr, thread_ctr + queues[thread_id].size()));
-                        
+                        if (debug.get())
+                            LOG.debug(String.format("Processing %s [%d / %d]", txn_trace, thread_ctr, thread_ctr + queues[thread_id].size()));
+
                         proc_h = proc_penalties_h.get(catalog_proc);
                         if (proc_h == null) {
-                            synchronized(proc_penalties_h) {
+                            synchronized (proc_penalties_h) {
                                 proc_h = proc_penalties_h.get(catalog_proc);
                                 if (proc_h == null) {
                                     proc_h = new Histogram<MarkovOptimization>();
@@ -907,7 +967,7 @@ public class MarkovCostModel extends AbstractCostModel {
                                 }
                             } // SYNCH
                         }
-                        
+
                         double cost = 0.0d;
                         Throwable error = null;
                         try {
@@ -923,11 +983,12 @@ public class MarkovCostModel extends AbstractCostModel {
                         if (error != null) {
                             failures.getAndIncrement();
                             String msg = "Failed to estimate transaction cost for " + txn_trace;
-                            if (stop_on_error) throw new RuntimeException(msg, error);
+                            if (stop_on_error)
+                                throw new RuntimeException(msg, error);
                             LOG.warn(msg, error);
                             continue;
                         }
-                        
+
                         if (cost > 0) {
                             penalty_groups.clear();
                             penalties.clear();
@@ -942,26 +1003,25 @@ public class MarkovCostModel extends AbstractCostModel {
                         } else {
                             accurate_h.put(catalog_proc);
                         }
-                        int global_ctr = total.incrementAndGet(); 
-                        if (global_ctr % marker == 0) LOG.info(String.format("Processed %d/%d transactions %s",
-                                                                      global_ctr, num_transactions,
-                                                                      (failures.get() > 0 ? String.format("[failures=%d]", failures.get()) : "")));
+                        int global_ctr = total.incrementAndGet();
+                        if (global_ctr % marker == 0)
+                            LOG.info(String.format("Processed %d/%d transactions %s", global_ctr, num_transactions, (failures.get() > 0 ? String.format("[failures=%d]", failures.get()) : "")));
                         thread_ctr++;
                     } // WHILE
                     LOG.info(String.format("Processing Thread Finished %d / %d", thread_finished.incrementAndGet(), num_threads));
-                } 
+                }
             });
         } // FOR
         ThreadUtil.runGlobalPool(runnables);
-        
+
         Map<Object, String> debugLabels = CatalogUtil.getHistogramLabels(args.catalog_db.getProcedures());
-        
+
         Histogram<Procedure> fastpath_h = new Histogram<Procedure>();
         fastpath_h.setDebugLabels(debugLabels);
         Histogram<Procedure> fullpath_h = new Histogram<Procedure>();
         fullpath_h.setDebugLabels(debugLabels);
         ProfileMeasurement total_time = new ProfileMeasurement("ESTIMATION");
-        
+
         for (int i = 0; i < num_threads; i++) {
             for (int p = 0; p < num_partitions; p++) {
                 MarkovCostModel mc = thread_costmodels[i][p];
@@ -970,19 +1030,19 @@ public class MarkovCostModel extends AbstractCostModel {
                 total_time.appendTime(profilers[i]);
             }
         } // FOR
-        
-        int accurate_cnt = total.get() - (int)missed_h.getSampleCount();
-        assert(accurate_cnt == accurate_h.getSampleCount());
-        
+
+        int accurate_cnt = total.get() - (int) missed_h.getSampleCount();
+        assert (accurate_cnt == accurate_h.getSampleCount());
+
         // ---------------------------------------------------------------------------------------------
-        
+
         Map<String, Object> m0 = new ListOrderedMap<String, Object>();
         m0.put("PARTITIONS", num_partitions);
         m0.put("FORCE FULLPATH", force_fullpath);
         m0.put("FORCE REGENERATE", force_regenerate);
         m0.put("COMPUTATION TIME", String.format("%.2f ms total / %.2f ms avg", total_time.getTotalThinkTimeMS(), total_time.getAverageThinkTimeMS()));
         m0.put("TRANSACTION COUNTS", total_h.setDebugLabels(debugLabels));
-        
+
         Map<String, Object> m1 = new ListOrderedMap<String, Object>();
         m1.put("ACCURATE TRANSACTIONS", accurate_h.setDebugLabels(debugLabels));
         m1.put("MISSED TRANSACTIONS", missed_h.setDebugLabels(debugLabels));
@@ -990,34 +1050,31 @@ public class MarkovCostModel extends AbstractCostModel {
         Map<String, Object> m2 = new ListOrderedMap<String, Object>();
         m2.put("FAST PATH", fastpath_h);
         m2.put("FULL PATH", fullpath_h);
-        
+
         Map<String, Object> m3 = new ListOrderedMap<String, Object>();
-        m3.put("ESTIMATE ACCURACY", String.format("%5d / %05d [%.03f]", accurate_cnt, total.get(), (accurate_cnt / (double)total.get())));
+        m3.put("ESTIMATE ACCURACY", String.format("%5d / %05d [%.03f]", accurate_cnt, total.get(), (accurate_cnt / (double) total.get())));
         if (failures.get() > 0) {
-            m3.put("ERRORS", String.format("%5d / %05d [%.03f]", failures.get(), total_h.getSampleCount(), (failures.get() / (double)total_h.getSampleCount())));
+            m3.put("ERRORS", String.format("%5d / %05d [%.03f]", failures.get(), total_h.getSampleCount(), (failures.get() / (double) total_h.getSampleCount())));
         }
-        
+
         ListOrderedMap<String, String> m4 = new ListOrderedMap<String, String>();
         final String f = "%5d [%.03f]";
         for (MarkovOptimization pg : MarkovOptimization.values()) {
             long cnt = optimizations_h.get(pg, 0);
-            m4.put(pg.toString(), String.format(f, cnt, cnt / (double)total.get()));
+            m4.put(pg.toString(), String.format(f, cnt, cnt / (double) total.get()));
             for (Penalty p : pg.penalties) {
                 cnt = penalties_h.get(p, 0);
-                m4.put(String.format("  + %s", p), String.format(f, cnt, cnt / (double)total.get()));   
+                m4.put(String.format("  + %s", p), String.format(f, cnt, cnt / (double) total.get()));
             } // FOR
             m4.put(m4.lastKey(), m4.get(m4.lastKey()) + "\n"); // .concat("\n");
         } // FOR
-        
+
         ListOrderedMap<String, Object> m5 = new ListOrderedMap<String, Object>();
         for (Entry<Procedure, Histogram<MarkovOptimization>> e : proc_penalties_h.entrySet()) {
-            if (e.getValue().isEmpty() == false) m5.put(e.getKey().getName(), e.getValue());
+            if (e.getValue().isEmpty() == false)
+                m5.put(e.getKey().getName(), e.getValue());
         }
 
-        System.err.println(StringUtil.formatMaps(m0, m1, m2) +
-                           StringUtil.DOUBLE_LINE +
-                           StringUtil.formatMaps(m3, m4) +
-                           StringUtil.DOUBLE_LINE +
-                           StringUtil.formatMaps(m5));
+        System.err.println(StringUtil.formatMaps(m0, m1, m2) + StringUtil.DOUBLE_LINE + StringUtil.formatMaps(m3, m4) + StringUtil.DOUBLE_LINE + StringUtil.formatMaps(m5));
     }
 }

@@ -38,38 +38,40 @@ import org.apache.log4j.spi.LoggingEvent;
 
 /**
  * @author pavlo
- *
  */
 public class StringAppender implements Appender {
 
     private StringBuilder sb;
     private String name;
-    
+
     /**
      * 
      */
     public StringAppender() {
         this.sb = new StringBuilder();
     }
-    
-    /* (non-Javadoc)
-     * @see org.apache.log4j.Appender#doAppend(org.apache.log4j.spi.LoggingEvent)
+
+    /*
+     * (non-Javadoc)
+     * @see
+     * org.apache.log4j.Appender#doAppend(org.apache.log4j.spi.LoggingEvent)
      */
     @Override
     public void doAppend(LoggingEvent arg0) {
         this.sb.append(arg0.getMessage()).append("\n");
     }
-    
+
     public void clear() {
         this.sb = new StringBuilder();
     }
-    
+
     @Override
     public String toString() {
         return this.sb.toString();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#addFilter(org.apache.log4j.spi.Filter)
      */
     @Override
@@ -77,7 +79,8 @@ public class StringAppender implements Appender {
         // TODO Auto-generated method stub
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#clearFilters()
      */
     @Override
@@ -85,7 +88,8 @@ public class StringAppender implements Appender {
         // TODO Auto-generated method stub
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#close()
      */
     @Override
@@ -93,7 +97,8 @@ public class StringAppender implements Appender {
         // TODO Auto-generated method stub
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#getErrorHandler()
      */
     @Override
@@ -102,7 +107,8 @@ public class StringAppender implements Appender {
         return null;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#getFilter()
      */
     @Override
@@ -111,7 +117,8 @@ public class StringAppender implements Appender {
         return null;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#getLayout()
      */
     @Override
@@ -120,7 +127,8 @@ public class StringAppender implements Appender {
         return null;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#getName()
      */
     @Override
@@ -128,7 +136,8 @@ public class StringAppender implements Appender {
         return this.name;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#requiresLayout()
      */
     @Override
@@ -137,15 +146,19 @@ public class StringAppender implements Appender {
         return false;
     }
 
-    /* (non-Javadoc)
-     * @see org.apache.log4j.Appender#setErrorHandler(org.apache.log4j.spi.ErrorHandler)
+    /*
+     * (non-Javadoc)
+     * @see
+     * org.apache.log4j.Appender#setErrorHandler(org.apache.log4j.spi.ErrorHandler
+     * )
      */
     @Override
     public void setErrorHandler(ErrorHandler arg0) {
         // TODO Auto-generated method stub
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#setLayout(org.apache.log4j.Layout)
      */
     @Override
@@ -153,7 +166,8 @@ public class StringAppender implements Appender {
         // TODO Auto-generated method stub
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.apache.log4j.Appender#setName(java.lang.String)
      */
     @Override

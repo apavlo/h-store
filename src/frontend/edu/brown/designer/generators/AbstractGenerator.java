@@ -8,26 +8,25 @@ import edu.brown.graphs.IGraph;
 public abstract class AbstractGenerator<T extends IGraph<DesignerVertex, DesignerEdge>> {
     protected final DesignerInfo info;
     protected boolean debug;
-    
+
     public AbstractGenerator(DesignerInfo info) {
-        assert(info != null);
+        assert (info != null);
         this.info = info;
     }
-    
+
     public DesignerInfo getInfo() {
         return this.info;
     }
-    
+
     public void setDebug(boolean debug) {
         this.debug = debug;
     }
-    
+
     /**
-     * 
      * @param <T>
      * @param agraph
      * @throws Exception
      */
     public abstract void generate(T graph) throws Exception;
-    
+
 }

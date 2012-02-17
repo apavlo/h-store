@@ -70,37 +70,22 @@ public class MarketFeed extends VoltProcedure {
         }
     }
 
-    
     private static int MAX_FEED_LEN = 20;
     private static int MAX_SEND_LEN = 40;
 
-    public final SQLStmt updateLastTrade = new SQLStmt(
-            "update LAST_TRADE set LT_PRICE = ?, LT_VOL = LT_VOL + ?, LT_DTS = ? where LT_S_SYMB = ?");
+    public final SQLStmt updateLastTrade = new SQLStmt("update LAST_TRADE set LT_PRICE = ?, LT_VOL = LT_VOL + ?, LT_DTS = ? where LT_S_SYMB = ?");
 
-    public final SQLStmt getRequestList = new SQLStmt(
-            "select TR_T_ID, TR_BID_PRICE, TR_TT_ID, TR_QTY from TRADE_REQUEST "
-                    + "where TR_S_SYMB = ? and "
-                    + "((TR_TT_ID = ? and TR_BID_PRICE >= ?) or "
-                    + "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or "
-                    + "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");
+    public final SQLStmt getRequestList = new SQLStmt("select TR_T_ID, TR_BID_PRICE, TR_TT_ID, TR_QTY from TRADE_REQUEST " + "where TR_S_SYMB = ? and " + "((TR_TT_ID = ? and TR_BID_PRICE >= ?) or "
+            + "(TR_TT_ID = ? and TR_BID_PRICE <= ?) or " + "(TR_TT_ID = ? and TR_BID_PRICE >= ?))");
 
-    public final SQLStmt updateTrade = new SQLStmt(
-            "update TRADE set T_DTS = ?, T_ST_ID = ? where T_ID = ?");
+    public final SQLStmt updateTrade = new SQLStmt("update TRADE set T_DTS = ?, T_ST_ID = ? where T_ID = ?");
 
-    public final SQLStmt deleteTradeRequest = new SQLStmt(
-            "delete from TRADE_REQUEST where TR_T_ID = ? and TR_BID_PRICE = ? and TR_TT_ID = ? and TR_QTY = ?");
+    public final SQLStmt deleteTradeRequest = new SQLStmt("delete from TRADE_REQUEST where TR_T_ID = ? and TR_BID_PRICE = ? and TR_TT_ID = ? and TR_QTY = ?");
 
-    public final SQLStmt insertTradeHistory = new SQLStmt(
-            "insert into TRADE_HISTORY (TH_T_ID, TH_DTS, TH_ST_ID) values (?, ?, ?)");
+    public final SQLStmt insertTradeHistory = new SQLStmt("insert into TRADE_HISTORY (TH_T_ID, TH_DTS, TH_ST_ID) values (?, ?, ?)");
 
-    public VoltTable[] run(
-            double[] price_quotes,
-            String status_submitted,
-            String[] symbols,
-            long[] trade_qtys,
-            String type_limit_buy,
-            String type_limit_sell,
-            String type_stop_loss) throws VoltAbortException {
+    public VoltTable[] run(double[] price_quotes, String status_submitted, String[] symbols, long[] trade_qtys, String type_limit_buy, String type_limit_sell, String type_stop_loss)
+            throws VoltAbortException {
         Date now_dts = Calendar.getInstance().getTime();
         List<TradeRequest> TradeRequestBuffer = new LinkedList<TradeRequest>();
         int s = 0;
@@ -108,14 +93,9 @@ public class MarketFeed extends VoltProcedure {
         Map<String, Object[]> ret = new HashMap<String, Object[]>();
 
         for (int i = 0; i <= MAX_FEED_LEN; i++) {
-            ProcedureUtil.execute(this, updateLastTrade, new Object[] {
-                    price_quotes[i], trade_qtys[i], now_dts, symbols[i] });
+            ProcedureUtil.execute(this, updateLastTrade, new Object[] { price_quotes[i], trade_qtys[i], now_dts, symbols[i] });
 
-            voltQueueSQL(getRequestList,
-                         symbols[i],
-                         type_stop_loss, price_quotes[i],
-                         type_limit_sell, price_quotes[i],
-                         type_limit_buy, price_quotes[i]);
+            voltQueueSQL(getRequestList, symbols[i], type_stop_loss, price_quotes[i], type_limit_sell, price_quotes[i], type_limit_buy, price_quotes[i]);
             VoltTable request_list = voltExecuteSQL()[0];
 
             for (int j = 0; j < request_list.getRowCount() || s >= MAX_SEND_LEN; j++, s++) {
@@ -130,8 +110,7 @@ public class MarketFeed extends VoltProcedure {
                 voltQueueSQL(insertTradeHistory, trade_id, now_dts, status_submitted);
                 voltExecuteSQL();
 
-                TradeRequestBuffer.add(new TradeRequest(symbols[i], trade_id,
-                        price_quote, trade_qty, trade_type));
+                TradeRequestBuffer.add(new TradeRequest(symbols[i], trade_id, price_quote, trade_qty, trade_type));
             }
         }
 

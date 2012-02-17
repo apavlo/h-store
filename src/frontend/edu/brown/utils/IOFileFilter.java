@@ -65,8 +65,10 @@ public class IOFileFilter extends FileFilter {
     /**
      * Constructor
      * 
-     * @param matches a list of extensions to add to the filter
-     * @param description the text description of the filter
+     * @param matches
+     *            a list of extensions to add to the filter
+     * @param description
+     *            the text description of the filter
      */
     public IOFileFilter(String description, Collection<String> matches) {
         this(description, false, matches);
@@ -82,7 +84,9 @@ public class IOFileFilter extends FileFilter {
 
     /**
      * Adds a new extension to the list. We check for dupes
-     * @param ext a new file extension to add
+     * 
+     * @param ext
+     *            a new file extension to add
      */
     public void addExtension(String ext) {
         ext = ext.toLowerCase();
@@ -94,7 +98,8 @@ public class IOFileFilter extends FileFilter {
     /**
      * Removes an extension from the internal filter list
      * 
-     * @param ext a file extension to remove
+     * @param ext
+     *            a file extension to remove
      */
     public void removeExtension(String ext) {
         ext = ext.toLowerCase();
@@ -106,7 +111,8 @@ public class IOFileFilter extends FileFilter {
     /**
      * We only want to except files that match
      * 
-     * @param f - the file to check for its extension
+     * @param f
+     *            - the file to check for its extension
      * @return true if the file is acceptable
      */
     @Override
@@ -114,7 +120,7 @@ public class IOFileFilter extends FileFilter {
         if (f.isDirectory()) {
             return true;
         }
-        
+
         // PREFIX MODE
         if (this.prefix_mode) {
             String name = f.getName();
@@ -123,8 +129,8 @@ public class IOFileFilter extends FileFilter {
                     return (true);
                 }
             } // FOR
-        
-        // EXTENSION MODE
+
+            // EXTENSION MODE
         } else {
             String extension = IOFileFilter.getExtension(f);
             if (extension != null) {
@@ -176,7 +182,8 @@ public class IOFileFilter extends FileFilter {
     /**
      * Returns the file extension of a file path
      * 
-     * @param s the file name to get the extension from
+     * @param s
+     *            the file name to get the extension from
      * @return the string description of the filter
      */
     public static String getDir(String s) {

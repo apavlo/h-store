@@ -15,35 +15,40 @@ public class ExampleClient extends BenchmarkComponent {
     public static void main(String args[]) {
         BenchmarkComponent.main(ExampleClient.class, args, false);
     }
- 
+
     public ExampleClient(String[] args) {
         super(args);
         for (String key : m_extraParams.keySet()) {
             // TODO: Retrieve extra configuration parameters
         } // FOR
     }
- 
+
     @Override
     public void runLoop() {
         try {
             Client client = this.getClientHandle();
             Random rand = new Random();
             while (true) {
-                // Select a random transaction to execute and generate its input parameters
-                // The procedure index (procIdx) needs to the same as the array of procedure
+                // Select a random transaction to execute and generate its input
+                // parameters
+                // The procedure index (procIdx) needs to the same as the array
+                // of procedure
                 // names returned by getTransactionDisplayNames()
                 int procIdx = rand.nextInt(ExampleProjectBuilder.PROCEDURES.length);
                 String procName = ExampleProjectBuilder.PROCEDURES[procIdx].getSimpleName();
                 Object procParams[] = null; // TODO
- 
-                // Create a new Callback handle that will be executed when the transaction completes
+
+                // Create a new Callback handle that will be executed when the
+                // transaction completes
                 Callback callback = new Callback(procIdx);
- 
-                // Invoke the stored procedure through the client handle. This is non-blocking
+
+                // Invoke the stored procedure through the client handle. This
+                // is non-blocking
                 client.callProcedure(callback, procName, procIdx);
- 
-                // Check whether all the nodes are backed-up and this client should block
-                // before sending new requests. 
+
+                // Check whether all the nodes are backed-up and this client
+                // should block
+                // before sending new requests.
                 client.backpressureBarrier();
             } // WHILE
         } catch (NoConnectionsException e) {
@@ -57,13 +62,14 @@ public class ExampleClient extends BenchmarkComponent {
             // get spammed, but will miss lost connections at runtime
         }
     }
- 
+
     private class Callback implements ProcedureCallback {
         private final int idx;
- 
+
         public Callback(int idx) {
             this.idx = idx;
         }
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             // Increment the BenchmarkComponent's internal counter on the
@@ -71,7 +77,7 @@ public class ExampleClient extends BenchmarkComponent {
             incrementTransactionCounter(clientResponse, this.idx);
         }
     } // END CLASS
- 
+
     @Override
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names

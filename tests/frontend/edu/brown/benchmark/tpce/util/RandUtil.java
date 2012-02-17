@@ -72,15 +72,14 @@ import java.util.Random;
 
 /**
  * @author zhe
- *
  */
 public class RandUtil {
 
     private static final Random rand = new Random();
 
     private static final Integer signs[] = { 1, -1 };
-    
-    private static final Integer bools[] = {0, 1};
+
+    private static final Integer bools[] = { 0, 1 };
 
     public static Object randNum(String numType) {
         if (numType.equals("IDENT_T"))
@@ -109,7 +108,6 @@ public class RandUtil {
     }
 
     /**
-     * 
      * @param m
      * @param n
      * @return An Unsigned numeric value with m total digits, of which n digits
@@ -124,9 +122,9 @@ public class RandUtil {
     private static double randSNum(int m, int n) {
         return (Integer) oneOf(signs) * randNum(m, n);
     }
-    
-    private static long randSNum(int m){
-        return (long)randSNum(m, 0);
+
+    private static long randSNum(int m) {
+        return (long) randSNum(m, 0);
     }
 
     public static String randChars(int len) {
@@ -136,17 +134,17 @@ public class RandUtil {
     public static Object oneOf(Object[] objects) {
         return objects[(int) (Math.random() * objects.length)];
     }
-    
+
     /**
      * @return a random Date in range [min_date, max_date]
      */
-    public static Date randDate(Date min_date, Date max_date){
+    public static Date randDate(Date min_date, Date max_date) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(max_date);
         int maxDate = cal.get(Calendar.DATE);
         cal.setTime(min_date);
         int minDate = cal.get(Calendar.DATE);
-        
+
         int diff = maxDate - minDate;
 
         cal.add(Calendar.DATE, (int) randNum(0, diff));
@@ -172,8 +170,7 @@ public class RandUtil {
     }
 
     // taken from tpcc.RandomGenerator
-    private static String randomString(int minimum_length, int maximum_length,
-            char base, int numCharacters) {
+    private static String randomString(int minimum_length, int maximum_length, char base, int numCharacters) {
         int length = number(minimum_length, maximum_length).intValue();
         byte baseByte = (byte) base;
         byte[] bytes = new byte[length];
@@ -186,8 +183,7 @@ public class RandUtil {
     // taken from tpcc.RandomGenerator
     public static Long number(long minimum, long maximum) {
         assert minimum <= maximum;
-        long value = Math.abs(rand.nextLong()) % (maximum - minimum + 1)
-                + minimum;
+        long value = Math.abs(rand.nextLong()) % (maximum - minimum + 1) + minimum;
         assert minimum <= value && value <= maximum;
         return value;
     }

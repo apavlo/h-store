@@ -3,7 +3,6 @@
  */
 package edu.brown.designer.mappers;
 
-
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Table;
@@ -15,7 +14,6 @@ import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 /**
  * @author pavlo
- *
  */
 public class SimpleMapper extends AbstractMapper {
 
@@ -23,17 +21,20 @@ public class SimpleMapper extends AbstractMapper {
         super(designer, info);
     }
 
-    /* (non-Javadoc)
-     * @see edu.brown.designer.mappers.AbstractMapper#generate(edu.brown.designer.DesignerHints, edu.brown.designer.partitioners.PartitionPlan)
+    /*
+     * (non-Javadoc)
+     * @see
+     * edu.brown.designer.mappers.AbstractMapper#generate(edu.brown.designer
+     * .DesignerHints, edu.brown.designer.partitioners.PartitionPlan)
      */
     @Override
     public PartitionMapping generate(DesignerHints hints, PartitionPlan pplan) throws Exception {
         PartitionMapping pmap = new PartitionMapping();
-        
+
         //
         // Sites
         //
-        Cluster catalog_cluster = (Cluster)info.catalog_db.getParent();
+        Cluster catalog_cluster = (Cluster) info.catalog_db.getParent();
         int site_id = 0;
         for (Host catalog_host : catalog_cluster.getHosts()) {
             int num_sites = catalog_host.getCorespercpu() * catalog_host.getThreadspercore();
@@ -43,7 +44,7 @@ public class SimpleMapper extends AbstractMapper {
                 site_id++;
             } // FOR
         } // FOR
-        
+
         //
         // Table Fragments
         //

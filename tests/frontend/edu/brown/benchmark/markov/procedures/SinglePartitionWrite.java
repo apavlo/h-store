@@ -39,23 +39,19 @@ import edu.brown.benchmark.markov.MarkovConstants;
 
 public class SinglePartitionWrite extends VoltProcedure {
     // Should be SP
-    public final SQLStmt readA = new SQLStmt("SELECT A_IATTR00 FROM "
-            + MarkovConstants.TABLENAME_TABLEA + " WHERE A_ID = ? ");
-    
+    public final SQLStmt readA = new SQLStmt("SELECT A_IATTR00 FROM " + MarkovConstants.TABLENAME_TABLEA + " WHERE A_ID = ? ");
+
     // Should be MP
-    public final SQLStmt findA = new SQLStmt("SELECT A_ID FROM "
-            + MarkovConstants.TABLENAME_TABLEA + " WHERE A_IATTR00 = ? ");
+    public final SQLStmt findA = new SQLStmt("SELECT A_ID FROM " + MarkovConstants.TABLENAME_TABLEA + " WHERE A_IATTR00 = ? ");
 
     // Should be multi-partition and single-partition
-    public final SQLStmt writeC = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLEC
-            + " SET C_IATTR00 = ? WHERE C_A_ID = ? ");
-    
+    public final SQLStmt writeC = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLEC + " SET C_IATTR00 = ? WHERE C_A_ID = ? ");
+
     public VoltTable[] run(long a_id, long value) {
         voltQueueSQL(readA, a_id); // Guaranteed to be single-sited
         VoltTable a = voltExecuteSQL()[0];
         long avalue = a.getLong(0);
-        //If we don't find the a value we want, we have to start looking
+        // If we don't find the a value we want, we have to start looking
         if (avalue != value) {
             voltQueueSQL(findA, value);
             a = voltExecuteSQL()[0];

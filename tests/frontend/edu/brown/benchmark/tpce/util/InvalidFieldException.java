@@ -73,7 +73,7 @@ public class InvalidFieldException extends Exception {
      */
     private static final long serialVersionUID = 1L;
 
-    public InvalidFieldException(String tableName, String columnName){
+    public InvalidFieldException(String tableName, String columnName) {
         super();
         System.err.println(tableName + ": has on filed named " + columnName);
     }

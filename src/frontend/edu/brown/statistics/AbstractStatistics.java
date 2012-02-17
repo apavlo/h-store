@@ -44,28 +44,28 @@ import edu.brown.utils.StringUtil;
 import edu.brown.workload.TransactionTrace;
 
 /**
- * 
  * @author pavlo
- *
  * @param <T>
  */
 public abstract class AbstractStatistics<T extends CatalogType> implements JSONString {
     protected static final Logger LOG = Logger.getLogger(AbstractStatistics.class);
     protected static final String DEBUG_SPACER = "  ";
-    
+
     protected final String catalog_key;
     protected boolean has_preprocessed = false;
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_key
      */
     public AbstractStatistics(String catalog_key) {
         this.catalog_key = catalog_key;
     }
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_item
      */
     public AbstractStatistics(T catalog_item) {
@@ -74,14 +74,14 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
 
     /**
      * Returns the Catalog key of the stats object
+     * 
      * @return
      */
     public final String getCatalogKey() {
         return (this.catalog_key);
     }
-    
+
     /**
-     * 
      * @param catalog_db
      * @return
      */
@@ -91,26 +91,25 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
      * 
      */
     public abstract void preprocess(Database catalog_db);
-    
+
     /**
-     * 
      * @param xact
      * @throws Exception
      */
     public abstract void process(Database catalog_db, TransactionTrace xact) throws Exception;
-    
+
     /**
-     * 
      * @throws Exception
      */
     public abstract void postprocess(Database catalog_db) throws Exception;
-    
+
     /**
      * Returns debugging information about this object
+     * 
      * @return
      */
     public abstract String debug(Database catalog_db);
-    
+
     protected String debug(Database catalog_db, Enum<?> elements[]) {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
         try {
@@ -118,14 +117,14 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
             for (Enum<?> element : elements) {
                 Field field = statsClass.getDeclaredField(element.toString().toLowerCase());
                 Object value = field.get(this);
-                
+
                 if (field.getClass().isAssignableFrom(SortedMap.class)) {
-                    SortedMap<?, ?> orig_value = (SortedMap<?, ?>)value;
+                    SortedMap<?, ?> orig_value = (SortedMap<?, ?>) value;
                     Map<String, Object> inner_m = new ListOrderedMap<String, Object>();
                     for (Object inner_key : orig_value.keySet()) {
                         Object inner_val = orig_value.get(inner_key);
                         if (inner_val instanceof AbstractStatistics<?>) {
-                            inner_val = ((AbstractStatistics<?>)inner_val).debug(catalog_db);
+                            inner_val = ((AbstractStatistics<?>) inner_val).debug(catalog_db);
                         }
                         inner_m.put(inner_key.toString(), inner_val);
                     } // FOR
@@ -137,11 +136,9 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
             ex.printStackTrace();
             System.exit(1);
         }
-        return (String.format("%s\n%s",
-                              this.getCatalogItem(catalog_db),
-                              StringUtil.prefix(StringUtil.formatMaps(m), DEBUG_SPACER)));
+        return (String.format("%s\n%s", this.getCatalogItem(catalog_db), StringUtil.prefix(StringUtil.formatMaps(m), DEBUG_SPACER)));
     }
-    
+
     /**
      * 
      */
@@ -160,21 +157,18 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
     }
 
     /**
-     * 
      * @param stringer
      * @throws JSONException
      */
     public abstract void toJSONString(JSONStringer stringer) throws JSONException;
-    
+
     /**
-     * 
      * @param object
      * @throws JSONException
      */
     public abstract void fromJSONObject(JSONObject object, Database catalog_db) throws JSONException;
-    
+
     /**
-     * 
      * @param <T>
      * @param map
      * @param name
@@ -186,7 +180,7 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
         for (U key : map.keySet()) {
             String key_name = key.toString();
             if (key instanceof CatalogType) {
-                key_name = ((CatalogType)key).getName();
+                key_name = ((CatalogType) key).getName();
             }
             stringer.key(key_name).value(map.get(key));
         } // FOR
@@ -194,7 +188,9 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
     }
 
     /**
-     * Reads a stored mapped from the JSON object and populates the data structure
+     * Reads a stored mapped from the JSON object and populates the data
+     * structure
+     * 
      * @param <U>
      * @param <V>
      * @param map
@@ -213,11 +209,11 @@ public abstract class AbstractStatistics<T extends CatalogType> implements JSONS
             String key_name = keys.next();
             U key_object = null;
             V value = null;
-            
+
             if (value_class.equals(Long.class)) {
-                value = (V)new Long(jsonObject.getLong(key_name));
+                value = (V) new Long(jsonObject.getLong(key_name));
             } else {
-                value = (V)jsonObject.get(key_name);
+                value = (V) jsonObject.get(key_name);
             }
             key_object = key_map.get(key_name);
             if (key_object == null) {

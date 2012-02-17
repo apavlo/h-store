@@ -29,26 +29,26 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
      */
     public class Entry extends HashSet<Column> {
         private static final long serialVersionUID = 8592594865097644058L;
-        
+
         protected double weight = 0;
-        
+
         private final Map<Table, Set<ColumnSet>> table_cset_xref = new HashMap<Table, Set<ColumnSet>>();
         private final Map<Table, Set<DesignerEdge>> table_edge_xref = new HashMap<Table, Set<DesignerEdge>>();
         private final Map<Table, Set<Column>> table_partition_xref = new HashMap<Table, Set<Column>>();
-        
+
         /**
-         * 
          * @param other
          */
         public void merge(Entry other) {
             //
             // Find the intersecting entries in order to scrub the ones that
-            // don't belong from the ColumnSets of the merging into 
+            // don't belong from the ColumnSets of the merging into
             //
             for (CatalogType catalog_item : other) {
                 if (!this.contains(catalog_item)) {
                     //
-                    // Loop through all the ColumnSets for the tables that reference this entry
+                    // Loop through all the ColumnSets for the tables that
+                    // reference this entry
                     // and remove the attribute from them
                     //
                     for (Table catalog_tbl : other.table_cset_xref.keySet()) {
@@ -58,32 +58,35 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
                     } // FOR
                 }
             } // FOR
-            
+
             this.table_cset_xref.putAll(other.table_cset_xref);
             this.table_edge_xref.putAll(other.table_edge_xref);
             this.table_partition_xref.putAll(other.table_partition_xref);
             return;
         }
-        
+
         /**
          * Return all the tables used in this PartitionSet
+         * 
          * @return
          */
         public Set<Table> getTables() {
             return (this.table_cset_xref.keySet());
         }
-        
+
         /**
          * Return the parent table of this Entry object
+         * 
          * @return
          */
         public Table getParent() {
             return (PartitionSets.this.parent_table);
         }
-        
+
         /**
-         * Returns the edge that connects the parent table in the PartitionSets object to
-         * the child table provided
+         * Returns the edge that connects the parent table in the PartitionSets
+         * object to the child table provided
+         * 
          * @param child_table
          * @return
          */
@@ -94,34 +97,33 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
             }
             return (ret);
         }
-        
+
         /**
-         * Returns the list of columns that were used to link the child table provided 
-         * to the parent table based on this AttributeSet
+         * Returns the list of columns that were used to link the child table
+         * provided to the parent table based on this AttributeSet
+         * 
          * @param child_table
          * @return
          */
         public Set<Column> getChildAttributes(Table child_table) {
             return (this.table_partition_xref.get(child_table));
         }
-        
+
         /**
-         * 
          * @return
          */
         public double getWeight() {
             return this.weight;
         }
-        
+
         /**
-         * 
          * @param catalog_tbl
          * @return
          */
         public Set<ColumnSet> getColumnSets(Table catalog_tbl) {
             return (this.table_cset_xref.get(catalog_tbl));
         }
-        
+
         public String debug() {
             String ret = this.getClass().getSimpleName() + "\n";
             ret += "  Attributes: " + this.toString() + "\n";
@@ -130,34 +132,34 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
             return (ret);
         }
     } // END CLASS
-    
+
     public PartitionSets(Table parent_table) {
         super();
         this.parent_table = parent_table;
     }
-    
+
     public Table getParentTable() {
         return this.parent_table;
     }
-    
+
     public boolean add(Table child_table, DesignerEdge edge) {
         //
-        // We first need to convert the ColumnSet into a set of attributes 
+        // We first need to convert the ColumnSet into a set of attributes
         // that "connect" the child table with the parent
         //
         ColumnSet cset = null;
         Entry entry = new Entry();
         if (this.parent_table == child_table) {
-            cset = (ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
+            cset = (ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name());
             entry.addAll(cset.findAllForParent(Column.class, child_table));
         } else {
-            cset = ((ColumnSet)edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name())).createColumnSetForParent(Column.class, child_table);
+            cset = ((ColumnSet) edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name())).createColumnSetForParent(Column.class, child_table);
             entry.addAll(cset.findAllForOtherParent(Column.class, child_table));
         }
-        double weight = (Double)edge.getAttribute(Members.WEIGHTS.name());
+        double weight = (Double) edge.getAttribute(Members.WEIGHTS.name());
         entry.weight = weight;
-        //System.out.println(cset + " Weight=" + entry.weight);
-        
+        // System.out.println(cset + " Weight=" + entry.weight);
+
         //
         // Check whether we already contain this AttributeSet
         // If we do, then we need to add the weight of the one we're being given
@@ -172,13 +174,15 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
                 break;
             }
         } // FOR
-        if (!found) super.add(entry);
-        
+        if (!found)
+            super.add(entry);
+
         //
-        // Build our various index structures. We probably should probably think this through
+        // Build our various index structures. We probably should probably think
+        // this through
         // a bit more than just making anything we want here...
         //
-        
+
         //
         // Table -> ColumnSets
         //
@@ -186,7 +190,7 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
             entry.table_cset_xref.put(child_table, new HashSet<ColumnSet>());
         }
         entry.table_cset_xref.get(child_table).add(cset);
-        
+
         //
         // Table -> Entry
         //
@@ -194,12 +198,12 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
             this.table_entry_xref.put(child_table, new HashSet<Entry>());
         }
         this.table_entry_xref.get(child_table).add(entry);
-        
+
         //
         // ColumnSet -> AttributeSet
         //
         this.cset_entry_xref.put(cset, entry);
-        
+
         //
         // Child Table -> Edges
         //
@@ -207,21 +211,19 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
             entry.table_edge_xref.put(child_table, new HashSet<DesignerEdge>());
         }
         entry.table_edge_xref.get(child_table).add(edge);
-        
+
         //
         // Child Table -> Attributes
         //
         if (entry.table_partition_xref.containsKey(child_table)) {
-            LOG.fatal("The AttributeSet for parent table '" + this.parent_table + "' " +
-                      "already contains attributes for child table '" + child_table + "'");
+            LOG.fatal("The AttributeSet for parent table '" + this.parent_table + "' " + "already contains attributes for child table '" + child_table + "'");
             return (false);
         }
         entry.table_partition_xref.put(child_table, cset.findAllForOtherParent(Column.class, this.parent_table));
-        
-        
+
         return (true);
     }
-    
+
     public Set<Entry> getMaxWeightAttributes() {
         Set<Entry> ret = new HashSet<Entry>();
         double max_weight = 0;
@@ -236,9 +238,8 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         } // FOR
         return (ret);
     }
-    
+
     /**
-     * 
      * @throws Exception
      */
     public void generateSubSets() throws Exception {
@@ -250,7 +251,8 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         Set<Entry> remove = new HashSet<Entry>();
         for (Entry entry0 : this) {
             for (Entry entry1 : this) {
-                if (entry0 == entry1) continue;
+                if (entry0 == entry1)
+                    continue;
                 if (entry0.containsAll(entry1) && entry0.size() > entry1.size()) {
                     LOG.info("Merging " + entry0 + " into " + entry1);
                     entry1.merge(entry0);
@@ -263,19 +265,21 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
                     LOG.debug("entry1.containsAll(entry0): " + entry1.containsAll(entry0));
                 }
             } // FOR
-            if (!remove.isEmpty()) break;
+            if (!remove.isEmpty())
+                break;
         } // FOR
         if (!remove.isEmpty()) {
             this.removeAll(remove);
             LOG.debug(this.debug());
         } else {
             LOG.warn("Failed to find any entries to merge!");
-            //if (this.parent_table.getName().equals("CUSTOMER")) System.exit(1);
+            // if (this.parent_table.getName().equals("CUSTOMER"))
+            // System.exit(1);
         }
-        
+
         return;
     }
-    
+
     public String debug() {
         String ret = this.getClass().getSimpleName() + ": " + this.parent_table + "\n";
         for (Entry entry : this) {
@@ -283,5 +287,5 @@ public class PartitionSets extends HashSet<PartitionSets.Entry> {
         }
         return (ret);
     }
-    
+
 }

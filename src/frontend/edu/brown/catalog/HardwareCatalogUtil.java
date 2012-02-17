@@ -12,18 +12,16 @@ public abstract class HardwareCatalogUtil {
 
     public static Host getHost(CatalogType catalog_item) {
         Host ret = null;
-        if (catalog_item instanceof HardwareCPU ||
-            catalog_item instanceof HardwareCore ||
-            catalog_item instanceof HardwareThread) {
+        if (catalog_item instanceof HardwareCPU || catalog_item instanceof HardwareCore || catalog_item instanceof HardwareThread) {
             ret = HardwareCatalogUtil.getHost(catalog_item.getParent());
         } else if (catalog_item instanceof Host) {
-            ret = (Host)catalog_item;
+            ret = (Host) catalog_item;
         } else {
-            assert(false) : "Unexpected catalog item " + catalog_item;
+            assert (false) : "Unexpected catalog item " + catalog_item;
         }
         return (ret);
     }
-    
+
     public static int getCoresPerCPU(CatalogType catalog_item) {
         Host catalog_host = HardwareCatalogUtil.getHost(catalog_item);
         if (catalog_host == null) {
@@ -32,7 +30,7 @@ public abstract class HardwareCatalogUtil {
         }
         return (catalog_host.getCorespercpu());
     }
-    
+
     public static int getThreadsPerCore(CatalogType catalog_item) {
         Host catalog_host = HardwareCatalogUtil.getHost(catalog_item);
         if (catalog_host == null) {

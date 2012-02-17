@@ -36,28 +36,20 @@ import edu.brown.benchmark.markov.MarkovConstants;
  * specific number of iterations through the while loop.
  * 
  * @author svelagap
- * 
  */
 public class ExecutionTime extends VoltProcedure {
 
     // Should be single partition
-    public final SQLStmt selectA = new SQLStmt("SELECT A_IATTR02 FROM "
-            + MarkovConstants.TABLENAME_TABLEA + " WHERE A_ID = ? ");
-    
+    public final SQLStmt selectA = new SQLStmt("SELECT A_IATTR02 FROM " + MarkovConstants.TABLENAME_TABLEA + " WHERE A_ID = ? ");
+
     // ???
-    public final SQLStmt updateA = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLEA
-            + " SET A_IATTR02 = A_IATTR02 + ? WHERE A_ID = ?");
-    
+    public final SQLStmt updateA = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLEA + " SET A_IATTR02 = A_IATTR02 + ? WHERE A_ID = ?");
+
     // Should be multi-partition
-    public final SQLStmt updateC = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLEC
-            + " SET C_IATTR02 = ? WHERE C_A_ID = ? "); 
-    
+    public final SQLStmt updateC = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLEC + " SET C_IATTR02 = ? WHERE C_A_ID = ? ");
+
     // Should be single-partition
-    public final SQLStmt updateB = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLEB
-            + " SET B_IATTR02 = B_IATTR02 + ? WHERE B_A_ID = ? ");
+    public final SQLStmt updateB = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLEB + " SET B_IATTR02 = B_IATTR02 + ? WHERE B_A_ID = ? ");
 
     public VoltTable[] run(long a_id) {
         voltQueueSQL(selectA, a_id);

@@ -5,53 +5,48 @@ import java.lang.reflect.Field;
 import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
 
 public class TestMarkovLoader extends BaseTestCase {
     private static final Logger LOG = Logger.getLogger(TestMarkovLoader.class.getSimpleName());
-    
+
     protected static final double SCALE_FACTOR = 0.01;
-    
+
     protected MarkovLoader loader;
     protected Long current_tablesize;
     protected Long current_batchsize;
     protected Long total_rows = 0l;
-    
-    protected static final String LOADER_ARGS[] = {
-        "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, 
-        "NUMCLIENTS=1",
-        "NOCONNECTIONS=true",
-    };
+
+    protected static final String LOADER_ARGS[] = { "CLIENT.SCALEFACTOR=" + SCALE_FACTOR, "NUMCLIENTS=1", "NOCONNECTIONS=true", };
 
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.MARKOV);
-        
+
         this.loader = new MarkovLoader(LOADER_ARGS) {
             @Override
             public Catalog getCatalog() {
                 return (BaseTestCase.catalog);
             }
-            
+
             @Override
             protected void loadTable(String tablename, VoltTable table) {
-                LOG.debug("LOAD TABLE: " + tablename + " [" +
-                          "tablesize="  + TestMarkovLoader.this.current_tablesize + "," +
-                          "batchsize="  + TestMarkovLoader.this.current_batchsize + "," +
-                          "num_rows="   + table.getRowCount() + "," + 
-                          "total_rows=" + TestMarkovLoader.this.total_rows + "]");
+                LOG.debug("LOAD TABLE: " + tablename + " [" + "tablesize=" + TestMarkovLoader.this.current_tablesize + "," + "batchsize=" + TestMarkovLoader.this.current_batchsize + "," + "num_rows="
+                        + table.getRowCount() + "," + "total_rows=" + TestMarkovLoader.this.total_rows + "]");
                 assertNotNull("Got null VoltTable object for table '" + tablename + "'", table);
-                
+
                 // Simple checks
                 int num_rows = table.getRowCount();
                 TestMarkovLoader.this.total_rows += num_rows;
-                assert(num_rows > 0);
-                assert(num_rows <= TestMarkovLoader.this.current_batchsize);
-                assert(TestMarkovLoader.this.total_rows <= TestMarkovLoader.this.current_tablesize);
-                
+                assert (num_rows > 0);
+                assert (num_rows <= TestMarkovLoader.this.current_batchsize);
+                assert (TestMarkovLoader.this.total_rows <= TestMarkovLoader.this.current_tablesize);
+
                 // VARCHAR Column checks
                 Table catalog_tbl = TestMarkovLoader.this.getTable(tablename);
                 table.resetRowPosition();
@@ -59,7 +54,7 @@ public class TestMarkovLoader extends BaseTestCase {
                     int row = table.getActiveRowIndex();
                     for (Column catalog_col : catalog_tbl.getColumns()) {
                         int index = catalog_col.getIndex();
-                        VoltType col_type = VoltType.get(catalog_col.getType()); 
+                        VoltType col_type = VoltType.get(catalog_col.getType());
                         switch (col_type) {
                             case TINYINT:
                             case SMALLINT:
@@ -69,15 +64,14 @@ public class TestMarkovLoader extends BaseTestCase {
                             }
                             case BIGINT: {
                                 long value = table.getLong(index);
-                                assert(value < Long.MAX_VALUE);
+                                assert (value < Long.MAX_VALUE);
                                 break;
                             }
                             case STRING: {
                                 int length = catalog_col.getSize();
                                 String value = table.getString(index);
                                 assertNotNull("The value in " + catalog_col + " at row " + row + " is null", value);
-                                assertTrue("The value in " + catalog_col + " at row " + row + " is " + value.length() + ". Max is " + length,
-                                           value.length() <= length);
+                                assertTrue("The value in " + catalog_col + " at row " + row + " is " + value.length() + ". Max is " + length, value.length() <= length);
                                 break;
                             }
                             case TIMESTAMP: {
@@ -85,27 +79,28 @@ public class TestMarkovLoader extends BaseTestCase {
                                 break;
                             }
                             default:
-                                assert(false) :
-                                    "Unexpected type " + col_type + " for column " + catalog_col.getName() + " for row " + row;
+                                assert (false) : "Unexpected type " + col_type + " for column " + catalog_col.getName() + " for row " + row;
                         } // SWITCH
 
-                        
                     } // FOR
                 } // WHILE
-                // if (true || tablename.equals(MarkovConstants.TABLENAME_TABLEB)) LOG.info(table);
+                  // if (true ||
+                  // tablename.equals(MarkovConstants.TABLENAME_TABLEB))
+                  // LOG.info(table);
                 table.resetRowPosition();
-                
+
                 // TABLEB and TABLEC Checks
-                if (tablename.equals(MarkovConstants.TABLENAME_TABLEB) ||
-                    tablename.equals(MarkovConstants.TABLENAME_TABLEC)) {
+                if (tablename.equals(MarkovConstants.TABLENAME_TABLEB) || tablename.equals(MarkovConstants.TABLENAME_TABLEC)) {
                     while (table.advanceRow()) {
                         long id = table.getLong(0);
                         long a_id = table.getLong(1);
-                        
-                        // Make sure that the first and second columns are not equal
+
+                        // Make sure that the first and second columns are not
+                        // equal
                         assertNotSame(tablename + ".ID and A_ID are the same value", id, a_id);
-                        
-                        // And then make sure that the *_ID can be converted as a CompositeId
+
+                        // And then make sure that the *_ID can be converted as
+                        // a CompositeId
                         long decoded[] = MarkovLoader.decodeCompositeId(id);
                         assertEquals(a_id, decoded[0]);
                     } // WHILE
@@ -113,28 +108,28 @@ public class TestMarkovLoader extends BaseTestCase {
             }
         };
     }
-    
+
     @Override
     protected void tearDown() throws Exception {
         super.tearDown();
         // assert(this.total_rows == this.current_tablesize);
     }
-    
+
     protected void setCurrentTable(String tablename) throws Exception {
         LOG.debug("Retrieving attributes for table '" + tablename + "'");
         String field_name = "TABLESIZE_" + tablename;
         Field field_handle = MarkovConstants.class.getField(field_name);
         assertNotNull(field_handle);
-        this.current_tablesize = Math.round((Long)field_handle.get(null) * SCALE_FACTOR);
+        this.current_tablesize = Math.round((Long) field_handle.get(null) * SCALE_FACTOR);
 
         field_name = "BATCHSIZE_" + tablename;
         field_handle = MarkovConstants.class.getField(field_name);
         assertNotNull(field_handle);
-        this.current_batchsize = (Long)field_handle.get(null);
-        
+        this.current_batchsize = (Long) field_handle.get(null);
+
         this.total_rows = 0l;
     }
-    
+
     /**
      * testGenerateTABLEA
      */

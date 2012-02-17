@@ -45,13 +45,14 @@ public abstract class ThreadUtil {
 
     private static final Object lock = new Object();
     private static ExecutorService pool;
-    
+
     private static final int DEFAULT_NUM_THREADS = Runtime.getRuntime().availableProcessors();
     private static Integer OVERRIDE_NUM_THREADS = null;
-    
-    
+
     /**
-     * Convenience wrapper around Thread.sleep() for when we don't care about exceptions
+     * Convenience wrapper around Thread.sleep() for when we don't care about
+     * exceptions
+     * 
      * @param millis
      */
     public static void sleep(long millis) {
@@ -63,7 +64,9 @@ public abstract class ThreadUtil {
     }
 
     /**
-     * Executes the given command and returns a pair containing the PID and Process handle
+     * Executes the given command and returns a pair containing the PID and
+     * Process handle
+     * 
      * @param command
      * @return
      */
@@ -75,10 +78,10 @@ public abstract class ThreadUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        assert(p != null);
+        assert (p != null);
         Class<? extends Process> p_class = p.getClass();
-        assert(p_class.getName().endsWith("UNIXProcess")) : "Unexpected Process class: " + p_class;
-        
+        assert (p_class.getName().endsWith("UNIXProcess")) : "Unexpected Process class: " + p_class;
+
         Integer pid = null;
         try {
             Field pid_field = p_class.getDeclaredField("pid");
@@ -88,31 +91,32 @@ public abstract class ThreadUtil {
             LOG.fatal("Faild to get pid for " + p, ex);
             return (null);
         }
-        assert(pid != null) : "Failed to get pid for " + p;
-        
+        assert (pid != null) : "Failed to get pid for " + p;
+
         LOG.info("Starting new process with PID " + pid);
         return (Pair.of(pid, p));
     }
-    
+
     /**
      * Fork the command (in the current thread)
+     * 
      * @param command
      */
     public static <T> void fork(String command[], EventObservable<T> stop_observable) {
         ThreadUtil.fork(command, stop_observable, null, false);
     }
-    
+
     /**
-     * 
      * @param command
      * @param prefix
      * @param stop_observable
      * @param print_output
      */
     public static <T> void fork(String command[], final EventObservable<T> stop_observable, final String prefix, final boolean print_output) {
-        final boolean debug = LOG.isDebugEnabled(); 
-        
-        if (debug) LOG.debug("Forking off process: " + Arrays.toString(command));
+        final boolean debug = LOG.isDebugEnabled();
+
+        if (debug)
+            LOG.debug("Forking off process: " + Arrays.toString(command));
 
         // Copied from ShellTools
         ProcessBuilder pb = new ProcessBuilder(command);
@@ -124,18 +128,20 @@ public abstract class ThreadUtil {
             LOG.fatal("Failed to fork command", e);
             return;
         }
-        assert(temp != null);
+        assert (temp != null);
         final Process p = temp;
-        
+
         // Register a observer if we have a stop observable
         if (stop_observable != null) {
             final String prog_name = FileUtil.basename(command[0]);
             stop_observable.addObserver(new EventObserver<T>() {
                 boolean first = true;
+
                 @Override
                 public void update(EventObservable<T> arg0, T arg1) {
-                    assert(first) : "Trying to stop the process twice??";
-                    if (debug) LOG.debug("Stopping Process -> " + prog_name);
+                    assert (first) : "Trying to stop the process twice??";
+                    if (debug)
+                        LOG.debug("Stopping Process -> " + prog_name);
                     p.destroy();
                     first = false;
                 }
@@ -147,9 +153,9 @@ public abstract class ThreadUtil {
             StringBuilder buffer = new StringBuilder();
             int c;
             try {
-                while((c = in.read()) != -1) {
-                    buffer.append((char)c);
-                    if (((char)c) == '\n') {
+                while ((c = in.read()) != -1) {
+                    buffer.append((char) c);
+                    if (((char) c) == '\n') {
                         System.out.print(prefix + buffer.toString());
                         buffer = new StringBuilder();
                     }
@@ -157,9 +163,10 @@ public abstract class ThreadUtil {
             } catch (Exception e) {
                 p.destroy();
             }
-            if (buffer.length() > 0) System.out.println(prefix + buffer);
+            if (buffer.length() > 0)
+                System.out.println(prefix + buffer);
         }
-        
+
         try {
             p.waitFor();
         } catch (InterruptedException e) {
@@ -167,9 +174,11 @@ public abstract class ThreadUtil {
         }
         p.destroy();
     }
-    
+
     /**
-     * Get the max number of threads that will be allowed to run concurrenctly in the global pool
+     * Get the max number of threads that will be allowed to run concurrenctly
+     * in the global pool
+     * 
      * @return
      */
     public static int getMaxGlobalThreads() {
@@ -178,37 +187,41 @@ public abstract class ThreadUtil {
         }
         int max_threads = DEFAULT_NUM_THREADS;
         String prop = System.getProperty("hstore.max_threads");
-        if (prop != null && prop.startsWith("${") == false) max_threads = Integer.parseInt(prop);
+        if (prop != null && prop.startsWith("${") == false)
+            max_threads = Integer.parseInt(prop);
         return (max_threads);
     }
-    
+
     public static void setMaxGlobalThreads(int max_threads) {
         OVERRIDE_NUM_THREADS = max_threads;
     }
-    
+
     /**
-     * Execute the given collection of Runnables in the global thread pool.
-     * The calling thread will block until all of the threads finish
+     * Execute the given collection of Runnables in the global thread pool. The
+     * calling thread will block until all of the threads finish
+     * 
      * @param <R>
      * @param runnables
      */
     public static <R extends Runnable> void runGlobalPool(final Collection<R> runnables) {
         final boolean d = LOG.isDebugEnabled();
-        
+
         // Initialize the thread pool the first time that we run
         synchronized (ThreadUtil.lock) {
             if (ThreadUtil.pool == null) {
                 int max_threads = ThreadUtil.getMaxGlobalThreads();
-                if (d) LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
+                if (d)
+                    LOG.debug("Creating new fixed thread pool [num_threads=" + max_threads + "]");
                 ThreadUtil.pool = Executors.newFixedThreadPool(max_threads, factory);
             }
         } // SYNCHRONIZED
-        
+
         ThreadUtil.run(runnables, ThreadUtil.pool, false);
     }
-    
+
     /**
-     * Execute all the given Runnables in a new pool 
+     * Execute all the given Runnables in a new pool
+     * 
      * @param <R>
      * @param threads
      */
@@ -216,9 +229,8 @@ public abstract class ThreadUtil {
         ExecutorService pool = Executors.newCachedThreadPool(factory);
         ThreadUtil.run(threads, pool, true);
     }
-    
+
     /**
-     * 
      * @param <R>
      * @param threads
      */
@@ -226,10 +238,12 @@ public abstract class ThreadUtil {
         ExecutorService pool = Executors.newFixedThreadPool(max_concurrent, factory);
         ThreadUtil.run(threads, pool, true);
     }
-    
+
     /**
-     * For a given list of threads, execute them all (up to max_concurrent at a time) and return
-     * once they have completed. If max_concurrent is null, then all threads will be fired off at the same time
+     * For a given list of threads, execute them all (up to max_concurrent at a
+     * time) and return once they have completed. If max_concurrent is null,
+     * then all threads will be fired off at the same time
+     * 
      * @param runnables
      * @param max_concurrent
      * @throws Exception
@@ -237,17 +251,19 @@ public abstract class ThreadUtil {
     private static final <R extends Runnable> void run(final Collection<R> runnables, final ExecutorService pool, final boolean stop_pool) {
         final boolean d = LOG.isDebugEnabled();
         final long start = System.currentTimeMillis();
-        
+
         final int num_threads = runnables.size();
         final CountDownLatch latch = new CountDownLatch(num_threads);
         LatchedExceptionHandler handler = new LatchedExceptionHandler(latch);
-        
-        if (d) LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
+
+        if (d)
+            LOG.debug(String.format("Executing %d threads and blocking until they finish", num_threads));
         for (R r : runnables) {
             pool.execute(new LatchRunnable(r, latch, handler));
         } // FOR
-        if (stop_pool) pool.shutdown();
-        
+        if (stop_pool)
+            pool.shutdown();
+
         try {
             latch.await();
         } catch (InterruptedException ex) {
@@ -260,11 +276,11 @@ public abstract class ThreadUtil {
         }
         if (d) {
             final long stop = System.currentTimeMillis();
-            LOG.debug(String.format("Finished executing %d threads [time=%.02fs]", num_threads, (stop-start)/1000d));
+            LOG.debug(String.format("Finished executing %d threads [time=%.02fs]", num_threads, (stop - start) / 1000d));
         }
         return;
     }
-    
+
     private static final ThreadFactory factory = new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
@@ -273,17 +289,18 @@ public abstract class ThreadUtil {
             return (t);
         }
     };
-    
+
     private static class LatchRunnable implements Runnable {
         private final Runnable r;
         private final CountDownLatch latch;
         private final Thread.UncaughtExceptionHandler handler;
-        
+
         public LatchRunnable(Runnable r, CountDownLatch latch, Thread.UncaughtExceptionHandler handler) {
             this.r = r;
             this.latch = latch;
             this.handler = handler;
         }
+
         @Override
         public void run() {
             Thread.currentThread().setUncaughtExceptionHandler(this.handler);
@@ -291,5 +308,5 @@ public abstract class ThreadUtil {
             this.latch.countDown();
         }
     }
-    
+
 }

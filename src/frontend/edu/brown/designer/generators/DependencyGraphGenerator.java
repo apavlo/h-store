@@ -25,19 +25,18 @@ import edu.brown.workload.Workload;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 /**
- * 
  * @author pavlo
- *
  */
 public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirectedGraph<DesignerVertex, DesignerEdge>> {
     private static final Logger LOG = Logger.getLogger(DependencyGraphGenerator.class);
-    
+
     public DependencyGraphGenerator(DesignerInfo info) {
         super(info);
     }
-    
+
     /**
      * Convenience method for generating a DependencyGraph
+     * 
      * @param catalog_db
      * @return
      */
@@ -52,11 +51,11 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
         }
         return (dgraph);
     }
-    
+
     public void generate(AbstractDirectedGraph<DesignerVertex, DesignerEdge> graph) throws Exception {
         Collection<Table> catalog_tables = CatalogUtil.getDataTables(info.catalog_db);
         for (Table catalog_table : catalog_tables) {
-            assert(catalog_table.getSystable() == false) : "Unexpected " + catalog_table;
+            assert (catalog_table.getSystable() == false) : "Unexpected " + catalog_table;
             graph.addVertex(new DesignerVertex(catalog_table));
         } // FOR
 
@@ -92,18 +91,20 @@ public class DependencyGraphGenerator extends AbstractGenerator<AbstractDirected
                     fkey_ref_consts.get(vertex).add(catalog_const);
                 }
             } // FOR
-            //
-            // Columns ????????
-            // 
-//            for (Column catalog_col : catalog_table.getColumns()) {
-//                LOG.debug("Inspecting column '" + catalog_col.getName() + "' in table '" + catalog_table.getName() + "'");
-//            } // FOR
+              //
+              // Columns ????????
+              //
+              // for (Column catalog_col : catalog_table.getColumns()) {
+            // LOG.debug("Inspecting column '" + catalog_col.getName() +
+            // "' in table '" + catalog_table.getName() + "'");
+            // } // FOR
         } // FOR
-        //
-        // Build the dependency graph's edges
-        //
+          //
+          // Build the dependency graph's edges
+          //
         for (Table catalog_table : catalog_tables) {
-            // For each vertex, get the list of foreign key references to point to it and
+            // For each vertex, get the list of foreign key references to point
+            // to it and
             // make a new edge between the parent and child
             DesignerVertex vertex = graph.getVertex(catalog_table);
             for (int ctr = 0, cnt = fkey_ref_consts.get(vertex).size(); ctr < cnt; ctr++) {

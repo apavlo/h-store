@@ -29,53 +29,60 @@ import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 /**
  * @author pavlo
- *
  */
 public class SimpleIndexSelector extends AbstractIndexSelector {
-    
+
     public SimpleIndexSelector(Designer designer, DesignerInfo info) {
         super(designer, info);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see edu.brown.designer.indexselectors.AbstractIndexSelector#generate()
      */
     @Override
     public IndexPlan generate(PartitionPlan plan) throws Exception {
         IndexPlan indexPlan = new IndexPlan(info.catalog_db);
-        
+
         //
-        // Go through and count up all the attribute sets that aren't used for partitioning
+        // Go through and count up all the attribute sets that aren't used for
+        // partitioning
         //
         PartitionTree ptree = null; // FIXME designer.getPartitionTree();
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
             AccessGraph agraph = designer.getAccessGraph(catalog_proc);
-            if (agraph == null) continue;
+            if (agraph == null)
+                continue;
 
             for (DesignerEdge edge : agraph.getEdges()) {
                 ArrayList<DesignerVertex> vertices = new ArrayList<DesignerVertex>();
                 vertices.addAll(agraph.getIncidentVertices(edge));
                 // FIXME
-                if (true || ! ( ptree.getPath(vertices.get(0), vertices.get(1)).isEmpty() &&
-                        ptree.getPath(vertices.get(1), vertices.get(0)).isEmpty() ) ) {
-                    ColumnSet cset = (ColumnSet)(edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name()));
+                if (true || !(ptree.getPath(vertices.get(0), vertices.get(1)).isEmpty() && ptree.getPath(vertices.get(1), vertices.get(0)).isEmpty())) {
+                    ColumnSet cset = (ColumnSet) (edge.getAttribute(AccessGraph.EdgeAttributes.COLUMNSET.name()));
                     for (DesignerVertex vertex : vertices) {
                         Table catalog_tbl = vertex.getCatalogItem();
                         Set<Column> edge_columns = cset.findAllForParent(Column.class, catalog_tbl);
-                        
+
                         //
-                        // Exclusion: Check whether this table is already partitioned on these columns
+                        // Exclusion: Check whether this table is already
+                        // partitioned on these columns
                         //
                         PartitionEntry pentry = plan.getTableEntries().get(catalog_tbl);
                         if (pentry == null) {
                             LOG.warn("PartitionEntry is null for " + catalog_tbl);
                             continue;
-//                        } else if (pentry.getMethod() != PartitionMethodType.REPLICATION && pentry.getAttributes().equals(edge_columns)) {
-//                            LOG.info(catalog_tbl + " is already partitioned on " + edge_columns + ". Skipping...");
-//                            continue;
+                            // } else if (pentry.getMethod() !=
+                            // PartitionMethodType.REPLICATION &&
+                            // pentry.getAttributes().equals(edge_columns)) {
+                            // LOG.info(catalog_tbl +
+                            // " is already partitioned on " + edge_columns +
+                            // ". Skipping...");
+                            // continue;
                         }
                         //
-                        // Exclusion: Check whether this is the table's primary key
+                        // Exclusion: Check whether this is the table's primary
+                        // key
                         //
                         Collection<Column> pkeys = CatalogUtil.getPrimaryKeyColumns(catalog_tbl);
                         if (pkeys.containsAll(edge_columns) && edge_columns.containsAll(pkeys)) {
@@ -86,29 +93,28 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                         // Exclusion: These columns are only used in INSERTS
                         //
                         Map<QueryType, Integer> query_counts = cset.getQueryCounts();
-                        if (query_counts.get(QueryType.SELECT) == 0 &&
-                            query_counts.get(QueryType.UPDATE) == 0 &&
-                            query_counts.get(QueryType.DELETE) == 0) {
+                        if (query_counts.get(QueryType.SELECT) == 0 && query_counts.get(QueryType.UPDATE) == 0 && query_counts.get(QueryType.DELETE) == 0) {
                             LOG.info("The columns " + edge_columns + " are only used in INSERT operations on " + catalog_tbl + ". Skipping...");
                             continue;
                         }
-                        
+
                         //
-                        // Check whether we already have a candidate index for this set of columns
+                        // Check whether we already have a candidate index for
+                        // this set of columns
                         //
                         IndexPlan.Entry found = null;
                         for (IndexPlan.Entry index : indexPlan.get(catalog_tbl)) {
-                            if (index.getColumns().containsAll(edge_columns) &&
-                                edge_columns.containsAll(index.getColumns())) {
+                            if (index.getColumns().containsAll(edge_columns) && edge_columns.containsAll(index.getColumns())) {
                                 found = index;
                                 break;
                             }
                         } // FOR
-                        
+
                         //
-                        // We have a match, so we need to add this edge's weight to it
+                        // We have a match, so we need to add this edge's weight
+                        // to it
                         //
-                        Double weight = (Double)edge.getAttribute(Members.WEIGHTS.name());
+                        Double weight = (Double) edge.getAttribute(Members.WEIGHTS.name());
                         if (found != null) {
                             weight += found.getWeight();
                         } else {
@@ -122,9 +128,10 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                 } // IF
             } // FOR
         } // FOR
-        
+
         //
-        // We now need to consolidate overlapping indexes for each table if they are 
+        // We now need to consolidate overlapping indexes for each table if they
+        // are
         // used in the same procedure
         //
         for (Table catalog_tbl : indexPlan.keySet()) {
@@ -135,9 +142,10 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                 // Look for another index that has all our columns
                 //
                 for (IndexPlan.Entry index1 : indexPlan.get(catalog_tbl)) {
-                    if (index0 == index1) continue;
-                    if (index1.getColumns().containsAll(index0.getColumns()) &&
-                        (index1.getProcedures().containsAll(index0.getProcedures()) || index0.getProcedures().containsAll(index1.getProcedures()))) {
+                    if (index0 == index1)
+                        continue;
+                    if (index1.getColumns().containsAll(index0.getColumns())
+                            && (index1.getProcedures().containsAll(index0.getProcedures()) || index0.getProcedures().containsAll(index1.getProcedures()))) {
                         //
                         // Merge the one index into the other
                         //
@@ -148,41 +156,37 @@ public class SimpleIndexSelector extends AbstractIndexSelector {
                 } // FOR
             } // WHILE
         } // FOR
-        
+
         //
-        // Now that we have our candidate indexes, we need to go through and multiple 
-        // the index weights by the number of times the procedures are executed that would
+        // Now that we have our candidate indexes, we need to go through and
+        // multiple
+        // the index weights by the number of times the procedures are executed
+        // that would
         // use that index
         //
         /*
-        for (Table catalog_tbl : this.indexes.keySet()) {
-            Set<IndexPlan.Entry> remove = new HashSet<IndexPlan.Entry>();
-            for (IndexPlan.Entry index : this.indexes.get(catalog_tbl)) {
-                Double weight = index.getWeight();
-                //
-                // Important! Some procedures may have never been executed, so we need
-                // to make sure we don't multiply the weight if the count is zero
-                //
-                for (Procedure catalog_proc : index.getProcedures()) {
-                    int count = this.info.stats.get(catalog_proc).proc_counts;
-                    if (count > 0) weight *= count;
-                } // FOR
-                if (weight == 0) {
-                    LOG.info("Removing candidate index " + index + " because its weight is zero");
-                    remove.add(index);
-                }
-                index.setWeight(weight);
-            } // FOR
-            if (!remove.isEmpty()) this.indexes.get(catalog_tbl).removeAll(remove);
-        } // FOR
-        */
-        
+         * for (Table catalog_tbl : this.indexes.keySet()) {
+         * Set<IndexPlan.Entry> remove = new HashSet<IndexPlan.Entry>(); for
+         * (IndexPlan.Entry index : this.indexes.get(catalog_tbl)) { Double
+         * weight = index.getWeight(); // // Important! Some procedures may have
+         * never been executed, so we need // to make sure we don't multiply the
+         * weight if the count is zero // for (Procedure catalog_proc :
+         * index.getProcedures()) { int count =
+         * this.info.stats.get(catalog_proc).proc_counts; if (count > 0) weight
+         * *= count; } // FOR if (weight == 0) {
+         * LOG.info("Removing candidate index " + index +
+         * " because its weight is zero"); remove.add(index); }
+         * index.setWeight(weight); } // FOR if (!remove.isEmpty())
+         * this.indexes.get(catalog_tbl).removeAll(remove); } // FOR
+         */
+
         //
         // Ah-ha! We can now sort the indexes by their weights
         //
-//        for (IndexPlan.Entry index : sorted) {
-//            System.out.println("[" + index.getWeight() + "] " + index + " - " + index.getProcedures());
-//        }
+        // for (IndexPlan.Entry index : sorted) {
+        // System.out.println("[" + index.getWeight() + "] " + index + " - " +
+        // index.getProcedures());
+        // }
         return (indexPlan);
     }
 

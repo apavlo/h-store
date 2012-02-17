@@ -28,7 +28,7 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     private static final boolean t = LOG.isTraceEnabled();
 
     private final Set<Statement> catalog_stmts = new HashSet<Statement>();
-    
+
     public static class Entry extends Pair<CatalogType, CatalogType> {
         protected final ExpressionType comparison_exp;
         protected final Set<QueryType> query_types = new HashSet<QueryType>();
@@ -42,25 +42,23 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
             }
             return (new Entry(element0, element1, comparison_exp, query_types));
         }
-        
-        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType...query_types) {
-             Set<QueryType> qt_set = (Set<QueryType>)CollectionUtil.addAll(new HashSet<QueryType>(), query_types);
-             return (Entry.factory(element0, element1, comparison_exp, qt_set));
+
+        public static Entry factory(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, QueryType... query_types) {
+            Set<QueryType> qt_set = (Set<QueryType>) CollectionUtil.addAll(new HashSet<QueryType>(), query_types);
+            return (Entry.factory(element0, element1, comparison_exp, qt_set));
         }
-        
+
         private Entry(CatalogType element0, CatalogType element1, ExpressionType comparison_exp, Collection<QueryType> query_types) {
             super(element0, element1);
             this.comparison_exp = comparison_exp;
             CollectionUtil.addAll(this.query_types, query_types);
         }
-        
+
         @Override
         public boolean equals(Object o) {
             if (o instanceof Entry) {
-                Entry other = (Entry)o;
-                return (this.comparison_exp == other.comparison_exp &&
-                        this.getFirst().equals(other.getFirst()) &&
-                        this.getSecond().equals(other.getSecond())); 
+                Entry other = (Entry) o;
+                return (this.comparison_exp == other.comparison_exp && this.getFirst().equals(other.getFirst()) && this.getSecond().equals(other.getSecond()));
             }
             return (false);
         }
@@ -71,44 +69,42 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         public ExpressionType getComparisonExp() {
             return this.comparison_exp;
         }
-        
+
         /**
-         * 
          * @return
          */
         public Set<QueryType> getQueryTypes() {
             return query_types;
         }
-        
+
         /**
          * Given one of the items of this entry, return the other entry
+         * 
          * @param item
          * @return
          */
         public CatalogType getOther(CatalogType item) {
             if (this.get(0).equals(item)) {
-                return ((CatalogType)this.get(1));
+                return ((CatalogType) this.get(1));
             } else if (this.get(1).equals(item)) {
-                return ((CatalogType)this.get(0));
+                return ((CatalogType) this.get(0));
             }
             return (null);
         }
-        
+
         @Override
         public String toString() {
-            return (String.format("(%s %s %s)", this.getFirst().fullName(),
-                                                ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp()),
-                                                this.getSecond().fullName()));
+            return (String.format("(%s %s %s)", this.getFirst().fullName(), ExpressionUtil.EXPRESSION_STRING.get(this.getComparisonExp()), this.getSecond().fullName()));
         }
     } // END CLASS
-    
+
     /**
      * 
      */
     public ColumnSet() {
         super();
     }
-    
+
     public ColumnSet(Collection<Statement> catalog_stmts) {
         this();
         this.catalog_stmts.addAll(catalog_stmts);
@@ -119,17 +115,16 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         super.clear();
         this.catalog_stmts.clear();
     }
-    
+
     public Collection<Statement> getStatements() {
         return this.catalog_stmts;
     }
-    
+
     public ColumnSet.Entry get(int idx) {
         return (super.get(idx));
     }
-    
+
     /**
-     * 
      * @return
      */
     public Map<QueryType, Integer> getQueryCounts() {
@@ -143,13 +138,12 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         } // FOR
         return (query_counts);
     }
-    
+
     public boolean add(CatalogType element0, CatalogType element1) {
         return (this.add(element0, element1, ExpressionType.COMPARE_EQUAL, new HashSet<Statement>()));
     }
-    
+
     /**
-     * 
      * @param element0
      * @param element1
      * @param comparison_exp
@@ -163,9 +157,8 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         }
         return (this.add(element0, element1, comparison_exp, stmts));
     }
-    
+
     /**
-     * 
      * @param element0
      * @param element1
      * @param comparison_exp
@@ -178,19 +171,20 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
             query_types.add(QueryType.get(catalog_stmt.getQuerytype()));
         } // FOR
         boolean ret = this.add(Entry.factory(element0, element1, comparison_exp, query_types));
-        if (ret) this.catalog_stmts.addAll(catalog_stmts);
+        if (ret)
+            this.catalog_stmts.addAll(catalog_stmts);
         return (ret);
     }
 
     /**
-     * 
      * @param match_class
      * @param search_key
      * @return
      */
     public ColumnSet createColumnSetForParent(Class<? extends CatalogType> match_class, CatalogType parent_search_key) {
         ColumnSet ret = new ColumnSet(this.catalog_stmts);
-        // We're looking for Pairs where one of the elements matches the search_key, and
+        // We're looking for Pairs where one of the elements matches the
+        // search_key, and
         // the other element is of the same type of match_class
         for (Entry e : this) {
             if (e.getFirst().getClass().equals(match_class) && e.getSecond().getParent().equals(parent_search_key)) {
@@ -203,7 +197,9 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     }
 
     /**
-     * Find all elements in the ColumnSet that match both the search key and the given class
+     * Find all elements in the ColumnSet that match both the search key and the
+     * given class
+     * 
      * @param <T>
      * @param match_class
      * @param search_key
@@ -212,9 +208,11 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     public <T extends CatalogType> Set<T> findAll(Class<T> match_class, CatalogType search_key) {
         return (this.find(match_class, search_key, false, false));
     }
-    
+
     /**
-     * Find all elements of the given match class in the ColumnSet where the other element in the Entry matches the search_key
+     * Find all elements of the given match class in the ColumnSet where the
+     * other element in the Entry matches the search_key
+     * 
      * @param <T>
      * @param match_class
      * @param search_key
@@ -223,9 +221,11 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     public <T extends CatalogType> Set<T> findAllForOther(Class<T> match_class, CatalogType search_key) {
         return (this.find(match_class, search_key, false, true));
     }
-    
+
     /**
-     * Find all elements of the given match class in the ColumnSet where that element's parent matches the given search key
+     * Find all elements of the given match class in the ColumnSet where that
+     * element's parent matches the given search key
+     * 
      * @param <T>
      * @param match_class
      * @param parent_search_key
@@ -234,9 +234,11 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     public <T extends CatalogType> Set<T> findAllForParent(Class<T> match_class, CatalogType parent_search_key) {
         return (this.find(match_class, parent_search_key, true, false));
     }
-    
+
     /**
-     * Find all elements of the given match class in the ColumnSet where the other element in the Entry has a parent that matches the search key
+     * Find all elements of the given match class in the ColumnSet where the
+     * other element in the Entry has a parent that matches the search key
+     * 
      * @param <T>
      * @param match_class
      * @param parent_search_key
@@ -245,42 +247,47 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
     public <T extends CatalogType> Set<T> findAllForOtherParent(Class<T> match_class, CatalogType parent_search_key) {
         return (this.find(match_class, parent_search_key, true, true));
     }
-    
+
     /**
-     * 
      * @param <T>
      * @param match_class
      * @param search_key
-     * @param use_parent if set to true, the search_key is applied to the search target's parent
-     * @param use_other if set to true, the search target is always the opposite of the item of 
-     *                  the element that we check the match_class to
+     * @param use_parent
+     *            if set to true, the search_key is applied to the search
+     *            target's parent
+     * @param use_other
+     *            if set to true, the search target is always the opposite of
+     *            the item of the element that we check the match_class to
      * @return
      */
     @SuppressWarnings("unchecked")
     private <T extends CatalogType> Set<T> find(Class<T> match_class, CatalogType search_key, boolean use_parent, boolean use_other) {
-        if (d) LOG.debug(String.format("find(match_class=%s, search_key=%s, use_parent=%s, use_other=%s)",
-                         match_class.getSimpleName(), search_key.fullName(), use_parent, use_other));
-        assert(search_key != null) : "Invalid search key";
-        
+        if (d)
+            LOG.debug(String.format("find(match_class=%s, search_key=%s, use_parent=%s, use_other=%s)", match_class.getSimpleName(), search_key.fullName(), use_parent, use_other));
+        assert (search_key != null) : "Invalid search key";
+
         Set<T> found = new HashSet<T>();
         final int use_my_idxs[][] = { { 0, 0 }, { 1, 1 } };
         final int use_other_idxs[][] = { { 0, 1 }, { 1, 0 } };
         int lookup_idxs[][] = (use_other ? use_other_idxs : use_my_idxs);
-       
-        // We're looking for Pairs where one of the elements matches the search_key, and
+
+        // We're looking for Pairs where one of the elements matches the
+        // search_key, and
         // the other element is of the same type of match_class
         for (Pair<CatalogType, CatalogType> pair : this) {
-            if (t) LOG.trace(pair);
+            if (t)
+                LOG.trace(pair);
             int ctr = 0;
             for (int idxs[] : lookup_idxs) {
-                T cur = (T)pair.get(idxs[0]);
+                T cur = (T) pair.get(idxs[0]);
                 Class<?> cur_class = pair.get(idxs[0]).getClass();
                 List<Class<?>> all_classes = ClassUtil.getSuperClasses(cur_class);
-                CatalogType cur_value = (CatalogType)pair.get(idxs[1]);
-                if (use_parent) cur_value = cur_value.getParent();
-                
+                CatalogType cur_value = (CatalogType) pair.get(idxs[1]);
+                if (use_parent)
+                    cur_value = cur_value.getParent();
+
                 if (t) {
-                    LOG.trace("[" + ctr + "] cur: " + cur); 
+                    LOG.trace("[" + ctr + "] cur: " + cur);
                     LOG.trace("[" + ctr + "] class: " + cur_class.equals(match_class) + " " + cur_class);
                     LOG.trace("[" + (ctr++) + "] cur_value: " + cur_value);
                 }
@@ -292,9 +299,8 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         } // FOR
         return (found);
     }
-    
+
     /**
-     * 
      * @param search_key
      * @return
      */
@@ -307,62 +313,61 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         } // FOR
         return (found);
     }
-    
+
     /**
-     * 
      * @param search_key
      * @return
      */
     public Set<Entry> findAllForParent(CatalogType search_key) {
         Set<Entry> found = new HashSet<Entry>();
         for (Entry entry : this) {
-            if (entry.getFirst().getParent().equals(search_key) ||
-                entry.getSecond().getParent().equals(search_key)) {
+            if (entry.getFirst().getParent().equals(search_key) || entry.getSecond().getParent().equals(search_key)) {
                 found.add(entry);
             }
         } // FOR
         return (found);
     }
-    
+
     @SuppressWarnings("unchecked")
     public <T extends CatalogType> Set<T> findAllForType(Class<T> search_key) {
         Set<T> found = new HashSet<T>();
         for (Entry e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
-                found.add((T)e.getFirst());
+                found.add((T) e.getFirst());
             }
             if (ClassUtil.getSuperClasses(e.getSecond().getClass()).contains(search_key)) {
-                found.add((T)e.getSecond());
+                found.add((T) e.getSecond());
             }
         } // FOR
         return (found);
     }
-    
+
     @SuppressWarnings("unchecked")
     public <T extends CatalogType> Histogram<T> buildHistogramForType(Class<T> search_key) {
         Histogram<T> h = new Histogram<T>();
         for (Entry e : this) {
             if (ClassUtil.getSuperClasses(e.getFirst().getClass()).contains(search_key)) {
-                h.put((T)e.getFirst());
+                h.put((T) e.getFirst());
             }
             if (ClassUtil.getSuperClasses(e.getSecond().getClass()).contains(search_key)) {
-                h.put((T)e.getSecond());
+                h.put((T) e.getSecond());
             }
         } // FOR
         return (h);
     }
-    
-    
+
     @Override
     public boolean equals(Object o) {
-        if (this == o) return (true);
-        if (!(o instanceof ColumnSet)) return (false);
-        
+        if (this == o)
+            return (true);
+        if (!(o instanceof ColumnSet))
+            return (false);
+
         //
         // Otherwise, we need to loop through each of our Pairs and see if there
         // is a matching Pair of items on the other side
         //
-        ColumnSet cset = (ColumnSet)o;
+        ColumnSet cset = (ColumnSet) o;
         return (this.containsAll(cset) && cset.containsAll(this));
     }
 
@@ -374,5 +379,5 @@ public class ColumnSet extends ListOrderedSet<ColumnSet.Entry> {
         ret += "}";
         return (ret);
     }
-    
+
 }

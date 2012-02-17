@@ -24,9 +24,8 @@ import org.voltdb.expressions.InComparisonExpression;
 import edu.brown.utils.AbstractTreeWalker;
 
 /**
- * Utility class to help with walking through
- * Note that this does operations in a DEPTH-FIRST FASHION
- * 
+ * Utility class to help with walking through Note that this does operations in
+ * a DEPTH-FIRST FASHION
  */
 public abstract class ExpressionTreeWalker extends AbstractTreeWalker<AbstractExpression> {
 
@@ -34,7 +33,8 @@ public abstract class ExpressionTreeWalker extends AbstractTreeWalker<AbstractEx
     protected final void populate_children(ExpressionTreeWalker.Children<AbstractExpression> children, AbstractExpression element) {
         //
         // This is kind of screwy, so bare with me here for second...
-        // We actually want to do a real depth first search, and not visit all the children
+        // We actually want to do a real depth first search, and not visit all
+        // the children
         // before we get to the parent.
         //
         if (element.getLeft() != null) {
@@ -48,7 +48,7 @@ public abstract class ExpressionTreeWalker extends AbstractTreeWalker<AbstractEx
         // of its children too. This should replace the right expression
         //
         if (element instanceof InComparisonExpression) {
-            for (AbstractExpression child : ((InComparisonExpression)element).getValues()) {
+            for (AbstractExpression child : ((InComparisonExpression) element).getValues()) {
                 children.addAfter(child);
             } // FOR
         }

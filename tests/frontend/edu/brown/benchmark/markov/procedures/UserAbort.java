@@ -32,33 +32,28 @@ import org.voltdb.VoltTable;
 import edu.brown.benchmark.markov.MarkovConstants;
 
 /**
- * This method aborts if it receives no results. 
- * It will update B or C and D with a new value if it retrieves a new value.
- * Otherwise it will update C and D with the passed in value and abort.
+ * This method aborts if it receives no results. It will update B or C and D
+ * with a new value if it retrieves a new value. Otherwise it will update C and
+ * D with the passed in value and abort.
  * 
  * @author svelagap
  */
 public class UserAbort extends VoltProcedure {
-    public final SQLStmt writeB = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLEB
-            + " SET B_IATTR01 = ? WHERE B_A_ID  = ?");
-    public final SQLStmt writeC = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLEC
-            + " SET C_IATTR01 = ? WHERE C_A_ID  = ?");
-    public final SQLStmt writeD = new SQLStmt("UPDATE "
-            + MarkovConstants.TABLENAME_TABLED
-            + " SET D_IATTR01 = ? WHERE D_C_A_ID  = ?");
-    public final SQLStmt fromA = new SQLStmt("SELECT " + " A_IATTR00 FROM "
-            + MarkovConstants.TABLENAME_TABLEA
-            + " WHERE A_ID = ? AND A_IATTR01 = ?");
+    public final SQLStmt writeB = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLEB + " SET B_IATTR01 = ? WHERE B_A_ID  = ?");
+    public final SQLStmt writeC = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLEC + " SET C_IATTR01 = ? WHERE C_A_ID  = ?");
+    public final SQLStmt writeD = new SQLStmt("UPDATE " + MarkovConstants.TABLENAME_TABLED + " SET D_IATTR01 = ? WHERE D_C_A_ID  = ?");
+    public final SQLStmt fromA = new SQLStmt("SELECT " + " A_IATTR00 FROM " + MarkovConstants.TABLENAME_TABLEA + " WHERE A_ID = ? AND A_IATTR01 = ?");
 
     public VoltTable[] run(long a_id, long value) throws VoltAbortException {
         long newvalue = 0;
         voltQueueSQL(fromA, a_id, value);
-        // (SP) Necessarily single partition. We retrieve the attribute we want (IATTR00)
+        // (SP) Necessarily single partition. We retrieve the attribute we want
+        // (IATTR00)
         VoltTable[] tables = voltExecuteSQL();
-        // If there was nothing returned, write to the tables on the local partition for C and D
-        // and then abort. This means that when we see a B being written to in the trace, our graph will
+        // If there was nothing returned, write to the tables on the local
+        // partition for C and D
+        // and then abort. This means that when we see a B being written to in
+        // the trace, our graph will
         // know that the abort probability is 0
         if (tables == null || tables.length == 0) {
             voltQueueSQL(writeC, value, a_id);
@@ -66,7 +61,8 @@ public class UserAbort extends VoltProcedure {
             voltExecuteSQL();
             throw new VoltAbortException("No results returned");
         }
-        //If we didn't abort, write to B with some probability, C/D with some other probability
+        // If we didn't abort, write to B with some probability, C/D with some
+        // other probability
         while (tables[0].advanceRow()) {
             newvalue = tables[0].getLong(0);
         }

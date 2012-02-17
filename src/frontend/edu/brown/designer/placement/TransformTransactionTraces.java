@@ -15,23 +15,22 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
-
 public class TransformTransactionTraces {
 
     private static final Logger LOG = Logger.getLogger(TransformTransactionTraces.class);
-    
+
     static class TxnPartition {
         int basePartition;
         List<Set<Integer>> partitions = new ArrayList<Set<Integer>>();
-        
+
         public TxnPartition(int basePartition) {
             this.basePartition = basePartition;
         }
-        
+
         public List<Set<Integer>> getPartitions() {
             return partitions;
         }
-        
+
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("base partition: " + String.valueOf(basePartition) + " ");
@@ -43,11 +42,12 @@ public class TransformTransactionTraces {
             return sb.toString();
         }
     }
-    
+
     public static void transform(List<TransactionTrace> txn_traces, PartitionEstimator est, Database catalogDb) {
         Histogram<String> hist = new Histogram<String>();
         List<TxnPartition> al_txn_partitions = new ArrayList<TxnPartition>();
-//        Map<String, Integer> txn_partition_counts = new HashMap<String, Integer>();
+        // Map<String, Integer> txn_partition_counts = new HashMap<String,
+        // Integer>();
         TxnPartition txn_partitions;
 
         for (TransactionTrace trace : txn_traces) {
@@ -63,7 +63,7 @@ public class TransformTransactionTraces {
             for (Integer batch_id : trace.getBatchIds()) {
                 // list of query traces
                 Set<Integer> query_partitions = new HashSet<Integer>();
-                for (QueryTrace qt :trace.getBatches().get(batch_id)) {
+                for (QueryTrace qt : trace.getBatches().get(batch_id)) {
                     try {
                         query_partitions.addAll(est.getAllPartitions(qt, base_partition));
                     } catch (Exception e) {
@@ -85,21 +85,16 @@ public class TransformTransactionTraces {
         LOG.info("Partition Histogram");
         LOG.info(hist.toString());
         writeFile(al_txn_partitions);
-//        for (TxnPartition tp : al_txn_partitions) {
-//            LOG.info(tp.toString());                    
-//        }
+        // for (TxnPartition tp : al_txn_partitions) {
+        // LOG.info(tp.toString());
+        // }
     }
-    
+
     /**
-     * File format like the following:
-     * # of batches # of transactions
-     * base partition
-     * [partitions batch 0 touches]
-     * [partitions batch 1 touches]
-     * ...
-     * ...
-     * [partitions batch n touches]
-     * EOF
+     * File format like the following: # of batches # of transactions base
+     * partition [partitions batch 0 touches] [partitions batch 1 touches] ...
+     * ... [partitions batch n touches] EOF
+     * 
      * @param xact_partitions
      */
     public static void writeFile(List<TxnPartition> xact_partitions) {
@@ -107,7 +102,7 @@ public class TransformTransactionTraces {
         TxnPartition xact_partition = xact_partitions.get(0);
         StringBuilder sb = new StringBuilder();
         sb.append(xact_partition.getPartitions().size() + " " + xact_partitions.size() + "\n");
-        for (TxnPartition txn_partition: xact_partitions) {
+        for (TxnPartition txn_partition : xact_partitions) {
             sb.append(txn_partition.basePartition + "\n");
             for (Set<Integer> partition_set : txn_partition.getPartitions()) {
                 for (Integer p_id : partition_set) {
@@ -122,6 +117,6 @@ public class TransformTransactionTraces {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        
+
     }
 }

@@ -81,8 +81,7 @@ public class ParametersUtil {
          *            - the index of the ProcParameter for this StmtParameter
          *            corresponds to
          */
-        public void add(String stmt_name, Integer stmt_param, String stmt_param_name, Integer proc_param,
-                String proc_param_name) {
+        public void add(String stmt_name, Integer stmt_param, String stmt_param_name, Integer proc_param, String proc_param_name) {
             if (!this.containsKey(stmt_name)) {
                 this.put(stmt_name, new HashMap<Integer, Integer>());
                 this.stmt_param_names.put(stmt_name, new HashMap<Integer, String>());
@@ -104,7 +103,8 @@ public class ParametersUtil {
     private static ParametersUtil cache;
 
     private static ParametersUtil getCachedObject() {
-        if (ParametersUtil.cache == null) ParametersUtil.cache = new ParametersUtil();
+        if (ParametersUtil.cache == null)
+            ParametersUtil.cache = new ParametersUtil();
         return (ParametersUtil.cache);
     }
 
@@ -149,8 +149,7 @@ public class ParametersUtil {
      * @param param_name
      * @return
      */
-    public static Integer getStmtParameterIndex(ProjectType project_type, String proc_name, String stmt_name,
-            String param_name) {
+    public static Integer getStmtParameterIndex(ProjectType project_type, String proc_name, String stmt_name, String param_name) {
         ParametersUtil putil = ParametersUtil.getCachedObject();
         Map<String, DefaultParameterMapping> map = putil.PARAMETER_MAPS.get(project_type);
         assert (map != null) : "Invalid catalog type '" + project_type + "'";
@@ -222,8 +221,7 @@ public class ParametersUtil {
      * @return
      * @throws Exception
      */
-    public static Map<String, DefaultParameterMapping> generateMappingFromCorrelations(Database catalog_db,
-            ParameterMappingsSet correlations) throws Exception {
+    public static Map<String, DefaultParameterMapping> generateMappingFromCorrelations(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
         assert (catalog_db != null);
         assert (correlations != null);
         Map<String, DefaultParameterMapping> mappings = new HashMap<String, DefaultParameterMapping>();
@@ -257,7 +255,7 @@ public class ParametersUtil {
         assert (mappings.size() == catalog_db.getProcedures().size());
         return (mappings);
     }
-    
+
     public static void applyParameterMappings(Database catalog_db, ParameterMappingsSet correlations) throws Exception {
         Map<String, DefaultParameterMapping> proc_mapping = ParametersUtil.generateMappingFromCorrelations(catalog_db, correlations);
         ParametersUtil.populateCatalog(catalog_db, proc_mapping, true);
@@ -272,10 +270,11 @@ public class ParametersUtil {
     public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping) throws Exception {
         populateCatalog(catalog_db, proc_mapping, false);
     }
-    
+
     public static void populateCatalog(Database catalog_db, Map<String, DefaultParameterMapping> proc_mapping, boolean force) throws Exception {
         //
-        // For each Procedure in the catalog, we need to find the matching record
+        // For each Procedure in the catalog, we need to find the matching
+        // record
         // in the mapping and update the catalog elements as necessary
         //
         for (Procedure catalog_proc : catalog_db.getProcedures()) {
@@ -298,14 +297,11 @@ public class ParametersUtil {
                         //
                         // Skip if it already has the proper ProcParameter set
                         //
-                        if (!force && catalog_stmt_param.getProcparameter() != null
-                                && catalog_stmt_param.getProcparameter().equals(catalog_proc_param)) {
-                            LOG.debug("Skipping ProcParameter mapping in " + catalog_stmt
-                                    + " because it is already set");
+                        if (!force && catalog_stmt_param.getProcparameter() != null && catalog_stmt_param.getProcparameter().equals(catalog_proc_param)) {
+                            LOG.debug("Skipping ProcParameter mapping in " + catalog_stmt + " because it is already set");
                         } else {
                             catalog_stmt_param.setProcparameter(catalog_proc_param);
-                            LOG.debug("Added parameter mapping in Statement '" + stmt_name + "' from StmtParameter '"
-                                    + catalog_stmt_param.getName() + "' to '" + catalog_proc_param.getName() + "'");
+                            LOG.debug("Added parameter mapping in Statement '" + stmt_name + "' from StmtParameter '" + catalog_stmt_param.getName() + "' to '" + catalog_proc_param.getName() + "'");
                         }
                     } // FOR
                 } // FOR
@@ -561,35 +557,35 @@ public class ParametersUtil {
         // c_id [5]
         // timestamp [6]
         //
-//        proc_name = "paymentByCustomerNameW";
-//        map = new ParameterMapping();
-//
-//        stmt_name = "getWarehouse";
-//        map.add(stmt_name, 0, "w_id", 0, "w_id");
-//
-//        stmt_name = "updateWarehouseBalance";
-//        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-//        map.add(stmt_name, 1, "w_id", 0, "w_id");
-//
-//        stmt_name = "getDistrict";
-//        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-//        map.add(stmt_name, 1, "d_id", 1, "d_id");
-//
-//        stmt_name = "updateDistrictBalance";
-//        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-//        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-//        map.add(stmt_name, 2, "d_id", 1, "d_id");
-//
-//        stmt_name = "insertHistory";
-//        map.add(stmt_name, 0, "c_id", 5, "c_id");
-//        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-//        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-//        map.add(stmt_name, 3, "d_id", 1, "d_id");
-//        map.add(stmt_name, 4, "w_id", 0, "w_id");
-//        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-//        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-//
-//        this.TPCC_PARAMS.put(proc_name, map);
+        // proc_name = "paymentByCustomerNameW";
+        // map = new ParameterMapping();
+        //
+        // stmt_name = "getWarehouse";
+        // map.add(stmt_name, 0, "w_id", 0, "w_id");
+        //
+        // stmt_name = "updateWarehouseBalance";
+        // map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
+        // map.add(stmt_name, 1, "w_id", 0, "w_id");
+        //
+        // stmt_name = "getDistrict";
+        // map.add(stmt_name, 0, "d_w_id", 0, "w_id");
+        // map.add(stmt_name, 1, "d_id", 1, "d_id");
+        //
+        // stmt_name = "updateDistrictBalance";
+        // map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
+        // map.add(stmt_name, 1, "d_w_id", 0, "w_id");
+        // map.add(stmt_name, 2, "d_id", 1, "d_id");
+        //
+        // stmt_name = "insertHistory";
+        // map.add(stmt_name, 0, "c_id", 5, "c_id");
+        // map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
+        // map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
+        // map.add(stmt_name, 3, "d_id", 1, "d_id");
+        // map.add(stmt_name, 4, "w_id", 0, "w_id");
+        // map.add(stmt_name, 5, "timestamp", 6, "timestamp");
+        // map.add(stmt_name, 6, "h_amount", 2, "h_amount");
+        //
+        // this.TPCC_PARAMS.put(proc_name, map);
 
         //
         // paymentByCustomerId
@@ -656,35 +652,35 @@ public class ParametersUtil {
         // c_id [5]
         // timestamp [6]
         //
-//        proc_name = "paymentByCustomerIdW";
-//        map = new ParameterMapping();
-//
-//        stmt_name = "getWarehouse";
-//        map.add(stmt_name, 0, "w_id", 0, "w_id");
-//
-//        stmt_name = "updateWarehouseBalance";
-//        map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
-//        map.add(stmt_name, 1, "w_id", 0, "w_id");
-//
-//        stmt_name = "getDistrict";
-//        map.add(stmt_name, 0, "d_w_id", 0, "w_id");
-//        map.add(stmt_name, 1, "d_id", 1, "d_id");
-//
-//        stmt_name = "updateDistrictBalance";
-//        map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
-//        map.add(stmt_name, 1, "d_w_id", 0, "w_id");
-//        map.add(stmt_name, 2, "d_id", 1, "d_id");
-//
-//        stmt_name = "insertHistory";
-//        map.add(stmt_name, 0, "c_id", 5, "c_id");
-//        map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
-//        map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
-//        map.add(stmt_name, 3, "d_id", 1, "d_id");
-//        map.add(stmt_name, 4, "w_id", 0, "w_id");
-//        map.add(stmt_name, 5, "timestamp", 6, "timestamp");
-//        map.add(stmt_name, 6, "h_amount", 2, "h_amount");
-//
-//        this.TPCC_PARAMS.put(proc_name, map);
+        // proc_name = "paymentByCustomerIdW";
+        // map = new ParameterMapping();
+        //
+        // stmt_name = "getWarehouse";
+        // map.add(stmt_name, 0, "w_id", 0, "w_id");
+        //
+        // stmt_name = "updateWarehouseBalance";
+        // map.add(stmt_name, 0, "w_ytd", 2, "h_amount");
+        // map.add(stmt_name, 1, "w_id", 0, "w_id");
+        //
+        // stmt_name = "getDistrict";
+        // map.add(stmt_name, 0, "d_w_id", 0, "w_id");
+        // map.add(stmt_name, 1, "d_id", 1, "d_id");
+        //
+        // stmt_name = "updateDistrictBalance";
+        // map.add(stmt_name, 0, "d_ytd", 2, "h_amount");
+        // map.add(stmt_name, 1, "d_w_id", 0, "w_id");
+        // map.add(stmt_name, 2, "d_id", 1, "d_id");
+        //
+        // stmt_name = "insertHistory";
+        // map.add(stmt_name, 0, "c_id", 5, "c_id");
+        // map.add(stmt_name, 1, "c_d_id", 4, "c_d_id");
+        // map.add(stmt_name, 2, "c_w_id", 3, "c_w_id");
+        // map.add(stmt_name, 3, "d_id", 1, "d_id");
+        // map.add(stmt_name, 4, "w_id", 0, "w_id");
+        // map.add(stmt_name, 5, "timestamp", 6, "timestamp");
+        // map.add(stmt_name, 6, "h_amount", 2, "h_amount");
+        //
+        // this.TPCC_PARAMS.put(proc_name, map);
 
     } // STATIC
 

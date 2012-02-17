@@ -26,25 +26,25 @@
  *  OTHER DEALINGS IN THE SOFTWARE.                                        *
  ***************************************************************************/
 /*
-Copyright (c) 2008 Evan Jones
+ Copyright (c) 2008 Evan Jones
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
  */
 
 package edu.brown.utils;
@@ -84,8 +84,7 @@ public class JSampler implements Runnable {
     }
 
     // figure out why the last two don't seem to be working as filters
-    static final String[] SPECIAL_NAMES = { "Finalizer", "Reference Handler",
-                                            "JSampler", "JSampler Server" };
+    static final String[] SPECIAL_NAMES = { "Finalizer", "Reference Handler", "JSampler", "JSampler Server" };
 
     public void dumpSamples(PrintStream out, Thread sampleThread) {
         // The set of threads that will not be dumped
@@ -95,8 +94,7 @@ public class JSampler implements Runnable {
         ignoreThreads.add(sampleThread);
 
         // Ignore the "special" threads
-        for (Map.Entry<Thread, StackTraceElement[]> entry : Thread
-                .getAllStackTraces().entrySet()) {
+        for (Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
             Thread t = entry.getKey();
             for (String special : SPECIAL_NAMES) {
                 if (t.getName().equals(special)) {
@@ -112,8 +110,7 @@ public class JSampler implements Runnable {
         }
 
         for (Map<Thread, StackTraceElement[]> sample : samples) {
-            for (Map.Entry<Thread, StackTraceElement[]> entry : sample
-                    .entrySet()) {
+            for (Map.Entry<Thread, StackTraceElement[]> entry : sample.entrySet()) {
                 if (ignoreThreads.contains(entry.getKey()))
                     continue;
 
@@ -142,8 +139,7 @@ public class JSampler implements Runnable {
         }
         long end = System.currentTimeMillis();
 
-        System.out.println("duration = " + (end - start) + " " + samples.size()
-                + " samples; real rate = " + ((end - start) / samples.size()));
+        System.out.println("duration = " + (end - start) + " " + samples.size() + " samples; real rate = " + ((end - start) / samples.size()));
         try {
             PrintStream out = new PrintStream(new File(outputPath));
             dumpSamples(out, Thread.currentThread());
@@ -162,7 +158,7 @@ public class JSampler implements Runnable {
 
         // currently, duration is ignored.
         final int interval = Integer.parseInt(args[1]);
-        final int port     = Integer.parseInt(args[2]);
+        final int port = Integer.parseInt(args[2]);
         final String outputPath = args[3];
 
         final JSampler jsampler = new JSampler(interval, outputPath);
@@ -175,7 +171,7 @@ public class JSampler implements Runnable {
             @Override
             public void run() {
                 try {
-                    /*Socket socket = */new ServerSocket(port).accept();
+                    /* Socket socket = */new ServerSocket(port).accept();
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }

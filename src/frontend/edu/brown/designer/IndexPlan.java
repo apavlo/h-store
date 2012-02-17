@@ -24,57 +24,59 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
         private final List<Column> columns = new ArrayList<Column>();
         private final Set<Procedure> procedures = new HashSet<Procedure>();
         private double weight = 0;
-        
+
         public Entry(Table catalog_tbl) {
             this.catalog_tbl = catalog_tbl;
         }
-        
+
         /**
          * Merge the source index information into our object
+         * 
          * @param source
          */
         public void merge(Entry source) {
-            assert(this.catalog_tbl == source.catalog_tbl);
+            assert (this.catalog_tbl == source.catalog_tbl);
             this.procedures.addAll(source.procedures);
             this.weight += source.weight;
         }
-        
+
         public Table getTable() {
             return this.catalog_tbl;
         }
-        
+
         public List<Column> getColumns() {
             return this.columns;
         }
-        
+
         public Set<Procedure> getProcedures() {
             return this.procedures;
         }
-        
+
         public double getWeight() {
             return this.weight;
         }
-        
+
         public void setWeight(double weight) {
             this.weight = weight;
         }
-        
+
         @Override
         public boolean equals(Object obj) {
             if (obj instanceof Entry) {
-                Entry other = (Entry)obj;
-                if (this.catalog_tbl != other.catalog_tbl) return (false);
+                Entry other = (Entry) obj;
+                if (this.catalog_tbl != other.catalog_tbl)
+                    return (false);
                 return (this.columns.equals(other.columns));
             }
             return (false);
         }
-        
+
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append(catalog_tbl.getName() + " (");
             String add = "";
-            
+
             //
             // Super Lame...
             //
@@ -93,27 +95,25 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
             return sb.toString();
         }
     }
-    
+
     public IndexPlan(Database catalog_db) {
         for (Table catalog_tbl : catalog_db.getTables()) {
             this.put(catalog_tbl, new HashSet<IndexPlan.Entry>());
         } // FOR
     }
-    
+
     /**
-     * 
      * @return
      */
     public Set<Entry> getIndexes() {
         Set<Entry> ret = new HashSet<Entry>();
-        for ( Set<Entry> entries : this.values()){
+        for (Set<Entry> entries : this.values()) {
             ret.addAll(entries);
         } // FOR
         return (ret);
     }
-    
+
     /**
-     * 
      * @return
      */
     public List<Entry> getSortedIndexes() {
@@ -127,7 +127,7 @@ public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
                 sorted.get(weight).add(index);
             } // FOR
         } // FOR
-        
+
         List<Entry> ret = new ArrayList<Entry>();
         for (Double weight : sorted.keySet()) {
             ret.addAll(sorted.get(weight));

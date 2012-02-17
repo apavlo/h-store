@@ -31,14 +31,14 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 
 public abstract class LocalityTables {
-    
+
     public static VoltTable initializeTableA() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "A";
-         
+
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
-        
+
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
     }
@@ -46,12 +46,12 @@ public abstract class LocalityTables {
     public static VoltTable initializeTableB() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "B";
-        
+
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_VALUE", VoltType.STRING));
-        
+
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
-    }  
+    }
 }

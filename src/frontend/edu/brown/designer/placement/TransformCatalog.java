@@ -16,17 +16,17 @@ import edu.brown.utils.FileUtil;
 
 public class TransformCatalog {
     private static final Logger LOG = Logger.getLogger(TransformTransactionTraces.class);
-    
-    /** Processes the catalog information and writes it
-     * File format like the following:
-     * # of sites
-     * site # : host #
+
+    /**
+     * Processes the catalog information and writes it File format like the
+     * following: # of sites site # : host #
+     * 
      * @param host_site
      */
     public static void transform(Database catalogDb) {
         StringBuilder sb = new StringBuilder();
         sb.append(CatalogUtil.getNumberOfPartitions(catalogDb) + " " + CatalogUtil.getNumberOfSites(catalogDb) + "\n");
-        
+
         TreeMap<Integer, Integer> site_host = new TreeMap<Integer, Integer>();
         Iterator<Cluster> cluster_it = catalogDb.getCatalog().getClusters().iterator();
         int total_sites = 0;
@@ -48,7 +48,7 @@ public class TransformCatalog {
             sb.append(site.getValue() + ":" + site.getKey() + "\n");
         }
         assert (total_sites > 0) : "No sites!!!!";
-        
+
         try {
             FileUtil.writeStringToFile("/home/sw47/Desktop/system.info", sb.toString()); // FIXME
         } catch (IOException e) {

@@ -47,35 +47,24 @@ import edu.brown.benchmark.tpce.util.ProcedureUtil;
  * BrokerVolume Transaction <br/>
  * TPC-E Section 3.3.7
  */
-@ProcInfo (
-    partitionInfo = "TRADE.T_CA_ID: 1",
-    singlePartition = false
-)
+@ProcInfo(partitionInfo = "TRADE.T_CA_ID: 1", singlePartition = false)
 public class BrokerVolume extends VoltProcedure {
 
     // Note: sum(TR_QTY * TR_BID_PRICE) not supported
-    // Compiling this statement results in "java.lang.OutOfMemoryError: GC overhead limit exceed"
-    public final SQLStmt get = new SQLStmt(
-            "select B_NAME "
-                    // +" , sum(TR_QTY * TR_BID_PRICE) "
-                    + "from TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY "
-                    + "where TR_S_SYMB = S_SYMB and " + "S_CO_ID = CO_ID and "
-                    + "CO_IN_ID = IN_ID and " + "SC_ID = IN_SC_ID and "
-                    // FIXME + "B_NAME in (?) and "
-                    + "B_NAME = ? and "
-                    + " SC_NAME = ? " + "group by B_NAME "
+    // Compiling this statement results in
+    // "java.lang.OutOfMemoryError: GC overhead limit exceed"
+    public final SQLStmt get = new SQLStmt("select B_NAME "
+    // +" , sum(TR_QTY * TR_BID_PRICE) "
+            + "from TRADE_REQUEST, SECTOR, INDUSTRY, COMPANY, BROKER, SECURITY " + "where TR_S_SYMB = S_SYMB and " + "S_CO_ID = CO_ID and " + "CO_IN_ID = IN_ID and " + "SC_ID = IN_SC_ID and "
+            // FIXME + "B_NAME in (?) and "
+            + "B_NAME = ? and " + " SC_NAME = ? " + "group by B_NAME "
     // + "order by 2 DESC"
     );
 
-    public VoltTable[] run(
-            String[] broker_list,
-            String sector_name) throws VoltAbortException {
-        
+    public VoltTable[] run(String[] broker_list, String sector_name) throws VoltAbortException {
+
         Map<String, Object[]> ret = new HashMap<String, Object[]>();
-        int row_count = ProcedureUtil.execute(ret, this, get,
-                new Object[] { broker_list[0], sector_name },
-                new String[] { "broker_name", "volume" },
-                new Object[] { "B_NAME", 1 });
+        int row_count = ProcedureUtil.execute(ret, this, get, new Object[] { broker_list[0], sector_name }, new String[] { "broker_name", "volume" }, new Object[] { "B_NAME", 1 });
 
         ret.put("list_len", new Integer[] { row_count });
 

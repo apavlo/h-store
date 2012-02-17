@@ -41,99 +41,77 @@ import org.voltdb.types.TimestampType;
  * TPC-E Section 3.3.11
  */
 public class DataMaintenance extends VoltProcedure {
-    
+
     public static final long DAY_MICROSECONDS = 86400000000l;
-    
 
-    public final SQLStmt selectAccountPermission = new SQLStmt(
-        "SELECT AP_ACL FROM ACCOUNT_PERMISSION WHERE AP_CA_ID = ? ORDER BY ap_acl DESC LIMIT 1");
+    public final SQLStmt selectAccountPermission = new SQLStmt("SELECT AP_ACL FROM ACCOUNT_PERMISSION WHERE AP_CA_ID = ? ORDER BY ap_acl DESC LIMIT 1");
 
-    public final SQLStmt updateAccountPermission = new SQLStmt(
-        "UPDATE ACCOUNT_PERMISSION SET AP_ACL = ? WHERE AP_CA_ID = ?");
-    
-    public final SQLStmt selectCustomerAddress = new SQLStmt(
-        "SELECT ad_line2, ad_id FROM address, customer WHERE ad_id = c_ad_id AND c_id = ?");
+    public final SQLStmt updateAccountPermission = new SQLStmt("UPDATE ACCOUNT_PERMISSION SET AP_ACL = ? WHERE AP_CA_ID = ?");
 
-    public final SQLStmt selectCompanyAddress = new SQLStmt(
-        "SELECT ad_line2, ad_id FROM address, company WHERE ad_id = co_ad_id AND co_id = ?");
+    public final SQLStmt selectCustomerAddress = new SQLStmt("SELECT ad_line2, ad_id FROM address, customer WHERE ad_id = c_ad_id AND c_id = ?");
 
-    public final SQLStmt updateAddress = new SQLStmt(
-        "UPDATE address SET ad_line2 = ? WHERE ad_id = ?");
+    public final SQLStmt selectCompanyAddress = new SQLStmt("SELECT ad_line2, ad_id FROM address, company WHERE ad_id = co_ad_id AND co_id = ?");
 
-    public final SQLStmt selectCompany = new SQLStmt(
-        "SELECT CO_SP_RATE FROM COMPANY WHERE CO_ID = ?");
+    public final SQLStmt updateAddress = new SQLStmt("UPDATE address SET ad_line2 = ? WHERE ad_id = ?");
 
-    public final SQLStmt updateCompany = new SQLStmt(
-        "UPDATE COMPANY SET CO_SP_RATE = ? WHERE CO_ID = ?");
+    public final SQLStmt selectCompany = new SQLStmt("SELECT CO_SP_RATE FROM COMPANY WHERE CO_ID = ?");
 
-    public final SQLStmt selectCustomer = new SQLStmt(
-        "SELECT C_EMAIL_2 FROM CUSTOMER WHERE C_ID = ?");
+    public final SQLStmt updateCompany = new SQLStmt("UPDATE COMPANY SET CO_SP_RATE = ? WHERE CO_ID = ?");
 
-    public final SQLStmt updateCustomer = new SQLStmt(
-        "UPDATE CUSTOMER SET C_EMAIL_2 = ? WHERE C_ID = ?");
+    public final SQLStmt selectCustomer = new SQLStmt("SELECT C_EMAIL_2 FROM CUSTOMER WHERE C_ID = ?");
+
+    public final SQLStmt updateCustomer = new SQLStmt("UPDATE CUSTOMER SET C_EMAIL_2 = ? WHERE C_ID = ?");
 
     public final SQLStmt selectCustomerTaxrate = new SQLStmt(
-        // Benchmark Spec Version
-        // "SELECT count(*) FROM customer_taxrate WHERE cx_c_id = ? AND cx_tx_id = ?");
-        // MySQL Version
-        "SELECT cx_tx_id FROM customer_taxrate WHERE cx_c_id = ?"); //  AND (cx_tx_id LIKE 'US%' OR cx_tx_id LIKE 'CN%')");
-    
-    public final SQLStmt updateCustomerTaxrate = new SQLStmt(
-        "UPDATE customer_taxrate SET cx_tx_id = ? WHERE cx_c_id = ? AND cx_tx_id = ?");
-    
-    public final SQLStmt insertCustomerTaxrate = new SQLStmt(
-        "INSERT INTO customer_taxrate (cx_tx_id, cx_c_id) VALUES (?, ?)");
-    
-    public final SQLStmt deleteCustomerTaxrate = new SQLStmt(
-        "DELETE FROM customer_taxrate WHERE cx_tx_id = ? AND cx_c_id = ?");
+    // Benchmark Spec Version
+    // "SELECT count(*) FROM customer_taxrate WHERE cx_c_id = ? AND cx_tx_id = ?");
+    // MySQL Version
+            "SELECT cx_tx_id FROM customer_taxrate WHERE cx_c_id = ?"); // AND
+                                                                        // (cx_tx_id
+                                                                        // LIKE
+                                                                        // 'US%'
+                                                                        // OR
+                                                                        // cx_tx_id
+                                                                        // LIKE
+                                                                        // 'CN%')");
 
-    public final SQLStmt updateDailyMarket = new SQLStmt(
-        "UPDATE daily_market SET dm_vol = dm_vol + ? WHERE dm_s_symb = ? AND dm_date > ? AND dm_date < ?");
+    public final SQLStmt updateCustomerTaxrate = new SQLStmt("UPDATE customer_taxrate SET cx_tx_id = ? WHERE cx_c_id = ? AND cx_tx_id = ?");
 
-    public final SQLStmt selectExchange = new SQLStmt(
-        "SELECT ex_id, ex_desc FROM EXCHANGE");
+    public final SQLStmt insertCustomerTaxrate = new SQLStmt("INSERT INTO customer_taxrate (cx_tx_id, cx_c_id) VALUES (?, ?)");
 
-    public final SQLStmt updateExchange = new SQLStmt(
-        "UPDATE EXCHANGE SET EX_DESC = ? WHERE EX_ID = ?");
+    public final SQLStmt deleteCustomerTaxrate = new SQLStmt("DELETE FROM customer_taxrate WHERE cx_tx_id = ? AND cx_c_id = ?");
 
-    public final SQLStmt selectFinancial = new SQLStmt(
-        "SELECT FI_QTR_START_DATE FROM FINANCIAL WHERE FI_CO_ID = ?");
+    public final SQLStmt updateDailyMarket = new SQLStmt("UPDATE daily_market SET dm_vol = dm_vol + ? WHERE dm_s_symb = ? AND dm_date > ? AND dm_date < ?");
 
-    public final SQLStmt updateFinancial = new SQLStmt(
-        "UPDATE FINANCIAL SET FI_QTR_START_DATE = ? WHERE FI_CO_ID = ?");
+    public final SQLStmt selectExchange = new SQLStmt("SELECT ex_id, ex_desc FROM EXCHANGE");
 
-    public final SQLStmt selectNewsXref = new SQLStmt(
-        "SELECT nx_ni_id FROM news_xref WHERE nx_co_id = ?");
-    
-    public final SQLStmt updateNewsItem = new SQLStmt(
-        "UPDATE news_item SET ni_dts = ? WHERE ni_id = ?");
+    public final SQLStmt updateExchange = new SQLStmt("UPDATE EXCHANGE SET EX_DESC = ? WHERE EX_ID = ?");
 
-    public final SQLStmt selectSecurity = new SQLStmt(
-        "SELECT S_EXCH_DATE FROM SECURITY WHERE S_SYMB = ?");
-    
-    public final SQLStmt updateSecurity = new SQLStmt(
-        "UPDATE SECURITY SET S_EXCH_DATE = ? WHERE S_SYMB = ?");
+    public final SQLStmt selectFinancial = new SQLStmt("SELECT FI_QTR_START_DATE FROM FINANCIAL WHERE FI_CO_ID = ?");
 
-    public final SQLStmt selectTaxRate = new SQLStmt(
-        "SELECT TX_NAME FROM TAXRATE WHERE TX_ID = ?");
+    public final SQLStmt updateFinancial = new SQLStmt("UPDATE FINANCIAL SET FI_QTR_START_DATE = ? WHERE FI_CO_ID = ?");
 
-    public final SQLStmt updateTaxRate = new SQLStmt(
-        "UPDATE taxrate SET tx_rate = ? WHERE tx_id = ?");
-    
-    public final SQLStmt updateTaxRateName = new SQLStmt(
-        "UPDATE taxrate SET tx_name = ? WHERE tx_id = ?");
+    public final SQLStmt selectNewsXref = new SQLStmt("SELECT nx_ni_id FROM news_xref WHERE nx_co_id = ?");
 
-    public final SQLStmt selectWatchItemListCount = new SQLStmt(
-        "SELECT COUNT(wi_wl_id) FROM watch_item, watch_list WHERE wl_c_id = ? AND wi_wl_id = wl_id");
+    public final SQLStmt updateNewsItem = new SQLStmt("UPDATE news_item SET ni_dts = ? WHERE ni_id = ?");
 
-    public final SQLStmt selectWatchListMax = new SQLStmt(
-        "SELECT max(WL_ID) FROM WATCH_LIST WHERE WL_C_ID = ?");
-    
-    public final SQLStmt selectWatchItemMax = new SQLStmt(
-        "SELECT max(WI_S_SYMB) FROM WATCH_ITEM WHERE WI_WL_ID = ? AND WI_S_SYMB != ? AND WI_S_SYMB != ? AND WI_S_SYMB != ?");
-    
+    public final SQLStmt selectSecurity = new SQLStmt("SELECT S_EXCH_DATE FROM SECURITY WHERE S_SYMB = ?");
+
+    public final SQLStmt updateSecurity = new SQLStmt("UPDATE SECURITY SET S_EXCH_DATE = ? WHERE S_SYMB = ?");
+
+    public final SQLStmt selectTaxRate = new SQLStmt("SELECT TX_NAME FROM TAXRATE WHERE TX_ID = ?");
+
+    public final SQLStmt updateTaxRate = new SQLStmt("UPDATE taxrate SET tx_rate = ? WHERE tx_id = ?");
+
+    public final SQLStmt updateTaxRateName = new SQLStmt("UPDATE taxrate SET tx_name = ? WHERE tx_id = ?");
+
+    public final SQLStmt selectWatchItemListCount = new SQLStmt("SELECT COUNT(wi_wl_id) FROM watch_item, watch_list WHERE wl_c_id = ? AND wi_wl_id = wl_id");
+
+    public final SQLStmt selectWatchListMax = new SQLStmt("SELECT max(WL_ID) FROM WATCH_LIST WHERE WL_C_ID = ?");
+
+    public final SQLStmt selectWatchItemMax = new SQLStmt("SELECT max(WI_S_SYMB) FROM WATCH_ITEM WHERE WI_WL_ID = ? AND WI_S_SYMB != ? AND WI_S_SYMB != ? AND WI_S_SYMB != ?");
+
     /**
-     * 
      * @param acct_id
      * @param c_id
      * @param co_id
@@ -144,15 +122,7 @@ public class DataMaintenance extends VoltProcedure {
      * @param vol_incr
      * @return
      */
-    public VoltTable[] run(
-            long acct_id,
-            long c_id,
-            long co_id,
-            long day_of_month,
-            String symbol,
-            String table_name,
-            String tx_id,
-            long vol_incr) {
+    public VoltTable[] run(long acct_id, long c_id, long co_id, long day_of_month, String symbol, String table_name, String tx_id, long vol_incr) {
         // ACCOUNT_PERMISSION
         if (table_name.equals("ACCOUNT_PERMISSION")) {
 
@@ -167,7 +137,7 @@ public class DataMaintenance extends VoltProcedure {
             acl = (!acl.equals("1111") ? "1111" : "0011");
             voltQueueSQL(updateAccountPermission, acl, acct_id);
 
-        // ADDRESS
+            // ADDRESS
         } else if (table_name.equals("ADDRESS")) {
             // Change AD_LINE2 in the ADDRESS table for
             // the CUSTOMER with C_ID of c_id.
@@ -178,17 +148,17 @@ public class DataMaintenance extends VoltProcedure {
             }
             VoltTable[] results = voltExecuteSQL();
             assert (results[0].advanceRow());
-            
+
             String line2 = results[0].getString(0);
             long addr_id = results[0].getLong(1);
-            
+
             if (!line2.equals("Apt. 10C")) {
                 voltQueueSQL(updateAddress, "Apt. 10C", addr_id);
             } else {
                 voltQueueSQL(updateAddress, "Apt. 22", addr_id);
             }
 
-        // COMPANY
+            // COMPANY
         } else if (table_name.equals("COMPANY")) {
             // Update a row in the COMPANY table identified
             // by co_id, set the company's Standard and Poor
@@ -205,7 +175,7 @@ public class DataMaintenance extends VoltProcedure {
                 voltQueueSQL(updateCompany, "AAA", co_id);
             }
 
-        // CUSTOMER
+            // CUSTOMER
         } else if (table_name.equals("CUSTOMER")) {
             // Update the second email address of a CUSTOMER
             // identified by c_id. Set the ISP part of the customer's
@@ -217,7 +187,7 @@ public class DataMaintenance extends VoltProcedure {
             voltQueueSQL(selectCustomer, c_id);
             VoltTable[] results = voltExecuteSQL();
             assert (results[0].advanceRow());
-            
+
             String email2 = results[0].getString(0);
             int len = email2.length() - lenMindspring;
             String new_email = null;
@@ -225,13 +195,13 @@ public class DataMaintenance extends VoltProcedure {
             // Set to @earthlink.com
             if (len > 0 && email2.substring(len + 1).equals("@mindspring.com")) {
                 new_email = email2.substring(0, email2.indexOf("@")) + "earthlink.com";
-            // Set to @mindspring.com
+                // Set to @mindspring.com
             } else {
                 new_email = email2.substring(0, email2.indexOf("@")) + "mindspring.com";
             }
             voltQueueSQL(updateCustomer, new_email, c_id);
-            
-        // CUSTOMER_TAXRATE
+
+            // CUSTOMER_TAXRATE
         } else if (table_name.equals("CUSTOMER_TAXRATE")) {
             // A tax rate identified by "999" will be inserted into
             // the CUSTOMER_TAXRATE table for the CUSTOMER identified
@@ -245,31 +215,32 @@ public class DataMaintenance extends VoltProcedure {
             VoltTable[] results = voltExecuteSQL();
             assert results.length == 1;
             assert results[0].advanceRow();
-            
+
             double tax_rate = results[0].getDouble(0);
             double new_tax_rate = (tax_rate == 0.11 ? 0.13 : 0.11);
-            
+
             // Update customer
-            // So this is what the TPC-E spec has, but the MySQL version does something else
-//            voltQueueSQL(selectCustomerTaxrate, c_id, tax_id);
-//            results = voltExecuteSQL();
-//            assert results.length == 1;
-//            assert results[0].advanceRow();
-//            long count = results[0].getLong(0);
-//
-//            if (count == 0) {
-//                voltQueueSQL(insertCustomerTaxrate, tax_id, c_id);
-//            } else {
-//                voltQueueSQL(deleteCustomerTaxrate, tax_id, c_id);
-//            }
-//            
+            // So this is what the TPC-E spec has, but the MySQL version does
+            // something else
+            // voltQueueSQL(selectCustomerTaxrate, c_id, tax_id);
+            // results = voltExecuteSQL();
+            // assert results.length == 1;
+            // assert results[0].advanceRow();
+            // long count = results[0].getLong(0);
+            //
+            // if (count == 0) {
+            // voltQueueSQL(insertCustomerTaxrate, tax_id, c_id);
+            // } else {
+            // voltQueueSQL(deleteCustomerTaxrate, tax_id, c_id);
+            // }
+            //
             voltQueueSQL(selectCustomerTaxrate, c_id);
             results = voltExecuteSQL();
-            
+
             while (results[0].advanceRow()) {
                 String old_tax_id = results[0].getString(0);
                 String new_tax_id = null;
-    
+
                 if (old_tax_id.startsWith("US")) {
                     if (old_tax_id.equals("US5")) {
                         new_tax_id = "US1";
@@ -285,28 +256,31 @@ public class DataMaintenance extends VoltProcedure {
                 } else if (old_tax_id.startsWith("CN")) {
                     if (old_tax_id.equals("CN4")) {
                         new_tax_id = "CN1";
-                    } else if (old_tax_id.equals( "CN3")) {
+                    } else if (old_tax_id.equals("CN3")) {
                         new_tax_id = "CN4";
-                    } else if (old_tax_id.equals( "CN2")) {
+                    } else if (old_tax_id.equals("CN2")) {
                         new_tax_id = "CN3";
                     } else {
                         new_tax_id = "CN2";
                     }
                 }
-                if (new_tax_id != null) voltQueueSQL(updateCustomerTaxrate, new_tax_id, c_id, old_tax_id);
+                if (new_tax_id != null)
+                    voltQueueSQL(updateCustomerTaxrate, new_tax_id, c_id, old_tax_id);
             } // WHILE
-            
+
             // Don't forget this from above
             voltQueueSQL(updateTaxRate, new_tax_rate, tax_id);
-            
-        // DAILY_MARKET
+
+            // DAILY_MARKET
         } else if (table_name.equals("DAILY_MARKET")) {
             // PAVLO (2010-06-15)
-            // This one is tricky because we can't just do the sub-string trick on the date
-            // to pluck out the exact day we want. We probably need to construct an artificial range
+            // This one is tricky because we can't just do the sub-string trick
+            // on the date
+            // to pluck out the exact day we want. We probably need to construct
+            // an artificial range
             voltQueueSQL(updateDailyMarket, vol_incr, symbol, day_of_month, day_of_month); // FIXME
-            
-        // EXCHANGE
+
+            // EXCHANGE
         } else if (table_name.equals("EXCHANGE")) {
             // Other than the table_name, no additional
             // parameters are used when the table_name is EXCHANGE.
@@ -318,29 +292,31 @@ public class DataMaintenance extends VoltProcedure {
             // to the current date and time.
 
             // PAVLO (2010-06-15)
-            // The substring replacement functions from the spec isn't supported, so we are just going
-            // to pull down all the exchange descriptions and update one at a time
+            // The substring replacement functions from the spec isn't
+            // supported, so we are just going
+            // to pull down all the exchange descriptions and update one at a
+            // time
             voltQueueSQL(selectExchange);
             VoltTable[] results = voltExecuteSQL();
-            
+
             final TimestampType now = new TimestampType();
             final String last_updated = " LAST UPDATED ";
             while (results[0].advanceRow()) {
                 long ex_id = results[0].getLong(0);
                 String ex_desc = results[0].getString(1);
-                
+
                 // Update the Last Update timestamp
                 if (ex_desc.contains(last_updated)) {
                     int start_idx = ex_desc.indexOf(last_updated) + last_updated.length();
                     ex_desc = ex_desc.substring(0, start_idx) + now;
-                // Add the Last Updated string + timestamp
+                    // Add the Last Updated string + timestamp
                 } else {
                     ex_desc += last_updated + now;
                 }
                 voltQueueSQL(updateExchange, ex_desc, ex_id);
             } // WHILE
 
-        // FINANCIAL
+            // FINANCIAL
         } else if (table_name.equals("FINANCIAL")) {
             // Update the FINANCIAL table for a company identified by
             // co_id. That company's FI_QTR_START_DATEs will be
@@ -349,26 +325,28 @@ public class DataMaintenance extends VoltProcedure {
             // month.
 
             // PAVLO (2010-06-15)
-            // Again, the date substring tricks in the spec aren't supported, so we'll pull
+            // Again, the date substring tricks in the spec aren't supported, so
+            // we'll pull
             // down the data and make the decision on what to do here
             voltQueueSQL(selectFinancial, co_id);
             VoltTable[] results = voltExecuteSQL();
-            assert(results[0].advanceRow());
-            
-            TimestampType orig_start_timestamp = results[0].getTimestampAsTimestamp(0); 
+            assert (results[0].advanceRow());
+
+            TimestampType orig_start_timestamp = results[0].getTimestampAsTimestamp(0);
             Date qtr_start_date = orig_start_timestamp.asApproximateJavaDate();
             Calendar c = Calendar.getInstance();
             c.setTime(qtr_start_date);
-            int qtr_start_day = c.get(Calendar.DAY_OF_MONTH); 
+            int qtr_start_day = c.get(Calendar.DAY_OF_MONTH);
             long delta = DAY_MICROSECONDS;
-                
+
             // Decrement by one day
-            if (qtr_start_day != 1) delta *= -1;
-                
+            if (qtr_start_day != 1)
+                delta *= -1;
+
             TimestampType new_start_date = new TimestampType(orig_start_timestamp.getTime() + delta);
             voltQueueSQL(updateFinancial, new_start_date, co_id);
 
-         // NEWS_ITEM
+            // NEWS_ITEM
         } else if (table_name.equals("NEWS_ITEM")) {
             // Update the news items for a specified company.
             // Change the NI_DTS by 1 day.
@@ -377,26 +355,26 @@ public class DataMaintenance extends VoltProcedure {
             VoltTable[] results = voltExecuteSQL();
             // FIXME
             // while (results[0].advanceRow()) {
-            //     long ni_id = results[0].getLong(0);
-            //     voltQueueSQL(updateNewsItem, DAY_MICROSECONDS, ni_id);
+            // long ni_id = results[0].getLong(0);
+            // voltQueueSQL(updateNewsItem, DAY_MICROSECONDS, ni_id);
             // } // WHILE
 
-        // SECURITY
+            // SECURITY
         } else if (table_name.equals("SECURITY")) {
             // Update a security identified symbol, increment
             // S_EXCH_DATE by 1 day.
-            
+
             voltQueueSQL(selectSecurity, symbol);
             VoltTable[] results = voltExecuteSQL();
-            assert(results[0].advanceRow());
+            assert (results[0].advanceRow());
 
             TimestampType exch_date = results[0].getTimestampAsTimestamp(0);
-            assert(exch_date != null);
+            assert (exch_date != null);
             exch_date = new TimestampType(exch_date.getTime() + DAY_MICROSECONDS);
-            
+
             voltQueueSQL(updateSecurity, exch_date, symbol);
 
-        // TAXRATE
+            // TAXRATE
         } else if (table_name.equals("TAXRATE")) {
             // Update a TAXRATE identified by tx_id. The tax rate's
             // TX_NAME Will be updated to end with the word "rate",
@@ -405,7 +383,7 @@ public class DataMaintenance extends VoltProcedure {
 
             voltQueueSQL(selectTaxRate, tx_id);
             VoltTable[] results = voltExecuteSQL();
-            assert(results[0].advanceRow());
+            assert (results[0].advanceRow());
 
             String tax_name = results[0].getString(0);
             int pos = tax_name.indexOf(" rate");
@@ -416,8 +394,8 @@ public class DataMaintenance extends VoltProcedure {
             }
 
             voltQueueSQL(updateTaxRateName, tax_name, tx_id);
-            
-        // WATCH_ITEM
+
+            // WATCH_ITEM
         } else if (table_name.equals("WATCH_ITEM")) {
             // A WATCH_LIST containing the WATCH_ITEMs with security
             // symbols "AA", "ZAPS" and "ZONS" will be added for the
@@ -428,22 +406,22 @@ public class DataMaintenance extends VoltProcedure {
 
             voltQueueSQL(selectWatchListMax, c_id);
             VoltTable[] results = voltExecuteSQL();
-            assert(results[0].advanceRow());
+            assert (results[0].advanceRow());
             long wl_id = results[0].getLong(0);
-            
+
             // If the CUSTOMER identified by c_id has a watch
             // list with "AA", "ZAPS", "ZONS", it would have the
             // highest WL_ID of that customer's watch lists.
             String symbol1 = "AA";
             String symbol2 = "ZAPS";
             String symbol3 = "ZONS";
-            
+
             voltQueueSQL(selectWatchItemMax, wl_id, symbol1, symbol2, symbol3);
             results = voltExecuteSQL();
-            
+
             // TODO: This needs to be finished!!
             if (!results[0].advanceRow()) {
-                
+
             }
         }
         return (voltExecuteSQL());

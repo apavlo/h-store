@@ -51,9 +51,7 @@ import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 /**
- * 
  * @author pavlo
- *
  */
 public abstract class ClassUtil {
     private static final Logger LOG = Logger.getLogger(ClassUtil.class);
@@ -62,20 +60,24 @@ public abstract class ClassUtil {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
-    private static final Map<Class<?>, List<Class<?>>> CACHE_getSuperClasses = new HashMap<Class<?>, List<Class<?>>>(); 
+
+    private static final Map<Class<?>, List<Class<?>>> CACHE_getSuperClasses = new HashMap<Class<?>, List<Class<?>>>();
     private static final Map<Class<?>, Set<Class<?>>> CACHE_getInterfaceClasses = new HashMap<Class<?>, Set<Class<?>>>();
 
     /**
      * Check if the given object is an array (primitve or native).
-     * http://www.java2s.com/Code/Java/Reflection/Checkifthegivenobjectisanarrayprimitveornative.htm
-     * @param obj  Object to test.
-     * @return     True of the object is an array.
+     * http://www.java2s
+     * .com/Code/Java/Reflection/Checkifthegivenobjectisanarrayprimitveornative
+     * .htm
+     * 
+     * @param obj
+     *            Object to test.
+     * @return True of the object is an array.
      */
     public static boolean isArray(final Object obj) {
         return (obj != null ? obj.getClass().isArray() : false);
     }
-    
+
     public static boolean[] isArray(final Object objs[]) {
         boolean is_array[] = new boolean[objs.length];
         for (int i = 0; i < objs.length; i++) {
@@ -83,10 +85,11 @@ public abstract class ClassUtil {
         } // FOR
         return (is_array);
     }
-    
+
     /**
-     * Convert a Enum array to a Field array
-     * This assumes that the name of each Enum element corresponds to a data member in the clas
+     * Convert a Enum array to a Field array This assumes that the name of each
+     * Enum element corresponds to a data member in the clas
+     * 
      * @param <E>
      * @param clazz
      * @param members
@@ -103,6 +106,7 @@ public abstract class ClassUtil {
 
     /**
      * Create a mapping from Field handles to their corresponding Annotation
+     * 
      * @param <A>
      * @param fields
      * @param annotationClass
@@ -112,13 +116,15 @@ public abstract class ClassUtil {
         Map<Field, A> ret = new ListOrderedMap<Field, A>();
         for (Field f : fields) {
             A a = f.getAnnotation(annotationClass);
-            if (a != null) ret.put(f, a);
+            if (a != null)
+                ret.put(f, a);
         }
         return (ret);
     }
-    
+
     /**
      * Get the generic types for the given field
+     * 
      * @param field
      * @return
      */
@@ -126,31 +132,32 @@ public abstract class ClassUtil {
         ArrayList<Class<?>> generic_classes = new ArrayList<Class<?>>();
         Type gtype = field.getGenericType();
         if (gtype instanceof ParameterizedType) {
-            ParameterizedType ptype = (ParameterizedType)gtype;
+            ParameterizedType ptype = (ParameterizedType) gtype;
             getGenericTypesImpl(ptype, generic_classes);
         }
         return (generic_classes);
     }
-        
+
     private static void getGenericTypesImpl(ParameterizedType ptype, List<Class<?>> classes) {
         // list the actual type arguments
         for (Type t : ptype.getActualTypeArguments()) {
             if (t instanceof Class<?>) {
-//                System.err.println("C: " + t);
-                classes.add((Class<?>)t);
+                // System.err.println("C: " + t);
+                classes.add((Class<?>) t);
             } else if (t instanceof ParameterizedType) {
-                ParameterizedType next = (ParameterizedType)t;
-//                System.err.println("PT: " + next);
-                classes.add((Class<?>)next.getRawType());
+                ParameterizedType next = (ParameterizedType) t;
+                // System.err.println("PT: " + next);
+                classes.add((Class<?>) next.getRawType());
                 getGenericTypesImpl(next, classes);
             }
         } // FOR
         return;
     }
-    
+
     /**
-     * Return an ordered list of all the sub-classes for a given class
-     * Useful when dealing with generics
+     * Return an ordered list of all the sub-classes for a given class Useful
+     * when dealing with generics
+     * 
      * @param element_class
      * @return
      */
@@ -167,9 +174,10 @@ public abstract class ClassUtil {
         }
         return (ret);
     }
-    
+
     /**
      * Get a set of all of the interfaces that the element_class implements
+     * 
      * @param element_class
      * @return
      */
@@ -177,37 +185,38 @@ public abstract class ClassUtil {
     public static Collection<Class<?>> getInterfaces(Class<?> element_class) {
         Set<Class<?>> ret = ClassUtil.CACHE_getInterfaceClasses.get(element_class);
         if (ret == null) {
-//            ret = new HashSet<Class<?>>();
-//            Queue<Class<?>> queue = new LinkedList<Class<?>>();
-//            queue.add(element_class);
-//            while (!queue.isEmpty()) {
-//                Class<?> current = queue.poll();
-//                for (Class<?> i : current.getInterfaces()) {
-//                    ret.add(i);
-//                    queue.add(i);
-//                } // FOR
-//            } // WHILE
+            // ret = new HashSet<Class<?>>();
+            // Queue<Class<?>> queue = new LinkedList<Class<?>>();
+            // queue.add(element_class);
+            // while (!queue.isEmpty()) {
+            // Class<?> current = queue.poll();
+            // for (Class<?> i : current.getInterfaces()) {
+            // ret.add(i);
+            // queue.add(i);
+            // } // FOR
+            // } // WHILE
             ret = new HashSet<Class<?>>(ClassUtils.getAllInterfaces(element_class));
-            if (element_class.isInterface()) ret.add(element_class);
+            if (element_class.isInterface())
+                ret.add(element_class);
             ret = Collections.unmodifiableSet(ret);
             ClassUtil.CACHE_getInterfaceClasses.put(element_class, ret);
         }
         return (ret);
     }
-    
+
     @SuppressWarnings("unchecked")
     public static <T> T newInstance(String class_name, Object params[], Class<?> classes[]) {
-        return ((T)ClassUtil.newInstance(ClassUtil.getClass(class_name), params, classes));
+        return ((T) ClassUtil.newInstance(ClassUtil.getClass(class_name), params, classes));
     }
 
-    
     public static <T> T newInstance(Class<T> target_class, Object params[], Class<?> classes[]) {
-//        Class<?> const_params[] = new Class<?>[params.length];
-//        for (int i = 0; i < params.length; i++) {
-//            const_params[i] = params[i].getClass();
-//            System.err.println("[" + i + "] " + params[i] + " " + params[i].getClass());
-//        } // FOR
-        
+        // Class<?> const_params[] = new Class<?>[params.length];
+        // for (int i = 0; i < params.length; i++) {
+        // const_params[i] = params[i].getClass();
+        // System.err.println("[" + i + "] " + params[i] + " " +
+        // params[i].getClass());
+        // } // FOR
+
         Constructor<T> constructor = ClassUtil.getConstructor(target_class, classes);
         T ret = null;
         try {
@@ -217,16 +226,15 @@ public abstract class ClassUtil {
         }
         return (ret);
     }
-    
+
     /**
-     * 
      * @param <T>
      * @param target_class
      * @param params
      * @return
      */
     @SuppressWarnings("unchecked")
-    public static <T> Constructor<T> getConstructor(Class<T> target_class, Class<?>...params) {
+    public static <T> Constructor<T> getConstructor(Class<T> target_class, Class<?>... params) {
         NoSuchMethodException error = null;
         try {
             return (target_class.getConstructor(params));
@@ -235,40 +243,42 @@ public abstract class ClassUtil {
             // We'll try to be nice and find a match for them
             error = ex;
         }
-        assert(error != null);
-        
+        assert (error != null);
+
         if (debug.get()) {
             LOG.debug("TARGET CLASS:  " + target_class);
             LOG.debug("TARGET PARAMS: " + Arrays.toString(params));
         }
-        
-        List<Class<?>> paramSuper[] = (List<Class<?>>[])new List[params.length]; 
+
+        List<Class<?>> paramSuper[] = (List<Class<?>>[]) new List[params.length];
         for (int i = 0; i < params.length; i++) {
             paramSuper[i] = ClassUtil.getSuperClasses(params[i]);
-            if (debug.get()) LOG.debug("  SUPER[" + params[i].getSimpleName() + "] => " + paramSuper[i]);
+            if (debug.get())
+                LOG.debug("  SUPER[" + params[i].getSimpleName() + "] => " + paramSuper[i]);
         } // FOR
-        
+
         for (Constructor<?> c : target_class.getConstructors()) {
             Class<?> cTypes[] = c.getParameterTypes();
             if (debug.get()) {
                 LOG.debug("CANDIDATE: " + c);
                 LOG.debug("CANDIDATE PARAMS: " + Arrays.toString(cTypes));
             }
-            if (params.length != cTypes.length) continue;
-            
+            if (params.length != cTypes.length)
+                continue;
+
             for (int i = 0; i < params.length; i++) {
                 List<Class<?>> cSuper = ClassUtil.getSuperClasses(cTypes[i]);
-                if (debug.get()) LOG.debug("  SUPER[" + cTypes[i].getSimpleName() + "] => " + cSuper);
+                if (debug.get())
+                    LOG.debug("  SUPER[" + cTypes[i].getSimpleName() + "] => " + cSuper);
                 if (CollectionUtils.intersection(paramSuper[i], cSuper).isEmpty() == false) {
-                    return ((Constructor<T>)c);
+                    return ((Constructor<T>) c);
                 }
             } // FOR (param)
         } // FOR (constructors)
         throw new RuntimeException("Failed to retrieve constructor for " + target_class.getSimpleName(), error);
     }
-    
+
     /**
-     * 
      * @param class_name
      * @return
      */
@@ -276,11 +286,11 @@ public abstract class ClassUtil {
         Class<?> target_class = null;
         try {
             ClassLoader loader = ClassLoader.getSystemClassLoader();
-            target_class = (Class<?>)loader.loadClass(class_name);
+            target_class = (Class<?>) loader.loadClass(class_name);
         } catch (Exception ex) {
             throw new RuntimeException("Failed to retrieve class for " + class_name, ex);
         }
         return (target_class);
- 
+
     }
 }

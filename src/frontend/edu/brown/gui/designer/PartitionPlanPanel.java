@@ -32,7 +32,7 @@ public class PartitionPlanPanel extends JPanel {
     public PartitionPlanPanel(DesignerVisualization parent) {
         super();
         this.parent = parent;
-        this.designer = this.parent.getDesigner();;
+        this.designer = this.parent.getDesigner();
         this.init();
     }
     

@@ -28,7 +28,10 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Constraint;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.ConstraintType;
 
 import edu.brown.BaseTestCase;
@@ -41,20 +44,23 @@ public class TestTPCEProjectBuilder extends BaseTestCase {
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCE, true, false);
     }
-    
+
     /**
      * testVerifyCatalog
      */
-// Disabled May 03, 2010 because the compiler takes too long to compile the TPC-E procedures
-//    public void testVerifyCatalog() throws Exception {
-//        assertNotNull(catalog_db);
-//        System.err.println("Procedures: " + CatalogUtil.debug(catalog_db.getProcedures()));
-//        for (Class<?> proc_class : TPCEProjectBuilder.PROCEDURES) {
-//            String proc_name = proc_class.getSimpleName();
-//            assertNotNull("Missing procedure '" + proc_name + "'", catalog_db.getProcedures().get(proc_name));
-//        } // FOR
-//    }
-    
+    // Disabled May 03, 2010 because the compiler takes too long to compile the
+    // TPC-E procedures
+    // public void testVerifyCatalog() throws Exception {
+    // assertNotNull(catalog_db);
+    // System.err.println("Procedures: " +
+    // CatalogUtil.debug(catalog_db.getProcedures()));
+    // for (Class<?> proc_class : TPCEProjectBuilder.PROCEDURES) {
+    // String proc_name = proc_class.getSimpleName();
+    // assertNotNull("Missing procedure '" + proc_name + "'",
+    // catalog_db.getProcedures().get(proc_name));
+    // } // FOR
+    // }
+
     /**
      * testCreateSchemaCatalog
      */
@@ -63,13 +69,13 @@ public class TestTPCEProjectBuilder extends BaseTestCase {
         assertNotNull(s_catalog);
         Database s_catalog_db = CatalogUtil.getDatabase(s_catalog);
         assertNotNull(catalog_db);
-        
+
         // ADDRESS should point to ZIP_CODE
         Table address = s_catalog_db.getTables().get(TPCEConstants.TABLENAME_ADDRESS);
         assertNotNull(address);
         Table zipcode = s_catalog_db.getTables().get(TPCEConstants.TABLENAME_ZIP_CODE);
         assertNotNull(zipcode);
-        
+
         for (Constraint catalog_const : address.getConstraints()) {
             if (catalog_const.getType() == ConstraintType.FOREIGN_KEY.getValue()) {
                 assertEquals(zipcode, catalog_const.getForeignkeytable());

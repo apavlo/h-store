@@ -25,10 +25,15 @@
  ***************************************************************************/
 package edu.brown.benchmark.markov;
 
-
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.markov.procedures.*;
+import edu.brown.benchmark.markov.procedures.DoneAtPartition;
+import edu.brown.benchmark.markov.procedures.ExecutionTime;
+import edu.brown.benchmark.markov.procedures.MultiPartitionRead;
+import edu.brown.benchmark.markov.procedures.MultiPartitionWrite;
+import edu.brown.benchmark.markov.procedures.SinglePartitionRead;
+import edu.brown.benchmark.markov.procedures.SinglePartitionWrite;
+import edu.brown.benchmark.markov.procedures.UserAbort;
 
 public class MarkovProjectBuilder extends AbstractProjectBuilder {
 
@@ -37,26 +42,14 @@ public class MarkovProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = MarkovLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
-        DoneAtPartition.class,
-        ExecutionTime.class,
-        MultiPartitionWrite.class,
-        MultiPartitionRead.class,
-        SinglePartitionWrite.class,
-        SinglePartitionRead.class,
-        UserAbort.class,
-    };
-    
-    public static final String PARTITIONING[][] = 
-        new String[][] {
-            {MarkovConstants.TABLENAME_TABLEA, "A_ID"},
-            {MarkovConstants.TABLENAME_TABLEB, "B_A_ID"},
-            {MarkovConstants.TABLENAME_TABLEC, "C_A_ID"},
-            {MarkovConstants.TABLENAME_TABLED, "D_B_A_ID"},
-        };
+    public static final Class<?> PROCEDURES[] = new Class<?>[] { DoneAtPartition.class, ExecutionTime.class, MultiPartitionWrite.class, MultiPartitionRead.class, SinglePartitionWrite.class,
+            SinglePartitionRead.class, UserAbort.class, };
+
+    public static final String PARTITIONING[][] = new String[][] { { MarkovConstants.TABLENAME_TABLEA, "A_ID" }, { MarkovConstants.TABLENAME_TABLEB, "B_A_ID" },
+            { MarkovConstants.TABLENAME_TABLEC, "C_A_ID" }, { MarkovConstants.TABLENAME_TABLED, "D_B_A_ID" }, };
 
     public MarkovProjectBuilder() {
         super("markov", MarkovProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
-    
+
 }

@@ -15,12 +15,13 @@ public class TestTPCEConstants extends TestCase {
         for (Field field_handle : TPCEConstants.class.getFields()) {
             String field_name = field_handle.getName();
             if (field_name.startsWith("FREQUENCY_")) {
-                Integer field_val = (Integer)field_handle.get(null);
+                Integer field_val = (Integer) field_handle.get(null);
                 assertNotNull("Null value for " + field_name, field_val);
-                if (field_val >= 0) total += field_val;
+                if (field_val >= 0)
+                    total += field_val;
             }
         } // FOR
         assertEquals(100, total);
     }
-    
+
 }

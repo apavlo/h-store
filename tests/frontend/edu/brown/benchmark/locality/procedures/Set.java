@@ -6,23 +6,16 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
 /**
- * 
  * @author sw47
  */
-@ProcInfo(
-    partitionInfo = "TABLEA.A_ID: 0",
-    singlePartition = false
-)
+@ProcInfo(partitionInfo = "TABLEA.A_ID: 0", singlePartition = false)
 public class Set extends VoltProcedure {
 
-    public final SQLStmt WriteA = new SQLStmt(
-        "UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?");
+    public final SQLStmt WriteA = new SQLStmt("UPDATE TABLEA SET A_VALUE = ? WHERE A_ID = ?");
 
-    public final SQLStmt WriteB = new SQLStmt(
-        "UPDATE TABLEB SET B_VALUE = ? WHERE B_ID = ? AND B_A_ID = ?");
-    
+    public final SQLStmt WriteB = new SQLStmt("UPDATE TABLEB SET B_VALUE = ? WHERE B_ID = ? AND B_A_ID = ?");
+
     /**
-     * 
      * @param local_a_id
      * @param a_id
      * @param a_value
@@ -35,5 +28,5 @@ public class Set extends VoltProcedure {
         voltQueueSQL(WriteB, b_value, b_id, a_id);
         return (voltExecuteSQL());
     }
-    
+
 }

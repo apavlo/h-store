@@ -83,6 +83,9 @@
 <!-- emma build instrumentation location -->
 <property name='build.instr.dir'             location='${build.dir}/instr' />
 
+<!-- Checkstyle Initilization -->
+<taskdef resource="checkstyletask.properties" classpath="${vendor.lib.dir}/checkstyle-5.5.jar"/>
+         
 <!--
 ***************************************
 ** H-STORE CONFIGURATION
@@ -214,6 +217,20 @@ PRIMARY ENTRY POINTS
     depends="dist_internal"
     description="Create VoltDB release package with examples and documentation."
 />
+
+<target name="checkstyle">
+    <checkstyle config="checkstyle.xml">
+        <fileset dir='${src.frontend.dir}'>
+            <include name='**/*.java' />
+            <exclude name='org/voltdb/network/*.java' />
+        </fileset>
+        <fileset dir='${src.test.dir}'>
+            <include name='**/*.java' />
+        </fileset>
+        <formatter type="plain"/>
+    </checkstyle>
+</target>
+
 
 <!--
 ***************************************

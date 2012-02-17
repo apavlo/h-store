@@ -49,7 +49,6 @@ import edu.brown.benchmark.tpce.util.RandUtil;
 import edu.brown.benchmark.tpce.util.TableStatistics;
 
 /**
- * 
  * @author pavlo
  */
 public class TPCEClient extends BenchmarkComponent {
@@ -65,37 +64,32 @@ public class TPCEClient extends BenchmarkComponent {
     // Mapping from thread id to the index value of the xact that thread invoked
     protected final Map<Long, Integer> thread_xact_xref = new HashMap<Long, Integer>();
     protected final TPCECallback callback = new TPCECallback();
-    
+
     // EGen Drivers
     protected final EGenClientDriver egen_clientDriver;
-    
+
     /**
-     * 
      * @author pavlo
-     *
      */
     private class TPCECallback implements ProcedureCallback {
         public CountDownLatch latch; // = new CountDownLatch(1);
-        
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
-            Integer xact_idx = TPCEClient.this.thread_xact_xref.get(Thread
-                    .currentThread().getId());
+            Integer xact_idx = TPCEClient.this.thread_xact_xref.get(Thread.currentThread().getId());
             assert (xact_idx != null);
             incrementTransactionCounter(clientResponse, xact_idx);
-            assert(latch != null);
+            assert (latch != null);
             latch.countDown();
         }
     }
-    
+
     /**
-     * 
      * @author pavlo
-     *
      */
     private static class StatsCallback implements ProcedureCallback {
         public final CountDownLatch latch = new CountDownLatch(1);
-        
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             LOG.info("Processing statistics callback information");
@@ -154,12 +148,13 @@ public class TPCEClient extends BenchmarkComponent {
     }
 
     /**
-     * Constructor 
+     * Constructor
+     * 
      * @param args
      */
     public TPCEClient(String[] args) {
         super(args);
-        
+
         if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME)) {
             LOG.error("Unable to start benchmark. Missing '" + TPCEConstants.PARAM_EGENLOADER_HOME + "' parameter");
             System.exit(1);
@@ -182,7 +177,7 @@ public class TPCEClient extends BenchmarkComponent {
 
     protected static Transaction selectTransaction() {
         int ordinal = SAMPLE_TABLE[RandUtil.number(0, 99).intValue()];
-        //return XTRANS[ordinal];
+        // return XTRANS[ordinal];
         return Transaction.MARKET_WATCH;
     }
 
@@ -211,9 +206,9 @@ public class TPCEClient extends BenchmarkComponent {
             StatsCallback statsCallback = new StatsCallback();
             this.getClientHandle().callProcedure(statsCallback, "@Statistics", SysProcSelector.TABLE.name());
             statsCallback.latch.await();
-            assert(!TableStatistics.getTables().isEmpty());
-            //LOG.info(TableStatistics.debug());
-            
+            assert (!TableStatistics.getTables().isEmpty());
+            // LOG.info(TableStatistics.debug());
+
             while (true) {
                 callback.latch = new CountDownLatch(1);
                 final Transaction target = TPCEClient.selectTransaction();
@@ -235,10 +230,11 @@ public class TPCEClient extends BenchmarkComponent {
             System.exit(1);
         }
     }
-    
+
     /**
-     * For a given transaction type, use the EGenClientDriver to generate 
-     * input parameters for execution 
+     * For a given transaction type, use the EGenClientDriver to generate input
+     * parameters for execution
+     * 
      * @param xact
      * @return
      */
@@ -247,7 +243,7 @@ public class TPCEClient extends BenchmarkComponent {
             case BROKER_VOLUME:
                 return (this.egen_clientDriver.getBrokerVolumeParams());
             case CUSTOMER_POSITION:
-                return (this.egen_clientDriver.getCustomerPositionParams());                
+                return (this.egen_clientDriver.getCustomerPositionParams());
             case MARKET_WATCH:
                 return (this.egen_clientDriver.getMarketWatchParams());
             case SECURITY_DETAIL:

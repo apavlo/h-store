@@ -53,11 +53,12 @@ public class TM1Client extends TM1BaseClient {
     /**
      * Each Transaction element provides an ArgGenerator to create the proper
      * arguments used to invoke the stored procedure
-     *
      */
     private static interface ArgGenerator {
         /**
-         * Generate the proper arguments used to invoke the given stored procedure
+         * Generate the proper arguments used to invoke the given stored
+         * procedure
+         * 
          * @param subscriberSize
          * @return
          */
@@ -71,74 +72,60 @@ public class TM1Client extends TM1BaseClient {
         DELETE_CALL_FORWARDING("Delete Call Forwarding", TM1Constants.FREQUENCY_DELETE_CALL_FORWARDING, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        TM1Util.padWithZero(s_id), // s_id
+                return new Object[] { TM1Util.padWithZero(s_id), // s_id
                         TM1Util.number(1, 4), // sf_type
                         8 * TM1Util.number(0, 2) // start_time
                 };
             }
-        }),
-        GET_ACCESS_DATA("Get Access Data", TM1Constants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
+        }), GET_ACCESS_DATA("Get Access Data", TM1Constants.FREQUENCY_GET_ACCESS_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        s_id, // s_id
+                return new Object[] { s_id, // s_id
                         TM1Util.number(1, 4) // ai_type
                 };
             }
-        }),
-        GET_NEW_DESTINATION("Get New Destination", TM1Constants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
+        }), GET_NEW_DESTINATION("Get New Destination", TM1Constants.FREQUENCY_GET_NEW_DESTINATION, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        s_id, // s_id
+                return new Object[] { s_id, // s_id
                         TM1Util.number(1, 4), // sf_type
                         8 * TM1Util.number(0, 2), // start_time
                         TM1Util.number(1, 24) // end_time
                 };
             }
-        }),
-        GET_SUBSCRIBER_DATA("Get Subscriber Data", TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
+        }), GET_SUBSCRIBER_DATA("Get Subscriber Data", TM1Constants.FREQUENCY_GET_SUBSCRIBER_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        s_id // s_id
+                return new Object[] { s_id // s_id
                 };
             }
-        }),
-        INSERT_CALL_FORWARDING("Insert Call Forwarding", TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
+        }), INSERT_CALL_FORWARDING("Insert Call Forwarding", TM1Constants.FREQUENCY_INSERT_CALL_FORWARDING, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        TM1Util.padWithZero(s_id), // sub_nbr
+                return new Object[] { TM1Util.padWithZero(s_id), // sub_nbr
                         TM1Util.number(1, 4), // sf_type
                         8 * TM1Util.number(0, 2), // start_time
                         TM1Util.number(1, 24), // end_time
                         TM1Util.padWithZero(s_id) // numberx
                 };
             }
-        }),
-        UPDATE_LOCATION("Update Location", TM1Constants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
+        }), UPDATE_LOCATION("Update Location", TM1Constants.FREQUENCY_UPDATE_LOCATION, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        TM1Util.number(0, Integer.MAX_VALUE), // vlr_location
+                return new Object[] { TM1Util.number(0, Integer.MAX_VALUE), // vlr_location
                         TM1Util.padWithZero(s_id) // sub_nbr
                 };
             }
-        }),
-        UPDATE_SUBSCRIBER_DATA("Update Subscriber Data", TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
+        }), UPDATE_SUBSCRIBER_DATA("Update Subscriber Data", TM1Constants.FREQUENCY_UPDATE_SUBSCRIBER_DATA, new ArgGenerator() {
             public Object[] genArgs(long subscriberSize) {
                 long s_id = TM1Util.getSubscriberId(subscriberSize);
-                return new Object[] {
-                        s_id, // s_id
+                return new Object[] { s_id, // s_id
                         TM1Util.number(0, 1), // bit_1
                         TM1Util.number(0, 255), // data_a
                         TM1Util.number(1, 4) // sf_type
                 };
             }
-        }),
-        ; // END LIST OF STORED PROCEDURES
+        }), ; // END LIST OF STORED PROCEDURES
 
         /**
          * Constructor
@@ -152,7 +139,8 @@ public class TM1Client extends TM1BaseClient {
 
         public final String displayName;
         public final String callName;
-        public final int weight; // probability (in terms of percentage) the transaction gets executed
+        public final int weight; // probability (in terms of percentage) the
+                                 // transaction gets executed
         public final ArgGenerator ag;
     } // TRANSCTION ENUM
 
@@ -161,12 +149,12 @@ public class TM1Client extends TM1BaseClient {
      */
     protected class TM1Callback implements ProcedureCallback {
         private final int txn_id;
-        
+
         public TM1Callback(int txn_id) {
             super();
             this.txn_id = txn_id;
         }
-        
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(clientResponse, this.txn_id);
@@ -177,7 +165,7 @@ public class TM1Client extends TM1BaseClient {
     /**
      * Data Members
      */
-    
+
     // Storing the ordinals of transaction per tm1 probability distribution
     private final int[] SAMPLE_TABLE = new int[100];
 
@@ -186,6 +174,7 @@ public class TM1Client extends TM1BaseClient {
 
     /**
      * Main method
+     * 
      * @param args
      */
     public static void main(String[] args) {
@@ -194,12 +183,13 @@ public class TM1Client extends TM1BaseClient {
 
     /**
      * Constructor
+     * 
      * @param args
      */
     public TM1Client(String args[]) {
         super(args);
         this.initSampleTable();
-        
+
         // Setup callbacks
         int num_txns = Transaction.values().length;
         this.callbacks = new TM1Callback[num_txns];
@@ -207,7 +197,7 @@ public class TM1Client extends TM1BaseClient {
             this.callbacks[i] = new TM1Callback(i);
         } // FOR
     }
-    
+
     /**
      * Initialize the sampling table
      */
@@ -222,14 +212,17 @@ public class TM1Client extends TM1BaseClient {
         }
         assert (100 == sum);
     }
-    
+
     /**
      * Return a transaction randomly selected per TM1 probability specs
      */
     private Transaction selectTransaction() {
-//        Transaction force = null; // (this.getClientId() == 0 ? Transaction.INSERT_CALL_FORWARDING : Transaction.GET_SUBSCRIBER_DATA); // Transaction.INSERT_CALL_FORWARDING;
-//        if (force != null) return (force);
-        return Transaction.values()[SAMPLE_TABLE[TM1Util.number(0,99).intValue()]];
+        // Transaction force = null; // (this.getClientId() == 0 ?
+        // Transaction.INSERT_CALL_FORWARDING :
+        // Transaction.GET_SUBSCRIBER_DATA); //
+        // Transaction.INSERT_CALL_FORWARDING;
+        // if (force != null) return (force);
+        return Transaction.values()[SAMPLE_TABLE[TM1Util.number(0, 99).intValue()]];
     }
 
     /**
@@ -239,7 +232,7 @@ public class TM1Client extends TM1BaseClient {
     public void runLoop() {
         LOG.debug("Starting runLoop()");
         final Client client = this.getClientHandle();
-        
+
         try {
             while (true) {
                 this.runOnce();
@@ -249,19 +242,16 @@ public class TM1Client extends TM1BaseClient {
             ex.printStackTrace();
         }
     }
-    
+
     @Override
     protected boolean runOnce() throws IOException {
         final Transaction target = this.selectTransaction();
-        
+
         this.startComputeTime(target.displayName);
         Object params[] = target.ag.genArgs(subscriberSize);
         this.stopComputeTime(target.displayName);
-        
-        boolean ret = this.getClientHandle().callProcedure(
-                                   this.callbacks[target.ordinal()],
-                                   target.callName,
-                                   params);
+
+        boolean ret = this.getClientHandle().callProcedure(this.callbacks[target.ordinal()], target.callName, params);
         LOG.debug("Executing txn " + target);
         return (ret);
     }
