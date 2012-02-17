@@ -8,10 +8,10 @@ import org.voltdb.messaging.FastDeserializer;
 
 import com.google.protobuf.RpcCallback;
 
-import edu.brown.utils.Poolable;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.TransactionRedirectResponse;
+import edu.brown.utils.Poolable;
 
 /**
  * This callback is used by the original HStoreSite that is sending out a transaction redirect

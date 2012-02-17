@@ -19,8 +19,11 @@ package org.voltdb.planner.microoptimizations;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.voltdb.planner.CompiledPlan;
-import org.voltdb.plannodes.*;
+import org.voltdb.plannodes.AbstractPlanNode;
+import org.voltdb.plannodes.AbstractScanPlanNode;
+import org.voltdb.plannodes.LimitPlanNode;
 
 public class PushdownLimitsIntoScans implements MicroOptimization {
 

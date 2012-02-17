@@ -1,9 +1,9 @@
 package edu.brown.designer.generators;
 
-import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.DesignerVertex;
-import edu.brown.graphs.*;
+import edu.brown.graphs.IGraph;
 
 public abstract class AbstractGenerator<T extends IGraph<DesignerVertex, DesignerEdge>> {
     protected final DesignerInfo info;

@@ -28,8 +28,8 @@ import org.voltdb.VoltType;
 import org.voltdb.types.TimestampType;
 import org.voltdb.types.VoltDecimalHelper;
 import org.voltdb.utils.DBBPool;
-import org.voltdb.utils.Encoder;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.utils.Encoder;
 
 
 /**

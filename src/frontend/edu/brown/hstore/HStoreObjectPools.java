@@ -7,7 +7,6 @@ import java.util.Map.Entry;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.commons.pool.impl.StackObjectPool;
 
-import edu.brown.utils.TypedStackObjectPool;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
@@ -19,6 +18,7 @@ import edu.brown.hstore.dtxn.DependencyInfo;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.utils.TypedStackObjectPool;
 
 public abstract class HStoreObjectPools {
 

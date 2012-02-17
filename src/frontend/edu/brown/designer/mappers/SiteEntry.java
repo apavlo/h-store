@@ -1,9 +1,15 @@
 package edu.brown.designer.mappers;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 
-import org.json.*;
-import org.voltdb.catalog.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONString;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
 
 import edu.brown.catalog.CatalogKey;
 

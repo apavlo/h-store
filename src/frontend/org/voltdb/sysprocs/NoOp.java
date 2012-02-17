@@ -8,11 +8,11 @@ import org.voltdb.ParameterSet;
 import org.voltdb.ProcInfo;
 import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
-import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
 
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 
 @ProcInfo(singlePartition = false)
 public class NoOp extends VoltSystemProcedure {

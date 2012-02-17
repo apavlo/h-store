@@ -9,15 +9,15 @@ import java.util.concurrent.PriorityBlockingQueue;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 
-import edu.brown.hstore.Hstoreservice;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.statistics.Histogram;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.callbacks.TransactionInitWrapperCallback;
 import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.hstore.util.TxnCounter;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.statistics.Histogram;
 
 public class TransactionQueueManager implements Runnable, Loggable {
     private static final Logger LOG = Logger.getLogger(TransactionQueueManager.class);

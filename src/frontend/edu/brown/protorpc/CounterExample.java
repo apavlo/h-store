@@ -2,7 +2,9 @@ package edu.brown.protorpc;
 
 import java.net.InetSocketAddress;
 
-import ca.evanjones.protorpc.Counter.*;
+import ca.evanjones.protorpc.Counter.CounterService;
+import ca.evanjones.protorpc.Counter.GetRequest;
+import ca.evanjones.protorpc.Counter.Value;
 
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;

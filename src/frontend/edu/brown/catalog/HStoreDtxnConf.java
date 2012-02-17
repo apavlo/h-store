@@ -1,10 +1,14 @@
 package edu.brown.catalog;
 
-import java.util.*;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Site;
 
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;

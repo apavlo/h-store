@@ -20,7 +20,8 @@ package org.voltdb.plannodes;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.planner.PlannerContext;
 
 /**

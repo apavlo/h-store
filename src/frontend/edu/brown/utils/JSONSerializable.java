@@ -29,7 +29,10 @@ package edu.brown.utils;
 
 import java.io.IOException;
 
-import org.json.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONString;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 
 public interface JSONSerializable extends JSONString {

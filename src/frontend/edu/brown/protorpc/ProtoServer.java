@@ -8,9 +8,9 @@ import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
 
+import ca.evanjones.protorpc.Protocol;
 import ca.evanjones.protorpc.Protocol.RpcRequest;
 import ca.evanjones.protorpc.Protocol.RpcResponse;
-import ca.evanjones.protorpc.Protocol;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;

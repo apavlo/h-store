@@ -4,16 +4,23 @@
 package edu.brown.designer.mappers;
 
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Table;
 
-import edu.brown.designer.*;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerHints;
+import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
-import edu.brown.hashing.AbstractHasher;
-import edu.brown.hashing.DefaultHasher;
-import edu.brown.hashing.MappedHasher;
 import edu.brown.statistics.Histogram;
 import edu.brown.utils.ArgumentsParser;
 

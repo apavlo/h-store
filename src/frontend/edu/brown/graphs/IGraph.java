@@ -2,7 +2,7 @@ package edu.brown.graphs;
 
 import java.util.List;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
 
 import edu.brown.utils.JSONSerializable;
 import edu.uci.ics.jung.graph.Graph;

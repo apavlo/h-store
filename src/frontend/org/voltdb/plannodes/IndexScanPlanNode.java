@@ -17,23 +17,26 @@
 
 package org.voltdb.plannodes;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONStringer;
 import org.json.JSONString;
-import org.voltdb.expressions.*;
-import org.voltdb.planner.PlanStatistics;
-import org.voltdb.planner.PlannerContext;
-import org.voltdb.planner.StatsField;
-import org.voltdb.types.*;
+import org.json.JSONStringer;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.compiler.DatabaseEstimates;
 import org.voltdb.compiler.ScalarValueHints;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.planner.PlanStatistics;
+import org.voltdb.planner.PlannerContext;
+import org.voltdb.planner.StatsField;
+import org.voltdb.types.IndexLookupType;
+import org.voltdb.types.PlanNodeType;
+import org.voltdb.types.SortDirectionType;
 
 /**
  *

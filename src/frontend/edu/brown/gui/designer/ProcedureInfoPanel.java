@@ -1,16 +1,24 @@
 package edu.brown.gui.designer;
 
-import java.util.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Procedure;
 
-import edu.brown.gui.*;
-import edu.brown.statistics.*;;
+import edu.brown.gui.AbstractInfoPanel;
+import edu.brown.gui.AbstractViewer;
+import edu.brown.gui.DesignerVisualization;
+import edu.brown.statistics.ProcedureStatistics;
 
 public class ProcedureInfoPanel extends AbstractInfoPanel<Procedure> {
     private static final long serialVersionUID = -295100895965501422L;

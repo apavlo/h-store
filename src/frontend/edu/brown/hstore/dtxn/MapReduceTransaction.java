@@ -14,19 +14,19 @@ import org.voltdb.catalog.Table;
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.TransactionMapResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.callbacks.SendDataCallback;
 import edu.brown.hstore.callbacks.TransactionCleanupCallback;
 import edu.brown.hstore.callbacks.TransactionMapCallback;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceCallback;
 import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.StringUtil;
 
 /**
  * Special transaction state object for MapReduce jobs

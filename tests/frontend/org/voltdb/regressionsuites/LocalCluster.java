@@ -39,6 +39,8 @@ import org.voltdb.VoltDB;
 import org.voltdb.VoltDB.Configuration;
 import org.voltdb.compiler.VoltProjectBuilder;
 
+import edu.brown.hstore.HStoreConstants;
+
 /**
  * Implementation of a VoltServerConfig for a multi-process
  * cluster. All cluster processes run locally (keep this in
@@ -216,7 +218,7 @@ public class LocalCluster implements VoltServerConfig {
         config.m_noLoadLibVOLTDB = (m_target == BackendTarget.HSQLDB_BACKEND);
         config.m_pathToCatalog = m_jarFileName;
         config.m_profilingLevel = ProcedureProfiler.Level.DISABLED;
-        config.m_port = VoltDB.DEFAULT_PORT;
+        config.m_port = HStoreConstants.DEFAULT_PORT;
 
         m_localServer = new ServerThread(config);
         m_localServer.start();
@@ -225,7 +227,7 @@ public class LocalCluster implements VoltServerConfig {
         for (int i = 1; i < m_hostCount; i++) {
             try {
                 m_procBuilder.command().set(m_portOffset,
-                                            String.valueOf(VoltDB.DEFAULT_PORT + i));
+                                            String.valueOf(HStoreConstants.DEFAULT_PORT + i));
 
                 Process proc = m_procBuilder.start();
                 m_cluster.add(proc);

@@ -19,7 +19,14 @@ public abstract class HStoreConstants {
      * arrives at an HStoreSite. Makes it easier to search through the logs.
      */
     public static final String SITE_FIRST_TXN = "First non-sysproc transaction request recieved";
+
+    // ----------------------------------------------------------------------------
+    // NETWORK STUFF
+    // ----------------------------------------------------------------------------
     
+    public static final int DEFAULT_PORT = 21212;
+    
+    public static final int MESSENGER_PORT_OFFSET = 10000;
     
     // ----------------------------------------------------------------------------
     // EXECUTION STUFF

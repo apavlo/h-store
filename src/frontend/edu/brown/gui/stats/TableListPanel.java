@@ -1,13 +1,16 @@
 package edu.brown.gui.stats;
 
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.*;
 
-import javax.swing.*;
-import javax.swing.table.*;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.table.AbstractTableModel;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogKey;
 

@@ -2,6 +2,7 @@ package org.voltdb;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.messaging.FastSerializer;
@@ -12,15 +13,15 @@ import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 
-import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.PartitionEstimator;
+import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.callbacks.TransactionMapWrapperCallback;
 import edu.brown.hstore.callbacks.TransactionReduceWrapperCallback;
 import edu.brown.hstore.dtxn.MapReduceTransaction;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.utils.PartitionEstimator;
 
 public abstract class VoltMapReduceProcedure<K> extends VoltProcedure {
     public static final Logger LOG = Logger.getLogger(VoltMapReduceProcedure.class);

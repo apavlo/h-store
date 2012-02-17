@@ -25,14 +25,20 @@
  ***************************************************************************/
 package edu.brown.utils;
 
-import java.io.*;
-
-import org.apache.log4j.Logger;
-
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
+
+import org.apache.log4j.Logger;
 
 /**
  * @author pavlo

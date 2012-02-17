@@ -27,13 +27,13 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.PartitionEstimator;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.dtxn.LocalTransaction;
 
 /**
  * System procedures extend VoltSystemProcedure and use its utility methods to

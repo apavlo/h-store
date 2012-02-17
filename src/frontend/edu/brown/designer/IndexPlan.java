@@ -1,8 +1,17 @@
 package edu.brown.designer;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 
 public class IndexPlan extends HashMap<Table, Set<IndexPlan.Entry>> {
     private static final long serialVersionUID = 1L;

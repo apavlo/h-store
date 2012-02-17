@@ -6,18 +6,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.ExpressionType;
 
 import edu.brown.designer.DependencyGraph;
 import edu.brown.designer.DesignerEdge;
-import edu.brown.designer.MemoryEstimator;
 import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.MemoryEstimator;
 import edu.brown.graphs.VertexTreeWalker;
 import edu.brown.graphs.VertexTreeWalker.TraverseOrder;
 import edu.brown.utils.ArgumentsParser;

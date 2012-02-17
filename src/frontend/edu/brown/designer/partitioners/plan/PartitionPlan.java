@@ -1,26 +1,43 @@
 package edu.brown.designer.partitioners.plan;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.Vector;
 
 import org.apache.log4j.Logger;
-
-import org.json.*;
-import org.voltdb.catalog.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.ProcParameter;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
-import org.voltdb.types.*;
+import org.voltdb.types.PartitionMethodType;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.NullProcParameter;
 import edu.brown.catalog.special.RandomProcParameter;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.catalog.special.VerticalPartitionColumn;
-import edu.brown.designer.*;
+import edu.brown.designer.DesignerHints;
 import edu.brown.designer.partitioners.PartitionerUtil;
 import edu.brown.designer.partitioners.VerticalPartitionerUtil;
 import edu.brown.plannodes.PlanNodeUtil;
-import edu.brown.utils.*;
+import edu.brown.utils.AbstractTreeWalker;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.JSONSerializable;
+import edu.brown.utils.JSONUtil;
 
 /**
  * @author pavlo

@@ -6,12 +6,12 @@ import java.util.Queue;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.ProfileMeasurement;
-import edu.brown.hstore.dtxn.AbstractTransaction;
 
 public class ThrottlingQueue<E> extends EventObserver<AbstractTransaction> implements Queue<E> {
     public static final Logger LOG = Logger.getLogger(ThrottlingQueue.class);

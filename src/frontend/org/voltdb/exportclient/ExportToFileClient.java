@@ -26,13 +26,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import org.voltdb.VoltDB;
 import org.voltdb.VoltType;
 import org.voltdb.elt.ELTProtoMessage.AdvertisedDataSource;
 import org.voltdb.types.TimestampType;
-import org.voltdb.utils.CSVEscaperUtil.Escaper;
 import org.voltdb.utils.CSVEscaperUtil.CSVEscaper;
+import org.voltdb.utils.CSVEscaperUtil.Escaper;
 import org.voltdb.utils.CSVEscaperUtil.TSVEscaper;
+
+import edu.brown.hstore.HStoreConstants;
 
 /**
  * Uses the Export feature of VoltDB to write exported tables to files.
@@ -182,7 +183,7 @@ public class ExportToFileClient extends ExportClientBase
         for (int i = 0; i < voltServers.length; i++)
         {
             InetSocketAddress server =
-                new InetSocketAddress(voltServers[i], VoltDB.DEFAULT_PORT);
+                new InetSocketAddress(voltServers[i], HStoreConstants.DEFAULT_PORT);
             servers.add(server);
         }
         setServerInfo(servers);

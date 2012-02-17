@@ -12,8 +12,13 @@ import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Procedure;
 
 import weka.core.Instances;
-
-import edu.brown.markov.features.*;
+import edu.brown.markov.features.AbstractFeature;
+import edu.brown.markov.features.BasePartitionFeature;
+import edu.brown.markov.features.ParamArrayAllSameHashFeature;
+import edu.brown.markov.features.ParamArrayLengthFeature;
+import edu.brown.markov.features.ParamHashEqualsBasePartitionFeature;
+import edu.brown.markov.features.ParamHashPartitionFeature;
+import edu.brown.markov.features.TransactionIdFeature;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.FileUtil;

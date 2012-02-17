@@ -18,8 +18,9 @@
 package org.voltdb.utils;
 
 import java.lang.Thread.UncaughtExceptionHandler;
-import org.voltdb.VoltDB;
+
 import org.apache.log4j.Logger;
+import org.voltdb.VoltDB;
 
 public class VoltUncaughtExceptionHandler implements UncaughtExceptionHandler {
 

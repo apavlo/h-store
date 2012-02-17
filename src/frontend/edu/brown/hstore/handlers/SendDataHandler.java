@@ -7,24 +7,23 @@ import org.apache.log4j.Logger;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
-import edu.brown.protorpc.ProtoRpcController;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.SendDataRequest;
 import edu.brown.hstore.Hstoreservice.SendDataResponse;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.utils.StringUtil;
 
 public class SendDataHandler extends AbstractTransactionHandler<SendDataRequest, SendDataResponse> {
     private static final Logger LOG = Logger.getLogger(SendDataHandler.class);

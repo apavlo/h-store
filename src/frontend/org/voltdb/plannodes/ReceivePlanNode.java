@@ -21,7 +21,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.voltdb.catalog.Database;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.types.*;
+import org.voltdb.types.PlanNodeType;
 
 /**
  *

@@ -7,10 +7,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.utils.EventObservable;
 import edu.brown.utils.EventObserver;
 import edu.brown.utils.FileUtil;
-import edu.brown.hstore.HStoreThreadManager;
 
 /**
  * Hack to hook in log4j.properties

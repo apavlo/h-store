@@ -3,19 +3,29 @@
  */
 package edu.brown.designer.indexselectors;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
-import org.voltdb.types.PartitionMethodType;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.QueryType;
 import org.voltdb.utils.CatalogUtil;
 
-import edu.brown.designer.*;
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerEdge;
 import edu.brown.designer.DesignerEdge.Members;
-import edu.brown.designer.partitioners.*;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.IndexPlan;
+import edu.brown.designer.PartitionTree;
 import edu.brown.designer.partitioners.plan.PartitionEntry;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
-import edu.brown.graphs.*;
 
 /**
  * @author pavlo

@@ -7,7 +7,6 @@ import org.voltdb.catalog.ProcParameter;
 import org.voltdb.catalog.Procedure;
 
 import weka.core.Instance;
-
 import edu.brown.markov.FeatureExtractor;
 import edu.brown.utils.ClassUtil;
 import edu.brown.utils.PartitionEstimator;

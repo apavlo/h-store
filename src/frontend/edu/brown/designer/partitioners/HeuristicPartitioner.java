@@ -1,9 +1,25 @@
 package edu.brown.designer.partitioners;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.Vector;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Table;
 import org.voltdb.types.PartitionMethodType;
 
 import edu.brown.catalog.CatalogCloner;
@@ -12,13 +28,22 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.catalog.special.ReplicatedColumn;
 import edu.brown.costmodel.SingleSitedCostModel;
 import edu.brown.costmodel.TimeIntervalCostModel;
-import edu.brown.designer.*;
-import edu.brown.designer.generators.*;
-import edu.brown.designer.partitioners.plan.PartitionEntry;
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerHints;
+import edu.brown.designer.DesignerInfo;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.designer.PartitionTree;
+import edu.brown.designer.generators.ReplicationTreeGenerator;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.designer.partitioners.plan.TableEntry;
-import edu.brown.graphs.*;
-import edu.brown.utils.*;
+import edu.brown.graphs.AbstractDirectedGraph;
+import edu.brown.graphs.IGraph;
+import edu.brown.graphs.VertexTreeWalker;
+import edu.brown.utils.CollectionUtil;
+import edu.brown.utils.ThreadUtil;
 
 public class HeuristicPartitioner extends AbstractPartitioner {
     protected static final Logger LOG = Logger.getLogger(HeuristicPartitioner.class);

@@ -4,11 +4,11 @@ import java.util.Collection;
 
 import org.apache.log4j.Logger;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.dtxn.AbstractTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.AbstractTransaction;
 
 /**
  * Special callback that keeps track as to whether we have finished up

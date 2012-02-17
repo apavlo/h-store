@@ -3,8 +3,8 @@ package edu.brown.markov;
 import java.io.File;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.voltdb.catalog.Procedure;
 

@@ -25,8 +25,18 @@
  ***************************************************************************/
 package edu.brown.hstore.dtxn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 
@@ -43,25 +53,24 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.messaging.InitiateTaskMessage;
 
-import edu.brown.protorpc.ProtoRpcController;
-
 import com.google.protobuf.RpcCallback;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.markov.TransactionEstimator;
-import edu.brown.statistics.Histogram;
-import edu.brown.utils.StringUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreObjectPools;
 import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionFinishCallback;
 import edu.brown.hstore.callbacks.TransactionInitCallback;
 import edu.brown.hstore.callbacks.TransactionPrepareCallback;
 import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.markov.TransactionEstimator;
+import edu.brown.protorpc.ProtoRpcController;
+import edu.brown.statistics.Histogram;
+import edu.brown.utils.StringUtil;
 
 /**
  * 

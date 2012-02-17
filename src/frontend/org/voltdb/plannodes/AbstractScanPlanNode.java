@@ -19,15 +19,19 @@ package org.voltdb.plannodes;
 
 import java.util.ArrayList;
 
-import org.voltdb.VoltType;
-import org.voltdb.catalog.*;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
-import org.voltdb.expressions.*;
+import org.voltdb.VoltType;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.expressions.AbstractExpression;
+import org.voltdb.expressions.TupleValueExpression;
 import org.voltdb.planner.PlanColumn;
-import org.voltdb.planner.PlannerContext;
 import org.voltdb.planner.PlanColumn.SortOrder;
+import org.voltdb.planner.PlannerContext;
 import org.voltdb.utils.CatalogUtil;
 
 /**

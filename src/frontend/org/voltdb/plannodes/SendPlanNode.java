@@ -22,7 +22,7 @@ import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.types.*;
+import org.voltdb.types.PlanNodeType;
 
 
 /**

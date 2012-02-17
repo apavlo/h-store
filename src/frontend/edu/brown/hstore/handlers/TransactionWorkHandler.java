@@ -7,24 +7,23 @@ import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
-import edu.brown.protorpc.ProtoRpcController;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcController;
 
+import edu.brown.hstore.HStoreCoordinator;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.DataFragment;
 import edu.brown.hstore.Hstoreservice.HStoreService;
 import edu.brown.hstore.Hstoreservice.TransactionWorkRequest;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.Hstoreservice.TransactionWorkResponse;
-import edu.brown.logging.LoggerUtil;
-import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreCoordinator;
-import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.callbacks.TransactionWorkCallback;
 import edu.brown.hstore.dtxn.LocalTransaction;
 import edu.brown.hstore.dtxn.RemoteTransaction;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.protorpc.ProtoRpcController;
 
 public class TransactionWorkHandler extends AbstractTransactionHandler<TransactionWorkRequest, TransactionWorkResponse> {
     private static final Logger LOG = Logger.getLogger(TransactionWorkHandler.class);

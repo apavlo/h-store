@@ -1,17 +1,24 @@
 package edu.brown.designer.mappers;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
-import org.json.*;
-import org.voltdb.catalog.*;
-import org.voltdb.utils.Pair;
+import org.json.JSONException;
+import org.json.JSONString;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Table;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.designer.MemoryEstimator;
-import edu.brown.designer.partitioners.plan.PartitionPlan;
 import edu.brown.hashing.AbstractHasher;
 import edu.brown.statistics.WorkloadStatistics;
-import edu.brown.utils.*;
 
 public class PartitionMapping implements JSONString {
     private static final String SPACER = "   ";

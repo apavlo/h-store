@@ -7,7 +7,6 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.hstore.HStoreCoordinator;
 import edu.brown.hstore.callbacks.TransactionRedirectResponseCallback;
-import edu.brown.hstore.dispatchers.AbstractDispatcher;
 
 /**
  * 

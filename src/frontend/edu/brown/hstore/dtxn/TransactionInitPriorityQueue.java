@@ -7,11 +7,11 @@ import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.TransactionIdManager;
 
+import edu.brown.hstore.HStoreSite;
+import edu.brown.hstore.util.ThrottlingQueue;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.util.ThrottlingQueue;
 
 /**
  * <p>Extends a PriorityQueue such that is only stores transaction state

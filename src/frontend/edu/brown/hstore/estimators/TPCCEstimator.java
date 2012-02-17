@@ -9,9 +9,9 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 import org.voltdb.catalog.Procedure;
 
+import edu.brown.hstore.HStoreSite;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
-import edu.brown.hstore.HStoreSite;
 
 public class TPCCEstimator extends AbstractEstimator {
     private static final Logger LOG = Logger.getLogger(TPCCEstimator.class);

@@ -1,16 +1,28 @@
 package edu.brown.gui.designer;
 
-import java.awt.*;
-import java.util.*;
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
-import javax.swing.*;
-import javax.swing.table.*;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.table.AbstractTableModel;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
 
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.designer.*;
-import edu.brown.graphs.*;
+import edu.brown.designer.AccessGraph;
+import edu.brown.designer.ColumnSet;
+import edu.brown.designer.DesignerEdge;
+import edu.brown.designer.DesignerVertex;
+import edu.brown.graphs.IGraph;
 import edu.brown.gui.AbstractInfoPanel;
 import edu.brown.gui.AbstractViewer;
 import edu.brown.gui.DesignerVisualization;

@@ -33,9 +33,9 @@ import org.voltdb.catalog.Catalog;
 import org.voltdb.catalog.Cluster;
 import org.voltdb.catalog.Database;
 import org.voltdb.planner.CompiledPlan;
+import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.planner.QueryPlanner;
 import org.voltdb.planner.TrivialCostModel;
-import org.voltdb.planner.CompiledPlan.Fragment;
 import org.voltdb.plannodes.PlanNodeList;
 import org.voltdb.utils.Encoder;
 

@@ -18,10 +18,10 @@
 package org.voltdb.jni;
 
 import java.io.BufferedReader;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.io.EOFException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -36,7 +36,6 @@ import java.util.logging.Logger;
 import org.voltdb.BackendTarget;
 import org.voltdb.DependencyPair;
 import org.voltdb.DependencySet;
-import edu.brown.hstore.PartitionExecutor;
 import org.voltdb.ParameterSet;
 import org.voltdb.PrivateVoltTableFactory;
 import org.voltdb.SysProcSelector;
@@ -50,7 +49,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 
-import com.google.protobuf.ByteString;
+import edu.brown.hstore.PartitionExecutor;
 
 
 /* Serializes data over a connection that presumably is being read

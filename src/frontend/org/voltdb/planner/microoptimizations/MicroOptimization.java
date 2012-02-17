@@ -18,6 +18,7 @@
 package org.voltdb.planner.microoptimizations;
 
 import java.util.List;
+
 import org.voltdb.planner.CompiledPlan;
 
 public interface MicroOptimization {

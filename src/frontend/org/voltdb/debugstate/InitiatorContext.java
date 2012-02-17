@@ -18,6 +18,7 @@
 package org.voltdb.debugstate;
 
 import java.io.Serializable;
+
 import org.voltdb.dtxn.InFlightTxnState;
 
 public class InitiatorContext extends VoltThreadContext implements Serializable, Comparable<InitiatorContext> {

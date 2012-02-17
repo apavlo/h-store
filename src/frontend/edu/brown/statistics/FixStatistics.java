@@ -1,9 +1,10 @@
 package edu.brown.statistics;
 
-import java.util.*;
-import org.apache.log4j.Logger;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.voltdb.catalog.*;
+import org.apache.log4j.Logger;
+import org.voltdb.catalog.Database;
 
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.ProjectType;

@@ -1,14 +1,19 @@
 package edu.brown.workload.filters;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 import org.voltdb.VoltProcedure;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogType;
 
-import edu.brown.workload.*;
+import edu.brown.workload.AbstractTraceElement;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * @author pavlo

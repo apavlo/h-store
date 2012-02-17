@@ -1,8 +1,9 @@
 package edu.brown.designer;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.TreeMap;
 
-import edu.brown.designer.AccessGraph.EdgeAttributes;
 import edu.brown.graphs.AbstractEdge;
 import edu.brown.graphs.IGraph;
 

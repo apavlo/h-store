@@ -21,9 +21,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.voltdb.catalog.Database;
-import org.voltdb.expressions.*;
+import org.voltdb.expressions.AbstractExpression;
 import org.voltdb.planner.PlannerContext;
-import org.voltdb.types.*;
+import org.voltdb.types.JoinType;
 
 /**
  *

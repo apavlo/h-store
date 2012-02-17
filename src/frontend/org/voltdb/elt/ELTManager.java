@@ -17,15 +17,23 @@
 
 package org.voltdb.elt;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Connector;
+import org.voltdb.catalog.ConnectorTableInfo;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 import org.voltdb.dtxn.SiteTracker;
 import org.voltdb.elt.processors.RawProcessor.ELTInternalMessage;
 import org.voltdb.network.InputHandler;
-import org.voltdb.utils.*;
+import org.voltdb.utils.LogKeys;
+import org.voltdb.utils.VoltLoggerFactory;
 
 /**
  * Bridges the connection to an OLAP system and the buffers passed

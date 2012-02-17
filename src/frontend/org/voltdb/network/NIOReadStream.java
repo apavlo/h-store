@@ -46,9 +46,10 @@ package org.voltdb.network;
 
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.ArrayDeque;
+
 import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 

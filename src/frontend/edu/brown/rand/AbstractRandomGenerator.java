@@ -25,8 +25,12 @@
  ***************************************************************************/
 package edu.brown.rand;
 
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Constructor;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
 public abstract class AbstractRandomGenerator extends Random {
     private static final long serialVersionUID = 1L;

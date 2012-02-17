@@ -28,7 +28,9 @@ package edu.brown.designer.mappers;
 
 import org.apache.log4j.Logger;
 
-import edu.brown.designer.*;
+import edu.brown.designer.Designer;
+import edu.brown.designer.DesignerHints;
+import edu.brown.designer.DesignerInfo;
 import edu.brown.designer.partitioners.plan.PartitionPlan;
 
 public abstract class AbstractMapper {

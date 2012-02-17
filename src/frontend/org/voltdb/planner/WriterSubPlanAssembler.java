@@ -17,9 +17,12 @@
 
 package org.voltdb.planner;
 
-import java.util.*;
-import org.voltdb.catalog.*;
-import org.voltdb.plannodes.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.plannodes.AbstractPlanNode;
 
 /**
  * For a delete or update plan, this class builds the part of the plan

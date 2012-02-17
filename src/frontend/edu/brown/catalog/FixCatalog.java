@@ -12,6 +12,7 @@ import org.voltdb.catalog.Host;
 import org.voltdb.catalog.Partition;
 import org.voltdb.catalog.Site;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.mappings.ParameterMappingsSet;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.FileUtil;
@@ -64,8 +65,8 @@ public abstract class FixCatalog {
             catalog_host.setIpaddr(host);
             LOG.debug("Created new host " + catalog_host + " on node '" + host + "'");
 
-            int proc_port = VoltDB.DEFAULT_PORT;
-            int messenger_port = proc_port + 10000;
+            int proc_port = HStoreConstants.DEFAULT_PORT;
+            int messenger_port = proc_port + HStoreConstants.MESSENGER_PORT_OFFSET;
             
             // Now create the sites for this host
             for (Integer siteid : cc.getSites(host)) {

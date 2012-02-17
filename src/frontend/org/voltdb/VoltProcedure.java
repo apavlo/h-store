@@ -50,7 +50,17 @@ import org.voltdb.types.TimestampType;
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.graphs.GraphvizExport;
 import edu.brown.hashing.AbstractHasher;
+import edu.brown.hstore.BatchPlanner;
+import edu.brown.hstore.BatchPlanner.BatchPlan;
+import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
+import edu.brown.hstore.Hstoreservice.WorkFragment;
+import edu.brown.hstore.PartitionExecutor;
+import edu.brown.hstore.conf.HStoreConf;
+import edu.brown.hstore.dtxn.AbstractTransaction;
+import edu.brown.hstore.dtxn.LocalTransaction;
+import edu.brown.hstore.interfaces.Loggable;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.markov.MarkovEdge;
@@ -65,16 +75,6 @@ import edu.brown.utils.ParameterMangler;
 import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.Poolable;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.BatchPlanner;
-import edu.brown.hstore.BatchPlanner.BatchPlan;
-import edu.brown.hstore.Hstoreservice.WorkFragment;
-import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.HStoreConstants;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.conf.HStoreConf;
-import edu.brown.hstore.dtxn.AbstractTransaction;
-import edu.brown.hstore.dtxn.LocalTransaction;
-import edu.brown.hstore.interfaces.Loggable;
 
 /**
  * Wraps the stored procedure object created by the user

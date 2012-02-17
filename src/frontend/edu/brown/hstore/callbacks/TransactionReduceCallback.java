@@ -1,21 +1,21 @@
 package edu.brown.hstore.callbacks;
 
+import java.nio.ByteBuffer;
+
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.VoltTable;
 import org.voltdb.messaging.FastDeserializer;
 
-import java.nio.ByteBuffer;
-
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse;
 import edu.brown.hstore.Hstoreservice.TransactionReduceResponse.ReduceResult;
+import edu.brown.hstore.dtxn.MapReduceTransaction;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.utils.StringUtil;
-import edu.brown.hstore.HStoreSite;
-import edu.brown.hstore.dtxn.MapReduceTransaction;
 
 /**
  * This callback waits until all of the TransactionMapResponses have come

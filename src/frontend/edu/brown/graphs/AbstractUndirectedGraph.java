@@ -1,17 +1,17 @@
 package edu.brown.graphs;
 
-import org.voltdb.catalog.*;
-
-import edu.brown.utils.JSONUtil;
-import edu.uci.ics.jung.graph.*;
-
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
+import org.voltdb.catalog.CatalogType;
+import org.voltdb.catalog.Database;
+
+import edu.brown.utils.JSONUtil;
+import edu.uci.ics.jung.graph.UndirectedSparseMultigraph;
 
 /**
  * 

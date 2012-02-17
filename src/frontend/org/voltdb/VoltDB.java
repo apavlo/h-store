@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.Map;
 import java.util.TimeZone;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreSite;
 
 /**
@@ -30,8 +31,6 @@ import edu.brown.hstore.HStoreSite;
  */
 public class VoltDB {
 
-    /** Global constants */
-    public static final int DEFAULT_PORT = 21212;
     static final int INITIATOR_SITE_ID = 0;
     public static final int DTXN_MAILBOX_ID = 0;
 
@@ -72,7 +71,7 @@ public class VoltDB {
          */
         public boolean m_useThreadAffinity = false;
         /** port number for the first client interface for each server */
-        public int m_port = DEFAULT_PORT;
+        public int m_port = HStoreConstants.DEFAULT_PORT;
 
         public boolean listenForDumpRequests = false;
 

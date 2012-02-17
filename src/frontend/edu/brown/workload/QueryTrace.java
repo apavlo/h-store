@@ -27,8 +27,12 @@ package edu.brown.workload;
 
 import java.util.Arrays;
 
-import org.json.*;
-import org.voltdb.catalog.*;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Statement;
 
 import edu.brown.catalog.CatalogKey;
 import edu.brown.catalog.CatalogUtil;

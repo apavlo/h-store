@@ -1,7 +1,9 @@
 package edu.brown.workload.filters;
 
-import org.voltdb.catalog.*;
-import edu.brown.workload.*;
+import org.voltdb.catalog.CatalogType;
+
+import edu.brown.workload.AbstractTraceElement;
+import edu.brown.workload.TransactionTrace;
 
 /**
  * 

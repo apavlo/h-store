@@ -27,10 +27,10 @@ import org.apache.log4j.Logger;
 import org.voltdb.messaging.FastSerializable;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool;
+import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.DeferredSerialization;
 import org.voltdb.utils.EstTime;
 import org.voltdb.utils.VoltLoggerFactory;
-import org.voltdb.utils.DBBPool.BBContainer;
 
 /**
 *

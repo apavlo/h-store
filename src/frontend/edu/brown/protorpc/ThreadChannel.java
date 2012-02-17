@@ -2,12 +2,12 @@ package edu.brown.protorpc;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
+import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.Message;
 import com.google.protobuf.RpcCallback;
 import com.google.protobuf.RpcChannel;
 import com.google.protobuf.RpcController;
 import com.google.protobuf.Service;
-import com.google.protobuf.Descriptors.MethodDescriptor;
 
 /** Runs a service in a separate thread. */
 public class ThreadChannel extends Thread implements RpcChannel {

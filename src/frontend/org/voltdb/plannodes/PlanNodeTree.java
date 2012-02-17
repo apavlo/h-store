@@ -17,18 +17,19 @@
 
 package org.voltdb.plannodes;
 
-import java.util.*;
-import org.voltdb.VoltType;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONString;
 import org.json.JSONStringer;
-import org.json.JSONException;
+import org.voltdb.VoltType;
 import org.voltdb.catalog.Database;
-import org.voltdb.types.PlanNodeType;
 import org.voltdb.utils.Pair;
-
-import edu.brown.plannodes.PlanNodeUtil;
 
 /**
  *
