@@ -38,19 +38,19 @@ public abstract class Consumer<T> implements Runnable {
     private final AtomicBoolean stopWhenEmpty = new AtomicBoolean(false);
     private Thread self;
     private int counter = 0;
-     
+
     public Consumer() {
         // Nothing...
     }
-    
+
     @Override
     public void run() {
         this.self = Thread.currentThread();
         this.counter = 0;
-        
+
         // Wait until we have our producer
         this.start.acquireUninterruptibly();
-        
+
         T t = null;
         while (true) {
             try {
@@ -63,10 +63,11 @@ public abstract class Consumer<T> implements Runnable {
                 else {
                     t = this.queue.take();
                 }
-                
+
                 // If the next item is null, then we want to stop right away
-                if (t == null) break;
-            
+                if (t == null)
+                    break;
+
                 this.process(t);
                 this.counter++;
             } catch (InterruptedException ex) {
@@ -74,13 +75,13 @@ public abstract class Consumer<T> implements Runnable {
             }
         } // WHILE
     }
-    
+
     public abstract void process(T t);
-    
+
     public int getProcessedCounter() {
         return (this.counter);
     }
-    
+
     public void queue(T t) {
         this.queue.add(t);
     }
@@ -91,11 +92,11 @@ public abstract class Consumer<T> implements Runnable {
         this.stopWhenEmpty.set(false);
         this.start.drainPermits();
     }
-    
+
     public final void start() {
         this.start.release();
     }
-    
+
     public final void stopWhenEmpty() {
         this.stopWhenEmpty.set(true);
         if (this.self != null) {

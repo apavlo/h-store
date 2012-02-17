@@ -2,7 +2,6 @@ package edu.brown.rand;
 
 /**
  * @author pavlo
- *
  */
 public class DefaultRandomGenerator extends AbstractRandomGenerator {
     private static final long serialVersionUID = 1L;
@@ -13,7 +12,7 @@ public class DefaultRandomGenerator extends AbstractRandomGenerator {
     public DefaultRandomGenerator() {
         super();
     }
-    
+
     /**
      * @param seed
      */
@@ -21,7 +20,8 @@ public class DefaultRandomGenerator extends AbstractRandomGenerator {
         super(seed);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see edu.brown.rand.AbstractRandomGenerator#loadProfile(java.lang.String)
      */
     @Override
@@ -30,27 +30,30 @@ public class DefaultRandomGenerator extends AbstractRandomGenerator {
 
     }
 
-    /* (non-Javadoc)
-     * @see edu.brown.rand.AbstractRandomGenerator#numberAffinity(int, int, int, java.lang.String, java.lang.String)
+    /*
+     * (non-Javadoc)
+     * @see edu.brown.rand.AbstractRandomGenerator#numberAffinity(int, int, int,
+     * java.lang.String, java.lang.String)
      */
     @Override
-    public int numberAffinity(int minimum, int maximum, int base,
-            String base_table, String target_table) {
+    public int numberAffinity(int minimum, int maximum, int base, String base_table, String target_table) {
         // TODO Auto-generated method stub
         return 0;
     }
 
-    /* (non-Javadoc)
-     * @see edu.brown.rand.AbstractRandomGenerator#numberExcluding(int, int, int, java.lang.String, java.lang.String)
+    /*
+     * (non-Javadoc)
+     * @see edu.brown.rand.AbstractRandomGenerator#numberExcluding(int, int,
+     * int, java.lang.String, java.lang.String)
      */
     @Override
-    public int numberExcluding(int minimum, int maximum, int excluding,
-            String source_table, String target_table) {
+    public int numberExcluding(int minimum, int maximum, int excluding, String source_table, String target_table) {
         // TODO Auto-generated method stub
         return 0;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see edu.brown.rand.AbstractRandomGenerator#saveProfile(java.lang.String)
      */
     @Override

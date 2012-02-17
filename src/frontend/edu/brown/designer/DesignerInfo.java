@@ -24,54 +24,54 @@ import edu.brown.workload.Workload;
 /**
  * Container object for the various information that a designer will need to use
  * to create a new physical database design.
+ * 
  * @author pavlo
- *
  */
 public class DesignerInfo {
     /**
      * Cache of DependencyGraphs for Database catalog objects
      */
-    private final static Map<Database, DependencyGraph> DGRAPH_CACHE = new HashMap<Database, DependencyGraph>(); 
-    
+    private final static Map<Database, DependencyGraph> DGRAPH_CACHE = new HashMap<Database, DependencyGraph>();
+
     /**
      * Keep this around in case we need it later on
      */
     private final ArgumentsParser args;
-    
+
     /**
-     * The base database catalog object that the designer is creating a physical plan for 
+     * The base database catalog object that the designer is creating a physical
+     * plan for
      */
     public final Database catalog_db;
-    
+
     /**
      * The DependencyGraph of the schema
      */
     public final DependencyGraph dgraph;
-    
+
     /**
-     * The sample workload trace used as the basis of the physical design 
+     * The sample workload trace used as the basis of the physical design
      */
     public Workload workload;
-    
+
     /**
      * WorkloadStatistics
      */
     public WorkloadStatistics stats;
-    
+
     /**
      * Dependencies
      */
     public final DependencyUtil dependencies;
-    
+
     /**
      * ProcParameter Correlations
      */
     private ParameterMappingsSet mappings;
     private String correlations_file;
-    
+
     /**
-     * Designer Components
-     * Defaults defined in ArgumentParser
+     * Designer Components Defaults defined in ArgumentParser
      */
     public Class<? extends AbstractPartitioner> partitioner_class;
     public Class<? extends AbstractMapper> mapper_class;
@@ -83,29 +83,31 @@ public class DesignerInfo {
     public Class<? extends AbstractCostModel> costmodel_class = SingleSitedCostModel.class;
     private AbstractCostModel costmodel;
     private MemoryEstimator m_estimator;
-    
+
     /**
      * Number of concurrent threads to use
      */
     private int num_threads;
-    
+
     /**
-     * The number of time intervals to use when dividing up the workload information
+     * The number of time intervals to use when dividing up the workload
+     * information
      */
     private int num_intervals;
-    
+
     /**
      * Number of partitions
      */
     private final int num_partitions;
-    
+
     /**
      * Where the designer can write out checkpoint information
      */
     private File checkpoint;
-    
+
     /**
      * Copy Constructor
+     * 
      * @param src
      */
     public DesignerInfo(DesignerInfo src) {
@@ -128,9 +130,8 @@ public class DesignerInfo {
         this.correlations_file = src.correlations_file;
         this.dgraph = src.dgraph;
     }
-    
+
     /**
-     * 
      * @param catalog_db
      * @param workload
      * @param stats
@@ -151,16 +152,16 @@ public class DesignerInfo {
         this.costmodel_class = args.costmodel_class;
         this.costmodel = args.costmodel;
         this.checkpoint = args.designer_checkpoint;
-       
+
         // Memory Estimator
         this.m_estimator = new MemoryEstimator(this.stats, new DefaultHasher(this.catalog_db, this.num_partitions));
-        
+
         // Correlations (smoke 'em if you got 'em)
         if (args.param_mappings != null) {
             this.mappings = args.param_mappings;
             this.correlations_file = args.getParam(ArgumentsParser.PARAM_MAPPINGS);
         }
-        
+
         if (!DesignerInfo.DGRAPH_CACHE.containsKey(this.catalog_db)) {
             this.dgraph = new DependencyGraph(this.catalog_db);
             try {
@@ -177,28 +178,33 @@ public class DesignerInfo {
 
     /**
      * Constructor
+     * 
      * @param args
      */
     public DesignerInfo(final Database _catalog_db, final Workload _workload, final WorkloadStatistics _stats) {
-        this(new ArgumentsParser() {{
-            this.catalog_db = _catalog_db;
-            this.workload = _workload;
-            this.stats = _stats;
-        }});
+        this(new ArgumentsParser() {
+            {
+                this.catalog_db = _catalog_db;
+                this.workload = _workload;
+                this.stats = _stats;
+            }
+        });
     }
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_db
      * @param workload
      */
     public DesignerInfo(Database catalog_db, Workload workload) {
         this(catalog_db, workload, new WorkloadStatistics(catalog_db));
     }
-    
+
     public Workload getWorkload() {
         return this.workload;
     }
+
     public void setWorkload(Workload workload) {
         this.workload = workload;
     }
@@ -207,41 +213,46 @@ public class DesignerInfo {
     public void setMappings(ParameterMappingsSet mappings) {
         this.mappings = mappings;
     }
+
     public ParameterMappingsSet getMappings() {
         return mappings;
     }
+
     public void setMappingsFile(String file) {
         correlations_file = file;
     }
+
     public String getMappingsFile() {
         return correlations_file;
     }
-    
+
     /** Workload Statistics **/
     public void setStats(WorkloadStatistics stats) {
         this.stats = stats;
         this.m_estimator = new MemoryEstimator(this.stats, this.m_estimator.getHasher());
     }
+
     public WorkloadStatistics getStats() {
         return this.stats;
     }
-    
+
     /** DependencyUtil **/
     public DependencyUtil getDependencies() {
         return this.dependencies;
     }
-    
+
     public AbstractDirectedGraph<DesignerVertex, DesignerEdge> getDependencyGraph() {
         return this.dgraph;
     }
-    
+
     public ArgumentsParser getArgs() {
         return this.args;
     }
-    
+
     public Class<? extends AbstractPartitioner> getPartitionerClass() {
         return partitioner_class;
     }
+
     public void setPartitionerClass(Class<? extends AbstractPartitioner> partitionerClass) {
         partitioner_class = partitionerClass;
     }
@@ -249,6 +260,7 @@ public class DesignerInfo {
     public Class<? extends AbstractMapper> getMapperClass() {
         return mapper_class;
     }
+
     public void setMapperClass(Class<? extends AbstractMapper> mapperClass) {
         mapper_class = mapperClass;
     }
@@ -256,6 +268,7 @@ public class DesignerInfo {
     public Class<? extends AbstractIndexSelector> getIndexerClass() {
         return indexer_class;
     }
+
     public void setIndexerClass(Class<? extends AbstractIndexSelector> indexerClass) {
         indexer_class = indexerClass;
     }
@@ -263,17 +276,19 @@ public class DesignerInfo {
     public Class<? extends AbstractCostModel> getCostModelClass() {
         return costmodel_class;
     }
+
     public void setCostModelClass(Class<? extends AbstractCostModel> costModelClass) {
         costmodel_class = costModelClass;
     }
-    
+
     public AbstractCostModel getCostModel() {
         return costmodel;
     }
+
     public void setCostModel(AbstractCostModel costmodel) {
         this.costmodel = costmodel;
     }
-    
+
     public MemoryEstimator getMemoryEstimator() {
         return (this.m_estimator);
     }
@@ -281,13 +296,15 @@ public class DesignerInfo {
     public int getNumThreads() {
         return this.num_threads;
     }
+
     public void setNumThreads(int num_threads) {
         this.num_threads = num_threads;
     }
-    
+
     public int getNumIntervals() {
         return this.num_intervals;
     }
+
     public void setNumIntervals(int numIntervals) {
         this.num_intervals = numIntervals;
     }
@@ -295,13 +312,13 @@ public class DesignerInfo {
     public int getNumPartitions() {
         return num_partitions;
     }
-    
-    
+
     public void setCheckpointFile(File checkpoint) {
         this.checkpoint = checkpoint;
     }
+
     public File getCheckpointFile() {
         return this.checkpoint;
     }
-    
+
 }

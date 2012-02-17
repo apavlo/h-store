@@ -39,57 +39,48 @@ import org.voltdb.types.TimestampType;
  */
 public class TradeCleanup extends VoltProcedure {
 
-    public final SQLStmt selectTradeRequest = new SQLStmt(
-        "SELECT TR_T_ID FROM TRADE_REQUEST ORDER BY TR_T_ID");
+    public final SQLStmt selectTradeRequest = new SQLStmt("SELECT TR_T_ID FROM TRADE_REQUEST ORDER BY TR_T_ID");
 
-    public final SQLStmt insertTradeHistory = new SQLStmt(
-        "INSERT INTO TRADE_HISTORY (TH_T_ID, TH_DTS, TH_ST_ID) VALUES (?, ?, ?)");
+    public final SQLStmt insertTradeHistory = new SQLStmt("INSERT INTO TRADE_HISTORY (TH_T_ID, TH_DTS, TH_ST_ID) VALUES (?, ?, ?)");
 
-    public final SQLStmt updateTrade = new SQLStmt(
-        "UPDATE TRADE SET T_ST_ID = ?, T_DTS = ? WHERE T_ID = ?");
-    
-    public final SQLStmt deleteTradeRequest = new SQLStmt(
-        "DELETE FROM TRADE_REQUEST");
+    public final SQLStmt updateTrade = new SQLStmt("UPDATE TRADE SET T_ST_ID = ?, T_DTS = ? WHERE T_ID = ?");
 
-    public final SQLStmt selectTrade = new SQLStmt(
-        "SELECT T_ID FROM TRADE WHERE T_ID >= ? AND T_ST_ID = ?");
-    
+    public final SQLStmt deleteTradeRequest = new SQLStmt("DELETE FROM TRADE_REQUEST");
+
+    public final SQLStmt selectTrade = new SQLStmt("SELECT T_ID FROM TRADE WHERE T_ID >= ? AND T_ST_ID = ?");
+
     /**
-     * 
      * @param canceled_id
      * @param pending_id
      * @param submitted_id
      * @param start_trade_id
      * @return
      */
-    public long run(
-            String canceled_id,
-            String pending_id,
-            String submitted_id,
-            long start_trade_id) {
+    public long run(String canceled_id, String pending_id, String submitted_id, long start_trade_id) {
 
         // Find pending trades from TRADE_REQUEST
         voltQueueSQL(selectTradeRequest);
         VoltTable[] results = voltExecuteSQL();
-       
-        // Insert a submitted followed by canceled record into TRADE_HISTORY, mark
+
+        // Insert a submitted followed by canceled record into TRADE_HISTORY,
+        // mark
         // the trade canceled and delete the pending trade
         while (results[0].advanceRow()) {
             long tr_trade_id = results[0].getLong(0);
             TimestampType now = new TimestampType();
-            
+
             voltQueueSQL(insertTradeHistory, tr_trade_id, now, submitted_id);
             voltQueueSQL(updateTrade, canceled_id, now, tr_trade_id);
             voltQueueSQL(insertTradeHistory, tr_trade_id, now, canceled_id);
         } // WHILE
         voltQueueSQL(deleteTradeRequest);
         voltExecuteSQL();
-        
+
         // Find submitted trades, change the status to canceled and insert a
         // canceled record into TRADE_HISTORY
         voltQueueSQL(selectTrade, start_trade_id, submitted_id);
         results = voltExecuteSQL();
-        
+
         while (results[0].advanceRow()) {
             long trade_id = results[0].getLong(0);
             TimestampType now = new TimestampType();
@@ -99,7 +90,7 @@ public class TradeCleanup extends VoltProcedure {
             voltQueueSQL(insertTradeHistory, trade_id, now, canceled_id);
         } // WHILE
         voltExecuteSQL();
-        
+
         return (0l);
     }
 }

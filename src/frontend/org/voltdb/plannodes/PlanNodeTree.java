@@ -37,13 +37,12 @@ import org.voltdb.utils.Pair;
 public class PlanNodeTree implements JSONString {
 
     public enum Members {
-        PLAN_NODES,
-        PARAMETERS;
+        PLAN_NODES, PARAMETERS;
     }
 
     protected final List<AbstractPlanNode> m_planNodes;
     protected final Map<Integer, AbstractPlanNode> m_idToNodeMap = new HashMap<Integer, AbstractPlanNode>();
-    protected final List< Pair< Integer, VoltType > > m_parameters = new ArrayList< Pair< Integer, VoltType > >();
+    protected final List<Pair<Integer, VoltType>> m_parameters = new ArrayList<Pair<Integer, VoltType>>();
 
     public PlanNodeTree() {
         m_planNodes = new ArrayList<AbstractPlanNode>();
@@ -58,13 +57,13 @@ public class PlanNodeTree implements JSONString {
         }
     }
 
-//    public void freePlan()
-//    {
-//        for (AbstractPlanNode n : m_planNodes)
-//        {
-//            n.freeColumns();
-//        }
-//    }
+    // public void freePlan()
+    // {
+    // for (AbstractPlanNode n : m_planNodes)
+    // {
+    // n.freeColumns();
+    // }
+    // }
 
     public Integer getRootPlanNodeId() {
         return m_planNodes.get(0).getPlanNodeId();
@@ -86,11 +85,11 @@ public class PlanNodeTree implements JSONString {
         return true;
     }
 
-    public List< Pair< Integer, VoltType > > getParameters() {
+    public List<Pair<Integer, VoltType>> getParameters() {
         return m_parameters;
     }
 
-    public void setParameters(List< Pair< Integer, VoltType > > parameters) {
+    public void setParameters(List<Pair<Integer, VoltType>> parameters) {
         m_parameters.clear();
         m_parameters.addAll(parameters);
     }
@@ -115,15 +114,15 @@ public class PlanNodeTree implements JSONString {
             assert (node instanceof JSONString);
             stringer.value(node);
         }
-        stringer.endArray(); //end entries
+        stringer.endArray(); // end entries
 
         stringer.key(Members.PARAMETERS.name()).array();
-        for (Pair< Integer, VoltType > parameter : m_parameters) {
+        for (Pair<Integer, VoltType> parameter : m_parameters) {
             stringer.array().value(parameter.getFirst()).value(parameter.getSecond().name()).endArray();
         }
         stringer.endArray();
     }
-    
+
     protected void loadFromJSONObject(JSONObject object, Database db) throws JSONException {
         JSONArray planNodes = object.getJSONArray(Members.PLAN_NODES.name());
         for (int ii = 0; ii < planNodes.length(); ii++) {
@@ -132,7 +131,7 @@ public class PlanNodeTree implements JSONString {
             m_planNodes.add(node);
             m_idToNodeMap.put(node.getPlanNodeId(), node);
         }
-        
+
         for (AbstractPlanNode node : m_planNodes) {
             for (Integer childId : node.m_childrenIds) {
                 node.m_children.add(m_idToNodeMap.get(childId));
@@ -141,7 +140,7 @@ public class PlanNodeTree implements JSONString {
                 node.m_parents.add(m_idToNodeMap.get(parentId));
             }
         }
-        
+
         JSONArray parameters = object.getJSONArray(Members.PARAMETERS.name());
         for (int ii = 0; ii < parameters.length(); ii++) {
             JSONArray parameter = parameters.getJSONArray(ii);
@@ -149,18 +148,19 @@ public class PlanNodeTree implements JSONString {
             VoltType type = VoltType.typeFromString(parameter.getString(1));
             this.m_parameters.add(new Pair<Integer, VoltType>(index, type));
         }
-        
-//        Set<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(m_planNodes.get(0));
-//        if (types.contains(PlanNodeType.INSERT) ||
-//            types.contains(PlanNodeType.UPDATE) ||
-//            types.contains(PlanNodeType.DELETE)) {
-//            for (AbstractPlanNode node : m_planNodes) {
-//                // MOTHER FUCKER!!!
-//                node.updateOutputColumns(db);
-//            }
-//        }
+
+        // Set<PlanNodeType> types =
+        // PlanNodeUtil.getPlanNodeTypes(m_planNodes.get(0));
+        // if (types.contains(PlanNodeType.INSERT) ||
+        // types.contains(PlanNodeType.UPDATE) ||
+        // types.contains(PlanNodeType.DELETE)) {
+        // for (AbstractPlanNode node : m_planNodes) {
+        // // MOTHER FUCKER!!!
+        // node.updateOutputColumns(db);
+        // }
+        // }
     }
-    
+
     public static PlanNodeTree fromJSONObject(JSONObject obj, Database db) throws JSONException {
         PlanNodeList list = new PlanNodeList();
         list.loadFromJSONObject(obj, db);

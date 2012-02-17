@@ -10,13 +10,14 @@ public class DesignerVertex extends AbstractVertex {
     public DesignerVertex() {
         super();
     }
-    
+
     public DesignerVertex(CatalogType catalog_item) {
         super(catalog_item);
     }
-    
+
     /**
      * Copy constructor
+     * 
      * @param graph
      * @param copy
      */

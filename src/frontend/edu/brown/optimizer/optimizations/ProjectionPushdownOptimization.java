@@ -30,17 +30,16 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.StringUtil;
 
 /**
- * 
  * @author pavlo
  */
 public class ProjectionPushdownOptimization extends AbstractOptimization {
     private static final Logger LOG = Logger.getLogger(ProjectionPushdownOptimization.class);
     private static final LoggerBoolean debug = new LoggerBoolean(LOG.isDebugEnabled());
-    
+
     public ProjectionPushdownOptimization(PlanOptimizerState state) {
         super(state);
     }
-    
+
     @Override
     public Pair<Boolean, AbstractPlanNode> optimize(final AbstractPlanNode root) {
         final AtomicBoolean modified = new AtomicBoolean(false);
@@ -54,8 +53,7 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                     if (element.getInlinePlanNode(PlanNodeType.PROJECTION) != null) {
                         if (debug.get())
                             LOG.debug("SKIP - " + element + " already has an inline ProjectionPlanNode");
-                    }
-                    else {
+                    } else {
                         try {
                             if (addProjection(element, true) == false) {
                                 this.stop();
@@ -69,16 +67,16 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 }
                 // ---------------------------------------------------
                 // Distributed NestLoopIndexPlanNode
-                // This is where the NestLoopIndexPlanNode immediately passes its
-                // intermediate results to a SendPlanNode 
+                // This is where the NestLoopIndexPlanNode immediately passes
+                // its
+                // intermediate results to a SendPlanNode
                 // ---------------------------------------------------
                 else if (element instanceof NestLoopIndexPlanNode && element.getParent(0) instanceof SendPlanNode) {
-                    assert(state.join_node_index.size() == state.join_tbl_mapping.size()) :
-                        "Join data structures don't have the same size";
-                    if (state.join_tbl_mapping.get(element) == null) LOG.error("BUSTED:\n" + state);
-                    assert(state.join_tbl_mapping.get(element) != null) :
-                        element + " does NOT exist in join map";
-                    
+                    assert (state.join_node_index.size() == state.join_tbl_mapping.size()) : "Join data structures don't have the same size";
+                    if (state.join_tbl_mapping.get(element) == null)
+                        LOG.error("BUSTED:\n" + state);
+                    assert (state.join_tbl_mapping.get(element) != null) : element + " does NOT exist in join map";
+
                     try {
                         if (addProjection(element, false) == false) {
                             this.stop();
@@ -93,25 +91,26 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
         }.traverse(root);
         return (Pair.of(modified.get(), root));
     }
-    
+
     private boolean addProjection(final AbstractPlanNode node, boolean inline) {
-        assert((node instanceof ProjectionPlanNode) == false) :
-            String.format("Trying to add a new Projection after " + node);
-        
-        // Look at the output columns of the given AbstractPlanNode and figure out
+        assert ((node instanceof ProjectionPlanNode) == false) : String.format("Trying to add a new Projection after " + node);
+
+        // Look at the output columns of the given AbstractPlanNode and figure
+        // out
         // which of those columns we're going to need up above in the tree
         Set<PlanColumn> referenced = PlanOptimizerUtil.extractReferencedColumns(state, node);
         if (debug.get())
-            LOG.debug(String.format("All referenced columns above %s:\n%s",
-                                    node, StringUtil.join("\n", referenced)));
+            LOG.debug(String.format("All referenced columns above %s:\n%s", node, StringUtil.join("\n", referenced)));
 
-        // Look over the PlanColumns that we need above us, and add the ones that
-        // are coming out of the parent. Those are the ones that we want to include
+        // Look over the PlanColumns that we need above us, and add the ones
+        // that
+        // are coming out of the parent. Those are the ones that we want to
+        // include
         Set<PlanColumn> new_output_cols = new ListOrderedSet<PlanColumn>();
         Set<Table> new_output_tables = new HashSet<Table>();
         for (Integer col_guid : node.getOutputColumnGUIDs()) {
             PlanColumn col = state.plannerContext.get(col_guid);
-            assert(col != null) : "Invalid PlanColumn #" + col_guid;
+            assert (col != null) : "Invalid PlanColumn #" + col_guid;
             for (PlanColumn ref_col : referenced) {
                 if (ref_col.equals(col, true, true)) {
                     new_output_cols.add(col);
@@ -122,15 +121,16 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
         } // FOR
         if (new_output_cols.isEmpty())
             LOG.warn("BUSTED:\n" + PlanNodeUtil.debug(PlanNodeUtil.getRoot(node)) + "\n" + state);
-        assert(new_output_cols.isEmpty() == false) :
-            String.format("No new output columns for " + node);
-        
+        assert (new_output_cols.isEmpty() == false) : String.format("No new output columns for " + node);
+
         // Check whether the output PlanColumns all reference the same table,
-        // and we have the same number of PlanColumns as that table has in the catalog
-        // This means that we don't need the projection because they're doing a SELECT *
+        // and we have the same number of PlanColumns as that table has in the
+        // catalog
+        // This means that we don't need the projection because they're doing a
+        // SELECT *
         if (new_output_tables.size() == 1) {
             Table catalog_tbl = CollectionUtil.first(new_output_tables);
-            assert(catalog_tbl != null);
+            assert (catalog_tbl != null);
             // Only create the projection if the number of columns we need to
             // output is less then the total number of columns for the table
             if (new_output_cols.size() == catalog_tbl.getColumns().size()) {
@@ -139,25 +139,26 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 return (false);
             }
         }
-        
+
         // Now create a new ProjectionPlanNode that outputs just those columns
         ProjectionPlanNode proj_node = new ProjectionPlanNode(state.plannerContext, PlanAssembler.getNextPlanNodeId());
         this.populateProjectionPlanNode(node, proj_node, new_output_cols);
-        
+
         // Add a projection above this node
-        // TODO: Add the ability to automatically check whether we can make something inline
+        // TODO: Add the ability to automatically check whether we can make
+        // something inline
         if (inline) {
             // Add projection inline to scan node
             node.addInlinePlanNode(proj_node);
             assert (proj_node.isInline());
 
-            // Then make sure that we update it's output columns to match the inline output
+            // Then make sure that we update it's output columns to match the
+            // inline output
             node.getOutputColumnGUIDs().clear();
             node.getOutputColumnGUIDs().addAll(proj_node.getOutputColumnGUIDs());
-        }
-        else {
+        } else {
             AbstractPlanNode parent = node.getParent(0);
-            assert(parent != null);
+            assert (parent != null);
             node.clearParents();
             parent.clearChildren();
             proj_node.addAndLinkChild(node);
@@ -167,22 +168,21 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
         // Mark the new ProjectionPlanNode as dirty
         state.markDirty(proj_node);
         state.markDirty(node);
-        
+
         if (debug.get())
-            LOG.debug(String.format("PLANOPT - Added %s%s with %d columns for node %s",
-                                    (inline ? "inline " : ""),
-                                    proj_node, proj_node.getOutputColumnGUIDCount(), node));
-        
+            LOG.debug(String.format("PLANOPT - Added %s%s with %d columns for node %s", (inline ? "inline " : ""), proj_node, proj_node.getOutputColumnGUIDCount(), node));
+
         // Should we be doing this here?
-//        PlanOptimizerUtil.updateAllColumns(state, PlanNodeUtil.getRoot(node));
-        
+        // PlanOptimizerUtil.updateAllColumns(state,
+        // PlanNodeUtil.getRoot(node));
+
         return (true);
     }
-    
+
     private void populateProjectionPlanNode(AbstractPlanNode parent, ProjectionPlanNode proj_node, Collection<PlanColumn> output_columns) {
         if (debug.get())
             LOG.debug(String.format("Populating %s with %d output PlanColumns", proj_node, output_columns.size()));
-        
+
         AbstractExpression orig_col_exp = null;
         for (PlanColumn plan_col : output_columns) {
             int orig_guid = -1;
@@ -207,23 +207,15 @@ public class ProjectionPushdownOptimization extends AbstractOptimization {
                 assert (new_col_exp != null);
                 PlanColumn new_plan_col = null;
                 if (new_col_exp instanceof TupleValueExpression) {
-                    new_plan_col = new PlanColumn(orig_guid,
-                                                  new_col_exp,
-                                                  ((TupleValueExpression)new_col_exp).getColumnName(),
-                                                  plan_col.getSortOrder(),
-                                                  plan_col.getStorage());                                    
+                    new_plan_col = new PlanColumn(orig_guid, new_col_exp, ((TupleValueExpression) new_col_exp).getColumnName(), plan_col.getSortOrder(), plan_col.getStorage());
                     proj_node.appendOutputColumn(new_plan_col);
                     if (debug.get())
                         LOG.debug("Added " + new_plan_col + " to " + proj_node);
-                }
-                else if (debug.get()) {
+                } else if (debug.get()) {
                     LOG.debug("Skipped adding " + new_plan_col + " to " + proj_node + "?");
                 }
             }
         } // FOR
     }
 
-    
-
-    
 }

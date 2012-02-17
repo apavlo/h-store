@@ -73,7 +73,7 @@ public class ProcedureProfiler {
      * Used for collecting profiling information using wall-clock time
      * for procedures and SQL statements. Usually not used.
      */
-    private static class TimingInfo implements Comparable<TimingInfo>{
+    private static class TimingInfo implements Comparable<TimingInfo> {
         String name = null;
         long callCount = 0;
         long averageTime = 0;

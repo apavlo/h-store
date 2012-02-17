@@ -25,27 +25,26 @@
  ***************************************************************************/
 package edu.brown.benchmark.markov.procedures;
 
-import org.voltdb.*;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 
 import edu.brown.benchmark.markov.MarkovConstants;
 
-@ProcInfo(
-    singlePartition = false
-)
+@ProcInfo(singlePartition = false)
 public class Busted extends VoltProcedure {
-    
-    public final SQLStmt FAIL_SQL = new SQLStmt(
-            "SELECT B_ID, B_A_ID, A_SATTR00 " +
-            "  FROM " + MarkovConstants.TABLENAME_TABLEB + ", " + MarkovConstants.TABLENAME_TABLEA +
-            " WHERE B_ID = ? " +
-            "   AND B_A_ID = A_ID");
-    
+
+    public final SQLStmt FAIL_SQL = new SQLStmt("SELECT B_ID, B_A_ID, A_SATTR00 " + "  FROM " + MarkovConstants.TABLENAME_TABLEB + ", " + MarkovConstants.TABLENAME_TABLEA + " WHERE B_ID = ? "
+            + "   AND B_A_ID = A_ID");
+
     public VoltTable[] run(long d_id) throws VoltAbortException {
         voltQueueSQL(FAIL_SQL, d_id);
-        
+
         final VoltTable[] d_results = voltExecuteSQL();
         assert (d_results.length == 1);
-        
+
         while (d_results[0].advanceRow()) {
             System.err.print("RESULT (");
             String add = "";

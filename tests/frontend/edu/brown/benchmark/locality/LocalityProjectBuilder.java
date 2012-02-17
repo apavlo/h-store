@@ -25,10 +25,10 @@
  ***************************************************************************/
 package edu.brown.benchmark.locality;
 
-
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.locality.procedures.*;
+import edu.brown.benchmark.locality.procedures.Get;
+import edu.brown.benchmark.locality.procedures.Set;
 
 public class LocalityProjectBuilder extends AbstractProjectBuilder {
 
@@ -37,26 +37,21 @@ public class LocalityProjectBuilder extends AbstractProjectBuilder {
     /** Retrieved via reflection by BenchmarkController */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = LocalityLoader.class;
 
-    public static final Class<?> PROCEDURES[] = new Class<?>[] {
-        Get.class,
-        Set.class,
-    };
+    public static final Class<?> PROCEDURES[] = new Class<?>[] { Get.class, Set.class, };
     // Transaction Frequencies
     {
         addTransactionFrequency(Get.class, LocalityConstants.FREQUENCY_GET_LOCAL);
         addTransactionFrequency(Set.class, LocalityConstants.FREQUENCY_SET_LOCAL);
-//        addTransactionFrequency(Get.class, LocalityConstants.FREQUENCY_GET_REMOTE);
-//        addTransactionFrequency(Set.class, LocalityConstants.FREQUENCY_SET_REMOTE);
+        // addTransactionFrequency(Get.class,
+        // LocalityConstants.FREQUENCY_GET_REMOTE);
+        // addTransactionFrequency(Set.class,
+        // LocalityConstants.FREQUENCY_SET_REMOTE);
     }
-    
-    public static final String PARTITIONING[][] = 
-        new String[][] {
-            {LocalityConstants.TABLENAME_TABLEA, "A_ID"},
-            {LocalityConstants.TABLENAME_TABLEB, "B_A_ID"},
-        };
+
+    public static final String PARTITIONING[][] = new String[][] { { LocalityConstants.TABLENAME_TABLEA, "A_ID" }, { LocalityConstants.TABLENAME_TABLEB, "B_A_ID" }, };
 
     public LocalityProjectBuilder() {
         super("locality", LocalityProjectBuilder.class, PROCEDURES, PARTITIONING);
     }
-    
+
 }

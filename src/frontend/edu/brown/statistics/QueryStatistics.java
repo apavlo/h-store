@@ -42,61 +42,58 @@ import edu.brown.workload.QueryTrace;
 import edu.brown.workload.TransactionTrace;
 
 /**
- * 
  * @author pavlo
- *
  */
 public class QueryStatistics extends AbstractStatistics<Statement> {
 
     public enum Members {
         // Number of times executed (per procedure)
-        EXECUTE_COUNT_TOTAL,
-        EXECUTE_PROC_COUNT, 
-        EXECUTE_COUNT_MIN,
-        EXECUTE_COUNT_MAX,
-        EXECUTE_COUNT_AVG,
-        
+        EXECUTE_COUNT_TOTAL, EXECUTE_PROC_COUNT, EXECUTE_COUNT_MIN, EXECUTE_COUNT_MAX, EXECUTE_COUNT_AVG,
+
         // Parameter Information
         PARAM_HISTOGRAMS,
-        //PARAM_PROC_CORELATIONS,
+        // PARAM_PROC_CORELATIONS,
     };
-    
+
     public Long execute_count_total = 0l;
     public Long execute_proc_count = 0l;
     public Long execute_count_min = null;
     public Long execute_count_max = null;
     public Long execute_count_avg = null;
-    
+
     public final SortedMap<Integer, Histogram> param_histograms = new TreeMap<Integer, Histogram>();
-    
-    public final SortedMap<Integer, SortedMap<Integer, AbstractMapping>> param_proc_corelations = new TreeMap<Integer, SortedMap<Integer,AbstractMapping>>();
-    
+
+    public final SortedMap<Integer, SortedMap<Integer, AbstractMapping>> param_proc_corelations = new TreeMap<Integer, SortedMap<Integer, AbstractMapping>>();
+
     /**
      * Constructor
+     * 
      * @param catalog_key
      */
     public QueryStatistics(String catalog_key) {
         super(catalog_key);
     }
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_stmt
      */
     public QueryStatistics(Statement catalog_stmt) {
         super(catalog_stmt);
-        this.preprocess((Database)catalog_stmt.getParent().getParent());
+        this.preprocess((Database) catalog_stmt.getParent().getParent());
     }
-    
+
     @Override
     public Statement getCatalogItem(Database catalog_db) {
         Statement ret = CatalogKey.getFromKey(catalog_db, this.catalog_key, Statement.class);
         return (ret);
     }
-    
+
     @Override
     public void preprocess(Database catalog_db) {
-        if (this.has_preprocessed) return;
+        if (this.has_preprocessed)
+            return;
         final Statement catalog_stmt = this.getCatalogItem(catalog_db);
         for (StmtParameter catalog_stmt_param : catalog_stmt.getParameters()) {
             int stmt_param_idx = catalog_stmt_param.getIndex();
@@ -104,7 +101,7 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
         } // FOR
         this.has_preprocessed = true;
     }
-    
+
     @Override
     public void process(Database catalog_db, TransactionTrace xact) throws Exception {
         final Statement catalog_stmt = this.getCatalogItem(catalog_db);
@@ -116,41 +113,43 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
         long execute_count = 0;
         LOG.debug("Examining " + xact + " for instances of " + catalog_stmt);
         for (QueryTrace query : xact.getQueries()) {
-            if (!query.getCatalogItemName().equals(CatalogKey.getNameFromKey(this.getCatalogKey()))) continue;
+            if (!query.getCatalogItemName().equals(CatalogKey.getNameFromKey(this.getCatalogKey())))
+                continue;
             this.execute_count_total++;
             execute_count++;
             Object params[] = query.getParams();
             if (params != null) {
                 for (int i = 0; i < params.length; i++) {
-                    if (this.param_histograms.containsKey(i) && params[i] != null) { 
-                        this.param_histograms.get(i).put((Comparable<?>)params[i]);
+                    if (this.param_histograms.containsKey(i) && params[i] != null) {
+                        this.param_histograms.get(i).put((Comparable<?>) params[i]);
                     }
                 } // FOR
             }
         } // FOR
-        if (execute_count > 0) this.execute_proc_count++;
-        
+        if (execute_count > 0)
+            this.execute_proc_count++;
+
         if (this.execute_count_min == null || execute_count < this.execute_count_min) {
             this.execute_count_min = execute_count;
         }
         if (this.execute_count_max == null || execute_count > this.execute_count_max) {
             this.execute_count_max = execute_count;
         }
-        
+
         return;
     }
-    
+
     @Override
     public void postprocess(Database catalog_db) throws Exception {
         // Query Exec Avg
         this.execute_count_avg = this.execute_count_total / this.execute_proc_count;
     }
-    
+
     @Override
     public String debug(Database catalog_db) {
         return (this.debug(catalog_db, QueryStatistics.Members.values()));
     }
-    
+
     @Override
     public void toJSONString(JSONStringer stringer) throws JSONException {
         for (Members element : QueryStatistics.Members.values()) {
@@ -164,9 +163,9 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
                         stringer.endObject();
                     } // FOR
                     stringer.endObject();
-                    
- //               } else if (element == Members.PARAM_PROC_CORELATIONS) {
-                    
+
+                    // } else if (element == Members.PARAM_PROC_CORELATIONS) {
+
                 } else {
                     stringer.key(element.name()).value(field.get(this));
                 }
@@ -176,18 +175,18 @@ public class QueryStatistics extends AbstractStatistics<Statement> {
             }
         } // FOR
     }
-    
+
     @Override
     public void fromJSONObject(JSONObject object, Database catalog_db) throws JSONException {
         this.preprocess(catalog_db);
-        
+
         for (Members element : QueryStatistics.Members.values()) {
             try {
                 Field field = QueryStatistics.class.getDeclaredField(element.toString().toLowerCase());
                 if (element == Members.PARAM_HISTOGRAMS) {
-                    
-//                } else if (element == Members.PARAM_PROC_CORELATIONS) {   
-                    
+
+                    // } else if (element == Members.PARAM_PROC_CORELATIONS) {
+
                 } else if (object.isNull(element.name())) {
                     field.set(this, null);
                 } else {

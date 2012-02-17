@@ -16,7 +16,18 @@ import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.benchmark.tpcc.procedures.ostatByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.paymentByCustomerId;
 import org.voltdb.benchmark.tpcc.procedures.slev;
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.CatalogMap;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Column;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.PlanFragment;
+import org.voltdb.catalog.Procedure;
+import org.voltdb.catalog.Site;
+import org.voltdb.catalog.Statement;
+import org.voltdb.catalog.StmtParameter;
+import org.voltdb.catalog.Table;
 import org.voltdb.plannodes.AbstractPlanNode;
 import org.voltdb.utils.Pair;
 
@@ -29,29 +40,26 @@ import edu.brown.utils.ProjectType;
 import edu.brown.utils.StringUtil;
 
 /**
- * 
  * @author pavlo
- *
  */
 public class TestCatalogUtil extends BaseTestCase {
 
     private static final int NUM_PARTITIONS = 6;
-    
-    
+
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCC);
         this.addPartitions(NUM_PARTITIONS);
     }
-    
+
     /**
      * testGetPlanFragment
      */
     public void testGetPlanFragment() throws Exception {
         Procedure catalog_proc = getProcedure(neworder.class);
-        Statement catalog_stmt =  CollectionUtil.first(catalog_proc.getStatements());
-        assert(catalog_stmt != null);
-        
+        Statement catalog_stmt = CollectionUtil.first(catalog_proc.getStatements());
+        assert (catalog_stmt != null);
+
         for (PlanFragment expected : catalog_stmt.getFragments()) {
             int id = expected.getId();
             PlanFragment actual = CatalogUtil.getPlanFragment(expected, id);
@@ -73,42 +81,41 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(ostatByCustomerId.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getLastOrder");
         Table catalog_tbl = this.getTable("ORDERS");
-        Column expected[] = {
-            this.getColumn(catalog_tbl, "O_ID")
-        };
-        
+        Column expected[] = { this.getColumn(catalog_tbl, "O_ID") };
+
         Collection<Column> cols = CatalogUtil.getOrderByColumns(catalog_stmt);
         assertNotNull(cols);
         assertEquals(cols.toString(), expected.length, cols.size());
         for (Column col : expected) {
-            assert(cols.contains(col)) : "Unexpected " + col;
+            assert (cols.contains(col)) : "Unexpected " + col;
         } // FOR
     }
-    
+
     /**
      * testCopyQueryPlans
      */
     public void testCopyQueryPlans() throws Exception {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getWarehouseTaxRate");
-        
+
         Map<String, Object> orig_values = new HashMap<String, Object>();
         for (String f : catalog_stmt.getFields()) {
             orig_values.put(f, catalog_stmt.getField(f));
         } // FOR
-        Map<String, Map<String, Object>> orig_frag_values = new HashMap<String, Map<String,Object>>();
+        Map<String, Map<String, Object>> orig_frag_values = new HashMap<String, Map<String, Object>>();
         for (PlanFragment catalog_frag : CollectionUtils.union(catalog_stmt.getFragments(), catalog_stmt.getMs_fragments())) {
             Map<String, Object> m = new HashMap<String, Object>();
             for (String f : catalog_frag.getFields()) {
                 Object val = catalog_frag.getField(f);
-                if (val instanceof String) val = StringUtil.md5sum(val.toString());
+                if (val instanceof String)
+                    val = StringUtil.md5sum(val.toString());
                 m.put(f, val);
             } // FOR
             orig_frag_values.put(catalog_frag.fullName(), m);
         } // FOR
-//        System.err.println(StringUtil.formatMaps(orig_frag_values));
-//        System.err.println(StringUtil.SINGLE_LINE);
-        
+        // System.err.println(StringUtil.formatMaps(orig_frag_values));
+        // System.err.println(StringUtil.SINGLE_LINE);
+
         Statement copy = catalog_proc.getStatements().add("TestStatement");
         assertNotNull(copy);
         assertFalse(copy.getHas_singlesited());
@@ -121,24 +128,25 @@ public class TestCatalogUtil extends BaseTestCase {
         assertTrue(copy.getMs_exptree().isEmpty());
 
         CatalogUtil.copyQueryPlans(catalog_stmt, copy);
-        
+
         // Make sure we didn't change the original
         for (String f : orig_values.keySet()) {
             assertEquals(f, orig_values.get(f), catalog_stmt.getField(f));
         } // FOR
         for (PlanFragment catalog_frag : CollectionUtils.union(catalog_stmt.getFragments(), catalog_stmt.getMs_fragments())) {
             Map<String, Object> m = orig_frag_values.get(catalog_frag.fullName());
-//            System.err.println(catalog_frag.fullName());
+            // System.err.println(catalog_frag.fullName());
             for (String f : m.keySet()) {
                 Object orig_val = m.get(f);
                 Object new_val = catalog_frag.getField(f);
-                if (new_val instanceof String) new_val = StringUtil.md5sum(new_val.toString());
-//                System.err.println(String.format("\t%s = %s", f, new_val));
+                if (new_val instanceof String)
+                    new_val = StringUtil.md5sum(new_val.toString());
+                // System.err.println(String.format("\t%s = %s", f, new_val));
                 assertEquals(catalog_frag.fullName() + " - " + f, orig_val, new_val);
             } // FOR
-//            System.err.println(StringUtil.SINGLE_LINE);
+            // System.err.println(StringUtil.SINGLE_LINE);
         } // FOR
-        
+
         // And then check that the destination was updated
         assertEquals(catalog_stmt.getHas_singlesited(), copy.getHas_singlesited());
         assertEquals(catalog_stmt.getFragments().size(), copy.getFragments().size());
@@ -148,7 +156,7 @@ public class TestCatalogUtil extends BaseTestCase {
         assertEquals(catalog_stmt.getMs_fragments().size(), copy.getMs_fragments().size());
         assertEquals(catalog_stmt.getMs_fullplan(), copy.getMs_fullplan());
         assertEquals(catalog_stmt.getMs_exptree(), copy.getMs_exptree());
-        
+
         // Make sure the PlanFragments are the same
         for (boolean sp : new boolean[] { true, false }) {
             CatalogMap<PlanFragment> copy_src_fragments = null;
@@ -160,29 +168,29 @@ public class TestCatalogUtil extends BaseTestCase {
                 copy_src_fragments = catalog_stmt.getMs_fragments();
                 copy_dest_fragments = copy.getMs_fragments();
             }
-            assert(copy_src_fragments != null);
-            assert(copy_dest_fragments != null);
-            
+            assert (copy_src_fragments != null);
+            assert (copy_dest_fragments != null);
+
             for (PlanFragment copy_src_frag : copy_src_fragments) {
                 assertNotNull(copy_src_frag);
                 PlanFragment copy_dest_frag = copy_dest_fragments.get(copy_src_frag.getName());
                 assertNotNull(copy_dest_frag);
-                
+
                 for (String f : copy_src_frag.getFields()) {
                     assertEquals(f, copy_src_frag.getField(f), copy_dest_frag.getField(f));
                 } // FOR
-                
+
                 AbstractPlanNode src_root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(copy_src_frag);
                 assertNotNull(copy_src_frag.fullName(), src_root);
                 AbstractPlanNode dest_root = PlanNodeUtil.getPlanNodeTreeForPlanFragment(copy_dest_frag);
                 assertNotNull(copy_src_frag.fullName(), dest_root);
-//                
-//                System.err.println(StringUtil.columns(PlanNodeUtil.debug(src_root),
-//                                                      PlanNodeUtil.debug(dest_root)));
+                //
+                // System.err.println(StringUtil.columns(PlanNodeUtil.debug(src_root),
+                // PlanNodeUtil.debug(dest_root)));
             }
         } // FOR
     }
-    
+
     /**
      * testGetReadOnlyColumns
      */
@@ -191,45 +199,45 @@ public class TestCatalogUtil extends BaseTestCase {
         Map<String, Collection<String>> modified = new HashMap<String, Collection<String>>();
         modified.put("WAREHOUSE", CollectionUtil.addAll(new HashSet<String>(), "W_YTD"));
         modified.put("CUSTOMER", CollectionUtil.addAll(new HashSet<String>(), "C_BALANCE", "C_YTD_PAYMENT", "C_PAYMENT_CNT", "C_DATA"));
-        
+
         for (String tableName : modified.keySet()) {
             Table catalog_tbl = this.getTable(tableName);
             Collection<String> modifiedCols = modified.get(tableName);
-            
+
             Set<Column> expected = new HashSet<Column>();
             for (Column catalog_col : catalog_tbl.getColumns()) {
                 if (modifiedCols.contains(catalog_col.getName()) == false) {
                     expected.add(catalog_col);
                 }
             } // FOR (col)
-            
+
             Collection<Column> readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, false);
             assertNotNull(readOnly);
             assertEquals(readOnly.toString(), expected.size(), readOnly.size());
             assertEquals(expected, readOnly);
         } // FOR (table)
-        
+
         // We want to also check that excluding INSERT queries works
         Table catalog_tbl = this.getTable("HISTORY");
         Collection<Column> all_readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, true);
         assertNotNull(all_readOnly);
         assertEquals(catalog_tbl.getColumns().size(), all_readOnly.size());
-        assert(catalog_tbl.getColumns().containsAll(all_readOnly));
-        
+        assert (catalog_tbl.getColumns().containsAll(all_readOnly));
+
         Collection<Column> noinsert_readOnly = CatalogUtil.getReadOnlyColumns(catalog_tbl, false);
         assertNotNull(noinsert_readOnly);
         assertEquals(0, noinsert_readOnly.size());
     }
-    
-    
+
     /**
      * testGetTables
      */
     public void testGetReferencedTables() throws Exception {
-        // Get the SLEV procedure and make sure that we get all of our tables back
+        // Get the SLEV procedure and make sure that we get all of our tables
+        // back
         String expected[] = { "DISTRICT", "ORDER_LINE", "STOCK" };
         Procedure catalog_proc = this.getProcedure(slev.class);
-        
+
         Collection<Table> tables = CatalogUtil.getReferencedTables(catalog_proc);
         assertEquals(expected.length, tables.size());
         for (String table_name : expected) {
@@ -247,19 +255,16 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "getDistrict");
         Table catalog_tbl = this.getTable("DISTRICT");
-        Column expected[] = {
-            this.getColumn(catalog_tbl, "D_ID"),
-            this.getColumn(catalog_tbl, "D_W_ID")
-        };
-        
+        Column expected[] = { this.getColumn(catalog_tbl, "D_ID"), this.getColumn(catalog_tbl, "D_W_ID") };
+
         Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
-            assert(columns.contains(expected[i])) : "Missing " + expected[i];
+            assert (columns.contains(expected[i])) : "Missing " + expected[i];
         } // FOR
     }
-    
+
     /**
      * testGetColumnsInsert
      */
@@ -269,15 +274,15 @@ public class TestCatalogUtil extends BaseTestCase {
         Table catalog_tbl = this.getTable("NEW_ORDER");
         Column expected[] = new Column[catalog_tbl.getColumns().size()];
         catalog_tbl.getColumns().toArray(expected);
-        
+
         Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
-            assert(columns.contains(expected[i])) : "Missing " + expected[i];
+            assert (columns.contains(expected[i])) : "Missing " + expected[i];
         } // FOR
     }
-    
+
     /**
      * testGetColumnsDelete
      */
@@ -285,17 +290,13 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(delivery.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "deleteNewOrder");
         Table catalog_tbl = this.getTable("NEW_ORDER");
-        Column expected[] = {
-            this.getColumn(catalog_tbl, "NO_D_ID"),
-            this.getColumn(catalog_tbl, "NO_W_ID"),
-            this.getColumn(catalog_tbl, "NO_O_ID")
-        };
-        
+        Column expected[] = { this.getColumn(catalog_tbl, "NO_D_ID"), this.getColumn(catalog_tbl, "NO_W_ID"), this.getColumn(catalog_tbl, "NO_O_ID") };
+
         Collection<Column> columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expected.length, columns.size());
         for (int i = 0; i < expected.length; i++) {
-            assert(columns.contains(expected[i])) : "Missing " + expected[i];
+            assert (columns.contains(expected[i])) : "Missing " + expected[i];
         } // FOR
     }
 
@@ -306,84 +307,72 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
         Table catalog_tbl = this.getTable("DISTRICT");
-        Column expectedReadOnly[] = {
-            this.getColumn(catalog_tbl, "D_ID"),
-            this.getColumn(catalog_tbl, "D_W_ID")
-        };
-        Column expectedModified[] = {
-                this.getColumn(catalog_tbl, "D_NEXT_O_ID"),
-        };
+        Column expectedReadOnly[] = { this.getColumn(catalog_tbl, "D_ID"), this.getColumn(catalog_tbl, "D_W_ID") };
+        Column expectedModified[] = { this.getColumn(catalog_tbl, "D_NEXT_O_ID"), };
         Column expectedAll[] = new Column[expectedReadOnly.length + expectedModified.length];
         int i = 0;
-        for (Column c : expectedReadOnly) expectedAll[i++] = c;
-        for (Column c : expectedModified) expectedAll[i++] = c;
-        
+        for (Column c : expectedReadOnly)
+            expectedAll[i++] = c;
+        for (Column c : expectedModified)
+            expectedAll[i++] = c;
+
         Collection<Column> columns = null;
-        
+
         // READ-ONLY
         columns = CatalogUtil.getReadOnlyColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expectedReadOnly.length, columns.size());
         for (i = 0; i < expectedReadOnly.length; i++) {
-            assert(columns.contains(expectedReadOnly[i])) : "Missing " + expectedReadOnly[i];
+            assert (columns.contains(expectedReadOnly[i])) : "Missing " + expectedReadOnly[i];
         } // FOR
-        
+
         // MODIFIED
         columns = CatalogUtil.getModifiedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expectedModified.length, columns.size());
         for (i = 0; i < expectedModified.length; i++) {
-            assert(columns.contains(expectedModified[i])) : "Missing " + expectedModified[i];
+            assert (columns.contains(expectedModified[i])) : "Missing " + expectedModified[i];
         } // FOR
-        
+
         // ALL REFERENCED
         columns = CatalogUtil.getReferencedColumns(catalog_stmt);
         assertNotNull(columns);
         assertEquals(columns.toString(), expectedAll.length, columns.size());
         for (i = 0; i < expectedAll.length; i++) {
-            assert(columns.contains(expectedAll[i])) : "Missing " + expectedAll[i];
+            assert (columns.contains(expectedAll[i])) : "Missing " + expectedAll[i];
         } // FOR
     }
-    
+
     /**
      * GetReferencingProcedures
      */
     public void testGetReferencingProcedures() throws Exception {
-        Procedure expected[] = {
-            this.getProcedure(delivery.class),
-            this.getProcedure(neworder.class),
-            this.getProcedure(ResetWarehouse.class),
-        };
+        Procedure expected[] = { this.getProcedure(delivery.class), this.getProcedure(neworder.class), this.getProcedure(ResetWarehouse.class), };
         Table catalog_tbl = this.getTable("NEW_ORDER");
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_tbl);
         assertNotNull(procedures);
         assertEquals(procedures.toString(), expected.length, procedures.size());
         for (int i = 0; i < expected.length; i++) {
-            assert(procedures.contains(expected[i])) : "Missing " + expected[i];
+            assert (procedures.contains(expected[i])) : "Missing " + expected[i];
         } // FOR
     }
-    
+
     /**
      * testGetProceduresReplicatedColumn
      */
     public void testGetProceduresReplicatedColumn() throws Exception {
-        Procedure expected[] = {
-            this.getProcedure(delivery.class),
-            this.getProcedure(neworder.class),
-            this.getProcedure(ResetWarehouse.class),
-        };
+        Procedure expected[] = { this.getProcedure(delivery.class), this.getProcedure(neworder.class), this.getProcedure(ResetWarehouse.class), };
         Table catalog_tbl = this.getTable("NEW_ORDER");
         Column catalog_col = ReplicatedColumn.get(catalog_tbl);
-        
+
         Collection<Procedure> procedures = CatalogUtil.getReferencingProcedures(catalog_col);
         assertNotNull(procedures);
         assertEquals(procedures.toString(), expected.length, procedures.size());
         for (int i = 0; i < expected.length; i++) {
-            assert(procedures.contains(expected[i])) : "Missing " + expected[i];
+            assert (procedures.contains(expected[i])) : "Missing " + expected[i];
         } // FOR
     }
-    
-    
+
     /**
      * testGetLocalPartitions
      */
@@ -394,38 +383,38 @@ public class TestCatalogUtil extends BaseTestCase {
         Cluster cluster = CatalogUtil.getCluster(catalog);
         assertNotNull(cluster);
         Map<Host, Set<Partition>> host_partitions = new HashMap<Host, Set<Partition>>();
-        
+
         for (Host catalog_host : cluster.getHosts()) {
             host_partitions.put(catalog_host, new HashSet<Partition>());
             for (Site catalog_site : CatalogUtil.getSitesForHost(catalog_host)) {
                 for (Partition catalog_part : catalog_site.getPartitions()) {
-                    host_partitions.get(catalog_host).add(catalog_part);    
+                    host_partitions.get(catalog_host).add(catalog_part);
                 } // FOR
             } // FOR
         } // FOR
-        
+
         for (Host catalog_host : host_partitions.keySet()) {
             Set<Partition> partitions = host_partitions.get(catalog_host);
             Partition catalog_part = CollectionUtil.first(partitions);
             int base_partition = catalog_part.getId();
             Set<Partition> local_partitions = CatalogUtil.getLocalPartitions(catalog_db, base_partition);
             assertEquals(partitions.size(), local_partitions.size());
-            
+
             for (Partition other_part : local_partitions) {
                 assertNotNull(other_part);
-//                assertFalse(catalog_part.equals(other_part));
+                // assertFalse(catalog_part.equals(other_part));
                 assertTrue(host_partitions.get(catalog_host).contains(other_part));
             } // FOR
         } // FOR
     }
-    
+
     /**
      * testGetSitesForHost
      */
     public void testGetSitesForHost() throws Exception {
         Map<Host, List<Site>> host_sites = new HashMap<Host, List<Site>>();
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
-        
+
         for (Site catalog_site : catalog_clus.getSites()) {
             Host catalog_host = catalog_site.getHost();
             assertNotNull(catalog_host);
@@ -434,22 +423,22 @@ public class TestCatalogUtil extends BaseTestCase {
             }
             host_sites.get(catalog_host).add(catalog_site);
         } // FOR
-        
+
         for (Host catalog_host : catalog_clus.getHosts()) {
             List<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
             List<Site> expected = host_sites.get(catalog_host);
             assertEquals(expected.size(), sites.size());
-            assert(sites.containsAll(expected));
+            assert (sites.containsAll(expected));
         } // FOR
     }
-    
+
     /**
      * testGetCluster
      */
     public void testGetCluster() {
         Cluster catalog_clus = CatalogUtil.getCluster(catalog);
         assertNotNull(catalog_clus);
-        
+
         Set<Cluster> clusters = new HashSet<Cluster>();
         for (Cluster c : catalog.getClusters()) {
             clusters.add(c);
@@ -457,14 +446,14 @@ public class TestCatalogUtil extends BaseTestCase {
         assertEquals(1, clusters.size());
         assertEquals(catalog_clus, CollectionUtil.first(clusters));
     }
-    
+
     /**
      * testGetDatabase
      */
     public void testGetDatabase() {
         Database db0 = CatalogUtil.getDatabase(catalog);
         assertNotNull(db0);
-        
+
         Set<Database> dbs = new HashSet<Database>();
         for (Database db1 : CatalogUtil.getCluster(catalog).getDatabases()) {
             dbs.add(db1);
@@ -472,7 +461,7 @@ public class TestCatalogUtil extends BaseTestCase {
         assertEquals(1, dbs.size());
         assertEquals(db0, CollectionUtil.first(dbs));
     }
-    
+
     /**
      * testCatalogMapGet
      */
@@ -487,9 +476,11 @@ public class TestCatalogUtil extends BaseTestCase {
             assertEquals("Failed get(" + i + "): " + expected, expected, actual);
         } // FOR
     }
-    
+
     /**
-     * Checks that the ColumnSet has the proper mapping from Columns to StmtParameters
+     * Checks that the ColumnSet has the proper mapping from Columns to
+     * StmtParameters
+     * 
      * @param cset
      * @param expected
      */
@@ -497,29 +488,32 @@ public class TestCatalogUtil extends BaseTestCase {
         for (ColumnSet.Entry entry : cset) {
             int column_idx = (entry.getFirst() instanceof StmtParameter ? 1 : 0);
             int param_idx = (column_idx == 0 ? 1 : 0);
-            
+
             assertEquals(entry.get(column_idx).getClass(), Column.class);
             assertEquals(entry.get(param_idx).getClass(), StmtParameter.class);
-            
-            Column catalog_col = (Column)entry.get(column_idx);
-            StmtParameter catalog_param = (StmtParameter)entry.get(param_idx); 
-            
+
+            Column catalog_col = (Column) entry.get(column_idx);
+            StmtParameter catalog_param = (StmtParameter) entry.get(param_idx);
+
             Pair<Column, Integer> found = null;
-//             System.err.println("TARGET: " + catalog_col.fullName() + " <=> " + catalog_param.fullName());
+            // System.err.println("TARGET: " + catalog_col.fullName() + " <=> "
+            // + catalog_param.fullName());
             for (Pair<Column, Integer> pair : expected) {
-//                System.err.println(String.format("  COMPARE: %s <=> %d", pair.getFirst().fullName(), pair.getSecond()));
+                // System.err.println(String.format("  COMPARE: %s <=> %d",
+                // pair.getFirst().fullName(), pair.getSecond()));
                 if (pair.getFirst().equals(catalog_col) && pair.getSecond() == catalog_param.getIndex()) {
                     found = pair;
                     break;
                 }
             } // FOR
-            if (found == null) System.err.println("Failed to find " + entry + "\n" + cset.debug());
+            if (found == null)
+                System.err.println("Failed to find " + entry + "\n" + cset.debug());
             assertNotNull("Failed to find " + entry, found);
             expected.remove(found);
         } // FOR
         assertEquals(0, expected.size());
     }
-    
+
     /**
      * testExtractStatementColumnSet
      */
@@ -531,16 +525,16 @@ public class TestCatalogUtil extends BaseTestCase {
         Statement catalog_stmt = catalog_proc.getStatements().get("getDistrict");
         assertNotNull(catalog_stmt);
         ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
-        
+
         // Column -> StmtParameter Index
         Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
         expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_ID"), 0));
         expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_W_ID"), 1));
         assertEquals(catalog_stmt.getParameters().size(), expected_columns.size());
-        
+
         this.checkColumnSet(cset, expected_columns);
     }
-    
+
     /**
      * testExtractUpdateColumnSet
      */
@@ -548,17 +542,17 @@ public class TestCatalogUtil extends BaseTestCase {
         Table catalog_tbl = this.getTable("DISTRICT");
         Procedure catalog_proc = this.getProcedure(neworder.class);
         Statement catalog_stmt = this.getStatement(catalog_proc, "incrementNextOrderId");
-        
+
         ColumnSet cset = CatalogUtil.extractUpdateColumnSet(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
-        
+
         // Column -> StmtParameter Index
         Set<Pair<Column, Integer>> expected_columns = new HashSet<Pair<Column, Integer>>();
         expected_columns.add(Pair.of(catalog_tbl.getColumns().get("D_NEXT_O_ID"), 0));
-        
+
         this.checkColumnSet(cset, expected_columns);
     }
-    
+
     /**
      * testExtractInsertColumnSet
      */
@@ -570,16 +564,15 @@ public class TestCatalogUtil extends BaseTestCase {
         assertNotNull(catalog_stmt);
         ColumnSet cset = CatalogUtil.extractStatementColumnSet(catalog_stmt, false, catalog_tbl);
         // System.out.println(cset.debug());
-        
+
         // Column -> StmtParameter Index
         Set<Pair<Column, Integer>> expected_columns = new ListOrderedSet<Pair<Column, Integer>>();
         for (Column catalog_col : CatalogUtil.getSortedCatalogItems(catalog_tbl.getColumns(), "index")) {
             assertNotNull(catalog_col);
             expected_columns.add(Pair.of(catalog_col, catalog_col.getIndex()));
         } // FOR
-        System.err.println(StringUtil.columns("EXPECTED:\n" + StringUtil.join("\n", expected_columns),
-                                              "ACTUAL:\n" + StringUtil.join("\n", cset)));
-        
+        System.err.println(StringUtil.columns("EXPECTED:\n" + StringUtil.join("\n", expected_columns), "ACTUAL:\n" + StringUtil.join("\n", cset)));
+
         this.checkColumnSet(cset, expected_columns);
     }
 
@@ -590,45 +583,48 @@ public class TestCatalogUtil extends BaseTestCase {
         Procedure catalog_proc = this.getProcedure(slev.class);
         assertNotNull(catalog_proc);
         Statement catalog_stmt = catalog_proc.getStatements().get("GetStockCount");
-        
+
         AbstractPlanNode root_node = PlanNodeUtil.getRootPlanNodeForStatement(catalog_stmt, true);
         assertNotNull(root_node);
         // System.out.println(PlanNodeUtil.debug(root_node));
-        
+
         ColumnSet cset = new ColumnSet();
-        Table tables[] = new Table[] {
-                catalog_db.getTables().get("ORDER_LINE"),
-                catalog_db.getTables().get("STOCK")
-        };
+        Table tables[] = new Table[] { catalog_db.getTables().get("ORDER_LINE"), catalog_db.getTables().get("STOCK") };
         for (Table catalog_tbl : tables) {
             Set<Table> table_set = new HashSet<Table>();
-            table_set.add(catalog_tbl);    
+            table_set.add(catalog_tbl);
             CatalogUtil.extractPlanNodeColumnSet(catalog_stmt, catalog_db, cset, root_node, false, table_set);
         }
-//        System.err.println(cset.debug() + "\n-------------------------\n");
-        
+        // System.err.println(cset.debug() + "\n-------------------------\n");
+
         // Column -> StmtParameter Index
         List<Pair<Column, Integer>> expected_columns = new ArrayList<Pair<Column, Integer>>();
         expected_columns.add(Pair.of(tables[0].getColumns().get("OL_W_ID"), 0));
         expected_columns.add(Pair.of(tables[0].getColumns().get("OL_D_ID"), 1));
         expected_columns.add(Pair.of(tables[0].getColumns().get("OL_O_ID"), 2));
         expected_columns.add(Pair.of(tables[0].getColumns().get("OL_O_ID"), 3));
-        expected_columns.add(Pair.of(tables[0].getColumns().get("OL_O_ID"), 3)); // Need two of these because of indexes
+        expected_columns.add(Pair.of(tables[0].getColumns().get("OL_O_ID"), 3)); // Need
+                                                                                 // two
+                                                                                 // of
+                                                                                 // these
+                                                                                 // because
+                                                                                 // of
+                                                                                 // indexes
         expected_columns.add(Pair.of(tables[1].getColumns().get("S_W_ID"), 4));
         expected_columns.add(Pair.of(tables[1].getColumns().get("S_QUANTITY"), 5));
-        
+
         this.checkColumnSet(cset, expected_columns);
-    } 
-    
-//    public static void main(String[] args) throws Exception {
-//        TestCatalogUtil tc = new TestCatalogUtil();
-//        tc.setUp();
-//        tc.testGetLocalPartitions();
-//        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-//            public void run() {
-//                new CatalogViewer(catalog, "fake").setVisible(true);
-//                System.out.println("???");
-//            } // RUN
-//         });
-//    }
+    }
+
+    // public static void main(String[] args) throws Exception {
+    // TestCatalogUtil tc = new TestCatalogUtil();
+    // tc.setUp();
+    // tc.testGetLocalPartitions();
+    // javax.swing.SwingUtilities.invokeLater(new Runnable() {
+    // public void run() {
+    // new CatalogViewer(catalog, "fake").setVisible(true);
+    // System.out.println("???");
+    // } // RUN
+    // });
+    // }
 }

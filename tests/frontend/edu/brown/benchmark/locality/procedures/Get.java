@@ -8,23 +8,16 @@ import org.voltdb.VoltTable;
 import edu.brown.benchmark.locality.LocalityConstants;
 
 /**
- * 
  * @author sw47
  */
-@ProcInfo(
-    partitionInfo = "TABLEA.A_ID: 0",
-    singlePartition = false
-)
+@ProcInfo(partitionInfo = "TABLEA.A_ID: 0", singlePartition = false)
 public class Get extends VoltProcedure {
 
-    public final SQLStmt GetA = new SQLStmt(
-        "SELECT * FROM TABLEA WHERE A_ID = ? ");
+    public final SQLStmt GetA = new SQLStmt("SELECT * FROM TABLEA WHERE A_ID = ? ");
 
-    public final SQLStmt GetB = new SQLStmt(
-        "SELECT * FROM TABLEB WHERE B_A_ID = ? LIMIT " + LocalityConstants.GET_TABLEB_LIMIT);
+    public final SQLStmt GetB = new SQLStmt("SELECT * FROM TABLEB WHERE B_A_ID = ? LIMIT " + LocalityConstants.GET_TABLEB_LIMIT);
 
     /**
-     * 
      * @param a_id
      * @return
      */
@@ -33,5 +26,5 @@ public class Get extends VoltProcedure {
         voltQueueSQL(GetB, a_id);
         return (voltExecuteSQL());
     }
-    
+
 }

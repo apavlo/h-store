@@ -38,19 +38,19 @@ import edu.brown.benchmark.BenchmarkComponent;
 import edu.brown.rand.AbstractRandomGenerator;
 
 public class MarkovClient extends BenchmarkComponent {
-    
+
     // --------------------------------------------------------------------
     // DATA MEMBERS
     // --------------------------------------------------------------------
 
     private int m_scalefactor = 1;
     private final AbstractRandomGenerator m_rng;
-    
+
     /**
      * If the lock is not null, then we will only submit txns one at a time
      */
     private final Object blockingLock = new Object();
-    
+
     /**
      * Number of Records Per Table
      */
@@ -62,124 +62,110 @@ public class MarkovClient extends BenchmarkComponent {
     public interface MarkovParamGenerator {
         public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> table_sizes);
     }
-    
+
     // --------------------------------------------------------------------
     // BENCHMARK CONTROLLER REQUIREMENTS
     // --------------------------------------------------------------------
 
     public static enum Transaction {
-        DoneAtPartition(MarkovConstants.FREQUENCY_DONE_AT_PARTITON,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        rng.number(0, tableSizes.get(MarkovConstants.TABLENAME_TABLEA).intValue()), // A_ID
-                        rng.number(0, 1<<30),   // VALUE
-                    };
-                    return (params);
-                }
-        }),
-        ExecutionTime(MarkovConstants.FREQUENCY_EXECUTION_TIME,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        rng.number(0, tableSizes.get(MarkovConstants.TABLENAME_TABLEA).intValue()), // A_ID
-                    };
-                    return (params);
-                }
-        }),
-        SinglePartitionWrite(MarkovConstants.FREQUENCY_SINGLE_PARTITION_WRITE,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        // TODO
-                    };
-                    return (params);
-                }
-        }),
-        SinglePartitionRead(MarkovConstants.FREQUENCY_SINGLE_PARTITION_READ,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        // TODO
-                    };
-                    return (params);
-                }
-        }),
-        MultiPartitionWrite(MarkovConstants.FREQUENCY_MULTI_PARTITION_WRITE,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        // TODO
-                    };
-                    return (params);
-                }
-        }),
-        MultiPartitionRead(MarkovConstants.FREQUENCY_MULTI_PARTITION_READ,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        // TODO
-                    };
-                    return (params);
-                }
-        }),
-        UserAbort(MarkovConstants.FREQUENCY_USER_ABORT,
-            new MarkovParamGenerator() {
-                @Override
-                public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
-                    Object params[] = new Object[] {
-                        // TODO
-                    };
-                    return (params);
-                }
+        DoneAtPartition(MarkovConstants.FREQUENCY_DONE_AT_PARTITON, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] { rng.number(0, tableSizes.get(MarkovConstants.TABLENAME_TABLEA).intValue()), // A_ID
+                        rng.number(0, 1 << 30), // VALUE
+                };
+                return (params);
+            }
+        }), ExecutionTime(MarkovConstants.FREQUENCY_EXECUTION_TIME, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] { rng.number(0, tableSizes.get(MarkovConstants.TABLENAME_TABLEA).intValue()), // A_ID
+                };
+                return (params);
+            }
+        }), SinglePartitionWrite(MarkovConstants.FREQUENCY_SINGLE_PARTITION_WRITE, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] {
+                // TODO
+                };
+                return (params);
+            }
+        }), SinglePartitionRead(MarkovConstants.FREQUENCY_SINGLE_PARTITION_READ, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] {
+                // TODO
+                };
+                return (params);
+            }
+        }), MultiPartitionWrite(MarkovConstants.FREQUENCY_MULTI_PARTITION_WRITE, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] {
+                // TODO
+                };
+                return (params);
+            }
+        }), MultiPartitionRead(MarkovConstants.FREQUENCY_MULTI_PARTITION_READ, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] {
+                // TODO
+                };
+                return (params);
+            }
+        }), UserAbort(MarkovConstants.FREQUENCY_USER_ABORT, new MarkovParamGenerator() {
+            @Override
+            public Object[] generate(AbstractRandomGenerator rng, Map<String, Long> tableSizes) {
+                Object params[] = new Object[] {
+                // TODO
+                };
+                return (params);
+            }
         });
-        
+
         private Transaction(int weight, MarkovParamGenerator generator) {
             this.weight = weight;
             this.generator = generator;
             MarkovClient.TOTAL_WEIGHT += this.weight;
         }
-        
+
         protected static final Map<Integer, Transaction> idx_lookup = new HashMap<Integer, Transaction>();
         static {
             for (Transaction vt : EnumSet.allOf(Transaction.class)) {
                 Transaction.idx_lookup.put(vt.ordinal(), vt);
             }
         }
-        
+
         public static Transaction get(int idx) {
-            assert(idx >= 0);
+            assert (idx >= 0);
             Transaction ret = Transaction.idx_lookup.get(idx);
             return (ret);
         }
-        
+
         public Object[] params(AbstractRandomGenerator rng, Map<String, Long> table_sizes) {
             return (this.generator.generate(rng, table_sizes));
         }
-        
+
         public int getWeight() {
             return weight;
         }
-        
+
         private final MarkovParamGenerator generator;
         private final int weight;
-        
+
     };
+
     private static int TOTAL_WEIGHT;
-    
+
     /**
      * Transaction Execution Weights
      */
     private static final MarkovClient.Transaction XACT_WEIGHTS[] = new MarkovClient.Transaction[100];
     static {
         int i = 0;
-        int sum  = 0;
+        int sum = 0;
         for (Transaction t : MarkovClient.Transaction.values()) {
             for (int j = 0; j < t.weight; j++, i++) {
                 XACT_WEIGHTS[i] = t;
@@ -195,13 +181,14 @@ public class MarkovClient extends BenchmarkComponent {
 
     /**
      * Constructor
+     * 
      * @param args
      */
     public MarkovClient(String[] args) {
         super(args);
-        
+
         // Sanity check
-        assert(MarkovClient.TOTAL_WEIGHT == 100);
+        assert (MarkovClient.TOTAL_WEIGHT == 100);
 
         int seed = 0;
         String randGenClassName = RandomGenerator.class.getName();
@@ -225,24 +212,25 @@ public class MarkovClient extends BenchmarkComponent {
                 randGenProfilePath = parts[1];
             }
         } // FOR
-        
+
         AbstractRandomGenerator rng = null;
         try {
             rng = AbstractRandomGenerator.factory(randGenClassName, seed);
-            if (randGenProfilePath != null) rng.loadProfile(randGenProfilePath);
+            if (randGenProfilePath != null)
+                rng.loadProfile(randGenProfilePath);
         } catch (Exception ex) {
             ex.printStackTrace();
             System.exit(1);
         }
         m_rng = rng;
-        
+
         // Number of Records Per Table
         this.table_sizes.put(MarkovConstants.TABLENAME_TABLEA, MarkovConstants.TABLESIZE_TABLEA / m_scalefactor);
         this.table_sizes.put(MarkovConstants.TABLENAME_TABLEB, MarkovConstants.TABLESIZE_TABLEB / m_scalefactor);
         this.table_sizes.put(MarkovConstants.TABLENAME_TABLEC, MarkovConstants.TABLESIZE_TABLEC / m_scalefactor);
         this.table_sizes.put(MarkovConstants.TABLENAME_TABLED, MarkovConstants.TABLESIZE_TABLED / m_scalefactor);
         for (String tableName : MarkovConstants.TABLENAMES) {
-            assert(this.table_sizes.containsKey(tableName)) : "Missing table size entry for " + tableName;
+            assert (this.table_sizes.containsKey(tableName)) : "Missing table size entry for " + tableName;
         } // FOR
     }
 
@@ -260,7 +248,7 @@ public class MarkovClient extends BenchmarkComponent {
         try {
             while (true) {
                 MarkovClient.Transaction txn_type = XACT_WEIGHTS[m_rng.number(0, 99)];
-                assert(txn_type != null);
+                assert (txn_type != null);
                 Object params[] = txn_type.params(m_rng, this.table_sizes);
                 this.getClientHandle().callProcedure(new MarkovCallback(txn_type), txn_type.name(), params);
                 this.getClientHandle().backpressureBarrier();
@@ -274,30 +262,30 @@ public class MarkovClient extends BenchmarkComponent {
             e.printStackTrace();
         } catch (IOException e) {
             /*
-             * At shutdown an IOException is thrown for every connection to
-             * the DB that is lost Ignore the exception here in order to not
-             * get spammed, but will miss lost connections at runtime
+             * At shutdown an IOException is thrown for every connection to the
+             * DB that is lost Ignore the exception here in order to not get
+             * spammed, but will miss lost connections at runtime
              */
         }
     }
-    
+
     /**
      * Basic Callback Class
      */
     protected class MarkovCallback implements ProcedureCallback {
         private final Transaction txn;
-        
+
         public MarkovCallback(Transaction txn) {
             super();
             this.txn = txn;
         }
-        
+
         @Override
         public void clientCallback(ClientResponse clientResponse) {
             incrementTransactionCounter(clientResponse, this.txn.ordinal());
             if (MarkovClient.this.blockingLock != null) {
                 synchronized (MarkovClient.this.blockingLock) {
-                    MarkovClient.this.blockingLock.notifyAll();    
+                    MarkovClient.this.blockingLock.notifyAll();
                 }
             }
         }

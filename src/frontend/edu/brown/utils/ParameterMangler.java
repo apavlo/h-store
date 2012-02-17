@@ -38,10 +38,11 @@ import edu.brown.catalog.CatalogUtil;
 
 /**
  * Hackishly convert primitive arrays into object arrays
+ * 
  * @author pavlo
  */
 public class ParameterMangler {
-    
+
     private final Procedure catalog_proc;
     private final boolean has_arrays;
     private final VoltType param_types[];
@@ -66,13 +67,13 @@ public class ParameterMangler {
         } // FOR
         this.has_arrays = found_array;
     }
-    
+
     public static String toString(Object mangled[], boolean is_array[]) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < mangled.length; i++) {
             sb.append(String.format("  [%02d] ", i));
             if (is_array[i]) {
-                sb.append(Arrays.toString((Object[])mangled[i]));
+                sb.append(Arrays.toString((Object[]) mangled[i]));
             } else {
                 sb.append(mangled[i]);
             }
@@ -80,49 +81,51 @@ public class ParameterMangler {
         } // FOR
         return (sb.toString());
     }
-    
+
     public String toString(Object mangled[]) {
         return ParameterMangler.toString(mangled, this.param_isarray);
     }
-    
+
     public Object[] convert(Object orig[]) {
         // Nothing!
-        if (this.has_arrays == false) return (orig);
-        
+        if (this.has_arrays == false)
+            return (orig);
+
         Object cast_args[] = new Object[this.params.length];
         for (int i = 0; i < this.params.length; i++) {
-            // Primitive Arrays! This is messed up in Java and why we're even here!
+            // Primitive Arrays! This is messed up in Java and why we're even
+            // here!
             VoltType vtype = this.param_types[i];
             if (this.param_isarray[i] && vtype != VoltType.STRING && vtype != VoltType.TIMESTAMP) {
                 Object inner[] = null;
                 try {
                     switch (this.param_types[i]) {
                         case TINYINT: {
-                            byte arr[] = (byte[])orig[i];
+                            byte arr[] = (byte[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
-                            } // FOR    
+                            } // FOR
                             break;
                         }
                         case SMALLINT: {
-                            short arr[] = (short[])orig[i];
+                            short arr[] = (short[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
-                            } // FOR    
+                            } // FOR
                             break;
                         }
                         case INTEGER: {
-                            int arr[] = (int[])orig[i];
+                            int arr[] = (int[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
-                            } // FOR    
+                            } // FOR
                             break;
                         }
                         case BIGINT: {
-                            long arr[] = (long[])orig[i];
+                            long arr[] = (long[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
@@ -130,7 +133,7 @@ public class ParameterMangler {
                             break;
                         }
                         case FLOAT: {
-                            float arr[] = (float[])orig[i];
+                            float arr[] = (float[]) orig[i];
                             inner = new Object[arr.length];
                             for (int j = 0; j < arr.length; j++) {
                                 inner[j] = arr[j];
@@ -138,22 +141,19 @@ public class ParameterMangler {
                             break;
                         }
                         default:
-                            assert(false) : "Unhandled type " + this.param_types[i];
+                            assert (false) : "Unhandled type " + this.param_types[i];
                     } // SWITCH
                 } catch (Exception ex) {
                     throw new RuntimeException("Failed to properly convert " + this.params[i].fullName(), ex);
                 }
                 cast_args[i] = inner;
             } else {
-                assert(cast_args.length == orig.length) :
-                    String.format("%s #%d :: cast[%d] != orig[%d]\nCAST:%s\nORIG:%s\nPARAMS:%s",
-                                  catalog_proc, i, cast_args.length, orig.length,
-                                  Arrays.toString(cast_args), Arrays.toString(orig), Arrays.toString(this.params));
+                assert (cast_args.length == orig.length) : String.format("%s #%d :: cast[%d] != orig[%d]\nCAST:%s\nORIG:%s\nPARAMS:%s", catalog_proc, i, cast_args.length, orig.length,
+                        Arrays.toString(cast_args), Arrays.toString(orig), Arrays.toString(this.params));
                 cast_args[i] = orig[i];
             }
         } // FOR
         return (cast_args);
     }
-    
-    
+
 }

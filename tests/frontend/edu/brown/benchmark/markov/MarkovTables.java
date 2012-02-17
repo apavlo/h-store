@@ -32,9 +32,9 @@ import org.voltdb.VoltTable;
 import org.voltdb.VoltType;
 
 public abstract class MarkovTables {
-    
+
     private static final DecimalFormat f = new DecimalFormat("00");
-    
+
     public static void addIntegerColumns(ArrayList<VoltTable.ColumnInfo> columns, int count, String prefix) {
         for (int ctr = 0; ctr < count; ctr++) {
             String name = prefix + "_IATTR" + f.format(ctr);
@@ -42,7 +42,7 @@ public abstract class MarkovTables {
         }
         return;
     }
-    
+
     public static void addStringColumns(ArrayList<VoltTable.ColumnInfo> columns, int count, String prefix) {
         for (int ctr = 0; ctr < count; ctr++) {
             String name = prefix + "_SATTR" + f.format(ctr);
@@ -50,15 +50,15 @@ public abstract class MarkovTables {
         } // FOR
         return;
     }
-    
+
     public static VoltTable initializeTableA() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "A";
-         
+
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         addStringColumns(columns, 20, prefix);
         addIntegerColumns(columns, 20, prefix);
-        
+
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
     }
@@ -66,33 +66,33 @@ public abstract class MarkovTables {
     public static VoltTable initializeTableB() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "B";
-        
+
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
         addStringColumns(columns, 16, prefix);
         addIntegerColumns(columns, 16, prefix);
-        
+
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
     }
-    
-     public static VoltTable initializeTableC() {
+
+    public static VoltTable initializeTableC() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "C";
-        
+
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_A_ID", VoltType.BIGINT));
         addStringColumns(columns, 16, prefix);
         addIntegerColumns(columns, 16, prefix);
-        
+
         VoltTable.ColumnInfo cols[] = new VoltTable.ColumnInfo[columns.size()];
         return (new VoltTable(columns.toArray(cols)));
     }
-    
+
     public static VoltTable initializeTableD() {
         ArrayList<VoltTable.ColumnInfo> columns = new ArrayList<VoltTable.ColumnInfo>();
         String prefix = "D";
-        
+
         columns.add(new VoltTable.ColumnInfo(prefix + "_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_B_ID", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo(prefix + "_B_A_ID", VoltType.BIGINT));

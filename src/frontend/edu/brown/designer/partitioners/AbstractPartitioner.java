@@ -38,45 +38,43 @@ public abstract class AbstractPartitioner {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
-    
+
     /**
      * Why the partitioner halted its last search
      */
     enum HaltReason {
-        NULL,
-        LOCAL_TIME_LIMIT,
-        GLOBAL_TIME_LIMIT,
-        BACKTRACK_LIMIT,
-        EXHAUSTED_SEARCH,
-        FOUND_TARGET,
+        NULL, LOCAL_TIME_LIMIT, GLOBAL_TIME_LIMIT, BACKTRACK_LIMIT, EXHAUSTED_SEARCH, FOUND_TARGET,
     }
-    
+
     protected final Random rng = new Random();
     protected final Designer designer;
     protected final DesignerInfo info;
     protected final int num_partitions;
     protected final File checkpoint;
     protected HaltReason halt_reason = HaltReason.NULL;
-    
-    
+
     public AbstractPartitioner(Designer designer, DesignerInfo info) {
         this.designer = designer;
         this.info = info;
         this.num_partitions = CatalogUtil.getNumberOfPartitions(info.catalog_db);
         this.checkpoint = info.getCheckpointFile();
-        if (this.checkpoint != null) LOG.debug("Checkpoint File: " + this.checkpoint.getAbsolutePath());
+        if (this.checkpoint != null)
+            LOG.debug("Checkpoint File: " + this.checkpoint.getAbsolutePath());
     }
-    
+
     /**
-     * Generate a new PartitionPlan for the database using the given DesignerHints
+     * Generate a new PartitionPlan for the database using the given
+     * DesignerHints
+     * 
      * @param hints
      * @return
      * @throws Exception
      */
     public abstract PartitionPlan generate(DesignerHints hints) throws Exception;
-    
+
     /**
-     * Get the HaltReason for the last call to generate() 
+     * Get the HaltReason for the last call to generate()
+     * 
      * @return
      */
     public HaltReason getHaltReason() {
@@ -84,15 +82,18 @@ public abstract class AbstractPartitioner {
     }
 
     /**
-     * Apply the PartitionPlan to the catalog and then run through the entire workload to determine
-     * which procedures are single-partition all of the time
+     * Apply the PartitionPlan to the catalog and then run through the entire
+     * workload to determine which procedures are single-partition all of the
+     * time
+     * 
      * @param pplan
      * @param hints
      * @throws Exception
      */
     protected void setProcedureSinglePartitionFlags(final PartitionPlan pplan, final DesignerHints hints) {
         pplan.apply(info.catalog_db);
-        if (debug.get()) LOG.debug("Processing workload and checking which procedures are single-partitioned");
+        if (debug.get())
+            LOG.debug("Processing workload and checking which procedures are single-partitioned");
         if (info.getCostModel() != null) {
             try {
                 info.getCostModel().estimateWorkloadCost(info.catalog_db, info.workload);
@@ -104,7 +105,8 @@ public abstract class AbstractPartitioner {
                 try {
                     Boolean singlepartitioned = info.getCostModel().isAlwaysSinglePartition(e.getKey());
                     if (singlepartitioned != null) {
-                        if (trace.get()) LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
+                        if (trace.get())
+                            LOG.trace("Setting single-partition flag for " + e.getKey() + ":  " + singlepartitioned);
                         e.getValue().setSinglePartition(singlepartitioned);
                     }
                 } catch (Throwable ex) {
@@ -116,30 +118,34 @@ public abstract class AbstractPartitioner {
             LOG.warn("CostModel is null! Unable to set single-partition flags");
         }
     }
-    
+
     /**
      * Generates an AccessGraph for the entire database
+     * 
      * @return
      * @throws Exception
      */
     protected AccessGraph generateAccessGraph() throws Exception {
-        if (debug.get()) LOG.debug("Generating AccessGraph for entire catalog");
-        assert(info.workload != null);
-        
+        if (debug.get())
+            LOG.debug("Generating AccessGraph for entire catalog");
+        assert (info.workload != null);
+
         AccessGraph agraph = new AccessGraph(info.catalog_db);
         for (Procedure catalog_proc : info.catalog_db.getProcedures()) {
-            // Skip if there are no transactions in the workload for this procedure
+            // Skip if there are no transactions in the workload for this
+            // procedure
             if (info.workload.getTraces(catalog_proc).isEmpty()) {
-                if (debug.get()) LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
+                if (debug.get())
+                    LOG.debug("No " + catalog_proc + " transactions in workload. Skipping...");
             } else if (this.designer.getGraphs(catalog_proc) != null) {
                 this.designer.getGraphs(catalog_proc).add(agraph);
                 new AccessGraphGenerator(info, catalog_proc).generate(agraph);
             }
         } // FOR
-//        GraphVisualizationPanel.createFrame(agraph).setVisible(true);
+        // GraphVisualizationPanel.createFrame(agraph).setVisible(true);
         return (agraph);
     }
-    
+
     /**
      * 
      */
@@ -150,36 +156,37 @@ public abstract class AbstractPartitioner {
         public WorkloadFilter(Database catalog_db) {
             this.catalog_db = catalog_db;
         }
-        
+
         public WorkloadFilter(Database catalog_db, Procedure catalog_proc) throws Exception {
             this(catalog_db);
             Set<Procedure> set = new HashSet<Procedure>();
             set.add(catalog_proc);
             this.addProcedures(set);
         }
-        
+
         public WorkloadFilter(Database catalog_db, Collection<Table> tables) throws Exception {
             this(catalog_db);
-            assert(tables.size() > 0);
+            assert (tables.size() > 0);
             this.addTables(tables);
         }
-        
+
         @Override
         public String debugImpl() {
-            return (AbstractPartitioner.class.getSimpleName() + "." + this.getClass().getSimpleName() + 
-                    "[cache=" + this.stmt_cache + "]");
+            return (AbstractPartitioner.class.getSimpleName() + "." + this.getClass().getSimpleName() + "[cache=" + this.stmt_cache + "]");
         }
-        
+
         /**
          * Creates the list of Statement catalog keys that we want to let
-         * through our filter 
+         * through our filter
+         * 
          * @param tables
          * @throws Exception
          */
         protected void addTables(Collection<Table> tables) throws Exception {
-            // Iterate through all of the procedures/queries and figure out which
+            // Iterate through all of the procedures/queries and figure out
+            // which
             // ones we'll actually want to look at
-            Database catalog_db = (Database)CollectionUtil.first(tables).getParent();
+            Database catalog_db = (Database) CollectionUtil.first(tables).getParent();
             for (Procedure catalog_proc : catalog_db.getProcedures()) {
                 for (Statement catalog_stmt : catalog_proc.getStatements()) {
                     Collection<Table> stmt_tables = CatalogUtil.getReferencedTables(catalog_stmt);
@@ -190,15 +197,17 @@ public abstract class AbstractPartitioner {
             } // FOR
             return;
         }
-        
+
         /**
          * Creates the list of Statement catalog keys that we want to let
-         * through our filter 
+         * through our filter
+         * 
          * @param tables
          * @throws Exception
          */
         protected void addProcedures(Collection<Procedure> procedures) throws Exception {
-            // Iterate through all of the procedures/queries and figure out which
+            // Iterate through all of the procedures/queries and figure out
+            // which
             // ones we'll actually want to look at
             for (Procedure catalog_proc : procedures) {
                 for (Statement catalog_stmt : catalog_proc.getStatements()) {
@@ -207,21 +216,22 @@ public abstract class AbstractPartitioner {
             } // FOR
             return;
         }
-        
+
         @Override
         public FilterResult filter(AbstractTraceElement<? extends CatalogType> element) {
             // We want to examine all transactions
             if (element instanceof TransactionTrace) {
-                //return (element.getCatalogItemName().equals("neworder") ? FilterResult.PASS : FilterResult.SKIP);
+                // return (element.getCatalogItemName().equals("neworder") ?
+                // FilterResult.PASS : FilterResult.SKIP);
                 return (FilterResult.ALLOW);
-            // But filter queries
+                // But filter queries
             } else if (element instanceof QueryTrace) {
-                QueryTrace query = (QueryTrace)element;
+                QueryTrace query = (QueryTrace) element;
                 return (this.stmt_cache.contains(CatalogKey.createKey(query.getCatalogItem(this.catalog_db))) ? FilterResult.ALLOW : FilterResult.SKIP);
             }
             return (FilterResult.HALT);
         }
-        
+
         @Override
         protected void resetImpl() {
             // Nothing...

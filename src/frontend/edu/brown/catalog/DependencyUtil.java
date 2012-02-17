@@ -40,41 +40,43 @@ import org.voltdb.catalog.Table;
 import edu.brown.utils.AbstractTreeWalker;
 
 /**
- * 
  * @author pavlo
- *
  */
 public class DependencyUtil {
 
     /**
-     * For each table, we store an ordered list tables up to the root of the schema tree
-     * Table -> Set<Table>
+     * For each table, we store an ordered list tables up to the root of the
+     * schema tree Table -> Set
+     * <Table>
      */
     private final Map<String, Set<String>> table_ancestors = new HashMap<String, Set<String>>();
-    
+
     /**
-     * For each table we store a set of the tables that are dependent to it 
-     * Table -> Set<Table> 
+     * For each table we store a set of the tables that are dependent to it
+     * Table -> Set
+     * <Table>
      */
     private final Map<String, Set<String>> table_descendants = new HashMap<String, Set<String>>();
-    
+
     /**
-     * For each column, we store an ordered list of columns up to the root of the schema tree
-     * Table.Column -> Vector<Table.Column>
+     * For each column, we store an ordered list of columns up to the root of
+     * the schema tree Table.Column -> Vector
+     * <Table.Column>
      */
     private final Map<String, Vector<String>> column_ancestors = new HashMap<String, Vector<String>>();
-    
+
     /**
-     * For each column we store a set of the columns that are dependent to it 
-     * Table.Column -> Set<Table.Column> 
+     * For each column we store a set of the columns that are dependent to it
+     * Table.Column -> Set
+     * <Table.Column>
      */
     private final Map<String, Set<String>> column_descendants = new HashMap<String, Set<String>>();
-    
-    
+
     private static final Map<Database, DependencyUtil> singletons = new HashMap<Database, DependencyUtil>();
 
     /**
      * Return a singleton instance for the given catalog
+     * 
      * @param catalog_db
      * @return
      */
@@ -86,15 +88,16 @@ public class DependencyUtil {
         }
         return (ret);
     }
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_db
      */
     private DependencyUtil(Database catalog_db) {
         this.init(catalog_db);
     }
-        
+
     /**
      * Initialize the various data structures that we will use
      */
@@ -107,23 +110,27 @@ public class DependencyUtil {
             final Set<String> tbl_ancestors = new LinkedHashSet<String>();
             String table_key = CatalogKey.createKey(catalog_tbl);
             this.table_descendants.put(table_key, new HashSet<String>());
-            
+
             //
             // Columns
             //
-            //LOG.info("Getting foreign key dependencies for " + catalog_tbl + "\n" + CatalogUtil.getForeignKeyDependents(catalog_tbl));
+            // LOG.info("Getting foreign key dependencies for " + catalog_tbl +
+            // "\n" + CatalogUtil.getForeignKeyDependents(catalog_tbl));
             for (Column catalog_col : CatalogUtil.getForeignKeyDependents(catalog_tbl)) {
                 assert (catalog_col != null);
                 final Vector<String> col_ancestors = new Vector<String>();
-                
+
                 new AbstractTreeWalker<Column>() {
                     protected void populate_children(AbstractTreeWalker.Children<Column> children, Column element) {
-                        // For the current element, we need to look at it's parents in the 
-                        // DependencyGraph and select the one that our foreign key column points to
+                        // For the current element, we need to look at it's
+                        // parents in the
+                        // DependencyGraph and select the one that our foreign
+                        // key column points to
                         Column catalog_fkey_col = CatalogUtil.getForeignKeyParent(element);
-                        if (catalog_fkey_col != null) children.addAfter(catalog_fkey_col);
+                        if (catalog_fkey_col != null)
+                            children.addAfter(catalog_fkey_col);
                     }
-                    
+
                     @Override
                     protected void callback(Column element) {
                         if (element != this.getFirst()) {
@@ -136,10 +143,11 @@ public class DependencyUtil {
             } // FOR
             this.table_ancestors.put(table_key, tbl_ancestors);
         } // FOR
-        //
-        // Build a reverse index so that we know all the columns that depend somewhere
-        // down the line for each column
-        //
+          //
+          // Build a reverse index so that we know all the columns that depend
+          // somewhere
+          // down the line for each column
+          //
         for (String key : this.table_ancestors.keySet()) {
             for (String ancestor_key : this.table_ancestors.get(key)) {
                 this.table_descendants.get(ancestor_key).add(key);
@@ -154,100 +162,102 @@ public class DependencyUtil {
             } // FOR
         } // FOR
     }
-    
+
     /**
-     * 
      * @param catalog_col
      * @return
      */
     public Set<Table> getAncestors(Table catalog_tbl) {
-        Database catalog_db = (Database)catalog_tbl.getParent();
+        Database catalog_db = (Database) catalog_tbl.getParent();
         Set<Table> ret = new LinkedHashSet<Table>();
         String key = CatalogKey.createKey(catalog_tbl);
         for (String ancestor_key : this.table_ancestors.get(key)) {
-            // If this table is missing from the catalog, then we want to stop the ancestor list
+            // If this table is missing from the catalog, then we want to stop
+            // the ancestor list
             Table ancestor_tbl = CatalogKey.getFromKey(catalog_db, ancestor_key, Table.class);
-            if (ancestor_tbl == null) break;
+            if (ancestor_tbl == null)
+                break;
             // Otherwise, add it to our list
             ret.add(ancestor_tbl);
         } // FOR
         return (ret);
     }
-    
+
     /**
-     * 
      * @param catalog_col
      * @return
      */
     public List<Column> getAncestors(Column catalog_col) {
-        Database catalog_db = (Database)catalog_col.getParent().getParent();
+        Database catalog_db = (Database) catalog_col.getParent().getParent();
         List<Column> ret = new Vector<Column>();
         String key = CatalogKey.createKey(catalog_col);
         for (String ancestor_key : this.column_ancestors.get(key)) {
-            // If this table is missing from the catalog, then we want to stop the ancestor list
+            // If this table is missing from the catalog, then we want to stop
+            // the ancestor list
             Column ancestor_col = CatalogKey.getFromKey(catalog_db, ancestor_key, Column.class);
-            if (ancestor_col == null) break;
+            if (ancestor_col == null)
+                break;
             // Otherwise, add it to our list
             ret.add(ancestor_col);
         } // FOR
         return (ret);
     }
-    
+
     /**
-     * 
      * @param catalog_tbl
      * @return
      */
     public Set<Table> getDescendants(Table catalog_tbl) {
-        Database catalog_db = (Database)catalog_tbl.getParent();
+        Database catalog_db = (Database) catalog_tbl.getParent();
         Set<Table> ret = new HashSet<Table>();
         String key = CatalogKey.createKey(catalog_tbl);
-        boolean contains = this.table_descendants.containsKey(key); 
+        boolean contains = this.table_descendants.containsKey(key);
         if (!contains) {
             System.out.println("Missing " + key + "???");
             System.out.println(this.debug());
-            //System.out.println(this.table_descendants.keySet());
+            // System.out.println(this.table_descendants.keySet());
             System.out.println(CatalogUtil.debug(catalog_db.getTables()));
             System.out.flush();
         }
-        assert(contains) : "No table descendants for " + key + " (" + contains + ")";
+        assert (contains) : "No table descendants for " + key + " (" + contains + ")";
         for (String dependent_key : this.table_descendants.get(key)) {
             Table dependent_tbl = CatalogKey.getFromKey(catalog_db, dependent_key, Table.class);
             // If the table is missing, that's ok...
-            if (dependent_tbl != null) ret.add(dependent_tbl);
+            if (dependent_tbl != null)
+                ret.add(dependent_tbl);
         } // FOR
         return (ret);
     }
-    
+
     /**
-     * 
      * @param catalog_col
      * @return
      */
     public Set<Column> getDescendants(Column catalog_col) {
-        Database catalog_db = (Database)catalog_col.getParent().getParent();
+        Database catalog_db = (Database) catalog_col.getParent().getParent();
         Set<Column> ret = new HashSet<Column>();
         String key = CatalogKey.createKey(catalog_col);
         if (this.column_descendants.containsKey(key)) {
             for (String dependent_key : this.column_descendants.get(key)) {
                 Column dependent_col = CatalogKey.getFromKey(catalog_db, dependent_key, Column.class);
                 // If the table is missing, that's ok...
-                if (dependent_col != null) ret.add(dependent_col);
+                if (dependent_col != null)
+                    ret.add(dependent_col);
             } // FOR
         }
         return (ret);
     }
-    
+
     public String debug() {
         StringBuilder buffer = new StringBuilder();
         buffer.append("Descendants:\n");
         for (String k : this.table_descendants.keySet()) {
-            buffer.append(k).append( ": ").append(this.table_descendants.get(k)).append("\n");
+            buffer.append(k).append(": ").append(this.table_descendants.get(k)).append("\n");
         }
         buffer.append("---------------------------------------\n");
         buffer.append("Ancestors:\n");
         for (String k : this.table_ancestors.keySet()) {
-            buffer.append(k).append( ": ").append(this.table_ancestors.get(k)).append("\n");
+            buffer.append(k).append(": ").append(this.table_ancestors.get(k)).append("\n");
         }
         return (buffer.toString());
     }

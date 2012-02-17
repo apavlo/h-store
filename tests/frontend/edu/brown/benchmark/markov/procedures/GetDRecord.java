@@ -25,38 +25,31 @@
  ***************************************************************************/
 package edu.brown.benchmark.markov.procedures;
 
-import org.voltdb.*;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
+import org.voltdb.VoltType;
 
 import edu.brown.benchmark.markov.MarkovConstants;
 
-@ProcInfo(
-    singlePartition = false
-)
+@ProcInfo(singlePartition = false)
 public class GetDRecord extends VoltProcedure {
 
-    public final SQLStmt GET_D = new SQLStmt(
-            "SELECT D_ID, D_B_ID, D_C_ID " +
-            "  FROM " + MarkovConstants.TABLENAME_TABLED +
-            " WHERE D_ID = ? ");
-    
-    public final SQLStmt GET_B = new SQLStmt(
-            "SELECT B_ID, B_A_ID, A_SATTR02, A_IATTR02 " +
-            "  FROM " + MarkovConstants.TABLENAME_TABLEB + ", " + MarkovConstants.TABLENAME_TABLEA +
-            " WHERE B_ID = ? " +
-            "   AND B_A_ID = A_ID");
-        
-    public final SQLStmt GET_C = new SQLStmt(
-            "SELECT C_ID, C_A_ID, A_SATTR01, A_IATTR01 " + 
-            "  FROM " + MarkovConstants.TABLENAME_TABLEC + ", " + MarkovConstants.TABLENAME_TABLEA +
-            " WHERE C_ID = ? " +
-            "   AND C_A_ID = A_ID");
-    
+    public final SQLStmt GET_D = new SQLStmt("SELECT D_ID, D_B_ID, D_C_ID " + "  FROM " + MarkovConstants.TABLENAME_TABLED + " WHERE D_ID = ? ");
+
+    public final SQLStmt GET_B = new SQLStmt("SELECT B_ID, B_A_ID, A_SATTR02, A_IATTR02 " + "  FROM " + MarkovConstants.TABLENAME_TABLEB + ", " + MarkovConstants.TABLENAME_TABLEA + " WHERE B_ID = ? "
+            + "   AND B_A_ID = A_ID");
+
+    public final SQLStmt GET_C = new SQLStmt("SELECT C_ID, C_A_ID, A_SATTR01, A_IATTR01 " + "  FROM " + MarkovConstants.TABLENAME_TABLEC + ", " + MarkovConstants.TABLENAME_TABLEA + " WHERE C_ID = ? "
+            + "   AND C_A_ID = A_ID");
+
     public VoltTable[] run(long d_id) throws VoltAbortException {
         voltQueueSQL(GET_D, d_id);
-        
+
         final VoltTable[] d_results = voltExecuteSQL();
         assert (d_results.length == 1);
-        
+
         while (d_results[0].advanceRow()) {
             System.err.print("RESULT (");
             String add = "";
@@ -65,10 +58,9 @@ public class GetDRecord extends VoltProcedure {
                 add = ", ";
             } // FOR
 
-            
             long b_id = d_results[0].getLong(1);
             long c_id = d_results[0].getLong(2);
-            
+
             if (b_id > c_id) {
                 voltQueueSQL(GET_B, b_id);
                 System.err.print(add + " GET_B(");
@@ -77,9 +69,9 @@ public class GetDRecord extends VoltProcedure {
                 System.err.print(add + " GET_C(");
             }
             add = "";
-            
+
             final VoltTable[] inner_results = voltExecuteSQL();
-            assert(inner_results.length == 0);
+            assert (inner_results.length == 0);
             while (inner_results[0].advanceRow()) {
                 for (int i = 0, cnt = inner_results[0].getColumnCount(); i < cnt; i++) {
                     VoltType col_type = inner_results[0].getColumnType(i);

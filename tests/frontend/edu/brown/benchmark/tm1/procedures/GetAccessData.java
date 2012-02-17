@@ -32,22 +32,20 @@
  ***************************************************************************/
 package edu.brown.benchmark.tm1.procedures;
 
-import org.voltdb.*;
+import org.voltdb.ProcInfo;
+import org.voltdb.SQLStmt;
+import org.voltdb.VoltProcedure;
+import org.voltdb.VoltTable;
 
 import edu.brown.benchmark.tm1.TM1Constants;
 
-@ProcInfo(
-    partitionInfo = "SUBSCRIBER.S_ID: 0",
-    singlePartition = true
-)
+@ProcInfo(partitionInfo = "SUBSCRIBER.S_ID: 0", singlePartition = true)
 public class GetAccessData extends VoltProcedure {
 
-     public final SQLStmt GetData = new SQLStmt(
-         "SELECT data1, data2, data3, data4 FROM " + TM1Constants.TABLENAME_ACCESS_INFO + 
-         " WHERE s_id = ? AND ai_type = ?");
+    public final SQLStmt GetData = new SQLStmt("SELECT data1, data2, data3, data4 FROM " + TM1Constants.TABLENAME_ACCESS_INFO + " WHERE s_id = ? AND ai_type = ?");
 
-     public VoltTable[] run(long s_id, long ai_type) throws VoltAbortException{     
-         voltQueueSQL(GetData, s_id, ai_type);
-         return voltExecuteSQL();
-     }
+    public VoltTable[] run(long s_id, long ai_type) throws VoltAbortException {
+        voltQueueSQL(GetData, s_id, ai_type);
+        return voltExecuteSQL();
+    }
 }

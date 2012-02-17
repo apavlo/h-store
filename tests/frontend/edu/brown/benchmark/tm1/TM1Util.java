@@ -5,27 +5,29 @@ import java.util.Random;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class TM1Util {
-    
+
     public static final Random rand = new Random();
     public static Zipf zipf = null;
     public static final double zipf_sigma = 1.001d;
 
     public static int isActive() {
-        return number(1,100) < number(86,100) ? 1 : 0;
+        return number(1, 100) < number(86, 100) ? 1 : 0;
     }
 
     public static Long getSubscriberId(long subscriberSize) {
-        // We have to initalize the zipfian random distribution the first time we are called
-//        if (zipf == null) {
-//            zipf = new Zipf(rand, 1, subscriberSize, zipf_sigma);
-//        }
-//        return (zipf.nextLong());
+        // We have to initalize the zipfian random distribution the first time
+        // we are called
+        // if (zipf == null) {
+        // zipf = new Zipf(rand, 1, subscriberSize, zipf_sigma);
+        // }
+        // return (zipf.nextLong());
         return (TM1Util.number(1, subscriberSize));
     }
-    
+
     // modified from tpcc.RandomGenerator
     /**
-     * @returns a random alphabetic string with length in range [minimum_length, maximum_length].
+     * @returns a random alphabetic string with length in range [minimum_length,
+     *          maximum_length].
      */
     public static String astring(int minimum_length, int maximum_length) {
         return randomString(minimum_length, maximum_length, 'A', 26);
@@ -33,19 +35,20 @@ public abstract class TM1Util {
 
     // taken from tpcc.RandomGenerator
     /**
-     * @returns a random numeric string with length in range [minimum_length, maximum_length].
+     * @returns a random numeric string with length in range [minimum_length,
+     *          maximum_length].
      */
     public static String nstring(int minimum_length, int maximum_length) {
         return randomString(minimum_length, maximum_length, '0', 10);
     }
 
-    // taken from tpcc.RandomGenerator 
+    // taken from tpcc.RandomGenerator
     public static String randomString(int minimum_length, int maximum_length, char base, int numCharacters) {
         int length = number(minimum_length, maximum_length).intValue();
         byte baseByte = (byte) base;
         byte[] bytes = new byte[length];
         for (int i = 0; i < length; ++i) {
-            bytes[i] = (byte)(baseByte + number(0, numCharacters-1));
+            bytes[i] = (byte) (baseByte + number(0, numCharacters - 1));
         }
         return new String(bytes);
     }
@@ -53,11 +56,11 @@ public abstract class TM1Util {
     // taken from tpcc.RandomGenerator
     public static Long number(long minimum, long maximum) {
         assert minimum <= maximum;
-        long value = Math.abs( rand.nextLong() ) % ( maximum - minimum + 1 ) + minimum;
+        long value = Math.abs(rand.nextLong()) % (maximum - minimum + 1) + minimum;
         assert minimum <= value && value <= maximum;
         return value;
     }
-    
+
     public static String padWithZero(Long n) {
         String meat = n.toString();
         char[] zeros = new char[15 - meat.length()];
@@ -67,8 +70,8 @@ public abstract class TM1Util {
     }
 
     /**
-     * Returns sub array of arr, with length in range [min_len, max_len].
-     * Each element in arr appears at most once in sub array.
+     * Returns sub array of arr, with length in range [min_len, max_len]. Each
+     * element in arr appears at most once in sub array.
      */
     public static int[] subArr(int arr[], int min_len, int max_len) {
         assert min_len <= max_len && min_len >= 0;
@@ -81,7 +84,7 @@ public abstract class TM1Util {
         for (int i = 0; i < sub_len; i++) {
             int j = number(0, arr_len - 1).intValue();
             sub[i] = arr[j];
-            //arr[j] put to tail
+            // arr[j] put to tail
             int tmp = arr[j];
             arr[j] = arr[arr_len - 1];
             arr[arr_len - 1] = tmp;
@@ -91,5 +94,5 @@ public abstract class TM1Util {
 
         return sub;
     }
-    
+
 }

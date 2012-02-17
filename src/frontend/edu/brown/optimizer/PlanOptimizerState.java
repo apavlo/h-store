@@ -39,12 +39,12 @@ public class PlanOptimizerState {
      * Context object with planner-local information.
      */
     public final PlannerContext plannerContext;
-    
+
     /**
      * All the columns a plan node references
      */
     protected final Map<AbstractPlanNode, Set<Column>> planNodeColumns = new HashMap<AbstractPlanNode, Set<Column>>();
-    
+
     /**
      * All referenced columns for a given table
      */
@@ -61,7 +61,8 @@ public class PlanOptimizerState {
     public final Map<Integer, Column> guid_column_xref = new HashMap<Integer, Column>();
 
     /**
-     * Maintain the original output PlanColumnnGUIDs per PlanNode so we can figure out offsets
+     * Maintain the original output PlanColumnnGUIDs per PlanNode so we can
+     * figure out offsets
      */
     public final Map<AbstractPlanNode, List<Integer>> orig_node_output = new HashMap<AbstractPlanNode, List<Integer>>();
 
@@ -69,53 +70,53 @@ public class PlanOptimizerState {
      * AbstractPlanNode -> TableNames
      */
     public final Map<AbstractPlanNode, Set<String>> join_tbl_mapping = new HashMap<AbstractPlanNode, Set<String>>();
-    
+
     /**
-     * AbstractJoinPlanNode to the order that it appears in the tree 
+     * AbstractJoinPlanNode to the order that it appears in the tree
      */
     public final SortedMap<Integer, AbstractJoinPlanNode> join_node_index = new TreeMap<Integer, AbstractJoinPlanNode>();
-    
+
     /**
      * AbstractJoinPlanNode -> Output PlanColumnDisplayName -> Offset
      */
-    public final Map<AbstractJoinPlanNode, Map<String, Integer>> join_outputs = new HashMap<AbstractJoinPlanNode, Map<String,Integer>>();
-    
+    public final Map<AbstractJoinPlanNode, Map<String, Integer>> join_outputs = new HashMap<AbstractJoinPlanNode, Map<String, Integer>>();
+
     // ------------------------------------------------------------
-    // INTERNAL STATE 
+    // INTERNAL STATE
     // ------------------------------------------------------------
-    
+
     /**
      * Set of PlanNodes that have been modified and thus are marked as dirty
-     * */
+     */
     private final Set<AbstractPlanNode> dirtyPlanNodes = new HashSet<AbstractPlanNode>();
-    
+
     // ------------------------------------------------------------
     // CONSTRUCTOR
     // ------------------------------------------------------------
-    
+
     public PlanOptimizerState(Database catalog_db, PlannerContext context) {
         this.catalog_db = catalog_db;
         this.plannerContext = context;
     }
-    
+
     // ------------------------------------------------------------
     // UTILITY METHODS
     // ------------------------------------------------------------
-    
+
     public void clearDirtyNodes() {
         this.dirtyPlanNodes.clear();
     }
-    
+
     public void markDirty(AbstractPlanNode node) {
         if (debug.get())
             LOG.debug("Marking " + node + " as dirty");
         this.dirtyPlanNodes.add(node);
     }
-    
+
     public boolean hasDirtyNodes() {
         return (this.dirtyPlanNodes.isEmpty() == false);
     }
-    
+
     public boolean isDirty(AbstractPlanNode node) {
         return (this.dirtyPlanNodes.contains(node));
     }
@@ -130,7 +131,7 @@ public class PlanOptimizerState {
             LOG.debug(String.format("%s has %d dirty children", node, ctr));
         return (ctr > 0);
     }
-    
+
     public void updateColumnInfo(AbstractPlanNode node) {
         // Clears the internal data structures that stores the column info
         if (debug.get())
@@ -140,10 +141,10 @@ public class PlanOptimizerState {
         this.column_guid_xref.clear();
         this.planNodeColumns.clear();
         this.guid_column_xref.clear();
-        
+
         PlanOptimizerUtil.populateTableNodeInfo(this, node);
     }
-    
+
     protected void addTableColumn(Column catalog_col) {
         Table catalog_tbl = catalog_col.getParent();
         if (this.tableColumns.containsKey(catalog_tbl) == false) {
@@ -158,7 +159,7 @@ public class PlanOptimizerState {
         }
         this.column_guid_xref.get(catalog_col).add(guid);
         this.guid_column_xref.put(guid, catalog_col);
-        if (trace.get()) 
+        if (trace.get())
             LOG.trace(String.format("Added Column GUID Mapping: %s => %d", catalog_col.fullName(), guid));
     }
 
@@ -170,19 +171,19 @@ public class PlanOptimizerState {
             LOG.debug(String.format("Referenced Columns %s -> %s", node, catalog_col));
         this.planNodeColumns.get(node).add(catalog_col);
     }
-    
+
     public Collection<Column> getPlanNodeColumns(AbstractPlanNode node) {
         return this.planNodeColumns.get(node);
     }
-    
+
     // ------------------------------------------------------------
     // DEBUG
     // ------------------------------------------------------------
-    
+
     @Override
     public String toString() {
         Map<String, Object> m = new ListOrderedMap<String, Object>();
-        
+
         m.put("PlanNode Columns", this.planNodeColumns);
         m.put("PlanNode Hash", Arrays.toString(CollectionUtil.hashCode(this.planNodeColumns.keySet())));
         m.put("Table Columns", this.tableColumns);
@@ -192,7 +193,7 @@ public class PlanOptimizerState {
         m.put("JoinPlanNode Tables", this.join_tbl_mapping);
         m.put("JoinPlanNode Depths", this.join_node_index);
         m.put("JoinPlanNode Output", this.join_outputs);
-        
+
         return (StringUtil.formatMaps(m));
     }
 }

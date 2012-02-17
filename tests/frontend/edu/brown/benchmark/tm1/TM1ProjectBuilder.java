@@ -32,13 +32,19 @@
  ***************************************************************************/
 package edu.brown.benchmark.tm1;
 
-
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.tm1.procedures.*;
+import edu.brown.benchmark.tm1.procedures.DeleteCallForwarding;
+import edu.brown.benchmark.tm1.procedures.GetAccessData;
+import edu.brown.benchmark.tm1.procedures.GetNewDestination;
+import edu.brown.benchmark.tm1.procedures.GetSubscriberData;
+import edu.brown.benchmark.tm1.procedures.GetTableCounts;
+import edu.brown.benchmark.tm1.procedures.InsertCallForwarding;
+import edu.brown.benchmark.tm1.procedures.UpdateLocation;
+import edu.brown.benchmark.tm1.procedures.UpdateSubscriberData;
 
 public class TM1ProjectBuilder extends AbstractProjectBuilder {
-    
+
     /**
      * Retrieved via reflection by BenchmarkController
      */
@@ -49,20 +55,13 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
     public static final Class<? extends BenchmarkComponent> m_loaderClass = TM1Loader.class;
 
     public static final Class<?> PROCEDURES[] = new Class<?>[] {
-        // Benchmark Specification
-        DeleteCallForwarding.class,
-        GetAccessData.class,
-        GetNewDestination.class,
-        GetSubscriberData.class,
-        InsertCallForwarding.class,
-        UpdateLocation.class,
-        UpdateSubscriberData.class,
-        
-        // Testing Procedures
-//        InsertSubscriber.class,
-        GetTableCounts.class,
-    };
-    
+            // Benchmark Specification
+            DeleteCallForwarding.class, GetAccessData.class, GetNewDestination.class, GetSubscriberData.class, InsertCallForwarding.class, UpdateLocation.class, UpdateSubscriberData.class,
+
+            // Testing Procedures
+            // InsertSubscriber.class,
+            GetTableCounts.class, };
+
     // Transaction Frequencies
     {
         addTransactionFrequency(DeleteCallForwarding.class, TM1Constants.FREQUENCY_DELETE_CALL_FORWARDING);
@@ -76,16 +75,11 @@ public class TM1ProjectBuilder extends AbstractProjectBuilder {
 
     // Vertical Partitions
     {
-//        addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID", "SUB_NBR");
+        // addVerticalPartitionInfo(TM1Constants.TABLENAME_SUBSCRIBER, "S_ID",
+        // "SUB_NBR");
     }
-    
-    public static final String PARTITIONING[][] = 
-        new String[][] {
-            {"SUBSCRIBER", "S_ID"},
-            {"ACCESS_INFO", "S_ID"},
-            {"SPECIAL_FACILITY", "S_ID"},
-            {"CALL_FORWARDING", "S_ID"},
-        };
+
+    public static final String PARTITIONING[][] = new String[][] { { "SUBSCRIBER", "S_ID" }, { "ACCESS_INFO", "S_ID" }, { "SPECIAL_FACILITY", "S_ID" }, { "CALL_FORWARDING", "S_ID" }, };
 
     public TM1ProjectBuilder() {
         super("tm1", TM1ProjectBuilder.class, PROCEDURES, PARTITIONING);

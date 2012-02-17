@@ -29,15 +29,15 @@
 package edu.brown.benchmark.tpce;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 
 public abstract class TPCEConstants {
 
-    // Parameter that 
+    // Parameter that
     public static final String PARAM_EGENLOADER_HOME = "EGENLOADER_HOME";
-    
+
     // Helpers
     public static final int TRUE = 1;
     public static final int FALSE = 0;
@@ -46,35 +46,35 @@ public abstract class TPCEConstants {
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // TPC-E Specification 6.2.2.1
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_BROKER_VOLUME         = 5;
-    public static final int FREQUENCY_DATA_MAINTENANCE      = -1;
-    public static final int FREQUENCY_CUSTOMER_POSITION     = 13;
-    public static final int FREQUENCY_MARKET_FEED           = 1;
-    public static final int FREQUENCY_MARKET_WATCH          = 18;
-    public static final int FREQUENCY_SECURITY_DETAIL       = 14;
-    public static final int FREQUENCY_TRADE_CLEANUP         = -1;
-    public static final int FREQUENCY_TRADE_LOOKUP          = 8;
-    public static final int FREQUENCY_TRADE_ORDER           = 10;
-    public static final int FREQUENCY_TRADE_RESULT          = 10;
-    public static final int FREQUENCY_TRADE_STATUS          = 19;
-    public static final int FREQUENCY_TRADE_UPDATE          = 2;
+    public static final int FREQUENCY_BROKER_VOLUME = 5;
+    public static final int FREQUENCY_DATA_MAINTENANCE = -1;
+    public static final int FREQUENCY_CUSTOMER_POSITION = 13;
+    public static final int FREQUENCY_MARKET_FEED = 1;
+    public static final int FREQUENCY_MARKET_WATCH = 18;
+    public static final int FREQUENCY_SECURITY_DETAIL = 14;
+    public static final int FREQUENCY_TRADE_CLEANUP = -1;
+    public static final int FREQUENCY_TRADE_LOOKUP = 8;
+    public static final int FREQUENCY_TRADE_ORDER = 10;
+    public static final int FREQUENCY_TRADE_RESULT = 10;
+    public static final int FREQUENCY_TRADE_STATUS = 19;
+    public static final int FREQUENCY_TRADE_UPDATE = 2;
 
     // ----------------------------------------------------------------
     // TABLE INFORMATION
     // ----------------------------------------------------------------
 
-    // The EGen generator defines tables as being one of the following types 
+    // The EGen generator defines tables as being one of the following types
     public enum TableType {
-        FIXED,
-        SCALING,
-        GROWING,
+        FIXED, SCALING, GROWING,
     }
 
     // Data Parameters
     public static final int DEFAULT_NUM_CUSTOMERS = 1000;
-    public static final int DEFAULT_SCALE_FACTOR = 500; // Using 2880 causes the EGenClientDriver to have problems
-    public static final int DEFAULT_INITIAL_DAYS = 1; 
-    
+    public static final int DEFAULT_SCALE_FACTOR = 500; // Using 2880 causes the
+                                                        // EGenClientDriver to
+                                                        // have problems
+    public static final int DEFAULT_INITIAL_DAYS = 1;
+
     //
     // Table Names
     //
@@ -111,7 +111,7 @@ public abstract class TPCEConstants {
     public static final String TABLENAME_CHARGE = "CHARGE";
     public static final String TABLENAME_COMMISSION_RATE = "COMMISSION_RATE";
     public static final String TABLENAME_TRADE_REQUEST = "TRADE_REQUEST";
-    
+
     //
     // Table Categories
     //
@@ -128,7 +128,7 @@ public abstract class TPCEConstants {
         FIXED_TABLES.add(TPCEConstants.TABLENAME_TRADE_TYPE);
         FIXED_TABLES.add(TPCEConstants.TABLENAME_ZIP_CODE);
     };
-    
+
     public static final Set<String> SCALING_TABLES = new HashSet<String>();
     static {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_ACCOUNT_PERMISSION);
@@ -147,7 +147,7 @@ public abstract class TPCEConstants {
         SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_ITEM);
         SCALING_TABLES.add(TPCEConstants.TABLENAME_WATCH_LIST);
     };
-    
+
     public static final Set<String> GROWING_TABLES = new HashSet<String>();
     static {
         GROWING_TABLES.add(TPCEConstants.TABLENAME_BROKER);
@@ -172,9 +172,9 @@ public abstract class TPCEConstants {
             TABLE_TYPES.put(table_name, TableType.GROWING);
         }
     };
-    
+
     public static TableType getTableType(String table_name) {
         return (TPCEConstants.TABLE_TYPES.get(table_name));
     }
-    
+
 }

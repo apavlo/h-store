@@ -33,13 +33,24 @@
  ***************************************************************************/
 package edu.brown.benchmark.tpce;
 
-
 import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.BenchmarkComponent;
-import edu.brown.benchmark.tpce.procedures.*;
+import edu.brown.benchmark.tpce.procedures.BrokerVolume;
+import edu.brown.benchmark.tpce.procedures.CustomerPosition;
+import edu.brown.benchmark.tpce.procedures.DataMaintenance;
+import edu.brown.benchmark.tpce.procedures.LoadTable;
+import edu.brown.benchmark.tpce.procedures.MarketFeed;
+import edu.brown.benchmark.tpce.procedures.MarketWatch;
+import edu.brown.benchmark.tpce.procedures.SecurityDetail;
+import edu.brown.benchmark.tpce.procedures.TradeCleanup;
+import edu.brown.benchmark.tpce.procedures.TradeLookup;
+import edu.brown.benchmark.tpce.procedures.TradeOrder;
+import edu.brown.benchmark.tpce.procedures.TradeResult;
+import edu.brown.benchmark.tpce.procedures.TradeStatus;
+import edu.brown.benchmark.tpce.procedures.TradeUpdate;
 
 public class TPCEProjectBuilder extends AbstractProjectBuilder {
-    
+
     /**
      * Retrieved via reflection by BenchmarkController
      */
@@ -48,23 +59,10 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
      * Retrieved via reflection by BenchmarkController
      */
     public static final Class<? extends BenchmarkComponent> m_loaderClass = TPCELoader.class;
-    
-    public static final Class<?> PROCEDURES[] = {
-        TradeCleanup.class,
-        DataMaintenance.class,
-        TradeOrder.class,
-        TradeResult.class,
-        TradeLookup.class,
-        TradeUpdate.class,
-        TradeStatus.class,
-        CustomerPosition.class,
-        BrokerVolume.class,
-        SecurityDetail.class,
-        MarketFeed.class,
-        MarketWatch.class,
-        LoadTable.class,
-    };
-    
+
+    public static final Class<?> PROCEDURES[] = { TradeCleanup.class, DataMaintenance.class, TradeOrder.class, TradeResult.class, TradeLookup.class, TradeUpdate.class, TradeStatus.class,
+            CustomerPosition.class, BrokerVolume.class, SecurityDetail.class, MarketFeed.class, MarketWatch.class, LoadTable.class, };
+
     // Transaction Frequencies
     {
         addTransactionFrequency(BrokerVolume.class, TPCEConstants.FREQUENCY_BROKER_VOLUME);
@@ -80,11 +78,10 @@ public class TPCEProjectBuilder extends AbstractProjectBuilder {
         addTransactionFrequency(DataMaintenance.class, 0); // TPCEConstants.FREQUENCY_DATA_MAINTENANCE);
         addTransactionFrequency(TradeCleanup.class, 0); // TPCEConstants.FREQUENCY_TRADE_CLEANUP);
     }
-    
+
     public static String PARTITIONING[][] = new String[][] {
-        // TODO(pavlo)
-        { TPCEConstants.TABLENAME_TRADE, "T_CA_ID" },
-    };
+    // TODO(pavlo)
+    { TPCEConstants.TABLENAME_TRADE, "T_CA_ID" }, };
 
     public TPCEProjectBuilder() {
         super("tpce", TPCEProjectBuilder.class, PROCEDURES, PARTITIONING);

@@ -33,30 +33,32 @@
 package edu.brown.benchmark.tpce;
 
 import org.apache.log4j.Logger;
-import org.voltdb.catalog.*;
-import org.voltdb.utils.CatalogUtil;
 import org.voltdb.VoltTable;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
+import org.voltdb.utils.CatalogUtil;
 
 import edu.brown.benchmark.BenchmarkComponent;
 
 /**
- * 
  * @author pavlo
- *
  */
 public class TPCELoader extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(TPCELoader.class);
     protected final EGenLoader egenloader;
-    
+
     /**
      * Constructor
+     * 
      * @param args
      */
     public TPCELoader(String[] args) {
         super(args);
-        
+
         //
-        // We need to also be given the path to where the TPC-E EGenLoader binaries are
+        // We need to also be given the path to where the TPC-E EGenLoader
+        // binaries are
         //
         // System.out.println("EXTRA PARAMS: " + m_extraParams);
         if (!m_extraParams.containsKey(TPCEConstants.PARAM_EGENLOADER_HOME.toLowerCase())) {
@@ -77,11 +79,11 @@ public class TPCELoader extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         return new String[] {};
     }
-    
+
     @Override
     public void runLoop() {
         LOG.info("Begin to load tables...");
-        
+
         Catalog catalog = null;
         try {
             catalog = this.getCatalog();
@@ -89,8 +91,9 @@ public class TPCELoader extends BenchmarkComponent {
             LOG.error("Failed to retrieve already compiled catalog", ex);
             System.exit(1);
         }
-        Database catalog_db = catalog.getClusters().get(0).getDatabases().get(0); // NASTY! CatalogUtil.getDatabase(catalog);
-        
+        Database catalog_db = catalog.getClusters().get(0).getDatabases().get(0); // NASTY!
+                                                                                  // CatalogUtil.getDatabase(catalog);
+
         //
         // Fixed-sized Tables
         //
@@ -99,15 +102,15 @@ public class TPCELoader extends BenchmarkComponent {
             this.egenloader.generateFixedTables();
             for (String table_name : TPCEConstants.FIXED_TABLES) {
                 Table catalog_tbl = catalog_db.getTables().get(table_name);
-                assert(catalog_tbl != null);
+                assert (catalog_tbl != null);
                 this.loadTable(catalog_tbl, 1000);
             } // FOR
-            //this.egenloader.clearTables();
+              // this.egenloader.clearTables();
         } catch (Exception ex) {
             LOG.error("Failed to generate and load fixed-sized tables", ex);
             System.exit(1);
         }
-        
+
         //
         // Scaling Tables
         // Load them in batches based on the customer ids
@@ -118,16 +121,16 @@ public class TPCELoader extends BenchmarkComponent {
                 this.egenloader.generateScalingTables(start_idx);
                 for (String table_name : TPCEConstants.SCALING_TABLES) {
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
-                    assert(catalog_tbl != null);
+                    assert (catalog_tbl != null);
                     this.loadTable(catalog_tbl, 100);
                 } // FOR
-                //this.egenloader.clearTables();
+                  // this.egenloader.clearTables();
             } // FOR
         } catch (Exception ex) {
             LOG.error("Failed to generate and load scaling tables", ex);
             System.exit(1);
         }
-        
+
         //
         // Growing Tables
         // Load them in batches based on the customer ids
@@ -138,28 +141,27 @@ public class TPCELoader extends BenchmarkComponent {
                 this.egenloader.generateGrowingTables(start_idx);
                 for (String table_name : TPCEConstants.GROWING_TABLES) {
                     Table catalog_tbl = catalog_db.getTables().get(table_name);
-                    assert(catalog_tbl != null);
+                    assert (catalog_tbl != null);
                     this.loadTable(catalog_tbl, 100);
                 } // FOR
-                //this.egenloader.clearTables();
+                  // this.egenloader.clearTables();
             } // FOR
         } catch (Exception ex) {
             LOG.error("Failed to generate and load growing tables", ex);
             System.exit(1);
         }
-        
+
         LOG.info("TPCE loader done.");
     }
-    
+
     /**
-     * 
      * @param catalog_tbl
      */
     public void loadTable(Table catalog_tbl, int batch_size) {
         LOG.debug("Loading records for table " + catalog_tbl.getName() + " in batches of " + batch_size);
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         int row_idx = 0;
-        boolean debug = false; //catalog_tbl.getName().equals("NEWS_ITEM");
+        boolean debug = false; // catalog_tbl.getName().equals("NEWS_ITEM");
         try {
             for (Object tuple[] : this.egenloader.getTable(catalog_tbl)) {
                 if (debug) {
@@ -167,12 +169,12 @@ public class TPCELoader extends BenchmarkComponent {
                         System.out.println("[" + i + "]: " + tuple[i].toString().length());
                     } // FOR
                 } // IF
-                
+
                 vt.addRow(tuple);
                 row_idx++;
                 if (row_idx % batch_size == 0) {
                     LOG.debug("Storing batch of " + batch_size + " tuples for " + catalog_tbl.getName() + " [total=" + row_idx + "]");
-                    //System.out.println(vt.toString());
+                    // System.out.println(vt.toString());
                     this.loadVoltTable(catalog_tbl.getName(), vt);
                     vt.clearRowData();
                 }
@@ -181,7 +183,8 @@ public class TPCELoader extends BenchmarkComponent {
             LOG.error("Failed to load table " + catalog_tbl.getName(), ex);
             System.exit(1);
         }
-        if (vt.getRowCount() > 0) this.loadVoltTable(catalog_tbl.getName(), vt);
+        if (vt.getRowCount() > 0)
+            this.loadVoltTable(catalog_tbl.getName(), vt);
         LOG.debug("Finished loading " + row_idx + " tuples for " + catalog_tbl.getName());
         return;
     }

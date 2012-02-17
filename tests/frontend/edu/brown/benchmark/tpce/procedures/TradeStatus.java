@@ -42,28 +42,15 @@ import org.voltdb.VoltTable;
  * Trade-Status transaction <br/>
  * TPC-E Section 3.3.5
  */
-@ProcInfo(
-    partitionInfo = "TRADE.T_CA_ID: 0",
-    singlePartition = true
-)
+@ProcInfo(partitionInfo = "TRADE.T_CA_ID: 0", singlePartition = true)
 public class TradeStatus extends VoltProcedure {
 
     // This query takes a long time to plan in VoltCompiler, but it should work
-    public final SQLStmt getTradeStatus = new SQLStmt(
-            "select T_ID, T_DTS, ST_NAME, TT_NAME, T_S_SYMB, T_QTY, T_EXEC_NAME, T_CHRG, S_NAME, EX_NAME " +
-            "  FROM TRADE, STATUS_TYPE, TRADE_TYPE, SECURITY, EXCHANGE " +
-            " WHERE T_CA_ID = ? " +
-            "   AND ST_ID = T_ST_ID " +
-            "   AND TT_ID = T_TT_ID " +
-            "   AND S_SYMB = T_S_SYMB " + 
-            "   AND EX_ID = S_EX_ID " +
-            " ORDER BY T_DTS DESC LIMIT 50"
-    );
+    public final SQLStmt getTradeStatus = new SQLStmt("select T_ID, T_DTS, ST_NAME, TT_NAME, T_S_SYMB, T_QTY, T_EXEC_NAME, T_CHRG, S_NAME, EX_NAME "
+            + "  FROM TRADE, STATUS_TYPE, TRADE_TYPE, SECURITY, EXCHANGE " + " WHERE T_CA_ID = ? " + "   AND ST_ID = T_ST_ID " + "   AND TT_ID = T_TT_ID " + "   AND S_SYMB = T_S_SYMB "
+            + "   AND EX_ID = S_EX_ID " + " ORDER BY T_DTS DESC LIMIT 50");
 
-    public final SQLStmt getName = new SQLStmt(
-            "select C_L_NAME, C_F_NAME, B_NAME "
-                    + "from CUSTOMER_ACCOUNT, CUSTOMER, BROKER "
-                    + "where CA_ID = ? and C_ID = CA_C_ID and B_ID = CA_B_ID");
+    public final SQLStmt getName = new SQLStmt("select C_L_NAME, C_F_NAME, B_NAME " + "from CUSTOMER_ACCOUNT, CUSTOMER, BROKER " + "where CA_ID = ? and C_ID = CA_C_ID and B_ID = CA_B_ID");
 
     public VoltTable[] run(long acct_id) throws VoltAbortException {
         voltQueueSQL(getTradeStatus, acct_id);

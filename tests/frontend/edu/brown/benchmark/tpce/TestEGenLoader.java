@@ -29,7 +29,10 @@
 package edu.brown.benchmark.tpce;
 
 import java.io.File;
-import org.voltdb.catalog.*;
+
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Database;
+import org.voltdb.catalog.Table;
 
 import edu.brown.BaseTestCase;
 import edu.brown.utils.ProjectType;
@@ -41,11 +44,11 @@ public class TestEGenLoader extends BaseTestCase {
     protected static EGenLoader loader;
     protected static Catalog catalog;
     protected static Database catalog_db;
-    
+
     protected static final int NUM_CUSTOMERS = 1000;
     protected static final int SCALE_FACTOR = 1000;
     protected static final int INITIAL_DAYS = 1;
-    
+
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.TPCE, true, false);
@@ -54,13 +57,13 @@ public class TestEGenLoader extends BaseTestCase {
         }
         assertTrue(loader.loader_bin.exists());
     }
-    
+
     @Override
     protected void tearDown() throws Exception {
         super.tearDown();
         loader.clearTables();
     }
-    
+
     /**
      * testGenerateFixedTables
      */
@@ -72,7 +75,7 @@ public class TestEGenLoader extends BaseTestCase {
             assertTrue(table_file.exists());
         } // FOR
     }
-    
+
     /**
      * testGetTable
      */
@@ -80,17 +83,17 @@ public class TestEGenLoader extends BaseTestCase {
         loader.generateFixedTables();
         Table catalog_tbl = this.getTable(TPCEConstants.TABLENAME_COMMISSION_RATE);
         assertNotNull(catalog_tbl);
-        
+
         Iterable<Object[]> it = loader.getTable(catalog_tbl);
         assertNotNull(it);
         for (Object tuple[] : it) {
-            assert(tuple != null);
+            assert (tuple != null);
             assertEquals(catalog_tbl.getColumns().size(), tuple.length);
-            
+
             String add = "";
             System.out.print("[");
             for (int i = 0; i < tuple.length; i++) {
-                assert(tuple[i] != null) : "Tuple at " + i + " is null";
+                assert (tuple[i] != null) : "Tuple at " + i + " is null";
                 System.out.print(add + tuple[i] + " (" + tuple[i].getClass().getSimpleName() + ")");
                 add = ", ";
             }
@@ -98,7 +101,7 @@ public class TestEGenLoader extends BaseTestCase {
             break;
         } // FOR
     }
-    
+
     /**
      * testGenerateScalingTables
      */
@@ -110,7 +113,7 @@ public class TestEGenLoader extends BaseTestCase {
             assertTrue(table_file.exists());
         } // FOR
     }
-    
+
     /**
      * testGenerateGrowingTables
      */

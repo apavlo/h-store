@@ -34,17 +34,14 @@ public class PlanOptimizer {
     // ----------------------------------------------------------------------------
     // GLOBAL CONFIGURATION
     // ----------------------------------------------------------------------------
-    
+
     /**
      * The list of PlanNodeTypes that we do not want to try to optimize
      */
-    private static final PlanNodeType TO_IGNORE[] = {
-        PlanNodeType.AGGREGATE,
-        PlanNodeType.NESTLOOP,
-    };
-    private static final String BROKEN_SQL[] = {
-        "FROM CUSTOMER, FLIGHT, RESERVATION",   // Airline DeleteReservation.GetCustomerReservation 
-        "SELECT imb_ib_id, ib_bid",             // AuctionMark NewBid.getMaxBidId
+    private static final PlanNodeType TO_IGNORE[] = { PlanNodeType.AGGREGATE, PlanNodeType.NESTLOOP, };
+    private static final String BROKEN_SQL[] = { "FROM CUSTOMER, FLIGHT, RESERVATION", // Airline
+                                                                                       // DeleteReservation.GetCustomerReservation
+            "SELECT imb_ib_id, ib_bid", // AuctionMark NewBid.getMaxBidId
     };
 
     /**
@@ -59,29 +56,24 @@ public class PlanOptimizer {
             return (i0.compareTo(i1));
         }
     };
-    
+
     /**
      * List of the Optimizations that we will want to apply
      */
     @SuppressWarnings("unchecked")
-    protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = (Class<? extends AbstractOptimization>[])new Class<?>[]{
-        AggregatePushdownOptimization.class,
-        RemoveDistributedReplicatedTableJoinOptimization.class,
-        ProjectionPushdownOptimization.class,
-        LimitOrderByPushdownOptimization.class,
-        RemoveRedundantProjectionsOptimizations.class,
-    };
-    
+    protected static final Class<? extends AbstractOptimization> OPTIMIZATONS[] = (Class<? extends AbstractOptimization>[]) new Class<?>[] { AggregatePushdownOptimization.class,
+            RemoveDistributedReplicatedTableJoinOptimization.class, ProjectionPushdownOptimization.class, LimitOrderByPushdownOptimization.class, RemoveRedundantProjectionsOptimizations.class, };
+
     // ----------------------------------------------------------------------------
     // INSTANCE CONFIGURATION
     // ----------------------------------------------------------------------------
-    
+
     private final PlanOptimizerState state;
-    
+
     // ----------------------------------------------------------------------------
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------
-    
+
     /**
      * @param context
      *            Information about context
@@ -91,7 +83,7 @@ public class PlanOptimizer {
     public PlanOptimizer(PlannerContext context, Database catalogDb) {
         this.state = new PlanOptimizerState(catalogDb, context);
     }
-    
+
     // ----------------------------------------------------------------------------
     // MAIN METHOD
     // ----------------------------------------------------------------------------
@@ -108,11 +100,12 @@ public class PlanOptimizer {
                 return (null);
             }
         }
-        
-        // check to see if the join nodes have the wrong offsets. If so fix them and propagate them.
+
+        // check to see if the join nodes have the wrong offsets. If so fix them
+        // and propagate them.
         // XXX: Why is this here and not down with the rest of the stuff???
         PlanOptimizerUtil.fixJoinColumnOffsets(state, root);
-        
+
         // Check if our tree contains anything that we want to ignore
         Collection<PlanNodeType> types = PlanNodeUtil.getPlanNodeTypes(root);
         if (trace.get())
@@ -124,16 +117,18 @@ public class PlanOptimizer {
                 return (null);
             }
         } // FOR
-        
+
         // Skip single partition query plans
-//        if (types.contains(PlanNodeType.RECEIVE) == false) return (null);
+        // if (types.contains(PlanNodeType.RECEIVE) == false) return (null);
 
         AbstractPlanNode new_root = root;
         if (trace.get())
             LOG.trace("BEFORE: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(root)));
-//        if (PlanNodeUtil.isDistributedQuery(root) && sql.contains("SELECT f_id FROM FLIGHT ORDER BY F_DEPART_TIME DESC  LIMIT 10000")) {
-//            LOG.debug("LET 'ER RIP!");
-//        }
+        // if (PlanNodeUtil.isDistributedQuery(root) &&
+        // sql.contains("SELECT f_id FROM FLIGHT ORDER BY F_DEPART_TIME DESC  LIMIT 10000"))
+        // {
+        // LOG.debug("LET 'ER RIP!");
+        // }
 
         // STEP #1:
         // Populate the PlanOptimizerState with the information that we will
@@ -142,26 +137,26 @@ public class PlanOptimizer {
             LOG.debug(StringUtil.header("POPULATING OPTIMIZER STATE", "*"));
         PlanOptimizerUtil.populateTableNodeInfo(state, new_root);
         PlanOptimizerUtil.populateJoinTableInfo(state, new_root);
-            
+
         // STEP #2
         // Apply all the optimizations that we have
-        // We will pass in the new_root each time to ensure that each optimization
+        // We will pass in the new_root each time to ensure that each
+        // optimization
         // gets a full view of the quey plan tree
         if (debug.get())
             LOG.debug(StringUtil.header("APPLYING OPTIMIZATIONS", "*"));
         for (Class<? extends AbstractOptimization> optClass : OPTIMIZATONS) {
             if (debug.get())
                 LOG.debug(StringUtil.header(optClass.getSimpleName()));
-            
-            // Always reset everything so that each optimization has a clean slate to work with
+
+            // Always reset everything so that each optimization has a clean
+            // slate to work with
             state.clearDirtyNodes();
             state.updateColumnInfo(new_root);
-            
+
             try {
-                AbstractOptimization opt = ClassUtil.newInstance(optClass,
-                                                                 new Object[] { state },
-                                                                 new Class<?>[] { PlanOptimizerState.class });
-                assert(opt != null);
+                AbstractOptimization opt = ClassUtil.newInstance(optClass, new Object[] { state }, new Class<?>[] { PlanOptimizerState.class });
+                assert (opt != null);
                 Pair<Boolean, AbstractPlanNode> p = opt.optimize(new_root);
                 if (p.getFirst()) {
                     if (debug.get())
@@ -171,30 +166,32 @@ public class PlanOptimizer {
             } catch (Throwable ex) {
                 if (debug.get())
                     LOG.debug("Last Query Plan:\n" + PlanNodeUtil.debug(new_root));
-                
+
                 String msg = String.format("Failed to apply %s to query plan\n%s", optClass.getSimpleName(), sql);
-                if (ex instanceof AssertionError) throw new RuntimeException(msg, ex);
+                if (ex instanceof AssertionError)
+                    throw new RuntimeException(msg, ex);
                 LOG.warn(msg, ex);
                 return (null);
             }
-            
+
             // STEP #3
-            // If any nodes were modified by this optimization, go through the tree
-            // and make sure our output columns and other information is all in sync
-            if (state.hasDirtyNodes()) 
+            // If any nodes were modified by this optimization, go through the
+            // tree
+            // and make sure our output columns and other information is all in
+            // sync
+            if (state.hasDirtyNodes())
                 PlanOptimizerUtil.updateAllColumns(state, new_root, false);
         } // FOR
         PlanOptimizerUtil.updateAllColumns(state, new_root, true);
-        
+
         if (trace.get())
             LOG.trace("AFTER: " + sql + "\n" + StringUtil.box(PlanNodeUtil.debug(new_root)));
-        
+
         return (new_root);
     }
-    
+
     public PlanOptimizerState getPlanOptimizerState() {
         return this.state;
     }
-
 
 }

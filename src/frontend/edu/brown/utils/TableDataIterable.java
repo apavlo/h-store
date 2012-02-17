@@ -49,11 +49,10 @@ import au.com.bytecode.opencsv.CSVReader;
 
 /**
  * @author pavlo
- *
  */
 public class TableDataIterable implements Iterable<Object[]> {
     private static final Logger LOG = Logger.getLogger(TableDataIterable.class.getName());
-    
+
     private final Table catalog_tbl;
     private final File table_file;
     private final CSVReader reader;
@@ -61,21 +60,21 @@ public class TableDataIterable implements Iterable<Object[]> {
     private final boolean fkeys[];
     private final boolean nullable[];
     private final boolean auto_generate_first_column;
-    
-    private final DateFormat timestamp_formats[] = new DateFormat[] {
-        new SimpleDateFormat("yyyy-MM-dd"),
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"),
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS"),
-    };
+
+    private final DateFormat timestamp_formats[] = new DateFormat[] { new SimpleDateFormat("yyyy-MM-dd"), new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"), new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS"), };
     private Set<Column> truncate_warnings = new HashSet<Column>();
     private int line_ctr = 0;
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_tbl
      * @param table_file
-     * @param has_header whether we expect the data file to include a header in the first row
-     * @param auto_generate_first_column TODO
+     * @param has_header
+     *            whether we expect the data file to include a header in the
+     *            first row
+     * @param auto_generate_first_column
+     *            TODO
      * @throws Exception
      */
     public TableDataIterable(Table catalog_tbl, File table_file, boolean has_header, boolean auto_generate_first_column) throws Exception {
@@ -83,13 +82,13 @@ public class TableDataIterable implements Iterable<Object[]> {
         this.table_file = table_file;
         this.auto_generate_first_column = auto_generate_first_column;
         this.reader = new CSVReader(FileUtil.getReader(this.table_file));
-        
+
         // Throw away the first row if there is a header
         if (has_header) {
             this.reader.readNext();
             this.line_ctr++;
         }
-        
+
         // Column Types + Foreign Keys
         // Determine whether the column references a foreign key, and thus will
         // need to be converted to an integer field later
@@ -98,14 +97,15 @@ public class TableDataIterable implements Iterable<Object[]> {
         this.nullable = new boolean[this.types.length];
         for (Column catalog_col : catalog_tbl.getColumns()) {
             int idx = catalog_col.getIndex();
-            this.types[idx] = VoltType.get((byte)catalog_col.getType());
+            this.types[idx] = VoltType.get((byte) catalog_col.getType());
             this.fkeys[idx] = (CatalogUtil.getForeignKeyParent(catalog_col) != null);
             this.nullable[idx] = catalog_col.getNullable();
         } // FOR
     }
-    
+
     /**
      * Constructor
+     * 
      * @param catalog_tbl
      * @param table_file
      * @throws Exception
@@ -113,11 +113,11 @@ public class TableDataIterable implements Iterable<Object[]> {
     public TableDataIterable(Table catalog_tbl, File table_file) throws Exception {
         this(catalog_tbl, table_file, false, false);
     }
-    
+
     public Iterator<Object[]> iterator() {
         return (new TableIterator());
     }
-    
+
     public class TableIterator implements Iterator<Object[]> {
         String[] next = null;
 
@@ -130,32 +130,33 @@ public class TableDataIterable implements Iterable<Object[]> {
                 }
             }
         }
-        
+
         @Override
         public boolean hasNext() {
             this.getNext();
             return (next != null);
         }
-        
+
         @Override
         public Object[] next() {
             this.getNext();
-            if (next == null) return (next);
+            if (next == null)
+                return (next);
             String row[] = null;
             synchronized (this) {
                 row = this.next;
                 this.next = null;
             } // SYNCH
-            
+
             Object tuple[] = new Object[types.length];
             int row_idx = 0;
             for (int col_idx = 0; col_idx < types.length; col_idx++) {
                 Column catalog_col = catalog_tbl.getColumns().get(col_idx);
-                assert(catalog_col != null) : "The column at position " + col_idx + " for " + catalog_tbl + " is null";
-                
+                assert (catalog_col != null) : "The column at position " + col_idx + " for " + catalog_tbl + " is null";
+
                 // Auto-generate first column
                 if (col_idx == 0 && auto_generate_first_column) {
-                    tuple[col_idx] = new Long(line_ctr) ;
+                    tuple[col_idx] = new Long(line_ctr);
                 }
                 // Null Values
                 else if (row_idx >= row.length) {
@@ -173,7 +174,8 @@ public class TableDataIterable implements Iterable<Object[]> {
                         } catch (ParseException ex) {
                             // Ignore...
                         }
-                        if (tuple[col_idx] != null) break;
+                        if (tuple[col_idx] != null)
+                            break;
                     } // FOR
                     if (tuple[col_idx] == null) {
                         throw new RuntimeException("Line " + TableDataIterable.this.line_ctr + ": Invalid timestamp format '" + row[row_idx] + "' for " + catalog_col);
@@ -186,14 +188,13 @@ public class TableDataIterable implements Iterable<Object[]> {
                     int limit = catalog_col.getSize();
                     if (row[row_idx].length() > limit) {
                         if (!truncate_warnings.contains(catalog_col)) {
-                            LOG.warn("Line " + TableDataIterable.this.line_ctr + ": Truncating data for " + catalog_col.fullName() +
-                                     " because size " + row[row_idx].length() + " > " + limit);
+                            LOG.warn("Line " + TableDataIterable.this.line_ctr + ": Truncating data for " + catalog_col.fullName() + " because size " + row[row_idx].length() + " > " + limit);
                             truncate_warnings.add(catalog_col);
                         }
                         row[row_idx] = row[row_idx].substring(0, limit);
                     }
                     tuple[col_idx] = row[row_idx++];
-                }    
+                }
                 // Default: Cast the string into the proper type
                 else {
                     if (row[row_idx].isEmpty() && nullable[col_idx]) {
@@ -207,16 +208,16 @@ public class TableDataIterable implements Iterable<Object[]> {
                     }
                     row_idx++;
                 }
-//                System.out.println(col_idx + ": " + tuple[col_idx]);
+                // System.out.println(col_idx + ": " + tuple[col_idx]);
             } // FOR
             TableDataIterable.this.line_ctr++;
             return (tuple);
         }
-        
+
         @Override
         public void remove() {
             // TODO Auto-generated method stub
-            
+
         }
     }
 }

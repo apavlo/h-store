@@ -1,23 +1,29 @@
 package edu.brown.catalog;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-import org.voltdb.catalog.*;
+import org.voltdb.catalog.Catalog;
+import org.voltdb.catalog.Cluster;
+import org.voltdb.catalog.Host;
+import org.voltdb.catalog.Partition;
+import org.voltdb.catalog.Site;
 
-import edu.brown.utils.*;
 import edu.brown.BaseTestCase;
+import edu.brown.utils.ProjectType;
 
 public class TestFixCatalog extends BaseTestCase {
 
     private static final int NUM_HOSTS = 10;
     private static final int NUM_SITES_PER_HOST = 2;
     private static final int NUM_PARTITIONS_PER_SITE = 2;
-    
+
     @Override
     protected void setUp() throws Exception {
         super.setUp(ProjectType.AUCTIONMARK);
     }
-    
+
     /**
      * testAddHostInfo
      */
@@ -32,17 +38,17 @@ public class TestFixCatalog extends BaseTestCase {
 
         Set<Integer> seen_site_ids = new HashSet<Integer>();
         Set<Integer> seen_partition_ids = new HashSet<Integer>();
-        
+
         for (Host catalog_host : catalog_clus.getHosts()) {
             assertNotNull(catalog_host);
             List<Site> sites = CatalogUtil.getSitesForHost(catalog_host);
             assertEquals(sites.toString(), NUM_SITES_PER_HOST, sites.size());
-            
+
             for (Site catalog_site : sites) {
                 assertEquals(catalog_host, catalog_site.getHost());
                 assertEquals(NUM_PARTITIONS_PER_SITE, catalog_site.getPartitions().size());
-                assertFalse(seen_site_ids.contains(catalog_site.getId())); 
-                
+                assertFalse(seen_site_ids.contains(catalog_site.getId()));
+
                 for (Partition catalog_part : catalog_site.getPartitions()) {
                     assertNotNull(catalog_part);
                     assertFalse(catalog_part.toString(), seen_partitions.contains(catalog_part));

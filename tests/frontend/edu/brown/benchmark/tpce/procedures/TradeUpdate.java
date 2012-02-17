@@ -50,72 +50,51 @@ import edu.brown.benchmark.tpce.util.ProcedureUtil;
  */
 public class TradeUpdate extends VoltProcedure {
 
-    public final SQLStmt getTrade1 = new SQLStmt(
-            "select T_EXEC_NAME from TRADE where T_ID = ?");
+    public final SQLStmt getTrade1 = new SQLStmt("select T_EXEC_NAME from TRADE where T_ID = ?");
 
-    public final SQLStmt updateTrade = new SQLStmt(
-            "update TRADE set T_EXEC_NAME = ? where T_ID = ?");
+    public final SQLStmt updateTrade = new SQLStmt("update TRADE set T_EXEC_NAME = ? where T_ID = ?");
 
-    public final SQLStmt getTradeTradeType = new SQLStmt(
-            "select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, TT_IS_MRKT, T_TRADE_PRICE "
-                    + "from TRADE, TRADE_TYPE where T_ID = ? and T_TT_ID = TT_ID");
+    public final SQLStmt getTradeTradeType = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, TT_IS_MRKT, T_TRADE_PRICE " + "from TRADE, TRADE_TYPE where T_ID = ? and T_TT_ID = TT_ID");
 
-    public final SQLStmt getSettlement = new SQLStmt(
-            "select SE_AMT, SE_CASH_DUE_DATE, SE_CASH_TYPE from SETTLEMENT where SE_T_ID = ?");
+    public final SQLStmt getSettlement = new SQLStmt("select SE_AMT, SE_CASH_DUE_DATE, SE_CASH_TYPE from SETTLEMENT where SE_T_ID = ?");
 
-    public final SQLStmt getCashTransaction = new SQLStmt(
-            "select CT_AMT, CT_DTS, CT_NAME from CASH_TRANSACTION where CT_T_ID = ?");
+    public final SQLStmt getCashTransaction = new SQLStmt("select CT_AMT, CT_DTS, CT_NAME from CASH_TRANSACTION where CT_T_ID = ?");
 
-    public final SQLStmt getTradeHistory = new SQLStmt(
-            "select TH_DTS, TH_ST_ID from TRADE_HISTORY where TH_T_ID = ? order by TH_DTS");
+    public final SQLStmt getTradeHistory = new SQLStmt("select TH_DTS, TH_ST_ID from TRADE_HISTORY where TH_T_ID = ? order by TH_DTS");
 
     // Note: The parameter max_trade should be used for the LIMIT value but
-    //       we don't support parameters in the LIMIT clause. Hardcoding to 20 for now.
-    // Note: We can't use hardcoded strings in lookup against T_ST_ID. Must pass as parameter
-    public final SQLStmt getTrade2 = new SQLStmt(
-            "select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, T_ID, T_TRADE_PRICE "
-                    + "from TRADE "
-                    + "where T_CA_ID = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? " // T_ST_ID=\"CMPT\"
-                    + "order by T_DTS asc limit 20"); // limit ?
-    
-    public final SQLStmt getTradeNoSTID = new SQLStmt(
-            "select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, T_ID, T_TRADE_PRICE " +
-            "  from TRADE " +
-            " where T_CA_ID = ? and T_DTS >= ? and T_DTS <= ? order by T_DTS asc limit 20");
+    // we don't support parameters in the LIMIT clause. Hardcoding to 20 for
+    // now.
+    // Note: We can't use hardcoded strings in lookup against T_ST_ID. Must pass
+    // as parameter
+    public final SQLStmt getTrade2 = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, T_ID, T_TRADE_PRICE " + "from TRADE "
+            + "where T_CA_ID = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? " // T_ST_ID=\"CMPT\"
+            + "order by T_DTS asc limit 20"); // limit ?
 
-    public final SQLStmt getCashType = new SQLStmt(
-            "select SE_CASH_TYPE from SETTLEMENT where SE_T_ID = ?");
+    public final SQLStmt getTradeNoSTID = new SQLStmt("select T_BID_PRICE, T_EXEC_NAME, T_IS_CASH, T_ID, T_TRADE_PRICE " + "  from TRADE "
+            + " where T_CA_ID = ? and T_DTS >= ? and T_DTS <= ? order by T_DTS asc limit 20");
 
-    public final SQLStmt updateSettlement = new SQLStmt(
-            "update SETTLEMENT SET SE_CASH_TYPE = ? where SE_T_ID = ?");
+    public final SQLStmt getCashType = new SQLStmt("select SE_CASH_TYPE from SETTLEMENT where SE_T_ID = ?");
+
+    public final SQLStmt updateSettlement = new SQLStmt("update SETTLEMENT SET SE_CASH_TYPE = ? where SE_T_ID = ?");
 
     // Note: The parameter max_trade should be used for the LIMIT value but
-    //       we don't support parameters in the LIMIT clause. Hardcoding to 20 for now.
-    // Note: We can't use hardcoded strings in lookup against T_ST_ID. Must pass as parameter
-    public final SQLStmt getTradeTradeTypeSecurity = new SQLStmt(
-            "select T_CA_ID, T_EXEC_NAME, T_IS_CASH, T_TRADE_PRICE, T_QTY, TT_NAME, T_DTS, T_ID, "
-                    + "T_TT_ID from TRADE, TRADE_TYPE, SECURITY "
-                    + "where T_S_SYMB = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? and " // T_ST_ID=\"CMPT\"
-                    + "TT_ID = T_TT_ID and S_SYMB = T_S_SYMB order by T_DTS asc limit 20"); // limit ?
+    // we don't support parameters in the LIMIT clause. Hardcoding to 20 for
+    // now.
+    // Note: We can't use hardcoded strings in lookup against T_ST_ID. Must pass
+    // as parameter
+    public final SQLStmt getTradeTradeTypeSecurity = new SQLStmt("select T_CA_ID, T_EXEC_NAME, T_IS_CASH, T_TRADE_PRICE, T_QTY, TT_NAME, T_DTS, T_ID, " + "T_TT_ID from TRADE, TRADE_TYPE, SECURITY "
+            + "where T_S_SYMB = ? and T_ST_ID = ? and T_DTS >= ? and T_DTS <= ? and " // T_ST_ID=\"CMPT\"
+            + "TT_ID = T_TT_ID and S_SYMB = T_S_SYMB order by T_DTS asc limit 20"); // limit
+                                                                                    // ?
 
-    public final SQLStmt getCTName = new SQLStmt(
-            "select CT_NAME from CASH_TRANSACTION where CT_T_ID = ?");
+    public final SQLStmt getCTName = new SQLStmt("select CT_NAME from CASH_TRANSACTION where CT_T_ID = ?");
 
-    public final SQLStmt updateCTName = new SQLStmt(
-            "update CASH_TRANSACTION set CT_NAME = ? where CT_T_ID = ?");
+    public final SQLStmt updateCTName = new SQLStmt("update CASH_TRANSACTION set CT_NAME = ? where CT_T_ID = ?");
 
-    public final SQLStmt getTradeHistoryAsc = new SQLStmt(
-            "select TH_DTS, TH_ST_ID from TRADE_HISTORY where TH_T_ID = ? order by TH_DTS asc");
+    public final SQLStmt getTradeHistoryAsc = new SQLStmt("select TH_DTS, TH_ST_ID from TRADE_HISTORY where TH_T_ID = ? order by TH_DTS asc");
 
-    public VoltTable[] run(
-            long trade_ids[],
-            long acct_id,
-            long max_acct_id, 
-            long frame_to_execute,
-            long max_trades,
-            long max_updates,
-            TimestampType end_trade_dts,
-            TimestampType start_trade_dts,
+    public VoltTable[] run(long trade_ids[], long acct_id, long max_acct_id, long frame_to_execute, long max_trades, long max_updates, TimestampType end_trade_dts, TimestampType start_trade_dts,
             String symbol) throws VoltAbortException {
         Map<String, Object[]> ret = new HashMap<String, Object[]>();
 
@@ -131,10 +110,7 @@ public class TradeUpdate extends VoltProcedure {
             int num_updated = 0;
             for (int i = 0; i < max_trades; i++) {
                 if (num_updated < max_updates) {
-                    ProcedureUtil.execute(ret, this, getTrade1,
-                            new Object[] { trade_ids[i] },
-                            new String[] { "ex_name" },
-                            new Object[] { "T_EXEC_NAME" });
+                    ProcedureUtil.execute(ret, this, getTrade1, new Object[] { trade_ids[i] }, new String[] { "ex_name" }, new Object[] { "T_EXEC_NAME" });
                     ex_name = (String) ret.get("ex_name")[0];
 
                     // TODO
@@ -143,42 +119,29 @@ public class TradeUpdate extends VoltProcedure {
                     // else
                     // select ex_name = REPLACE(ex_name, " ", " X ");
 
-                    ProcedureUtil.execute(this, updateTrade,
-                            new Object[] { ex_name, trade_ids[i] });
+                    ProcedureUtil.execute(this, updateTrade, new Object[] { ex_name, trade_ids[i] });
                 }
-                ProcedureUtil.execute(ret, this, getTradeTradeType,
-                        new Object[] { trade_ids[i] },
-                        new String[] { "bid_price." + i, "exec_name." + i, "is_cash." + i, "is_market." + i, "trade_price." + i },
-                        new Object[] { "T_BID_PRICE", "T_EXEC_NAME", "T_IS_CASH", "TT_IS_MRKT", "T_TRADE_PRICE" });
-                
-                ProcedureUtil.execute(ret, this, getSettlement,
-                        new Object[] { trade_ids[i] },
-                        new String[] { "settlement_amount." + i, "settlement_cash_due_date." + i, "settlement_cash_type." + i },
+                ProcedureUtil.execute(ret, this, getTradeTradeType, new Object[] { trade_ids[i] }, new String[] { "bid_price." + i, "exec_name." + i, "is_cash." + i, "is_market." + i,
+                        "trade_price." + i }, new Object[] { "T_BID_PRICE", "T_EXEC_NAME", "T_IS_CASH", "TT_IS_MRKT", "T_TRADE_PRICE" });
+
+                ProcedureUtil.execute(ret, this, getSettlement, new Object[] { trade_ids[i] }, new String[] { "settlement_amount." + i, "settlement_cash_due_date." + i, "settlement_cash_type." + i },
                         new Object[] { "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
 
                 if (ret.get("is_cash" + i)[i].equals(TPCEConstants.TRUE)) {
-                    ProcedureUtil.execute(ret, this, getCashTransaction,
-                            new Object[] { trade_ids[i] },
-                            new String[] { "cash_transaction_amount." + i, "cash_transaction_dts." + i, "cash_transaction_name." + i },
-                            new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
+                    ProcedureUtil.execute(ret, this, getCashTransaction, new Object[] { trade_ids[i] }, new String[] { "cash_transaction_amount." + i, "cash_transaction_dts." + i,
+                            "cash_transaction_name." + i }, new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
                 }
 
-                ProcedureUtil.execute(ret, this, getTradeHistory,
-                        new Object[] { trade_ids[i] },
-                        new String[] { "trade_history_dts." + i, "trade_history_status_id." + i },
-                        new Object[] { "TH_DTS", "TH_ST_ID" });
+                ProcedureUtil.execute(ret, this, getTradeHistory, new Object[] { trade_ids[i] }, new String[] { "trade_history_dts." + i, "trade_history_status_id." + i }, new Object[] { "TH_DTS",
+                        "TH_ST_ID" });
             } // FOR
 
             return ProcedureUtil.mapToTable(ret);
-            
-        /** FRAME 2 **/
+
+            /** FRAME 2 **/
         } else if (2 == frame_to_execute) {
-            int row_count = ProcedureUtil.execute(ret, this, getTrade2,
-                    new Object[] { acct_id, "CMPT", start_trade_dts, end_trade_dts, max_trades },
-                    new String[] { "bid_price", "exec_name", "is_cash",
-                            "trade_list", "trade_price" }, new Object[] {
-                            "T_BID_PRICE", "T_EXEC_NAME", "T_IS_CASH", "T_ID",
-                            "T_TRADE_PRICE" });
+            int row_count = ProcedureUtil.execute(ret, this, getTrade2, new Object[] { acct_id, "CMPT", start_trade_dts, end_trade_dts, max_trades }, new String[] { "bid_price", "exec_name",
+                    "is_cash", "trade_list", "trade_price" }, new Object[] { "T_BID_PRICE", "T_EXEC_NAME", "T_IS_CASH", "T_ID", "T_TRADE_PRICE" });
             int num_found = row_count;
             int num_updated = 0;
 
@@ -187,10 +150,7 @@ public class TradeUpdate extends VoltProcedure {
 
             for (int i = 0; i < num_found; i++) {
                 if (num_updated < max_updates) {
-                    ProcedureUtil.execute(ret, this, getCashType,
-                            new Object[] { trade_list[i] },
-                            new String[] { "cash_type" },
-                            new Object[] { "SE_CASH_TYPE" });
+                    ProcedureUtil.execute(ret, this, getCashType, new Object[] { trade_list[i] }, new String[] { "cash_type" }, new Object[] { "SE_CASH_TYPE" });
 
                     Object cash_type = ret.get("cash_type")[0];
 
@@ -206,41 +166,28 @@ public class TradeUpdate extends VoltProcedure {
                             cash_type = "Margin Account";
                     }
 
-                    ProcedureUtil.execute(this, updateSettlement, new Object[] {
-                            cash_type, trade_list[i] });
+                    ProcedureUtil.execute(this, updateSettlement, new Object[] { cash_type, trade_list[i] });
 
                     num_updated += row_count;
                 }
 
-                ProcedureUtil.execute(ret, this, getSettlement,
-                        new Object[] { trade_list[i] }, new String[] {
-                                "settlement_amount." + i,
-                                "settlement_cash_due_date." + i,
-                                "settlement_cash_type." + i }, new Object[] {
-                                "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
+                ProcedureUtil.execute(ret, this, getSettlement, new Object[] { trade_list[i] },
+                        new String[] { "settlement_amount." + i, "settlement_cash_due_date." + i, "settlement_cash_type." + i }, new Object[] { "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
 
                 if (is_cash[i].equals(TPCEConstants.TRUE))
-                    ProcedureUtil.execute(ret, this, getCashTransaction,
-                            new Object[] { trade_list[i] }, new String[] {
-                                    "cash_transaction_amount." + i,
-                                    "cash_transaction_dts." + i,
-                                    "cash_transaction_name." + i },
-                            new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
+                    ProcedureUtil.execute(ret, this, getCashTransaction, new Object[] { trade_list[i] }, new String[] { "cash_transaction_amount." + i, "cash_transaction_dts." + i,
+                            "cash_transaction_name." + i }, new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
 
-                ProcedureUtil.execute(ret, this, getTradeHistory,
-                        new Object[] { trade_list[i] }, new String[] {
-                                "trade_history_dts." + i,
-                                "trade_history_status_id." + i }, new Object[] {
-                                "TH_DTS", "TH_ST_ID" });
+                ProcedureUtil.execute(ret, this, getTradeHistory, new Object[] { trade_list[i] }, new String[] { "trade_history_dts." + i, "trade_history_status_id." + i }, new Object[] { "TH_DTS",
+                        "TH_ST_ID" });
             }
             return ProcedureUtil.mapToTable(ret);
-            
-        /** FRAME 3 **/
+
+            /** FRAME 3 **/
         } else if (3 == frame_to_execute) {
-            int row_count = ProcedureUtil.execute(ret, this, getTradeTradeTypeSecurity,
-                    new Object[] { symbol, "CMPT", start_trade_dts, end_trade_dts, max_trades },
-                    new String[] { "acct_id", "exec_name", "is_cash", "price", "quantity", "s_name", "trade_dts", "trade_list", "trade_type", "type_name" },
-                    new Object[] { "T_CA_ID", "T_EXEC_NAME", "T_IS_CASH", "T_TRADE_PRICE", "T_QTY", "S_NAME", "T_DTS", "T_ID", "T_TT_ID", "TT_NAME" });
+            int row_count = ProcedureUtil.execute(ret, this, getTradeTradeTypeSecurity, new Object[] { symbol, "CMPT", start_trade_dts, end_trade_dts, max_trades }, new String[] { "acct_id",
+                    "exec_name", "is_cash", "price", "quantity", "s_name", "trade_dts", "trade_list", "trade_type", "type_name" }, new Object[] { "T_CA_ID", "T_EXEC_NAME", "T_IS_CASH",
+                    "T_TRADE_PRICE", "T_QTY", "S_NAME", "T_DTS", "T_ID", "T_TT_ID", "TT_NAME" });
 
             Object[] trade_list = ret.get("trade_list");
             Object[] is_cash = ret.get("is_cash");
@@ -248,17 +195,12 @@ public class TradeUpdate extends VoltProcedure {
             int num_found = row_count;
             int num_updated = 0;
             for (int i = 0; i < num_found; i++) {
-                ProcedureUtil.execute(ret, this, getSettlement,
-                        new Object[] { trade_list[i] },
-                        new String[] { "settlement_amount." + i, "settlement_cash_due_date." + i, "settlement_cash_type." + i },
-                        new Object[] { "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
+                ProcedureUtil.execute(ret, this, getSettlement, new Object[] { trade_list[i] },
+                        new String[] { "settlement_amount." + i, "settlement_cash_due_date." + i, "settlement_cash_type." + i }, new Object[] { "SE_AMT", "SE_CASH_DUE_DATE", "SE_CASH_TYPE" });
 
                 if (is_cash[i].equals(TPCEConstants.TRUE)) {
                     if (num_updated < max_updates) {
-                        ProcedureUtil.execute(ret, this, getCTName,
-                                new Object[] { trade_list[i] },
-                                new String[] { "ct_name" },
-                                new Object[] { "CT_NAME" });
+                        ProcedureUtil.execute(ret, this, getCTName, new Object[] { trade_list[i] }, new String[] { "ct_name" }, new Object[] { "CT_NAME" });
 
                         // TODO
                         // if (ct_name like "% shares of %")
@@ -268,27 +210,20 @@ public class TradeUpdate extends VoltProcedure {
                         // ct_name = type_name[i] + " " + quantity[i] +
                         // " shares of " + s_name[i];
 
-                        ProcedureUtil.execute(this, updateCTName,
-                                new Object[] { " share of ", trade_list[i] });
+                        ProcedureUtil.execute(this, updateCTName, new Object[] { " share of ", trade_list[i] });
                     }
 
-                    ProcedureUtil.execute(ret, this, getCashTransaction,
-                            new Object[] { trade_list[i] },
-                            new String[] { "cash_transaction_amoubt." + i, "cash_transaction_dts." + i, "cash_transaction_name." + i },
-                            new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
+                    ProcedureUtil.execute(ret, this, getCashTransaction, new Object[] { trade_list[i] }, new String[] { "cash_transaction_amoubt." + i, "cash_transaction_dts." + i,
+                            "cash_transaction_name." + i }, new Object[] { "CT_AMT", "CT_DTS", "CT_NAME" });
                 }
 
-                ProcedureUtil.execute(ret, this, getTradeHistoryAsc,
-                        new Object[] { trade_list[i] }, new String[] {
-                                "trade_history_dts." + i,
-                                "trade_history_status_id." + i }, new Object[] {
-                                "TH_DTS", "TH_ST_ID" });
+                ProcedureUtil.execute(ret, this, getTradeHistoryAsc, new Object[] { trade_list[i] }, new String[] { "trade_history_dts." + i, "trade_history_status_id." + i }, new Object[] {
+                        "TH_DTS", "TH_ST_ID" });
             }
 
             return ProcedureUtil.mapToTable(ret);
         }
 
-        throw new RuntimeException("Invalid frame_to_execute: "
-                + frame_to_execute);
+        throw new RuntimeException("Invalid frame_to_execute: " + frame_to_execute);
     }
 }
