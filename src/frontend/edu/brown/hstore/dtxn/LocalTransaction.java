@@ -43,6 +43,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.commons.collections15.map.ListOrderedMap;
 import org.apache.log4j.Logger;
 import org.voltdb.ClientResponseImpl;
+import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.StoredProcedureInvocation;
 import org.voltdb.VoltProcedure;
@@ -625,6 +626,14 @@ public class LocalTransaction extends AbstractTransaction {
      */
     public Procedure getProcedure() {
         return (this.catalog_proc);
+    }
+    
+    /**
+     * Return the ParameterSet that contains the procedure input
+     * parameters for this transaction
+     */
+    public ParameterSet getProcedureParameters() {
+    	return (this.invocation.getParams());
     }
     
     public int getDependencyCount() { 
