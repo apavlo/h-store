@@ -24,7 +24,7 @@ public class HStoreThreadManager {
     }
 
     private final HStoreSite hstore_site;
-    private final boolean disable;
+    private boolean disable;
     private final int num_partitions;
     private final int num_cores = ThreadUtil.getMaxGlobalThreads();
     private final boolean processing_affinity[];
@@ -60,7 +60,15 @@ public class HStoreThreadManager {
      */
     public void registerEEThread(Partition partition) {
         if (this.disable) return;
-        final boolean affinity[] = org.voltdb.utils.ThreadUtils.getThreadAffinity();
+        boolean affinity[] = null;
+        try {
+            affinity = org.voltdb.utils.ThreadUtils.getThreadAffinity();
+        } catch (UnsatisfiedLinkError ex) {
+            LOG.warn("Unable to set thread affinity. Disabling feature", ex);
+            this.disable = true;
+            return;
+        }
+        assert(affinity != null);
         for (int ii = 0; ii < affinity.length; ii++) {
             affinity[ii] = false;
         } // FOR
@@ -95,7 +103,15 @@ public class HStoreThreadManager {
         if (debug.get())
             LOG.debug("Registering Processing Thread to execute on CPUs " + getCPUIds(this.processing_affinity));
         // This thread cannot run on the EE's cores
-        org.voltdb.utils.ThreadUtils.setThreadAffinity(this.processing_affinity);
+        // If this fails (such as on OS X for some weird reason), we'll
+        // just print a warning rather than crash
+        try {
+            org.voltdb.utils.ThreadUtils.setThreadAffinity(this.processing_affinity);
+        } catch (UnsatisfiedLinkError ex) {
+            LOG.warn("Unable to set thread affinity. Disabling feature", ex);
+            this.disable = true;
+            return;
+        }
         this.registerThread(this.processing_affinity);
     }
     
